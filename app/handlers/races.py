@@ -2,7 +2,7 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
@@ -11,6 +11,7 @@ from app.f1_data import get_season_schedule_short
 
 router = Router()
 
+UTC_PLUS_3 = timezone(timedelta(hours=3))
 
 class RacesYearState(StatesGroup):
     waiting_for_year = State()
@@ -57,6 +58,72 @@ async def _send_races_for_year(message: Message, season: int) -> None:
     )
     text = header + "\n\n".join(lines)  # пустая строка между этапами
     await message.answer(text)
+
+
+async def _send_next_race(message: Message, season: int | None = None) -> None:
+    if season is None:
+        season = datetime.now().year
+
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        await message.answer(f"Нет расписания для сезона {season}.")
+        return
+
+    today = date.today()
+
+    future_races = []
+    for r in schedule:
+        try:
+            race_date = date.fromisoformat(r["date"])
+        except Exception:
+            continue
+        if race_date >= today:
+            future_races.append((race_date, r))
+
+    if not future_races:
+        await message.answer(f"Сезон {season} уже полностью завершён ✅")
+        return
+
+    race_date, r = min(future_races, key=lambda x: x[0])
+
+    round_num = r["round"]
+    event_name = r["event_name"]
+    country = r["country"]
+    location = r["location"]
+
+    date_str = race_date.strftime("%d.%m.%Y")
+
+    race_start_utc_str = r.get("race_start_utc")
+    if race_start_utc_str:
+        try:
+            race_start_utc = datetime.fromisoformat(race_start_utc_str)
+            if race_start_utc.tzinfo is None:
+                race_start_utc = race_start_utc.replace(tzinfo=timezone.utc)
+
+            utc_str = race_start_utc.strftime("%d.%m.%Y %H:%M UTC")
+            local_dt = race_start_utc.astimezone(UTC_PLUS_3)
+            local_str = local_dt.strftime("%d.%m.%Y %H:%M МСК")
+
+            time_block = (
+                "\n⏰ Старт гонки:\n"
+                f"• {utc_str}\n"
+                f"• {local_str}"
+            )
+        except Exception:
+            time_block = f"📅 Дата: {date_str}"
+    else:
+        time_block = f"📅 Дата: {date_str}"
+
+    reply = (
+        f"🗓 Ближайший этап сезона {season}:\n\n"
+        f"{round_num:02d}. {event_name}\n"
+        f"📍 {country}, {location}\n"
+        f"{time_block}\n\n"
+        f"Я пришлю тебе уведомление по твоим избранным пилотам и командам\n"
+        f"после гонки, как только данные появятся в API. 😉"
+    )
+
+    await message.answer(reply)
 
 
 def _parse_season_from_text(text: str) -> int:
@@ -135,3 +202,25 @@ async def races_year_current(callback: CallbackQuery, state: FSMContext) -> None
         await _send_races_for_year(callback.message, season)
 
     await callback.answer()
+
+
+@router.message(Command("next_race"))
+async def cmd_next_race(message: Message) -> None:
+    text = (message.text or "").strip()
+    parts = text.split(maxsplit=1)
+
+    if len(parts) == 2:
+        try:
+            season = int(parts[1])
+        except ValueError:
+            await message.answer("Не понял год 😅 Напиши: /next_race 2024")
+            return
+    else:
+        season = None  # возьмём текущий
+
+    await _send_next_race(message, season)
+
+
+@router.message(F.text == "Ближайшая гонка")
+async def next_race_button(message: Message) -> None:
+    await _send_next_race(message, season=None)
