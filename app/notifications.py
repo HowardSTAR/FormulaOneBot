@@ -174,7 +174,7 @@ async def check_and_notify_favorites(bot: Bot) -> None:
             if race_pts is not None:
                 part += f", набрал {race_pts} очк."
             if total_pts is not None:
-                part += f" | всего в чемпионате: {total_pts}"
+                part += f" | всего в чемпионате: {total_pts}\n"
             lines.append(part)
 
         # Команды
@@ -189,13 +189,14 @@ async def check_and_notify_favorites(bot: Bot) -> None:
             race_pts = getattr(race_row, "Points", None) if race_row else None
             total_pts = getattr(standings_row, "points", None) if standings_row else None
 
+            # TODO сделать чтоб писалось где обе машины у команд которые в избранном
             part = f"🏎 {team_name}: "
             if race_pos is not None:
                 part += f"команда выступила, лучшая машина финишировала на P{race_pos}"
             if race_pts is not None:
                 part += f", набрала {race_pts} очк."
             if total_pts is not None:
-                part += f" | всего в чемпионате: {total_pts}"
+                part += f" | всего в чемпионате: {total_pts}\n"
             lines.append(part)
 
         if not lines:
