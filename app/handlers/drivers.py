@@ -1,7 +1,7 @@
 import math
 from datetime import datetime
 
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.types import Message
 from aiogram.filters import Command
@@ -11,8 +11,8 @@ from app.f1_data import get_driver_standings_df
 
 router = Router()
 
-def _parse_season_from_command(message: Message) -> int:
-    text = (message.text or "").strip()
+def _parse_season_from_text(text: str) -> int:
+    text = (text or "").strip()
     parts = text.split(maxsplit=1)
     if len(parts) == 2:
         try:
@@ -22,9 +22,8 @@ def _parse_season_from_command(message: Message) -> int:
     return datetime.now().year
 
 
-@router.message(Command("drivers"))
-async def cmd_drivers(message: Message) -> None:
-    season = _parse_season_from_command(message)
+async def _send_drivers_for_message(message: Message) -> None:
+    season = _parse_season_from_text(message.text or "")
 
     try:
         df = get_driver_standings_df(season)
@@ -44,21 +43,16 @@ async def cmd_drivers(message: Message) -> None:
     lines: list[str] = []
 
     for row in df.itertuples(index=False):
-        # --- position ---
         pos_raw = getattr(row, "position", None)
         if pos_raw is None:
-            # строка без позиции нам не интересна
             continue
         if isinstance(pos_raw, float) and math.isnan(pos_raw):
-            # NaN — пропускаем эту строку
             continue
         try:
             position = int(pos_raw)
         except (TypeError, ValueError):
-            # на всякий случай, если формат странный
             continue
 
-        # --- points ---
         points_raw = getattr(row, "points", 0.0)
         if isinstance(points_raw, float) and math.isnan(points_raw):
             points = 0.0
@@ -68,28 +62,10 @@ async def cmd_drivers(message: Message) -> None:
             except (TypeError, ValueError):
                 points = 0.0
 
-        # --- wins ---
-        wins_raw = getattr(row, "wins", 0)
-        if isinstance(wins_raw, float) and math.isnan(wins_raw):
-            wins = 0
-        else:
-            try:
-                wins = int(wins_raw)
-            except (TypeError, ValueError):
-                wins = 0
-
-        code = getattr(row, "driverCode", "") or ""
         given_name = getattr(row, "givenName", "")
         family_name = getattr(row, "familyName", "")
         full_name = f"{given_name} {family_name}".strip()
 
-        constructor_names = getattr(row, "constructorNames", None)
-        if isinstance(constructor_names, (list, tuple)) and constructor_names:
-            team_name = str(constructor_names[0])
-        else:
-            team_name = str(constructor_names) if constructor_names is not None else "—"
-
-        # --- кубки для 1–3 мест ---
         if position == 1:
             trophy = "🥇 "
         elif position == 2:
@@ -102,13 +78,9 @@ async def cmd_drivers(message: Message) -> None:
         line = (
             f"{trophy}"
             f"{position:>2}. "
-            f"{code or '???':>3} "
             f"{full_name} — "
             f"{points:.0f} очков"
         )
-        if wins > 0:
-            line += f", побед: {wins}"
-        line += f" ({team_name})"
 
         lines.append(line)
 
@@ -117,7 +89,7 @@ async def cmd_drivers(message: Message) -> None:
         return
 
     text = (
-        f"🏁 Топ пилотов сезона {season}:\n\n"
+        f"🏁 Пилоты сезона {season}:\n\n"
         + "\n".join(lines[:30])
         + "\n\nМожно указать год: /drivers *год*"
     )
@@ -126,3 +98,13 @@ async def cmd_drivers(message: Message) -> None:
         await message.answer(text)
     except TelegramNetworkError:
         return
+
+
+@router.message(Command("drivers"))
+async def cmd_drivers(message: Message) -> None:
+    await _send_drivers_for_message(message)
+
+
+@router.message(F.text == "Личный зачет")
+async def btn_drivers(message: Message) -> None:
+    await _send_drivers_for_message(message)

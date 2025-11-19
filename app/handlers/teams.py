@@ -1,7 +1,7 @@
 import math
 from datetime import datetime
 
-from aiogram import Router
+from aiogram import Router, F
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.filters import Command
 from aiogram.types import Message
@@ -11,8 +11,8 @@ from app.f1_data import get_constructor_standings_df
 
 router = Router()
 
-def _parse_season_from_command(message: Message) -> int:
-    text = (message.text or "").strip()
+def _parse_season_from_text(text: str) -> int:
+    text = (text or "").strip()
     parts = text.split(maxsplit=1)
     if len(parts) == 2:
         try:
@@ -22,9 +22,8 @@ def _parse_season_from_command(message: Message) -> int:
     return datetime.now().year
 
 
-@router.message(Command("teams"))
-async def cmd_teams(message: Message) -> None:
-    season = _parse_season_from_command(message)
+async def _send_teams_for_message(message: Message) -> None:
+    season = _parse_season_from_text(message.text or "")
 
     try:
         df = get_constructor_standings_df(season)
@@ -63,19 +62,8 @@ async def cmd_teams(message: Message) -> None:
             except (TypeError, ValueError):
                 points = 0.0
 
-        wins_raw = getattr(row, "wins", 0)
-        if isinstance(wins_raw, float) and math.isnan(wins_raw):
-            wins = 0
-        else:
-            try:
-                wins = int(wins_raw)
-            except (TypeError, ValueError):
-                wins = 0
-
         team_name = getattr(row, "constructorName", "Unknown")
-        nationality = getattr(row, "constructorNationality", "")
 
-        # --- кубки для 1–3 мест ---
         if position == 1:
             trophy = "🥇 "
         elif position == 2:
@@ -90,10 +78,6 @@ async def cmd_teams(message: Message) -> None:
             f"{position:>2}. {team_name} — "
             f"{points:.0f} очков"
         )
-        if wins > 0:
-            line += f", побед: {wins}"
-        if nationality:
-            line += f" ({nationality})"
 
         lines.append(line)
 
@@ -102,8 +86,8 @@ async def cmd_teams(message: Message) -> None:
         return
 
     text = (
-        f"🏎 Кубок конструкторов {season} — топ команд:\n\n"
-        + "\n".join(lines[:20])
+        f"🏎 Кубок конструкторов {season}:\n\n"
+        + "\n".join(lines[:30])
         + "\n\nМожно указать год: /teams *год*"
     )
 
@@ -111,3 +95,13 @@ async def cmd_teams(message: Message) -> None:
         await message.answer(text)
     except TelegramNetworkError:
         return
+
+
+@router.message(Command("teams"))
+async def cmd_teams(message: Message) -> None:
+    await _send_teams_for_message(message)
+
+
+@router.message(F.text == "Кубок конструкторов")
+async def btn_teams(message: Message) -> None:
+    await _send_teams_for_message(message)
