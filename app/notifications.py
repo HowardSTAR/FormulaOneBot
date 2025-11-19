@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime, timezone
 
 from aiogram import Bot
@@ -26,6 +27,7 @@ async def check_and_notify_favorites(bot: Bot) -> None:
 
     schedule = get_season_schedule_short(season)
     if not schedule:
+        logging.info("[NOTIFY] Нет расписания на сезон %s", season)
         return
 
     # 1. Находим все гонки, которые уже стартовали
@@ -52,12 +54,20 @@ async def check_and_notify_favorites(bot: Bot) -> None:
             past_races.append(r)
 
     if not past_races:
+        logging.info("[NOTIFY] В сезоне %s ещё не было гонок", season)
         return
 
     # 2. Последняя прошедшая гонка по номеру круга
     latest_race = max(past_races, key=lambda r: r["round"])
     latest_round = latest_race["round"]
     event_name = latest_race["event_name"]
+
+    logging.info(
+        "[NOTIFY] Найдена последняя завершённая гонка: сезон=%s, раунд=%s, событие=%s",
+        season,
+        latest_round,
+        event_name,
+    )
 
     # 3. Уже уведомляли?
     last_round_notified = await get_last_notified_round(season)
@@ -68,6 +78,38 @@ async def check_and_notify_favorites(bot: Bot) -> None:
     race_results = get_race_results_df(season, latest_round)
     driver_standings = get_driver_standings_df(season, round_number=latest_round)
     constructor_standings = get_constructor_standings_df(season, round_number=latest_round)
+
+    # Если API ещё не отдало результаты (пустые таблицы) — ждём.
+    # Ничего не отмечаем как отправленное, функция просто вернётся,
+    # и мы попробуем снова через минуту.
+    if race_results is None or race_results.empty:
+        logging.info(
+            "[NOTIFY] Результаты гонки ещё не доступны: сезон=%s, раунд=%s (race_results пустой)",
+            season,
+            latest_round,
+        )
+        return
+    if driver_standings is None or driver_standings.empty:
+        logging.info(
+            "[NOTIFY] Результаты гонщика ещё не доступны: сезон=%s, раунд=%s (driver_standings пустой)",
+            season,
+            latest_round,
+        )
+        return
+    if constructor_standings is None or constructor_standings.empty:
+        logging.info(
+            "[NOTIFY] Результаты команды ещё не доступны: сезон=%s, раунд=%s (constructor_standings пустой)",
+            season,
+            latest_round,
+        )
+        return
+
+    logging.info(
+        "[NOTIFY] Результаты доступны, начинаю рассылку уведомлений: сезон=%s, раунд=%s, событие=%s",
+        season,
+        latest_round,
+        event_name,
+    )
 
     race_results_by_code = {}
     for row in race_results.itertuples(index=False):
@@ -94,6 +136,16 @@ async def check_and_notify_favorites(bot: Bot) -> None:
             constructor_standings_by_name[team_name] = row
 
     users = await get_all_users_with_favorites()
+
+    logging.info(
+        "[NOTIFY] Пользователей с избранным: %s (сезон=%s, раунд=%s)",
+        len(users),
+        season,
+        latest_round,
+    )
+
+    sent_count = 0
+
     for telegram_id, user_db_id in users:
         favorite_drivers, favorite_teams = await get_favorites_for_user_id(user_db_id)
 
@@ -139,7 +191,7 @@ async def check_and_notify_favorites(bot: Bot) -> None:
 
             part = f"🏎 {team_name}: "
             if race_pos is not None:
-                part += f"команда выступила, лучшая машина финишировала примерно на P{race_pos}"
+                part += f"команда выступила, лучшая машина финишировала на P{race_pos}"
             if race_pts is not None:
                 part += f", набрала {race_pts} очк."
             if total_pts is not None:
@@ -157,6 +209,17 @@ async def check_and_notify_favorites(bot: Bot) -> None:
         try:
             await bot.send_message(chat_id=telegram_id, text=text)
         except Exception as exc:
-            print(f"Не удалось отправить уведомление пользователю {telegram_id}: {exc}")
+            logging.error(
+                "[NOTIFY] Не удалось отправить уведомление пользователю %s: %s",
+                telegram_id,
+                exc,
+            )
+
+    logging.info(
+        "[NOTIFY] Рассылка завершена: отправлено %s сообщений (сезон=%s, раунд=%s)",
+        sent_count,
+        season,
+        latest_round,
+    )
 
     await set_last_notified_round(season, latest_round)
