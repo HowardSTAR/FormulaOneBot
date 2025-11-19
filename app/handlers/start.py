@@ -1,19 +1,45 @@
 from aiogram import Router
-from aiogram.types import Message
-from aiogram.filters import CommandStart
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.filters import CommandStart, Command
 
 router = Router()
+
+def get_main_keyboard() -> ReplyKeyboardMarkup:
+    """
+    Основная клавиатура с тремя кнопками:
+    - Сезон
+    - Личный зачет
+    - Кубок конструкторов
+    """
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="Сезон")],
+            [KeyboardButton(text="Личный зачет")],
+            [KeyboardButton(text="Кубок конструкторов")],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+    )
+    return keyboard
 
 @router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
     user_name = message.from_user.full_name
     text = (
         f"Привет, {user_name}! 👋\n\n"
-        f"Я бот для отслеживания Формулы 1.\n"
-        f"Пока я только запускаюсь, но скоро здесь появятся:\n"
-        f"• Список гонок текущего сезона\n"
-        f"• Таблица пилотов и конструкторов\n"
-        f"• Уведомления перед гонкой и результаты для любимых пилотов\n\n"
-        f"Начнём с базового функционала, а потом будем прокачивать 🚀"
+        f"Я бот для отслеживания Формулы 1.\n\n"
+        f"📌 Доступно сейчас:\n"
+        f"• Сезон — календарь гонок выбранного года\n"
+        f"• Личный зачет — таблица пилотов\n"
+        f"• Кубок конструкторов — таблица команд\n\n"
+        f"Также можно использовать команды:\n"
+        f"/races — календарь сезона\n"
+        f"/drivers — личный зачет\n"
+        f"/teams — кубок конструкторов\n"
     )
-    await message.answer(text)
+    await message.answer(text, reply_markup=get_main_keyboard())
+
+
+@router.message(Command("menu"))
+async def cmd_menu(message: Message) -> None:
+    await message.answer("Главное меню:", reply_markup=get_main_keyboard())
