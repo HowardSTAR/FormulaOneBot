@@ -13,6 +13,7 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
     - Личный зачет
     - Кубок конструкторов
     """
+    # TODO сделать кнопки по другому, чтобы помещались все
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="Ближайшая гонка")],
