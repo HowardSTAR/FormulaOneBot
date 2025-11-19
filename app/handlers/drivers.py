@@ -1,23 +1,34 @@
+import math
+from datetime import datetime
+
 from aiogram import Router
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.types import Message
 from aiogram.filters import Command
 
 
 from app.f1_data import get_driver_standings_df
 
-CURRENT_SEASON = 2025
-
 router = Router()
+
+def _parse_season_from_command(message: Message) -> int:
+    text = (message.text or "").strip()
+    parts = text.split(maxsplit=1)
+    if len(parts) == 2:
+        try:
+            return int(parts[1])
+        except ValueError:
+            pass
+    return datetime.now().year
+
 
 @router.message(Command("drivers"))
 async def cmd_drivers(message: Message) -> None:
-    """
-    Показать топ-10 пилотов в личном зачёте.
-    """
+    season = _parse_season_from_command(message)
+
     try:
-        df = get_driver_standings_df(CURRENT_SEASON)
-    except Exception as exc:
-        # Можно сделать свой класс F1DataError, но на первое время хватит так
+        df = get_driver_standings_df(season)
+    except Exception:
         await message.answer(
             "❌ Не удалось получить таблицу пилотов.\n"
             "Возможно, сейчас недоступен источник данных. Попробуй ещё раз позже."
@@ -25,39 +36,59 @@ async def cmd_drivers(message: Message) -> None:
         return
 
     if df.empty:
-        await message.answer("Пока нет данных по личному зачёту пилотов.")
+        await message.answer(f"Пока нет данных по личному зачёту пилотов за {season} год.")
         return
 
-    # На всякий случай отсортируем по position
     df = df.sort_values("position")
 
     lines: list[str] = []
 
-    # Возьмём только топ-10
-    for row in df.head(30).itertuples(index=False):
-        # row имеет атрибуты с именами колонок:
-        # position, points, wins, driverCode, givenName, familyName,
-        # constructorNames (список строк) и т.д.
+    for row in df.itertuples(index=False):
+        # --- position ---
+        pos_raw = getattr(row, "position", None)
+        if pos_raw is None:
+            # строка без позиции нам не интересна
+            continue
+        if isinstance(pos_raw, float) and math.isnan(pos_raw):
+            # NaN — пропускаем эту строку
+            continue
+        try:
+            position = int(pos_raw)
+        except (TypeError, ValueError):
+            # на всякий случай, если формат странный
+            continue
 
-        position = int(row.position)
-        points = float(row.points)
-        wins = int(row.wins)
+        # --- points ---
+        points_raw = getattr(row, "points", 0.0)
+        if isinstance(points_raw, float) and math.isnan(points_raw):
+            points = 0.0
+        else:
+            try:
+                points = float(points_raw)
+            except (TypeError, ValueError):
+                points = 0.0
+
+        # --- wins ---
+        wins_raw = getattr(row, "wins", 0)
+        if isinstance(wins_raw, float) and math.isnan(wins_raw):
+            wins = 0
+        else:
+            try:
+                wins = int(wins_raw)
+            except (TypeError, ValueError):
+                wins = 0
 
         code = getattr(row, "driverCode", "") or ""
         given_name = getattr(row, "givenName", "")
         family_name = getattr(row, "familyName", "")
         full_name = f"{given_name} {family_name}".strip()
 
-        # constructorNames: [<str>] по доке FastF1
         constructor_names = getattr(row, "constructorNames", None)
         if isinstance(constructor_names, (list, tuple)) and constructor_names:
             team_name = str(constructor_names[0])
         else:
-            # fallback, если формат поменяется
             team_name = str(constructor_names) if constructor_names is not None else "—"
 
-        # Красиво форматируем строку:
-        # " 1. VER Max Verstappen — 400 очков (Red Bull Racing)"
         line = (
             f"{position:>2}. "
             f"{code or '???':>3} "
@@ -70,10 +101,17 @@ async def cmd_drivers(message: Message) -> None:
 
         lines.append(line)
 
+    if not lines:
+        await message.answer(f"Не удалось отобразить пилотов за {season} год (нет корректных данных).")
+        return
+
     text = (
-        f"🏁 Топ-10 пилотов сезона {CURRENT_SEASON}:\n\n"
-        + "\n".join(lines)
-        + "\n\nДоступна команда /teams для кубка конструкторов."
+        f"🏁 Топ пилотов сезона {season}:\n\n"
+        + "\n".join(lines[:30])
+        + "\n\nМожно указать год: /drivers *год*"
     )
 
-    await message.answer(text)
+    try:
+        await message.answer(text)
+    except TelegramNetworkError:
+        return
