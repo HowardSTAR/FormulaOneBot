@@ -1,2 +1,6 @@
 aiogram
 python-dotenv
+httpx
+fastf1
+pandas
+numpy
