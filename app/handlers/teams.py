@@ -75,7 +75,18 @@ async def cmd_teams(message: Message) -> None:
         team_name = getattr(row, "constructorName", "Unknown")
         nationality = getattr(row, "constructorNationality", "")
 
+        # --- кубки для 1–3 мест ---
+        if position == 1:
+            trophy = "🥇 "
+        elif position == 2:
+            trophy = "🥈 "
+        elif position == 3:
+            trophy = "🥉 "
+        else:
+            trophy = ""
+
         line = (
+            f"{trophy}"
             f"{position:>2}. {team_name} — "
             f"{points:.0f} очков"
         )

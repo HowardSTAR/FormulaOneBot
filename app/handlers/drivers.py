@@ -89,7 +89,18 @@ async def cmd_drivers(message: Message) -> None:
         else:
             team_name = str(constructor_names) if constructor_names is not None else "—"
 
+        # --- кубки для 1–3 мест ---
+        if position == 1:
+            trophy = "🥇 "
+        elif position == 2:
+            trophy = "🥈 "
+        elif position == 3:
+            trophy = "🥉 "
+        else:
+            trophy = ""
+
         line = (
+            f"{trophy}"
             f"{position:>2}. "
             f"{code or '???':>3} "
             f"{full_name} — "
