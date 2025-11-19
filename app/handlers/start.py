@@ -15,6 +15,7 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
     """
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
+            [KeyboardButton(text="Ближайшая гонка")],
             [KeyboardButton(text="Сезон")],
             [KeyboardButton(text="Личный зачет")],
             [KeyboardButton(text="Кубок конструкторов")],
