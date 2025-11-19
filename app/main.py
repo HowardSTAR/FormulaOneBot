@@ -1,0 +1,24 @@
+import asyncio
+
+from aiogram import F
+from aiogram.types import Update
+
+from aiogram.exceptions import TelegramBadRequest
+from aiogram import Dispatcher
+
+from app.bot import create_bot_and_dispatcher
+from app.handlers.start import router as start_router
+
+async def main() -> None:
+    bot, dp = create_bot_and_dispatcher()
+    dp.include_router(start_router)
+
+    try:
+        await dp.start_polling(bot)
+    except TelegramBadRequest as exc:
+        print(f"Ошибка Telegram API: {exc}")
+    except KeyboardInterrupt:
+        print("Остановка бота пользователем")
+
+if __name__ == "__main__":
+    asyncio.run(main())
