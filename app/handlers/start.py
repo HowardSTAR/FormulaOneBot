@@ -1,8 +1,6 @@
 from aiogram import Router
 from aiogram.types import Message
-from aiogram.filters import CommandStart, Command
-
-from app.f1_data import get_season_schedule_short
+from aiogram.filters import CommandStart
 
 router = Router()
 
@@ -19,20 +17,3 @@ async def cmd_start(message: Message) -> None:
         f"Начнём с базового функционала, а потом будем прокачивать 🚀"
     )
     await message.answer(text)
-
-
-@router.message(Command("races_seasons"))
-async def cmd_races(message: Message):
-    season = 2025  # потом можно хранить в конфиге
-    races = get_season_schedule_short(season)
-
-    lines = []
-    for r in races:
-        lines.append(
-            f"{r['round']:02d}. {r['event_name']} "
-            f"({r['country']}, {r['location']}) — {r['date']}"
-        )
-
-    text = "Календарь сезона:\n\n" + "\n".join(lines)
-    await message.answer(text)
-
