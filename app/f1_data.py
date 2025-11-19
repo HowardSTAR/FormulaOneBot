@@ -5,6 +5,8 @@ import fastf1
 from fastf1.ergast import Ergast
 import pandas as pd
 
+from datetime import date as _date
+
 
 # --- ИНИЦИАЛИЗАЦИЯ КЭША --- #
 
@@ -35,34 +37,60 @@ def get_season_schedule_df(season: int) -> pd.DataFrame:
 def get_season_schedule_short(season: int) -> list[dict]:
     """
     Возвращает список гонок сезона в удобном виде.
-    ВАЖНО: теперь добавляем race_start_utc (строка ISO в UTC).
-    """
-    import fastf1
-    fastf1.Cache.enable_cache("fastf1_cache")
 
+    Используем fastf1.get_event_schedule(season), где каждый ряд —
+    одно Гран-при. Берём:
+      - RoundNumber
+      - EventName
+      - Country
+      - Location
+      - EventDate (дата гонки)
+    Никаких SessionName / SessionStart тут нет.
+    """
     schedule = fastf1.get_event_schedule(season)
 
-    races = []
+    races: list[dict] = []
+
     for _, row in schedule.iterrows():
-        if row["EventName"] is None:
+        event_name = row.get("EventName")
+        if not isinstance(event_name, str) or not event_name:
+            # иногда в расписании бывают пустые строки — пропускаем
             continue
 
-        if row["SessionName"] != "Race":
+        # номер этапа
+        try:
+            round_num = int(row["RoundNumber"])
+        except Exception:
             continue
 
-        race_dt_utc = row["SessionStart"].to_pydatetime()  # это уже aware-UTC
+        country = str(row.get("Country") or "")
+        location = str(row.get("Location") or "")
+
+        # дата гонки (EventDate — это Timestamp)
+        event_date = row.get("EventDate")
+        if event_date is not None:
+            try:
+                dt = event_date.to_pydatetime()
+                race_date_iso = dt.date().isoformat()
+            except Exception:
+                race_date_iso = str(event_date)
+        else:
+            # на всякий случай fallback — сегодняшняя дата
+            race_date_iso = _date.today().isoformat()
 
         races.append(
             {
-                "round": int(row["RoundNumber"]),
-                "event_name": str(row["EventName"]),
-                "country": str(row["Country"]),
-                "location": str(row["Location"]),
-                "date": race_dt_utc.date().isoformat(),  # как было
-                "race_start_utc": race_dt_utc.isoformat(),  # НОВОЕ поле
+                "round": round_num,
+                "event_name": event_name,
+                "country": country,
+                "location": location,
+                "date": race_date_iso,
+                # ВАЖНО: больше НЕТ полей SessionName/SessionStart/race_start_utc
             }
         )
 
+    # сортируем по номеру этапа на всякий случай
+    races.sort(key=lambda r: r["round"])
     return races
 
 

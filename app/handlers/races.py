@@ -72,7 +72,6 @@ def _parse_season_from_text(text: str) -> int:
 
 @router.message(Command("races"))
 async def cmd_races(message: Message) -> None:
-    # старое поведение: /races или /races 2005
     season = _parse_season_from_text(message.text or "")
     await _send_races_for_year(message, season)
 
