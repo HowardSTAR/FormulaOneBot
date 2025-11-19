@@ -1,23 +1,52 @@
 import asyncio
+import logging
 
 from aiogram.exceptions import TelegramBadRequest
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.bot import create_bot_and_dispatcher
-from app.handlers.start import router as start_router
+from app.db import init_db
 from app.handlers.drivers import router as drivers_router
-from app.handlers.teams import router as teams_router
+from app.handlers.favorites import router as favorites_router
 from app.handlers.races import router as races_router
+from app.handlers.start import router as start_router
+from app.handlers.teams import router as teams_router
+from app.middlewares.error_logging import ErrorLoggingMiddleware
+from app.notifications import check_and_notify_favorites
 
+# Базовая настройка логов
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 
 async def main() -> None:
+    await init_db()
+
     bot, dp = create_bot_and_dispatcher()
+
+    dp.update.outer_middleware(ErrorLoggingMiddleware())
 
     # Регистрируем все роутеры
     dp.include_router(start_router)
     dp.include_router(races_router)
     dp.include_router(drivers_router)
     dp.include_router(teams_router)
+    dp.include_router(favorites_router)
+
+    # Планировщик
+    scheduler = AsyncIOScheduler(timezone="UTC")
+    # вместо "раз в день" делаем каждые 10 минут
+    scheduler.add_job(
+        check_and_notify_favorites,
+        "interval",
+        minutes=10,
+        args=[bot],
+        id="favorites_notifications",
+        replace_existing=True,
+    )
+    scheduler.start()
 
     try:
         await dp.start_polling(bot)

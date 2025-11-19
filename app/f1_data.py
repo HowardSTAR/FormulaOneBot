@@ -34,46 +34,36 @@ def get_season_schedule_df(season: int) -> pd.DataFrame:
 
 def get_season_schedule_short(season: int) -> list[dict]:
     """
-    Упрощённое расписание сезона:
-    - номер этапа
-    - страна
-    - локация
-    - короткое имя этапа
-    - дата (строкой)
-    - список сессий (Practice/Quali/Race).
+    Возвращает список гонок сезона в удобном виде.
+    ВАЖНО: теперь добавляем race_start_utc (строка ISO в UTC).
     """
-    schedule = get_season_schedule_df(season)
-    result: list[dict] = []
+    import fastf1
+    fastf1.Cache.enable_cache("fastf1_cache")
 
+    schedule = fastf1.get_event_schedule(season)
+
+    races = []
     for _, row in schedule.iterrows():
-        event_date = row["EventDate"]
-        if hasattr(event_date, "date"):
-            date_str = event_date.date().isoformat()
-        else:
-            date_str = str(event_date)
+        if row["EventName"] is None:
+            continue
 
-        sessions: list[str] = []
-        for i in range(1, 6):
-            col_name = f"Session{i}"
-            if col_name in row.index:
-                session_name = row[col_name]
-                if isinstance(session_name, str) and session_name:
-                    sessions.append(session_name)
+        if row["SessionName"] != "Race":
+            continue
 
-        result.append(
+        race_dt_utc = row["SessionStart"].to_pydatetime()  # это уже aware-UTC
+
+        races.append(
             {
                 "round": int(row["RoundNumber"]),
+                "event_name": str(row["EventName"]),
                 "country": str(row["Country"]),
                 "location": str(row["Location"]),
-                "event_name": str(row["EventName"]),
-                "date": date_str,
-                "sessions": sessions,
+                "date": race_dt_utc.date().isoformat(),  # как было
+                "race_start_utc": race_dt_utc.isoformat(),  # НОВОЕ поле
             }
         )
 
-    # Сортируем по номеру этапа на всякий случай
-    result.sort(key=lambda x: x["round"])
-    return result
+    return races
 
 
 def get_driver_standings_df(season: int, round_number: Optional[int] = None) -> pd.DataFrame:
@@ -131,7 +121,7 @@ def get_race_results_df(season: int, round_number: int) -> pd.DataFrame:
     session.load()
     return session.results
 
-
+# можно удалить
 if __name__ == "__main__":
     # Небольшой self-test, чтобы можно было запустить модуль отдельно
     year = 2025
