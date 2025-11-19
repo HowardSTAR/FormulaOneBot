@@ -1,4 +1,5 @@
-import datetime
+from datetime import datetime
+
 
 from aiogram import Router
 from aiogram.filters import Command
@@ -30,7 +31,7 @@ def _parse_season_from_command(message: Message) -> int:
             pass
 
     # По умолчанию — текущий год
-    return datetime.datetime.now().year
+    return datetime.now().year
 
 
 @router.message(Command("races"))
@@ -46,7 +47,7 @@ async def cmd_races(message: Message) -> None:
         return
 
     # 3. Текущая дата (считаем по локальному времени системы)
-    today = datetime.date.today()
+    today = datetime.today()
 
     lines: list[str] = []
 
@@ -54,7 +55,7 @@ async def cmd_races(message: Message) -> None:
         # r["date"] у нас в формате "YYYY-MM-DD" (isoformat),
         # потому что мы так формировали его в get_season_schedule_short
         try:
-            race_date = datetime.date.fromisoformat(r["date"])
+            race_date = datetime.fromisoformat(r["date"])
         except ValueError:
             # если вдруг формат сломался, считаем гонку будущей
             race_date = today
