@@ -5,8 +5,7 @@ import fastf1
 from fastf1.ergast import Ergast
 import pandas as pd
 
-from datetime import date as _date
-
+from datetime import date as _date, timezone, timedelta
 
 # --- ИНИЦИАЛИЗАЦИЯ КЭША --- #
 
@@ -14,6 +13,8 @@ _project_root = pathlib.Path(__file__).resolve().parent.parent
 _cache_dir = _project_root / "fastf1_cache"
 _cache_dir.mkdir(exist_ok=True)
 fastf1.Cache.enable_cache(_cache_dir)
+
+UTC_PLUS_3 = timezone(timedelta(hours=3))
 
 
 def get_season_schedule_df(season: int) -> pd.DataFrame:
@@ -38,14 +39,16 @@ def get_season_schedule_short(season: int) -> list[dict]:
     """
     Возвращает список гонок сезона в удобном виде.
 
-    Используем fastf1.get_event_schedule(season), где каждый ряд —
-    одно Гран-при. Берём:
+    Берём из fastf1.get_event_schedule(season):
       - RoundNumber
       - EventName
       - Country
       - Location
       - EventDate (дата гонки)
-    Никаких SessionName / SessionStart тут нет.
+    Плюс, если удаётся найти Race-сессию (SessionX == 'Race'),
+    добавляем:
+      - race_start_utc   (ISO, UTC)
+      - race_start_local (ISO, UTC+3)
     """
     schedule = fastf1.get_event_schedule(season)
 
@@ -54,10 +57,9 @@ def get_season_schedule_short(season: int) -> list[dict]:
     for _, row in schedule.iterrows():
         event_name = row.get("EventName")
         if not isinstance(event_name, str) or not event_name:
-            # иногда в расписании бывают пустые строки — пропускаем
             continue
 
-        # номер этапа
+        # Номер этапа
         try:
             round_num = int(row["RoundNumber"])
         except Exception:
@@ -66,30 +68,56 @@ def get_season_schedule_short(season: int) -> list[dict]:
         country = str(row.get("Country") or "")
         location = str(row.get("Location") or "")
 
-        # дата гонки (EventDate — это Timestamp)
+        # Дата гонки (EventDate — Timestamp)
         event_date = row.get("EventDate")
-        if event_date is not None:
-            try:
-                dt = event_date.to_pydatetime()
-                race_date_iso = dt.date().isoformat()
-            except Exception:
-                race_date_iso = str(event_date)
+        if event_date is not None and hasattr(event_date, "to_pydatetime"):
+            dt = event_date.to_pydatetime()
+            race_date_iso = dt.date().isoformat()
         else:
-            # на всякий случай fallback — сегодняшняя дата
             race_date_iso = _date.today().isoformat()
 
-        races.append(
-            {
-                "round": round_num,
-                "event_name": event_name,
-                "country": country,
-                "location": location,
-                "date": race_date_iso,
-                # ВАЖНО: больше НЕТ полей SessionName/SessionStart/race_start_utc
-            }
-        )
+        # Пытаемся найти время старта RACE-сессии
+        race_dt_utc = None
+        for i in range(1, 9):  # с запасом до Session8
+            name_col = f"Session{i}"
+            date_col = f"Session{i}DateUtc"
 
-    # сортируем по номеру этапа на всякий случай
+            if name_col not in row.index or date_col not in row.index:
+                continue
+
+            sess_name = row[name_col]
+            sess_dt_utc = row[date_col]
+
+            if not isinstance(sess_name, str):
+                continue
+            if "Race" not in sess_name:
+                continue
+            if sess_dt_utc is None or not hasattr(sess_dt_utc, "to_pydatetime"):
+                continue
+
+            race_dt_utc = sess_dt_utc.to_pydatetime()
+            break
+
+        # Базовые поля гонки
+        race_dict = {
+            "round": round_num,
+            "event_name": event_name,
+            "country": country,
+            "location": location,
+            "date": race_date_iso,
+        }
+
+        # Если время гонки удалось найти — добавляем время
+        if race_dt_utc is not None:
+            if race_dt_utc.tzinfo is None:
+                # Явно считаем это временем в UTC
+                race_dt_utc = race_dt_utc.replace(tzinfo=timezone.utc)
+
+            race_dict["race_start_utc"] = race_dt_utc.isoformat()
+            race_dict["race_start_local"] = race_dt_utc.astimezone(UTC_PLUS_3).isoformat()
+
+        races.append(race_dict)
+
     races.sort(key=lambda r: r["round"])
     return races
 
