@@ -4,3 +4,5 @@ httpx
 fastf1
 pandas
 numpy
+apscheduler
+aiosqlite
