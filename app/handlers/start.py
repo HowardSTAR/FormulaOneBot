@@ -7,20 +7,19 @@ from app.utils.safe_send import safe_answer
 router = Router()
 
 def get_main_keyboard() -> ReplyKeyboardMarkup:
-    """
-    Основная клавиатура с тремя кнопками:
-    - Сезон
-    - Личный зачет
-    - Кубок конструкторов
-    """
-    # TODO сделать кнопки по другому, чтобы помещались все
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Ближайшая гонка")],
-            [KeyboardButton(text="Сезон")],
-            [KeyboardButton(text="Личный зачет")],
-            [KeyboardButton(text="Кубок конструкторов")],
-            [KeyboardButton(text="Избранное")],
+            [
+                KeyboardButton(text="Ближайшая гонка"),
+            ],
+            [
+                KeyboardButton(text="Сезон"),
+                KeyboardButton(text="Личный зачет"),
+            ],
+            [
+                KeyboardButton(text="Кубок конструкторов"),
+                KeyboardButton(text="Избранное"),
+            ],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
