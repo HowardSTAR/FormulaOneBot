@@ -1,11 +1,13 @@
 import asyncio
 import logging
+from datetime import datetime, timezone
 
 from aiogram.exceptions import TelegramBadRequest
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.bot import create_bot_and_dispatcher
 from app.db import init_db
+from app.f1_data import warmup_current_season_sessions
 from app.handlers.drivers import router as drivers_router
 from app.handlers.favorites import router as favorites_router
 from app.handlers.races import router as races_router
@@ -65,7 +67,16 @@ async def main() -> None:
         id="quali_notifications",
         replace_existing=True,
     )
+
+    scheduler.add_job(
+        warmup_current_season_sessions,
+        "interval",
+        minutes=2,
+        next_run_time=datetime.now(timezone.utc),  # первый запуск сразу при старте
+    )
     scheduler.start()
+
+    await warmup_current_season_sessions()
 
     try:
         await dp.start_polling(bot)

@@ -1,7 +1,9 @@
+import asyncio
 import logging
 from datetime import date, datetime, timezone, timedelta
 
 from aiogram import Bot
+from fastf1._api import SessionNotAvailableError
 
 from app.db import (
     get_all_users_with_favorites,
@@ -14,10 +16,86 @@ from app.f1_data import (
     get_season_schedule_short,
     get_race_results_df,
     get_driver_standings_df,
-    get_constructor_standings_df, get_qualifying_results,
+    get_constructor_standings_df, get_qualifying_results, _get_quali_async, _get_race_results_async,
 )
 
 UTC_PLUS_3 = timezone(timedelta(hours=3))
+
+
+async def warmup_fastf1_cache() -> None:
+    """
+    Периодически прогревает кэш FastF1 для ближайших сессий
+    (квалификация и гонка) текущего сезона.
+    """
+    season = datetime.now().year
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        logging.info("[WARMUP] Нет расписания для сезона %s", season)
+        return
+
+    # Находим последнюю прошедшую гонку и ближайшую будущую
+    today = datetime.utcnow().date()
+
+    past = [r for r in schedule if r["date"] <= today.isoformat()]
+    future = [r for r in schedule if r["date"] > today.isoformat()]
+
+    rounds_to_warm: set[int] = set()
+
+    if past:
+        last_past = max(past, key=lambda r: r["round"])
+        rounds_to_warm.add(last_past["round"])
+
+    if future:
+        next_future = min(future, key=lambda r: r["date"])
+        rounds_to_warm.add(next_future["round"])
+
+    if not rounds_to_warm:
+        logging.info("[WARMUP] Нет этапов для прогрева (season=%s)", season)
+        return
+
+    logging.info("[WARMUP] Прогреваю кэш для раундов: %s (season=%s)",
+                 sorted(rounds_to_warm), season)
+
+    loop = asyncio.get_running_loop()
+
+    for rnd in sorted(rounds_to_warm):
+        # Квалификация
+        try:
+            await loop.run_in_executor(
+                None,
+                lambda: get_qualifying_results(season, rnd, limit=100)
+            )
+            logging.info("[WARMUP] Прогрел квалификацию: season=%s, round=%s",
+                         season, rnd)
+        except SessionNotAvailableError:
+            logging.info(
+                "[WARMUP] Квалификация ещё недоступна: season=%s, round=%s",
+                season, rnd,
+            )
+        except Exception as exc:
+            logging.warning(
+                "[WARMUP] Ошибка при прогреве quali season=%s, round=%s: %s",
+                season, rnd, exc,
+            )
+
+        # Гонка
+        try:
+            await loop.run_in_executor(
+                None,
+                lambda: get_race_results_df(season, rnd)
+            )
+            logging.info("[WARMUP] Прогрел гонку: season=%s, round=%s",
+                         season, rnd)
+        except SessionNotAvailableError:
+            logging.info(
+                "[WARMUP] Гонка ещё недоступна: season=%s, round=%s",
+                season, rnd,
+            )
+        except Exception as exc:
+            logging.warning(
+                "[WARMUP] Ошибка при прогреве race season=%s, round=%s: %s",
+                season, rnd, exc,
+            )
 
 
 async def check_and_notify_favorites(bot: Bot) -> None:
@@ -78,7 +156,7 @@ async def check_and_notify_favorites(bot: Bot) -> None:
         return
 
     # 4. Готовим данные по результатам
-    race_results = get_race_results_df(season, latest_round)
+    race_results = await _get_race_results_async(season, latest_round)
     driver_standings = get_driver_standings_df(season, round_number=latest_round)
     constructor_standings = get_constructor_standings_df(season, round_number=latest_round)
 
@@ -354,7 +432,7 @@ async def remind_next_race(bot: Bot) -> None:
     await set_last_reminded_round(season, round_num)
 
 
-async def check_and_notify_quali(bot: Bot) -> None:
+async def check_and_notify_quali(bot: Bot, round_number=None) -> None:
     """
     Проверяет, есть ли новая квалификация, и шлёт уведомление
     по любимым пилотам пользователей.
@@ -368,7 +446,7 @@ async def check_and_notify_quali(bot: Bot) -> None:
     # Пробуем получить результаты квалификации для next_round.
     # Если квалификация ещё не прошла / данные недоступны — просто выходим, подождём следующего запуска.
     try:
-        quali_results = get_qualifying_results(season, next_round, limit=100)
+        quali_results = await _get_quali_async(season, round_number)
     except Exception as exc:
         logging.info(
             "[QUALI] Нет данных по квалификации для сезона=%s, раунда=%s: %s",
