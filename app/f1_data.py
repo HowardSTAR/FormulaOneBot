@@ -1,11 +1,10 @@
 import pathlib
+from datetime import date as _date, timezone, timedelta
 from typing import Optional
 
 import fastf1
-from fastf1.ergast import Ergast
 import pandas as pd
-
-from datetime import date as _date, timezone, timedelta
+from fastf1.ergast import Ergast
 
 # --- ИНИЦИАЛИЗАЦИЯ КЭША --- #
 
@@ -176,6 +175,128 @@ def get_race_results_df(season: int, round_number: int) -> pd.DataFrame:
     session = fastf1.get_session(season, round_number, "R")
     session.load()
     return session.results
+
+
+def get_race_results(season: int, round_number: int, limit: int = 20) -> list[dict]:
+    session = fastf1.get_session(season, round_number, "R")
+    session.load(telemetry=False, weather=False)
+
+    df = session.results
+    results: list[dict] = []
+
+    for _, row in df.iterrows():
+        pos = int(row["Position"])
+        code = row["Abbreviation"]
+        team = row["TeamName"]
+        time_ = row.get("Time")
+        status = row.get("Status")
+        points = row.get("Points")
+
+        time_str = str(time_) if pd.notna(time_) else ""
+        status_str = str(status) if pd.notna(status) else ""
+        pts = int(points) if pd.notna(points) else 0
+
+        results.append(
+            {
+                "position": pos,
+                "driver": code,
+                "team": team,
+                "time": time_str,
+                "status": status_str,
+                "points": pts,
+            }
+        )
+
+    results.sort(key=lambda r: r["position"])
+    return results[:limit]
+
+
+def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
+    """
+    Возвращает список сессий уикенда для заданного этапа:
+    [
+      {"name": "Practice 1", "utc": "...", "local": "..."},
+      ...
+    ]
+    """
+    schedule = fastf1.get_event_schedule(season)
+
+    row = schedule.loc[schedule["RoundNumber"] == round_number]
+    if row.empty:
+        return []
+
+    row = row.iloc[0]
+    sessions: list[dict] = []
+
+    for i in range(1, 9):
+        name_col = f"Session{i}"
+        date_col = f"Session{i}DateUtc"
+
+        if name_col not in row.index or date_col not in row.index:
+            continue
+
+        sess_name = row[name_col]
+        sess_dt = row[date_col]
+
+        if not isinstance(sess_name, str) or not sess_name:
+            continue
+        if sess_dt is None or not hasattr(sess_dt, "to_pydatetime"):
+            continue
+
+        dt_utc = sess_dt.to_pydatetime()
+        if dt_utc.tzinfo is None:
+            dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+        dt_local = dt_utc.astimezone(UTC_PLUS_3)
+
+        sessions.append(
+            {
+                "name": sess_name,
+                "utc": dt_utc.strftime("%H:%M UTC"),
+                "local": dt_local.strftime("%d.%m.%Y %H:%M МСК"),
+            }
+        )
+
+    return sessions
+
+
+def get_qualifying_results(season: int, round_number: int, limit: int = 20) -> list[dict]:
+    """
+    Возвращает результаты квалификации (топ N):
+    [
+      {"position": 1, "driver": "VER", "team": "Red Bull", "best": "1:23.456"},
+      ...
+    ]
+    """
+    session = fastf1.get_session(season, round_number, "Q")
+    session.load(telemetry=False, weather=False)
+
+    df = session.results
+    results: list[dict] = []
+
+    for _, row in df.iterrows():
+        pos = int(row["Position"])
+        code = row["Abbreviation"]
+        team = row["TeamName"]
+
+        q1 = row.get("Q1")
+        q2 = row.get("Q2")
+        q3 = row.get("Q3")
+
+        best = q3 if pd.notna(q3) else q2 if pd.notna(q2) else q1
+        best_str = str(best) if pd.notna(best) else ""
+
+        results.append(
+            {
+                "position": pos,
+                "driver": code,
+                "team": team,
+                "best": best_str,
+            }
+        )
+
+    results.sort(key=lambda r: r["position"])
+    return results[:limit]
+
 
 # можно удалить
 if __name__ == "__main__":

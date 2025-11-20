@@ -3,17 +3,18 @@ from datetime import date, datetime, timezone, timedelta
 
 from aiogram import Bot
 
-from app.f1_data import (
-    get_season_schedule_short,
-    get_race_results_df,
-    get_driver_standings_df,
-    get_constructor_standings_df,
-)
 from app.db import (
     get_all_users_with_favorites,
     get_favorites_for_user_id,
     get_last_reminded_round,
-    set_last_reminded_round,
+    set_last_reminded_round, set_last_notified_quali_round, get_last_notified_quali_round, get_last_notified_round,
+    set_last_notified_round,
+)
+from app.f1_data import (
+    get_season_schedule_short,
+    get_race_results_df,
+    get_driver_standings_df,
+    get_constructor_standings_df, get_qualifying_results,
 )
 
 UTC_PLUS_3 = timezone(timedelta(hours=3))
@@ -71,8 +72,8 @@ async def check_and_notify_favorites(bot: Bot) -> None:
         event_name,
     )
 
-    # 3. Уже уведомляли?
-    last_round_notified = await get_last_reminded_round(season)
+    # 3. Уже уведомляли по результатам гонки?
+    last_round_notified = await get_last_notified_round(season)
     if last_round_notified is not None and last_round_notified >= latest_round:
         return
 
@@ -211,6 +212,7 @@ async def check_and_notify_favorites(bot: Bot) -> None:
 
         try:
             await bot.send_message(chat_id=telegram_id, text=text)
+            sent_count += 1
         except Exception as exc:
             logging.error(
                 "[NOTIFY] Не удалось отправить уведомление пользователю %s: %s",
@@ -225,7 +227,7 @@ async def check_and_notify_favorites(bot: Bot) -> None:
         latest_round,
     )
 
-    await set_last_reminded_round(season, latest_round)
+    await set_last_notified_round(season, latest_round)
 
 
 async def remind_next_race(bot: Bot) -> None:
@@ -350,3 +352,104 @@ async def remind_next_race(bot: Bot) -> None:
     )
 
     await set_last_reminded_round(season, round_num)
+
+
+async def check_and_notify_quali(bot: Bot) -> None:
+    """
+    Проверяет, есть ли новая квалификация, и шлёт уведомление
+    по любимым пилотам пользователей.
+    """
+    season = datetime.now().year
+
+    last_q_round = await get_last_notified_quali_round(season)
+    # Если None -> начинаем с первого, иначе берём следующий после последнего уведомленного
+    next_round = 1 if last_q_round is None else last_q_round + 1
+
+    # Пробуем получить результаты квалификации для next_round.
+    # Если квалификация ещё не прошла / данные недоступны — просто выходим, подождём следующего запуска.
+    try:
+        quali_results = get_qualifying_results(season, next_round, limit=100)
+    except Exception as exc:
+        logging.info(
+            "[QUALI] Нет данных по квалификации для сезона=%s, раунда=%s: %s",
+            season,
+            next_round,
+            exc,
+        )
+        return
+
+    if not quali_results:
+        logging.info(
+            "[QUALI] Пустые результаты квалификации для сезона=%s, раунда=%s",
+            season,
+            next_round,
+        )
+        return
+
+    # Мапа: код пилота -> позиция
+    pos_by_driver: dict[str, int] = {
+        r["driver"]: r["position"] for r in quali_results
+    }
+
+    # Чтобы красиво вставить название Гран-при
+    races = get_season_schedule_short(season)
+    gp_name = f"Гран-при #{next_round}"
+    country = ""
+    location = ""
+    for r in races:
+        if r["round"] == next_round:
+            gp_name = r["event_name"]
+            country = r["country"]
+            location = r["location"]
+            break
+
+    users = await get_all_users_with_favorites()
+
+    total_messages = 0
+
+    for telegram_id, user_db_id in users:
+        fav_drivers, _fav_teams = await get_favorites_for_user_id(user_db_id)
+
+        lines = []
+        for code in fav_drivers:
+            if code in pos_by_driver:
+                pos = pos_by_driver[code]
+                lines.append(f"{pos:02d}. <b>{code}</b>")
+
+        if not lines:
+            # для этого пользователя его любимцев нет в протоколе квалификации
+            continue
+
+        header = (
+            f"⏱ <b>Результаты квалификации</b>\n"
+            f"Сезон {season}, раунд {next_round}\n"
+        )
+        if country or location:
+            header += f"{gp_name} — {country}, {location}\n\n"
+        else:
+            header += f"{gp_name}\n\n"
+
+        text = header + "Твои любимые пилоты квалифицировались так:\n\n" + "\n".join(lines)
+
+        try:
+            await bot.send_message(chat_id=telegram_id, text=text, parse_mode="HTML")
+            total_messages += 1
+        except Exception as exc:
+            logging.error(
+                "[QUALI] Не удалось отправить сообщение пользователю %s: %s",
+                telegram_id,
+                exc,
+            )
+
+    if total_messages > 0:
+        logging.info(
+            "[QUALI] Отправлено %s сообщений по квалификации сезона=%s, раунд=%s",
+            total_messages,
+            season,
+            next_round,
+        )
+        await set_last_notified_quali_round(season, next_round)
+    else:
+        logging.info(
+            "[QUALI] Никому не отправляли (у пользователей нет любимых пилотов в этой квалификации)"
+        )
