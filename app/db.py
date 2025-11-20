@@ -1,6 +1,7 @@
-import aiosqlite
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple
+
+import aiosqlite
 
 DB_PATH = Path(__file__).resolve().parent.parent / "bot.db"
 
@@ -172,18 +173,28 @@ async def get_favorites_for_user_id(user_db_id: int) -> Tuple[List[str], List[st
     return drivers, teams
 
 
-async def get_last_reminded_round(season: int) -> int | None:
+# --- Состояние уведомлений по сезонам (notification_state) --- #
+
+async def _ensure_notification_table() -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS notification_state ("
-            "season INTEGER PRIMARY KEY,"
-            "last_notified_round INTEGER,"
-            "last_reminded_round INTEGER)"
+            """
+            CREATE TABLE IF NOT EXISTS notification_state (
+                season INTEGER PRIMARY KEY,
+                last_notified_round INTEGER,
+                last_reminded_round INTEGER,
+                last_notified_quali_round INTEGER
+            )
+            """
         )
         await db.commit()
 
+
+async def _get_round_value(season: int, column: str) -> int | None:
+    await _ensure_notification_table()
+    async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            "SELECT last_reminded_round FROM notification_state WHERE season = ?",
+            f"SELECT {column} FROM notification_state WHERE season = ?",
             (season,),
         )
         row = await cursor.fetchone()
@@ -194,23 +205,49 @@ async def get_last_reminded_round(season: int) -> int | None:
         return row[0]
 
 
-async def set_last_reminded_round(season: int, round_number: int) -> None:
+async def _set_round_value(season: int, column: str, round_number: int) -> None:
+    await _ensure_notification_table()
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "CREATE TABLE IF NOT EXISTS notification_state ("
-            "season INTEGER PRIMARY KEY,"
-            "last_notified_round INTEGER,"
-            "last_reminded_round INTEGER)"
-        )
-        await db.execute(
-            """
-            INSERT INTO notification_state(season, last_notified_round, last_reminded_round)
-            VALUES(?, NULL, ?)
-            ON CONFLICT(season) DO UPDATE SET last_reminded_round = excluded.last_reminded_round
+            f"""
+            INSERT INTO notification_state(season, {column})
+            VALUES(?, ?)
+            ON CONFLICT(season) DO UPDATE SET
+                {column} = excluded.{column}
             """,
             (season, round_number),
         )
         await db.commit()
+
+
+# --- Напоминание за сутки до гонки --- #
+
+async def get_last_reminded_round(season: int) -> int | None:
+    return await _get_round_value(season, "last_reminded_round")
+
+
+async def set_last_reminded_round(season: int, round_number: int) -> None:
+    await _set_round_value(season, "last_reminded_round", round_number)
+
+
+# --- Уведомление после гонки --- #
+
+async def get_last_notified_round(season: int) -> int | None:
+    return await _get_round_value(season, "last_notified_round")
+
+
+async def set_last_notified_round(season: int, round_number: int) -> None:
+    await _set_round_value(season, "last_notified_round", round_number)
+
+
+# --- Уведомление после квалификации --- #
+
+async def get_last_notified_quali_round(season: int) -> int | None:
+    return await _get_round_value(season, "last_notified_quali_round")
+
+
+async def set_last_notified_quali_round(season: int, round_number: int) -> None:
+    await _set_round_value(season, "last_notified_quali_round", round_number)
 
 
 async def clear_all_favorites(telegram_id: int) -> None:
@@ -228,4 +265,3 @@ async def clear_all_favorites(telegram_id: int) -> None:
             (user_id,),
         )
         await db.commit()
-

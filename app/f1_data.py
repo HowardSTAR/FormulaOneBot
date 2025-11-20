@@ -1,11 +1,13 @@
+import asyncio
+import logging
 import pathlib
+from datetime import date as _date, timezone, timedelta, datetime
 from typing import Optional
 
 import fastf1
-from fastf1.ergast import Ergast
 import pandas as pd
-
-from datetime import date as _date, timezone, timedelta
+from fastf1._api import SessionNotAvailableError
+from fastf1.ergast import Ergast
 
 # --- ИНИЦИАЛИЗАЦИЯ КЭША --- #
 
@@ -13,6 +15,8 @@ _project_root = pathlib.Path(__file__).resolve().parent.parent
 _cache_dir = _project_root / "fastf1_cache"
 _cache_dir.mkdir(exist_ok=True)
 fastf1.Cache.enable_cache(_cache_dir)
+
+logger = logging.getLogger(__name__)
 
 UTC_PLUS_3 = timezone(timedelta(hours=3))
 
@@ -176,6 +180,242 @@ def get_race_results_df(season: int, round_number: int) -> pd.DataFrame:
     session = fastf1.get_session(season, round_number, "R")
     session.load()
     return session.results
+
+
+def get_race_results(season: int, round_number: int, limit: int = 20) -> list[dict]:
+    session = fastf1.get_session(season, round_number, "R")
+    session.load(telemetry=False, weather=False)
+
+    df = session.results
+    results: list[dict] = []
+
+    for _, row in df.iterrows():
+        pos = int(row["Position"])
+        code = row["Abbreviation"]
+        team = row["TeamName"]
+        time_ = row.get("Time")
+        status = row.get("Status")
+        points = row.get("Points")
+
+        time_str = str(time_) if pd.notna(time_) else ""
+        status_str = str(status) if pd.notna(status) else ""
+        pts = int(points) if pd.notna(points) else 0
+
+        results.append(
+            {
+                "position": pos,
+                "driver": code,
+                "team": team,
+                "time": time_str,
+                "status": status_str,
+                "points": pts,
+            }
+        )
+
+    results.sort(key=lambda r: r["position"])
+    return results[:limit]
+
+
+async def _get_race_results_async(season: int, round_number: int):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: get_race_results_df(season, round_number)
+    )
+
+
+def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
+    """
+    Возвращает список сессий уикенда для заданного этапа:
+    [
+      {"name": "Practice 1", "utc": "...", "local": "..."},
+      ...
+    ]
+    """
+    schedule = fastf1.get_event_schedule(season)
+
+    row = schedule.loc[schedule["RoundNumber"] == round_number]
+    if row.empty:
+        return []
+
+    row = row.iloc[0]
+    sessions: list[dict] = []
+
+    for i in range(1, 9):
+        name_col = f"Session{i}"
+        date_col = f"Session{i}DateUtc"
+
+        if name_col not in row.index or date_col not in row.index:
+            continue
+
+        sess_name = row[name_col]
+        sess_dt = row[date_col]
+
+        if not isinstance(sess_name, str) or not sess_name:
+            continue
+        if sess_dt is None or not hasattr(sess_dt, "to_pydatetime"):
+            continue
+
+        dt_utc = sess_dt.to_pydatetime()
+        if dt_utc.tzinfo is None:
+            dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+        dt_local = dt_utc.astimezone(UTC_PLUS_3)
+
+        sessions.append(
+            {
+                "name": sess_name,
+                "utc": dt_utc.strftime("%H:%M UTC"),
+                "local": dt_local.strftime("%d.%m.%Y %H:%M МСК"),
+            }
+        )
+
+    return sessions
+
+
+def get_qualifying_results(season: int, round_number: int, limit: int = 20) -> list[dict]:
+    """
+    Возвращает результаты квалификации (топ N):
+    [
+      {"position": 1, "driver": "VER", "team": "Red Bull", "best": "1:23.456"},
+      ...
+    ]
+    """
+    session = fastf1.get_session(season, round_number, "Q")
+    session.load(telemetry=False, weather=False)
+
+    df = session.results
+    results: list[dict] = []
+
+    for _, row in df.iterrows():
+        pos = int(row["Position"])
+        code = row["Abbreviation"]
+        team = row["TeamName"]
+
+        q1 = row.get("Q1")
+        q2 = row.get("Q2")
+        q3 = row.get("Q3")
+
+        best = q3 if pd.notna(q3) else q2 if pd.notna(q2) else q1
+        best_str = str(best) if pd.notna(best) else ""
+
+        results.append(
+            {
+                "position": pos,
+                "driver": code,
+                "team": team,
+                "best": best_str,
+            }
+        )
+
+    results.sort(key=lambda r: r["position"])
+    return results[:limit]
+
+
+async def _get_quali_async(season: int, round_number: int, limit: int = 100):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: get_qualifying_results(season, round_number, limit)
+    )
+
+
+def _warmup_session_sync(season: int, round_number: int, session_code: str) -> None:
+    """
+    Синхронный прогрев одной сессии FastF1 (Q/R).
+    Вызывается из отдельного потока, чтобы не блокировать event loop.
+    """
+    try:
+        s = fastf1.get_session(season, round_number, session_code)
+        # livedata=False — берём только архивные данные / кэш
+        s.load(livedata=False)
+        logger.info(
+            "[WARMUP] Прогрел сессию %s: сезон=%s, раунд=%s",
+            session_code, season, round_number
+        )
+    except SessionNotAvailableError:
+        # нет данных (ещё рано или сессия не существует) — это нормально
+        logger.info(
+            "[WARMUP] Нет данных для сессии %s (season=%s, round=%s)",
+            session_code, season, round_number
+        )
+    except Exception as exc:
+        logger.warning(
+            "[WARMUP] Ошибка при прогреве сессии %s (season=%s, round=%s): %s",
+            session_code, season, round_number, exc
+        )
+
+
+async def warmup_current_season_sessions() -> None:
+    """
+    Асинхронная обёртка: в фоне прогреваем FastF1 для
+    последней прошедшей гонки и ближайшей будущей гонки (Q и R).
+    Вызывать:
+      - один раз при старте бота
+      - периодически через APScheduler (каждые 2 минуты)
+    """
+    from app.f1_data import get_season_schedule_short  # чтобы избежать циклического импорта
+
+    season = datetime.now().year
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        logger.info("[WARMUP] Нет расписания для сезона %s", season)
+        return
+
+    now_utc = datetime.now(timezone.utc)
+
+    # разделим на прошедшие и будущие
+    past = []
+    future = []
+    for r in schedule:
+        race_start_str = r.get("race_start_utc")
+        if race_start_str:
+            try:
+                race_dt = datetime.fromisoformat(race_start_str)
+                if race_dt.tzinfo is None:
+                    race_dt = race_dt.replace(tzinfo=timezone.utc)
+            except Exception:
+                race_dt = None
+        else:
+            race_dt = None
+
+        if race_dt and race_dt <= now_utc:
+            past.append(r)
+        else:
+            future.append(r)
+
+    targets: list[tuple[int, int]] = []
+
+    # последняя прошедшая
+    if past:
+        last_race = max(past, key=lambda r: r["round"])
+        targets.append((season, last_race["round"]))
+
+    # ближайшая будущая
+    if future:
+        next_race = min(future, key=lambda r: r["round"])
+        # избегаем дубликата, если это тот же раунд
+        if not targets or targets[0][1] != next_race["round"]:
+            targets.append((season, next_race["round"]))
+
+    if not targets:
+        logger.info("[WARMUP] Нет подходящих этапов для прогрева (season=%s)", season)
+        return
+
+    loop = asyncio.get_running_loop()
+
+    # параллельно греть Q и R для каждого выбранного этапа
+    tasks = []
+    for yr, rnd in targets:
+        for code in ("Q", "R"):
+            tasks.append(loop.run_in_executor(None, _warmup_session_sync, yr, rnd, code))
+
+    if tasks:
+        logger.info(
+            "[WARMUP] Начинаю прогрев FastF1 для %d сессий (season=%s)",
+            len(tasks), season
+        )
+        await asyncio.gather(*tasks, return_exceptions=True)
+        logger.info("[WARMUP] Прогрев FastF1 завершён")
 
 # можно удалить
 if __name__ == "__main__":

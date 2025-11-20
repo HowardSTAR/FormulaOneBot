@@ -1,13 +1,15 @@
-from aiogram import Router, F
-from aiogram.filters import Command
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-
+import logging
 from datetime import datetime, date, timezone, timedelta
 
+from aiogram import Router, F
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from fastf1._api import SessionNotAvailableError
 
-from app.f1_data import get_season_schedule_short
+from app.f1_data import get_season_schedule_short, get_weekend_schedule, get_qualifying_results, get_race_results, \
+    _get_quali_async, _get_race_results_async
 
 router = Router()
 
@@ -39,23 +41,23 @@ async def _send_races_for_year(message: Message, season: int) -> None:
         if finished:
             line = (
                 f"{status} "
-                f"{r['round']:02d}. {r['event_name']} "
-                f"({r['country']})"
+                f"{r['round']:02d}. <i>{r['event_name']} "
+                f"({r['country']})</i>"
             )
         else:
             date_str = race_date.strftime("%d.%m.%Y")
             line = (
                 f"{status} "
-                f"{r['round']:02d}. {r['event_name']} "
-                f"({r['country']}) — {date_str}"
+                f"<b>{r['round']:02d}. {r['event_name']} "
+                f"({r['country']})</b> — {date_str}"
             )
 
         lines.append(line)
 
     header = (
-        f"Календарь сезона {season}:\n"
+        f"<b>Календарь сезона {season}:</b>\n\n"
         f"❌ — гонка уже прошла (дата скрыта)\n"
-        f"✅ — предстоящие гонки, дата показана\n\n"
+        f"✅ — предстоящие гонки, дата показана\n\n\n"
     )
     text = header + "\n\n".join(lines)  # пустая строка между этапами
     await message.answer(text)
@@ -124,7 +126,28 @@ async def _send_next_race(message: Message, season: int | None = None) -> None:
         f"после гонки, как только данные обновятся. 😉"
     )
 
-    await message.answer(reply)
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="📅 Расписание уикенда",
+                    callback_data=f"weekend_{season}_{round_num}",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⏱ Квалификация",
+                    callback_data=f"quali_{season}_{round_num}",
+                ),
+                InlineKeyboardButton(
+                    text="🏁 Гонка",
+                    callback_data=f"race_{season}_{round_num}",
+                ),
+            ],
+        ]
+    )
+
+    await message.answer(reply, reply_markup=keyboard)
 
 
 def _parse_season_from_text(text: str) -> int:
@@ -225,3 +248,223 @@ async def cmd_next_race(message: Message) -> None:
 @router.message(F.text == "Ближайшая гонка")
 async def next_race_button(message: Message) -> None:
     await _send_next_race(message, season=None)
+
+
+@router.callback_query(F.data.startswith("weekend_"))
+async def weekend_schedule_callback(callback: CallbackQuery) -> None:
+    try:
+        _, season_str, round_str = callback.data.split("_")
+        season = int(season_str)
+        round_num = int(round_str)
+    except Exception:
+        await callback.answer("Не понял данные этапа 😅", show_alert=True)
+        return
+
+    sessions = get_weekend_schedule(season, round_num)
+    if not sessions:
+        await callback.message.answer("Нет данных по расписанию уикенда 🤔")
+        await callback.answer()
+        return
+
+    lines = []
+    for s in sessions:
+        lines.append(
+            f"• <b>{s['name']}</b>\n"
+            f"  {s['local']} / {s['utc']}"
+        )
+
+    text = (
+        f"📅 Расписание уикенда сезона {season}, раунд {round_num}:\n\n" +
+        "\n\n".join(lines)
+    )
+
+    await callback.message.answer(text)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("quali_"))
+async def quali_callback(callback: CallbackQuery) -> None:
+    # 1. Разбираем сезон и раунд из callback.data
+    try:
+        _, season_str, round_str = callback.data.split("_")
+        season = int(season_str)
+        round_num = int(round_str)
+    except Exception:
+        await callback.answer("Не понял данные этапа 😅", show_alert=True)
+        return
+
+    # 2. Быстрая проверка по календарю: гонка ещё не прошла?
+    try:
+        schedule = get_season_schedule_short(season)
+    except Exception as exc:
+        logging.exception("Не удалось получить календарь сезона %s: %s", season, exc)
+        # в крайнем случае ведём себя как раньше
+        schedule = []
+
+    if schedule:
+        race_info = next((r for r in schedule if r["round"] == round_num), None)
+        if race_info is not None:
+            try:
+                race_date = date.fromisoformat(race_info["date"])
+            except Exception:
+                race_date = None
+
+            today = date.today()
+            # если сама гонка ещё в будущем, квалификация с очень большой вероятностью тоже не прошла
+            if race_date is not None and race_date > today:
+                await callback.message.answer(
+                    "Пока нет данных по результатам квалификации 🤔"
+                )
+                await callback.answer()
+                return
+
+    # 3. Если по календарю этап уже должен был состояться — пробуем реально тянуть данные
+    try:
+        results = await _get_quali_async(season, round_num, limit=20)
+    except SessionNotAvailableError:
+        # FastF1/Ergast ещё не отдали данные по сессии
+        await callback.message.answer(
+            "Пока нет данных по результатам квалификации 🤔"
+        )
+        await callback.answer()
+        return
+    except Exception as exc:
+        logging.exception("Ошибка при получении квалификации: %s", exc)
+        await callback.message.answer(
+            "Похоже, квалификация ещё не прошла или данные недоступны 🤷‍♂️"
+        )
+        await callback.answer()
+        return
+
+    if not results:
+        await callback.message.answer(
+            "Пока нет данных по результатам квалификации 🤔"
+        )
+        await callback.answer()
+        return
+
+    # 4. Формируем текст
+    lines = ["⏱ *Результаты квалификации*:", ""]
+    for r in results:
+        best = f" — {r['best']}" if r["best"] else ""
+        lines.append(
+            f"{r['position']:02d}. {r['driver']} ({r['team']}){best}"
+        )
+
+    text = "\n".join(lines)
+    await callback.message.answer(text, parse_mode="Markdown")
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("race_"))
+async def race_callback(callback: CallbackQuery) -> None:
+    # 1. Разбираем сезон и раунд из callback.data: "race_2025_22"
+    try:
+        _, season_str, round_str = callback.data.split("_")
+        season = int(season_str)
+        round_num = int(round_str)
+    except Exception:
+        await callback.answer("Не понял данные этапа 😅", show_alert=True)
+        return
+
+    # 2. Быстрая проверка по календарю: гонка ещё не прошла?
+    try:
+        schedule = get_season_schedule_short(season)
+    except Exception as exc:
+        logging.exception("Не удалось получить календарь сезона %s: %s", season, exc)
+        schedule = []
+
+    race_info = None
+    if schedule:
+        race_info = next((r for r in schedule if r["round"] == round_num), None)
+
+    if race_info is not None:
+        try:
+            race_date = date.fromisoformat(race_info["date"])
+        except Exception:
+            race_date = None
+
+        today = date.today()
+        # если дата гонки строго в будущем — результатов ещё точно нет
+        if race_date is not None and race_date > today:
+            await callback.message.answer(
+                "Пока нет данных по результатам гонки 🤔"
+            )
+            await callback.answer()
+            return
+
+    # 3. Пробуем реально получить результаты гонки у FastF1
+    try:
+        results = await _get_race_results_async(season, round_num, limit=20)
+    except SessionNotAvailableError:
+        # FastF1 говорит, что данных ещё нет (гонка только-только прошла или ещё идёт)
+        await callback.message.answer(
+            "Пока нет данных по результатам гонки 🤔"
+        )
+        await callback.answer()
+        return
+    except Exception as exc:
+        logging.exception(
+            "Ошибка при получении результатов гонки (season=%s, round=%s): %s",
+            season, round_num, exc
+        )
+        await callback.message.answer(
+            "Похоже, гонка ещё не прошла или данные недоступны 🤷‍♂️"
+        )
+        await callback.answer()
+        return
+
+    if results is None or results.empty:
+        await callback.message.answer(
+            "Пока нет данных по результатам гонки 🤔"
+        )
+        await callback.answer()
+        return
+
+    # 4. Немного красоты: заголовок с названием этапа
+    if race_info is not None:
+        header = (
+            f"🏁 *Результаты гонки*\n"
+            f"{race_info['event_name']} — {race_info['country']}, {race_info['location']}\n\n"
+        )
+    else:
+        header = "🏁 *Результаты гонки:*\n\n"
+
+    # 5. Формируем список строк по пилотам
+    # на всякий случай сортируем по Position
+    if "Position" in results.columns:
+        df = results.sort_values("Position")
+
+    lines = []
+    for row in df.itertuples(index=False):
+        pos = getattr(row, "Position", None)
+        if pos is None:
+            continue
+        try:
+            pos_int = int(pos)
+        except (TypeError, ValueError):
+            continue
+
+        code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", "?")
+        team = getattr(row, "TeamName", "")
+        pts = getattr(row, "Points", None)
+
+        line = f"{pos_int:02d}. {code}"
+        if team:
+            line += f" ({team})"
+        if pts is not None:
+            line += f" — {pts} очк."
+        lines.append(line)
+
+    if not lines:
+        await callback.message.answer(
+            "Пока нет данных по результатам гонки 🤔"
+        )
+        await callback.answer()
+        return
+
+    text = header + "\n".join(lines)
+    await callback.message.answer(text, parse_mode="Markdown")
+    await callback.answer()
+
+

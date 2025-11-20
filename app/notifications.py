@@ -1,22 +1,101 @@
+import asyncio
 import logging
 from datetime import date, datetime, timezone, timedelta
 
 from aiogram import Bot
+from fastf1._api import SessionNotAvailableError
 
-from app.f1_data import (
-    get_season_schedule_short,
-    get_race_results_df,
-    get_driver_standings_df,
-    get_constructor_standings_df,
-)
 from app.db import (
     get_all_users_with_favorites,
     get_favorites_for_user_id,
     get_last_reminded_round,
-    set_last_reminded_round,
+    set_last_reminded_round, set_last_notified_quali_round, get_last_notified_quali_round, get_last_notified_round,
+    set_last_notified_round,
+)
+from app.f1_data import (
+    get_season_schedule_short,
+    get_race_results_df,
+    get_driver_standings_df,
+    get_constructor_standings_df, get_qualifying_results, _get_quali_async, _get_race_results_async,
 )
 
 UTC_PLUS_3 = timezone(timedelta(hours=3))
+
+
+async def warmup_fastf1_cache() -> None:
+    """
+    Периодически прогревает кэш FastF1 для ближайших сессий
+    (квалификация и гонка) текущего сезона.
+    """
+    season = datetime.now().year
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        logging.info("[WARMUP] Нет расписания для сезона %s", season)
+        return
+
+    # Находим последнюю прошедшую гонку и ближайшую будущую
+    today = datetime.utcnow().date()
+
+    past = [r for r in schedule if r["date"] <= today.isoformat()]
+    future = [r for r in schedule if r["date"] > today.isoformat()]
+
+    rounds_to_warm: set[int] = set()
+
+    if past:
+        last_past = max(past, key=lambda r: r["round"])
+        rounds_to_warm.add(last_past["round"])
+
+    if future:
+        next_future = min(future, key=lambda r: r["date"])
+        rounds_to_warm.add(next_future["round"])
+
+    if not rounds_to_warm:
+        logging.info("[WARMUP] Нет этапов для прогрева (season=%s)", season)
+        return
+
+    logging.info("[WARMUP] Прогреваю кэш для раундов: %s (season=%s)",
+                 sorted(rounds_to_warm), season)
+
+    loop = asyncio.get_running_loop()
+
+    for rnd in sorted(rounds_to_warm):
+        # Квалификация
+        try:
+            await loop.run_in_executor(
+                None,
+                lambda: get_qualifying_results(season, rnd, limit=100)
+            )
+            logging.info("[WARMUP] Прогрел квалификацию: season=%s, round=%s",
+                         season, rnd)
+        except SessionNotAvailableError:
+            logging.info(
+                "[WARMUP] Квалификация ещё недоступна: season=%s, round=%s",
+                season, rnd,
+            )
+        except Exception as exc:
+            logging.warning(
+                "[WARMUP] Ошибка при прогреве quali season=%s, round=%s: %s",
+                season, rnd, exc,
+            )
+
+        # Гонка
+        try:
+            await loop.run_in_executor(
+                None,
+                lambda: get_race_results_df(season, rnd)
+            )
+            logging.info("[WARMUP] Прогрел гонку: season=%s, round=%s",
+                         season, rnd)
+        except SessionNotAvailableError:
+            logging.info(
+                "[WARMUP] Гонка ещё недоступна: season=%s, round=%s",
+                season, rnd,
+            )
+        except Exception as exc:
+            logging.warning(
+                "[WARMUP] Ошибка при прогреве race season=%s, round=%s: %s",
+                season, rnd, exc,
+            )
 
 
 async def check_and_notify_favorites(bot: Bot) -> None:
@@ -71,13 +150,13 @@ async def check_and_notify_favorites(bot: Bot) -> None:
         event_name,
     )
 
-    # 3. Уже уведомляли?
-    last_round_notified = await get_last_reminded_round(season)
+    # 3. Уже уведомляли по результатам гонки?
+    last_round_notified = await get_last_notified_round(season)
     if last_round_notified is not None and last_round_notified >= latest_round:
         return
 
     # 4. Готовим данные по результатам
-    race_results = get_race_results_df(season, latest_round)
+    race_results = await _get_race_results_async(season, latest_round)
     driver_standings = get_driver_standings_df(season, round_number=latest_round)
     constructor_standings = get_constructor_standings_df(season, round_number=latest_round)
 
@@ -211,6 +290,7 @@ async def check_and_notify_favorites(bot: Bot) -> None:
 
         try:
             await bot.send_message(chat_id=telegram_id, text=text)
+            sent_count += 1
         except Exception as exc:
             logging.error(
                 "[NOTIFY] Не удалось отправить уведомление пользователю %s: %s",
@@ -225,7 +305,7 @@ async def check_and_notify_favorites(bot: Bot) -> None:
         latest_round,
     )
 
-    await set_last_reminded_round(season, latest_round)
+    await set_last_notified_round(season, latest_round)
 
 
 async def remind_next_race(bot: Bot) -> None:
@@ -350,3 +430,104 @@ async def remind_next_race(bot: Bot) -> None:
     )
 
     await set_last_reminded_round(season, round_num)
+
+
+async def check_and_notify_quali(bot: Bot, round_number=None) -> None:
+    """
+    Проверяет, есть ли новая квалификация, и шлёт уведомление
+    по любимым пилотам пользователей.
+    """
+    season = datetime.now().year
+
+    last_q_round = await get_last_notified_quali_round(season)
+    # Если None -> начинаем с первого, иначе берём следующий после последнего уведомленного
+    next_round = 1 if last_q_round is None else last_q_round + 1
+
+    # Пробуем получить результаты квалификации для next_round.
+    # Если квалификация ещё не прошла / данные недоступны — просто выходим, подождём следующего запуска.
+    try:
+        quali_results = await _get_quali_async(season, round_number)
+    except Exception as exc:
+        logging.info(
+            "[QUALI] Нет данных по квалификации для сезона=%s, раунда=%s: %s",
+            season,
+            next_round,
+            exc,
+        )
+        return
+
+    if not quali_results:
+        logging.info(
+            "[QUALI] Пустые результаты квалификации для сезона=%s, раунда=%s",
+            season,
+            next_round,
+        )
+        return
+
+    # Мапа: код пилота -> позиция
+    pos_by_driver: dict[str, int] = {
+        r["driver"]: r["position"] for r in quali_results
+    }
+
+    # Чтобы красиво вставить название Гран-при
+    races = get_season_schedule_short(season)
+    gp_name = f"Гран-при #{next_round}"
+    country = ""
+    location = ""
+    for r in races:
+        if r["round"] == next_round:
+            gp_name = r["event_name"]
+            country = r["country"]
+            location = r["location"]
+            break
+
+    users = await get_all_users_with_favorites()
+
+    total_messages = 0
+
+    for telegram_id, user_db_id in users:
+        fav_drivers, _fav_teams = await get_favorites_for_user_id(user_db_id)
+
+        lines = []
+        for code in fav_drivers:
+            if code in pos_by_driver:
+                pos = pos_by_driver[code]
+                lines.append(f"{pos:02d}. <b>{code}</b>")
+
+        if not lines:
+            # для этого пользователя его любимцев нет в протоколе квалификации
+            continue
+
+        header = (
+            f"⏱ <b>Результаты квалификации</b>\n"
+            f"Сезон {season}, раунд {next_round}\n"
+        )
+        if country or location:
+            header += f"{gp_name} — {country}, {location}\n\n"
+        else:
+            header += f"{gp_name}\n\n"
+
+        text = header + "Твои любимые пилоты квалифицировались так:\n\n" + "\n".join(lines)
+
+        try:
+            await bot.send_message(chat_id=telegram_id, text=text, parse_mode="HTML")
+            total_messages += 1
+        except Exception as exc:
+            logging.error(
+                "[QUALI] Не удалось отправить сообщение пользователю %s: %s",
+                telegram_id,
+                exc,
+            )
+
+    if total_messages > 0:
+        logging.info(
+            "[QUALI] Отправлено %s сообщений по квалификации сезона=%s, раунд=%s",
+            total_messages,
+            season,
+            next_round,
+        )
+        await set_last_notified_quali_round(season, next_round)
+    else:
+        logging.info(
+            "[QUALI] Никому не отправляли (у пользователей нет любимых пилотов в этой квалификации)"
+        )
