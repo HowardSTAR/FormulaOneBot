@@ -1,5 +1,5 @@
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
 
 from aiogram import Bot
 
@@ -12,9 +12,11 @@ from app.f1_data import (
 from app.db import (
     get_all_users_with_favorites,
     get_favorites_for_user_id,
-    get_last_notified_round,
-    set_last_notified_round,
+    get_last_reminded_round,
+    set_last_reminded_round,
 )
+
+UTC_PLUS_3 = timezone(timedelta(hours=3))
 
 
 async def check_and_notify_favorites(bot: Bot) -> None:
@@ -70,7 +72,7 @@ async def check_and_notify_favorites(bot: Bot) -> None:
     )
 
     # 3. Уже уведомляли?
-    last_round_notified = await get_last_notified_round(season)
+    last_round_notified = await get_last_reminded_round(season)
     if last_round_notified is not None and last_round_notified >= latest_round:
         return
 
@@ -223,4 +225,128 @@ async def check_and_notify_favorites(bot: Bot) -> None:
         latest_round,
     )
 
-    await set_last_notified_round(season, latest_round)
+    await set_last_reminded_round(season, latest_round)
+
+
+async def remind_next_race(bot: Bot) -> None:
+    """
+    Шлёт напоминание за сутки до ближайшей гонки сезона
+    всем пользователям, у которых есть избранные пилоты/команды.
+
+    Напоминаем только один раз на раунд (last_reminded_round в БД).
+    """
+    season = datetime.now().year
+    today = date.today()
+
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        logging.info("[REMIND] Нет расписания для сезона %s", season)
+        return
+
+    # Находим ближайшую будущую гонку
+    future_races = []
+    for r in schedule:
+        try:
+            race_date = date.fromisoformat(r["date"])
+        except Exception:
+            continue
+
+        if race_date >= today:
+            future_races.append((race_date, r))
+
+    if not future_races:
+        logging.info("[REMIND] В сезоне %s больше нет будущих гонок", season)
+        return
+
+    race_date, r = min(future_races, key=lambda x: x[0])
+
+    # Нас интересует гонка СТРОГО "завтра"
+    if race_date != today + timedelta(days=1):
+        logging.debug(
+            "[REMIND] Ближайшая гонка не завтра (сезон=%s, раунд=%s, дата=%s, сегодня=%s)",
+            season,
+            r["round"],
+            race_date,
+            today,
+        )
+        return
+
+    round_num = r["round"]
+    event_name = r["event_name"]
+    country = r["country"]
+    location = r["location"]
+
+    # Проверяем, не напоминали ли уже про этот этап
+    last_reminded = await get_last_reminded_round(season)
+    if last_reminded is not None and last_reminded >= round_num:
+        logging.debug(
+            "[REMIND] Напоминание уже было (сезон=%s, раунд=%s, last_reminded=%s)",
+            season,
+            round_num,
+            last_reminded,
+        )
+        return
+
+    # Формируем блок с временем (если есть race_start_utc)
+    date_str = race_date.strftime("%d.%m.%Y")
+    race_start_utc_str = r.get("race_start_utc")
+
+    if race_start_utc_str:
+        try:
+            race_start_utc = datetime.fromisoformat(race_start_utc_str)
+            if race_start_utc.tzinfo is None:
+                race_start_utc = race_start_utc.replace(tzinfo=timezone.utc)
+
+            utc_str = race_start_utc.strftime("%d.%m.%Y %H:%M UTC")
+            local_dt = race_start_utc.astimezone(UTC_PLUS_3)
+            local_str = local_dt.strftime("%d.%m.%Y %H:%M МСК")
+
+            time_block = (
+                "⏰ Старт гонки:\n"
+                f"• {utc_str}\n"
+                f"• {local_str}"
+            )
+        except Exception:
+            time_block = f"📅 Дата: {date_str}"
+    else:
+        time_block = f"📅 Дата: {date_str}"
+
+    # Текст напоминания
+    header = (
+        f"⏰ Напоминание!\n"
+        f"Гонка пройдет {date_str} Формулы 1 🚦\n\n"
+        f"{round_num:02d}. {event_name}\n"
+        f"📍 {country}, {location}\n"
+        f"{time_block}\n\n"
+        f"Я пришлю тебе отдельное сообщение по твоим избранным пилотам и командам "
+        f"после финиша гонки. 😉"
+    )
+
+    users = await get_all_users_with_favorites()
+    logging.info(
+        "[REMIND] Готовим напоминание по сезону=%s, раунду=%s, пользователей=%s",
+        season,
+        round_num,
+        len(users),
+    )
+
+    sent_count = 0
+    for telegram_id, _user_db_id in users:
+        try:
+            await bot.send_message(chat_id=telegram_id, text=header)
+            sent_count += 1
+        except Exception as exc:
+            logging.error(
+                "[REMIND] Не удалось отправить напоминание пользователю %s: %s",
+                telegram_id,
+                exc,
+            )
+
+    logging.info(
+        "[REMIND] Напоминания отправлены: %s сообщений (сезон=%s, раунд=%s)",
+        sent_count,
+        season,
+        round_num,
+    )
+
+    await set_last_reminded_round(season, round_num)

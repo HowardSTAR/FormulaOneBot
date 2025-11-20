@@ -34,7 +34,7 @@ async def _send_races_for_year(message: Message, season: int) -> None:
             race_date = today
 
         finished = race_date < today
-        status = "✅" if finished else "❌"
+        status = "❌" if finished else "✅"
 
         if finished:
             line = (
@@ -43,18 +43,19 @@ async def _send_races_for_year(message: Message, season: int) -> None:
                 f"({r['country']})"
             )
         else:
+            date_str = race_date.strftime("%d.%m.%Y")
             line = (
                 f"{status} "
                 f"{r['round']:02d}. {r['event_name']} "
-                f"({r['country']}) — {r['date']}"
+                f"({r['country']}) — {date_str}"
             )
 
         lines.append(line)
 
     header = (
         f"Календарь сезона {season}:\n"
-        f"✅ — гонка уже прошла (дата скрыта)\n"
-        f"❌ — предстоящие гонки, дата показана\n\n"
+        f"❌ — гонка уже прошла (дата скрыта)\n"
+        f"✅ — предстоящие гонки, дата показана\n\n"
     )
     text = header + "\n\n".join(lines)  # пустая строка между этапами
     await message.answer(text)
@@ -119,8 +120,8 @@ async def _send_next_race(message: Message, season: int | None = None) -> None:
         f"{round_num:02d}. {event_name}\n"
         f"📍 {country}, {location}\n"
         f"{time_block}\n\n"
-        f"Я пришлю тебе уведомление по твоим избранным пилотам и командам\n"
-        f"после гонки, как только данные появятся в API. 😉"
+        f"Я пришлю тебе уведомление по твоим избранным пилотам и командам "
+        f"после гонки, как только данные обновятся. 😉"
     )
 
     await message.answer(reply)
