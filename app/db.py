@@ -172,23 +172,41 @@ async def get_favorites_for_user_id(user_db_id: int) -> Tuple[List[str], List[st
     return drivers, teams
 
 
-async def get_last_notified_round(season: int) -> Optional[int]:
+async def get_last_reminded_round(season: int) -> int | None:
     async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "CREATE TABLE IF NOT EXISTS notification_state ("
+            "season INTEGER PRIMARY KEY,"
+            "last_notified_round INTEGER,"
+            "last_reminded_round INTEGER)"
+        )
+        await db.commit()
+
         cursor = await db.execute(
-            "SELECT last_round_notified FROM notified_races WHERE season = ?",
+            "SELECT last_reminded_round FROM notification_state WHERE season = ?",
             (season,),
         )
         row = await cursor.fetchone()
-        return row[0] if row else None
+        await cursor.close()
+
+        if row is None:
+            return None
+        return row[0]
 
 
-async def set_last_notified_round(season: int, round_number: int) -> None:
+async def set_last_reminded_round(season: int, round_number: int) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
+            "CREATE TABLE IF NOT EXISTS notification_state ("
+            "season INTEGER PRIMARY KEY,"
+            "last_notified_round INTEGER,"
+            "last_reminded_round INTEGER)"
+        )
+        await db.execute(
             """
-            INSERT INTO notified_races (season, last_round_notified)
-            VALUES (?, ?)
-            ON CONFLICT(season) DO UPDATE SET last_round_notified = excluded.last_round_notified
+            INSERT INTO notification_state(season, last_notified_round, last_reminded_round)
+            VALUES(?, NULL, ?)
+            ON CONFLICT(season) DO UPDATE SET last_reminded_round = excluded.last_reminded_round
             """,
             (season, round_number),
         )
