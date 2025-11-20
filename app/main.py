@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
 
 from aiogram.exceptions import TelegramBadRequest
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -13,7 +12,7 @@ from app.handlers.races import router as races_router
 from app.handlers.start import router as start_router
 from app.handlers.teams import router as teams_router
 from app.middlewares.error_logging import ErrorLoggingMiddleware
-from app.notifications import check_and_notify_favorites, remind_next_race
+from app.notifications import check_and_notify_favorites, remind_next_race, check_and_notify_quali
 
 # Базовая настройка логов
 logging.basicConfig(
@@ -55,6 +54,15 @@ async def main() -> None:
         minutes=15,  # можно 15 или 60 — как хочешь
         args=[bot],
         id="next_race_reminder",
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        check_and_notify_quali,
+        "interval",
+        minutes=5,  # можно 2–10, как тебе комфортно
+        args=[bot],
+        id="quali_notifications",
         replace_existing=True,
     )
     scheduler.start()
