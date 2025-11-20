@@ -1,2 +1,4 @@
 .env
-__init__.py
+*.db
+*.sqlite
+fastf1_cache/

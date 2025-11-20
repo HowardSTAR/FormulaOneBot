@@ -1,0 +1,352 @@
+import logging
+from datetime import date, datetime, timezone, timedelta
+
+from aiogram import Bot
+
+from app.f1_data import (
+    get_season_schedule_short,
+    get_race_results_df,
+    get_driver_standings_df,
+    get_constructor_standings_df,
+)
+from app.db import (
+    get_all_users_with_favorites,
+    get_favorites_for_user_id,
+    get_last_reminded_round,
+    set_last_reminded_round,
+)
+
+UTC_PLUS_3 = timezone(timedelta(hours=3))
+
+
+async def check_and_notify_favorites(bot: Bot) -> None:
+    """
+    Проверяет, не прошла ли новая гонка (по времени Race-сессии),
+    и при необходимости шлёт уведомления по любимым пилотам и командам.
+    """
+    season = datetime.now().year
+    now_utc = datetime.now(timezone.utc)
+
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        logging.info("[NOTIFY] Нет расписания на сезон %s", season)
+        return
+
+    # 1. Находим все гонки, которые уже стартовали
+    past_races = []
+    for r in schedule:
+        race_start_str = r.get("race_start_utc")
+        if not race_start_str:
+            # fallback: используем только дату
+            race_date = date.fromisoformat(r["date"])
+            if race_date <= date.today():
+                past_races.append(r)
+            continue
+
+        try:
+            race_start = datetime.fromisoformat(race_start_str)
+        except ValueError:
+            # если формат кривой — игнорируем race_start_utc
+            race_date = date.fromisoformat(r["date"])
+            if race_date <= date.today():
+                past_races.append(r)
+            continue
+
+        if race_start <= now_utc:
+            past_races.append(r)
+
+    if not past_races:
+        logging.info("[NOTIFY] В сезоне %s ещё не было гонок", season)
+        return
+
+    # 2. Последняя прошедшая гонка по номеру круга
+    latest_race = max(past_races, key=lambda r: r["round"])
+    latest_round = latest_race["round"]
+    event_name = latest_race["event_name"]
+
+    logging.info(
+        "[NOTIFY] Найдена последняя завершённая гонка: сезон=%s, раунд=%s, событие=%s",
+        season,
+        latest_round,
+        event_name,
+    )
+
+    # 3. Уже уведомляли?
+    last_round_notified = await get_last_reminded_round(season)
+    if last_round_notified is not None and last_round_notified >= latest_round:
+        return
+
+    # 4. Готовим данные по результатам
+    race_results = get_race_results_df(season, latest_round)
+    driver_standings = get_driver_standings_df(season, round_number=latest_round)
+    constructor_standings = get_constructor_standings_df(season, round_number=latest_round)
+
+    # Если API ещё не отдало результаты (пустые таблицы) — ждём.
+    # Ничего не отмечаем как отправленное, функция просто вернётся,
+    # и мы попробуем снова через минуту.
+    if race_results is None or race_results.empty:
+        logging.info(
+            "[NOTIFY] Результаты гонки ещё не доступны: сезон=%s, раунд=%s (race_results пустой)",
+            season,
+            latest_round,
+        )
+        return
+    if driver_standings is None or driver_standings.empty:
+        logging.info(
+            "[NOTIFY] Результаты гонщика ещё не доступны: сезон=%s, раунд=%s (driver_standings пустой)",
+            season,
+            latest_round,
+        )
+        return
+    if constructor_standings is None or constructor_standings.empty:
+        logging.info(
+            "[NOTIFY] Результаты команды ещё не доступны: сезон=%s, раунд=%s (constructor_standings пустой)",
+            season,
+            latest_round,
+        )
+        return
+
+    logging.info(
+        "[NOTIFY] Результаты доступны, начинаю рассылку уведомлений: сезон=%s, раунд=%s, событие=%s",
+        season,
+        latest_round,
+        event_name,
+    )
+
+    race_results_by_code = {}
+    for row in race_results.itertuples(index=False):
+        code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", None)
+        if code:
+            race_results_by_code[code] = row
+
+    standings_by_code = {}
+    for row in driver_standings.itertuples(index=False):
+        code = getattr(row, "driverCode", None)
+        if code:
+            standings_by_code[code] = row
+
+    constructor_results_by_name = {}
+    for row in race_results.itertuples(index=False):
+        team_name = getattr(row, "TeamName", None)
+        if team_name and team_name not in constructor_results_by_name:
+            constructor_results_by_name[team_name] = row
+
+    constructor_standings_by_name = {}
+    for row in constructor_standings.itertuples(index=False):
+        team_name = getattr(row, "constructorName", None)
+        if team_name:
+            constructor_standings_by_name[team_name] = row
+
+    users = await get_all_users_with_favorites()
+
+    logging.info(
+        "[NOTIFY] Пользователей с избранным: %s (сезон=%s, раунд=%s)",
+        len(users),
+        season,
+        latest_round,
+    )
+
+    sent_count = 0
+
+    for telegram_id, user_db_id in users:
+        favorite_drivers, favorite_teams = await get_favorites_for_user_id(user_db_id)
+
+        lines = []
+
+        # Пилоты
+        for code in favorite_drivers:
+            race_row = race_results_by_code.get(code)
+            standings_row = standings_by_code.get(code)
+
+            if race_row is None and standings_row is None:
+                continue
+
+            race_pos = getattr(race_row, "Position", None) if race_row else None
+            race_pts = getattr(race_row, "Points", None) if race_row else None
+
+            given = getattr(race_row, "FirstName", "") if race_row else getattr(standings_row, "givenName", "")
+            family = getattr(race_row, "LastName", "") if race_row else getattr(standings_row, "familyName", "")
+            full_name = f"{given} {family}".strip() or code
+
+            total_pts = getattr(standings_row, "points", None) if standings_row else None
+
+            part = f"🏁 {code} {full_name}: "
+            if race_pos is not None:
+                part += f"финишировал P{race_pos}"
+            if race_pts is not None:
+                part += f", набрал {race_pts} очк."
+            if total_pts is not None:
+                part += f" | всего в чемпионате: {total_pts}\n"
+            lines.append(part)
+
+        # Команды
+        for team_name in favorite_teams:
+            race_row = constructor_results_by_name.get(team_name)
+            standings_row = constructor_standings_by_name.get(team_name)
+
+            if race_row is None and standings_row is None:
+                continue
+
+            race_pos = getattr(race_row, "Position", None) if race_row else None
+            race_pts = getattr(race_row, "Points", None) if race_row else None
+            total_pts = getattr(standings_row, "points", None) if standings_row else None
+
+            # TODO сделать чтоб писалось где обе машины у команд которые в избранном
+            part = f"🏎 {team_name}: "
+            if race_pos is not None:
+                part += f"команда выступила, лучшая машина финишировала на P{race_pos}"
+            if race_pts is not None:
+                part += f", набрала {race_pts} очк."
+            if total_pts is not None:
+                part += f" | всего в чемпионате: {total_pts}\n"
+            lines.append(part)
+
+        if not lines:
+            continue
+
+        text = (
+            f"📨 Результаты твоих избранных после {event_name} (этап {latest_round}):\n\n"
+            + "\n".join(lines)
+        )
+
+        try:
+            await bot.send_message(chat_id=telegram_id, text=text)
+        except Exception as exc:
+            logging.error(
+                "[NOTIFY] Не удалось отправить уведомление пользователю %s: %s",
+                telegram_id,
+                exc,
+            )
+
+    logging.info(
+        "[NOTIFY] Рассылка завершена: отправлено %s сообщений (сезон=%s, раунд=%s)",
+        sent_count,
+        season,
+        latest_round,
+    )
+
+    await set_last_reminded_round(season, latest_round)
+
+
+async def remind_next_race(bot: Bot) -> None:
+    """
+    Шлёт напоминание за сутки до ближайшей гонки сезона
+    всем пользователям, у которых есть избранные пилоты/команды.
+
+    Напоминаем только один раз на раунд (last_reminded_round в БД).
+    """
+    season = datetime.now().year
+    today = date.today()
+
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        logging.info("[REMIND] Нет расписания для сезона %s", season)
+        return
+
+    # Находим ближайшую будущую гонку
+    future_races = []
+    for r in schedule:
+        try:
+            race_date = date.fromisoformat(r["date"])
+        except Exception:
+            continue
+
+        if race_date >= today:
+            future_races.append((race_date, r))
+
+    if not future_races:
+        logging.info("[REMIND] В сезоне %s больше нет будущих гонок", season)
+        return
+
+    race_date, r = min(future_races, key=lambda x: x[0])
+
+    # Нас интересует гонка СТРОГО "завтра"
+    if race_date != today + timedelta(days=1):
+        logging.debug(
+            "[REMIND] Ближайшая гонка не завтра (сезон=%s, раунд=%s, дата=%s, сегодня=%s)",
+            season,
+            r["round"],
+            race_date,
+            today,
+        )
+        return
+
+    round_num = r["round"]
+    event_name = r["event_name"]
+    country = r["country"]
+    location = r["location"]
+
+    # Проверяем, не напоминали ли уже про этот этап
+    last_reminded = await get_last_reminded_round(season)
+    if last_reminded is not None and last_reminded >= round_num:
+        logging.debug(
+            "[REMIND] Напоминание уже было (сезон=%s, раунд=%s, last_reminded=%s)",
+            season,
+            round_num,
+            last_reminded,
+        )
+        return
+
+    # Формируем блок с временем (если есть race_start_utc)
+    date_str = race_date.strftime("%d.%m.%Y")
+    race_start_utc_str = r.get("race_start_utc")
+
+    if race_start_utc_str:
+        try:
+            race_start_utc = datetime.fromisoformat(race_start_utc_str)
+            if race_start_utc.tzinfo is None:
+                race_start_utc = race_start_utc.replace(tzinfo=timezone.utc)
+
+            utc_str = race_start_utc.strftime("%d.%m.%Y %H:%M UTC")
+            local_dt = race_start_utc.astimezone(UTC_PLUS_3)
+            local_str = local_dt.strftime("%d.%m.%Y %H:%M МСК")
+
+            time_block = (
+                "⏰ Старт гонки:\n"
+                f"• {utc_str}\n"
+                f"• {local_str}"
+            )
+        except Exception:
+            time_block = f"📅 Дата: {date_str}"
+    else:
+        time_block = f"📅 Дата: {date_str}"
+
+    # Текст напоминания
+    header = (
+        f"⏰ Напоминание!\n"
+        f"Гонка пройдет {date_str} Формулы 1 🚦\n\n"
+        f"{round_num:02d}. {event_name}\n"
+        f"📍 {country}, {location}\n"
+        f"{time_block}\n\n"
+        f"Я пришлю тебе отдельное сообщение по твоим избранным пилотам и командам "
+        f"после финиша гонки. 😉"
+    )
+
+    users = await get_all_users_with_favorites()
+    logging.info(
+        "[REMIND] Готовим напоминание по сезону=%s, раунду=%s, пользователей=%s",
+        season,
+        round_num,
+        len(users),
+    )
+
+    sent_count = 0
+    for telegram_id, _user_db_id in users:
+        try:
+            await bot.send_message(chat_id=telegram_id, text=header)
+            sent_count += 1
+        except Exception as exc:
+            logging.error(
+                "[REMIND] Не удалось отправить напоминание пользователю %s: %s",
+                telegram_id,
+                exc,
+            )
+
+    logging.info(
+        "[REMIND] Напоминания отправлены: %s сообщений (сезон=%s, раунд=%s)",
+        sent_count,
+        season,
+        round_num,
+    )
+
+    await set_last_reminded_round(season, round_num)
