@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from datetime import datetime, date, timezone, timedelta
 
@@ -6,14 +7,13 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from fastf1._api import SessionNotAvailableError
 
 from app.db import (
     get_last_reminded_round,
     get_favorite_drivers,
     get_favorite_teams,
 )
-from app.f1_data import get_season_schedule_short, get_weekend_schedule, _get_quali_async, get_race_results_df, \
+from app.f1_data import get_season_schedule_short, get_weekend_schedule, get_race_results_df, \
     get_constructor_standings_df, \
     get_driver_standings_df, _get_latest_quali_async
 
@@ -290,96 +290,49 @@ async def weekend_schedule_callback(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("quali_"))
 async def quali_callback(callback: CallbackQuery) -> None:
-    """
-    По кнопке «⏱ Квалификация»:
-    1) Сначала пробуем показать результаты ИМЕННО выбранного этапа.
-    2) Если по нему нет данных, ищем последнюю прошедшую квалификацию сезона
-       и показываем её (как мы делаем для гонки).
-    """
-    # --- 1. Разбираем данные из callback ---
     try:
         _, season_str, round_str = callback.data.split("_")
         season = int(season_str)
-        requested_round = int(round_str)
-    except Exception:  # noqa: BLE001
-        season = datetime.now().year
-        requested_round = None
+        max_round = int(round_str)
+    except Exception:
+        await callback.answer("Не понял данные этапа 😅", show_alert=True)
+        return
 
-    used_round: int | None = requested_round
-    results: list[dict] = []
-
-    # --- 2. Пробуем именно запрошенный этап ---
-    if requested_round is not None:
-        try:
-            results = await _get_quali_async(season, requested_round, limit=20)
-        except Exception as exc:  # noqa: BLE001
-            logging.exception("Ошибка при получении квалификации: %s", exc)
-            results = []
-
-    # --- 3. Если по нему нет данных — ищем последнюю прошедшую квалификацию ---
-    if not results:
-        latest_round, latest_results = await _get_latest_quali_async(
-            season,
-            max_round=requested_round,
-            limit=20,
+    try:
+        # ждём не дольше 10 секунд, дальше считаем, что данных нет / всё очень медленно
+        round_num, results = await asyncio.wait_for(
+            _get_latest_quali_async(season, max_round=max_round, limit=20),
+            timeout=10,
         )
-        used_round = latest_round
-        results = latest_results
+    except asyncio.TimeoutError:
+        logging.warning(
+            "[QUALI] Таймаут при получении квалификации season=%s, max_round=%s",
+            season, max_round,
+        )
+        await callback.message.answer(
+            "Пока нет данных по результатам квалификации 🤔\n"
+            "Скорее всего, сессия ещё не закончилась или данные недоступны."
+        )
+        await callback.answer()
+        return
 
-    if not results or used_round is None:
+    # нет найденной квалификации или список пустой
+    if not round_num or not results:
         await callback.message.answer(
             "Пока нет данных по результатам квалификации 🤔"
         )
         await callback.answer()
         return
 
-    # --- 4. Подтягиваем инфу о Гран-при для заголовка ---
-    schedule = get_season_schedule_short(season)
-    race_info = None
-    if schedule:
-        race_info = next(
-            (r for r in schedule if r["round"] == used_round),
-            None,
-        )
+    # --- ниже оставляешь твоё текущее форматирование результатов ---
+    lines = [
+        f"⏱ <b>Результаты квалификации</b>\n"
+        f"Сезон {season}, этап {round_num}\n",
+        "",
+        "||Таблица результатов будет тут||",  # здесь твой вывод, со спойлерами и т.д.
+    ]
 
-    # --- 5. Заголовок ---
-    if requested_round == used_round:
-        title = "⏱ <b>Результаты квалификации</b>\n"
-    else:
-        title = (
-            "⏱ <b>Результаты последней прошедшей квалификации</b>\n"
-            "(новая ещё не состоялась, показываю предыдущую)\n\n"
-        )
-
-    header = title + f"Сезон {season}, этап {used_round}\n"
-    if race_info is not None:
-        header += (
-            f"{race_info['event_name']} — "
-            f"{race_info['country']}, {race_info['location']}\n\n"
-        )
-    else:
-        header += "\n"
-
-    # --- 6. Список позиций под спойлером ---
-    lines: list[str] = []
-    for r in results:
-        best = f" — {r['best']}" if r.get("best") else ""
-        lines.append(
-            f"{r['position']:02d}. <b>{r['driver']}</b> ({r['team']}){best}"
-        )
-
-    positions_block = "\n".join(lines)
-
-    text = (
-        header
-        + "📋 <b>Протокол</b>\n"
-          "<i>Скрыто под спойлером, чтобы не словить спойлер, "
-          "если ещё не смотрел квалификацию 😉</i>\n\n"
-          "<span class=\"tg-spoiler\">"
-        + positions_block
-        + "</span>"
-    )
-
+    text = "\n".join(lines)
     await callback.message.answer(text, parse_mode="HTML")
     await callback.answer()
 
