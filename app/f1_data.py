@@ -1,7 +1,9 @@
 import asyncio
+import functools
 import logging
 import pathlib
-from datetime import date as _date, timezone, timedelta, datetime
+from datetime import date as _date, timezone, timedelta, datetime, date
+from functools import partial
 from typing import Optional
 
 import fastf1
@@ -237,49 +239,221 @@ def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
 
 def get_qualifying_results(season: int, round_number: int, limit: int = 20) -> list[dict]:
     """
-    Возвращает результаты квалификации (топ N):
-    [
-      {"position": 1, "driver": "VER", "team": "Red Bull", "best": "1:23.456"},
-      ...
-    ]
+    Синхронно получаем результаты квалификации через FastF1.
+
+    Если данных ещё нет (SessionNotAvailableError или пустой session.results),
+    возвращаем пустой список, НИЧЕГО не бросаем наружу.
     """
-    session = fastf1.get_session(season, round_number, "Q")
-    session.load(telemetry=False, weather=False)
+    logging.info("[QUALI] Загружаю квалификацию season=%s, round=%s", season, round_number)
 
-    df = session.results
-    results: list[dict] = []
+    try:
+        session = fastf1.get_session(season, round_number, "Q")
+    except Exception as exc:  # noqa: BLE001
+        logging.exception(
+            "[QUALI] Не удалось создать сессию FastF1 (season=%s, round=%s): %s",
+            season, round_number, exc,
+        )
+        return []
 
-    for _, row in df.iterrows():
-        pos = int(row["Position"])
-        code = row["Abbreviation"]
-        team = row["TeamName"]
+    try:
+        # без телеметрии, чтобы не тянуть тонну лишних данных
+        session.load(
+            telemetry=False,
+            laps=False,
+            weather=False,
+            messages=False,
+        )
+    except SessionNotAvailableError as exc:
+        logging.info(
+            "[QUALI] Данных по квалификации нет (SessionNotAvailableError) "
+            "season=%s, round=%s: %s",
+            season, round_number, exc,
+        )
+        return []
+    except Exception as exc:  # noqa: BLE001
+        logging.exception(
+            "[QUALI] Ошибка при загрузке сессии квалификации season=%s, round=%s: %s",
+            season, round_number, exc,
+        )
+        return []
 
-        q1 = row.get("Q1")
-        q2 = row.get("Q2")
-        q3 = row.get("Q3")
+    results = getattr(session, "results", None)
+    if results is None or results.empty:
+        logging.info(
+            "[QUALI] В session.results нет данных (season=%s, round=%s)",
+            season, round_number,
+        )
+        return []
 
-        best = q3 if pd.notna(q3) else q2 if pd.notna(q2) else q1
-        best_str = str(best) if pd.notna(best) else ""
+    # сортируем по позиции и собираем в удобный список словарей
+    df = results
+    if "Position" in df.columns:
+        df = df.sort_values("Position")
 
-        results.append(
+    rows: list[dict] = []
+    for _, row in df.head(limit).iterrows():
+        pos = row.get("Position")
+        if pos is None:
+            continue
+
+        try:
+            pos_int = int(pos)
+        except (TypeError, ValueError):
+            continue
+
+        code = row.get("Abbreviation") or row.get("DriverNumber") or "?"
+        team = row.get("TeamName") or ""
+
+        # лучшая попытка: Q3 > Q2 > Q1
+        best_lap = row.get("Q3") or row.get("Q2") or row.get("Q1") or ""
+
+        rows.append(
             {
-                "position": pos,
-                "driver": code,
-                "team": team,
-                "best": best_str,
+                "position": pos_int,
+                "driver": str(code),
+                "team": str(team),
+                "best": str(best_lap) if best_lap else "",
             }
         )
 
-    results.sort(key=lambda r: r["position"])
-    return results[:limit]
-
-
-async def _get_quali_async(season: int, round_number: int, limit: int = 100):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(
-        None,
-        lambda: get_qualifying_results(season, round_number, limit)
+    logging.info(
+        "[QUALI] Успешно получили %s результатов квалификации (season=%s, round=%s)",
+        len(rows), season, round_number,
     )
+    return rows
+
+
+async def _get_quali_async(season: int, round_number: int, limit: int = 20) -> list[dict]:
+    """
+    Асинхронная обёртка над get_qualifying_results, чтобы не блокировать event-loop.
+    """
+    loop = asyncio.get_running_loop()
+    func = functools.partial(get_qualifying_results, season, round_number, limit)
+    return await loop.run_in_executor(None, func)
+
+
+def get_latest_quali_results(season: int, max_round: int | None = None, limit: int = 20) -> tuple[int | None, list[dict]]:
+    """
+    Найти последнюю квалификацию сезона, по которой есть результаты.
+
+    Возвращает (round_number, results). Если данных нет — (None, []).
+
+    max_round — необязательный верхний предел по номеру этапа
+    (например, чтобы не искать дальше будущих этапов).
+    """
+    log = logging.getLogger(__name__)
+
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        return None, []
+
+    # Все этапы сезона
+    rounds = sorted({r["round"] for r in schedule})
+    # Ограничиваем сверху, если нужно
+    if max_round is not None:
+        rounds = [rn for rn in rounds if rn <= max_round]
+
+    # Сначала смотрим только завершившиеся этапы (по дате гонки)
+    today = _date.today()
+    completed_rounds: list[int] = []
+    for rn in rounds:
+        try:
+            item = next(r for r in schedule if r["round"] == rn)
+        except StopIteration:
+            continue
+
+        try:
+            race_date = _date.fromisoformat(item["date"])
+        except Exception:  # noqa: BLE001
+            race_date = today
+
+        if race_date <= today:
+            completed_rounds.append(rn)
+
+    # Ищем с конца (последняя прошедшая квалификация)
+    for rn in sorted(completed_rounds, reverse=True):
+        try:
+            res = get_qualifying_results(season, rn, limit=limit)
+        except Exception as exc:  # noqa: BLE001
+            log.warning(
+                "[QUALI] Не удалось загрузить квалификацию season=%s round=%s: %s",
+                season,
+                rn,
+                exc,
+            )
+            continue
+
+        if res:
+            return rn, res
+
+    return None, []
+
+
+async def _get_latest_quali_async(season: int, max_round: int | None = None, limit: int = 20) -> tuple[int | None, list[dict]]:
+    """
+    Ищем ПОСЛЕДНЮЮ прошедшую квалификацию в сезоне.
+
+    max_round — верхняя граница по номеру этапа (например, если нажали
+    кнопку на конкретном этапе — не лезем дальше него).
+
+    Возвращает (round_number, results_list) или (None, []).
+    """
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        logging.info("[QUALI] Нет расписания для сезона %s", season)
+        return None, []
+
+    today = date.today()
+
+    # Берём только этапы:
+    #  - дата <= сегодня (уже прошли)
+    #  - номер <= max_round (если ограничение указано)
+    candidates = []
+    for r in schedule:
+        rnd = r["round"]
+        if max_round is not None and rnd > max_round:
+            continue
+
+        try:
+            race_date = date.fromisoformat(r["date"])
+        except Exception:  # noqa: BLE001
+            continue
+
+        if race_date > today:
+            continue
+
+        candidates.append(r)
+
+    if not candidates:
+        logging.info(
+            "[QUALI] Нет прошедших этапов для поиска квалификации "
+            "(season=%s, max_round=%s)",
+            season, max_round,
+        )
+        return None, []
+
+    # Идём от последнего к первому
+    candidates.sort(key=lambda r: r["round"], reverse=True)
+
+    for r in candidates:
+        rnd = r["round"]
+        logging.info(
+            "[QUALI] Пробую взять квалификацию для season=%s, round=%s",
+            season, rnd,
+        )
+        results = await _get_quali_async(season, rnd, limit=limit)
+        if results:
+            logging.info(
+                "[QUALI] Нашли квалификацию для season=%s, round=%s (записей=%s)",
+                season, rnd, len(results),
+            )
+            return rnd, results
+
+    logging.info(
+        "[QUALI] Не нашли ни одной квалификации с данными (season=%s, max_round=%s)",
+        season, max_round,
+    )
+    return None, []
 
 
 def _warmup_session_sync(season: int, round_number: int, session_code: str) -> None:

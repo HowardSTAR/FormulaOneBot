@@ -15,7 +15,7 @@ from app.db import (
 )
 from app.f1_data import get_season_schedule_short, get_weekend_schedule, _get_quali_async, get_race_results_df, \
     get_constructor_standings_df, \
-    get_driver_standings_df
+    get_driver_standings_df, _get_latest_quali_async
 
 router = Router()
 
@@ -290,75 +290,97 @@ async def weekend_schedule_callback(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("quali_"))
 async def quali_callback(callback: CallbackQuery) -> None:
-    # 1. Разбираем сезон и раунд из callback.data
+    """
+    По кнопке «⏱ Квалификация»:
+    1) Сначала пробуем показать результаты ИМЕННО выбранного этапа.
+    2) Если по нему нет данных, ищем последнюю прошедшую квалификацию сезона
+       и показываем её (как мы делаем для гонки).
+    """
+    # --- 1. Разбираем данные из callback ---
     try:
         _, season_str, round_str = callback.data.split("_")
         season = int(season_str)
-        round_num = int(round_str)
-    except Exception:
-        await callback.answer("Не понял данные этапа 😅", show_alert=True)
-        return
+        requested_round = int(round_str)
+    except Exception:  # noqa: BLE001
+        season = datetime.now().year
+        requested_round = None
 
-    # 2. Быстрая проверка по календарю: гонка ещё не прошла?
-    try:
-        schedule = get_season_schedule_short(season)
-    except Exception as exc:
-        logging.exception("Не удалось получить календарь сезона %s: %s", season, exc)
-        # в крайнем случае ведём себя как раньше
-        schedule = []
+    used_round: int | None = requested_round
+    results: list[dict] = []
 
-    if schedule:
-        race_info = next((r for r in schedule if r["round"] == round_num), None)
-        if race_info is not None:
-            try:
-                race_date = date.fromisoformat(race_info["date"])
-            except Exception:
-                race_date = None
+    # --- 2. Пробуем именно запрошенный этап ---
+    if requested_round is not None:
+        try:
+            results = await _get_quali_async(season, requested_round, limit=20)
+        except Exception as exc:  # noqa: BLE001
+            logging.exception("Ошибка при получении квалификации: %s", exc)
+            results = []
 
-            today = date.today()
-            # если сама гонка ещё в будущем, квалификация с очень большой вероятностью тоже не прошла
-            if race_date is not None and race_date > today:
-                await callback.message.answer(
-                    "Пока нет данных по результатам квалификации 🤔"
-                )
-                await callback.answer()
-                return
-
-    # 3. Если по календарю этап уже должен был состояться — пробуем реально тянуть данные
-    try:
-        results = await _get_quali_async(season, round_num, limit=20)
-    except SessionNotAvailableError:
-        # FastF1/Ergast ещё не отдали данные по сессии
-        await callback.message.answer(
-            "Пока нет данных по результатам квалификации 🤔"
-        )
-        await callback.answer()
-        return
-    except Exception as exc:
-        logging.exception("Ошибка при получении квалификации: %s", exc)
-        await callback.message.answer(
-            "Похоже, квалификация ещё не прошла или данные недоступны 🤷‍♂️"
-        )
-        await callback.answer()
-        return
-
+    # --- 3. Если по нему нет данных — ищем последнюю прошедшую квалификацию ---
     if not results:
+        latest_round, latest_results = await _get_latest_quali_async(
+            season,
+            max_round=requested_round,
+            limit=20,
+        )
+        used_round = latest_round
+        results = latest_results
+
+    if not results or used_round is None:
         await callback.message.answer(
             "Пока нет данных по результатам квалификации 🤔"
         )
         await callback.answer()
         return
 
-    # 4. Формируем текст
-    lines = ["⏱ *Результаты квалификации*:", ""]
-    for r in results:
-        best = f" — {r['best']}" if r["best"] else ""
-        lines.append(
-            f"{r['position']:02d}. {r['driver']} ({r['team']}){best}"
+    # --- 4. Подтягиваем инфу о Гран-при для заголовка ---
+    schedule = get_season_schedule_short(season)
+    race_info = None
+    if schedule:
+        race_info = next(
+            (r for r in schedule if r["round"] == used_round),
+            None,
         )
 
-    text = "\n".join(lines)
-    await callback.message.answer(text, parse_mode="Markdown")
+    # --- 5. Заголовок ---
+    if requested_round == used_round:
+        title = "⏱ <b>Результаты квалификации</b>\n"
+    else:
+        title = (
+            "⏱ <b>Результаты последней прошедшей квалификации</b>\n"
+            "(новая ещё не состоялась, показываю предыдущую)\n\n"
+        )
+
+    header = title + f"Сезон {season}, этап {used_round}\n"
+    if race_info is not None:
+        header += (
+            f"{race_info['event_name']} — "
+            f"{race_info['country']}, {race_info['location']}\n\n"
+        )
+    else:
+        header += "\n"
+
+    # --- 6. Список позиций под спойлером ---
+    lines: list[str] = []
+    for r in results:
+        best = f" — {r['best']}" if r.get("best") else ""
+        lines.append(
+            f"{r['position']:02d}. <b>{r['driver']}</b> ({r['team']}){best}"
+        )
+
+    positions_block = "\n".join(lines)
+
+    text = (
+        header
+        + "📋 <b>Протокол</b>\n"
+          "<i>Скрыто под спойлером, чтобы не словить спойлер, "
+          "если ещё не смотрел квалификацию 😉</i>\n\n"
+          "<span class=\"tg-spoiler\">"
+        + positions_block
+        + "</span>"
+    )
+
+    await callback.message.answer(text, parse_mode="HTML")
     await callback.answer()
 
 
