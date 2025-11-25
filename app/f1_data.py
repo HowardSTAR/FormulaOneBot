@@ -69,6 +69,10 @@ def get_season_schedule_short(season: int) -> list[dict]:
         except Exception:
             continue
 
+        # пропускаем тесты и всё с round <= 0
+        if round_num <= 0:
+            continue
+
         country = str(row.get("Country") or "")
         location = str(row.get("Location") or "")
 
@@ -102,7 +106,6 @@ def get_season_schedule_short(season: int) -> list[dict]:
             race_dt_utc = sess_dt_utc.to_pydatetime()
             break
 
-        # Базовые поля гонки
         race_dict = {
             "round": round_num,
             "event_name": event_name,
@@ -111,10 +114,8 @@ def get_season_schedule_short(season: int) -> list[dict]:
             "date": race_date_iso,
         }
 
-        # Если время гонки удалось найти — добавляем время
         if race_dt_utc is not None:
             if race_dt_utc.tzinfo is None:
-                # Явно считаем это временем в UTC
                 race_dt_utc = race_dt_utc.replace(tzinfo=timezone.utc)
 
             race_dict["race_start_utc"] = race_dt_utc.isoformat()
@@ -166,54 +167,16 @@ def get_constructor_standings_df(season: int, round_number: Optional[int] = None
     return df
 
 
-def get_race_results_df(season: int, round_number: int) -> pd.DataFrame:
-    """
-    Вернуть результаты гонки (Race) как DataFrame.
-
-    Логика по доке:
-      session = fastf1.get_session(year, round, 'R')
-      session.load()
-      results = session.results
-
-    В results есть столбцы вроде Abbreviation, TeamName, ClassifiedPosition, Points и т.д. :contentReference[oaicite:7]{index=7}
-    """
+def get_race_results_df(season: int, round_number: int):
     session = fastf1.get_session(season, round_number, "R")
-    session.load()
+    # грузим минимум (без телеметрии / погоды / статусов)
+    session.load(
+        telemetry=False,
+        laps=False,
+        weather=False,
+        messages=False
+    )
     return session.results
-
-
-def get_race_results(season: int, round_number: int, limit: int = 20) -> list[dict]:
-    session = fastf1.get_session(season, round_number, "R")
-    session.load(telemetry=False, weather=False)
-
-    df = session.results
-    results: list[dict] = []
-
-    for _, row in df.iterrows():
-        pos = int(row["Position"])
-        code = row["Abbreviation"]
-        team = row["TeamName"]
-        time_ = row.get("Time")
-        status = row.get("Status")
-        points = row.get("Points")
-
-        time_str = str(time_) if pd.notna(time_) else ""
-        status_str = str(status) if pd.notna(status) else ""
-        pts = int(points) if pd.notna(points) else 0
-
-        results.append(
-            {
-                "position": pos,
-                "driver": code,
-                "team": team,
-                "time": time_str,
-                "status": status_str,
-                "points": pts,
-            }
-        )
-
-    results.sort(key=lambda r: r["position"])
-    return results[:limit]
 
 
 async def _get_race_results_async(season: int, round_number: int):

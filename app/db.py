@@ -177,16 +177,29 @@ async def get_favorites_for_user_id(user_db_id: int) -> Tuple[List[str], List[st
 
 async def _ensure_notification_table() -> None:
     async with aiosqlite.connect(DB_PATH) as db:
+        # 1. Если таблицы нет — создаём с базовыми колонками
         await db.execute(
             """
             CREATE TABLE IF NOT EXISTS notification_state (
                 season INTEGER PRIMARY KEY,
                 last_notified_round INTEGER,
-                last_reminded_round INTEGER,
-                last_notified_quali_round INTEGER
+                last_reminded_round INTEGER
             )
             """
         )
+
+        # 2. Проверяем, есть ли колонка last_notified_quali_round
+        cursor = await db.execute("PRAGMA table_info(notification_state)")
+        columns = [row[1] for row in await cursor.fetchall()]
+        await cursor.close()
+
+        if "last_notified_quali_round" not in columns:
+            # 3. Добавляем недостающий столбец
+            await db.execute(
+                "ALTER TABLE notification_state "
+                "ADD COLUMN last_notified_quali_round INTEGER"
+            )
+
         await db.commit()
 
 
