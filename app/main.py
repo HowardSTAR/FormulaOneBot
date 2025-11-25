@@ -74,10 +74,12 @@ async def main() -> None:
         hours=1,
         max_instances=1,
         coalesce=True,
+        id="warmup_sessions",
+        replace_existing=True,
     )
     scheduler.start()
 
-    await warmup_current_season_sessions()
+    asyncio.create_task(warmup_current_season_sessions())
 
     try:
         await dp.start_polling(bot)

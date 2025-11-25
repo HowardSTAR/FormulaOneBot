@@ -283,20 +283,20 @@ async def _get_quali_async(season: int, round_number: int, limit: int = 100):
 
 
 def _warmup_session_sync(season: int, round_number: int, session_code: str) -> None:
-    """
-    Синхронный прогрев одной сессии FastF1 (Q/R).
-    Вызывается из отдельного потока, чтобы не блокировать event loop.
-    """
     try:
         s = fastf1.get_session(season, round_number, session_code)
-        # livedata=False — берём только архивные данные / кэш
-        s.load(livedata=False)
+        # минимальная загрузка, только чтобы закешировать результаты
+        s.load(
+            telemetry=False,
+            laps=False,
+            weather=False,
+            messages=False,
+        )
         logger.info(
             "[WARMUP] Прогрел сессию %s: сезон=%s, раунд=%s",
             session_code, season, round_number
         )
     except SessionNotAvailableError:
-        # нет данных (ещё рано или сессия не существует) — это нормально
         logger.info(
             "[WARMUP] Нет данных для сессии %s (season=%s, round=%s)",
             session_code, season, round_number
@@ -311,13 +311,13 @@ def _warmup_session_sync(season: int, round_number: int, session_code: str) -> N
 async def warmup_current_season_sessions() -> None:
     """
     Асинхронная обёртка: в фоне прогреваем FastF1 для
-    последней прошедшей гонки и ближайшей будущей гонки (Q и R).
+    двух последних прошедших гонок (Q и R).
     Вызывать:
       - один раз при старте бота
-      - периодически через APScheduler (каждые 2 минуты)
+      - периодически через APScheduler (каждые N минут)
     """
-    from app.f1_data import get_season_schedule_short  # чтобы избежать циклического импорта
-
+    # здесь можно уже просто вызывать напрямую,
+    # без локального импорта, функция выше в этом же модуле
     season = datetime.now().year
     schedule = get_season_schedule_short(season)
     if not schedule:
@@ -326,11 +326,12 @@ async def warmup_current_season_sessions() -> None:
 
     now_utc = datetime.now(timezone.utc)
 
-    # разделим на прошедшие и будущие
-    past = []
-    future = []
+    past: list[dict] = []
+
     for r in schedule:
         race_start_str = r.get("race_start_utc")
+        race_dt = None
+
         if race_start_str:
             try:
                 race_dt = datetime.fromisoformat(race_start_str)
@@ -338,47 +339,50 @@ async def warmup_current_season_sessions() -> None:
                     race_dt = race_dt.replace(tzinfo=timezone.utc)
             except Exception:
                 race_dt = None
-        else:
-            race_dt = None
 
-        if race_dt and race_dt <= now_utc:
+        # если времени старта нет, можно подстраховаться датой
+        if race_dt is None:
+            try:
+                race_date = _date.fromisoformat(r["date"])
+                # считаем прошедшей, если дата гонки < сегодняшней по UTC
+                if race_date < _date.today():
+                    past.append(r)
+                continue
+            except Exception:
+                continue
+
+        if race_dt <= now_utc:
             past.append(r)
-        else:
-            future.append(r)
 
-    targets: list[tuple[int, int]] = []
-
-    # последняя прошедшая
-    if past:
-        last_race = max(past, key=lambda r: r["round"])
-        targets.append((season, last_race["round"]))
-
-    # ближайшая будущая
-    if future:
-        next_race = min(future, key=lambda r: r["round"])
-        # избегаем дубликата, если это тот же раунд
-        if not targets or targets[0][1] != next_race["round"]:
-            targets.append((season, next_race["round"]))
-
-    if not targets:
-        logger.info("[WARMUP] Нет подходящих этапов для прогрева (season=%s)", season)
+    if not past:
+        logger.info("[WARMUP] Пока нет прошедших гонок для сезона %s", season)
         return
+
+    # сортируем по номеру этапа и берём последние два
+    past_sorted = sorted(past, key=lambda x: x["round"])
+    last_two = past_sorted[-2:]  # если была всего одна — возьмётся одна
+
+    targets: list[tuple[int, int]] = [
+        (season, r["round"]) for r in last_two
+    ]
 
     loop = asyncio.get_running_loop()
 
-    # параллельно греть Q и R для каждого выбранного этапа
-    tasks = []
+    if not targets:
+        logger.info("[WARMUP] Нечего прогревать (season=%s)", season)
+        return
+
+    logger.info(
+        "[WARMUP] Начинаю прогрев FastF1 (последовательно) для season=%s, rounds=%s",
+        season,
+        [r["round"] for r in last_two],
+    )
+
     for yr, rnd in targets:
         for code in ("Q", "R"):
-            tasks.append(loop.run_in_executor(None, _warmup_session_sync, yr, rnd, code))
+            await loop.run_in_executor(None, _warmup_session_sync, yr, rnd, code)
 
-    if tasks:
-        logger.info(
-            "[WARMUP] Начинаю прогрев FastF1 для %d сессий (season=%s)",
-            len(tasks), season
-        )
-        await asyncio.gather(*tasks, return_exceptions=True)
-        logger.info("[WARMUP] Прогрев FastF1 завершён")
+    logger.info("[WARMUP] Прогрев FastF1 завершён")
 
 # можно удалить
 if __name__ == "__main__":
