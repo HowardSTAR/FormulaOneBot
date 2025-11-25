@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from datetime import datetime, date, timezone, timedelta
+from collections import defaultdict
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -414,7 +415,8 @@ async def race_callback(callback: CallbackQuery) -> None:
     По кнопке «🏁 Гонка» показываем результаты
     ПОСЛЕДНЕЙ гонки сезона, для которой уже есть результаты
     (по данным notification_state.last_reminded_round),
-    а в конце — персональный блок по избранным пилотам и командам.
+    а в конце — блок по избранным КОМАНДАМ.
+    Для избранных пилотов ставим ⭐️ в общем списке результатов.
     """
     # 1. Определяем сезон (берём из callback, если есть, иначе текущий год)
     try:
@@ -453,6 +455,10 @@ async def race_callback(callback: CallbackQuery) -> None:
     driver_standings = get_driver_standings_df(season, round_number=last_round)
     constructor_standings = get_constructor_standings_df(season, round_number=last_round)
 
+    # 4.1. Получаем избранных пользователя
+    fav_drivers = await get_favorite_drivers(callback.from_user.id)
+    fav_teams = await get_favorite_teams(callback.from_user.id)
+
     # --- ОФОРМЛЕНИЕ ОСНОВНОГО БЛОКА РЕЗУЛЬТАТОВ ---
 
     df = race_results
@@ -464,18 +470,22 @@ async def race_callback(callback: CallbackQuery) -> None:
         header = (
             "🏁 <b>Результаты последней гонки</b>\n"
             f"{race_info['event_name']} — {race_info['country']}, {race_info['location']}\n"
-            f"(этап {last_round}, сезон {season})\n\n"
+            f"(этап {last_round}, сезон {season})\n"
+            "<b>Твои избранные пилоты</b> — отмечены ⭐️\n\n"
         )
     else:
         header = (
             "🏁 <b>Результаты последней гонки</b>\n"
             f"(этап {last_round}, сезон {season})\n\n"
+            "⭐️ <b>Твои избранные</b>\n\n"
         )
 
     # Топ-20 финишировавших
     lines: list[str] = []
     max_positions = 20
     count = 0
+
+    fav_drivers_set = set(fav_drivers or [])
 
     for row in df.itertuples(index=False):
         pos = getattr(row, "Position", None)
@@ -494,7 +504,12 @@ async def race_callback(callback: CallbackQuery) -> None:
         team = getattr(row, "TeamName", "")
         pts = getattr(row, "Points", None)
 
-        line = f"{pos_int:02d}. <b>{code}</b>"
+        is_fav = code in fav_drivers_set
+
+        # ⭐️ ставим перед кодом избранного пилота
+        prefix_star = "⭐️ " if is_fav else ""
+
+        line = f"{pos_int:02d}. {prefix_star}<b>{code}</b>"
         if team:
             line += f" — {team}"
         if pts is not None:
@@ -525,31 +540,17 @@ async def race_callback(callback: CallbackQuery) -> None:
         "</span>"
     )
 
-    # --- БЛОК ПО ИЗБРАННЫМ ПИЛОТАМ И КОМАНДАМ ---
+    # --- БЛОК ПО ИЗБРАННЫМ КОМАНДАМ (пилотов тут больше не показываем!) ---
 
-    fav_drivers = await get_favorite_drivers(callback.from_user.id)
-    fav_teams = await get_favorite_teams(callback.from_user.id)
-
-    if fav_drivers or fav_teams:
-        # Мапы для быстрого поиска
-        race_results_by_code = {}
-        for row in race_results.itertuples(index=False):
-            code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", None)
-            if code:
-                race_results_by_code[code] = row
-
-        standings_by_code = {}
-        if driver_standings is not None and not driver_standings.empty:
-            for row in driver_standings.itertuples(index=False):
-                code = getattr(row, "driverCode", None)
-                if code:
-                    standings_by_code[code] = row
-
-        constructor_results_by_name = {}
+    if fav_teams:
+        # Мапы для быстрого поиска по командам
+        # В race_results по каждой строке — конкретный пилот.
+        # Здесь собираем все машины команды.
+        constructor_results_by_name: dict[str, list] = defaultdict(list)
         for row in race_results.itertuples(index=False):
             team_name = getattr(row, "TeamName", None)
-            if team_name and team_name not in constructor_results_by_name:
-                constructor_results_by_name[team_name] = row
+            if team_name:
+                constructor_results_by_name[team_name].append(row)
 
         constructor_standings_by_name = {}
         if constructor_standings is not None and not constructor_standings.empty:
@@ -560,87 +561,112 @@ async def race_callback(callback: CallbackQuery) -> None:
 
         fav_lines: list[str] = []
 
-        # --- Избранные пилоты ---
-        if fav_drivers:
-            fav_lines.append("👤 <b>Твои пилоты</b>:\n")
-            for code in fav_drivers:
-                race_row = race_results_by_code.get(code)
-                standings_row = standings_by_code.get(code)
+        fav_lines.append("🏎 <b>Твои команды</b>:\n")
+        for team_name in fav_teams:
+            # 1) пробуем точное имя
+            team_rows = constructor_results_by_name.get(team_name)
 
-                if race_row is None and standings_row is None:
-                    continue
+            # 2) если не нашли — пробуем "похожее" (Red Bull vs Red Bull Racing)
+            if team_rows is None:
+                tn_lower = team_name.lower()
+                for key, rows in constructor_results_by_name.items():
+                    key_lower = key.lower()
+                    if tn_lower in key_lower or key_lower in tn_lower:
+                        team_rows = rows
+                        break
 
-                race_pos = getattr(race_row, "Position", None) if race_row else None
-                race_pts = getattr(race_row, "Points", None) if race_row else None
+            standings_row = constructor_standings_by_name.get(team_name)
 
-                given = (
-                    getattr(race_row, "FirstName", "")
-                    if race_row else getattr(standings_row, "givenName", "")
-                )
-                family = (
-                    getattr(race_row, "LastName", "")
-                    if race_row else getattr(standings_row, "familyName", "")
-                )
+            if (not team_rows) and standings_row is None:
+                continue
+
+            # --- выбираем две лучшие машины команды ---
+            primary = None
+            secondary = None
+            if team_rows:
+                valid_rows = []
+                for r in team_rows:
+                    pos = getattr(r, "Position", None)
+                    try:
+                        pos_val = int(float(pos))
+                    except (TypeError, ValueError):
+                        continue
+                    valid_rows.append((pos_val, r))
+
+                valid_rows.sort(key=lambda x: x[0])
+
+                if valid_rows:
+                    primary = valid_rows[0][1]
+                if len(valid_rows) > 1:
+                    secondary = valid_rows[1][1]
+
+            # --- суммарные очки команды в гонке ---
+            team_race_pts = None
+            if team_rows:
+                total = 0.0
+                has_pts = False
+                for r in team_rows:
+                    pts = getattr(r, "Points", None)
+                    try:
+                        total += float(pts)
+                        has_pts = True
+                    except (TypeError, ValueError):
+                        continue
+                if has_pts:
+                    team_race_pts = int(total)
+
+            # --- очки в чемпионате ---
+            total_pts = None
+            if standings_row is not None:
+                try:
+                    total_pts = int(float(getattr(standings_row, "points", 0)))
+                except (TypeError, ValueError):
+                    total_pts = None
+
+            part = f"• <b>{team_name}</b>\n"
+            detail_lines = []
+
+            def _format_driver_info(row):
+                if row is None:
+                    return None
+                code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", "?")
+                given = getattr(row, "FirstName", "") or ""
+                family = getattr(row, "LastName", "") or ""
                 full_name = f"{given} {family}".strip() or code
+                pos = getattr(row, "Position", None)
+                try:
+                    pos_int = int(float(pos))
+                except (TypeError, ValueError):
+                    pos_int = None
+                if pos_int is None:
+                    return None
+                return pos_int, code, full_name
 
-                total_pts = (
-                    getattr(standings_row, "points", None)
-                    if standings_row else None
-                )
+            info1 = _format_driver_info(primary)
+            info2 = _format_driver_info(secondary)
 
-                # Видимыми оставляем только имя, а позицию и очки прячем под спойлер
-                part = f"• <b>{code}</b> {full_name}\n"
+            if info1:
+                pos1, code1, full1 = info1
+                detail_lines.append(f"Лучшая машина: P{pos1} — {code1} ({full1})")
+            if info2:
+                pos2, code2, full2 = info2
+                detail_lines.append(f"Ввторая машина: P{pos2} — {code2} ({full2})")
 
-                details = []
-                if race_pos is not None:
-                    details.append(f"финишировал P{race_pos}")
-                if race_pts is not None:
-                    details.append(f"набрал {race_pts} очк.")
-                if total_pts is not None:
-                    details.append(f"всего в чемпионате: {total_pts}")
+            if team_race_pts is not None:
+                detail_lines.append(f"Команда набрала {team_race_pts} очк.")
+            if total_pts is not None:
+                detail_lines.append(f"Всего в чемпионате: {total_pts}")
 
-                if details:
-                    details_text = "; ".join(details)
-                    part += f"<span class=\"tg-spoiler\">{details_text}</span>"
+            if detail_lines:
+                details_text = "; \n".join(detail_lines)
+                part += f"<span class=\"tg-spoiler\">{details_text}</span>"
 
-                fav_lines.append(part + "\n")
-
-        # --- Избранные команды ---
-        if fav_teams:
-            fav_lines.append("\n\n🏎 <b>Твои команды</b>:\n")
-            for team_name in fav_teams:
-                race_row = constructor_results_by_name.get(team_name)
-                standings_row = constructor_standings_by_name.get(team_name)
-
-                if race_row is None and standings_row is None:
-                    continue
-
-                race_pos = getattr(race_row, "Position", None) if race_row else None
-                race_pts = getattr(race_row, "Points", None) if race_row else None
-                total_pts = (
-                    getattr(standings_row, "points", None)
-                    if standings_row else None
-                )
-
-                part = f"• <b>{team_name}</b>\n"
-                details = []
-                if race_pos is not None:
-                    details.append(f"лучшая машина финишировала на P{race_pos}")
-                if race_pts is not None:
-                    details.append(f"команда набрала {race_pts} очк.")
-                if total_pts is not None:
-                    details.append(f"всего в чемпионате: {total_pts}")
-
-                if details:
-                    details_text = "; ".join(details)
-                    part += f"<span class=\"tg-spoiler\">{details_text}</span>"
-
-                fav_lines.append(part + "\n")
+            fav_lines.append(part + "\n")
 
         if fav_lines:
             text_parts.append(
                 "\n──────────\n\n"
-                "⭐️ <b>Твои избранные</b>\n\n" + "".join(fav_lines)
+                "".join(fav_lines)
             )
 
     # 7. Отправляем одно красивое сообщение
