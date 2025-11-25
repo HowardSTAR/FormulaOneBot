@@ -10,7 +10,6 @@ from fastf1._api import SessionNotAvailableError
 
 from app.db import (
     get_last_reminded_round,
-    get_last_notified_quali_round,
     get_favorite_drivers,
     get_favorite_teams,
 )
@@ -473,7 +472,7 @@ async def race_callback(callback: CallbackQuery) -> None:
 
     # Легенда и спойлер с позициями
     text_parts.append(
-        "📋 <b>Топ-20 финишировавших</b>\n"
+        "📋 <b>Финишировавшие</b>\n"
         "<i>Скрыто под спойлером, чтобы не словить спойлер, если ещё не смотрел гонку 😉</i>\n\n"
         "<span class=\"tg-spoiler\">"
         + positions_block +
