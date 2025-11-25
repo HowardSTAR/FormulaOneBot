@@ -71,8 +71,9 @@ async def main() -> None:
     scheduler.add_job(
         warmup_current_season_sessions,
         "interval",
-        minutes=2,
-        next_run_time=datetime.now(timezone.utc),  # первый запуск сразу при старте
+        hours=1,
+        max_instances=1,
+        coalesce=True,
     )
     scheduler.start()
 
