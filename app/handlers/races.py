@@ -47,8 +47,6 @@ class RacesYearState(StatesGroup):
     waiting_for_year = State()
 
 
-
-
 async def _send_races_for_year(message: Message, season: int) -> None:
     races = get_season_schedule_short(season)
 
