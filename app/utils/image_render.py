@@ -45,7 +45,7 @@ def create_results_image(
     separator_color = (70, 70, 120)
 
     # --- Загрузка шрифтов ---
-    fonts_dir = Path(__file__).resolve().parent / "assets" / "fonts"
+    fonts_dir = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 
     try:
         font_title = ImageFont.truetype(str(fonts_dir / "Jost-Bold.ttf"), 44)
