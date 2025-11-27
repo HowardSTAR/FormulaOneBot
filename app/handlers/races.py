@@ -3,7 +3,6 @@ import logging
 from datetime import datetime, date, timezone, timedelta
 from collections import defaultdict
 import random
-from pathlib import Path
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -11,7 +10,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, BufferedInputFile
 
-from app.image_render import create_results_image
+from app.utils.image_render import create_results_image
 from app.db import (
     get_last_reminded_round,
     get_favorite_drivers,
