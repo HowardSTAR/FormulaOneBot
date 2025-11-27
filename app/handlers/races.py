@@ -592,32 +592,9 @@ async def race_callback(callback: CallbackQuery) -> None:
         filename="race_results.png",
     )
 
-    await callback.message.answer_photo(
-        photo=photo,
-        caption=(
-            "🏁 Результаты последней гонки (таблица на картинке).\n"
-            "⭐️ — твои избранные пилоты."
-        ),
-    )
-
-    positions_block = "\n".join(lines)
-
-    # Делаем общий текст: шапка + блок с позициями под спойлером
-    text_parts: list[str] = []
-
-    # Шапка
-    text_parts.append(header.rstrip())
-
-    # Легенда и спойлер с позициями
-    text_parts.append(
-        "📋 <b>Финишировавшие</b>\n"
-        "<i>Скрыто под спойлером, чтобы не словить спойлер, если ещё не смотрел гонку 😉</i>\n\n"
-        "<span class=\"tg-spoiler\">"
-        + positions_block +
-        "</span>"
-    )
-
     # --- БЛОК ПО ИЗБРАННЫМ КОМАНДАМ (пилотов тут больше не показываем!) ---
+
+    fav_block = ""
 
     if fav_teams:
         # Мапы для быстрого поиска по командам
@@ -638,7 +615,7 @@ async def race_callback(callback: CallbackQuery) -> None:
 
         fav_lines: list[str] = []
 
-        fav_lines.append("🏎 <b>Твои команды</b>:\n")
+        fav_lines.append("🏎 <b>Твои избранные команды</b>:\n")
         for team_name in fav_teams:
             # 1) пробуем точное имя
             team_rows = constructor_results_by_name.get(team_name)
@@ -727,7 +704,7 @@ async def race_callback(callback: CallbackQuery) -> None:
                 detail_lines.append(f"Лучшая машина: P{pos1} — {code1} ({full1})")
             if info2:
                 pos2, code2, full2 = info2
-                detail_lines.append(f"Ввторая машина: P{pos2} — {code2} ({full2})")
+                detail_lines.append(f"Вторая машина: P{pos2} — {code2} ({full2})")
 
             if team_race_pts is not None:
                 detail_lines.append(f"Команда набрала {team_race_pts} очк.")
@@ -735,20 +712,29 @@ async def race_callback(callback: CallbackQuery) -> None:
                 detail_lines.append(f"Всего в чемпионате: {total_pts}")
 
             if detail_lines:
-                details_text = "; \n".join(detail_lines)
+                details_text = ";\n".join(detail_lines)
                 part += f"<span class=\"tg-spoiler\">{details_text}</span>"
 
             fav_lines.append(part + "\n")
 
         if fav_lines:
-            text_parts.append(
-                "\n──────────\n\n"
-                "".join(fav_lines)
-            )
+            fav_block = "──────────\n\n" + "".join(fav_lines)
 
-    # 7. Отправляем одно красивое сообщение
-    text = "\n\n".join(text_parts)
-    await callback.message.answer(text, parse_mode="HTML")
+    # Собираем итоговый текст для подписи к картинке
+    caption = (
+        "🏁 Результаты последней гонки (таблица на картинке).\n"
+        "⭐️ — твои избранные пилоты."
+    )
+    if fav_block:
+        caption += "\n\n" + fav_block
+
+    await callback.message.answer_photo(
+        photo=photo,
+        caption=caption,
+        parse_mode="HTML",
+        has_spoiler=True,
+    )
+
     await callback.answer()
 
 
