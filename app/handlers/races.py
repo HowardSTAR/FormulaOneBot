@@ -518,7 +518,8 @@ async def race_callback(callback: CallbackQuery) -> None:
     count = 0
 
     fav_drivers_set = set(fav_drivers or [])
-    rows_for_image: list[tuple[str, str, str]] = []
+    # Для генерации картинки: (позиция, код, имя пилота, очки за гонку)
+    rows_for_image: list[tuple[str, str, str, str]] = []
 
     for row in df.itertuples(index=False):
         pos = getattr(row, "Position", None)
@@ -537,9 +538,12 @@ async def race_callback(callback: CallbackQuery) -> None:
         team = getattr(row, "TeamName", "")
         pts = getattr(row, "Points", None)
 
-        is_fav = code in fav_drivers_set
+        # Имя пилота
+        given = getattr(row, "FirstName", "") or ""
+        family = getattr(row, "LastName", "") or ""
+        full_name = f"{given} {family}".strip() or code
 
-        # ⭐️ ставим перед кодом избранного пилота
+        is_fav = code in fav_drivers_set
         prefix_star = "⭐️ " if is_fav else ""
 
         line = f"{pos_int:02d}. {prefix_star}<b>{code}</b>"
@@ -549,18 +553,20 @@ async def race_callback(callback: CallbackQuery) -> None:
             line += f" ({pts} очк.)"
         lines.append(line)
 
-        # Заполняем данные для картинки
-        extra_parts = []
-        if team:
-            extra_parts.append(team)
+        # Подготовка данных для картинки
+        code_for_img = f"⭐️{code}" if is_fav else code
         if pts is not None:
-            extra_parts.append(f"{pts} очк.")
-
-        extra_str = " — ".join(extra_parts) if extra_parts else ""
-        code_for_img = f"⭐️ {code}" if is_fav else code
+            # если очки — число, красиво форматируем, но без суффикса "очк."
+            try:
+                pts_value = float(pts)
+                pts_text = f"{pts_value:.0f}"
+            except (TypeError, ValueError):
+                pts_text = str(pts)
+        else:
+            pts_text = "0"
 
         rows_for_image.append(
-            (f"{pos_int:02d}", code_for_img, extra_str)
+            (f"{pos_int:02d}", code_for_img, full_name, pts_text)
         )
 
     if not lines:
