@@ -19,6 +19,24 @@ from app.f1_data import get_season_schedule_short, get_weekend_schedule, get_rac
     get_constructor_standings_df, \
     get_driver_standings_df, _get_latest_quali_async
 
+
+SESSION_NAME_RU = {
+    "Practice 1": "Практика 1",
+    "Practice 2": "Практика 2",
+    "Practice 3": "Практика 3",
+    "Free Practice 1": "Практика 1",
+    "Free Practice 2": "Практика 2",
+    "Free Practice 3": "Практика 3",
+
+    "Sprint Qualifying": "Спринт-квалификация",
+    "Sprint Shootout": "Спринт-квалификация",  # на всякий случай
+    "Sprint": "Спринт",
+
+    "Qualifying": "Квалификация",
+    "Race": "Гонка",
+}
+
+
 router = Router()
 
 UTC_PLUS_3 = timezone(timedelta(hours=3))
@@ -276,17 +294,21 @@ async def weekend_schedule_callback(callback: CallbackQuery) -> None:
 
     lines = []
     for s in sessions:
+        raw_name = s["name"]
+        # пробуем найти перевод, иначе оставляем как есть
+        name_ru = SESSION_NAME_RU.get(raw_name, raw_name)
+
         lines.append(
-            f"• <b>{s['name']}</b>\n"
+            f"• <b>{name_ru}</b>\n"
             f"  {s['local']} / {s['utc']}"
         )
 
     text = (
-        f"📅 Расписание уикенда сезона {season}, раунд {round_num}:\n\n" +
-        "\n\n".join(lines)
+        f"📅 Расписание уикенда сезона {season}, раунд {round_num}:\n\n"
+        + "\n\n".join(lines)
     )
 
-    await callback.message.answer(text)
+    await callback.message.answer(text, parse_mode="HTML")
     await callback.answer()
 
 
