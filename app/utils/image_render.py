@@ -7,27 +7,27 @@ from PIL import Image, ImageDraw, ImageFont
 # Соответствие кода пилота имени файла с его фотографией
 # Файлы лежат в app/assets/pilots
 DRIVER_CODE_TO_FILE = {
-    "ALB": "Alexander Albon.jpg",
-    "ANT": "Andrea Kimi Antonelli.jpg",
-    "SAI": "Carlos Sainz.jpg",
-    "LEC": "Charles Leclerc.jpg",
-    "OCO": "Esteban Ocon.jpg",
-    "ALO": "Fernando Alonso.jpg",
-    "COL": "Franco Colapinto.jpg",
-    "BOR": "Gabriel Bortoleto.jpg",
-    "RUS": "George Russell.jpg",
-    "HAD": "Isack Hadjar.jpg",
-    "DOO": "Jack Doohan.jpg",
-    "STR": "Lance Stroll.jpg",
-    "NOR": "Lando Norris.jpg",
-    "HAM": "Lewis Hamilton.jpg",
-    "LAW": "Liam Lawson.jpg",
-    "VER": "Max Verstappen.jpg",
-    "HUL": "Nico Hülkenberg.jpg",
-    "BEA": "Oliver Bearman.jpg",
-    "PIA": "Oscar Piastri.jpg",
-    "GAS": "Pierre Gasly.jpg",
-    "TSU": "Yuki Tsunoda.jpg",
+    "ALB": "Alexander Albon.png",
+    "ANT": "Andrea Kimi Antonelli.png",
+    "SAI": "Carlos Sainz.png",
+    "LEC": "Charles Leclerc.png",
+    "OCO": "Esteban Ocon.png",
+    "ALO": "Fernando Alonso.png",
+    "COL": "Franco Colapinto.png",
+    "BOR": "Gabriel Bortoleto.png",
+    "RUS": "George Russell.png",
+    "HAD": "Isack Hadjar.png",
+    "DOO": "Jack Doohan.png",
+    "STR": "Lance Stroll.png",
+    "NOR": "Lando Norris.png",
+    "HAM": "Lewis Hamilton.png",
+    "LAW": "Liam Lawson.png",
+    "VER": "Max Verstappen.png",
+    "HUL": "Nico Hülkenberg.png",
+    "BEA": "Oliver Bearman.png",
+    "PIA": "Oscar Piastri.png",
+    "GAS": "Pierre Gasly.png",
+    "TSU": "Yuki Tsunoda.png",
 }
 
 # Кеш загруженных фотографий пилотов
@@ -89,13 +89,13 @@ def create_results_image(
     :return: BytesIO с готовым PNG
     """
     # --- Общие настройки ---
-    padding = 60
-    header_gap = 30
-    line_spacing = 14
+    padding = 15
+    header_gap = 40
+    line_spacing = 20
     # строку делаем повыше, чтобы влез круглый аватар пилота
-    row_height = 54
-    avatar_size = 46
-    avatar_gap = 12
+    row_height = 90
+    avatar_size = 100
+    avatar_gap = 30
 
     bg_color = (10, 10, 25)
     text_color = (235, 235, 245)
@@ -106,14 +106,14 @@ def create_results_image(
     fonts_dir = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 
     try:
-        font_title = ImageFont.truetype(str(fonts_dir / "Jost-Bold.ttf"), 44)
-        font_subtitle = ImageFont.truetype(str(fonts_dir / "Jost-Regular.ttf"), 28)
-        font_row = ImageFont.truetype(str(fonts_dir / "Jost-SemiBoldItalic.ttf"), 26)
+        font_title = ImageFont.truetype(str(fonts_dir / "Jost-Bold.ttf"), 54)
+        font_subtitle = ImageFont.truetype(str(fonts_dir / "Jost-Regular.ttf"), 32)
+        font_row = ImageFont.truetype(str(fonts_dir / "Jost-SemiBoldItalic.ttf"), 30)
 
         # отдельный шрифт для emoji (⭐️ и т.п.)
         try:
             font_emoji = ImageFont.truetype(
-                str(fonts_dir / "NotoEmoji-Regular.ttf"), 30
+                str(fonts_dir / "NotoEmoji-Regular.ttf"), 36
             )
         except Exception:
             # если не получилось, рисуем emoji тем же шрифтом, что и текст
@@ -121,9 +121,9 @@ def create_results_image(
     except Exception:
         # fallback — пробуем системные Jost, а если нет — дефолтный шрифт
         try:
-            font_title = ImageFont.truetype("Jost-Bold.ttf", 44)
-            font_subtitle = ImageFont.truetype("Jost-Regular.ttf", 28)
-            font_row = ImageFont.truetype("Jost-SemiBoldItalic.ttf", 26)
+            font_title = ImageFont.truetype("Jost-Bold.ttf", 54)
+            font_subtitle = ImageFont.truetype("Jost-Regular.ttf", 32)
+            font_row = ImageFont.truetype("Jost-SemiBoldItalic.ttf", 30)
             font_emoji = font_row
         except Exception:
             font_title = ImageFont.load_default()
@@ -156,7 +156,7 @@ def create_results_image(
 
     # Базовая ширина и высота
     # Две колонки + отступ между ними
-    min_width = 1100
+    min_width = 1400
     img_width = max(
         min_width,
         title_w + 2 * padding,
