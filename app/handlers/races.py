@@ -16,7 +16,7 @@ from app.db import (
     get_favorite_drivers,
     get_favorite_teams,
 )
-from app.f1_data import get_season_schedule_short, get_weekend_schedule, get_race_results_df, \
+from app.utils.f1_data import get_season_schedule_short, get_weekend_schedule, get_race_results_df, \
     get_constructor_standings_df, \
     get_driver_standings_df, _get_latest_quali_async
 

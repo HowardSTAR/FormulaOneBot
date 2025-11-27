@@ -9,7 +9,7 @@ from aiogram.exceptions import TelegramNetworkError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
-from app.f1_data import get_driver_standings_df
+from app.utils.f1_data import get_driver_standings_df
 
 router = Router()
 

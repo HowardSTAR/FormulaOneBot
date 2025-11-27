@@ -1,20 +1,19 @@
 import asyncio
 import logging
-from datetime import datetime, timezone
 
 from aiogram.exceptions import TelegramBadRequest
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.bot import create_bot_and_dispatcher
 from app.db import init_db
-from app.f1_data import warmup_current_season_sessions
+from app.utils.f1_data import warmup_current_season_sessions
 from app.handlers.drivers import router as drivers_router
 from app.handlers.favorites import router as favorites_router
 from app.handlers.races import router as races_router
 from app.handlers.start import router as start_router
 from app.handlers.teams import router as teams_router
 from app.middlewares.error_logging import ErrorLoggingMiddleware
-from app.notifications import check_and_notify_favorites, remind_next_race, check_and_notify_quali
+from app.utils.notifications import check_and_notify_favorites, remind_next_race, check_and_notify_quali
 
 # Базовая настройка логов
 logging.basicConfig(
