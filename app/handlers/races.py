@@ -677,7 +677,7 @@ async def race_callback(callback: CallbackQuery) -> None:
                 except (TypeError, ValueError):
                     total_pts = None
 
-            part = f"• <b>{team_name}</b>\n"
+            part = f"\n• <b>{team_name}</b>\n"
             detail_lines = []
 
             def _format_driver_info(row):
@@ -701,15 +701,15 @@ async def race_callback(callback: CallbackQuery) -> None:
 
             if info1:
                 pos1, code1, full1 = info1
-                detail_lines.append(f"Лучшая машина: P{pos1} — {code1} ({full1})")
+                detail_lines.append(f"<i>Лучшая машина:</i> <b>P{pos1} — {code1} ({full1})</b>")
             if info2:
                 pos2, code2, full2 = info2
-                detail_lines.append(f"Вторая машина: P{pos2} — {code2} ({full2})")
+                detail_lines.append(f"<i>Вторая машина:</i> <b>P{pos2} — {code2} ({full2})</b>")
 
             if team_race_pts is not None:
-                detail_lines.append(f"Команда набрала {team_race_pts} очк.")
+                detail_lines.append(f"<i>Команда набрала</i> <b>{team_race_pts} очк.</b>")
             if total_pts is not None:
-                detail_lines.append(f"Всего в чемпионате: {total_pts}")
+                detail_lines.append(f"<i>Всего в чемпионате:</i> <b>{total_pts}</b>")
 
             if detail_lines:
                 details_text = ";\n".join(detail_lines)
