@@ -92,7 +92,6 @@ def create_results_image(
     line_spacing = 24
     row_height = 120      # высота одной карточки
     avatar_size = 90      # размер аватара пилота (круглый)
-    avatar_gap = 20
     TEXT_V_SHIFT = -15  # небольшой сдвиг текста вверх для визуального выравнивания по центру
 
     bg_color = (10, 10, 25)
@@ -332,23 +331,63 @@ def create_results_image(
             fill=(35, 45, 90),
         )
 
-        has_star = code.startswith("⭐") or code.startswith("⭐️")
-        name_text = f"⭐️ {name}" if has_star else name
+        # определяем, является ли пилот избранным
+        raw_code_for_star = code.strip()
+        raw_name_for_star = name.strip()
+        has_star = ("⭐" in raw_code_for_star) or ("⭐" in raw_name_for_star)
 
-        name_w, name_h = _text_size(draw, name_text, font_row)
+        # очищаем имя от возможных звёзд, чтобы не дублировать их
+        clean_name = (
+            raw_name_for_star
+            .replace("⭐️", "")
+            .replace("⭐", "")
+            .strip()
+        )
+
+        # имя без звезды (мы будем рисовать звезду отдельным шрифтом)
+        base_name_text = clean_name or name
+
+        # максимально доступная ширина для имени
         max_name_width = name_x1 - name_x0 - block_pad_x * 2
 
-        if name_w > max_name_width and max_name_width > 0:
-            base_name = name_text
-            while base_name and name_w > max_name_width:
-                base_name = base_name[:-1]
-                name_w, name_h = _text_size(draw, base_name + "…", font_row)
-            name_text = base_name + "…"
+        # подготовим текст звезды (если избранный)
+        star_text = "⭐️" if has_star else ""
+        if star_text:
+            star_w, star_h = _text_size(draw, star_text, font_emoji)
+            star_gap = 10
+        else:
+            star_w, star_h = 0, 0
+            star_gap = 0
 
-        name_w, name_h = _text_size(draw, name_text, font_row)
-        name_tx = name_x0 + (name_x1 - name_x0 - name_w) // 2
-        name_ty = inner_y_center + TEXT_V_SHIFT - name_h // 2
-        draw.text((name_tx, name_ty), name_text, font=font_row, fill=text_color)
+        # сначала посчитаем ширину имени и при необходимости обрежем
+        name_to_draw = base_name_text
+        name_w, name_h = _text_size(draw, name_to_draw, font_row)
+
+        while name_to_draw and (star_w + star_gap + name_w) > max_name_width:
+            # обрезаем по одному символу и добавляем многоточие
+            name_to_draw = name_to_draw[:-1]
+            name_w, name_h = _text_size(draw, name_to_draw + "…", font_row)
+        if name_to_draw != base_name_text:
+            name_to_draw = name_to_draw + "…"
+            name_w, name_h = _text_size(draw, name_to_draw, font_row)
+
+        total_text_width = star_w + star_gap + name_w
+
+        # вертикальное выравнивание по центру блока
+        block_height = inner_y1 - inner_y0
+        text_block_h = max(name_h, star_h)
+        base_ty = inner_y0 + (block_height - text_block_h) // 2 + TEXT_V_SHIFT
+
+        # горизонтальное центрирование всей связки "звезда + имя"
+        start_tx = name_x0 + (name_x1 - name_x0 - total_text_width) // 2
+
+        # рисуем звезду и имя по отдельности
+        cur_x = start_tx
+        if star_text:
+            draw.text((cur_x, base_ty), star_text, font=font_emoji, fill=text_color)
+            cur_x += star_w + star_gap
+
+        draw.text((cur_x, base_ty), name_to_draw, font=font_row, fill=text_color)
 
     # --- рисуем все строки ---
     for i in range(rows_per_col):
