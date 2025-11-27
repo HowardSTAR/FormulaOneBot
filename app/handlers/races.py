@@ -3,13 +3,15 @@ import logging
 from datetime import datetime, date, timezone, timedelta
 from collections import defaultdict
 import random
+from pathlib import Path
 
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, BufferedInputFile
 
+from app.image_render import create_results_image
 from app.db import (
     get_last_reminded_round,
     get_favorite_drivers,
@@ -18,6 +20,7 @@ from app.db import (
 from app.f1_data import get_season_schedule_short, get_weekend_schedule, get_race_results_df, \
     get_constructor_standings_df, \
     get_driver_standings_df, _get_latest_quali_async
+
 
 
 SESSION_NAME_RU = {
@@ -43,6 +46,8 @@ UTC_PLUS_3 = timezone(timedelta(hours=3))
 
 class RacesYearState(StatesGroup):
     waiting_for_year = State()
+
+
 
 
 async def _send_races_for_year(message: Message, season: int) -> None:
@@ -514,6 +519,7 @@ async def race_callback(callback: CallbackQuery) -> None:
     count = 0
 
     fav_drivers_set = set(fav_drivers or [])
+    rows_for_image: list[tuple[str, str, str]] = []
 
     for row in df.itertuples(index=False):
         pos = getattr(row, "Position", None)
@@ -544,12 +550,56 @@ async def race_callback(callback: CallbackQuery) -> None:
             line += f" ({pts} очк.)"
         lines.append(line)
 
+        # Заполняем данные для картинки
+        extra_parts = []
+        if team:
+            extra_parts.append(team)
+        if pts is not None:
+            extra_parts.append(f"{pts} очк.")
+
+        extra_str = " — ".join(extra_parts) if extra_parts else ""
+        code_for_img = f"⭐️ {code}" if is_fav else code
+
+        rows_for_image.append(
+            (f"{pos_int:02d}", code_for_img, extra_str)
+        )
+
     if not lines:
         await callback.message.answer(
             "Пока нет данных по результатам гонки 🤔"
         )
         await callback.answer()
         return
+
+    # Сначала генерируем картинку с результатами
+    if race_info is not None:
+        img_title = "Результаты гонки"
+        img_subtitle = (
+            f"{race_info['event_name']} — {race_info['country']}, "
+            f"{race_info['location']} (этап {last_round}, сезон {season})"
+        )
+    else:
+        img_title = "Результаты гонки"
+        img_subtitle = f"Этап {last_round}, сезон {season}"
+
+    img_buf = create_results_image(
+        title=img_title,
+        subtitle=img_subtitle,
+        rows=rows_for_image,
+    )
+
+    photo = BufferedInputFile(
+        img_buf.getvalue(),
+        filename="race_results.png",
+    )
+
+    await callback.message.answer_photo(
+        photo=photo,
+        caption=(
+            "🏁 Результаты последней гонки (таблица на картинке).\n"
+            "⭐️ — твои избранные пилоты."
+        ),
+    )
 
     positions_block = "\n".join(lines)
 
