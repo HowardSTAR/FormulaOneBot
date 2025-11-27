@@ -4,6 +4,61 @@ from typing import List, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 
+# Соответствие кода пилота имени файла с его фотографией
+# Файлы лежат в app/assets/pilots
+DRIVER_CODE_TO_FILE = {
+    "ALB": "Alexander Albon.jpg",
+    "ANT": "Andrea Kimi Antonelli.jpg",
+    "SAI": "Carlos Sainz.jpg",
+    "LEC": "Charles Leclerc.jpg",
+    "OCO": "Esteban Ocon.jpg",
+    "ALO": "Fernando Alonso.jpg",
+    "COL": "Franco Colapinto.jpg",
+    "BOR": "Gabriel Bortoleto.jpg",
+    "RUS": "George Russell.jpg",
+    "HAD": "Isack Hadjar.jpg",
+    "DOO": "Jack Doohan.jpg",
+    "STR": "Lance Stroll.jpg",
+    "NOR": "Lando Norris.jpg",
+    "HAM": "Lewis Hamilton.jpg",
+    "LAW": "Liam Lawson.jpg",
+    "VER": "Max Verstappen.jpg",
+    "HUL": "Nico Hülkenberg.jpg",
+    "BEA": "Oliver Bearman.jpg",
+    "PIA": "Oscar Piastri.jpg",
+    "GAS": "Pierre Gasly.jpg",
+    "TSU": "Yuki Tsunoda.jpg",
+}
+
+# Кеш загруженных фотографий пилотов
+_DRIVER_PHOTOS_CACHE: dict[str, Image.Image] = {}
+
+
+def _get_driver_photo(code: str) -> Image.Image | None:
+    """
+    Возвращает PIL‑картинку по коду пилота (VER, LEC и т.д.) или None,
+    если фото не найдено. Картинки кешируются в _DRIVER_PHOTOS_CACHE.
+    """
+    code = code.upper()
+    if code not in DRIVER_CODE_TO_FILE:
+        return None
+
+    if code in _DRIVER_PHOTOS_CACHE:
+        return _DRIVER_PHOTOS_CACHE[code]
+
+    pilots_dir = Path(__file__).resolve().parents[1] / "assets" / "pilots"
+    img_path = pilots_dir / DRIVER_CODE_TO_FILE[code]
+    if not img_path.exists():
+        return None
+
+    try:
+        img = Image.open(img_path).convert("RGB")
+    except Exception:
+        return None
+
+    _DRIVER_PHOTOS_CACHE[code] = img
+    return img
+
 
 def _text_size(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont) -> Tuple[int, int]:
     """
@@ -37,7 +92,10 @@ def create_results_image(
     padding = 60
     header_gap = 30
     line_spacing = 14
-    row_height = 34
+    # строку делаем повыше, чтобы влез круглый аватар пилота
+    row_height = 54
+    avatar_size = 46
+    avatar_gap = 12
 
     bg_color = (10, 10, 25)
     text_color = (235, 235, 245)
@@ -148,9 +206,34 @@ def create_results_image(
 
     def _draw_row(col_x: int, row_y: int, pos: str, code: str, extra: str) -> None:
         """
-        Рисует одну строку: позиция, (возможно) звезда, код и доп.инфо.
+        Рисует одну строку: аватар пилота (если есть), позиция,
+        (возможно) звезда, код и доп.инфо.
         """
+        # Определяем код пилота без звёздочек и лишнего текста,
+        # чтобы найти фотографию
+        raw_code = code
+        if raw_code.startswith("⭐") or raw_code.startswith("⭐️"):
+            raw_code = raw_code.replace("⭐️", "", 1).replace("⭐", "", 1).lstrip()
+        driver_code = None
+        if raw_code:
+            # предполагаем, что код пилота — первый "слово‑токен"
+            driver_code = raw_code.split()[0]
+
         x = col_x
+
+        # 0. Аватар пилота слева, если есть соответствующая картинка
+        if driver_code:
+            base_img = _get_driver_photo(driver_code)
+            if base_img is not None:
+                avatar = base_img.resize((avatar_size, avatar_size), Image.LANCZOS)
+                # круглая маска
+                mask = Image.new("L", (avatar_size, avatar_size), 0)
+                mask_draw = ImageDraw.Draw(mask)
+                mask_draw.ellipse((0, 0, avatar_size, avatar_size), fill=255)
+                # вертикально центрируем в строке
+                avatar_y = row_y + (row_height - avatar_size) // 2
+                img.paste(avatar, (x, avatar_y), mask)
+                x += avatar_size + avatar_gap
 
         # 1. позиция
         pos_text = f"{pos}."
