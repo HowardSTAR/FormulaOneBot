@@ -1,37 +1,46 @@
 from io import BytesIO
 from pathlib import Path
 from typing import List, Tuple
+from datetime import date
 
 from PIL import Image, ImageDraw, ImageFont
 
-# Соответствие кода пилота имени файла с его фотографией
-# Файлы лежат в app/assets/pilots
-DRIVER_CODE_TO_FILE = {
-    "ALB": "Alexander Albon.png",
-    "ANT": "Andrea Kimi Antonelli.png",
-    "SAI": "Carlos Sainz.png",
-    "LEC": "Charles Leclerc.png",
-    "OCO": "Esteban Ocon.png",
-    "ALO": "Fernando Alonso.png",
-    "COL": "Franco Colapinto.png",
-    "BOR": "Gabriel Bortoleto.png",
-    "RUS": "George Russell.png",
-    "HAD": "Isack Hadjar.png",
-    "DOO": "Jack Doohan.png",
-    "STR": "Lance Stroll.png",
-    "NOR": "Lando Norris.png",
-    "HAM": "Lewis Hamilton.png",
-    "LAW": "Liam Lawson.png",
-    "VER": "Max Verstappen.png",
-    "HUL": "Nico Hülkenberg.png",
-    "BEA": "Oliver Bearman.png",
-    "PIA": "Oscar Piastri.png",
-    "GAS": "Pierre Gasly.png",
-    "TSU": "Yuki Tsunoda.png",
-}
+from app.utils.default import DRIVER_CODE_TO_FILE
 
 # Кеш загруженных фотографий пилотов
 _DRIVER_PHOTOS_CACHE: dict[str, Image.Image] = {}
+
+# небольшой сдвиг текста вверх для визуального выравнивания по центру
+TEXT_V_SHIFT = -15
+
+
+# --- Загрузка шрифтов (общая для всех картинок) ---
+
+def _load_fonts() -> tuple[ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, ImageFont.FreeTypeFont]:
+    fonts_dir = Path(__file__).resolve().parents[1] / "assets" / "fonts"
+
+    try:
+        font_title = ImageFont.truetype(str(fonts_dir / "Jost-Bold.ttf"), 60)
+        font_subtitle = ImageFont.truetype(str(fonts_dir / "Jost-Regular.ttf"), 34)
+        font_row = ImageFont.truetype(str(fonts_dir / "Jost-Medium.ttf"), 44)
+        try:
+            font_emoji = ImageFont.truetype(str(fonts_dir / "NotoEmoji-Regular.ttf"), 40)
+        except Exception:
+            font_emoji = font_row
+    except Exception:
+        try:
+            font_title = ImageFont.truetype("Jost-Bold.ttf", 60)
+            font_subtitle = ImageFont.truetype("Jost-Regular.ttf", 34)
+            font_row = ImageFont.truetype("Jost-Medium.ttf", 44)
+            font_emoji = font_row
+        except Exception:
+            # самый простой запасной вариант
+            font_title = font_subtitle = font_row = font_emoji = ImageFont.load_default()
+
+    return font_title, font_subtitle, font_row, font_emoji
+
+
+FONT_TITLE, FONT_SUBTITLE, FONT_ROW, FONT_EMOJI = _load_fonts()
 
 
 def _get_driver_photo(code: str) -> Image.Image | None:
@@ -73,11 +82,7 @@ def _text_size(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFon
     return w, h
 
 
-def create_results_image(
-    title: str,
-    subtitle: str,
-    rows: List[Tuple[str, str, str, str]],
-) -> BytesIO:
+def create_results_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]]) -> BytesIO:
     """
     Рисует картинку с результатами в стиле табло:
     1) позиция  2) фото пилота  3) имя  4) очки за гонку.
@@ -92,34 +97,17 @@ def create_results_image(
     line_spacing = 24
     row_height = 120      # высота одной карточки
     avatar_size = 90      # размер аватара пилота (круглый)
-    TEXT_V_SHIFT = -15  # небольшой сдвиг текста вверх для визуального выравнивания по центру
 
     bg_color = (10, 10, 25)
     text_color = (235, 235, 245)
     accent_color = (255, 215, 0)
     separator_color = (70, 70, 120)
 
-    # --- Загрузка шрифтов ---
-    fonts_dir = Path(__file__).resolve().parents[1] / "assets" / "fonts"
-
-    try:
-        font_title = ImageFont.truetype(str(fonts_dir / "Jost-Bold.ttf"), 60)
-        font_subtitle = ImageFont.truetype(str(fonts_dir / "Jost-Regular.ttf"), 34)
-        font_row = ImageFont.truetype(str(fonts_dir / "Jost-Medium.ttf"), 44)
-        try:
-            font_emoji = ImageFont.truetype(
-                str(fonts_dir / "NotoEmoji-Regular.ttf"), 40
-            )
-        except Exception:
-            font_emoji = font_row
-    except Exception:
-        try:
-            font_title = ImageFont.truetype("Jost-Bold.ttf", 60)
-            font_subtitle = ImageFont.truetype("Jost-Regular.ttf", 34)
-            font_row = ImageFont.truetype("Jost-Medium.ttf", 44)
-            font_emoji = font_row
-        except Exception:
-            font_title = font_subtitle = font_row = ImageFont.load_default()
+    # --- Шрифты ---
+    font_title = FONT_TITLE
+    font_subtitle = FONT_SUBTITLE
+    font_row = FONT_ROW
+    font_emoji = FONT_EMOJI
 
     # хотя бы одна строка, чтобы не упасть
     safe_rows: List[Tuple[str, str, str, str]]
@@ -400,6 +388,338 @@ def create_results_image(
         if i < len(rows_right):
             pos, code, name, pts = rows_right[i]
             _draw_row(right_x, row_y, pos, code, name, pts)
+
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
+
+
+def create_driver_standings_image(
+    title: str,
+    subtitle: str,
+    rows: List[Tuple[str, str, str, str]],
+) -> BytesIO:
+    """Рисует картинку для личного зачёта пилотов.
+
+    Это тонкая обёртка над create_results_image с тем же форматом данных:
+
+      rows: список кортежей вида
+        (position, driver_code, driver_name, points_text)
+
+      например: ("01", "⭐️VER", "Макс Ферстаппен", "25 очк.")
+    """
+    return create_results_image(title, subtitle, rows)
+
+
+def create_season_image(season: int, races: list[dict]) -> BytesIO:
+    """
+    Рисует картинку с календарём сезона в том же стиле, что и результаты гонки:
+    тёмный фон, карточки, две колонки.
+
+    races — то, что возвращает get_season_schedule_short(season), ожидаются поля:
+      - "round" (int)
+      - "event_name" (str)
+      - "country" (str)
+      - "date" (YYYY-MM-DD)
+    """
+    # --- Базовые настройки оформления ---
+    padding = 20
+    header_gap = 32
+    line_spacing = 20
+    row_height = 110
+
+    bg_color = (10, 10, 25)
+    text_color = (235, 235, 245)
+    accent_color = (255, 215, 0)
+    separator_color = (70, 70, 120)
+
+    title_font = FONT_TITLE
+    subtitle_font = FONT_SUBTITLE
+    row_font = FONT_ROW
+
+    # отступы внутри "строки"
+    gap_between_cols = 40              # расстояние между колонками
+    block_pad_x = 16                   # горизонтальный паддинг текста в блоках
+    block_gap = 8                      # расстояние между блоками внутри строки
+    side_margin_inside = 24            # отступ слева/справа внутри карточки
+
+    # Без гонок — отдаём заглушку
+    safe_races = races if races else []
+    if not safe_races:
+        safe_races = [{
+            "round": 0,
+            "event_name": "Нет данных по календарю",
+            "country": "",
+            "date": date.today().isoformat(),
+        }]
+
+    # Определяем текущую дату (нужна только для цвета карточек)
+    today = date.today()
+
+    # Собираем список (race_dict, race_date)
+    races_with_dates: list[tuple[dict, date]] = []
+    for r in safe_races:
+        try:
+            rd = date.fromisoformat(r.get("date", today.isoformat()))
+        except Exception:
+            rd = today
+        races_with_dates.append((r, rd))
+
+    # Вспомогательное изображение для расчёта размеров текста
+    temp_img = Image.new("RGB", (2400, 2400))
+    draw_tmp = ImageDraw.Draw(temp_img)
+
+    title = f"Календарь сезона {season}"
+    subtitle = ""  # статус текстом не показываем
+
+    title_w, title_h = _text_size(draw_tmp, title, title_font)
+    subtitle_w, subtitle_h = (0, 0)
+    if subtitle:
+        subtitle_w, subtitle_h = _text_size(draw_tmp, subtitle, subtitle_font)
+
+    # Для общей оценки ширины текста (не критично, но оставим)
+    max_text = ""
+    for r, rd in races_with_dates:
+        rnd = r.get("round", 0)
+        ev = r.get("event_name", "")
+        country = r.get("country", "")
+        date_str = rd.strftime("%d.%m.%Y")
+        candidate = f"{rnd:02d} {ev} ({country}) {date_str}"
+        if len(candidate) > len(max_text):
+            max_text = candidate
+    row_text_w, _ = _text_size(draw_tmp, max_text, row_font)
+
+    # --- ВАЖНОЕ: считаем, какой минимум нужен по ширине колонки,
+    #             чтобы ВЛЕЗАЛО полное название этапа + номер + дата ---
+
+    max_round_w = 0
+    max_gp_w = 0
+    max_date_w = 0
+
+    for r, rd in races_with_dates:
+        round_num = int(r.get("round", 0))
+        ev = r.get("event_name", "")
+        country = r.get("country", "")
+        date_str = rd.strftime("%d.%m.%Y")
+
+        round_text = f"{round_num:02d}"
+        gp_text = f"{ev} ({country})" if country else ev
+        date_text = date_str
+
+        w, _ = _text_size(draw_tmp, round_text, row_font)
+        max_round_w = max(max_round_w, w)
+
+        w, _ = _text_size(draw_tmp, gp_text, row_font)
+        max_gp_w = max(max_gp_w, w)
+
+        w, _ = _text_size(draw_tmp, date_text, row_font)
+        max_date_w = max(max_date_w, w)
+
+    # ширины блоков по максимумам
+    round_block_w = max(80, max_round_w + block_pad_x * 2)
+    date_block_w = max(220, max_date_w + block_pad_x * 2)
+    gp_block_w = max_gp_w + block_pad_x * 2
+
+    # минимальная ширина одной колонки, чтобы всё поместилось
+    col_width_min = (
+        side_margin_inside
+        + round_block_w
+        + block_gap
+        + gp_block_w
+        + block_gap
+        + date_block_w
+        + side_margin_inside
+    )
+
+    # --- Размеры картинки ---
+    num_rows = len(races_with_dates)
+    rows_per_col = (num_rows + 1) // 2
+
+    # min_width теперь учитывает требуемую ширину двух колонок
+    min_width_from_cols = 2 * padding + 2 * col_width_min + gap_between_cols
+    min_width_basic = 1800  # запас по минимальной ширине
+
+    img_width = max(
+        min_width_basic,
+        min_width_from_cols,
+        title_w + 2 * padding,
+        subtitle_w + 2 * padding,
+        row_text_w + 2 * padding,
+    )
+
+    img_height = (
+        padding
+        + title_h
+        + header_gap
+        + (subtitle_h if subtitle else 0)
+        + (header_gap if subtitle else 0)
+        + rows_per_col * (row_height + line_spacing)
+        + padding
+    )
+
+    img = Image.new("RGB", (img_width, img_height), color=bg_color)
+    draw = ImageDraw.Draw(img)
+
+    # --- Заголовок ---
+    cur_y = padding
+    x_title = (img_width - title_w) // 2
+    draw.text((x_title, cur_y), title, font=title_font, fill=accent_color)
+
+    cur_y += title_h + header_gap
+    if subtitle:
+        x_subtitle = (img_width - subtitle_w) // 2
+        draw.text((x_subtitle, cur_y), subtitle, font=subtitle_font, fill=text_color)
+        cur_y += subtitle_h + header_gap
+
+    # Линия под заголовком
+    draw.line(
+        (padding, cur_y, img_width - padding, cur_y),
+        fill=separator_color,
+        width=2,
+    )
+    cur_y += header_gap // 2
+
+    start_y = cur_y
+
+    # Параметры колонок в уже рассчитанной ширине
+    col_width = (img_width - 2 * padding - gap_between_cols) // 2
+    left_x = padding
+    right_x = padding + col_width + gap_between_cols
+
+    # Делим гонки на две колонки
+    races_left = races_with_dates[:rows_per_col]
+    races_right = races_with_dates[rows_per_col:]
+
+    def _card_colors(is_finished: bool) -> tuple[tuple[int, int, int], tuple[int, int, int]]:
+        """
+        Возвращает (основной цвет карточки, внутренний цвет) в зависимости
+        от статуса гонки. Статус цветом остаётся, но иконок больше нет.
+        """
+        if is_finished:
+            base = (190, 60, 62)      # прошедшие гонки — красноватый
+        else:
+            base = (60, 190, 120)     # будущие гонки — зелёный
+
+        inner = (
+            int(base[0] * 0.8),
+            int(base[1] * 0.8),
+            int(base[2] * 0.9),
+        )
+        return base, inner
+
+    def _draw_season_row(col_x: int, row_y: int, r: dict, rd: date) -> None:
+        round_num = int(r.get("round", 0))
+        ev = r.get("event_name", "")
+        country = r.get("country", "")
+
+        finished = rd < today
+        date_str = rd.strftime("%d.%m")
+
+        # Координаты карточки
+        card_x0 = col_x
+        card_y0 = row_y
+        card_x1 = col_x + col_width
+        card_y1 = row_y + row_height - 6
+
+        base_color, inner_color = _card_colors(finished)
+
+        # Основная карточка
+        draw.rounded_rectangle(
+            (card_x0, card_y0, card_x1, card_y1),
+            radius=24,
+            fill=inner_color,
+        )
+
+        # Цветная полоса слева
+        draw.rounded_rectangle(
+            (card_x0, card_y0, card_x0 + 16, card_y1),
+            radius=24,
+            fill=base_color,
+        )
+
+        inner_y0 = card_y0 + 10
+        inner_y1 = card_y1 - 10
+        block_height = inner_y1 - inner_y0
+
+        # Текст для блоков
+        round_text = f"{round_num:02d}"
+        gp_text = f"{ev} ({country})" if country else ev
+        date_block_text = date_str
+
+        # Правая часть: дата
+        date_x1 = card_x1 - side_margin_inside
+        date_x0 = date_x1 - date_block_w
+
+        # Слева номер этапа
+        round_x0 = card_x0 + side_margin_inside
+        round_x1 = round_x0 + round_block_w
+
+        # Всё, что остаётся между номером и датой — под название Гран-при
+        gp_x0 = round_x1 + block_gap
+        gp_x1 = date_x0 - block_gap
+
+        # --- Цвет блока в зависимости от статуса ---
+        if finished:
+            block_fill = (36, 10, 1)   # гонка прошла
+        else:
+            block_fill = (1, 36, 3)    # гонка ещё не прошла
+
+        # --- Блок номера этапа ---
+        draw.rounded_rectangle(
+            (round_x0, inner_y0, round_x1, inner_y1),
+            radius=18,
+            fill=block_fill,
+        )
+        round_w, round_h = _text_size(draw, round_text, row_font)
+        round_tx = round_x0 + (round_block_w - round_w) // 2
+        round_ty = inner_y0 + (block_height - round_h) // 2 + TEXT_V_SHIFT
+        draw.text((round_tx, round_ty), round_text, font=row_font, fill=text_color)
+
+        # --- Блок даты ---
+        draw.rounded_rectangle(
+            (date_x0, inner_y0, date_x1, inner_y1),
+            radius=18,
+            fill=block_fill,
+        )
+        date_w, date_h = _text_size(draw, date_block_text, row_font)
+        date_tx = date_x0 + (date_block_w - date_w) // 2
+        date_ty = inner_y0 + (block_height - date_h) // 2 + TEXT_V_SHIFT
+        draw.text((date_tx, date_ty), date_block_text, font=row_font, fill=text_color)
+
+        # --- Блок названия Гран-при ---
+        draw.rounded_rectangle(
+            (gp_x0, inner_y0, gp_x1, inner_y1),
+            radius=18,
+            fill=block_fill,
+        )
+
+        # Здесь уже не должно быть обрезания, но оставим на всякий случай
+        max_gp_width = gp_x1 - gp_x0 - block_pad_x * 2
+        gp_text_to_draw = gp_text
+        gp_w_cur, gp_h_cur = _text_size(draw, gp_text_to_draw, row_font)
+        while gp_text_to_draw and gp_w_cur > max_gp_width:
+            gp_text_to_draw = gp_text_to_draw[:-1]
+            gp_w_cur, gp_h_cur = _text_size(draw, gp_text_to_draw + "…", row_font)
+        if gp_text_to_draw != gp_text:
+            gp_text_to_draw = gp_text_to_draw + "…"
+            gp_w_cur, gp_h_cur = _text_size(draw, gp_text_to_draw, row_font)
+
+        gp_tx = gp_x0 + (gp_x1 - gp_x0 - gp_w_cur) // 2
+        gp_ty = inner_y0 + (block_height - gp_h_cur) // 2 + TEXT_V_SHIFT
+        draw.text((gp_tx, gp_ty), gp_text_to_draw, font=row_font, fill=text_color)
+
+    # Рисуем все строки в две колонки
+    for i in range(rows_per_col):
+        row_y = start_y + i * (row_height + line_spacing)
+
+        if i < len(races_left):
+            r, rd = races_left[i]
+            _draw_season_row(left_x, row_y, r, rd)
+
+        if i < len(races_right):
+            r, rd = races_right[i]
+            _draw_season_row(right_x, row_y, r, rd)
 
     buf = BytesIO()
     img.save(buf, format="PNG")
