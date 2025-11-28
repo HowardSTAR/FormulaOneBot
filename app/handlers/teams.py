@@ -4,10 +4,11 @@ from aiogram.types import (
     Message,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
-    CallbackQuery,
+    CallbackQuery, BufferedInputFile,
 )
 
 from datetime import datetime
+import logging
 import math
 
 from aiogram.exceptions import TelegramNetworkError
@@ -15,6 +16,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
 from app.utils.f1_data import get_constructor_standings_df
+from app.utils.image_render import create_constructor_standings_image
 
 router = Router()
 
@@ -26,6 +28,8 @@ class TeamsYearState(StatesGroup):
 async def _send_teams_for_year(message: Message, season: int) -> None:
     """
     Выводит таблицу кубка конструкторов за указанный год.
+    Теперь в первую очередь рисуем картинку с таблицей
+    (через image_render), а текст используем как запасной вариант.
     """
     try:
         df = get_constructor_standings_df(season)
@@ -43,6 +47,7 @@ async def _send_teams_for_year(message: Message, season: int) -> None:
     df = df.sort_values("position")
 
     lines: list[str] = []
+    rows_for_image: list[tuple[str, str, str, str]] = []
 
     for row in df.itertuples(index=False):
         # --- position ---
@@ -68,7 +73,16 @@ async def _send_teams_for_year(message: Message, season: int) -> None:
 
         team_name = getattr(row, "constructorName", "Unknown")
 
-        # --- кубки для 1–3 мест ---
+        # Пытаемся достать короткий код команды (если колонка есть),
+        # иначе оставим пустым — блок просто будет цветной.
+        constructor_code = ""
+        for attr_name in ("constructorCode", "constructorRef", "constructorId"):
+            val = getattr(row, attr_name, None)
+            if isinstance(val, str) and val:
+                constructor_code = val
+                break
+
+        # --- кубки для 1–3 мест (для текстового запасного варианта) ---
         if position == 1:
             trophy = "🥇 "
         elif position == 2:
@@ -83,22 +97,54 @@ async def _send_teams_for_year(message: Message, season: int) -> None:
             f"{position:>2}. {team_name} — "
             f"{points:.0f} очков"
         )
-
         lines.append(line)
+
+        # Данные для картинки: (позиция, код, имя, очки-текст)
+        rows_for_image.append(
+            (
+                f"{position:02d}",
+                constructor_code,
+                team_name,
+                f"{points:.0f} очк.",
+            )
+        )
 
     if not lines:
         await message.answer(f"Не удалось отобразить команды за {season} год (нет корректных данных).")
         return
 
-    text = (
-        f"🏎 Кубок конструкторов {season}:\n\n"
-        + "\n".join(lines[:30])
-    )
-
+    # Сначала пытаемся отправить картинку, если что-то пойдёт не так — упадём в текст.
     try:
-        await message.answer(text)
-    except TelegramNetworkError:
-        return
+        img_buf = create_constructor_standings_image(
+            title=f"Кубок конструкторов {season}",
+            subtitle="",
+            rows=rows_for_image,
+        )
+
+        # Если create_constructor_standings_image возвращает BytesIO:
+        img_buf.seek(0)
+        photo = BufferedInputFile(
+            img_buf.read(),
+            filename=f"constructors_{season}.png",
+        )
+
+        await message.answer_photo(
+            photo=photo,
+            caption=f"🏎 Кубок конструкторов {season}",
+        )
+    except Exception as exc:
+        logging.exception(
+            "Не удалось сформировать или отправить картинку таблицы конструкторов: %s",
+            exc,
+        )
+        text = (
+            f"🏎 Кубок конструкторов {season}:\n\n"
+            + "\n".join(lines[:30])
+        )
+        try:
+            await message.answer(text)
+        except TelegramNetworkError:
+            return
 
 
 def _parse_season_from_text(text: str) -> int:

@@ -1,14 +1,17 @@
 from io import BytesIO
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Callable
 from datetime import date
 
 from PIL import Image, ImageDraw, ImageFont
 
-from app.utils.default import DRIVER_CODE_TO_FILE
+from app.utils.default import DRIVER_CODE_TO_FILE, _TEAM_KEY_TO_FILE
 
 # Кеш загруженных фотографий пилотов
 _DRIVER_PHOTOS_CACHE: dict[str, Image.Image] = {}
+
+# Кеш логотипов команд
+_TEAM_LOGOS_CACHE: dict[str, Image.Image] = {}
 
 # небольшой сдвиг текста вверх для визуального выравнивания по центру
 TEXT_V_SHIFT = -15
@@ -40,6 +43,19 @@ def _load_fonts() -> tuple[ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, Image
     return font_title, font_subtitle, font_row, font_emoji
 
 
+def _normalize_team_key(text: str) -> str:
+    """
+    Нормализует название/код команды:
+    - lower()
+    - убираем всё, кроме a-z0-9
+    Чтобы 'RB F1 Team', 'Red Bull', 'redbull' и т.п. сводились к одному ключу.
+    """
+    import re
+    s = (text or "").lower()
+    s = s.replace("&", "and")
+    return re.sub(r"[^a-z0-9]+", "", s)
+
+
 FONT_TITLE, FONT_SUBTITLE, FONT_ROW, FONT_EMOJI = _load_fonts()
 
 
@@ -69,6 +85,36 @@ def _get_driver_photo(code: str) -> Image.Image | None:
     return img
 
 
+def _get_team_logo(name_or_code: str) -> Image.Image | None:
+    """
+    Возвращает логотип команды по её названию или коду
+    (например 'McLaren', 'RB F1 Team', 'Sauber', 'Mercedes').
+    """
+    key = _normalize_team_key(name_or_code)
+    if not key:
+        return None
+
+    if key in _TEAM_LOGOS_CACHE:
+        return _TEAM_LOGOS_CACHE[key]
+
+    filename = _TEAM_KEY_TO_FILE.get(key)
+    if not filename:
+        return None
+
+    teams_dir = Path(__file__).resolve().parents[1] / "assets" / "teams"
+    img_path = teams_dir / filename
+    if not img_path.exists():
+        return None
+
+    try:
+        img = Image.open(img_path).convert("RGBA")
+    except Exception:
+        return None
+
+    _TEAM_LOGOS_CACHE[key] = img
+    return img
+
+
 def _text_size(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont) -> Tuple[int, int]:
     """
     Аккуратно считаем размеры текста, учитывая разные версии Pillow.
@@ -82,14 +128,19 @@ def _text_size(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFon
     return w, h
 
 
-def create_results_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]]) -> BytesIO:
+def create_results_image(
+    title: str,
+    subtitle: str,
+    rows: List[Tuple[str, str, str, str]],
+    avatar_loader: Callable[[str, str], Image.Image | None] | None = None,
+) -> BytesIO:
     """
     Рисует картинку с результатами в стиле табло:
-    1) позиция  2) фото пилота  3) имя  4) очки за гонку.
+    1) позиция  2) аватар (пилот или команда)  3) имя  4) очки.
 
     rows: список кортежей
-      (position, driver_code, driver_name, points_text)
-      пример: ("01", "⭐️NOR", "Ландо Норрис", "25 очк.")
+      (position, code, name, points_text)
+      пример: ("01", "⭐️NOR", "Ландо Норрис", "25")
     """
     # --- Общие настройки ---
     padding = 15          # отступы по краям (сделал побольше)
@@ -109,6 +160,10 @@ def create_results_image(title: str, subtitle: str, rows: List[Tuple[str, str, s
     font_row = FONT_ROW
     font_emoji = FONT_EMOJI
 
+    # если не передали свой загрузчик – используем фото пилотов
+    if avatar_loader is None:
+        def avatar_loader(code: str, name: str) -> Image.Image | None:  # type: ignore[no-redef]
+            return _get_driver_photo(code)
     # хотя бы одна строка, чтобы не упасть
     safe_rows: List[Tuple[str, str, str, str]]
     if rows:
@@ -277,7 +332,8 @@ def create_results_image(title: str, subtitle: str, rows: List[Tuple[str, str, s
         if len(raw_code) > 3:
             raw_code = raw_code[-3:]
 
-        base_img = _get_driver_photo(raw_code)
+        # здесь avatar_loader уже замкнут из внешней функции
+        base_img = avatar_loader(raw_code, name)  # type: ignore[arg-type]
         if base_img is not None:
             avatar = base_img.resize((avatar_size, avatar_size), Image.LANCZOS)
             mask = Image.new("L", (avatar_size, avatar_size), 0)
@@ -291,7 +347,6 @@ def create_results_image(title: str, subtitle: str, rows: List[Tuple[str, str, s
             avatar_y = avatar_y_center - avatar_size // 2
 
             img.paste(avatar, (avatar_x, avatar_y), mask)
-
         # --- позиция ---
         draw.rounded_rectangle(
             (pos_x0, inner_y0, pos_x1, inner_y1),
@@ -400,16 +455,30 @@ def create_driver_standings_image(
     subtitle: str,
     rows: List[Tuple[str, str, str, str]],
 ) -> BytesIO:
-    """Рисует картинку для личного зачёта пилотов.
+    """Картинка для личного зачёта пилотов."""
+    def _driver_avatar_loader(code: str, name: str) -> Image.Image | None:
+        return _get_driver_photo(code)
 
-    Это тонкая обёртка над create_results_image с тем же форматом данных:
+    return create_results_image(title, subtitle, rows, avatar_loader=_driver_avatar_loader)
 
-      rows: список кортежей вида
-        (position, driver_code, driver_name, points_text)
 
-      например: ("01", "⭐️VER", "Макс Ферстаппен", "25 очк.")
+def create_constructor_standings_image(
+    title: str,
+    subtitle: str,
+    rows: List[Tuple[str, str, str, str]],
+) -> BytesIO:
+    """Рисует картинку для Кубка конструкторов.
+
+    rows: (position, constructor_code, constructor_name, points_text)
+    Например: ("01", "MCL", "McLaren", "756").
+    Для аватара используется именно имя команды, а не код.
     """
-    return create_results_image(title, subtitle, rows)
+    def _team_avatar_loader(code: str, name: str) -> Image.Image | None:
+        # для логотипа лучше всего подходит полное название
+        src = name or code
+        return _get_team_logo(src)
+
+    return create_results_image(title, subtitle, rows, avatar_loader=_team_avatar_loader)
 
 
 def create_season_image(season: int, races: list[dict]) -> BytesIO:

@@ -24,6 +24,38 @@ DRIVER_CODE_TO_FILE = {
     "TSU": "Yuki Tsunoda.png",
 }
 
+# маппинг нормализованных названий/кодов -> файл логотипа
+_TEAM_KEY_TO_FILE: dict[str, str] = {
+    "mclaren": "mclaren.png",
+    "mclarenf1team": "mclaren.png",
+
+    "mercedes": "mersedec.png",
+    "mercedesamgf1team": "mersedec.png",
+
+    "redbull": "redbull.png",
+    "redbullracing": "redbull.png",
+
+    "rbf1team": "racing bulls.png",
+    "racingbulls": "racing bulls.png",
+
+    "ferrari": "ferrari.png",
+    "scuderiaferrari": "ferrari.png",
+
+    "williams": "williams.png",
+    "williamsracing": "williams.png",
+
+    "astonmartin": "aston martin.png",
+    "astonmartinf1team": "aston martin.png",
+
+    "haas": "haas.png",
+    "haasf1team": "haas.png",
+
+    "sauber": "stacke.png",
+    "stakef1teamkicksauber": "stacke.png",
+
+    "alpine": "alpine.png",
+    "alpinef1team": "alpine.png",
+}
 
 SESSION_NAME_RU = {
     "Practice 1": "Практика 1",
