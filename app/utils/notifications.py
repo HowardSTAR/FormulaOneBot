@@ -12,7 +12,7 @@ from app.db import (
     set_last_reminded_round, set_last_notified_quali_round, get_last_notified_quali_round, get_last_notified_round,
     set_last_notified_round,
 )
-from app.f1_data import (
+from app.utils.f1_data import (
     get_season_schedule_short,
     get_race_results_df,
     get_driver_standings_df,

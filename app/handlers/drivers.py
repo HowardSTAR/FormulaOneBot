@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, BufferedInputFile
 
 from datetime import datetime
 import math
@@ -9,7 +9,9 @@ from aiogram.exceptions import TelegramNetworkError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
-from app.f1_data import get_driver_standings_df
+from app.utils.f1_data import get_driver_standings_df
+from app.utils.image_render import create_driver_standings_image
+from app.db import get_favorite_drivers
 
 router = Router()
 
@@ -18,7 +20,7 @@ class DriversYearState(StatesGroup):
     waiting_for_year = State()
 
 
-async def _send_drivers_for_year(message: Message, season: int) -> None:
+async def _send_drivers_for_year(message: Message, season: int, telegram_id: int | None = None) -> None:
     try:
         df = get_driver_standings_df(season)
     except Exception:
@@ -34,7 +36,15 @@ async def _send_drivers_for_year(message: Message, season: int) -> None:
 
     df = df.sort_values("position")
 
-    lines: list[str] = []
+    favorite_codes: set[str] = set()
+    if telegram_id is not None:
+        try:
+            fav_list = await get_favorite_drivers(telegram_id)
+            favorite_codes = set(fav_list)
+        except Exception:
+            favorite_codes = set()
+
+    rows: list[tuple[str, str, str, str]] = []
 
     for row in df.itertuples(index=False):
         pos_raw = getattr(row, "position", None)
@@ -60,35 +70,37 @@ async def _send_drivers_for_year(message: Message, season: int) -> None:
         family_name = getattr(row, "familyName", "")
         full_name = f"{given_name} {family_name}".strip()
 
-        if position == 1:
-            trophy = "🥇 "
-        elif position == 2:
-            trophy = "🥈 "
-        elif position == 3:
-            trophy = "🥉 "
+        code = getattr(row, "driverCode", "") or ""
+
+        if code and code in favorite_codes:
+            code_label = f"⭐️ {code}"
         else:
-            trophy = ""
+            code_label = code
 
-        line = (
-            f"{trophy}"
-            f"{position:>2}. "
-            f"{full_name} — "
-            f"{points:.0f} очков"
-        )
+        points_text = f"{points:.0f} очк."
 
-        lines.append(line)
+        rows.append((f"{position:02d}", code_label, full_name or code_label or str(position), points_text))
 
-    if not lines:
+    if not rows:
         await message.answer(f"Не удалось отобразить пилотов за {season} год (нет корректных данных).")
         return
 
-    text = (
-        f"🏁 Пилоты сезона {season}:\n\n"
-        + "\n".join(lines[:30])
+    title = f"Личный зачёт {season}"
+    subtitle = "Позиции пилотов в чемпионате"
+    img_buf = create_driver_standings_image(title, subtitle, rows)
+
+    # Перематываем буфер на начало и делаем InputFile
+    img_buf.seek(0)
+    photo = BufferedInputFile(
+        img_buf.read(),
+        filename=f"drivers_standings_{season}.png",
     )
 
     try:
-        await message.answer(text)
+        await message.answer_photo(
+            photo=photo,
+            caption=f"🏁 Личный зачёт пилотов {season}",
+        )
     except TelegramNetworkError:
         return
 
@@ -107,7 +119,7 @@ def _parse_season_from_text(text: str) -> int:
 @router.message(Command("drivers"))
 async def cmd_drivers(message: Message) -> None:
     season = _parse_season_from_text(message.text or "")
-    await _send_drivers_for_year(message, season)
+    await _send_drivers_for_year(message, season, telegram_id=message.from_user.id)
 
 
 @router.message(F.text == "Личный зачет")
@@ -143,7 +155,7 @@ async def drivers_year_from_text(message: Message, state: FSMContext) -> None:
         return
 
     await state.clear()
-    await _send_drivers_for_year(message, season)
+    await _send_drivers_for_year(message, season, telegram_id=message.from_user.id)
 
 
 @router.callback_query(F.data.startswith("drivers_current_"))
@@ -156,6 +168,6 @@ async def drivers_year_current(callback: CallbackQuery, state: FSMContext) -> No
         season = datetime.now().year
 
     if callback.message:
-        await _send_drivers_for_year(callback.message, season)
+        await _send_drivers_for_year(callback.message, season, telegram_id=callback.from_user.id)
 
     await callback.answer()

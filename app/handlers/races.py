@@ -10,33 +10,16 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, BufferedInputFile
 
-from app.utils.image_render import create_results_image
+from app.utils.default import SESSION_NAME_RU
+from app.utils.image_render import create_results_image, create_season_image
 from app.db import (
     get_last_reminded_round,
     get_favorite_drivers,
     get_favorite_teams,
 )
-from app.f1_data import get_season_schedule_short, get_weekend_schedule, get_race_results_df, \
+from app.utils.f1_data import get_season_schedule_short, get_weekend_schedule, get_race_results_df, \
     get_constructor_standings_df, \
     get_driver_standings_df, _get_latest_quali_async
-
-
-
-SESSION_NAME_RU = {
-    "Practice 1": "Практика 1",
-    "Practice 2": "Практика 2",
-    "Practice 3": "Практика 3",
-    "Free Practice 1": "Практика 1",
-    "Free Practice 2": "Практика 2",
-    "Free Practice 3": "Практика 3",
-
-    "Sprint Qualifying": "Спринт-квалификация",
-    "Sprint Shootout": "Спринт-квалификация",  # на всякий случай
-    "Sprint": "Спринт",
-
-    "Qualifying": "Квалификация",
-    "Race": "Гонка",
-}
 
 
 router = Router()
@@ -47,50 +30,38 @@ class RacesYearState(StatesGroup):
     waiting_for_year = State()
 
 
-
-
 async def _send_races_for_year(message: Message, season: int) -> None:
+    """Отправить календарь сезона в виде картинки.
+
+    Использует create_season_image из image_render, который сам
+    рисует все этапы, отмечает прошедшие/будущие и подсвечивает
+    ближайший этап.
+    """
     races = get_season_schedule_short(season)
 
     if not races:
         await message.answer(f"Нет данных по календарю сезона {season}.")
         return
 
-    today = date.today()
-    lines: list[str] = []
+    # Генерируем изображение календаря
+    img_buf = create_season_image(season, races)
 
-    for r in races:
-        try:
-            race_date = date.fromisoformat(r["date"])
-        except ValueError:
-            race_date = today
-
-        finished = race_date < today
-        status = "❌" if finished else "✅"
-
-        if finished:
-            line = (
-                f"{status} "
-                f"{r['round']:02d}. <i>{r['event_name']} "
-                f"({r['country']})</i>"
-            )
-        else:
-            date_str = race_date.strftime("%d.%m.%Y")
-            line = (
-                f"{status} "
-                f"<b>{r['round']:02d}. {r['event_name']} "
-                f"({r['country']})</b> — {date_str}"
-            )
-
-        lines.append(line)
-
-    header = (
-        f"<b>Календарь сезона {season}:</b>\n\n"
-        f"❌ — гонка уже прошла (дата скрыта)\n"
-        f"✅ — предстоящие гонки, дата показана\n\n\n"
+    photo = BufferedInputFile(
+        img_buf.getvalue(),
+        filename=f"season_{season}.png",
     )
-    text = header + "\n\n".join(lines)  # пустая строка между этапами
-    await message.answer(text)
+
+    caption = (
+        f"📅 Календарь сезона {season}\n"
+        f"\n🟥 — гонка уже прошла\n"
+        f"\n🟩 — предстоящие гонки, дата показана\n"
+    )
+
+    await message.answer_photo(
+        photo=photo,
+        caption=caption,
+        parse_mode="HTML",
+    )
 
 
 async def _send_next_race(message: Message, season: int | None = None) -> None:
@@ -518,7 +489,8 @@ async def race_callback(callback: CallbackQuery) -> None:
     count = 0
 
     fav_drivers_set = set(fav_drivers or [])
-    rows_for_image: list[tuple[str, str, str]] = []
+    # Для генерации картинки: (позиция, код, имя пилота, очки за гонку)
+    rows_for_image: list[tuple[str, str, str, str]] = []
 
     for row in df.itertuples(index=False):
         pos = getattr(row, "Position", None)
@@ -537,9 +509,12 @@ async def race_callback(callback: CallbackQuery) -> None:
         team = getattr(row, "TeamName", "")
         pts = getattr(row, "Points", None)
 
-        is_fav = code in fav_drivers_set
+        # Имя пилота
+        given = getattr(row, "FirstName", "") or ""
+        family = getattr(row, "LastName", "") or ""
+        full_name = f"{given} {family}".strip() or code
 
-        # ⭐️ ставим перед кодом избранного пилота
+        is_fav = code in fav_drivers_set
         prefix_star = "⭐️ " if is_fav else ""
 
         line = f"{pos_int:02d}. {prefix_star}<b>{code}</b>"
@@ -549,18 +524,20 @@ async def race_callback(callback: CallbackQuery) -> None:
             line += f" ({pts} очк.)"
         lines.append(line)
 
-        # Заполняем данные для картинки
-        extra_parts = []
-        if team:
-            extra_parts.append(team)
+        # Подготовка данных для картинки
+        code_for_img = f"⭐️{code}" if is_fav else code
         if pts is not None:
-            extra_parts.append(f"{pts} очк.")
-
-        extra_str = " — ".join(extra_parts) if extra_parts else ""
-        code_for_img = f"⭐️ {code}" if is_fav else code
+            # если очки — число, красиво форматируем, но без суффикса "очк."
+            try:
+                pts_value = float(pts)
+                pts_text = f"{pts_value:.0f}"
+            except (TypeError, ValueError):
+                pts_text = str(pts)
+        else:
+            pts_text = "0"
 
         rows_for_image.append(
-            (f"{pos_int:02d}", code_for_img, extra_str)
+            (f"{pos_int:02d}", code_for_img, full_name, pts_text)
         )
 
     if not lines:
