@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>FormulaOneBot Mini App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Telegram WebApp JS -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background-color: #0a0a19;
+            color: #f5f5ff;
+        }
+        .root {
+            padding: 16px;
+        }
+        .card {
+            background: rgba(20, 24, 50, 0.9);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: #fe2c55;
+            color: #fff;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+<div class="root">
+    <div class="card">
+        <h2 id="title">FormulaOneBot MiniApp</h2>
+        <p id="user-info"></p>
+        <p>Здесь можно будет смотреть ближайшую гонку, результаты, личный зачёт и любимчиков в более удобном виде 👀</p>
+    </div>
+
+    <div class="card">
+        <p>Нажми кнопку ниже, чтобы отправить боту тестовые данные.</p>
+        <button class="btn" id="send-btn">Отправить данные боту</button>
+    </div>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+
+    // Раскрываем веб-приложение на всю высоту
+    tg.expand();
+
+    // Подстраиваемся под тему Телеги
+    document.body.style.backgroundColor = tg.themeParams.bg_color || "#0a0a19";
+
+    const userInfoEl = document.getElementById('user-info');
+    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+        const u = tg.initDataUnsafe.user;
+        userInfoEl.textContent = `Привет, ${u.first_name} 👋`;
+    } else {
+        userInfoEl.textContent = "Привет! 👋";
+    }
+
+    document.getElementById('send-btn').addEventListener('click', () => {
+        const payload = {
+            type: "miniapp_test",
+            ts: Date.now()
+        };
+        tg.sendData(JSON.stringify(payload));
+        tg.close(); // Закрываем MiniApp
+    });
+</script>
+</body>
+</html>
