@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, date, timezone, timedelta
 from collections import defaultdict
 import random
+import fastf1
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -397,14 +398,84 @@ async def quali_callback(callback: CallbackQuery) -> None:
         await callback.answer()
         return
 
-    # --- ниже оставляешь твоё текущее форматирование результатов ---
-    # здесь можешь подставить свою логику со спойлерами и т.п.
+    # Пытаемся получить полные имена пилотов из FastF1 по коду
+    full_name_by_code: dict[str, str] = {}
+    try:
+        session = fastf1.get_session(season, round_num, "Q")
+        session.load()
+        if getattr(session, "results", None) is not None:
+            for row in session.results.itertuples(index=False):
+                code = getattr(row, "Abbreviation", None)
+                given = getattr(row, "FirstName", "") or ""
+                family = getattr(row, "LastName", "") or ""
+                full_name = f"{given} {family}".strip()
+                if code and full_name:
+                    full_name_by_code[code] = full_name
+    except Exception as e:
+        logging.exception("Не удалось собрать полные имена пилотов для квалификации: %s", e)
+        full_name_by_code = {}
+
+    def _fmt_best_lap(raw: object) -> str:
+        """Форматируем лучший круг:
+        убираем '0 days ' и обрезаем до миллисекунд.
+        """
+        if raw is None:
+            return ""
+
+        s = str(raw)
+
+        # убираем NaT/NaN и т.п.
+        if s.upper() in ("NAT", "NAN"):
+            return ""
+
+        # убираем префикс '0 days '
+        prefix = "0 days "
+        if s.startswith(prefix):
+            s = s[len(prefix):]
+
+        # обрезаем микросекунды до миллисекунд
+        if "." in s:
+            whole, frac = s.split(".", 1)
+            # гарантируем минимум 3 символа и берём только миллисекунды
+            frac = (frac + "000")[:3]
+            s = f"{whole}.{frac}"
+
+        return s
+
+    # Формируем строки с результатами квалификации
+    body_lines: list[str] = []
+    for r in results:
+        best_str = _fmt_best_lap(r.get("best"))
+        best = f" — {best_str}" if best_str else ""
+
+        code = r.get("driver")
+        # сначала пробуем взять из FastF1 по коду,
+        # потом из словаря результата, и только в конце сам код
+        driver_name = full_name_by_code.get(code) \
+            or r.get("driver_name") \
+            or r.get("name") \
+            or code
+
+        team = r.get("team")
+        line = f"{r['position']:02d}. <b>{driver_name}</b>"
+        line += best
+
+        body_lines.append(line)
+
+    if body_lines:
+        spoiler_block = (
+            "<span class=\"tg-spoiler\">"
+            + "\n".join(body_lines) +
+            "</span>"
+        )
+    else:
+        spoiler_block = "Нет строк с результатами 🤔"
 
     lines = [
         f"⏱ <b>Результаты квалификации</b>\n"
         f"Сезон {season}, этап {round_num}\n",
         "",
-        "||Таблица результатов будет тут||",  # сюда подставь вывод results
+        spoiler_block,
     ]
 
     text = "\n".join(lines)

@@ -20,10 +20,6 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
                 KeyboardButton(text="Кубок конструкторов"),
                 KeyboardButton(text="Избранное"),
             ],
-            [KeyboardButton(
-                text="📲 Открыть MiniApp",
-                url="https://kidney-papers-container-comfort.trycloudflare.com/web/app/index.html"
-            )],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
@@ -55,21 +51,3 @@ async def cmd_start(message: Message) -> None:
 @router.message(Command("menu"))
 async def cmd_menu(message: Message) -> None:
     await message.answer("Главное меню:", reply_markup=get_main_keyboard())
-
-
-
-@router.message(F.web_app_data)
-async def handle_webapp_data(message: Message):
-    try:
-        raw = message.web_app_data.data  # строка
-        # например {"type": "miniapp_test", "ts": 123456}
-        import json
-        data = json.loads(raw)
-    except Exception:
-        await message.answer("Получил данные из MiniApp, но не смог их разобрать 🤯")
-        return
-
-    if data.get("type") == "miniapp_test":
-        await message.answer("✅ MiniApp жив! Данные дошли до бота.")
-    else:
-        await message.answer(f"Получил что-то из MiniApp: <code>{raw}</code>", parse_mode="HTML")
