@@ -133,6 +133,7 @@ def create_results_image(
     subtitle: str,
     rows: List[Tuple[str, str, str, str]],
     avatar_loader: Callable[[str, str], Image.Image | None] | None = None,
+    card_color_func: Callable[[str], tuple[int, int, int]] | None = None,
 ) -> BytesIO:
     """
     Рисует картинку с результатами в стиле табло:
@@ -141,6 +142,10 @@ def create_results_image(
     rows: список кортежей
       (position, code, name, points_text)
       пример: ("01", "⭐️NOR", "Ландо Норрис", "25")
+
+    card_color_func: опциональная функция, которая по позиции
+    возвращает цвет карточки (R, G, B). Если не задана – используется
+    стандартная палитра (оранжевый/зелёный).
     """
     # --- Общие настройки ---
     padding = 15          # отступы по краям (сделал побольше)
@@ -151,7 +156,7 @@ def create_results_image(
 
     bg_color = (10, 10, 25)
     text_color = (235, 235, 245)
-    accent_color = (255, 215, 0)
+    accent_color = (255, 255, 255)
     separator_color = (70, 70, 120)
 
     # --- Шрифты ---
@@ -164,6 +169,7 @@ def create_results_image(
     if avatar_loader is None:
         def avatar_loader(code: str, name: str) -> Image.Image | None:  # type: ignore[no-redef]
             return _get_driver_photo(code)
+
     # хотя бы одна строка, чтобы не упасть
     safe_rows: List[Tuple[str, str, str, str]]
     if rows:
@@ -241,7 +247,8 @@ def create_results_image(
     rows_left = safe_rows[:rows_per_col]
     rows_right = safe_rows[rows_per_col:]
 
-    def _card_color_for_pos(pos: str) -> tuple[int, int, int]:
+    # ---- палитра цветов карточек ----
+    def _default_card_color_for_pos(pos: str) -> tuple[int, int, int]:
         try:
             p = int(pos)
         except ValueError:
@@ -252,6 +259,8 @@ def create_results_image(
             return (60, 190, 170)   # очковая зона
         return (55, 70, 110)        # остальные
 
+    color_for_pos = card_color_func or _default_card_color_for_pos
+
     def _draw_row(col_x: int, row_y: int,
                   pos: str, code: str, name: str, pts: str) -> None:
         # фон карточки
@@ -260,7 +269,7 @@ def create_results_image(
         card_x1 = col_x + col_width
         card_y1 = row_y + row_height - 6
 
-        card_color = _card_color_for_pos(pos)
+        card_color = color_for_pos(pos)
         inner_color = (
             int(card_color[0] * 0.8),
             int(card_color[1] * 0.8),
@@ -321,7 +330,7 @@ def create_results_image(
             name_x0 = avatar_x1 + block_gap
             name_x1 = avatar_x1 + max(120, row_height)
 
-        # --- аватар пилота ---
+        # --- аватар пилота / команды ---
         draw.rounded_rectangle(
             (avatar_x0, inner_y0, avatar_x1, inner_y1),
             radius=18,
@@ -332,7 +341,6 @@ def create_results_image(
         if len(raw_code) > 3:
             raw_code = raw_code[-3:]
 
-        # здесь avatar_loader уже замкнут из внешней функции
         base_img = avatar_loader(raw_code, name)  # type: ignore[arg-type]
         if base_img is not None:
             avatar = base_img.resize((avatar_size, avatar_size), Image.LANCZOS)
@@ -347,6 +355,7 @@ def create_results_image(
             avatar_y = avatar_y_center - avatar_size // 2
 
             img.paste(avatar, (avatar_x, avatar_y), mask)
+
         # --- позиция ---
         draw.rounded_rectangle(
             (pos_x0, inner_y0, pos_x1, inner_y1),
@@ -367,33 +376,27 @@ def create_results_image(
         pts_ty = inner_y_center + TEXT_V_SHIFT - pts_h // 2
         draw.text((pts_tx, pts_ty), pts_text, font=font_row, fill=text_color)
 
-        # --- имя пилота ---
+        # --- имя (со звёздочкой для избранных) ---
         draw.rounded_rectangle(
             (name_x0, inner_y0, name_x1, inner_y1),
             radius=18,
             fill=(35, 45, 90),
         )
 
-        # определяем, является ли пилот избранным
         raw_code_for_star = code.strip()
         raw_name_for_star = name.strip()
         has_star = ("⭐" in raw_code_for_star) or ("⭐" in raw_name_for_star)
 
-        # очищаем имя от возможных звёзд, чтобы не дублировать их
         clean_name = (
             raw_name_for_star
             .replace("⭐️", "")
             .replace("⭐", "")
             .strip()
         )
-
-        # имя без звезды (мы будем рисовать звезду отдельным шрифтом)
         base_name_text = clean_name or name
 
-        # максимально доступная ширина для имени
         max_name_width = name_x1 - name_x0 - block_pad_x * 2
 
-        # подготовим текст звезды (если избранный)
         star_text = "⭐️" if has_star else ""
         if star_text:
             star_w, star_h = _text_size(draw, star_text, font_emoji)
@@ -402,12 +405,9 @@ def create_results_image(
             star_w, star_h = 0, 0
             star_gap = 0
 
-        # сначала посчитаем ширину имени и при необходимости обрежем
         name_to_draw = base_name_text
         name_w, name_h = _text_size(draw, name_to_draw, font_row)
-
         while name_to_draw and (star_w + star_gap + name_w) > max_name_width:
-            # обрезаем по одному символу и добавляем многоточие
             name_to_draw = name_to_draw[:-1]
             name_w, name_h = _text_size(draw, name_to_draw + "…", font_row)
         if name_to_draw != base_name_text:
@@ -415,16 +415,12 @@ def create_results_image(
             name_w, name_h = _text_size(draw, name_to_draw, font_row)
 
         total_text_width = star_w + star_gap + name_w
-
-        # вертикальное выравнивание по центру блока
         block_height = inner_y1 - inner_y0
         text_block_h = max(name_h, star_h)
         base_ty = inner_y0 + (block_height - text_block_h) // 2 + TEXT_V_SHIFT
 
-        # горизонтальное центрирование всей связки "звезда + имя"
         start_tx = name_x0 + (name_x1 - name_x0 - total_text_width) // 2
 
-        # рисуем звезду и имя по отдельности
         cur_x = start_tx
         if star_text:
             draw.text((cur_x, base_ty), star_text, font=font_emoji, fill=text_color)
@@ -450,22 +446,41 @@ def create_results_image(
     return buf
 
 
-def create_driver_standings_image(
-    title: str,
-    subtitle: str,
-    rows: List[Tuple[str, str, str, str]],
-) -> BytesIO:
+def create_driver_standings_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]]) -> BytesIO:
     """Картинка для личного зачёта пилотов."""
     def _driver_avatar_loader(code: str, name: str) -> Image.Image | None:
         return _get_driver_photo(code)
 
-    return create_results_image(title, subtitle, rows, avatar_loader=_driver_avatar_loader)
+    # СВОЯ палитра для личного зачёта:
+    # top-3 — «золото», очковая зона — голубой, остальные — тёмные.
+    def _driver_card_color(pos: str) -> tuple[int, int, int]:
+        try:
+            p = int(pos)
+        except ValueError:
+            p = 99
+        if p == 1:
+            return (250, 200, 80)     # золото
+        if p == 2:
+            return (210, 215, 225)    # серебро
+        if p == 3:
+            return (205, 140, 80)     # бронза
+
+        # все остальные места
+        return (55, 70, 110)
+
+    return create_results_image(
+        title,
+        subtitle,
+        rows,
+        avatar_loader=_driver_avatar_loader,
+        card_color_func=_driver_card_color,
+    )
 
 
 def create_constructor_standings_image(
     title: str,
     subtitle: str,
-    rows: List[Tuple[str, str, str, str]],
+    rows: List[Tuple[str, str, str, str]]
 ) -> BytesIO:
     """Рисует картинку для Кубка конструкторов.
 
@@ -473,12 +488,37 @@ def create_constructor_standings_image(
     Например: ("01", "MCL", "McLaren", "756").
     Для аватара используется именно имя команды, а не код.
     """
+
     def _team_avatar_loader(code: str, name: str) -> Image.Image | None:
         # для логотипа лучше всего подходит полное название
         src = name or code
         return _get_team_logo(src)
 
-    return create_results_image(title, subtitle, rows, avatar_loader=_team_avatar_loader)
+    # Палитра как в личном зачёте:
+    # 1 — золото, 2 — серебро, 3 — бронза, остальные — тёмный.
+    def _team_card_color(pos: str) -> tuple[int, int, int]:
+        try:
+            p = int(pos)
+        except ValueError:
+            p = 99
+
+        if p == 1:
+            return (250, 200, 80)     # золото
+        if p == 2:
+            return (210, 215, 225)    # серебро
+        if p == 3:
+            return (205, 140, 80)     # бронза
+
+        # остальные места
+        return (55, 70, 110)
+
+    return create_results_image(
+        title,
+        subtitle,
+        rows,
+        avatar_loader=_team_avatar_loader,
+        card_color_func=_team_card_color,
+    )
 
 
 def create_season_image(season: int, races: list[dict]) -> BytesIO:
@@ -500,7 +540,7 @@ def create_season_image(season: int, races: list[dict]) -> BytesIO:
 
     bg_color = (10, 10, 25)
     text_color = (235, 235, 245)
-    accent_color = (255, 215, 0)
+    accent_color = (255, 255, 255)
     separator_color = (70, 70, 120)
 
     title_font = FONT_TITLE
