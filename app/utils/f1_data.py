@@ -4,9 +4,10 @@ import logging
 import pathlib
 from datetime import date as _date, timezone, timedelta, datetime, date
 from functools import partial
-from typing import Optional
+from typing import Optional, Any
 
 import fastf1
+import numpy as np
 import pandas as pd
 from fastf1._api import SessionNotAvailableError
 from fastf1.ergast import Ergast
@@ -238,62 +239,23 @@ def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
 
 
 def get_qualifying_results(season: int, round_number: int, limit: int = 20) -> list[dict]:
-    """
-    Синхронно получаем результаты квалификации через FastF1.
-
-    Если данных ещё нет (SessionNotAvailableError или пустой session.results),
-    возвращаем пустой список, НИЧЕГО не бросаем наружу.
-    """
     logging.info("[QUALI] Загружаю квалификацию season=%s, round=%s", season, round_number)
 
-    try:
-        session = fastf1.get_session(season, round_number, "Q")
-    except Exception as exc:  # noqa: BLE001
-        logging.exception(
-            "[QUALI] Не удалось создать сессию FastF1 (season=%s, round=%s): %s",
-            season, round_number, exc,
-        )
-        return []
+    session = fastf1.get_session(season, round_number, "Q")
+    session.load()
 
-    try:
-        # без телеметрии, чтобы не тянуть тонну лишних данных
-        session.load(
-            telemetry=False,
-            laps=False,
-            weather=False,
-            messages=False,
-        )
-    except SessionNotAvailableError as exc:
-        logging.info(
-            "[QUALI] Данных по квалификации нет (SessionNotAvailableError) "
-            "season=%s, round=%s: %s",
-            season, round_number, exc,
-        )
-        return []
-    except Exception as exc:  # noqa: BLE001
-        logging.exception(
-            "[QUALI] Ошибка при загрузке сессии квалификации season=%s, round=%s: %s",
-            season, round_number, exc,
-        )
-        return []
-
-    results = getattr(session, "results", None)
-    if results is None or results.empty:
+    if session.results is None or session.results.empty:
         logging.info(
             "[QUALI] В session.results нет данных (season=%s, round=%s)",
-            season, round_number,
+            season, round_number
         )
         return []
 
-    # сортируем по позиции и собираем в удобный список словарей
-    df = results
-    if "Position" in df.columns:
-        df = df.sort_values("Position")
+    results: list[dict] = []
 
-    rows: list[dict] = []
-    for _, row in df.head(limit).iterrows():
-        pos = row.get("Position")
-        if pos is None:
+    for row in session.results.itertuples(index=False):
+        pos = getattr(row, "Position", None)
+        if pos is None or pd.isna(pos):
             continue
 
         try:
@@ -301,26 +263,29 @@ def get_qualifying_results(season: int, round_number: int, limit: int = 20) -> l
         except (TypeError, ValueError):
             continue
 
-        code = row.get("Abbreviation") or row.get("DriverNumber") or "?"
-        team = row.get("TeamName") or ""
+        code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", None) or "?"
+        given = getattr(row, "FirstName", "") or ""
+        family = getattr(row, "LastName", "") or ""
+        full_name = f"{given} {family}".strip() or code
 
-        # лучшая попытка: Q3 > Q2 > Q1
-        best_lap = row.get("Q3") or row.get("Q2") or row.get("Q1") or ""
+        q1 = getattr(row, "Q1", None)
+        q2 = getattr(row, "Q2", None)
+        q3 = getattr(row, "Q3", None)
 
-        rows.append(
+        best_raw = q3 or q2 or q1
+        best_fmt = _format_quali_time(best_raw)
+
+        results.append(
             {
                 "position": pos_int,
-                "driver": str(code),
-                "team": str(team),
-                "best": str(best_lap) if best_lap else "",
+                "driver": code,
+                "name": full_name,
+                "best": best_fmt,  # тут уже НЕТ NaT и "0 days ..."
             }
         )
 
-    logging.info(
-        "[QUALI] Успешно получили %s результатов квалификации (season=%s, round=%s)",
-        len(rows), season, round_number,
-    )
-    return rows
+    results.sort(key=lambda r: r["position"])
+    return results[:limit]
 
 
 async def _get_quali_async(season: int, round_number: int, limit: int = 20) -> list[dict]:
@@ -454,6 +419,40 @@ async def _get_latest_quali_async(season: int, max_round: int | None = None, lim
         season, max_round,
     )
     return None, []
+
+
+def _format_quali_time(value: Any) -> str | None:
+    """
+    Преобразует Timedelta / np.timedelta64 / строку от FastF1
+    к виду M:SS.mmm (например, 1:23.456).
+
+    Возвращает None, если времени нет (NaT, None и т.п.).
+    """
+    if value is None:
+        return None
+
+    # NaT от pandas
+    if isinstance(value, pd._libs.tslibs.timedeltas.Timedelta) or isinstance(value, pd.Timedelta):
+        td = value
+    elif isinstance(value, np.timedelta64):
+        # конвертируем в pandas Timedelta
+        td = pd.to_timedelta(value)
+    else:
+        # иногда может прийти строка вида "0 days 00:01:23.456000"
+        try:
+            td = pd.to_timedelta(value)
+        except Exception:
+            return None
+
+    if pd.isna(td):
+        return None
+
+    total_ms = int(td.total_seconds() * 1000 + 0.5)  # округлим до миллисекунд
+    minutes = total_ms // 60000
+    seconds = (total_ms % 60000) // 1000
+    millis = total_ms % 1000
+
+    return f"{minutes}:{seconds:02d}.{millis:03d}"
 
 
 def _warmup_session_sync(season: int, round_number: int, session_code: str) -> None:

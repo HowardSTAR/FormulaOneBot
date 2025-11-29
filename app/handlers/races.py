@@ -3,6 +3,7 @@ import logging
 from datetime import datetime, date, timezone, timedelta
 from collections import defaultdict
 import random
+import fastf1
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -11,7 +12,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, BufferedInputFile
 
 from app.utils.default import SESSION_NAME_RU
-from app.utils.image_render import create_results_image, create_season_image
+from app.utils.image_render import create_results_image, create_season_image, create_quali_results_image
 from app.db import (
     get_last_reminded_round,
     get_favorite_drivers,
@@ -19,8 +20,7 @@ from app.db import (
 )
 from app.utils.f1_data import get_season_schedule_short, get_weekend_schedule, get_race_results_df, \
     get_constructor_standings_df, \
-    get_driver_standings_df, _get_latest_quali_async
-
+    get_driver_standings_df, _get_latest_quali_async, get_qualifying_results
 
 router = Router()
 
@@ -28,6 +28,92 @@ UTC_PLUS_3 = timezone(timedelta(hours=3))
 
 class RacesYearState(StatesGroup):
     waiting_for_year = State()
+
+
+def build_next_race_payload(season: int | None = None) -> dict:
+    """
+    Чистая функция: возвращает инфу о ближайшей гонке как словарь.
+    Никаких Telegram-объектов внутри, только данные.
+
+    Формат ответа:
+    - если нет расписания: {"status": "no_schedule", "season": season}
+    - если сезон уже завершён: {"status": "season_finished", "season": season}
+    - если всё ок:
+        {
+          "status": "ok",
+          "season": season,
+          "round": int,
+          "event_name": str,
+          "country": str,
+          "location": str,
+          "date": "DD.MM.YYYY",
+          "utc": "DD.MM.YYYY HH:MM UTC" | None,
+          "local": "DD.MM.YYYY HH:MM МСК" | None,
+        }
+    """
+    if season is None:
+        season = datetime.now().year
+
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        return {
+            "status": "no_schedule",
+            "season": season,
+        }
+
+    today = date.today()
+    future_races = []
+    for r in schedule:
+        try:
+            race_date = date.fromisoformat(r["date"])
+        except Exception:
+            continue
+        if race_date >= today:
+            future_races.append((race_date, r))
+
+    if not future_races:
+        return {
+            "status": "season_finished",
+            "season": season,
+        }
+
+    race_date, r = min(future_races, key=lambda x: x[0])
+
+    round_num = r["round"]
+    event_name = r["event_name"]
+    country = r["country"]
+    location = r["location"]
+
+    date_str = race_date.strftime("%d.%m.%Y")
+
+    race_start_utc_str = r.get("race_start_utc")
+    utc_str: str | None = None
+    local_str: str | None = None
+
+    if race_start_utc_str:
+        try:
+            race_start_utc = datetime.fromisoformat(race_start_utc_str)
+            if race_start_utc.tzinfo is None:
+                race_start_utc = race_start_utc.replace(tzinfo=timezone.utc)
+
+            utc_str = race_start_utc.strftime("%d.%m.%Y %H:%M UTC")
+            local_dt = race_start_utc.astimezone(UTC_PLUS_3)
+            local_str = local_dt.strftime("%d.%m.%Y %H:%M МСК")
+        except Exception:
+            # если время кривое — просто оставляем только дату
+            pass
+
+    return {
+        "status": "ok",
+        "season": season,
+        "round": round_num,
+        "event_name": event_name,
+        "country": country,
+        "location": location,
+        "date": date_str,
+        "utc": utc_str,
+        "local": local_str,
+    }
 
 
 async def _send_races_for_year(message: Message, season: int) -> None:
@@ -65,56 +151,34 @@ async def _send_races_for_year(message: Message, season: int) -> None:
 
 
 async def _send_next_race(message: Message, season: int | None = None) -> None:
-    if season is None:
-        season = datetime.now().year
+    payload = build_next_race_payload(season)
 
-    schedule = get_season_schedule_short(season)
-    if not schedule:
+    status = payload["status"]
+    season = payload["season"]
+
+    if status == "no_schedule":
         await message.answer(f"Нет расписания для сезона {season}.")
         return
 
-    today = date.today()
-
-    future_races = []
-    for r in schedule:
-        try:
-            race_date = date.fromisoformat(r["date"])
-        except Exception:
-            continue
-        if race_date >= today:
-            future_races.append((race_date, r))
-
-    if not future_races:
+    if status == "season_finished":
         await message.answer(f"Сезон {season} уже полностью завершён ✅")
         return
 
-    race_date, r = min(future_races, key=lambda x: x[0])
+    # status == "ok"
+    round_num = payload["round"]
+    event_name = payload["event_name"]
+    country = payload["country"]
+    location = payload["location"]
+    date_str = payload["date"]
+    utc_str = payload["utc"]
+    local_str = payload["local"]
 
-    round_num = r["round"]
-    event_name = r["event_name"]
-    country = r["country"]
-    location = r["location"]
-
-    date_str = race_date.strftime("%d.%m.%Y")
-
-    race_start_utc_str = r.get("race_start_utc")
-    if race_start_utc_str:
-        try:
-            race_start_utc = datetime.fromisoformat(race_start_utc_str)
-            if race_start_utc.tzinfo is None:
-                race_start_utc = race_start_utc.replace(tzinfo=timezone.utc)
-
-            utc_str = race_start_utc.strftime("%d.%m.%Y %H:%M UTC")
-            local_dt = race_start_utc.astimezone(UTC_PLUS_3)
-            local_str = local_dt.strftime("%d.%m.%Y %H:%M МСК")
-
-            time_block = (
-                "\n⏰ Старт гонки:\n"
-                f"• {utc_str}\n"
-                f"• {local_str}"
-            )
-        except Exception:
-            time_block = f"📅 Дата: {date_str}"
+    if utc_str and local_str:
+        time_block = (
+            "\n⏰ Старт гонки:\n"
+            f"• {utc_str}\n"
+            f"• {local_str}"
+        )
     else:
         time_block = f"📅 Дата: {date_str}"
 
@@ -289,126 +353,56 @@ async def weekend_schedule_callback(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("quali_"))
 async def quali_callback(callback: CallbackQuery) -> None:
+    # 1. Берём сезон из callback, а раунд — НЕ используем напрямую
     try:
-        _, season_str, round_str = callback.data.split("_")
+        _, season_str, _round_str = callback.data.split("_")
         season = int(season_str)
-        max_round = int(round_str)
     except Exception:
-        await callback.answer("Не понял данные этапа 😅", show_alert=True)
-        return
+        season = datetime.now().year
 
-    # Набор «живых» сообщений, которыми будем мигать
-    status_texts = [
-        "🔍 Ищу последние данные по квалификации…",
-        "📡 Подключаюсь к таймингу FIA…",
-        "📊 Проверяю протокол и позиции пилотов…",
-        "🧮 Считаю времена кругов…",
-        "✨ Полирую таблицу результатов…",
-        "🏁 Уточняю, кто реально на поуле…",
-        "📶 Ловлю сигнал из паддока…",
-        "🛰 Отправляю запрос на спутник телеметрии…",
-        "🧑‍💻 Обновляю данные тайминга…",
-        "⚙️ Прокручиваю карусель стратегий…",
-        "🏎 Разгоняю бота до скоростей DRS…",
-        "🧠 Анализирую тактику команд…",
-    ]
-    status_msg = None
-
-    # Запускаем загрузку квалификации в отдельной задаче
-    fetch_task = asyncio.create_task(
-        _get_latest_quali_async(season, max_round=max_round, limit=20)
-    )
-
-    loop = asyncio.get_running_loop()
-    start = loop.time()
-    timeout = 10.0  # общий лимит ожидания
-
-    # Крутимся, пока задача не завершилась или не истёк таймаут
-    while not fetch_task.done():
-        # Проверка таймаута
-        if loop.time() - start > timeout:
-            logging.warning(
-                "[QUALI] Таймаут при получении квалификации season=%s, max_round=%s",
-                season, max_round,
-            )
-            fetch_task.cancel()
-            try:
-                await fetch_task
-            except asyncio.CancelledError:
-                pass
-
-            # На всякий случай удалим последнее статусное сообщение
-            if status_msg is not None:
-                try:
-                    await status_msg.delete()
-                except Exception:
-                    pass
-
-            await callback.message.answer(
-                "Пока нет данных по результатам квалификации 🤔\n"
-                "Скорее всего, сессия ещё не закончилась или данные недоступны."
-            )
-            await callback.answer()
-            return
-
-        # Отправляем случайный статус
-        text = random.choice(status_texts)
-
-        try:
-            status_msg = await callback.message.answer(text)
-        except Exception:
-            status_msg = None
-
-        # Даём пользователю чуть-чуть времени увидеть сообщение
-        await asyncio.sleep(1.2)
-
-        # Сразу же удаляем этот статус
-        if status_msg is not None:
-            try:
-                await status_msg.delete()
-            except Exception:
-                pass
-
-    # Здесь задача уже завершилась (без таймаута) —
-    # на всякий случай удалим последнее статусное сообщение
-    if status_msg is not None:
-        try:
-            await status_msg.delete()
-        except Exception:
-            pass
-
-    # Достаём результат задачи
-    try:
-        round_num, results = fetch_task.result()
-    except Exception as exc:
-        logging.exception("Ошибка при получении квалификации: %s", exc)
+    # 2. Находим последнюю квалификацию сезона, по которой есть данные
+    latest = await _get_latest_quali_async(season)
+    if latest is None:
         await callback.message.answer(
-            "Пока нет данных по результатам квалификации 🤔\n"
-            "Скорее всего, сессия ещё не закончилась или данные недоступны."
+            "Пока нет квалификаций с сохранёнными результатами для этого сезона 🤔"
         )
         await callback.answer()
         return
 
-    # нет найденной квалификации или список пустой
-    if not round_num or not results:
+    latest_round, results = latest  # results — это список dict’ов
+
+    if not results:
         await callback.message.answer(
             "Пока нет данных по результатам квалификации 🤔"
         )
         await callback.answer()
         return
 
-    # --- ниже оставляешь твоё текущее форматирование результатов ---
-    # здесь можешь подставить свою логику со спойлерами и т.п.
+    # 3. Собираем строки для картинки
+    rows: list[tuple[str, str, str, str]] = []
+    for r in results:
+        pos = f"{r['position']:02d}"
+        code = r["driver"]                  # тут можешь добавлять ⭐️, если нужно
+        name = r.get("name") or r["driver"]  # если нет полного имени — используем код
+        best = r.get("best") or "—"
+        rows.append((pos, code, name, best))
 
-    lines = [
-        f"⏱ <b>Результаты квалификации</b>\n"
-        f"Сезон {season}, этап {round_num}\n",
-        "",
-        "||Таблица результатов будет тут||",  # сюда подставь вывод results
-    ]
+    title = f"Квалификация {season}"
+    subtitle = f"Этап {latest_round:02d}"
 
-    text = "\n".join(lines)
-    await callback.message.answer(text, parse_mode="HTML")
+    buf = create_quali_results_image(title, subtitle, rows)
+
+    photo = BufferedInputFile(buf.getvalue(), filename="quali_results.png")
+
+    caption = (
+        f"⏱ Результаты последней квалификации (таблица на картинке).\n"
+        f"Сезон {season}, этап {latest_round:02d}."
+    )
+
+    await callback.message.answer_photo(
+        photo=photo,
+        caption=caption,
+    )
     await callback.answer()
 
 

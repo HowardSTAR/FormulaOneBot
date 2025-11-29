@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Ближайшая гонка — FormulaOneBot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-main: #050713;
+      --card-bg: rgba(16, 20, 46, 0.95);
+      --btn-bg: rgba(19, 25, 60, 0.9);
+      --btn-border: rgba(255, 255, 255, 0.06);
+      --btn-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+      --text-main: #f5f5ff;
+      --text-muted: #a4a8d5;
+      --accent-1: #ff5f6d;
+      --accent-2: #ffc371;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #181b3a 0, var(--bg-main) 55%);
+      color: var(--text-main);
+    }
+
+    .root {
+      padding: 16px;
+      max-width: 480px;
+      margin: 0 auto 24px;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border-radius: 20px;
+      padding: 18px 16px 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .card h2 {
+      margin: 0 0 4px;
+      font-size: 22px;
+      letter-spacing: 0.03em;
+    }
+
+    .card p {
+      margin: 4px 0;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    .next-race-title {
+      font-weight: 600;
+      font-size: 16px;
+      margin-top: 8px;
+    }
+
+    .next-race-sub {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    .next-race-time {
+      margin-top: 10px;
+      font-size: 14px;
+    }
+
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--btn-border);
+      background: rgba(10, 14, 40, 0.9);
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+
+    .btn-back span { margin-left: 4px; }
+
+    .btn-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-row .btn { flex: 1; }
+
+    .btn {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 18px;
+      width: 100%;
+      border-radius: 999px;
+      border: 1px solid var(--btn-border);
+      background: var(--btn-bg);
+      color: var(--text-main);
+      font-weight: 600;
+      font-size: 15px;
+      text-align: center;
+      cursor: pointer;
+      outline: none;
+      box-shadow: var(--btn-shadow);
+      transition: transform 0.12s ease-out, box-shadow 0.12s ease-out,
+                  filter 0.12s ease-out, background 0.12s ease-out;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .btn:active {
+      transform: translateY(1px) scale(0.98);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+      filter: brightness(0.96);
+    }
+
+    .btn:focus-visible {
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15), var(--btn-shadow);
+    }
+
+    @media (max-width: 360px) {
+      .card h2 { font-size: 20px; }
+      .btn { font-size: 14px; padding: 11px 14px; }
+    }
+  </style>
+</head>
+<body>
+<div class="root">
+  <div class="card">
+    <button id="btn-back-home" class="btn-back" type="button">← <span>Главное меню</span></button>
+    <h2>Ближайшая гонка</h2>
+    <p class="next-race-title" id="nr-title">Загружаю ближайший этап…</p>
+    <p class="next-race-sub" id="nr-location"></p>
+    <p class="next-race-time" id="nr-time"></p>
+  </div>
+
+  <div class="card">
+    <div class="btn-grid">
+      <button class="btn" data-action="next_race_schedule">📅 Расписание уикенда</button>
+      <div class="btn-row">
+        <button class="btn" data-action="next_race_quali">⏱ Квалификация</button>
+        <button class="btn" data-action="next_race_race">🏁 Гонка</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div id="app">
+    <h1>Ближайшая гонка</h1>
+    <div id="next-race-card">
+      Загружаю данные о ближайшей гонке...
+    </div>
+  </div>
+  <script src="next-race.js"></script>
+
+<script>
+  const tg = window.Telegram.WebApp;
+
+  if (tg.ready) {
+    tg.ready();
+  }
+  tg.expand();
+
+  if (tg.themeParams && tg.themeParams.bg_color) {
+    document.body.style.backgroundColor = tg.themeParams.bg_color;
+  }
+
+  async function loadNextRaceInfo() {
+    const titleEl = document.getElementById('nr-title');
+    const locationEl = document.getElementById('nr-location');
+    const timeEl = document.getElementById('nr-time');
+
+    titleEl.textContent = 'Загружаю ближайший этап…';
+    locationEl.textContent = '';
+    timeEl.textContent = '';
+
+    try {
+      const resp = await fetch('/api/next-race');
+      if (!resp.ok) {
+        throw new Error('HTTP ' + resp.status);
+      }
+      const data = await resp.json();
+
+      titleEl.textContent = `${data.round}. ${data.event_name} (сезон ${data.season})`;
+      locationEl.textContent = `📍 ${data.country}, ${data.location}`;
+
+      if (data.utc && data.local) {
+        timeEl.innerHTML =
+          '⏰ Старт гонки:<br>' +
+          `• ${data.utc}<br>` +
+          `• ${data.local}`;
+      } else {
+        timeEl.textContent = '';
+      }
+    } catch (e) {
+      console.error(e);
+      titleEl.textContent = 'Не удалось получить данные о ближайшей гонке 😔';
+      locationEl.textContent = '';
+      timeEl.textContent = 'Попробуй ещё раз чуть позже.';
+    }
+  }
+
+  function sendAction(action) {
+    const payload = {
+      type: 'miniapp_action',
+      action,
+      ts: Date.now()
+    };
+    tg.sendData(JSON.stringify(payload));
+  }
+
+  // кнопки расписание/квалификация/гонка
+  document.querySelectorAll('.btn[data-action]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.action;
+      sendAction(action);
+      tg.close();
+    });
+  });
+
+  // назад на главную страницу mini-app
+  document.getElementById('btn-back-home').addEventListener('click', () => {
+    window.location.href = 'index.html';
+  });
+
+  loadNextRaceInfo();
+</script>
+</body>
+</html>
