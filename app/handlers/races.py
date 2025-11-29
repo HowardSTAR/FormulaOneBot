@@ -30,6 +30,92 @@ class RacesYearState(StatesGroup):
     waiting_for_year = State()
 
 
+def build_next_race_payload(season: int | None = None) -> dict:
+    """
+    Чистая функция: возвращает инфу о ближайшей гонке как словарь.
+    Никаких Telegram-объектов внутри, только данные.
+
+    Формат ответа:
+    - если нет расписания: {"status": "no_schedule", "season": season}
+    - если сезон уже завершён: {"status": "season_finished", "season": season}
+    - если всё ок:
+        {
+          "status": "ok",
+          "season": season,
+          "round": int,
+          "event_name": str,
+          "country": str,
+          "location": str,
+          "date": "DD.MM.YYYY",
+          "utc": "DD.MM.YYYY HH:MM UTC" | None,
+          "local": "DD.MM.YYYY HH:MM МСК" | None,
+        }
+    """
+    if season is None:
+        season = datetime.now().year
+
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        return {
+            "status": "no_schedule",
+            "season": season,
+        }
+
+    today = date.today()
+    future_races = []
+    for r in schedule:
+        try:
+            race_date = date.fromisoformat(r["date"])
+        except Exception:
+            continue
+        if race_date >= today:
+            future_races.append((race_date, r))
+
+    if not future_races:
+        return {
+            "status": "season_finished",
+            "season": season,
+        }
+
+    race_date, r = min(future_races, key=lambda x: x[0])
+
+    round_num = r["round"]
+    event_name = r["event_name"]
+    country = r["country"]
+    location = r["location"]
+
+    date_str = race_date.strftime("%d.%m.%Y")
+
+    race_start_utc_str = r.get("race_start_utc")
+    utc_str: str | None = None
+    local_str: str | None = None
+
+    if race_start_utc_str:
+        try:
+            race_start_utc = datetime.fromisoformat(race_start_utc_str)
+            if race_start_utc.tzinfo is None:
+                race_start_utc = race_start_utc.replace(tzinfo=timezone.utc)
+
+            utc_str = race_start_utc.strftime("%d.%m.%Y %H:%M UTC")
+            local_dt = race_start_utc.astimezone(UTC_PLUS_3)
+            local_str = local_dt.strftime("%d.%m.%Y %H:%M МСК")
+        except Exception:
+            # если время кривое — просто оставляем только дату
+            pass
+
+    return {
+        "status": "ok",
+        "season": season,
+        "round": round_num,
+        "event_name": event_name,
+        "country": country,
+        "location": location,
+        "date": date_str,
+        "utc": utc_str,
+        "local": local_str,
+    }
+
+
 async def _send_races_for_year(message: Message, season: int) -> None:
     """Отправить календарь сезона в виде картинки.
 
@@ -65,56 +151,34 @@ async def _send_races_for_year(message: Message, season: int) -> None:
 
 
 async def _send_next_race(message: Message, season: int | None = None) -> None:
-    if season is None:
-        season = datetime.now().year
+    payload = build_next_race_payload(season)
 
-    schedule = get_season_schedule_short(season)
-    if not schedule:
+    status = payload["status"]
+    season = payload["season"]
+
+    if status == "no_schedule":
         await message.answer(f"Нет расписания для сезона {season}.")
         return
 
-    today = date.today()
-
-    future_races = []
-    for r in schedule:
-        try:
-            race_date = date.fromisoformat(r["date"])
-        except Exception:
-            continue
-        if race_date >= today:
-            future_races.append((race_date, r))
-
-    if not future_races:
+    if status == "season_finished":
         await message.answer(f"Сезон {season} уже полностью завершён ✅")
         return
 
-    race_date, r = min(future_races, key=lambda x: x[0])
+    # status == "ok"
+    round_num = payload["round"]
+    event_name = payload["event_name"]
+    country = payload["country"]
+    location = payload["location"]
+    date_str = payload["date"]
+    utc_str = payload["utc"]
+    local_str = payload["local"]
 
-    round_num = r["round"]
-    event_name = r["event_name"]
-    country = r["country"]
-    location = r["location"]
-
-    date_str = race_date.strftime("%d.%m.%Y")
-
-    race_start_utc_str = r.get("race_start_utc")
-    if race_start_utc_str:
-        try:
-            race_start_utc = datetime.fromisoformat(race_start_utc_str)
-            if race_start_utc.tzinfo is None:
-                race_start_utc = race_start_utc.replace(tzinfo=timezone.utc)
-
-            utc_str = race_start_utc.strftime("%d.%m.%Y %H:%M UTC")
-            local_dt = race_start_utc.astimezone(UTC_PLUS_3)
-            local_str = local_dt.strftime("%d.%m.%Y %H:%M МСК")
-
-            time_block = (
-                "\n⏰ Старт гонки:\n"
-                f"• {utc_str}\n"
-                f"• {local_str}"
-            )
-        except Exception:
-            time_block = f"📅 Дата: {date_str}"
+    if utc_str and local_str:
+        time_block = (
+            "\n⏰ Старт гонки:\n"
+            f"• {utc_str}\n"
+            f"• {local_str}"
+        )
     else:
         time_block = f"📅 Дата: {date_str}"
 

@@ -4,59 +4,202 @@
     <meta charset="UTF-8">
     <title>FormulaOneBot Mini App</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- Telegram WebApp JS -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
+        :root {
+            --bg-main: #050713;
+            --card-bg: rgba(16, 20, 46, 0.95);
+            --accent-1: #ff5f6d;  /* градиент для основной кнопки */
+            --accent-2: #ffc371;
+            --btn-bg: rgba(19, 25, 60, 0.9);
+            --btn-border: rgba(255, 255, 255, 0.06);
+            --btn-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+            --text-main: #f5f5ff;
+            --text-muted: #a4a8d5;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            background-color: #0a0a19;
-            color: #f5f5ff;
+            background: radial-gradient(circle at top, #181b3a 0, var(--bg-main) 55%);
+            color: var(--text-main);
         }
+
         .root {
             padding: 16px;
+            max-width: 480px;
+            margin: 0 auto 24px;
         }
+
         .card {
-            background: rgba(20, 24, 50, 0.9);
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 12px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 18px 16px 16px;
+            margin-bottom: 14px;
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.04);
         }
-        .btn {
-            display: inline-block;
-            padding: 10px 16px;
-            border-radius: 999px;
-            background: #fe2c55;
-            color: #fff;
+
+        .card h2 {
+            margin: 0 0 4px;
+            font-size: 22px;
+            letter-spacing: 0.03em;
+        }
+
+        .card p {
+            margin: 4px 0;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen--active {
+            display: block;
+        }
+
+        .next-race-title {
             font-weight: 600;
+            font-size: 16px;
+            margin-top: 8px;
+        }
+
+        .next-race-sub {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .next-race-time {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .btn-back {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--btn-border);
+            background: rgba(10, 14, 40, 0.9);
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .btn-back span {
+            margin-left: 4px;
+        }
+
+        .btn-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-row .btn {
+            flex: 1;
+        }
+
+        .btn {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 18px;
+            width: 100%;
+            border-radius: 999px;
+            border: 1px solid var(--btn-border);
+            background: var(--btn-bg);
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 15px;
             text-align: center;
             cursor: pointer;
-            border: none;
+            outline: none;
+            box-shadow: var(--btn-shadow);
+            transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, filter 0.12s ease-out, background 0.12s ease-out;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn:active {
+            transform: translateY(1px) scale(0.98);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+            filter: brightness(0.96);
+        }
+
+        .btn:focus-visible {
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15), var(--btn-shadow);
+        }
+
+        @media (max-width: 360px) {
+            .card h2 {
+                font-size: 20px;
+            }
+
+            .btn {
+                font-size: 14px;
+                padding: 11px 14px;
+            }
         }
     </style>
 </head>
 <body>
 <div class="root">
     <div class="card">
-        <h2 id="title">FormulaOneBot MiniApp</h2>
+        <h2 id="title">FormulaOneBot</h2>
         <p id="user-info"></p>
-        <p>Здесь можно будет смотреть ближайшую гонку, результаты, личный зачёт и любимчиков в более удобном виде 👀</p>
+        <p>Выбери, что посмотреть прямо сейчас:</p>
     </div>
 
     <div class="card">
-        <p>Нажми кнопку ниже, чтобы отправить боту тестовые данные.</p>
-        <button class="btn" id="send-btn">Отправить данные боту</button>
+        <div class="btn-grid">
+            <button class="btn btn-primary" data-action="next_race">Ближайшая гонка</button>
+
+            <div class="btn-row">
+                <button class="btn" data-action="season">Сезон</button>
+                <button class="btn" data-action="drivers">Личный зачет</button>
+            </div>
+
+            <div class="btn-row">
+                <button class="btn" data-action="constructors">Кубок конструкторов</button>
+                <button class="btn" data-action="favorites">Избранное</button>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
     const tg = window.Telegram.WebApp;
 
-    // Раскрываем веб-приложение на всю высоту
+    if (tg.ready) {
+        tg.ready();
+    }
+
     tg.expand();
 
-    // Подстраиваемся под тему Телеги
-    document.body.style.backgroundColor = tg.themeParams.bg_color || "#0a0a19";
+    if (tg.themeParams && tg.themeParams.bg_color) {
+        document.body.style.backgroundColor = tg.themeParams.bg_color;
+    }
 
     const userInfoEl = document.getElementById('user-info');
     if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
@@ -66,15 +209,30 @@
         userInfoEl.textContent = "Привет! 👋";
     }
 
-    document.getElementById('send-btn').addEventListener('click', () => {
+    function sendAction(action) {
         const payload = {
-            type: "miniapp_test",
+            type: "miniapp_action",
+            action,
             ts: Date.now()
         };
         tg.sendData(JSON.stringify(payload));
-        tg.close(); // Закрываем MiniApp
-    });
+    }
 
+    document.querySelectorAll('.btn[data-action]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const action = btn.dataset.action;
+
+            if (action === 'next_race') {
+                // Переход на отдельную страницу ближайшей гонки
+                window.location.href = 'next-race.html';
+                return;
+            }
+
+            // Остальные действия отдаём боту
+            sendAction(action);
+            tg.close();
+        });
+    });
 </script>
 </body>
 </html>
