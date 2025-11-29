@@ -521,6 +521,75 @@ def create_constructor_standings_image(
     )
 
 
+# --- Квалификация: картинка результатов квалификации ---
+
+def create_quali_results_image(
+    title: str,
+    subtitle: str,
+    rows: List[Tuple[str, str, str, str]],
+) -> BytesIO:
+    """Рисует картинку с результатами квалификации.
+
+    rows: (position, driver_code, driver_name, best_time_text)
+      position       — строка вида "01", "02", ...
+      driver_code    — код пилота (VER, LEC, ...), может включать ⭐️
+      driver_name    — отображаемое имя пилота
+      best_time_text — лучший круг (например "1:32.123") или "—".
+
+    Цвета:
+      * P1 — золото
+      * P2 — серебро
+      * P3 — бронза
+      * остальные с зафиксированным временем — бирюзовый
+      * остальные без времени — тёмный.
+    """
+
+    # мапа: позиция -> есть ли у пилота зафиксированное время
+    has_time_by_pos: dict[str, bool] = {}
+    for pos, _code, _name, time_text in rows:
+        t = (time_text or "").strip().upper()
+        # считаем, что времени нет, если строка пустая или служебные статусы
+        has_time = bool(t and t not in {"—", "NO TIME", "DNS", "DNF", "DSQ"})
+        has_time_by_pos[pos] = has_time
+
+    def _quali_avatar_loader(code: str, name: str) -> Image.Image | None:
+        # для квалификации используем фото пилотов
+        return _get_driver_photo(code)
+
+    def _quali_card_color(pos: str) -> tuple[int, int, int]:
+        try:
+            p = int(pos)
+        except ValueError:
+            p = 99
+
+        has_time = has_time_by_pos.get(pos, False)
+
+        # подиум
+        if p == 1:
+            base = (250, 200, 80)     # золото
+        elif p == 2:
+            base = (210, 215, 225)    # серебро
+        elif p == 3:
+            base = (205, 140, 80)     # бронза
+        else:
+            if has_time:
+                # есть зафиксированное время — подсветим бирюзовым
+                base = (60, 190, 170)
+            else:
+                # без времени — более тёмный
+                base = (45, 55, 85)
+
+        return base
+
+    return create_results_image(
+        title,
+        subtitle,
+        rows,
+        avatar_loader=_quali_avatar_loader,
+        card_color_func=_quali_card_color,
+    )
+
+
 def create_season_image(season: int, races: list[dict]) -> BytesIO:
     """
     Рисует картинку с календарём сезона в том же стиле, что и результаты гонки:

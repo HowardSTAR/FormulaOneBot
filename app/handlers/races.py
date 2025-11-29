@@ -12,7 +12,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, BufferedInputFile
 
 from app.utils.default import SESSION_NAME_RU
-from app.utils.image_render import create_results_image, create_season_image
+from app.utils.image_render import create_results_image, create_season_image, create_quali_results_image
 from app.db import (
     get_last_reminded_round,
     get_favorite_drivers,
@@ -20,8 +20,7 @@ from app.db import (
 )
 from app.utils.f1_data import get_season_schedule_short, get_weekend_schedule, get_race_results_df, \
     get_constructor_standings_df, \
-    get_driver_standings_df, _get_latest_quali_async
-
+    get_driver_standings_df, _get_latest_quali_async, get_qualifying_results
 
 router = Router()
 
@@ -290,196 +289,56 @@ async def weekend_schedule_callback(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("quali_"))
 async def quali_callback(callback: CallbackQuery) -> None:
+    # 1. Берём сезон из callback, а раунд — НЕ используем напрямую
     try:
-        _, season_str, round_str = callback.data.split("_")
+        _, season_str, _round_str = callback.data.split("_")
         season = int(season_str)
-        max_round = int(round_str)
     except Exception:
-        await callback.answer("Не понял данные этапа 😅", show_alert=True)
-        return
+        season = datetime.now().year
 
-    # Набор «живых» сообщений, которыми будем мигать
-    status_texts = [
-        "🔍 Ищу последние данные по квалификации…",
-        "📡 Подключаюсь к таймингу FIA…",
-        "📊 Проверяю протокол и позиции пилотов…",
-        "🧮 Считаю времена кругов…",
-        "✨ Полирую таблицу результатов…",
-        "🏁 Уточняю, кто реально на поуле…",
-        "📶 Ловлю сигнал из паддока…",
-        "🛰 Отправляю запрос на спутник телеметрии…",
-        "🧑‍💻 Обновляю данные тайминга…",
-        "⚙️ Прокручиваю карусель стратегий…",
-        "🏎 Разгоняю бота до скоростей DRS…",
-        "🧠 Анализирую тактику команд…",
-    ]
-    status_msg = None
-
-    # Запускаем загрузку квалификации в отдельной задаче
-    fetch_task = asyncio.create_task(
-        _get_latest_quali_async(season, max_round=max_round, limit=20)
-    )
-
-    loop = asyncio.get_running_loop()
-    start = loop.time()
-    timeout = 10.0  # общий лимит ожидания
-
-    # Крутимся, пока задача не завершилась или не истёк таймаут
-    while not fetch_task.done():
-        # Проверка таймаута
-        if loop.time() - start > timeout:
-            logging.warning(
-                "[QUALI] Таймаут при получении квалификации season=%s, max_round=%s",
-                season, max_round,
-            )
-            fetch_task.cancel()
-            try:
-                await fetch_task
-            except asyncio.CancelledError:
-                pass
-
-            # На всякий случай удалим последнее статусное сообщение
-            if status_msg is not None:
-                try:
-                    await status_msg.delete()
-                except Exception:
-                    pass
-
-            await callback.message.answer(
-                "Пока нет данных по результатам квалификации 🤔\n"
-                "Скорее всего, сессия ещё не закончилась или данные недоступны."
-            )
-            await callback.answer()
-            return
-
-        # Отправляем случайный статус
-        text = random.choice(status_texts)
-
-        try:
-            status_msg = await callback.message.answer(text)
-        except Exception:
-            status_msg = None
-
-        # Даём пользователю чуть-чуть времени увидеть сообщение
-        await asyncio.sleep(1.2)
-
-        # Сразу же удаляем этот статус
-        if status_msg is not None:
-            try:
-                await status_msg.delete()
-            except Exception:
-                pass
-
-    # Здесь задача уже завершилась (без таймаута) —
-    # на всякий случай удалим последнее статусное сообщение
-    if status_msg is not None:
-        try:
-            await status_msg.delete()
-        except Exception:
-            pass
-
-    # Достаём результат задачи
-    try:
-        round_num, results = fetch_task.result()
-    except Exception as exc:
-        logging.exception("Ошибка при получении квалификации: %s", exc)
+    # 2. Находим последнюю квалификацию сезона, по которой есть данные
+    latest = await _get_latest_quali_async(season)
+    if latest is None:
         await callback.message.answer(
-            "Пока нет данных по результатам квалификации 🤔\n"
-            "Скорее всего, сессия ещё не закончилась или данные недоступны."
+            "Пока нет квалификаций с сохранёнными результатами для этого сезона 🤔"
         )
         await callback.answer()
         return
 
-    # нет найденной квалификации или список пустой
-    if not round_num or not results:
+    latest_round, results = latest  # results — это список dict’ов
+
+    if not results:
         await callback.message.answer(
             "Пока нет данных по результатам квалификации 🤔"
         )
         await callback.answer()
         return
 
-    # Пытаемся получить полные имена пилотов из FastF1 по коду
-    full_name_by_code: dict[str, str] = {}
-    try:
-        session = fastf1.get_session(season, round_num, "Q")
-        session.load()
-        if getattr(session, "results", None) is not None:
-            for row in session.results.itertuples(index=False):
-                code = getattr(row, "Abbreviation", None)
-                given = getattr(row, "FirstName", "") or ""
-                family = getattr(row, "LastName", "") or ""
-                full_name = f"{given} {family}".strip()
-                if code and full_name:
-                    full_name_by_code[code] = full_name
-    except Exception as e:
-        logging.exception("Не удалось собрать полные имена пилотов для квалификации: %s", e)
-        full_name_by_code = {}
-
-    def _fmt_best_lap(raw: object) -> str:
-        """Форматируем лучший круг:
-        убираем '0 days ' и обрезаем до миллисекунд.
-        """
-        if raw is None:
-            return ""
-
-        s = str(raw)
-
-        # убираем NaT/NaN и т.п.
-        if s.upper() in ("NAT", "NAN"):
-            return ""
-
-        # убираем префикс '0 days '
-        prefix = "0 days "
-        if s.startswith(prefix):
-            s = s[len(prefix):]
-
-        # обрезаем микросекунды до миллисекунд
-        if "." in s:
-            whole, frac = s.split(".", 1)
-            # гарантируем минимум 3 символа и берём только миллисекунды
-            frac = (frac + "000")[:3]
-            s = f"{whole}.{frac}"
-
-        return s
-
-    # Формируем строки с результатами квалификации
-    body_lines: list[str] = []
+    # 3. Собираем строки для картинки
+    rows: list[tuple[str, str, str, str]] = []
     for r in results:
-        best_str = _fmt_best_lap(r.get("best"))
-        best = f" — {best_str}" if best_str else ""
+        pos = f"{r['position']:02d}"
+        code = r["driver"]                  # тут можешь добавлять ⭐️, если нужно
+        name = r.get("name") or r["driver"]  # если нет полного имени — используем код
+        best = r.get("best") or "—"
+        rows.append((pos, code, name, best))
 
-        code = r.get("driver")
-        # сначала пробуем взять из FastF1 по коду,
-        # потом из словаря результата, и только в конце сам код
-        driver_name = full_name_by_code.get(code) \
-            or r.get("driver_name") \
-            or r.get("name") \
-            or code
+    title = f"Квалификация {season}"
+    subtitle = f"Этап {latest_round:02d}"
 
-        team = r.get("team")
-        line = f"{r['position']:02d}. <b>{driver_name}</b>"
-        line += best
+    buf = create_quali_results_image(title, subtitle, rows)
 
-        body_lines.append(line)
+    photo = BufferedInputFile(buf.getvalue(), filename="quali_results.png")
 
-    if body_lines:
-        spoiler_block = (
-            "<span class=\"tg-spoiler\">"
-            + "\n".join(body_lines) +
-            "</span>"
-        )
-    else:
-        spoiler_block = "Нет строк с результатами 🤔"
+    caption = (
+        f"⏱ Результаты последней квалификации (таблица на картинке).\n"
+        f"Сезон {season}, этап {latest_round:02d}."
+    )
 
-    lines = [
-        f"⏱ <b>Результаты квалификации</b>\n"
-        f"Сезон {season}, этап {round_num}\n",
-        "",
-        spoiler_block,
-    ]
-
-    text = "\n".join(lines)
-    await callback.message.answer(text, parse_mode="HTML")
+    await callback.message.answer_photo(
+        photo=photo,
+        caption=caption,
+    )
     await callback.answer()
 
 
