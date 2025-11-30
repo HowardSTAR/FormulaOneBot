@@ -40,7 +40,7 @@ async function loadNextRaceInfo() {
     // const resp = await fetch('/api/next-race');
 
     // Если backend на другом домене (ngrok / сервер) – укажи ПОЛНЫЙ URL:
-    const resp = await fetch('/api/next-race');
+    const resp = await fetch('http://localhost:8000/api/next-race');
 
     if (!resp.ok) {
       throw new Error('HTTP ' + resp.status);
