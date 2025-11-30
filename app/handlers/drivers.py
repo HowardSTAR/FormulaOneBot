@@ -9,7 +9,7 @@ from aiogram.exceptions import TelegramNetworkError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
-from app.utils.f1_data import get_driver_standings_df
+from app.f1_data import get_driver_standings_df
 from app.utils.image_render import create_driver_standings_image
 from app.db import get_favorite_drivers
 

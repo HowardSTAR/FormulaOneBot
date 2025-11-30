@@ -6,7 +6,8 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.bot import create_bot_and_dispatcher
 from app.db import init_db
-from app.utils.f1_data import warmup_current_season_sessions
+from app.f1_data import warmup_current_season_sessions
+from app.handlers import secret
 from app.handlers.drivers import router as drivers_router
 from app.handlers.favorites import router as favorites_router
 from app.handlers.races import router as races_router
@@ -35,6 +36,7 @@ async def main() -> None:
     dp.include_router(drivers_router)
     dp.include_router(teams_router)
     dp.include_router(favorites_router)
+    dp.include_router(secret.router)
 
     # Планировщик
     scheduler = AsyncIOScheduler(timezone="UTC")

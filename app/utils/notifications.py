@@ -10,9 +10,9 @@ from app.db import (
     get_favorites_for_user_id,
     get_last_reminded_round,
     set_last_reminded_round, set_last_notified_quali_round, get_last_notified_quali_round, get_last_notified_round,
-    set_last_notified_round,
+    set_last_notified_round, get_or_create_user,
 )
-from app.utils.f1_data import (
+from app.f1_data import (
     get_season_schedule_short,
     get_race_results_df,
     get_driver_standings_df,
@@ -191,6 +191,24 @@ async def check_and_notify_favorites(bot: Bot) -> None:
         latest_round,
         event_name,
     )
+
+    # Дополнительная проверка: если в таблице нет ни одной позиции/очков,
+    # считаем, что результаты ещё не опубликованы и уведомления не шлём.
+    if "Points" in race_results.columns and race_results["Points"].isna().all():
+        logging.info(
+            "[NOTIFY] В таблице результатов нет очков (протокол ещё не опубликован): сезон=%s, раунд=%s",
+            season,
+            latest_round,
+        )
+        return
+
+    if "Position" in race_results.columns and race_results["Position"].isna().all():
+        logging.info(
+            "[NOTIFY] В таблице результатов нет позиций (протокол ещё не опубликован): сезон=%s, раунд=%s",
+            season,
+            latest_round,
+        )
+        return
 
     race_results_by_code = {}
     for row in race_results.itertuples(index=False):
@@ -531,3 +549,163 @@ async def check_and_notify_quali(bot: Bot, round_number=None) -> None:
         logging.info(
             "[QUALI] Никому не отправляли (у пользователей нет любимых пилотов в этой квалификации)"
         )
+
+
+async def build_latest_race_favorites_text_for_user(telegram_id: int) -> str | None:
+    """
+    Собирает текст с результатами последней гонки ТОЛЬКО для одного пользователя.
+    Ничего не пишет в notification_state и не рассылает другим.
+    Возвращает готовый текст или None, если данных ещё нет.
+    """
+    season = datetime.now().year
+    now_utc = datetime.now(timezone.utc)
+
+    schedule = get_season_schedule_short(season)
+    if not schedule:
+        logging.info("[SECRET] Нет расписания на сезон %s", season)
+        return None
+
+    # Находим все гонки, которые уже стартовали
+    past_races = []
+    for r in schedule:
+        race_start_str = r.get("race_start_utc")
+        if not race_start_str:
+            race_date = date.fromisoformat(r["date"])
+            if race_date <= date.today():
+                past_races.append(r)
+            continue
+
+        try:
+            race_start = datetime.fromisoformat(race_start_str)
+        except ValueError:
+            race_date = date.fromisoformat(r["date"])
+            if race_date <= date.today():
+                past_races.append(r)
+            continue
+
+        if race_start <= now_utc:
+            past_races.append(r)
+
+    if not past_races:
+        logging.info("[SECRET] В сезоне %s ещё не было гонок", season)
+        return None
+
+    latest_race = max(past_races, key=lambda r: r["round"])
+    latest_round = latest_race["round"]
+    event_name = latest_race["event_name"]
+
+    logging.info(
+        "[SECRET] Строю текст избранных для одного пользователя: "
+        "season=%s, round=%s, event=%s",
+        season, latest_round, event_name,
+    )
+
+    # Берём результаты гонки и таблицы чемпионата
+    race_results = await _get_race_results_async(season, latest_round)
+    driver_standings = get_driver_standings_df(season, round_number=latest_round)
+    constructor_standings = get_constructor_standings_df(season, round_number=latest_round)
+
+    if race_results is None or race_results.empty:
+        logging.info("[SECRET] race_results пустой, данных ещё нет")
+        return None
+    if driver_standings is None or driver_standings.empty:
+        logging.info("[SECRET] driver_standings пустой, данных ещё нет")
+        return None
+    if constructor_standings is None or constructor_standings.empty:
+        logging.info("[SECRET] constructor_standings пустой, данных ещё нет")
+        return None
+
+    # Дополнительная защита от Pnan/nan: ждём пока реально появятся очки/позиции
+    if "Points" in race_results.columns and race_results["Points"].isna().all():
+        logging.info("[SECRET] В race_results все Points = NaN, протокол ещё не опубликован")
+        return None
+    if "Position" in race_results.columns and race_results["Position"].isna().all():
+        logging.info("[SECRET] В race_results все Position = NaN, протокол ещё не опубликован")
+        return None
+
+    # Индексы по коду пилота / названию команды
+    race_results_by_code = {}
+    for row in race_results.itertuples(index=False):
+        code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", None)
+        if code:
+            race_results_by_code[code] = row
+
+    standings_by_code = {}
+    for row in driver_standings.itertuples(index=False):
+        code = getattr(row, "driverCode", None)
+        if code:
+            standings_by_code[code] = row
+
+    constructor_results_by_name = {}
+    for row in race_results.itertuples(index=False):
+        team_name = getattr(row, "TeamName", None)
+        if team_name and team_name not in constructor_results_by_name:
+            constructor_results_by_name[team_name] = row
+
+    constructor_standings_by_name = {}
+    for row in constructor_standings.itertuples(index=False):
+        team_name = getattr(row, "constructorName", None)
+        if team_name:
+            constructor_standings_by_name[team_name] = row
+
+    # Берём избранных конкретного пользователя
+    user_db_id = await get_or_create_user(telegram_id)
+    favorite_drivers, favorite_teams = await get_favorites_for_user_id(user_db_id)
+
+    lines: list[str] = []
+
+    # Пилоты
+    for code in favorite_drivers:
+        race_row = race_results_by_code.get(code)
+        standings_row = standings_by_code.get(code)
+
+        if race_row is None and standings_row is None:
+            continue
+
+        race_pos = getattr(race_row, "Position", None) if race_row is not None else None
+        race_pts = getattr(race_row, "Points", None) if race_row is not None else None
+
+        given = getattr(race_row, "FirstName", "") if race_row else getattr(standings_row, "givenName", "")
+        family = getattr(race_row, "LastName", "") if race_row else getattr(standings_row, "familyName", "")
+        full_name = f"{given} {family}".strip() or code
+
+        total_pts = getattr(standings_row, "points", None) if standings_row else None
+
+        part = f"🏁 {code} {full_name}: "
+        if race_pos is not None:
+            part += f"финишировал P{race_pos}"
+        if race_pts is not None:
+            part += f", набрал {race_pts} очк."
+        if total_pts is not None:
+            part += f" | всего в чемпионате: {total_pts}\n"
+        lines.append(part)
+
+    # Команды
+    for team_name in favorite_teams:
+        race_row = constructor_results_by_name.get(team_name)
+        standings_row = constructor_standings_by_name.get(team_name)
+
+        if race_row is None and standings_row is None:
+            continue
+
+        race_pos = getattr(race_row, "Position", None) if race_row is not None else None
+        race_pts = getattr(race_row, "Points", None) if race_row is not None else None
+        total_pts = getattr(standings_row, "points", None) if standings_row else None
+
+        part = f"🏎 {team_name}: "
+        if race_pos is not None:
+            part += f"команда выступила, лучшая машина финишировала на P{race_pos}"
+        if race_pts is not None:
+            part += f", набрала {race_pts} очк."
+        if total_pts is not None:
+            part += f" | всего в чемпионате: {total_pts}\n"
+        lines.append(part)
+
+    if not lines:
+        return "У тебя пока нет избранных пилотов или команд для этой гонки."
+
+    text = (
+        f"📨 Результаты твоих избранных после {event_name} (этап {latest_round}):\n\n"
+        + "\n".join(lines)
+    )
+    return text

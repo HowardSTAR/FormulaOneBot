@@ -9,7 +9,7 @@ from aiogram.types import (
 
 from datetime import datetime
 
-from app.utils.f1_data import get_driver_standings_df, get_constructor_standings_df
+from app.f1_data import get_driver_standings_df, get_constructor_standings_df
 from app.db import (
     add_favorite_driver,
     remove_favorite_driver,

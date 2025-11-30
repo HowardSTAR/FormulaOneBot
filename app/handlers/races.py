@@ -1,9 +1,5 @@
-import asyncio
-import logging
 from datetime import datetime, date, timezone, timedelta
 from collections import defaultdict
-import random
-import fastf1
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -18,9 +14,9 @@ from app.db import (
     get_favorite_drivers,
     get_favorite_teams,
 )
-from app.utils.f1_data import get_season_schedule_short, get_weekend_schedule, get_race_results_df, \
+from app.f1_data import get_season_schedule_short, get_weekend_schedule, get_race_results_df, \
     get_constructor_standings_df, \
-    get_driver_standings_df, _get_latest_quali_async, get_qualifying_results
+    get_driver_standings_df, _get_latest_quali_async
 
 router = Router()
 
