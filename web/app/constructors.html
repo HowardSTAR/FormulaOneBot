@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Кубок конструкторов — FormulaOneBot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+<div class="root">
+    <div class="card">
+        <button id="btn-back-home" class="btn-back" type="button">← <span>Главное меню</span></button>
+        <h2>Кубок конструкторов</h2>
+        <div class="year-selector" id="year-selector"></div>
+        <div id="constructors-content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Загружаю результаты...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/common.js"></script>
+<script>
+let currentSeason = new Date().getFullYear();
+
+async function loadConstructors(season) {
+    const container = document.getElementById('constructors-content');
+    showLoading(container, 'Загружаю кубок конструкторов...');
+
+    try {
+        const data = await apiRequest('/constructors', { season });
+        
+        if (!data.constructors || data.constructors.length === 0) {
+            showEmpty(container, 'Нет данных по кубку конструкторов за этот сезон', '🏎');
+            return;
+        }
+
+        let html = '<div class="standings-list">';
+        
+        data.constructors.forEach(constructor => {
+            const emoji = getPositionEmoji(constructor.position);
+            const podiumClass = constructor.position <= 3 ? `podium-${constructor.position} podium` : '';
+            const favoriteClass = constructor.is_favorite ? 'favorite' : '';
+            
+            html += `
+                <div class="standings-item ${podiumClass} ${favoriteClass}">
+                    <div class="standings-position ${constructor.position <= 3 ? 'podium' : ''}">
+                        ${emoji}${constructor.position}
+                    </div>
+                    <div class="standings-info">
+                        <div class="standings-name">
+                            ${constructor.is_favorite ? '⭐️ ' : ''}${constructor.name}
+                        </div>
+                        ${constructor.code ? `<div class="standings-code">${constructor.code}</div>` : ''}
+                    </div>
+                    <div class="standings-points">${formatPoints(constructor.points)}</div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (e) {
+        console.error(e);
+        showError(container, 'Не удалось загрузить кубок конструкторов');
+    }
+}
+
+function initYearSelector() {
+    const selector = document.getElementById('year-selector');
+    const currentYear = new Date().getFullYear();
+    const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+    
+    years.forEach(year => {
+        const btn = document.createElement('button');
+        btn.className = `year-btn ${year === currentSeason ? 'active' : ''}`;
+        btn.textContent = year;
+        btn.addEventListener('click', () => {
+            currentSeason = year;
+            document.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadConstructors(year);
+        });
+        selector.appendChild(btn);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initTelegram();
+    initBackButton('/');
+    initYearSelector();
+    loadConstructors(currentSeason);
+});
+</script>
+</body>
+</html>

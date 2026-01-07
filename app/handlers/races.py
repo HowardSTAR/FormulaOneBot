@@ -323,7 +323,8 @@ async def weekend_schedule_callback(callback: CallbackQuery) -> None:
 
     sessions = get_weekend_schedule(season, round_num)
     if not sessions:
-        await callback.message.answer("Нет данных по расписанию уикенда 🤔")
+        if callback.message:
+            await callback.message.answer("Нет данных по расписанию уикенда 🤔")
         await callback.answer()
         return
 
@@ -343,7 +344,8 @@ async def weekend_schedule_callback(callback: CallbackQuery) -> None:
         + "\n\n".join(lines)
     )
 
-    await callback.message.answer(text, parse_mode="HTML")
+    if callback.message:
+        await callback.message.answer(text, parse_mode="HTML")
     await callback.answer()
 
 
@@ -358,19 +360,14 @@ async def quali_callback(callback: CallbackQuery) -> None:
 
     # 2. Находим последнюю квалификацию сезона, по которой есть данные
     latest = await _get_latest_quali_async(season)
-    if latest is None:
-        await callback.message.answer(
-            "Пока нет квалификаций с сохранёнными результатами для этого сезона 🤔"
-        )
-        await callback.answer()
-        return
-
-    latest_round, results = latest  # results — это список dict’ов
-
-    if not results:
-        await callback.message.answer(
-            "Пока нет данных по результатам квалификации 🤔"
-        )
+    latest_round, results = latest  # results — это список dict'ов
+    
+    # Проверяем, что нашли квалификацию (latest_round не None)
+    if latest_round is None or not results:
+        if callback.message:
+            await callback.message.answer(
+                "Пока нет квалификаций с сохранёнными результатами для этого сезона 🤔"
+            )
         await callback.answer()
         return
 
@@ -395,10 +392,11 @@ async def quali_callback(callback: CallbackQuery) -> None:
         f"Сезон {season}, этап {latest_round:02d}."
     )
 
-    await callback.message.answer_photo(
-        photo=photo,
-        caption=caption,
-    )
+    if callback.message:
+        await callback.message.answer_photo(
+            photo=photo,
+            caption=caption,
+        )
     await callback.answer()
 
 
@@ -421,9 +419,10 @@ async def race_callback(callback: CallbackQuery) -> None:
     # 2. Узнаём, по какому раунду у нас уже есть результаты и нотификация
     last_round = await get_last_reminded_round(season)
     if last_round is None:
-        await callback.message.answer(
-            "Пока нет гонок с сохранёнными результатами для этого сезона 🤔"
-        )
+        if callback.message:
+            await callback.message.answer(
+                "Пока нет гонок с сохранёнными результатами для этого сезона 🤔"
+            )
         await callback.answer()
         return
 
@@ -439,9 +438,10 @@ async def race_callback(callback: CallbackQuery) -> None:
     # 4. Тянем результаты гонки и таблицы чемпионатов
     race_results = get_race_results_df(season, last_round)
     if race_results is None or race_results.empty:
-        await callback.message.answer(
-            "Пока нет данных по результатам гонки 🤔"
-        )
+        if callback.message:
+            await callback.message.answer(
+                "Пока нет данных по результатам гонки 🤔"
+            )
         await callback.answer()
         return
 
@@ -531,9 +531,10 @@ async def race_callback(callback: CallbackQuery) -> None:
         )
 
     if not lines:
-        await callback.message.answer(
-            "Пока нет данных по результатам гонки 🤔"
-        )
+        if callback.message:
+            await callback.message.answer(
+                "Пока нет данных по результатам гонки 🤔"
+            )
         await callback.answer()
         return
 
@@ -695,12 +696,13 @@ async def race_callback(callback: CallbackQuery) -> None:
     if fav_block:
         caption += "\n\n" + fav_block
 
-    await callback.message.answer_photo(
-        photo=photo,
-        caption=caption,
-        parse_mode="HTML",
-        has_spoiler=True,
-    )
+    if callback.message:
+        await callback.message.answer_photo(
+            photo=photo,
+            caption=caption,
+            parse_mode="HTML",
+            has_spoiler=True,
+        )
 
     await callback.answer()
 

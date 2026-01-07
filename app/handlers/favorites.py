@@ -53,8 +53,22 @@ async def favorites_menu(message: Message) -> None:
 
 # --- Любимые пилоты --- #
 
-async def _build_drivers_keyboard(telegram_id: int, season: int) -> InlineKeyboardMarkup:
+async def _build_drivers_keyboard(telegram_id: int, season: int) -> tuple[InlineKeyboardMarkup, bool]:
+    """
+    Создает клавиатуру с пилотами.
+    
+    Returns:
+        tuple[InlineKeyboardMarkup, bool]: (клавиатура, есть_ли_данные)
+    """
     df = get_driver_standings_df(season)
+    
+    # Если данных нет, возвращаем клавиатуру только с кнопкой "Назад"
+    if df.empty:
+        buttons = [
+            [InlineKeyboardButton(text="⬅ Назад", callback_data="fav_back_main")]
+        ]
+        return InlineKeyboardMarkup(inline_keyboard=buttons), False
+    
     df = df.sort_values("position")
 
     favorites = set(await get_favorite_drivers(telegram_id))
@@ -92,7 +106,8 @@ async def _build_drivers_keyboard(telegram_id: int, season: int) -> InlineKeyboa
         [InlineKeyboardButton(text="⬅ Назад", callback_data="fav_back_main")]
     )
 
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    has_data = len(buttons) > 1  # больше чем только кнопка "Назад"
+    return InlineKeyboardMarkup(inline_keyboard=buttons), has_data
 
 
 @router.callback_query(F.data == "fav_menu_drivers")
@@ -100,12 +115,19 @@ async def fav_menu_drivers(callback: CallbackQuery) -> None:
     season = datetime.now().year
     telegram_id = callback.from_user.id
 
-    kb = await _build_drivers_keyboard(telegram_id, season)
+    kb, has_data = await _build_drivers_keyboard(telegram_id, season)
 
-    text = (
-        f"⭐ Выбор любимых пилотов сезона {season}.\n"
-        f"Нажимай на пилота, чтобы добавить/убрать из избранного."
-    )
+    if has_data:
+        text = (
+            f"⭐ Выбор любимых пилотов сезона {season}.\n"
+            f"Нажимай на пилота, чтобы добавить/убрать из избранного."
+        )
+    else:
+        text = (
+            f"⭐ Выбор любимых пилотов сезона {season}.\n\n"
+            f"❌ К сожалению, данные по пилотам за этот сезон пока недоступны.\n"
+            f"Возможно, сезон ещё не начался или данные ещё не обновлены."
+        )
 
     if callback.message:
         await callback.message.edit_text(text, reply_markup=kb)
@@ -127,11 +149,18 @@ async def fav_driver_toggle(callback: CallbackQuery) -> None:
         await add_favorite_driver(telegram_id, code)
 
     # Обновляем клавиатуру
-    kb = await _build_drivers_keyboard(telegram_id, season)
-    text = (
-        f"⭐ Выбор любимых пилотов сезона {season}.\n"
-        f"Нажимай на пилота, чтобы добавить/убрать из избранного."
-    )
+    kb, has_data = await _build_drivers_keyboard(telegram_id, season)
+    if has_data:
+        text = (
+            f"⭐ Выбор любимых пилотов сезона {season}.\n"
+            f"Нажимай на пилота, чтобы добавить/убрать из избранного."
+        )
+    else:
+        text = (
+            f"⭐ Выбор любимых пилотов сезона {season}.\n\n"
+            f"❌ К сожалению, данные по пилотам за этот сезон пока недоступны.\n"
+            f"Возможно, сезон ещё не начался или данные ещё не обновлены."
+        )
     if callback.message:
         await callback.message.edit_text(text, reply_markup=kb)
 
@@ -140,8 +169,22 @@ async def fav_driver_toggle(callback: CallbackQuery) -> None:
 
 # --- Любимые команды --- #
 
-async def _build_teams_keyboard(telegram_id: int, season: int) -> InlineKeyboardMarkup:
+async def _build_teams_keyboard(telegram_id: int, season: int) -> tuple[InlineKeyboardMarkup, bool]:
+    """
+    Создает клавиатуру с командами.
+    
+    Returns:
+        tuple[InlineKeyboardMarkup, bool]: (клавиатура, есть_ли_данные)
+    """
     df = get_constructor_standings_df(season)
+    
+    # Если данных нет, возвращаем клавиатуру только с кнопкой "Назад"
+    if df.empty:
+        buttons = [
+            [InlineKeyboardButton(text="⬅ Назад", callback_data="fav_back_main")]
+        ]
+        return InlineKeyboardMarkup(inline_keyboard=buttons), False
+    
     df = df.sort_values("position")
 
     favorites = set(await get_favorite_teams(telegram_id))
@@ -175,7 +218,8 @@ async def _build_teams_keyboard(telegram_id: int, season: int) -> InlineKeyboard
         [InlineKeyboardButton(text="⬅ Назад", callback_data="fav_back_main")]
     )
 
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
+    has_data = len(buttons) > 1  # больше чем только кнопка "Назад"
+    return InlineKeyboardMarkup(inline_keyboard=buttons), has_data
 
 
 @router.callback_query(F.data == "fav_menu_teams")
@@ -183,12 +227,19 @@ async def fav_menu_teams(callback: CallbackQuery) -> None:
     season = datetime.now().year
     telegram_id = callback.from_user.id
 
-    kb = await _build_teams_keyboard(telegram_id, season)
+    kb, has_data = await _build_teams_keyboard(telegram_id, season)
 
-    text = (
-        f"🏎 Выбор любимых команд сезона {season}.\n"
-        f"Нажимай на команду, чтобы добавить/убрать из избранного."
-    )
+    if has_data:
+        text = (
+            f"🏎 Выбор любимых команд сезона {season}.\n"
+            f"Нажимай на команду, чтобы добавить/убрать из избранного."
+        )
+    else:
+        text = (
+            f"🏎 Выбор любимых команд сезона {season}.\n\n"
+            f"❌ К сожалению, данные по командам за этот сезон пока недоступны.\n"
+            f"Возможно, сезон ещё не начался или данные ещё не обновлены."
+        )
 
     if callback.message:
         await callback.message.edit_text(text, reply_markup=kb)
@@ -212,11 +263,18 @@ async def fav_team_toggle(callback: CallbackQuery) -> None:
     else:
         await add_favorite_team(telegram_id, team_name)
 
-    kb = await _build_teams_keyboard(telegram_id, season)
-    text = (
-        f"🏎 Выбор любимых команд сезона {season}.\n"
-        f"Нажимай на команду, чтобы добавить/убрать из избранного."
-    )
+    kb, has_data = await _build_teams_keyboard(telegram_id, season)
+    if has_data:
+        text = (
+            f"🏎 Выбор любимых команд сезона {season}.\n"
+            f"Нажимай на команду, чтобы добавить/убрать из избранного."
+        )
+    else:
+        text = (
+            f"🏎 Выбор любимых команд сезона {season}.\n\n"
+            f"❌ К сожалению, данные по командам за этот сезон пока недоступны.\n"
+            f"Возможно, сезон ещё не начался или данные ещё не обновлены."
+        )
 
     if callback.message:
         await callback.message.edit_text(text, reply_markup=kb)

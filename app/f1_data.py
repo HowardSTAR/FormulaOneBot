@@ -3,7 +3,6 @@ import functools
 import logging
 import pathlib
 from datetime import date as _date, timezone, timedelta, datetime, date
-from functools import partial
 from typing import Optional, Any
 
 import fastf1
@@ -141,16 +140,34 @@ def get_driver_standings_df(season: int, round_number: Optional[int] = None) -> 
     Здесь:
     - season: год чемпионата
     - round_number: номер этапа (если None — текущие standings по последнему этапу).
+    
+    Returns:
+        DataFrame с данными пилотов или пустой DataFrame, если данные недоступны.
     """
     ergast = Ergast()
 
-    if round_number is None:
-        res = ergast.get_driver_standings(season=season)
-    else:
-        res = ergast.get_driver_standings(season=season, round=round_number)
+    try:
+        if round_number is None:
+            res = ergast.get_driver_standings(season=season)
+        else:
+            res = ergast.get_driver_standings(season=season, round=round_number)
 
-    df = res.content[0]
-    return df
+        if not res.content or len(res.content) == 0:
+            logger.warning(
+                "Нет данных по личному зачёту пилотов для сезона=%s, раунда=%s",
+                season, round_number
+            )
+            return pd.DataFrame()
+
+        df = res.content[0]
+        return df
+    except Exception as exc:
+        logger.error(
+            "Ошибка при получении личного зачёта пилотов (сезон=%s, раунд=%s): %s",
+            season, round_number, exc,
+            exc_info=True
+        )
+        return pd.DataFrame()
 
 
 def get_constructor_standings_df(season: int, round_number: Optional[int] = None) -> pd.DataFrame:
@@ -158,16 +175,34 @@ def get_constructor_standings_df(season: int, round_number: Optional[int] = None
     Вернуть кубок конструкторов как DataFrame.
 
     Аналогично get_driver_standings_df, только для конструкторов.
+    
+    Returns:
+        DataFrame с данными конструкторов или пустой DataFrame, если данные недоступны.
     """
     ergast = Ergast()
 
-    if round_number is None:
-        res = ergast.get_constructor_standings(season=season)
-    else:
-        res = ergast.get_constructor_standings(season=season, round=round_number)
+    try:
+        if round_number is None:
+            res = ergast.get_constructor_standings(season=season)
+        else:
+            res = ergast.get_constructor_standings(season=season, round=round_number)
 
-    df = res.content[0]
-    return df
+        if not res.content or len(res.content) == 0:
+            logger.warning(
+                "Нет данных по кубку конструкторов для сезона=%s, раунда=%s",
+                season, round_number
+            )
+            return pd.DataFrame()
+
+        df = res.content[0]
+        return df
+    except Exception as exc:
+        logger.error(
+            "Ошибка при получении кубка конструкторов (сезон=%s, раунд=%s): %s",
+            season, round_number, exc,
+            exc_info=True
+        )
+        return pd.DataFrame()
 
 
 def get_race_results_df(season: int, round_number: int):

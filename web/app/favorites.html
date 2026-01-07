@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Избранное — FormulaOneBot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+<div class="root">
+    <div class="card">
+        <button id="btn-back-home" class="btn-back" type="button">← <span>Главное меню</span></button>
+        <h2>Избранное</h2>
+        <p style="color: var(--text-muted); margin-bottom: 12px;">
+            Твои любимые пилоты и команды. Чтобы добавить их, используй бота.
+        </p>
+        <div id="favorites-content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Загружаю избранное...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/common.js"></script>
+<script>
+async function loadFavorites() {
+    const container = document.getElementById('favorites-content');
+    const telegramId = getTelegramId();
+
+    if (!telegramId) {
+        showError(container, 'Не удалось определить пользователя. Открой приложение через Telegram.');
+        return;
+    }
+
+    showLoading(container, 'Загружаю избранное...');
+
+    try {
+        const data = await apiRequest('/favorites', { telegram_id: telegramId });
+        
+        let html = '';
+
+        if (data.drivers && data.drivers.length > 0) {
+            html += '<h3 style="margin-top: 16px;">⭐ Любимые пилоты</h3>';
+            html += '<div class="standings-list">';
+            data.drivers.forEach(code => {
+                html += `
+                    <div class="standings-item favorite">
+                        <div class="standings-info">
+                            <div class="standings-name">⭐️ ${code}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        } else {
+            html += '<p style="color: var(--text-muted); margin: 12px 0;">⭐ Пока нет избранных пилотов</p>';
+        }
+
+        if (data.teams && data.teams.length > 0) {
+            html += '<h3 style="margin-top: 24px;">🏎 Любимые команды</h3>';
+            html += '<div class="standings-list">';
+            data.teams.forEach(team => {
+                html += `
+                    <div class="standings-item favorite">
+                        <div class="standings-info">
+                            <div class="standings-name">⭐️ ${team}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        } else {
+            html += '<p style="color: var(--text-muted); margin: 12px 0;">🏎 Пока нет избранных команд</p>';
+        }
+
+        if (data.drivers.length === 0 && data.teams.length === 0) {
+            html = '<div class="empty-state"><div class="empty-state-icon">⭐</div><p>У тебя пока нет избранных пилотов или команд.<br>Добавь их через бота!</p></div>';
+        }
+
+        container.innerHTML = html;
+    } catch (e) {
+        console.error(e);
+        showError(container, 'Не удалось загрузить избранное');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initTelegram();
+    initBackButton('/');
+    loadFavorites();
+});
+</script>
+</body>
+</html>

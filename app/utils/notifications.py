@@ -34,7 +34,7 @@ async def warmup_fastf1_cache() -> None:
         return
 
     # Находим последнюю прошедшую гонку и ближайшую будущую
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
 
     past = [r for r in schedule if r["date"] <= today.isoformat()]
     future = [r for r in schedule if r["date"] > today.isoformat()]
@@ -454,22 +454,29 @@ async def check_and_notify_quali(bot: Bot, round_number=None) -> None:
     """
     Проверяет, есть ли новая квалификация, и шлёт уведомление
     по любимым пилотам пользователей.
+    
+    Args:
+        bot: Экземпляр бота для отправки сообщений
+        round_number: Опциональный номер раунда (если None, используется next_round)
     """
     season = datetime.now().year
 
     last_q_round = await get_last_notified_quali_round(season)
     # Если None -> начинаем с первого, иначе берём следующий после последнего уведомленного
     next_round = 1 if last_q_round is None else last_q_round + 1
+    
+    # Используем переданный round_number, если он указан, иначе next_round
+    target_round = round_number if round_number is not None else next_round
 
-    # Пробуем получить результаты квалификации для next_round.
+    # Пробуем получить результаты квалификации для target_round.
     # Если квалификация ещё не прошла / данные недоступны — просто выходим, подождём следующего запуска.
     try:
-        quali_results = await _get_quali_async(season, round_number)
+        quali_results = await _get_quali_async(season, target_round)
     except Exception as exc:
         logging.info(
             "[QUALI] Нет данных по квалификации для сезона=%s, раунда=%s: %s",
             season,
-            next_round,
+            target_round,
             exc,
         )
         return
@@ -478,7 +485,7 @@ async def check_and_notify_quali(bot: Bot, round_number=None) -> None:
         logging.info(
             "[QUALI] Пустые результаты квалификации для сезона=%s, раунда=%s",
             season,
-            next_round,
+            target_round,
         )
         return
 
@@ -489,11 +496,11 @@ async def check_and_notify_quali(bot: Bot, round_number=None) -> None:
 
     # Чтобы красиво вставить название Гран-при
     races = get_season_schedule_short(season)
-    gp_name = f"Гран-при #{next_round}"
+    gp_name = f"Гран-при #{target_round}"
     country = ""
     location = ""
     for r in races:
-        if r["round"] == next_round:
+        if r["round"] == target_round:
             gp_name = r["event_name"]
             country = r["country"]
             location = r["location"]
@@ -518,7 +525,7 @@ async def check_and_notify_quali(bot: Bot, round_number=None) -> None:
 
         header = (
             f"⏱ <b>Результаты квалификации</b>\n"
-            f"Сезон {season}, раунд {next_round}\n"
+            f"Сезон {season}, раунд {target_round}\n"
         )
         if country or location:
             header += f"{gp_name} — {country}, {location}\n\n"
@@ -542,9 +549,9 @@ async def check_and_notify_quali(bot: Bot, round_number=None) -> None:
             "[QUALI] Отправлено %s сообщений по квалификации сезона=%s, раунд=%s",
             total_messages,
             season,
-            next_round,
+            target_round,
         )
-        await set_last_notified_quali_round(season, next_round)
+        await set_last_notified_quali_round(season, target_round)
     else:
         logging.info(
             "[QUALI] Никому не отправляли (у пользователей нет любимых пилотов в этой квалификации)"

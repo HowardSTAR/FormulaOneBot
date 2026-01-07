@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Результаты квалификации — FormulaOneBot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+<div class="root">
+    <div class="card">
+        <button id="btn-back-home" class="btn-back" type="button">← <span>Главное меню</span></button>
+        <h2 id="quali-title">Результаты квалификации</h2>
+        <div id="quali-content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Загружаю результаты...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/common.js"></script>
+<script>
+async function loadQualiResults() {
+    const container = document.getElementById('quali-content');
+    const titleEl = document.getElementById('quali-title');
+    
+    showLoading(container, 'Загружаю результаты квалификации...');
+
+    try {
+        const data = await apiRequest('/quali-results');
+        
+        if (!data.results || data.results.length === 0) {
+            showEmpty(container, 'Нет данных по результатам квалификации', '⏱');
+            return;
+        }
+
+        if (data.race_info) {
+            titleEl.innerHTML = `
+                Результаты квалификации<br>
+                <span style="font-size: 14px; font-weight: normal; color: var(--text-muted);">
+                    ${data.race_info.event_name} — ${data.race_info.country}<br>
+                    Этап ${data.round}, сезон ${data.season}
+                </span>
+            `;
+        }
+
+        let html = '<div class="standings-list">';
+        
+        data.results.forEach(result => {
+            const emoji = getPositionEmoji(result.position);
+            const podiumClass = result.position <= 3 ? `podium-${result.position} podium` : '';
+            const time = result.best || '—';
+            
+            html += `
+                <div class="standings-item ${podiumClass}">
+                    <div class="standings-position ${result.position <= 3 ? 'podium' : ''}">
+                        ${emoji}${result.position}
+                    </div>
+                    <div class="standings-info">
+                        <div class="standings-name">${result.driver} ${result.name || ''}</div>
+                        <div class="standings-code">${result.name || result.driver}</div>
+                    </div>
+                    <div class="standings-time">${time}</div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (e) {
+        console.error(e);
+        showError(container, 'Не удалось загрузить результаты квалификации');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initTelegram();
+    initBackButton('/');
+    loadQualiResults();
+});
+</script>
+</body>
+</html>

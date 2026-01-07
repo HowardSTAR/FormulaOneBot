@@ -85,9 +85,17 @@ async def main() -> None:
     try:
         await dp.start_polling(bot)
     except TelegramBadRequest as exc:
-        print(f"Ошибка Telegram API: {exc}")
+        logging.error(f"Ошибка Telegram API: {exc}", exc_info=True)
+        raise
     except KeyboardInterrupt:
-        print("Остановка бота пользователем")
+        logging.info("Остановка бота пользователем")
+    finally:
+        # Корректное закрытие планировщика и бота
+        scheduler.shutdown(wait=False)
+        try:
+            await bot.session.close()
+        except Exception as exc:
+            logging.warning(f"Ошибка при закрытии сессии бота: {exc}")
 
 if __name__ == "__main__":
     asyncio.run(main())

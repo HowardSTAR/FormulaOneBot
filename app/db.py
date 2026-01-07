@@ -203,11 +203,32 @@ async def _ensure_notification_table() -> None:
         await db.commit()
 
 
+# Разрешенные имена колонок для защиты от SQL injection
+_ALLOWED_COLUMNS = {
+    "last_reminded_round",
+    "last_notified_round",
+    "last_notified_quali_round",
+}
+
+
 async def _get_round_value(season: int, column: str) -> int | None:
+    """
+    Получить значение раунда из указанной колонки.
+    
+    Args:
+        season: Год сезона
+        column: Имя колонки (должно быть в _ALLOWED_COLUMNS)
+    
+    Returns:
+        Значение раунда или None
+    """
+    if column not in _ALLOWED_COLUMNS:
+        raise ValueError(f"Недопустимое имя колонки: {column}")
+    
     await _ensure_notification_table()
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
-            f"SELECT {column} FROM notification_state WHERE season = ?",
+            f'SELECT "{column}" FROM notification_state WHERE season = ?',
             (season,),
         )
         row = await cursor.fetchone()
@@ -219,14 +240,25 @@ async def _get_round_value(season: int, column: str) -> int | None:
 
 
 async def _set_round_value(season: int, column: str, round_number: int) -> None:
+    """
+    Установить значение раунда в указанную колонку.
+    
+    Args:
+        season: Год сезона
+        column: Имя колонки (должно быть в _ALLOWED_COLUMNS)
+        round_number: Номер раунда
+    """
+    if column not in _ALLOWED_COLUMNS:
+        raise ValueError(f"Недопустимое имя колонки: {column}")
+    
     await _ensure_notification_table()
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             f"""
-            INSERT INTO notification_state(season, {column})
+            INSERT INTO notification_state(season, "{column}")
             VALUES(?, ?)
             ON CONFLICT(season) DO UPDATE SET
-                {column} = excluded.{column}
+                "{column}" = excluded."{column}"
             """,
             (season, round_number),
         )

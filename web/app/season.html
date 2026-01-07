@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Календарь сезона — FormulaOneBot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+<div class="root">
+    <div class="card">
+        <button id="btn-back" class="btn-back" type="button">← <span>Главное меню</span></button>
+        <h2>Календарь сезона</h2>
+        <div class="year-selector" id="year-selector">
+            <div class="year-buttons" id="year-buttons"></div>
+            <div class="year-input">
+                <input
+                    id="year-input"
+                    type="number"
+                    inputmode="numeric"
+                    min="1950"
+                    max="2100"
+                    placeholder="Год (например, 2021)"
+                >
+                <button id="year-input-btn" type="button">Показать</button>
+            </div>
+        </div>
+        <div id="season-content">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Загружаю календарь...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/common.js"></script>
+<script>
+let currentSeason = new Date().getFullYear();
+
+async function loadSeason(season) {
+    const container = document.getElementById('season-content');
+    showLoading(container, 'Загружаю календарь сезона...');
+
+    try {
+        const data = await apiRequest('/season', { season });
+
+        if (!data.races || data.races.length === 0) {
+            showEmpty(container, 'Нет данных по календарю сезона', '📅');
+            return;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        let html = '<div class="season-list">';
+
+        data.races.forEach(race => {
+            const raceDate = new Date(race.date + 'T00:00:00');
+            raceDate.setHours(0, 0, 0, 0);
+            const isPast = raceDate < today;
+            const isToday = raceDate.getTime() === today.getTime();
+
+            const dateStr = formatDate(race.date);
+
+            html += `
+                <div class="season-item ${isPast ? 'past' : 'future'}">
+                    <div class="season-round">${race.round.toString().padStart(2, '0')}</div>
+                    <div class="season-info">
+                        <div class="season-name">${race.event_name}</div>
+                        <div class="season-location">📍 ${race.country}, ${race.location}</div>
+                        <div class="season-date">📅 ${dateStr}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+    } catch (e) {
+        console.error(e);
+        showError(container, 'Не удалось загрузить календарь сезона');
+    }
+}
+
+function initYearSelector() {
+    const selector = document.getElementById('year-buttons');
+    const currentYear = new Date().getFullYear();
+    const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
+
+    years.forEach(year => {
+        const btn = document.createElement('button');
+        btn.className = `year-btn ${year === currentSeason ? 'active' : ''}`;
+        btn.textContent = year;
+        btn.addEventListener('click', () => {
+            currentSeason = year;
+            document.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            loadSeason(year);
+        });
+        selector.appendChild(btn);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initTelegram();
+    initBackButton('/');
+    initYearSelector();
+    loadSeason(currentSeason);
+
+    const yearInput = document.getElementById('year-input');
+    const yearInputBtn = document.getElementById('year-input-btn');
+
+    if (yearInput && yearInputBtn) {
+        yearInput.value = String(currentSeason);
+
+        const applyYear = () => {
+            const value = parseInt(yearInput.value, 10);
+            if (isNaN(value)) {
+                alert('Пожалуйста, введите корректный год');
+                return;
+            }
+            if (value < 1950 || value > 2100) {
+                alert('Год должен быть в диапазоне 1950–2100');
+                return;
+            }
+            currentSeason = value;
+
+            // Подсветим кнопку, если такая есть
+            document.querySelectorAll('.year-btn').forEach(b => {
+                const y = parseInt(b.textContent, 10);
+                if (y === currentSeason) {
+                    b.classList.add('active');
+                } else {
+                    b.classList.remove('active');
+                }
+            });
+
+            loadSeason(currentSeason);
+        };
+
+        yearInputBtn.addEventListener('click', applyYear);
+        yearInput.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') {
+                applyYear();
+            }
+        });
+    }
+});
+</script>
+</body>
+</html>

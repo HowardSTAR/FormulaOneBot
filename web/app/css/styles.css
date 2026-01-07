@@ -1,0 +1,381 @@
+:root {
+    --bg-main: #050713;
+    --card-bg: rgba(16, 20, 46, 0.95);
+    --accent-1: #ff5f6d;
+    --accent-2: #ffc371;
+    --btn-bg: rgba(19, 25, 60, 0.9);
+    --btn-border: rgba(255, 255, 255, 0.06);
+    --btn-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+    --text-main: #f5f5ff;
+    --text-muted: #a4a8d5;
+    --success: #4ade80;
+    --warning: #fbbf24;
+    --error: #f87171;
+    --podium-1: #ffd700;
+    --podium-2: #c0c0c0;
+    --podium-3: #cd7f32;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: radial-gradient(circle at top, #181b3a 0, var(--bg-main) 55%);
+    color: var(--text-main);
+    min-height: 100vh;
+}
+
+.root {
+    padding: 16px;
+    max-width: 480px;
+    margin: 0 auto 24px;
+}
+
+.card {
+    background: var(--card-bg);
+    border-radius: 20px;
+    padding: 18px 16px 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.card h2 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    letter-spacing: 0.03em;
+}
+
+.card h3 {
+    margin: 12px 0 8px;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.card p {
+    margin: 4px 0;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--btn-border);
+    background: rgba(10, 14, 40, 0.9);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 10px;
+    text-decoration: none;
+    position: relative;
+    z-index: 10;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.btn-back:hover {
+    background: rgba(10, 14, 40, 1);
+}
+
+.btn-back:active {
+    transform: scale(0.95);
+    background: rgba(10, 14, 40, 0.95);
+}
+
+.btn-back span {
+    margin-left: 4px;
+}
+
+.btn-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.btn-row {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-row .btn {
+    flex: 1;
+}
+
+.btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 18px;
+    width: 100%;
+    border-radius: 999px;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--text-main);
+    font-weight: 600;
+    font-size: 15px;
+    text-align: center;
+    cursor: pointer;
+    outline: none;
+    box-shadow: var(--btn-shadow);
+    transition: transform 0.12s ease-out, box-shadow 0.12s ease-out, filter 0.12s ease-out, background 0.12s ease-out;
+    -webkit-tap-highlight-color: transparent;
+    text-decoration: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn:active {
+    transform: translateY(1px) scale(0.98);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+    filter: brightness(0.96);
+}
+
+.btn:focus-visible {
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15), var(--btn-shadow);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Таблицы результатов */
+.standings-list {
+    margin-top: 12px;
+}
+
+.standings-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: rgba(10, 14, 40, 0.6);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s;
+}
+
+.standings-item:hover {
+    background: rgba(10, 14, 40, 0.8);
+}
+
+.standings-item.podium-1 {
+    border-left: 4px solid var(--podium-1);
+}
+
+.standings-item.podium-2 {
+    border-left: 4px solid var(--podium-2);
+}
+
+.standings-item.podium-3 {
+    border-left: 4px solid var(--podium-3);
+}
+
+.standings-item.favorite {
+    background: rgba(255, 159, 64, 0.1);
+}
+
+.standings-position {
+    font-size: 18px;
+    font-weight: 700;
+    min-width: 40px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.standings-position.podium {
+    color: var(--text-main);
+}
+
+.standings-info {
+    flex: 1;
+    margin-left: 12px;
+}
+
+.standings-name {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 2px;
+}
+
+.standings-code {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.standings-points {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.standings-time {
+    font-size: 14px;
+    font-family: monospace;
+    color: var(--text-muted);
+}
+
+/* Календарь сезона */
+.season-list {
+    margin-top: 12px;
+}
+
+.season-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: rgba(10, 14, 40, 0.6);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-left: 4px solid transparent;
+}
+
+.season-item.past {
+    border-left-color: var(--error);
+    opacity: 0.7;
+}
+
+.season-item.future {
+    border-left-color: var(--success);
+}
+
+.season-round {
+    font-size: 16px;
+    font-weight: 700;
+    min-width: 50px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.season-info {
+    flex: 1;
+    margin-left: 12px;
+}
+
+.season-name {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.season-location {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.season-date {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+/* Загрузка */
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-muted);
+}
+
+.spinner {
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top: 3px solid var(--accent-1);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.error {
+    color: var(--error);
+    padding: 12px;
+    background: rgba(248, 113, 113, 0.1);
+    border-radius: 12px;
+    margin: 12px 0;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 30px 20px;
+    color: var(--text-muted);
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+/* Селект года */
+.year-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.year-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
+    color: var(--text-main);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.year-btn.active {
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Избранное */
+.favorite-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--btn-border);
+    background: var(--btn-bg);
+    cursor: pointer;
+    font-size: 18px;
+    margin-left: 8px;
+    transition: all 0.2s;
+}
+
+.favorite-toggle.active {
+    background: rgba(255, 159, 64, 0.2);
+    border-color: rgba(255, 159, 64, 0.5);
+}
+
+@media (max-width: 360px) {
+    .card h2 {
+        font-size: 20px;
+    }
+
+    .btn {
+        font-size: 14px;
+        padding: 11px 14px;
+    }
+}
