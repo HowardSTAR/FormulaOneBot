@@ -23,7 +23,7 @@ logging.basicConfig(
 )
 
 
-async def main() -> None:
+async def main():
     await init_db()
 
     bot, dp = create_bot_and_dispatcher()
@@ -97,5 +97,10 @@ async def main() -> None:
         except Exception as exc:
             logging.warning(f"Ошибка при закрытии сессии бота: {exc}")
 
+    pass
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        print("Bot stopped!")
