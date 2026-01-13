@@ -2,34 +2,67 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>FormulaOneBot Mini App</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FormulaOneBot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        /* Специфичные стили для главной */
+        .hero {
+            padding: 10px 0 20px 0;
+        }
+        .hero h1 {
+            font-size: 32px;
+            margin: 0;
+            background: linear-gradient(45deg, #fff, #a5a5a5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .hero p {
+            font-size: 16px;
+            margin-top: 4px;
+            opacity: 0.8;
+        }
+    </style>
 </head>
 <body>
 <div class="root">
-    <div class="card">
-        <h2 id="title">FormulaOneBot</h2>
-        <p id="user-info"></p>
-        <p>Выбери, что посмотреть прямо сейчас:</p>
+
+    <div class="hero">
+        <h1 id="title">F1 Hub</h1>
+        <p id="user-info">Загрузка...</p>
     </div>
 
-    <div class="card">
-        <div class="btn-grid">
-            <a href="next-race.html" class="btn btn-primary">Ближайшая гонка</a>
-
-            <div class="btn-row">
-                <a href="season.html" class="btn">Сезон</a>
-                <a href="drivers.html" class="btn">Личный зачет</a>
+    <div class="menu-grid">
+        <a href="next-race.html" class="menu-item full-width">
+            <div style="text-align: left;">
+                <span style="font-size: 12px; color: var(--primary); text-transform: uppercase; font-weight: 700;">Next Race</span>
+                <div class="menu-label">Ближайший Гран-при</div>
             </div>
+            <div class="menu-icon">🏁</div>
+        </a>
 
-            <div class="btn-row">
-                <a href="constructors.html" class="btn">Кубок конструкторов</a>
-                <a href="favorites.html" class="btn">Избранное</a>
-            </div>
-        </div>
+        <a href="season.html" class="menu-item">
+            <div class="menu-icon">📅</div>
+            <div class="menu-label">Календарь</div>
+        </a>
+
+        <a href="drivers.html" class="menu-item">
+            <div class="menu-icon">👤</div>
+            <div class="menu-label">Пилоты</div>
+        </a>
+
+        <a href="constructors.html" class="menu-item">
+            <div class="menu-icon">🏎</div>
+            <div class="menu-label">Команды</div>
+        </a>
+
+        <a href="favorites.html" class="menu-item">
+            <div class="menu-icon">⭐</div>
+            <div class="menu-label">Избранное</div>
+        </a>
     </div>
+
 </div>
 
 <script src="/static/js/common.js"></script>
@@ -37,12 +70,30 @@
     document.addEventListener('DOMContentLoaded', () => {
         initTelegram();
 
+        // Анимация появления для элементов меню (каскадом)
+        const items = document.querySelectorAll('.menu-item');
+        items.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(10px)';
+            item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            setTimeout(() => {
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0)';
+            }, 100 * (index + 1));
+        });
+
         const userInfoEl = document.getElementById('user-info');
         const userInfo = getUserInfo();
-        if (userInfo) {
-            userInfoEl.textContent = `Привет, ${userInfo.first_name} 👋`;
+        if (userInfo && userInfo.first_name) {
+            userInfoEl.textContent = `Привет, ${userInfo.first_name}! 👋`;
         } else {
-            userInfoEl.textContent = "Привет! 👋";
+            userInfoEl.textContent = "Твой паддок Формулы-1 🏎";
+        }
+
+        // Настраиваем цвета темы от Телеграма
+        if (tg) {
+            tg.setHeaderColor(getComputedStyle(document.body).getPropertyValue('--bg-color').trim());
+            tg.setBackgroundColor(getComputedStyle(document.body).getPropertyValue('--bg-color').trim());
         }
     });
 </script>
