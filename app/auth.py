@@ -1,8 +1,9 @@
+# app/auth.py
+
 from typing import Annotated
 
-from fastapi import Header, HTTPException, Depends
-from aiogram.utils.web_app import check_webapp_signature, safe_parse_webapp_init_data
-from aiogram.types import WebAppInitData
+from fastapi import Header, HTTPException
+from aiogram.utils.web_app import check_webapp_signature, safe_parse_webapp_init_data, WebAppInitData
 
 from app.config import get_settings
 

@@ -1,34 +1,134 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Ближайшая гонка — FormulaOneBot</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <link rel="stylesheet" href="/static/css/styles.css">
+    <meta charset="UTF-8">
+    <title>Ближайшая гонка</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
 <div class="root">
-  <div class="card">
-    <button id="btn-back-home" class="btn-back" type="button">← <span>Главное меню</span></button>
-    <h2>Ближайшая гонка</h2>
-    <div id="race-content">
-      <p class="loading">Загружаю ближайший этап…</p>
-    </div>
-  </div>
 
-  <div class="card" id="race-actions" style="display: none;">
-    <div class="btn-grid">
-      <button class="btn" id="btn-schedule">📅 Расписание уикенда</button>
-      <div class="btn-row">
-        <a href="quali-results.html" class="btn">⏱ Квалификация</a>
-        <a href="race-results.html" class="btn">🏁 Гонка</a>
-      </div>
+    <a href="index.html" class="btn-back">
+        ⬅️ <span>Главное меню</span>
+    </a>
+
+    <h2 id="race-title">Загрузка...</h2>
+    <p id="race-location" style="margin-bottom: 20px; opacity: 0.7;">...</p>
+
+    <div class="card">
+        <div style="text-align: center;">
+            <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">СТАРТ ГОНКИ</div>
+            <div id="race-time-local" style="font-size: 24px; font-weight: 800; color: var(--primary);">--:--</div>
+            <div id="race-date" style="font-size: 16px; margin-top: 4px;">--.--.----</div>
+        </div>
     </div>
-  </div>
+
+    <h3 style="margin-left: 4px;">Расписание уикенда</h3>
+    <div id="weekend-list" class="standings-list">
+        <div class="loading">
+            <div class="spinner"></div>
+            <div>Загружаем расписание...</div>
+        </div>
+    </div>
+
 </div>
 
 <script src="/static/js/common.js"></script>
-<script src="/static/js/next-race.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        initTelegram(); // Инициализация WebApp
+
+        const listEl = document.getElementById('weekend-list');
+        const titleEl = document.getElementById('race-title');
+        const locEl = document.getElementById('race-location');
+        const timeEl = document.getElementById('race-time-local');
+        const dateEl = document.getElementById('race-date');
+
+        try {
+            // 1. Получаем инфо о гонке
+            const raceData = await apiRequest('/api/next-race');
+
+            if (raceData.status === 'season_finished') {
+                titleEl.textContent = "Сезон завершен";
+                locEl.textContent = "";
+                listEl.innerHTML = '<div style="padding:20px; text-align:center;">Гонки закончились 🏁</div>';
+                return;
+            }
+
+            if (raceData.status !== 'ok') {
+                titleEl.textContent = "Нет расписания";
+                listEl.innerHTML = '';
+                return;
+            }
+
+            // Заполняем шапку
+            titleEl.textContent = raceData.event_name;
+            locEl.textContent = `${raceData.country}, ${raceData.location}`;
+
+            // Время старта (из строки "local" формата "DD.MM.YYYY HH:MM МСК")
+            // Или используем UTC и форматируем сами.
+            // raceData.local приходит готовым от бота (см. races.py)
+            if (raceData.local) {
+                // raceData.local = "15.03.2025 18:00 МСК"
+                const parts = raceData.local.split(' ');
+                dateEl.textContent = parts[0];
+                timeEl.textContent = parts[1];
+            } else {
+                dateEl.textContent = raceData.date;
+                timeEl.textContent = "TBA";
+            }
+
+            // 2. Получаем подробное расписание сессий
+            // Нам нужен season и round
+            const season = raceData.season;
+            const round = raceData.round;
+
+            // Запрашиваем расписание уикенда
+            const scheduleData = await apiRequest('/api/weekend-schedule', {
+                season: season,
+                round_number: round
+            });
+
+            // Очищаем лоадер
+            listEl.innerHTML = '';
+
+            if (scheduleData && scheduleData.sessions) {
+                scheduleData.sessions.forEach(session => {
+                    const item = document.createElement('div');
+                    item.className = 'standings-item';
+
+                    // Перевод названий сессий (простой маппинг)
+                    let nameRu = session.name;
+                    if (nameRu === 'Practice 1') nameRu = 'Практика 1';
+                    if (nameRu === 'Practice 2') nameRu = 'Практика 2';
+                    if (nameRu === 'Practice 3') nameRu = 'Практика 3';
+                    if (nameRu === 'Qualifying') nameRu = 'Квалификация';
+                    if (nameRu === 'Sprint') nameRu = 'Спринт';
+                    if (nameRu === 'Race') nameRu = 'Гонка';
+
+                    // Формируем HTML
+                    item.innerHTML = `
+                        <div class="standings-info">
+                            <div class="standings-name">${nameRu}</div>
+                            <div class="standings-code" style="color: var(--primary);">
+                                ${session.date} • ${session.time}
+                            </div>
+                        </div>
+                    `;
+                    listEl.appendChild(item);
+                });
+            } else {
+                listEl.innerHTML = '<div style="padding:10px;">Нет детального расписания</div>';
+            }
+
+        } catch (error) {
+            console.error(error);
+            titleEl.textContent = "Ошибка";
+            listEl.innerHTML = `<div style="color:red; text-align:center;">Не удалось загрузить данные.<br>${error.message}</div>`;
+        }
+    });
+</script>
 </body>
 </html>

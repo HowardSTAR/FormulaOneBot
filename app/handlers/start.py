@@ -26,7 +26,7 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
             [
                 KeyboardButton(
                     text="📱 Открыть приложение",
-                    web_app=WebAppInfo(url="https://howardstar.github.io/FormulaOneBot/web/app/index.html")
+                    web_app=WebAppInfo(url="https://bbf108dac18c6fbb-5-16-21-213.serveousercontent.com")
                     # Укажи здесь HTTPS ссылку на твой сервер (ngrok или хостинг)
                 )
             ]

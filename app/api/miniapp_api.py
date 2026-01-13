@@ -25,7 +25,22 @@ from app.db import get_favorite_drivers, get_favorite_teams, get_last_reminded_r
 # Импортируем нашу проверку авторизации
 from app.auth import get_current_user_id
 
-WEB_DIR = Path(__file__).resolve().parent.parent / "web" / "app"
+# Получаем абсолютный путь к папке, где лежит этот файл (miniapp_api.py)
+# Предполагаем структуру: D:\PyCharmProject\FormulaOneBot\app\api\miniapp_api.py
+CURRENT_DIR = Path(__file__).resolve().parent
+
+# Поднимаемся на два уровня вверх к корню проекта (FormulaOneBot)
+# Если файл лежит в app/api/miniapp_api.py, то parent.parent = app, parent.parent.parent = корень
+# Давай сделаем проще: найдем корень по наличию папки "web"
+PROJECT_ROOT = CURRENT_DIR.parent.parent
+
+WEB_DIR = PROJECT_ROOT / "web" / "app"
+STATIC_DIR = WEB_DIR / "static"
+
+# ДЛЯ ОТЛАДКИ (будет видно в консоли при запуске):
+print(f"DEBUG: Ищу веб-файлы здесь: {WEB_DIR}")
+print(f"DEBUG: Существует ли папка? {WEB_DIR.exists()}")
+print(f"DEBUG: Существует ли index.html? {(WEB_DIR / 'index.html').exists()}")
 
 web_app = FastAPI(title="FormulaOneBot Mini App API")
 
@@ -37,15 +52,20 @@ web_app.add_middleware(
     allow_headers=["*"],
 )
 
-if WEB_DIR.exists():
-    web_app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
+if STATIC_DIR.exists():
+    web_app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    print(f"DEBUG: Статика подключена из {STATIC_DIR}")
+else:
+    print(f"WARNING: Папка static не найдена: {STATIC_DIR}")
 
 
 # --- Публичные эндпоинты (авторизация не обязательна) ---
 
 @web_app.get("/api/next-race")
 async def api_next_race(season: Optional[int] = None):
-    return await build_next_race_payload(season)
+    # Эта функция делает всю магию. Если она работает в боте, сработает и тут.
+    data = await build_next_race_payload(season)
+    return data
 
 
 @web_app.get("/api/season")

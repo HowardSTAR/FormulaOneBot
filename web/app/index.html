@@ -2,28 +2,10 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>FormulaOneBot</title>
+    <title>F1 Hub</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
-    <style>
-        /* Специфичные стили для главной */
-        .hero {
-            padding: 10px 0 20px 0;
-        }
-        .hero h1 {
-            font-size: 32px;
-            margin: 0;
-            background: linear-gradient(45deg, #fff, #a5a5a5);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .hero p {
-            font-size: 16px;
-            margin-top: 4px;
-            opacity: 0.8;
-        }
-    </style>
 </head>
 <body>
 <div class="root">
@@ -36,8 +18,12 @@
     <div class="menu-grid">
         <a href="next-race.html" class="menu-item full-width">
             <div style="text-align: left;">
-                <span style="font-size: 12px; color: var(--primary); text-transform: uppercase; font-weight: 700;">Next Race</span>
-                <div class="menu-label">Ближайший Гран-при</div>
+                <span style="font-size: 12px; color: var(--primary); text-transform: uppercase; font-weight: 700;">
+                    Next Race
+                </span>
+                <div class="menu-label" id="next-race-name">Загрузка...</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;" id="next-race-date">
+                    </div>
             </div>
             <div class="menu-icon">🏁</div>
         </a>
@@ -67,21 +53,10 @@
 
 <script src="/static/js/common.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         initTelegram();
 
-        // Анимация появления для элементов меню (каскадом)
-        const items = document.querySelectorAll('.menu-item');
-        items.forEach((item, index) => {
-            item.style.opacity = '0';
-            item.style.transform = 'translateY(10px)';
-            item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-            setTimeout(() => {
-                item.style.opacity = '1';
-                item.style.transform = 'translateY(0)';
-            }, 100 * (index + 1));
-        });
-
+        // 1. Приветствие пользователя
         const userInfoEl = document.getElementById('user-info');
         const userInfo = getUserInfo();
         if (userInfo && userInfo.first_name) {
@@ -90,10 +65,40 @@
             userInfoEl.textContent = "Твой паддок Формулы-1 🏎";
         }
 
-        // Настраиваем цвета темы от Телеграма
-        if (tg) {
-            tg.setHeaderColor(getComputedStyle(document.body).getPropertyValue('--bg-color').trim());
-            tg.setBackgroundColor(getComputedStyle(document.body).getPropertyValue('--bg-color').trim());
+        // 2. Анимация меню
+        const items = document.querySelectorAll('.menu-item');
+        items.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(10px)';
+            item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            setTimeout(() => {
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0)';
+            }, 50 * index);
+        });
+
+        // 3. Загрузка названия следующей гонки для кнопки
+        try {
+            // Делаем запрос к API
+            const data = await apiRequest('/api/next-race');
+
+            const nameEl = document.getElementById('next-race-name');
+            const dateEl = document.getElementById('next-race-date');
+
+            if (data && data.event_name) {
+                // Если гонка известна
+                nameEl.textContent = data.event_name;
+                dateEl.textContent = `${data.country} • ${data.date}`;
+            } else if (data.status === 'season_finished') {
+                nameEl.textContent = "Сезон завершен";
+                dateEl.textContent = "До встречи в следующем году!";
+            } else {
+                nameEl.textContent = "Нет данных";
+                dateEl.textContent = "";
+            }
+        } catch (error) {
+            console.error("Ошибка загрузки инфо о гонке:", error);
+            document.getElementById('next-race-name').textContent = "Ошибка данных";
         }
     });
 </script>
