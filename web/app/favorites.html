@@ -38,7 +38,7 @@ async function loadFavorites() {
     showLoading(container, 'Загружаю избранное...');
 
     try {
-        const data = await apiRequest('/favorites', { telegram_id: telegramId });
+        const data = await apiRequest('/favorites');
         
         let html = '';
 

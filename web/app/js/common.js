@@ -1,5 +1,3 @@
-// Общая библиотека для работы с Telegram Mini App и API
-
 const tg = window.Telegram?.WebApp || null;
 const API_BASE = '/api';  // Для продакшена измени на полный URL
 
@@ -38,6 +36,11 @@ function getTelegramId() {
     return tg.initDataUnsafe.user.id;
 }
 
+// Добавляем функцию для получения initData (сырая строка)
+function getInitData() {
+    return tg?.initData || '';
+}
+
 // Получение информации о пользователе
 function getUserInfo() {
     if (!tg?.initDataUnsafe?.user) {
@@ -66,31 +69,41 @@ function sendAction(action, data = {}) {
 
 // API запросы
 async function apiRequest(endpoint, params = {}) {
-    const url = new URL(`${API_BASE}${endpoint}`, window.location.origin);
-    
-    // Добавляем параметры
-    Object.entries(params).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-            url.searchParams.append(key, value.toString());
+    // Формируем URL параметры
+    const url = new URL(API_BASE + endpoint, window.location.origin);
+
+    // ВАЖНО: Мы больше НЕ добавляем telegram_id в params вручную.
+    // Если params переданы, добавляем их в URL
+    Object.keys(params).forEach(key => {
+        if (params[key] !== null && params[key] !== undefined) {
+            url.searchParams.append(key, params[key]);
         }
     });
 
-    // Добавляем telegram_id если доступен
-    const telegramId = getTelegramId();
-    if (telegramId) {
-        url.searchParams.append('telegram_id', telegramId.toString());
-    }
+    // Берем initData (строку подписи)
+    const initData = getInitData();
 
     try {
-        const response = await fetch(url);
-        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                // ВОТ ОНО: Передаем подпись в заголовке
+                'X-Telegram-Init-Data': initData
+            }
+        });
+
         if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            // Если сервер вернул 401, значит подпись неверная или просрочена
+            if (response.status === 401) {
+                console.error('Ошибка авторизации WebApp');
+            }
+            throw new Error(`API Error: ${response.status}`);
         }
 
         return await response.json();
     } catch (error) {
-        console.error(`API request failed: ${endpoint}`, error);
+        console.error('Fetch error:', error);
         throw error;
     }
 }
