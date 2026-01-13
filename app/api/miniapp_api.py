@@ -67,8 +67,15 @@ async def api_next_race(season: Optional[int] = None):
 async def api_season(season: Optional[int] = Query(None)):
     if season is None:
         season = datetime.now().year
+
+    # Получаем расписание
     races = await get_season_schedule_short_async(season)
-    return {"season": season, "races": races}
+
+    # Возвращаем JSON
+    return {
+        "season": season,
+        "races": races  # Это список словарей: date, round, event_name, location...
+    }
 
 
 @web_app.get("/api/weekend-schedule")

@@ -2,152 +2,191 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Календарь сезона — FormulaOneBot</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Календарь F1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <link rel="stylesheet" href="static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        /* Стили карточек остались прежними */
+        .race-card {
+            display: flex; align-items: center; background: var(--surface-color);
+            border: 1px solid var(--border-color); border-radius: 12px;
+            padding: 16px; margin-bottom: 12px; position: relative;
+        }
+        .race-date-box {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(255, 255, 255, 0.05); border-radius: 8px;
+            width: 50px; height: 50px; margin-right: 16px; flex-shrink: 0;
+        }
+        .date-day { font-weight: 800; font-size: 18px; color: var(--text-primary); }
+        .date-month { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; }
+        .race-info { flex: 1; }
+        .race-round { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
+        .race-name { font-weight: 700; font-size: 15px; margin: 2px 0; }
+        .race-loc { font-size: 12px; color: var(--text-secondary); }
+        .race-status { font-size: 18px; color: var(--text-secondary); margin-left: 10px; }
+
+        .race-card.finished { opacity: 0.6; }
+        .race-card.next {
+            border: 1px solid var(--primary);
+            background: linear-gradient(90deg, rgba(225, 6, 0, 0.1), rgba(21, 23, 30, 0.9));
+            box-shadow: 0 0 15px rgba(225, 6, 0, 0.2); z-index: 2;
+        }
+        .race-card.next .date-day { color: var(--primary); }
+        .race-card.next .race-status { font-size: 12px; background: var(--primary); color: white; padding: 4px 8px; border-radius: 6px; font-weight: bold; }
+
+        /* Поиск + Кнопка года */
+        .search-container { display: flex; gap: 8px; margin-bottom: 16px; }
+        .search-input {
+            flex: 1; background: var(--surface-color); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 12px 16px; color: var(--text-primary);
+            font-size: 16px; font-weight: 600; outline: none;
+        }
+        .search-input:focus { border-color: var(--primary); }
+        .search-btn {
+            background: var(--surface-color); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 0 16px; color: var(--text-primary);
+            font-size: 18px; cursor: pointer;
+        }
+        /* Кнопка текущего года - выделена цветом */
+        .current-year-btn {
+            background: var(--primary); border: none; border-radius: 12px;
+            padding: 0 16px; color: white; font-weight: 700; font-size: 14px; cursor: pointer;
+        }
+    </style>
 </head>
 <body>
 <div class="root">
-    <div class="card">
-        <button id="btn-back" class="btn-back" type="button">← <span>Главное меню</span></button>
-        <h2>Календарь сезона</h2>
-        <div class="year-selector" id="year-selector">
-            <div class="year-buttons" id="year-buttons"></div>
-            <div class="year-input">
-                <input
-                    id="year-input"
-                    type="number"
-                    inputmode="numeric"
-                    min="1950"
-                    max="2100"
-                    placeholder="Год (например, 2021)"
-                >
-                <button id="year-input-btn" type="button">Показать</button>
-            </div>
-        </div>
-        <div id="season-content">
-            <div class="loading">
-                <div class="spinner"></div>
-                <p>Загружаю календарь...</p>
-            </div>
-        </div>
+    <a href="index.html" class="btn-back">⬅️ <span>Главное меню</span></a>
+    <h2>Календарь</h2>
+
+    <div class="search-container">
+        <input type="number" id="year-input" class="search-input" placeholder="Год" inputmode="numeric">
+        <button class="search-btn" onclick="handleSearch()">🔍</button>
+        <button id="current-year-btn" class="current-year-btn" onclick="goCurrentYear()">2026</button>
+    </div>
+
+    <div id="calendar-list" class="standings-list">
+        <div class="loading full-width">Загрузка календаря...</div>
     </div>
 </div>
 
-<script src="static/js/common.js"></script>
+<script src="/static/js/common.js"></script>
 <script>
-let currentSeason = new Date().getFullYear();
+    const currentRealYear = new Date().getFullYear();
 
-async function loadSeason(season) {
-    const container = document.getElementById('season-content');
-    showLoading(container, 'Загружаю календарь сезона...');
+    document.addEventListener('DOMContentLoaded', async () => {
+        initTelegram();
 
-    try {
-        const data = await apiRequest('/season', { season });
+        // Настраиваем кнопку текущего года
+        const yearBtn = document.getElementById('current-year-btn');
+        yearBtn.textContent = currentRealYear;
 
-        if (!data.races || data.races.length === 0) {
-            showEmpty(container, 'Нет данных по календарю сезона', '📅');
+        // Стартуем с текущего года
+        document.getElementById('year-input').value = currentRealYear;
+        await loadCalendar(currentRealYear);
+
+        document.getElementById('year-input').addEventListener("keypress", function(event) {
+            if (event.key === "Enter") handleSearch();
+        });
+    });
+
+    function goCurrentYear() {
+        const input = document.getElementById('year-input');
+        input.value = currentRealYear;
+        handleSearch();
+    }
+
+    async function handleSearch() {
+        const input = document.getElementById('year-input');
+        const container = document.getElementById('calendar-list');
+        const year = parseInt(input.value);
+
+        if (!year) return;
+
+        if (year > currentRealYear) {
+            container.innerHTML = `<div style="text-align:center; padding: 40px 20px;"><div style="font-size: 40px;">🔮</div><div style="font-weight: 600;">Мы не умеем смотреть в будущее</div></div>`;
+            return;
+        }
+        if (year < 1950) {
+            container.innerHTML = `<div style="text-align:center; padding: 40px 20px;"><div style="font-size: 40px;">🦖</div><div style="font-weight: 600;">Тогда гонок ещё не было</div></div>`;
             return;
         }
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        await loadCalendar(year);
+    }
 
-        let html = '<div class="season-list">';
+    async function loadCalendar(season) {
+        const container = document.getElementById('calendar-list');
+        container.innerHTML = '<div class="loading full-width">Загрузка...</div>';
 
-        data.races.forEach(race => {
-            const raceDate = new Date(race.date + 'T00:00:00');
-            raceDate.setHours(0, 0, 0, 0);
-            const isPast = raceDate < today;
-            const isToday = raceDate.getTime() === today.getTime();
+        try {
+            const data = await apiRequest('/api/season', { season: season });
+            if (!data.races || data.races.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px;">Расписание не найдено</div>';
+                return;
+            }
+            renderRaces(data.races);
+        } catch (error) {
+            console.error(error);
+            container.innerHTML = '<div style="color:red; text-align:center;">Ошибка загрузки</div>';
+        }
+    }
 
-            const dateStr = formatDate(race.date);
+    function renderRaces(races) {
+        const container = document.getElementById('calendar-list');
+        container.innerHTML = '';
+        let foundNext = false;
+        const now = new Date();
+        now.setHours(0,0,0,0);
 
-            html += `
-                <div class="season-item ${isPast ? 'past' : 'future'}">
-                    <div class="season-round">${race.round.toString().padStart(2, '0')}</div>
-                    <div class="season-info">
-                        <div class="season-name">${race.event_name}</div>
-                        <div class="season-location">📍 ${race.country}, ${race.location}</div>
-                        <div class="season-date">📅 ${dateStr}</div>
-                    </div>
+        races.forEach(race => {
+            const raceDate = new Date(race.date);
+            const raceEndCheck = new Date(raceDate);
+            raceEndCheck.setDate(raceEndCheck.getDate() + 1);
+
+            let statusClass = 'future';
+            let statusIcon = '';
+
+            if (raceEndCheck < now) {
+                statusClass = 'finished';
+                statusIcon = '🏁';
+            } else if (!foundNext) {
+                statusClass = 'next';
+                statusIcon = 'NEXT';
+                foundNext = true;
+            }
+
+            const day = raceDate.getDate();
+            const month = raceDate.toLocaleString('ru-RU', { month: 'short' }).replace('.', '');
+
+            const div = document.createElement('div');
+            div.className = `race-card ${statusClass}`;
+            if (statusClass === 'next') div.id = 'next-race-card';
+
+            div.innerHTML = `
+                <div class="race-date-box">
+                    <span class="date-day">${day}</span>
+                    <span class="date-month">${month}</span>
                 </div>
+                <div class="race-info">
+                    <div class="race-round">Round ${race.round}</div>
+                    <div class="race-name">${race.event_name}</div>
+                    <div class="race-loc">📍 ${race.location}</div>
+                </div>
+                <div class="race-status">${statusIcon}</div>
             `;
+            container.appendChild(div);
         });
 
-        html += '</div>';
-        container.innerHTML = html;
-    } catch (e) {
-        console.error(e);
-        showError(container, 'Не удалось загрузить календарь сезона');
+        const inputYear = parseInt(document.getElementById('year-input').value);
+        if (inputYear === currentRealYear) {
+            setTimeout(() => {
+                const nextCard = document.getElementById('next-race-card');
+                if (nextCard) nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 500);
+        }
     }
-}
-
-function initYearSelector() {
-    const selector = document.getElementById('year-buttons');
-    const currentYear = new Date().getFullYear();
-    const years = [currentYear - 2, currentYear - 1, currentYear, currentYear + 1];
-
-    years.forEach(year => {
-        const btn = document.createElement('button');
-        btn.className = `year-btn ${year === currentSeason ? 'active' : ''}`;
-        btn.textContent = year;
-        btn.addEventListener('click', () => {
-            currentSeason = year;
-            document.querySelectorAll('.year-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            loadSeason(year);
-        });
-        selector.appendChild(btn);
-    });
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    initTelegram();
-    initBackButton('/');
-    initYearSelector();
-    loadSeason(currentSeason);
-
-    const yearInput = document.getElementById('year-input');
-    const yearInputBtn = document.getElementById('year-input-btn');
-
-    if (yearInput && yearInputBtn) {
-        yearInput.value = String(currentSeason);
-
-        const applyYear = () => {
-            const value = parseInt(yearInput.value, 10);
-            if (isNaN(value)) {
-                alert('Пожалуйста, введите корректный год');
-                return;
-            }
-            if (value < 1950 || value > 2100) {
-                alert('Год должен быть в диапазоне 1950–2100');
-                return;
-            }
-            currentSeason = value;
-
-            // Подсветим кнопку, если такая есть
-            document.querySelectorAll('.year-btn').forEach(b => {
-                const y = parseInt(b.textContent, 10);
-                if (y === currentSeason) {
-                    b.classList.add('active');
-                } else {
-                    b.classList.remove('active');
-                }
-            });
-
-            loadSeason(currentSeason);
-        };
-
-        yearInputBtn.addEventListener('click', applyYear);
-        yearInput.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Enter') {
-                applyYear();
-            }
-        });
-    }
-});
 </script>
 </body>
 </html>
