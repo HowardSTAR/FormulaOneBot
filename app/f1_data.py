@@ -23,6 +23,13 @@ logger = logging.getLogger(__name__)
 UTC_PLUS_3 = timezone(timedelta(hours=3))
 
 
+async def _run_sync(func, *args, **kwargs):
+    """Универсальная обертка для запуска синхронных функций в отдельном потоке."""
+    loop = asyncio.get_running_loop()
+    # functools.partial используется, чтобы передать именованные аргументы (kwargs)
+    return await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
+
+
 def get_season_schedule_df(season: int) -> pd.DataFrame:
     """
     Вернуть расписание F1 сезона в виде pandas.DataFrame.
@@ -129,6 +136,10 @@ def get_season_schedule_short(season: int) -> list[dict]:
     return races
 
 
+async def get_season_schedule_short_async(season: int):
+    return await _run_sync(get_season_schedule_short, season)
+
+
 def get_driver_standings_df(season: int, round_number: Optional[int] = None) -> pd.DataFrame:
     """
     Вернуть личный зачёт пилотов как DataFrame.
@@ -170,6 +181,10 @@ def get_driver_standings_df(season: int, round_number: Optional[int] = None) -> 
         return pd.DataFrame()
 
 
+async def get_driver_standings_async(season: int, round_number: Optional[int] = None):
+    return await _run_sync(get_driver_standings_df, season, round_number)
+
+
 def get_constructor_standings_df(season: int, round_number: Optional[int] = None) -> pd.DataFrame:
     """
     Вернуть кубок конструкторов как DataFrame.
@@ -205,6 +220,10 @@ def get_constructor_standings_df(season: int, round_number: Optional[int] = None
         return pd.DataFrame()
 
 
+async def get_constructor_standings_async(season: int, round_number: Optional[int] = None):
+    return await _run_sync(get_constructor_standings_df, season, round_number)
+
+
 def get_race_results_df(season: int, round_number: int):
     session = fastf1.get_session(season, round_number, "R")
     # грузим минимум (без телеметрии / погоды / статусов)
@@ -217,12 +236,8 @@ def get_race_results_df(season: int, round_number: int):
     return session.results
 
 
-async def _get_race_results_async(season: int, round_number: int):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(
-        None,
-        lambda: get_race_results_df(season, round_number)
-    )
+async def get_race_results_async(season: int, round_number: int):
+    return await _run_sync(get_race_results_df, season, round_number)
 
 
 def get_weekend_schedule(season: int, round_number: int) -> list[dict]:

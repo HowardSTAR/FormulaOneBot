@@ -1,21 +1,23 @@
+import asyncio
+import logging
+import math
+from datetime import datetime
+
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import (
     Message,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
-    CallbackQuery, BufferedInputFile,
+    CallbackQuery,
+    BufferedInputFile,
 )
-
-from datetime import datetime
-import logging
-import math
-
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
-from app.f1_data import get_constructor_standings_df
+# ИСПРАВЛЕНО: Импортируем асинхронную обертку
+from app.f1_data import get_constructor_standings_async
 from app.utils.image_render import create_constructor_standings_image
 
 router = Router()
@@ -32,7 +34,8 @@ async def _send_teams_for_year(message: Message, season: int) -> None:
     (через image_render), а текст используем как запасной вариант.
     """
     try:
-        df = get_constructor_standings_df(season)
+        # ИСПРАВЛЕНО: Асинхронный вызов получения данных
+        df = await get_constructor_standings_async(season)
     except Exception:
         await message.answer(
             "❌ Не удалось получить таблицу команд.\n"
@@ -115,7 +118,9 @@ async def _send_teams_for_year(message: Message, season: int) -> None:
 
     # Сначала пытаемся отправить картинку, если что-то пойдёт не так — упадём в текст.
     try:
-        img_buf = create_constructor_standings_image(
+        # ИСПРАВЛЕНО: Генерация картинки в отдельном потоке
+        img_buf = await asyncio.to_thread(
+            create_constructor_standings_image,
             title=f"Кубок конструкторов {season}",
             subtitle="",
             rows=rows_for_image,

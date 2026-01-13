@@ -1,15 +1,22 @@
+import asyncio
+import math
+from datetime import datetime
+
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, BufferedInputFile
-
-from datetime import datetime
-import math
-
+from aiogram.types import (
+    Message,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    CallbackQuery,
+    BufferedInputFile,
+)
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 
-from app.f1_data import get_driver_standings_df
+# Импортируем нашу новую асинхронную обертку (убедись, что она есть в f1_data.py)
+from app.f1_data import get_driver_standings_async
 from app.utils.image_render import create_driver_standings_image
 from app.db import get_favorite_drivers
 
@@ -20,9 +27,13 @@ class DriversYearState(StatesGroup):
     waiting_for_year = State()
 
 
-async def _send_drivers_for_year(message: Message, season: int, telegram_id: int | None = None) -> None:
+async def _send_drivers_for_year(
+    message: Message, season: int, telegram_id: int | None = None
+) -> None:
     try:
-        df = get_driver_standings_df(season)
+        # ИСПРАВЛЕНО: Вызываем асинхронную версию получения данных,
+        # чтобы не блокировать бота во время сетевого запроса.
+        df = await get_driver_standings_async(season)
     except Exception:
         await message.answer(
             "❌ Не удалось получить таблицу пилотов.\n"
@@ -31,7 +42,9 @@ async def _send_drivers_for_year(message: Message, season: int, telegram_id: int
         return
 
     if df.empty:
-        await message.answer(f"Пока нет данных по личному зачёту пилотов за {season} год.")
+        await message.answer(
+            f"Пока нет данных по личному зачёту пилотов за {season} год."
+        )
         return
 
     df = df.sort_values("position")
@@ -79,15 +92,33 @@ async def _send_drivers_for_year(message: Message, season: int, telegram_id: int
 
         points_text = f"{points:.0f} очк."
 
-        rows.append((f"{position:02d}", code_label, full_name or code_label or str(position), points_text))
+        rows.append(
+            (
+                f"{position:02d}",
+                code_label,
+                full_name or code_label or str(position),
+                points_text,
+            )
+        )
 
     if not rows:
-        await message.answer(f"Не удалось отобразить пилотов за {season} год (нет корректных данных).")
+        await message.answer(
+            f"Не удалось отобразить пилотов за {season} год (нет корректных данных)."
+        )
         return
 
     title = f"Личный зачёт {season}"
     subtitle = "Позиции пилотов в чемпионате"
-    img_buf = create_driver_standings_image(title, subtitle, rows)
+
+    # ИСПРАВЛЕНО: Генерация картинки (тяжелая операция CPU) вынесена в отдельный поток.
+    # Это предотвращает зависание бота во время рисования таблицы.
+    try:
+        img_buf = await asyncio.to_thread(
+            create_driver_standings_image, title, subtitle, rows
+        )
+    except Exception as exc:
+        await message.answer("Не удалось сформировать изображение таблицы.")
+        return
 
     # Перематываем буфер на начало и делаем InputFile
     img_buf.seek(0)
@@ -168,6 +199,8 @@ async def drivers_year_current(callback: CallbackQuery, state: FSMContext) -> No
         season = datetime.now().year
 
     if callback.message:
-        await _send_drivers_for_year(callback.message, season, telegram_id=callback.from_user.id)
+        await _send_drivers_for_year(
+            callback.message, season, telegram_id=callback.from_user.id
+        )
 
     await callback.answer()
