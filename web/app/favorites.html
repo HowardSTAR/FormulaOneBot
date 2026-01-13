@@ -2,96 +2,276 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Избранное — FormulaOneBot</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Избранное</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        /* Стили переключателя табов */
+        .tabs {
+            display: flex;
+            background: var(--surface-color);
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 2px 8px rgba(225, 6, 0, 0.4);
+        }
+
+        /* Сетка для карточек выбора */
+        .grid-select {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 2 колонки */
+            gap: 12px;
+        }
+
+        .select-item {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .select-item:active {
+            transform: scale(0.96);
+        }
+
+        /* Состояние "Выбрано" */
+        .select-item.selected {
+            border-color: var(--primary);
+            background: rgba(225, 6, 0, 0.1);
+        }
+
+        .select-item.selected .check-icon {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .item-name {
+            font-weight: 600;
+            font-size: 14px;
+            line-height: 1.3;
+        }
+
+        .item-code {
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        /* Галочка */
+        .check-icon {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            color: var(--primary);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-size: 16px;
+        }
+    </style>
 </head>
 <body>
 <div class="root">
-    <div class="card">
-        <button id="btn-back-home" class="btn-back" type="button">← <span>Главное меню</span></button>
-        <h2>Избранное</h2>
-        <p style="color: var(--text-muted); margin-bottom: 12px;">
-            Твои любимые пилоты и команды. Чтобы добавить их, используй бота.
-        </p>
-        <div id="favorites-content">
-            <div class="loading">
-                <div class="spinner"></div>
-                <p>Загружаю избранное...</p>
-            </div>
-        </div>
+
+    <a href="index.html" class="btn-back">
+        ⬅️ <span>Главное меню</span>
+    </a>
+
+    <h2>Избранное</h2>
+    <p style="margin-bottom: 20px;">Выбери пилотов и команды для отслеживания:</p>
+
+    <div class="tabs">
+        <div class="tab-btn active" onclick="switchTab('drivers')">Пилоты</div>
+        <div class="tab-btn" onclick="switchTab('teams')">Команды</div>
     </div>
+
+    <div id="drivers-container" class="grid-select">
+        <div class="loading full-width">Загрузка пилотов...</div>
+    </div>
+
+    <div id="teams-container" class="grid-select" style="display: none;">
+        <div class="loading full-width">Загрузка команд...</div>
+    </div>
+
 </div>
 
 <script src="/static/js/common.js"></script>
 <script>
-async function loadFavorites() {
-    const container = document.getElementById('favorites-content');
-    const telegramId = getTelegramId();
+    // Глобальные переменные для хранения состояния
+    let driversList = [];
+    let teamsList = [];
+    let userFavorites = { drivers: [], teams: [] };
 
-    if (!telegramId) {
-        showError(container, 'Не удалось определить пользователя. Открой приложение через Telegram.');
-        return;
+    document.addEventListener('DOMContentLoaded', async () => {
+        initTelegram();
+        await loadAllData();
+    });
+
+    async function loadAllData() {
+        try {
+            // 1. Параллельно загружаем списки и текущее избранное
+            const [driversData, teamsData, favoritesData] = await Promise.all([
+                apiRequest('/api/drivers'),
+                apiRequest('/api/constructors'),
+                apiRequest('/api/favorites')
+            ]);
+
+            driversList = driversData.drivers || [];
+            teamsList = teamsData.constructors || [];
+            userFavorites.drivers = favoritesData.drivers || [];
+            userFavorites.teams = favoritesData.teams || [];
+
+            renderDrivers();
+            renderTeams();
+
+        } catch (error) {
+            console.error(error);
+            document.querySelector('.root').innerHTML += `<div style="color:red; text-align:center; margin-top:20px;">Ошибка загрузки данных</div>`;
+        }
     }
 
-    showLoading(container, 'Загружаю избранное...');
+    function renderDrivers() {
+        const container = document.getElementById('drivers-container');
+        container.innerHTML = '';
 
-    try {
-        const data = await apiRequest('/favorites');
-        
-        let html = '';
-
-        if (data.drivers && data.drivers.length > 0) {
-            html += '<h3 style="margin-top: 16px;">⭐ Любимые пилоты</h3>';
-            html += '<div class="standings-list">';
-            data.drivers.forEach(code => {
-                html += `
-                    <div class="standings-item favorite">
-                        <div class="standings-info">
-                            <div class="standings-name">⭐️ ${code}</div>
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-        } else {
-            html += '<p style="color: var(--text-muted); margin: 12px 0;">⭐ Пока нет избранных пилотов</p>';
+        if (driversList.length === 0) {
+            container.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">Список пилотов пуст</div>';
+            return;
         }
 
-        if (data.teams && data.teams.length > 0) {
-            html += '<h3 style="margin-top: 24px;">🏎 Любимые команды</h3>';
-            html += '<div class="standings-list">';
-            data.teams.forEach(team => {
-                html += `
-                    <div class="standings-item favorite">
-                        <div class="standings-info">
-                            <div class="standings-name">⭐️ ${team}</div>
-                        </div>
-                    </div>
-                `;
-            });
-            html += '</div>';
-        } else {
-            html += '<p style="color: var(--text-muted); margin: 12px 0;">🏎 Пока нет избранных команд</p>';
-        }
+        driversList.forEach(driver => {
+            const isFav = userFavorites.drivers.includes(driver.code);
 
-        if (data.drivers.length === 0 && data.teams.length === 0) {
-            html = '<div class="empty-state"><div class="empty-state-icon">⭐</div><p>У тебя пока нет избранных пилотов или команд.<br>Добавь их через бота!</p></div>';
-        }
+            const div = document.createElement('div');
+            div.className = `select-item ${isFav ? 'selected' : ''}`;
+            div.onclick = () => toggleDriver(driver.code, div);
 
-        container.innerHTML = html;
-    } catch (e) {
-        console.error(e);
-        showError(container, 'Не удалось загрузить избранное');
+            div.innerHTML = `
+                <div class="check-icon">✅</div>
+                <div class="item-name">${driver.name}</div>
+                <div class="item-code">${driver.code}</div>
+            `;
+            container.appendChild(div);
+        });
     }
-}
 
-document.addEventListener('DOMContentLoaded', () => {
-    initTelegram();
-    initBackButton('/');
-    loadFavorites();
-});
+    function renderTeams() {
+        const container = document.getElementById('teams-container');
+        container.innerHTML = '';
+
+        if (teamsList.length === 0) {
+            container.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">Список команд пуст</div>';
+            return;
+        }
+
+        teamsList.forEach(team => {
+            const isFav = userFavorites.teams.includes(team.name);
+
+            const div = document.createElement('div');
+            div.className = `select-item ${isFav ? 'selected' : ''}`;
+            div.onclick = () => toggleTeam(team.name, div);
+
+            div.innerHTML = `
+                <div class="check-icon">✅</div>
+                <div class="item-name">${team.name}</div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // --- Логика переключения ---
+
+    async function toggleDriver(code, element) {
+        // Оптимистичное обновление UI (сразу меняем цвет)
+        element.classList.toggle('selected');
+
+        // Вибрация (Haptic Feedback)
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+
+        try {
+            await fetch(new URL(API_BASE + '/api/favorites/driver', window.location.origin), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Telegram-Init-Data': getInitData()
+                },
+                body: JSON.stringify({ id: code })
+            });
+            // Не обновляем весь список, чтобы не дергалось.
+            // Если ошибка - вернем как было (в catch)
+        } catch (error) {
+            console.error('Ошибка сохранения', error);
+            element.classList.toggle('selected'); // Откат
+            alert('Ошибка связи с сервером');
+        }
+    }
+
+    async function toggleTeam(name, element) {
+        element.classList.toggle('selected');
+        if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+
+        try {
+            await fetch(new URL(API_BASE + '/api/favorites/team', window.location.origin), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Telegram-Init-Data': getInitData()
+                },
+                body: JSON.stringify({ id: name })
+            });
+        } catch (error) {
+            console.error('Ошибка сохранения', error);
+            element.classList.toggle('selected'); // Откат
+            alert('Ошибка связи с сервером');
+        }
+    }
+
+    // --- Переключение табов ---
+    window.switchTab = function(tabName) {
+        const btns = document.querySelectorAll('.tab-btn');
+        const driverContainer = document.getElementById('drivers-container');
+        const teamContainer = document.getElementById('teams-container');
+
+        btns.forEach(btn => btn.classList.remove('active'));
+
+        if (tabName === 'drivers') {
+            btns[0].classList.add('active');
+            driverContainer.style.display = 'grid';
+            teamContainer.style.display = 'none';
+        } else {
+            btns[1].classList.add('active');
+            driverContainer.style.display = 'none';
+            teamContainer.style.display = 'grid';
+        }
+    }
 </script>
 </body>
 </html>

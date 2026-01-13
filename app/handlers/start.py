@@ -21,14 +21,6 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
             [
                 KeyboardButton(text="Кубок конструкторов"),
                 KeyboardButton(text="Избранное"),
-            ],
-            # ДОБАВЛЕНО: Кнопка для открытия Mini App
-            [
-                KeyboardButton(
-                    text="📱 Открыть приложение",
-                    web_app=WebAppInfo(url="https://bbf108dac18c6fbb-5-16-21-213.serveousercontent.com")
-                    # Укажи здесь HTTPS ссылку на твой сервер (ngrok или хостинг)
-                )
             ]
         ],
         resize_keyboard=True,

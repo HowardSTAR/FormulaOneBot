@@ -1,9 +1,8 @@
-# app/miniapp_api.py
-
 import asyncio
 from datetime import datetime
 from typing import Optional
 from pathlib import Path
+from pydantic import BaseModel
 
 # Добавляем Depends
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
@@ -20,18 +19,14 @@ from app.f1_data import (
     get_race_results_async,
     _get_latest_quali_async,
 )
-from app.db import get_favorite_drivers, get_favorite_teams, get_last_reminded_round
+from app.db import get_favorite_drivers, get_favorite_teams, get_last_reminded_round, remove_favorite_driver, \
+    add_favorite_driver, remove_favorite_team, add_favorite_team
 
 # Импортируем нашу проверку авторизации
 from app.auth import get_current_user_id
 
-# Получаем абсолютный путь к папке, где лежит этот файл (miniapp_api.py)
-# Предполагаем структуру: D:\PyCharmProject\FormulaOneBot\app\api\miniapp_api.py
-CURRENT_DIR = Path(__file__).resolve().parent
 
-# Поднимаемся на два уровня вверх к корню проекта (FormulaOneBot)
-# Если файл лежит в app/api/miniapp_api.py, то parent.parent = app, parent.parent.parent = корень
-# Давай сделаем проще: найдем корень по наличию папки "web"
+CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
 
 WEB_DIR = PROJECT_ROOT / "web" / "app"
@@ -120,22 +115,16 @@ async def api_quali_results(season: Optional[int] = Query(None)):
     }
 
 
-# --- Приватные эндпоинты (Нужна валидация initData) ---
-# Обрати внимание: мы убрали telegram_id из аргументов и добавили user_id через Depends
-
 @web_app.get("/api/drivers")
 async def api_drivers(
         season: Optional[int] = Query(None),
         round_number: Optional[int] = Query(None),
-        # Опциональная авторизация: если header есть, мы получим ID, если нет — None
-        # Но для favorites галочек нам нужен ID. Сделаем так:
-        # Мы попытаемся достать ID. Если не выйдет (юзер в браузере), будет None.
         x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data")
 ):
+    # ... (код авторизации user_id оставляем) ...
     user_id = None
     if x_telegram_init_data:
         try:
-            # Ручной вызов проверки, чтобы не падать с 401, если юзер просто смотрит таблицу
             user_id = await get_current_user_id(x_telegram_init_data)
         except:
             pass
@@ -143,7 +132,15 @@ async def api_drivers(
     if season is None:
         season = datetime.now().year
 
+    # --- ИСПРАВЛЕНИЕ ---
     df = await get_driver_standings_async(season, round_number)
+
+    # Если данных нет и сезон — текущий, пробуем прошлый год
+    if df.empty and season == datetime.now().year:
+        season = season - 1
+        df = await get_driver_standings_async(season, round_number)
+    # -------------------
+
     if df.empty:
         return {"season": season, "round": round_number, "drivers": []}
 
@@ -194,7 +191,13 @@ async def api_constructors(
     if season is None:
         season = datetime.now().year
 
+    # --- ИСПРАВЛЕНИЕ ---
     df = await get_constructor_standings_async(season, round_number)
+
+    if df.empty and season == datetime.now().year:
+        season = season - 1
+        df = await get_constructor_standings_async(season, round_number)
+    # -------------------
 
     if df.empty:
         return {"season": season, "round": round_number, "constructors": []}
@@ -319,6 +322,46 @@ async def api_race_results(
         "race_info": race_info,
         "results": results,
     }
+
+
+# --- Модели для получения данных от WebApp ---
+class FavoriteItem(BaseModel):
+    id: str  # Код пилота (VER) или имя команды (Red Bull)
+
+
+# --- Эндпоинты для изменения избранного ---
+
+@web_app.post("/api/favorites/driver")
+async def toggle_favorite_driver(
+        item: FavoriteItem,
+        user_id: int = Depends(get_current_user_id)
+):
+    """Добавить или удалить пилота из избранного."""
+    current_favs = await get_favorite_drivers(user_id)
+
+    if item.id in current_favs:
+        await remove_favorite_driver(user_id, item.id)
+        return {"status": "removed", "id": item.id}
+    else:
+        await add_favorite_driver(user_id, item.id)
+        return {"status": "added", "id": item.id}
+
+
+@web_app.post("/api/favorites/team")
+async def toggle_favorite_team(
+        item: FavoriteItem,
+        user_id: int = Depends(get_current_user_id)
+):
+    """Добавить или удалить команду."""
+    current_favs = await get_favorite_teams(user_id)
+
+    if item.id in current_favs:
+        await remove_favorite_team(user_id, item.id)
+        return {"status": "removed", "id": item.id}
+    else:
+        await add_favorite_team(user_id, item.id)
+        return {"status": "added", "id": item.id}
+
 
 
 @web_app.get("/")
