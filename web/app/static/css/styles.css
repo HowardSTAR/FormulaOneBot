@@ -314,3 +314,41 @@ p {
     font-weight: 700;
     border-color: var(--text-primary);
 }
+
+/* --- Стили для Чемпиона --- */
+.champion-card {
+    border: 1px solid #ffd700 !important; /* Золотая рамка */
+    background: linear-gradient(90deg, rgba(255, 215, 0, 0.15), rgba(21, 23, 30, 0.9)) !important;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.2);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 16px; /* Чуть больше отступ */
+}
+
+/* Бейдж чемпиона */
+.champion-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: #ffd700;
+    color: #000;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-bottom-left-radius: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Блок "Сезон не начался" */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    background: var(--surface-color);
+    border-radius: 16px;
+    border: 1px dashed var(--border-color);
+    margin-top: 20px;
+}
+.empty-icon { font-size: 48px; margin-bottom: 16px; display: block; }
+.empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.empty-desc { color: var(--text-secondary); font-size: 14px; }
