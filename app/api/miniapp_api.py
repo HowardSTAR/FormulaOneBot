@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from pathlib import Path
 
@@ -19,15 +19,14 @@ from app.f1_data import (
     get_weekend_schedule,
     get_driver_standings_async,
     get_constructor_standings_async,
-    get_race_results_async,
-    _get_latest_quali_async,
 )
 from app.db import (
-    get_favorite_drivers, get_favorite_teams, get_last_reminded_round,
+    get_favorite_drivers, get_favorite_teams,
     remove_favorite_driver, add_favorite_driver,
     remove_favorite_team, add_favorite_team
 )
 from app.auth import get_current_user_id
+
 
 # --- Настройка путей ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -75,11 +74,56 @@ async def api_weekend_schedule(
         season: Optional[int] = Query(None),
         round_number: int = Query(..., description="Номер этапа"),
 ):
-    """Детальное расписание уикенда."""
+    """Детальное расписание уикенда (берем готовые строки, как в боте)."""
     if season is None:
         season = datetime.now().year
-    sessions = await asyncio.to_thread(get_weekend_schedule, season, round_number)
-    return {"season": season, "round": round_number, "sessions": sessions}
+
+    # Получаем список словарей (точно такой же, как в races.py)
+    # Ожидаем структуру: {'name': 'Practice 1', 'local': '06.03.2026 04:30', 'utc': '...'}
+    raw_sessions = await asyncio.to_thread(get_weekend_schedule, season, round_number)
+
+    clean_sessions = []
+
+    # Маппинг имен
+    name_map = {
+        "Practice 1": "Практика 1",
+        "Practice 2": "Практика 2",
+        "Practice 3": "Практика 3",
+        "Qualifying": "Квалификация",
+        "Sprint": "Спринт",
+        "Sprint Qualifying": "Спринт-квалификация",
+        "Race": "Гонка",
+    }
+
+    if raw_sessions:
+        for s in raw_sessions:
+            # 1. Берем имя
+            raw_name = s.get("name", "Session")
+            name_ru = name_map.get(raw_name, raw_name)
+
+            # 2. Берем готовую строку времени (МСК), как в боте
+            # Она выглядит примерно так: "06.03.2026 04:30"
+            local_str = s.get("local", "")
+
+            date_str = "??"
+            time_str = "??"
+
+            # 3. Разрезаем строку на дату и время
+            if local_str:
+                parts = local_str.split()  # Делим по пробелу
+                if len(parts) >= 2:
+                    date_str = parts[0]  # "06.03.2026"
+                    time_str = parts[1]  # "04:30"
+                elif len(parts) == 1:
+                    date_str = parts[0]
+
+            clean_sessions.append({
+                "name": name_ru,
+                "date": date_str,
+                "time": time_str
+            })
+
+    return {"season": season, "round": round_number, "sessions": clean_sessions}
 
 
 @web_app.get("/api/drivers")

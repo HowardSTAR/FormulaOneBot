@@ -94,33 +94,26 @@
             // Очищаем лоадер
             listEl.innerHTML = '';
 
-            if (scheduleData && scheduleData.sessions) {
+            if (scheduleData && scheduleData.sessions && scheduleData.sessions.length > 0) {
                 scheduleData.sessions.forEach(session => {
                     const item = document.createElement('div');
-                    item.className = 'standings-item';
+                    item.className = 'standings-item'; // Используем тот же стиль карточки
 
-                    // Перевод названий сессий (простой маппинг)
-                    let nameRu = session.name;
-                    if (nameRu === 'Practice 1') nameRu = 'Практика 1';
-                    if (nameRu === 'Practice 2') nameRu = 'Практика 2';
-                    if (nameRu === 'Practice 3') nameRu = 'Практика 3';
-                    if (nameRu === 'Qualifying') nameRu = 'Квалификация';
-                    if (nameRu === 'Sprint') nameRu = 'Спринт';
-                    if (nameRu === 'Race') nameRu = 'Гонка';
-
-                    // Формируем HTML
+                    // Стиль для времени делаем чуть ярче
                     item.innerHTML = `
                         <div class="standings-info">
-                            <div class="standings-name">${nameRu}</div>
-                            <div class="standings-code" style="color: var(--primary);">
-                                ${session.date} • ${session.time}
+                            <div class="standings-name" style="font-size: 16px;">${session.name}</div>
+                            <div class="standings-code" style="color: var(--text-secondary); margin-top: 4px;">
+                                <span style="color: var(--primary); font-weight: 700;">${session.time}</span>
+                                <span style="margin: 0 6px; opacity: 0.3;">|</span>
+                                ${session.date}
                             </div>
                         </div>
                     `;
                     listEl.appendChild(item);
                 });
             } else {
-                listEl.innerHTML = '<div style="padding:10px;">Нет детального расписания</div>';
+                listEl.innerHTML = '<div style="padding:20px; text-align:center;">Нет детального расписания</div>';
             }
 
         } catch (error) {
