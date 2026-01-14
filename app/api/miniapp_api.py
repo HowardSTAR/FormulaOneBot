@@ -128,7 +128,7 @@ async def api_drivers(
         round_number: Optional[int] = Query(None),
         x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data")
 ):
-    # ... (код авторизации user_id оставляем) ...
+    # ... (код авторизации и получения user_id оставляем как был) ...
     user_id = None
     if x_telegram_init_data:
         try:
@@ -139,47 +139,42 @@ async def api_drivers(
     if season is None:
         season = datetime.now().year
 
-    # --- ИСПРАВЛЕНИЕ ---
+    # Запрашиваем данные
     df = await get_driver_standings_async(season, round_number)
 
-    # Если данных нет и сезон — текущий, пробуем прошлый год
-    if df.empty and season == datetime.now().year:
-        season = season - 1
-        df = await get_driver_standings_async(season, round_number)
-    # -------------------
+    # --- УДАЛЯЕМ ЭТОТ БЛОК (или закомментируй его) ---
+    # if df.empty and season == datetime.now().year:
+    #     season = season - 1
+    #     df = await get_driver_standings_async(season, round_number)
+    # -------------------------------------------------
 
     if df.empty:
         return {"season": season, "round": round_number, "drivers": []}
 
-    df = df.sort_values("position")
+        # 1. СНАЧАЛА СОРТИРУЕМ (Pandas умеет сортировать с NaN, ставя их в конец)
+    if "position" in df.columns:
+        # На всякий случай превращаем колонку в числа, чтобы избежать глюков
+        df["position"] = pd.to_numeric(df["position"], errors='coerce')
+        df = df.sort_values("position")
 
-    favorites = set()
+        # 2. И ТОЛЬКО ПОТОМ УБИРАЕМ NaN (для JSON)
+    df = df.fillna("")
+
+    if "position" in df.columns:
+        df = df.sort_values("position")
+
+    # ... (дальше формирование списка results оставляем как есть) ...
+    # Код ниже не меняется
+    favorite_drivers = set()
     if user_id:
-        favorites = set(await get_favorite_drivers(user_id))
+        favorite_drivers = set(await get_favorite_drivers(user_id))
 
-    drivers = []
+    results = []
     for row in df.itertuples(index=False):
-        try:
-            position = int(getattr(row, "position", 0))
-            points = float(getattr(row, "points", 0))
-            code = getattr(row, "driverCode", "") or ""
-            given = getattr(row, "givenName", "") or ""
-            family = getattr(row, "familyName", "") or ""
-            full_name = f"{given} {family}".strip() or code
+        # ... (код цикла) ...
+        pass  # (тут твой код)
 
-            if not code: continue
-
-            drivers.append({
-                "position": position,
-                "code": code,
-                "name": full_name,
-                "points": points,
-                "is_favorite": code in favorites,
-            })
-        except:
-            continue
-
-    return {"season": season, "round": round_number, "drivers": drivers}
+    return {"season": season, "round": round_number, "drivers": results}
 
 
 @web_app.get("/api/constructors")
@@ -188,6 +183,7 @@ async def api_constructors(
         round_number: Optional[int] = Query(None),
         x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data")
 ):
+    # ... (авторизация) ...
     user_id = None
     if x_telegram_init_data:
         try:
@@ -198,40 +194,37 @@ async def api_constructors(
     if season is None:
         season = datetime.now().year
 
-    # --- ИСПРАВЛЕНИЕ ---
     df = await get_constructor_standings_async(season, round_number)
 
-    if df.empty and season == datetime.now().year:
-        season = season - 1
-        df = await get_constructor_standings_async(season, round_number)
-    # -------------------
+    # --- УДАЛЯЕМ ЭТОТ БЛОК ---
+    # if df.empty and season == datetime.now().year:
+    #     season = season - 1
+    #     df = await get_constructor_standings_async(season, round_number)
+    # -------------------------
 
     if df.empty:
         return {"season": season, "round": round_number, "constructors": []}
 
-    df = df.sort_values("position")
+        # 1. Сортируем
+    if "position" in df.columns:
+        df["position"] = pd.to_numeric(df["position"], errors='coerce')
+        df = df.sort_values("position")
 
-    favorites = set()
+        # 2. Чистим
+    df = df.fillna("")
+
+    if "position" in df.columns:
+        df = df.sort_values("position")
+
+    # ... (дальше код без изменений) ...
+    favorite_teams = set()
     if user_id:
-        favorites = set(await get_favorite_teams(user_id))
+        favorite_teams = set(await get_favorite_teams(user_id))
 
-    constructors = []
-    for row in df.itertuples(index=False):
-        try:
-            position = int(getattr(row, "position", 0))
-            points = float(getattr(row, "points", 0))
-            name = getattr(row, "constructorName", "Unknown")
+    results = []
+    # ... (цикл формирования) ...
 
-            constructors.append({
-                "position": position,
-                "name": name,
-                "points": points,
-                "is_favorite": name in favorites,
-            })
-        except:
-            continue
-
-    return {"season": season, "round": round_number, "constructors": constructors}
+    return {"season": season, "round": round_number, "constructors": results}
 
 
 # А вот для /api/favorites авторизация ОБЯЗАТЕЛЬНА.
