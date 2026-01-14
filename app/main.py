@@ -7,7 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.bot import create_bot_and_dispatcher
 from app.db import init_db
 from app.f1_data import warmup_current_season_sessions
-from app.handlers import secret
+from app.handlers import secret, start, races, drivers, teams, favorites, settings
 from app.handlers.drivers import router as drivers_router
 from app.handlers.favorites import router as favorites_router
 from app.handlers.races import router as races_router
@@ -24,19 +24,25 @@ logging.basicConfig(
 
 
 async def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
+
     await init_db()
 
     bot, dp = create_bot_and_dispatcher()
-
     dp.update.outer_middleware(ErrorLoggingMiddleware())
 
     # Регистрируем все роутеры
-    dp.include_router(start_router)
-    dp.include_router(races_router)
-    dp.include_router(drivers_router)
-    dp.include_router(teams_router)
-    dp.include_router(favorites_router)
-    dp.include_router(secret.router)
+    dp.include_routers(
+        start.router,
+        races.router,
+        drivers.router,
+        teams.router,
+        favorites.router,
+        settings.settings_router
+    )
 
     # Планировщик
     scheduler = AsyncIOScheduler(timezone="UTC")

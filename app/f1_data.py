@@ -242,11 +242,8 @@ async def get_race_results_async(season: int, round_number: int):
 
 def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
     """
-    Возвращает список сессий уикенда для заданного этапа:
-    [
-      {"name": "Practice 1", "utc": "...", "local": "..."},
-      ...
-    ]
+    Возвращает список сессий уикенда.
+    Теперь поле 'utc' содержит ISO-строку, чтобы её можно было парсить и менять пояс.
     """
     schedule = fastf1.get_event_schedule(season)
 
@@ -275,13 +272,13 @@ def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
         dt_utc = sess_dt.to_pydatetime()
         if dt_utc.tzinfo is None:
             dt_utc = dt_utc.replace(tzinfo=timezone.utc)
-        dt_local = dt_utc.astimezone(UTC_PLUS_3)
 
+        # ВАЖНО: Отдаем ISO формат (2026-03-06T04:30:00+00:00),
+        # чтобы utils/time_tools.py мог его прочитать и перевести.
         sessions.append(
             {
                 "name": sess_name,
-                "utc": dt_utc.strftime("%H:%M UTC"),
-                "local": dt_local.strftime("%d.%m.%Y %H:%M МСК"),
+                "utc": dt_utc.isoformat(),
             }
         )
 

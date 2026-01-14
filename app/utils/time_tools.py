@@ -1,42 +1,50 @@
-# utils/time_tools.py
 from datetime import datetime
 import pytz
 
-# Словарь для перевода месяцев (чтобы не зависеть от локали системы)
 RU_MONTHS = {
     1: 'января', 2: 'февраля', 3: 'марта', 4: 'апреля', 5: 'мая', 6: 'июня',
     7: 'июля', 8: 'августа', 9: 'сентября', 10: 'октября', 11: 'ноября', 12: 'декабря'
 }
 
+
 def format_race_time(utc_time_str: str, user_timezone_str: str = "Europe/Moscow") -> str:
     """
-    Принимает строку времени UTC (ISO) и возвращает красивую строку
-    в часовом поясе юзера на русском языке.
-    Пример входа: "2024-03-02T15:00:00Z"
-    Пример выхода: "02 марта, 18:00"
+    Принимает UTC строку, возвращает: "08 марта, 18:00 (UTC+3)"
     """
     if not utc_time_str:
         return "Время не определено"
 
-    # 1. Парсим время (ISO формат)
     try:
-        # replace("Z", "+00:00") нужен, если API отдает Z на конце
         utc_dt = datetime.fromisoformat(utc_time_str.replace("Z", "+00:00"))
+        # Если вдруг tzinfo нет, ставим UTC
+        if utc_dt.tzinfo is None:
+            utc_dt = utc_dt.replace(tzinfo=pytz.utc)
     except ValueError:
-        return utc_time_str  # Если формат кривой, возвращаем как есть
+        return utc_time_str
 
-    # 2. Получаем таймзону юзера
     try:
         user_tz = pytz.timezone(user_timezone_str)
     except pytz.UnknownTimeZoneError:
-        user_tz = pytz.timezone("Europe/Moscow") # Fallback, если в базе мусор
+        user_tz = pytz.timezone("Europe/Moscow")
 
-    # 3. Конвертируем
+    # Конвертируем
     local_dt = utc_dt.astimezone(user_tz)
 
-    # 4. Форматируем
+    # Форматируем дату/время
     day = local_dt.day
     month_name = RU_MONTHS.get(local_dt.month, "")
     time_str = local_dt.strftime("%H:%M")
 
-    return f"{day} {month_name}, {time_str}"
+    # Вычисляем красивый оффсет для отображения (например UTC+3)
+    # total_seconds() дает смещение в секундах. Делим на 3600.
+    offset_hours = local_dt.utcoffset().total_seconds() / 3600
+
+    if offset_hours == 0:
+        offset_str = "UTC"
+    elif offset_hours > 0:
+        # :g убирает .0 если число целое (3.0 -> 3, но 3.5 -> 3.5)
+        offset_str = f"UTC+{offset_hours:g}"
+    else:
+        offset_str = f"UTC{offset_hours:g}"
+
+    return f"{day} {month_name}, {time_str} ({offset_str})"
