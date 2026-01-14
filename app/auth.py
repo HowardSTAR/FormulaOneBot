@@ -18,10 +18,10 @@ async def get_current_user_id(
     """
     if not x_telegram_init_data:
         # Если заголовка нет — значит, запрос не из Телеграма или хакер
-        # raise HTTPException(status_code=401, detail="Missing X-Telegram-Init-Data header")
+        raise HTTPException(status_code=401, detail="Missing X-Telegram-Init-Data header")
 
         # --- ВРЕМЕННЫЙ ОБХОД ДЛЯ ТЕСТОВ В БРАУЗЕРЕ ---
-        return 2099386
+        # return 2099386
 
     settings = get_settings()
 
