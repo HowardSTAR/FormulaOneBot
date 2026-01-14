@@ -335,66 +335,53 @@ p {
     border-color: var(--text-primary);
 }
 
-/* --- Стили для Чемпиона (Новый дизайн: Фон слева) --- */
+/* --- Стили для Чемпиона (Обновленные: Горизонтальный фон) --- */
 
 .champion-card {
-    /* Фон чуть ярче, с золотым отливом */
     background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(21, 23, 30, 0.98) 60%) !important;
     border: 1px solid rgba(255, 215, 0, 0.6) !important;
     position: relative;
-    /* Скрываем всё, что вылезает за границы */
     overflow: hidden !important;
-    /* Добавляем свечение */
     box-shadow: 0 4px 15px rgba(255, 215, 0, 0.15);
 }
 
-/*
-   Новый стиль бейджа - Большая полупрозрачная надпись на фоне.
-   Она позиционируется абсолютно слева и поворачивается вертикально.
+/* Бейдж теперь горизонтальный, крупный, внизу справа.
+   Служит фоновым элементом.
 */
 .champion-badge {
     position: absolute;
-    top: 50%;     /* Центрируем по вертикали */
-    left: -10px;  /* Немного сдвигаем влево за край */
-    transform: translateY(-50%) rotate(-90deg); /* Поворачиваем и центрируем */
-    transform-origin: center center;
+    bottom: -6px;      /* Прижимаем к низу */
+    right: 10px;       /* Прижимаем к правому краю */
+    top: auto;         /* Сбрасываем верхнее позиционирование */
+    left: auto;        /* Сбрасываем левое позиционирование */
 
-    color: #ffd700; /* Золотой цвет */
-    /* Очень важный параметр - прозрачность. Делаем еле заметным */
-    opacity: 0.12;
+    transform: none;   /* Убираем поворот */
 
-    font-size: 32px; /* Крупный размер */
-    font-weight: 900; /* Жирный шрифт */
+    color: #ffd700;
+    opacity: 0.1;      /* Очень прозрачный, чтобы не мешал тексту */
+
+    font-size: 36px;   /* Крупный шрифт */
+    font-weight: 900;
     text-transform: uppercase;
-    letter-spacing: 2px;
-    white-space: nowrap; /* Текст в одну строку */
-
-    /* Самый низкий слой, чтобы быть фоном */
+    white-space: nowrap;
     z-index: 0;
-    pointer-events: none; /* Чтобы не мешала кликам */
+    pointer-events: none;
     user-select: none;
 }
 
-/*
-   КРИТИЧЕСКИ ВАЖНО: Поднимаем контент карточки НАД фоновой надписью.
-   Всем элементам с данными задаем relative позицию и z-index выше, чем у бейджа.
-*/
+/* Контент карточки должен быть выше фона */
 .champion-card .pos-box,
 .champion-card .driver-info,
 .champion-card .team-info,
 .champion-card .driver-points,
 .champion-card .team-points {
     position: relative;
-    z-index: 2; /* Слой выше фона (0) */
-    /* Легкая тень для текста, чтобы он лучше читался на золотом фоне */
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+    z-index: 2;
 }
 
-/* Золотая цифра 1 (немного увеличим) */
 .champion-card .pos-1 {
     color: #ffd700;
     font-size: 26px;
-    /* Усилим свечение цифры */
     text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
 }
 

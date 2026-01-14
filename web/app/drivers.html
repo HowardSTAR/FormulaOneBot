@@ -15,7 +15,6 @@
         .driver-card:first-child { border-top-left-radius: 12px; border-top-right-radius: 12px; }
         .driver-card:last-child { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; border-bottom: none; }
 
-        /* Особый стиль для карточки чемпиона, чтобы скруглить углы если она одна такая */
         .champion-card { border-radius: 12px !important; border-bottom: 1px solid #ffd700 !important; }
 
         .pos-box { width: 30px; font-weight: 800; font-size: 16px; color: var(--text-secondary); text-align: center; margin-right: 12px; }
@@ -28,9 +27,9 @@
         .team-name { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; margin-top: 2px; }
         .driver-points { background: rgba(255, 255, 255, 0.1); padding: 6px 10px; border-radius: 8px; font-weight: 700; font-size: 14px; min-width: 50px; text-align: center; }
 
-        /* Search Styles */
         .search-container { display: flex; gap: 8px; margin-bottom: 16px; }
         .search-input { flex: 1; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px 16px; color: var(--text-primary); font-size: 16px; font-weight: 600; outline: none; }
+        .search-input::placeholder { font-size: 13px; color: var(--text-secondary); opacity: 0.7; }
         .search-input:focus { border-color: var(--primary); }
         .search-btn { background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 0 16px; color: var(--text-primary); font-size: 18px; cursor: pointer; }
         .current-year-btn { background: var(--primary); border: none; border-radius: 12px; padding: 0 16px; color: white; font-weight: 700; font-size: 14px; cursor: pointer; }
@@ -44,7 +43,7 @@
     <h2>Личный зачет</h2>
 
     <div class="search-container">
-        <input type="number" id="year-input" class="search-input" placeholder="Введите год" inputmode="numeric">
+        <input type="number" id="year-input" class="search-input" placeholder="Найти другой год" inputmode="numeric">
         <button class="search-btn" onclick="handleSearch()">🔍</button>
         <button id="current-year-btn" class="current-year-btn" onclick="goCurrentYear()">2026</button>
     </div>
@@ -61,7 +60,6 @@
     document.addEventListener('DOMContentLoaded', async () => {
         initTelegram();
         document.getElementById('current-year-btn').textContent = currentRealYear;
-
         await loadDrivers(currentRealYear);
 
         document.getElementById('year-input').addEventListener("keypress", (e) => {
@@ -99,7 +97,6 @@
         try {
             const data = await apiRequest('/api/drivers', { season: season });
 
-            // ЛОГИКА: СЕЗОН НЕ НАЧАЛСЯ
             if (!data.drivers || data.drivers.length === 0) {
                 if (season === currentRealYear) {
                     container.innerHTML = `<div class="empty-state"><span class="empty-icon">🏎️</span><div class="empty-title">Сезон еще не начался</div><div class="empty-desc">Первая гонка еще впереди. Таблица очков пуста.</div></div>`;
@@ -128,10 +125,9 @@
             else if (pos === 2) posClass = 'pos-2';
             else if (pos === 3) posClass = 'pos-3';
 
-            const favIcon = driver.is_favorite ? '<span style="font-size:12px;">✅</span>' : '';
+            // ИЗМЕНЕНИЕ: Звезда вместо галочки
+            const favIcon = driver.is_favorite ? '<span style="font-size:14px; margin-left:4px;">⭐️</span>' : '';
 
-            // ЛОГИКА: ЧЕМПИОН
-            // Если это прошлый сезон И позиция 1
             const isChampion = (pos === 1 && season < currentRealYear);
 
             const div = document.createElement('div');
@@ -139,7 +135,7 @@
             if (isChampion) {
                 div.className = 'driver-card champion-card';
                 div.innerHTML = `
-                    <div class="champion-badge">👑 World Champion</div>
+                    <div class="champion-badge">World Champion</div>
                     <div class="pos-box pos-1">1</div>
                     <div class="driver-info">
                         <div class="driver-name" style="color:#ffd700;">${driver.name} ${favIcon}</div>
@@ -155,7 +151,7 @@
                         <div class="driver-name">${driver.name} ${favIcon}</div>
                         <div class="team-name">${driver.code}</div>
                     </div>
-                    <div class="driver-points">${driver.points} PTS</div>
+                    <div class="driver-points">${driver.points}</div>
                 `;
             }
             container.appendChild(div);

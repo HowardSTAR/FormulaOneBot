@@ -74,3 +74,62 @@ async function apiRequest(endpoint, params = {}) {
         throw error;
     }
 }
+
+/* --- ЛОГИКА СВАЙПА "НАЗАД" --- */
+document.addEventListener('DOMContentLoaded', () => {
+    // Не включаем свайп на главной странице
+    if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+        return;
+    }
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    // 1. Начало касания
+    document.addEventListener('touchstart', function(event) {
+        touchStartX = event.changedTouches[0].screenX;
+        touchStartY = event.changedTouches[0].screenY;
+    }, false);
+
+    // 2. Конец касания
+    document.addEventListener('touchend', function(event) {
+        let touchEndX = event.changedTouches[0].screenX;
+        let touchEndY = event.changedTouches[0].screenY;
+
+        handleSwipeGesture(touchStartX, touchStartY, touchEndX, touchEndY);
+    }, false);
+});
+
+function handleSwipeGesture(startX, startY, endX, endY) {
+    // Вычисляем разницу
+    const xDiff = endX - startX;
+    const yDiff = Math.abs(endY - startY);
+
+    // УСЛОВИЯ СВАЙПА:
+    // 1. Жест начался с левого края экрана (первые 50px) - как в iOS
+    const isFromEdge = startX < 50;
+
+    // 2. Движение вправо (xDiff > 0) и достаточно длинное (> 60px)
+    const isSwipeRight = xDiff > 60;
+
+    // 3. Движение было горизонтальным, а не вертикальным (чтобы не путать со скроллом)
+    const isHorizontal = xDiff > (yDiff * 2);
+
+    if (isFromEdge && isSwipeRight && isHorizontal) {
+        // Визуальный эффект (опционально): можно добавить анимацию выезда
+        // Но пока просто переходим назад
+        goBack();
+    }
+}
+
+// Универсальная функция назад
+function goBack() {
+    // Если есть кнопка "Назад" с href, используем её ссылку
+    const backBtn = document.querySelector('.btn-back');
+    if (backBtn && backBtn.getAttribute('href')) {
+        window.location.href = backBtn.getAttribute('href');
+    } else {
+        // Иначе просто на главную
+        window.location.href = 'index.html';
+    }
+}
