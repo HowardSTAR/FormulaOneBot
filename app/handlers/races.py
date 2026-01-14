@@ -15,6 +15,8 @@ from aiogram.types import (
 )
 
 from app.utils.default import SESSION_NAME_RU
+from app.utils.time_tools import format_race_time
+
 from app.utils.image_render import (
     create_results_image,
     create_season_image,
@@ -43,20 +45,16 @@ class RacesYearState(StatesGroup):
     waiting_for_year = State()
 
 
-async def build_next_race_payload(season: int | None = None) -> dict:
+async def build_next_race_payload(season: int | None = None, user_id: int | None = None) -> dict:
     """
     Возвращает инфу о ближайшей гонке как словарь.
     """
     if season is None:
         season = datetime.now().year
 
-    # ИСПРАВЛЕНО: await
     schedule = await get_season_schedule_short_async(season)
     if not schedule:
-        return {
-            "status": "no_schedule",
-            "season": season,
-        }
+        return {"status": "no_schedule", "season": season}
 
     today = date.today()
     future_races = []
@@ -69,35 +67,37 @@ async def build_next_race_payload(season: int | None = None) -> dict:
             future_races.append((race_date, r))
 
     if not future_races:
-        return {
-            "status": "season_finished",
-            "season": season,
-        }
+        return {"status": "season_finished", "season": season}
 
     race_date, r = min(future_races, key=lambda x: x[0])
 
+    # ... (код round_num, event_name, country, location копируем как есть) ...
     round_num = r["round"]
     event_name = r["event_name"]
     country = r["country"]
     location = r["location"]
-
     date_str = race_date.strftime("%d.%m.%Y")
 
     race_start_utc_str = r.get("race_start_utc")
     utc_str: str | None = None
     local_str: str | None = None
 
+    # 👇 НОВАЯ ЛОГИКА ВРЕМЕНИ 👇
     if race_start_utc_str:
-        try:
-            race_start_utc = datetime.fromisoformat(race_start_utc_str)
-            if race_start_utc.tzinfo is None:
-                race_start_utc = race_start_utc.replace(tzinfo=timezone.utc)
+        # 1. Получаем настройки пользователя, если есть user_id
+        user_tz = "Europe/Moscow"  # Дефолт
+        if user_id:
+            # Этой функции нет в твоем коде, её надо добавить в db.py
+            settings = await get_user_settings(user_id)
+            if settings:
+                user_tz = settings.get("timezone", "Europe/Moscow")
 
-            utc_str = race_start_utc.strftime("%d.%m.%Y %H:%M UTC")
-            local_dt = race_start_utc.astimezone(UTC_PLUS_3)
-            local_str = local_dt.strftime("%d.%m.%Y %H:%M МСК")
-        except Exception:
-            pass
+        # 2. Используем нашу функцию format_race_time
+        # Она вернет строку типа "02 марта, 18:00"
+        local_str = format_race_time(race_start_utc_str, user_tz)
+
+        # UTC оставим для справки, если нужно, или уберем
+        utc_str = race_start_utc_str  # Можно просто сырую строку вернуть
 
     return {
         "status": "ok",
@@ -108,7 +108,7 @@ async def build_next_race_payload(season: int | None = None) -> dict:
         "location": location,
         "date": date_str,
         "utc": utc_str,
-        "local": local_str,
+        "local": local_str,  # Теперь это красивое время под юзера
     }
 
 
@@ -147,8 +147,10 @@ async def _send_races_for_year(message: Message, season: int) -> None:
 
 
 async def _send_next_race(message: Message, season: int | None = None) -> None:
-    # ИСПРАВЛЕНО: await
-    payload = await build_next_race_payload(season)
+    user_id = message.from_user.id  # Получаем ID юзера
+
+    # 👇 Передаем user_id в функцию
+    payload = await build_next_race_payload(season, user_id=user_id)
 
     status = payload["status"]
     season = payload["season"]
@@ -205,6 +207,12 @@ async def _send_next_race(message: Message, season: int | None = None) -> None:
                     text="🏁 Гонка",
                     callback_data=f"race_{season}_{round_num}",
                 ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⚙️ Настройки (Время/Уведомления)",
+                    callback_data="cmd_settings"  # Этот callback должен ловить settings.py
+                )
             ],
         ]
     )
