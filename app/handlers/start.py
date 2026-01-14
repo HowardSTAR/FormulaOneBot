@@ -1,44 +1,36 @@
-# app/handlers/start.py
-
-from aiogram import Router
-from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, WebAppInfo
-
-from app.utils.safe_send import safe_answer
+from aiogram import Router, types
+from aiogram.filters import CommandStart
+from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 router = Router()
 
-def get_main_keyboard() -> ReplyKeyboardMarkup:
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(text="Ближайшая гонка"),
-            ],
-            [
-                KeyboardButton(text="Сезон"),
-                KeyboardButton(text="Личный зачет"),
-            ],
-            [
-                KeyboardButton(text="Кубок конструкторов"),
-                KeyboardButton(text="Избранное"),
-            ]
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-    )
-    return keyboard
 
 @router.message(CommandStart())
-async def cmd_start(message: Message) -> None:
-    user_name = message.from_user.full_name
-    text = (
-        f"Привет, {user_name}! 👋\n\n"
-        f"Я — FormulaOneBot, твой карманный паддок Формулы‑1 🏎🔥\n\n"
-        f"Теперь у меня есть удобное мини-приложение! Нажми кнопку ниже, чтобы попробовать.\n"
+async def cmd_start(message: types.Message):
+    # Создаем кнопки главного меню (обычные текстовые кнопки внизу)
+    builder = ReplyKeyboardBuilder()
+    builder.row(types.KeyboardButton(text="Ближайшая гонка"))
+    builder.row(
+        types.KeyboardButton(text="Сезон"),
+        types.KeyboardButton(text="Личный зачет")
     )
-    await safe_answer(message, text, reply_markup=get_main_keyboard())
+    builder.row(
+        types.KeyboardButton(text="Кубок конструкторов"),
+        types.KeyboardButton(text="Избранное")
+    )
 
+    welcome_text = (
+        "🏎 **Добро пожаловать в FormulaOne Hub!**\n\n"
+        "Я твой персональный паддок в Telegram. Здесь всё, что нужно фанату «Королевских гонок»:\n\n"
+        "• 🏁 **Ближайшая гонка**: расписание и обратный отсчет;\n\n"
+        "• 📊 **Результаты**: актуальные таблицы и зачеты;\n\n"
+        "• 📅 **Календарь**: все этапы сезона в твоем кармане;\n\n"
+        "• ⭐ **Избранное**: персонализированные уведомления.\n\n"
+        "**Жми на синюю кнопку «Hub»** для входа в Mini App или выбирай раздел в меню ниже!"
+    )
 
-@router.message(Command("menu"))
-async def cmd_menu(message: Message) -> None:
-    await message.answer("Главное меню:", reply_markup=get_main_keyboard())
+    await message.answer(
+        welcome_text,
+        reply_markup=builder.as_markup(resize_keyboard=True),
+        parse_mode="Markdown"
+    )

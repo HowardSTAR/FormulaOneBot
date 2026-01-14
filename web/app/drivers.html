@@ -42,7 +42,7 @@
     <h2>Личный зачет</h2>
 
     <div class="search-container">
-        <input type="number" id="year-input" class="search-input" placeholder="Год" inputmode="numeric">
+        <input type="number" id="year-input" class="search-input" placeholder="Введите год" inputmode="numeric">
         <button class="search-btn" onclick="handleSearch()">🔍</button>
         <button id="current-year-btn" class="current-year-btn" onclick="goCurrentYear()">2026</button>
     </div>
@@ -59,7 +59,6 @@
     document.addEventListener('DOMContentLoaded', async () => {
         initTelegram();
         document.getElementById('current-year-btn').textContent = currentRealYear;
-        document.getElementById('year-input').value = currentRealYear;
 
         await loadDrivers(currentRealYear);
 

@@ -64,7 +64,7 @@ async def _build_drivers_keyboard(telegram_id: int) -> tuple[InlineKeyboardMarku
             if not code: continue
 
             is_selected = code in fav_set
-            btn_text = f"{'✅ ' if is_selected else ''}{full_name}"
+            btn_text = f"{'⭐ ' if is_selected else ''}{full_name}"
 
             builder.button(text=btn_text, callback_data=f"toggle_driver_{code}")
         except:
