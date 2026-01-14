@@ -7,14 +7,15 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
     <style>
-        /* Те же стили, что и у пилотов */
         .team-card {
             display: flex; align-items: center; background: var(--surface-color);
             border-bottom: 1px solid var(--border-color); padding: 12px 16px;
+            margin-bottom: 0; /* Сброс для списка */
         }
         .team-card:first-child { border-top-left-radius: 12px; border-top-right-radius: 12px; }
         .team-card:last-child { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; border-bottom: none; }
 
+        /* Особые стили для чемпиона заданы в styles.css, здесь только скругление */
         .champion-card { border-radius: 12px !important; border-bottom: 1px solid #ffd700 !important; }
 
         .pos-box { width: 30px; font-weight: 800; font-size: 16px; color: var(--text-secondary); text-align: center; margin-right: 12px; }
@@ -26,7 +27,6 @@
         .team-name-main { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 6px; }
         .team-points { background: rgba(255, 255, 255, 0.1); padding: 6px 10px; border-radius: 8px; font-weight: 700; font-size: 14px; min-width: 50px; text-align: center; }
 
-        /* Поиск */
         .search-container { display: flex; gap: 8px; margin-bottom: 16px; }
         .search-input { flex: 1; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 12px 16px; color: var(--text-primary); font-size: 16px; font-weight: 600; outline: none; }
         .search-input:focus { border-color: var(--primary); }
@@ -85,7 +85,6 @@
             return;
         }
         if (year < 1958) {
-            // Кубок конструкторов появился в 1958 (позже чем личный зачет)
             container.innerHTML = `<div class="empty-state"><span class="empty-icon">📜</span><div class="empty-title">Исторический факт</div><div class="empty-desc">Кубок Конструкторов разыгрывается только с 1958 года.</div></div>`;
             return;
         }
@@ -135,7 +134,7 @@
             if (isChampion) {
                 div.className = 'team-card champion-card';
                 div.innerHTML = `
-                    <div class="champion-badge">Constructors Champion</div>
+                    <div class="champion-badge">👑 Constructors Champion</div>
                     <div class="pos-box pos-1">1</div>
                     <div class="team-info">
                         <div class="team-name-main" style="color:#ffd700;">${team.name} ${favIcon}</div>

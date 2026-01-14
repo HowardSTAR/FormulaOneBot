@@ -7,104 +7,45 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
     <style>
-        /* Стили переключателя табов */
-        .tabs {
-            display: flex;
-            background: var(--surface-color);
-            padding: 4px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            border: 1px solid var(--border-color);
-        }
+        .tabs { display: flex; background: var(--surface-color); padding: 4px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); }
+        .tab-btn { flex: 1; padding: 10px; text-align: center; border-radius: 8px; color: var(--text-secondary); font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+        .tab-btn.active { background: var(--primary); color: white; box-shadow: 0 2px 8px rgba(225, 6, 0, 0.4); }
 
-        .tab-btn {
-            flex: 1;
-            padding: 10px;
-            text-align: center;
-            border-radius: 8px;
-            color: var(--text-secondary);
-            font-weight: 600;
-            font-size: 14px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .tab-btn.active {
-            background: var(--primary);
-            color: white;
-            box-shadow: 0 2px 8px rgba(225, 6, 0, 0.4);
-        }
-
-        /* Сетка для карточек выбора */
-        .grid-select {
-            display: grid;
-            grid-template-columns: 1fr 1fr; /* 2 колонки */
-            gap: 12px;
-        }
-
+        .grid-select { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .select-item {
-            background: var(--surface-color);
-            border: 1px solid var(--border-color);
+            background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px;
+            text-align: center; cursor: pointer; position: relative; transition: all 0.2s;
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+        }
+        .select-item:active { transform: scale(0.96); }
+        .select-item.selected { border-color: var(--primary); background: rgba(225, 6, 0, 0.1); }
+        .select-item.selected .check-icon { opacity: 1; transform: scale(1); }
+
+        .item-name { font-weight: 600; font-size: 14px; line-height: 1.3; }
+        .item-code { font-size: 12px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; }
+        .check-icon { position: absolute; top: 8px; right: 8px; color: var(--primary); opacity: 0; transform: scale(0.5); transition: all 0.2s; font-size: 16px; }
+
+        /* Стиль для предупреждения о межсезонье */
+        .season-warning {
+            grid-column: 1 / -1;
+            background: rgba(255, 152, 0, 0.1);
+            border: 1px solid rgba(255, 152, 0, 0.3);
             border-radius: 12px;
             padding: 16px;
-            text-align: center;
-            cursor: pointer;
-            position: relative;
-            transition: all 0.2s;
+            margin-bottom: 8px;
             display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 12px;
         }
-
-        .select-item:active {
-            transform: scale(0.96);
-        }
-
-        /* Состояние "Выбрано" */
-        .select-item.selected {
-            border-color: var(--primary);
-            background: rgba(225, 6, 0, 0.1);
-        }
-
-        .select-item.selected .check-icon {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        .item-name {
-            font-weight: 600;
-            font-size: 14px;
-            line-height: 1.3;
-        }
-
-        .item-code {
-            font-size: 12px;
-            color: var(--text-secondary);
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        /* Галочка */
-        .check-icon {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            color: var(--primary);
-            opacity: 0;
-            transform: scale(0.5);
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            font-size: 16px;
-        }
+        .warning-icon { font-size: 24px; }
+        .warning-text { font-size: 13px; color: #ffb74d; line-height: 1.4; text-align: left; }
+        .warning-title { font-weight: 700; color: #ffa726; margin-bottom: 2px; }
     </style>
 </head>
 <body>
 <div class="root">
 
-    <a href="index.html" class="btn-back">
-        ⬅️ <span>Главное меню</span>
-    </a>
-
+    <a href="index.html" class="btn-back">⬅️ <span>Главное меню</span></a>
     <h2>Избранное</h2>
     <p style="margin-bottom: 20px;">Выбери пилотов и команды для отслеживания:</p>
 
@@ -125,10 +66,15 @@
 
 <script src="/static/js/common.js"></script>
 <script>
-    // Глобальные переменные для хранения состояния
     let driversList = [];
     let teamsList = [];
     let userFavorites = { drivers: [], teams: [] };
+
+    // Флаги устаревших данных
+    let driversOutdated = false;
+    let teamsOutdated = false;
+    let displayYearDrivers = 0;
+    let displayYearTeams = 0;
 
     document.addEventListener('DOMContentLoaded', async () => {
         initTelegram();
@@ -137,18 +83,36 @@
 
     async function loadAllData() {
         try {
-            // 1. Параллельно загружаем списки и текущее избранное
-            const [driversData, teamsData, favoritesData] = await Promise.all([
-                apiRequest('/api/drivers'),
-                apiRequest('/api/constructors'),
-                apiRequest('/api/favorites')
-            ]);
+            const currentYear = new Date().getFullYear();
 
-            driversList = driversData.drivers || [];
-            teamsList = teamsData.constructors || [];
+            // 1. Загружаем текущее избранное
+            const favoritesData = await apiRequest('/api/favorites');
             userFavorites.drivers = favoritesData.drivers || [];
             userFavorites.teams = favoritesData.teams || [];
 
+            // 2. ПИЛОТЫ: Пробуем текущий год -> Если нет, прошлый
+            let driversData = await apiRequest('/api/drivers', { season: currentYear });
+            if (!driversData.drivers || driversData.drivers.length === 0) {
+                displayYearDrivers = currentYear - 1;
+                driversData = await apiRequest('/api/drivers', { season: displayYearDrivers });
+                driversOutdated = true;
+            } else {
+                displayYearDrivers = currentYear;
+            }
+            driversList = driversData.drivers || [];
+
+            // 3. КОМАНДЫ: Пробуем текущий год -> Если нет, прошлый
+            let teamsData = await apiRequest('/api/constructors', { season: currentYear });
+            if (!teamsData.constructors || teamsData.constructors.length === 0) {
+                 displayYearTeams = currentYear - 1;
+                 teamsData = await apiRequest('/api/constructors', { season: displayYearTeams });
+                 teamsOutdated = true;
+            } else {
+                 displayYearTeams = currentYear;
+            }
+            teamsList = teamsData.constructors || [];
+
+            // 4. Отрисовка
             renderDrivers();
             renderTeams();
 
@@ -158,18 +122,35 @@
         }
     }
 
+    // Генерация HTML для предупреждения
+    function getWarningHTML(year) {
+        return `
+            <div class="season-warning">
+                <div class="warning-icon">⚠️</div>
+                <div class="warning-text">
+                    <div class="warning-title">Межсезонье</div>
+                    Список на новый сезон еще не утвержден.<br>Показываем составы ${year} года.
+                </div>
+            </div>
+        `;
+    }
+
     function renderDrivers() {
         const container = document.getElementById('drivers-container');
         container.innerHTML = '';
 
+        // Если данные старые — добавляем плашку
+        if (driversOutdated) {
+            container.innerHTML += getWarningHTML(displayYearDrivers);
+        }
+
         if (driversList.length === 0) {
-            container.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">Список пилотов пуст</div>';
+            container.innerHTML += '<div style="grid-column: 1/-1; text-align: center;">Список пилотов пуст</div>';
             return;
         }
 
         driversList.forEach(driver => {
             const isFav = userFavorites.drivers.includes(driver.code);
-
             const div = document.createElement('div');
             div.className = `select-item ${isFav ? 'selected' : ''}`;
             div.onclick = () => toggleDriver(driver.code, div);
@@ -187,14 +168,18 @@
         const container = document.getElementById('teams-container');
         container.innerHTML = '';
 
+        // Если данные старые — добавляем плашку (как просил!)
+        if (teamsOutdated) {
+            container.innerHTML += getWarningHTML(displayYearTeams);
+        }
+
         if (teamsList.length === 0) {
-            container.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">Список команд пуст</div>';
+            container.innerHTML += '<div style="grid-column: 1/-1; text-align: center;">Список команд пуст</div>';
             return;
         }
 
         teamsList.forEach(team => {
             const isFav = userFavorites.teams.includes(team.name);
-
             const div = document.createElement('div');
             div.className = `select-item ${isFav ? 'selected' : ''}`;
             div.onclick = () => toggleTeam(team.name, div);
@@ -207,69 +192,53 @@
         });
     }
 
-    // --- Логика переключения ---
-
+    // --- Логика кликов ---
     async function toggleDriver(code, element) {
-        // Оптимистичное обновление UI (сразу меняем цвет)
         element.classList.toggle('selected');
-
-        // Вибрация (Haptic Feedback)
         if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
-
         try {
+            // Используем fetch для надежности
             await fetch(new URL(API_BASE + '/api/favorites/driver', window.location.origin), {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Telegram-Init-Data': getInitData()
-                },
+                headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': getInitData() },
                 body: JSON.stringify({ id: code })
             });
-            // Не обновляем весь список, чтобы не дергалось.
-            // Если ошибка - вернем как было (в catch)
         } catch (error) {
-            console.error('Ошибка сохранения', error);
+            console.error(error);
             element.classList.toggle('selected'); // Откат
-            alert('Ошибка связи с сервером');
         }
     }
 
     async function toggleTeam(name, element) {
         element.classList.toggle('selected');
         if (tg && tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
-
         try {
             await fetch(new URL(API_BASE + '/api/favorites/team', window.location.origin), {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Telegram-Init-Data': getInitData()
-                },
+                headers: { 'Content-Type': 'application/json', 'X-Telegram-Init-Data': getInitData() },
                 body: JSON.stringify({ id: name })
             });
         } catch (error) {
-            console.error('Ошибка сохранения', error);
-            element.classList.toggle('selected'); // Откат
-            alert('Ошибка связи с сервером');
+            console.error(error);
+            element.classList.toggle('selected');
         }
     }
 
-    // --- Переключение табов ---
     window.switchTab = function(tabName) {
         const btns = document.querySelectorAll('.tab-btn');
-        const driverContainer = document.getElementById('drivers-container');
-        const teamContainer = document.getElementById('teams-container');
+        const dContainer = document.getElementById('drivers-container');
+        const tContainer = document.getElementById('teams-container');
 
         btns.forEach(btn => btn.classList.remove('active'));
 
         if (tabName === 'drivers') {
             btns[0].classList.add('active');
-            driverContainer.style.display = 'grid';
-            teamContainer.style.display = 'none';
+            dContainer.style.display = 'grid';
+            tContainer.style.display = 'none';
         } else {
             btns[1].classList.add('active');
-            driverContainer.style.display = 'none';
-            teamContainer.style.display = 'grid';
+            dContainer.style.display = 'none';
+            tContainer.style.display = 'grid';
         }
     }
 </script>
