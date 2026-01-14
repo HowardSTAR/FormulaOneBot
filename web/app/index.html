@@ -6,99 +6,207 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .section-title {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin: 24px 0 8px 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+        }
+        .hero-btn {
+            background: linear-gradient(135deg, var(--primary), #b00500);
+            color: white;
+            padding: 20px;
+            font-size: 18px;
+            border: none;
+            box-shadow: 0 8px 20px rgba(225, 6, 0, 0.3);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        /* Старый стиль hero-sub оставляем как базу, но контент будем менять через JS */
+        .hero-sub {
+            font-size: 13px;
+            opacity: 0.9;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+        .hero-title {
+            font-size: 20px;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+        .hero-date {
+            font-size: 14px;
+            background: rgba(0,0,0,0.2);
+            padding: 4px 10px;
+            border-radius: 20px;
+            margin-top: 4px;
+        }
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* Добавим стиль для таймера тут же, чтобы не потерялся */
+        .hero-timer {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 6px 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: fadeIn 0.5s ease-out;
+        }
+    </style>
 </head>
 <body>
 <div class="root">
 
-    <div class="hero">
-        <h1 id="title">F1 Hub</h1>
-        <p id="user-info">Загрузка...</p>
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+        <h2 style="margin:0;">F1 Hub 🏁</h2>
     </div>
+
+    <a href="next-race.html" class="btn hero-btn" id="hero-btn">
+        <div class="hero-sub" id="hero-sub">БЛИЖАЙШИЙ ЭТАП</div>
+
+        <div id="hero-title" class="hero-title">Загрузка...</div>
+        <div id="hero-date" class="hero-date">--.--</div>
+
+        <div id="hero-timer" class="hero-timer" style="display: none;">
+            <span style="font-size:12px; opacity:0.8; margin-right:4px;">До старта по МСК:</span>
+            <span id="timer-val" style="font-family: monospace; font-weight: 700;">--:--:--</span>
+        </div>
+    </a>
+
+    <div class="section-title">Последний этап</div>
+    <div class="results-grid">
+        <a href="race-results.html" class="menu-item">
+            <span class="menu-icon">🏁</span>
+            <span class="menu-label">Гонка</span>
+        </a>
+        <a href="quali-results.html" class="menu-item">
+            <span class="menu-icon">⏱</span>
+            <span class="menu-label">Квала</span>
+        </a>
+    </div>
+
+    <div class="section-title" id="season-title">Сезон</div>
 
     <div class="menu-grid">
-        <a href="next-race.html" class="menu-item full-width">
-            <div style="text-align: left;">
-                <span style="font-size: 12px; color: var(--primary); text-transform: uppercase; font-weight: 700;">
-                    Next Race
-                </span>
-                <div class="menu-label" id="next-race-name">Загрузка...</div>
-                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;" id="next-race-date">
-                    </div>
-            </div>
-            <div class="menu-icon">🏁</div>
-        </a>
-
-        <a href="season.html" class="menu-item">
-            <div class="menu-icon">📅</div>
-            <div class="menu-label">Календарь</div>
-        </a>
-
         <a href="drivers.html" class="menu-item">
-            <div class="menu-icon">👤</div>
-            <div class="menu-label">Пилоты</div>
+            <span class="menu-icon">👤</span>
+            <span class="menu-label">Пилоты</span>
         </a>
-
         <a href="constructors.html" class="menu-item">
-            <div class="menu-icon">🏎</div>
-            <div class="menu-label">Команды</div>
+            <span class="menu-icon">🛠</span>
+            <span class="menu-label">Команды</span>
         </a>
-
-        <a href="favorites.html" class="menu-item">
-            <div class="menu-icon">⭐</div>
-            <div class="menu-label">Избранное</div>
+        <a href="season.html" class="menu-item full-width" style="flex-direction: row; justify-content: space-between; padding: 16px 24px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span class="menu-icon">📅</span>
+                <span class="menu-label">Календарь</span>
+            </div>
+            <span>➜</span>
         </a>
     </div>
+
+    <div class="section-title">Моё</div>
+    <a href="favorites.html" class="menu-item full-width" style="flex-direction: row; justify-content: space-between; padding: 16px 24px; border-color: rgba(255, 215, 0, 0.3);">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span class="menu-icon">⭐</span>
+            <span class="menu-label" style="color: #ffd700;">Избранное</span>
+        </div>
+        <span style="color: #ffd700;">➜</span>
+    </a>
 
 </div>
 
 <script src="/static/js/common.js"></script>
 <script>
+    let timerInterval;
+
     document.addEventListener('DOMContentLoaded', async () => {
         initTelegram();
 
-        // 1. Приветствие пользователя
-        const userInfoEl = document.getElementById('user-info');
-        const userInfo = getUserInfo();
-        if (userInfo && userInfo.first_name) {
-            userInfoEl.textContent = `Привет, ${userInfo.first_name}! 👋`;
-        } else {
-            userInfoEl.textContent = "Твой паддок Формулы-1 🏎";
-        }
+        // 1. АВТОМАТИЧЕСКИЙ ГОД
+        const currentYear = new Date().getFullYear();
+        document.getElementById('season-title').textContent = `Сезон ${currentYear}`;
 
-        // 2. Анимация меню
-        const items = document.querySelectorAll('.menu-item');
-        items.forEach((item, index) => {
-            item.style.opacity = '0';
-            item.style.transform = 'translateY(10px)';
-            item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-            setTimeout(() => {
-                item.style.opacity = '1';
-                item.style.transform = 'translateY(0)';
-            }, 50 * index);
-        });
-
-        // 3. Загрузка названия следующей гонки для кнопки
+        // 2. ЗАГРУЗКА ГОНКИ
         try {
-            // Делаем запрос к API
             const data = await apiRequest('/api/next-race');
+            const titleEl = document.getElementById('hero-title');
+            const dateEl = document.getElementById('hero-date');
+            const subEl = document.getElementById('hero-sub');
+            const timerBlock = document.getElementById('hero-timer');
+            const timerVal = document.getElementById('timer-val');
 
-            const nameEl = document.getElementById('next-race-name');
-            const dateEl = document.getElementById('next-race-date');
+            if (data.status === 'ok') {
+                titleEl.textContent = data.event_name;
 
-            if (data && data.event_name) {
-                // Если гонка известна
-                nameEl.textContent = data.event_name;
-                dateEl.textContent = `${data.country} • ${data.date}`;
+                if (data.local) {
+                     dateEl.textContent = data.local.split(' ')[0];
+                } else {
+                     dateEl.textContent = data.date;
+                }
+
+                // --- ОБНОВЛЕННАЯ ЛОГИКА ОТОБРАЖЕНИЯ СЕССИИ ---
+                if (data.next_session_iso && data.next_session_name) {
+                    // Используем новый класс .session-badge вместо эмодзи
+                    subEl.innerHTML = `<span class="session-badge">${data.next_session_name}</span>`;
+
+                    const targetTime = new Date(data.next_session_iso).getTime();
+                    timerBlock.style.display = 'block';
+
+                    function updateTimer() {
+                        const now = new Date().getTime();
+                        const distance = targetTime - now;
+
+                        if (distance < 0) {
+                            clearInterval(timerInterval);
+                            // Если сессия идет, показываем LIVE
+                            subEl.innerHTML = `<span class="session-badge" style="background: white; color: #e10600;">LIVE: ${data.next_session_name}</span>`;
+                            timerVal.textContent = "СЕССИЯ ИДЕТ";
+                            return;
+                        }
+
+                        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                        let text = "";
+                        if (days > 0) text += `${days}д `;
+                        text += `${hours}ч ${minutes}м ${seconds}с`;
+
+                        timerVal.textContent = text;
+                    }
+
+                    updateTimer();
+                    timerInterval = setInterval(updateTimer, 1000);
+                } else {
+                    // Если таймера нет (например, все сессии прошли, но статус не finished)
+                    subEl.textContent = "БЛИЖАЙШИЙ ЭТАП";
+                }
+
             } else if (data.status === 'season_finished') {
-                nameEl.textContent = "Сезон завершен";
-                dateEl.textContent = "До встречи в следующем году!";
+                titleEl.textContent = "Сезон завершен";
+                dateEl.style.display = 'none';
+                subEl.textContent = "ДО ВСТРЕЧИ В 2027!";
             } else {
-                nameEl.textContent = "Нет данных";
-                dateEl.textContent = "";
+                titleEl.textContent = "Нет расписания";
+                dateEl.style.display = 'none';
             }
-        } catch (error) {
-            console.error("Ошибка загрузки инфо о гонке:", error);
-            document.getElementById('next-race-name').textContent = "Ошибка данных";
+        } catch (e) {
+            console.error(e);
+            document.getElementById('hero-title').textContent = "Ближайшая гонка";
         }
     });
 </script>

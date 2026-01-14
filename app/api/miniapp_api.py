@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from pathlib import Path
 
@@ -18,7 +18,7 @@ from app.f1_data import (
     get_season_schedule_short_async,
     get_weekend_schedule,
     get_driver_standings_async,
-    get_constructor_standings_async,
+    get_constructor_standings_async, _get_latest_quali_async, get_race_results_async,
 )
 from app.db import (
     get_favorite_drivers, get_favorite_teams,
@@ -55,8 +55,105 @@ if STATIC_DIR.exists():
 
 @web_app.get("/api/next-race")
 async def api_next_race(season: Optional[int] = None):
-    """Информация о ближайшей гонке."""
+    """Информация о ближайшей гонке + таймер (исправленная версия)."""
     data = await build_next_race_payload(season)
+
+    if data.get("status") != "ok":
+        return data
+
+    try:
+        current_season = data["season"]
+        round_num = data["round"]
+
+        # Загружаем расписание
+        sessions = await asyncio.to_thread(get_weekend_schedule, current_season, round_num)
+
+        if not sessions:
+            print(f"DEBUG: Сессии не найдены.")
+            return data
+
+        now_utc = datetime.now(timezone.utc)
+        sorted_sessions = []
+
+        print(f"DEBUG: Найдено {len(sessions)} сессий. Парсим...")
+
+        for s in sessions:
+            dt = None
+
+            # --- ВАРИАНТ 1: Если есть готовый объект datetime ---
+            if isinstance(s.get("date"), datetime):
+                dt = s["date"]
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+
+            # --- ВАРИАНТ 2: Парсим 'utc' (если там полная дата) ---
+            elif s.get("utc") and len(str(s["utc"])) > 12:
+                try:
+                    clean_str = str(s["utc"]).replace(" UTC", "").replace("Z", "").strip()
+                    dt = datetime.strptime(clean_str, "%d.%m.%Y %H:%M")
+                    dt = dt.replace(tzinfo=timezone.utc)
+                except:
+                    pass
+
+            # --- ВАРИАНТ 3: Парсим 'local' (Там точно есть дата!) ---
+            # Формат: "06.03.2026 04:30 MCK" или просто "06.03.2026 04:30"
+            if dt is None and s.get("local"):
+                local_str = str(s["local"])
+                try:
+                    # Берем первые две части: "06.03.2026 04:30"
+                    # split(' ') разбивает по пробелам. Берем [0] и [1] и соединяем.
+                    parts = local_str.split()
+                    if len(parts) >= 2:
+                        date_time_str = f"{parts[0]} {parts[1]}"  # "06.03.2026 04:30"
+
+                        # Парсим как Московское время
+                        dt_msk = datetime.strptime(date_time_str, "%d.%m.%Y %H:%M")
+
+                        # Руками вычитаем 3 часа, чтобы получить UTC
+                        # (так надежнее, чем возиться с pytz)
+                        dt = dt_msk - timedelta(hours=3)
+                        dt = dt.replace(tzinfo=timezone.utc)
+                except Exception as e:
+                    print(f"DEBUG: Ошибка парсинга local '{local_str}': {e}")
+                    pass
+
+            if dt:
+                sorted_sessions.append({
+                    "name": s.get("name", "Session"),
+                    "dt": dt
+                })
+            else:
+                # Если все варианты не сработали
+                print(f"DEBUG: Пропускаем сессию, нет полной даты. Raw: utc='{s.get('utc')}', local='{s.get('local')}'")
+
+        # Сортируем и ищем ближайшую
+        sorted_sessions.sort(key=lambda x: x["dt"])
+
+        next_session = None
+        for s in sorted_sessions:
+            if s["dt"] > now_utc:
+                next_session = s
+                break
+
+        if next_session:
+            name_map = {
+                "Practice 1": "Практика 1",
+                "Practice 2": "Практика 2",
+                "Practice 3": "Практика 3",
+                "Qualifying": "Квалификация",
+                "Sprint": "Спринт",
+                "Sprint Qualifying": "Спринт-квалификация",
+                "Race": "Гонка",
+            }
+            ru_name = name_map.get(next_session["name"], next_session["name"])
+
+            data["next_session_name"] = ru_name
+            data["next_session_iso"] = next_session["dt"].strftime("%Y-%m-%dT%H:%M:%SZ")
+            print(f"DEBUG: Таймер установлен на: {ru_name} -> {data['next_session_iso']}")
+
+    except Exception as e:
+        print(f"ERROR: {e}")
+
     return data
 
 
@@ -272,6 +369,116 @@ async def toggle_favorite_team(
     else:
         await add_favorite_team(user_id, item.id)
         return {"status": "added", "id": item.id}
+
+
+# --- РЕЗУЛЬТАТЫ ПОСЛЕДНЕГО ГРАН-ПРИ ---
+
+@web_app.get("/api/race-results")
+async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)):
+    """Возвращает результаты последней прошедшей гонки."""
+    season = datetime.now().year
+
+    # 1. Ищем последний прошедший этап
+    schedule = await get_season_schedule_short_async(season)
+    today = datetime.now().date()
+
+    past_races = []
+    for r in schedule:
+        try:
+            r_date = datetime.strptime(r["date"], "%Y-%m-%d").date()
+            if r_date < today:
+                past_races.append(r)
+        except:
+            continue
+
+    if not past_races:
+        # Если в этом сезоне гонок еще не было, можно попробовать вернуть прошлый год
+        # Но пока просто вернем пустой статус
+        return {"results": [], "race_info": None}
+
+    last_race = past_races[-1]  # Последняя гонка
+    round_num = last_race["round"]
+
+    # 2. Получаем результаты
+    df = await get_race_results_async(season, round_num)
+
+    if df is None or df.empty:
+        return {"results": [], "race_info": None}
+
+    # 3. Избранное пользователя
+    fav_drivers = set()
+    fav_teams = set()
+    if user_id:
+        fav_drivers = set(await get_favorite_drivers(user_id))
+        fav_teams = set(await get_favorite_teams(user_id))
+
+    # 4. Формируем ответ
+    results = []
+    if "Position" in df.columns:
+        df = df.sort_values("Position")
+
+    for row in df.itertuples(index=False):
+        try:
+            pos = int(getattr(row, "Position", 0))
+            code = getattr(row, "Abbreviation", "") or getattr(row, "DriverNumber", "")
+            # Имя
+            given = getattr(row, "FirstName", "")
+            family = getattr(row, "LastName", "")
+            full_name = f"{given} {family}"
+            team = getattr(row, "TeamName", "")
+            points = float(getattr(row, "Points", 0))
+
+            results.append({
+                "position": pos,
+                "code": code,
+                "name": full_name,
+                "team": team,
+                "points": points,
+                "is_favorite_driver": code in fav_drivers,
+                "is_favorite_team": team in fav_teams
+            })
+        except:
+            continue
+
+    return {
+        "season": season,
+        "round": round_num,
+        "race_info": last_race,
+        "results": results
+    }
+
+
+@web_app.get("/api/quali-results")
+async def api_quali_results():
+    """Возвращает результаты последней квалификации."""
+    season = datetime.now().year
+
+    # Функция _get_latest_quali_async сама ищем последний этап с данными
+    data = await _get_latest_quali_async(season)
+    if not data:
+        return {"results": [], "race_info": None}
+
+    round_num, q_results = data
+
+    # Получим инфо о трассе для красоты
+    schedule = await get_season_schedule_short_async(season)
+    race_info = next((r for r in schedule if r["round"] == round_num), None)
+
+    results = []
+    for r in q_results:
+        results.append({
+            "position": r["position"],
+            "driver": r["driver"],  # Code (VER)
+            "name": r.get("name", ""),
+            "best": r.get("best", "-")
+        })
+
+    return {
+        "season": season,
+        "round": round_num,
+        "race_info": race_info,
+        "results": results
+    }
 
 
 # --- Обслуживание HTML (Static) ---

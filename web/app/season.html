@@ -57,7 +57,9 @@
 </head>
 <body>
 <div class="root">
-    <a href="index.html" class="btn-back">⬅️ <span>Главное меню</span></a>
+    <a href="index.html" class="btn-back">
+        ← <span>Главное меню</span>
+    </a>
     <h2>Календарь</h2>
 
     <div class="search-container">
@@ -82,8 +84,6 @@
         const yearBtn = document.getElementById('current-year-btn');
         yearBtn.textContent = currentRealYear;
 
-        // Стартуем с текущего года
-        document.getElementById('year-input').value = currentRealYear;
         await loadCalendar(currentRealYear);
 
         document.getElementById('year-input').addEventListener("keypress", function(event) {
