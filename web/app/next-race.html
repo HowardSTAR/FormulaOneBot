@@ -6,6 +6,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        /* Стили для того, чтобы 8 марта было в одну строку */
+        #race-time-local {
+            white-space: nowrap;
+            text-transform: lowercase; /* марта с маленькой буквы, если нужно */
+        }
+    </style>
 </head>
 <body>
 <div class="root">
@@ -20,8 +27,8 @@
     <div class="card">
         <div style="text-align: center;">
             <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">СТАРТ ГОНКИ</div>
-            <div id="race-time-local" style="font-size: 24px; font-weight: 800; color: var(--primary);">--:--</div>
-            <div id="race-date" style="font-size: 16px; margin-top: 4px;">--.--.----</div>
+            <div id="race-time-local" style="font-size: 24px; font-weight: 800; color: var(--primary);">--</div>
+            <div id="race-date" style="font-size: 16px; margin-top: 4px;">--:--</div>
         </div>
     </div>
 
@@ -37,89 +44,104 @@
 
 <script src="/static/js/common.js"></script>
 <script>
+    // Функция: "08.03.2026" -> "8 марта"
+    function formatRusDate(dateStr) {
+        if (!dateStr || typeof dateStr !== 'string') return dateStr;
+        const parts = dateStr.split('.');
+        if (parts.length < 2) return dateStr;
+
+        const day = parseInt(parts[0], 10);
+        const monthIndex = parseInt(parts[1], 10);
+
+        const months = ["", "января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+
+        return `${day} ${months[monthIndex] || parts[1]}`;
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
-        initTelegram(); // Инициализация WebApp
+        initTelegram();
 
         const listEl = document.getElementById('weekend-list');
         const titleEl = document.getElementById('race-title');
         const locEl = document.getElementById('race-location');
-        const timeEl = document.getElementById('race-time-local');
-        const dateEl = document.getElementById('race-date');
+        const bigTextEl = document.getElementById('race-time-local');
+        const smallTextEl = document.getElementById('race-date');
 
         try {
-            // 1. Получаем инфо о гонке
             const raceData = await apiRequest('/api/next-race');
 
-            if (raceData.status === 'season_finished') {
-                titleEl.textContent = "Сезон завершен";
-                locEl.textContent = "";
-                listEl.innerHTML = '<div style="padding:20px; text-align:center;">Гонки закончились 🏁</div>';
-                return;
-            }
-
             if (raceData.status !== 'ok') {
-                titleEl.textContent = "Нет расписания";
+                titleEl.textContent = raceData.status === 'season_finished' ? "Сезон завершен" : "Нет данных";
                 listEl.innerHTML = '';
                 return;
             }
 
-            // Заполняем шапку
             titleEl.textContent = raceData.event_name;
             locEl.textContent = `${raceData.country}, ${raceData.location}`;
 
-            // Время старта (из строки "local" формата "DD.MM.YYYY HH:MM МСК")
-            // Или используем UTC и форматируем сами.
-            // raceData.local приходит готовым от бота (см. races.py)
-            if (raceData.local) {
-                // raceData.local = "15.03.2025 18:00 МСК"
+            // --- ЗАПОЛНЕНИЕ КАРТОЧКИ СТАРТА ---
+            // Ожидаем local = "08.03.2026 07:00"
+            if (raceData.local && raceData.local.includes(' ')) {
                 const parts = raceData.local.split(' ');
-                dateEl.textContent = parts[0];
-                timeEl.textContent = parts[1];
+                const datePart = parts[0]; // "08.03.2026"
+                const timePart = parts[1]; // "07:00"
+
+                bigTextEl.textContent = formatRusDate(datePart); // "8 марта"
+                smallTextEl.textContent = timePart;              // "07:00"
             } else {
-                dateEl.textContent = raceData.date;
-                timeEl.textContent = "TBA";
+                bigTextEl.textContent = raceData.date || "TBA";
+                smallTextEl.textContent = "";
             }
 
-            // 2. Получаем подробное расписание сессий
-            // Нам нужен season и round
-            const season = raceData.season;
-            const round = raceData.round;
-
-            // Запрашиваем расписание уикенда
+            // --- РАСПИСАНИЕ УИКЕНДА ---
             const scheduleData = await apiRequest('/api/weekend-schedule', {
-                season: season,
-                round_number: round
+                season: raceData.season,
+                round_number: raceData.round
             });
 
-            // Очищаем лоадер
             listEl.innerHTML = '';
 
             if (scheduleData && scheduleData.sessions && scheduleData.sessions.length > 0) {
                 scheduleData.sessions.forEach(session => {
                     const item = document.createElement('div');
-                    item.className = 'standings-item'; // Используем тот же стиль карточки
+                    item.className = 'standings-item';
 
-                    // Стиль для времени делаем чуть ярче
+                    let sessionTime = "--:--";
+                    let sessionDate = "--.--";
+
+                    // Парсинг строки "06.03.2026 04:30"
+                    // ВАЖНО: Теперь мы точно знаем формат из f1_data.py
+                    if (session.local) {
+                        const parts = session.local.split(' ');
+                        if (parts.length >= 2) {
+                            sessionDate = parts[0].slice(0, 5); // "06.03"
+                            sessionTime = parts[1];             // "04:30"
+                        } else {
+                            sessionTime = session.local;
+                        }
+                    } else if (session.utc) {
+                        sessionTime = session.utc;
+                    }
+
                     item.innerHTML = `
                         <div class="standings-info">
                             <div class="standings-name" style="font-size: 16px;">${session.name}</div>
                             <div class="standings-code" style="color: var(--text-secondary); margin-top: 4px;">
-                                <span style="color: var(--primary); font-weight: 700;">${session.time}</span>
+                                <span style="color: var(--primary); font-weight: 700;">${sessionTime}</span>
                                 <span style="margin: 0 6px; opacity: 0.3;">|</span>
-                                ${session.date}
+                                ${sessionDate}
                             </div>
                         </div>
                     `;
                     listEl.appendChild(item);
                 });
             } else {
-                listEl.innerHTML = '<div style="padding:20px; text-align:center;">Нет детального расписания</div>';
+                listEl.innerHTML = '<div style="padding:20px; text-align:center;">Нет расписания</div>';
             }
 
         } catch (error) {
             console.error(error);
-            titleEl.textContent = "Ошибка";
-            listEl.innerHTML = `<div style="color:red; text-align:center;">Не удалось загрузить данные.<br>${error.message}</div>`;
+            titleEl.textContent = "Ошибка загрузки";
         }
     });
 </script>

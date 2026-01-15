@@ -6,17 +6,16 @@ RU_MONTHS = {
     7: 'июля', 8: 'августа', 9: 'сентября', 10: 'октября', 11: 'ноября', 12: 'декабря'
 }
 
-
 def format_race_time(utc_time_str: str, user_timezone_str: str = "Europe/Moscow") -> str:
     """
-    Принимает UTC строку, возвращает: "08 марта, 18:00 (UTC+3)"
+    Принимает UTC строку.
+    Возвращает: "08 марта 18:00 (UTC+3)" (без запятой)
     """
     if not utc_time_str:
         return "Время не определено"
 
     try:
         utc_dt = datetime.fromisoformat(utc_time_str.replace("Z", "+00:00"))
-        # Если вдруг tzinfo нет, ставим UTC
         if utc_dt.tzinfo is None:
             utc_dt = utc_dt.replace(tzinfo=pytz.utc)
     except ValueError:
@@ -27,24 +26,21 @@ def format_race_time(utc_time_str: str, user_timezone_str: str = "Europe/Moscow"
     except pytz.UnknownTimeZoneError:
         user_tz = pytz.timezone("Europe/Moscow")
 
-    # Конвертируем
     local_dt = utc_dt.astimezone(user_tz)
 
-    # Форматируем дату/время
     day = local_dt.day
     month_name = RU_MONTHS.get(local_dt.month, "")
     time_str = local_dt.strftime("%H:%M")
 
-    # Вычисляем красивый оффсет для отображения (например UTC+3)
-    # total_seconds() дает смещение в секундах. Делим на 3600.
+    # Считаем оффсет (UTC+3)
     offset_hours = local_dt.utcoffset().total_seconds() / 3600
-
     if offset_hours == 0:
         offset_str = "UTC"
     elif offset_hours > 0:
-        # :g убирает .0 если число целое (3.0 -> 3, но 3.5 -> 3.5)
         offset_str = f"UTC+{offset_hours:g}"
     else:
         offset_str = f"UTC{offset_hours:g}"
 
-    return f"{day} {month_name}, {time_str} ({offset_str})"
+    # Было: f"{day} {month_name}, {time_str} ({offset_str})"
+    # Стало (без запятой):
+    return f"{day} {month_name} {time_str} ({offset_str})"

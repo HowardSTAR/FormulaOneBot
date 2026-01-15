@@ -2,17 +2,15 @@ import asyncio
 import functools
 import logging
 import pathlib
-from datetime import date as _date, timezone, timedelta, datetime, date
+from datetime import date as _date, timezone, timedelta, datetime
 from typing import Optional, Any
 
 import fastf1
-import numpy as np
 import pandas as pd
 from fastf1._api import SessionNotAvailableError
 from fastf1.ergast import Ergast
 
 # --- ИНИЦИАЛИЗАЦИЯ КЭША --- #
-
 _project_root = pathlib.Path(__file__).resolve().parent.parent
 _cache_dir = _project_root / "fastf1_cache"
 _cache_dir.mkdir(exist_ok=True)
@@ -24,9 +22,7 @@ UTC_PLUS_3 = timezone(timedelta(hours=3))
 
 
 async def _run_sync(func, *args, **kwargs):
-    """Универсальная обертка для запуска синхронных функций в отдельном потоке."""
     loop = asyncio.get_running_loop()
-    # functools.partial используется, чтобы передать именованные аргументы (kwargs)
     return await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
 
 
@@ -49,86 +45,53 @@ def get_season_schedule_df(season: int) -> pd.DataFrame:
 
 
 def get_season_schedule_short(season: int) -> list[dict]:
-    """
-    Возвращает список гонок сезона в удобном виде.
-
-    Берём из fastf1.get_event_schedule(season):
-      - RoundNumber
-      - EventName
-      - Country
-      - Location
-      - EventDate (дата гонки)
-    Плюс, если удаётся найти Race-сессию (SessionX == 'Race'),
-    добавляем:
-      - race_start_utc   (ISO, UTC)
-      - race_start_local (ISO, UTC+3)
-    """
     schedule = fastf1.get_event_schedule(season)
-
     races: list[dict] = []
 
     for _, row in schedule.iterrows():
         event_name = row.get("EventName")
-        if not isinstance(event_name, str) or not event_name:
-            continue
-
-        # Номер этапа
+        if not isinstance(event_name, str) or not event_name: continue
         try:
             round_num = int(row["RoundNumber"])
-        except Exception:
+        except:
             continue
-
-        # пропускаем тесты и всё с round <= 0
-        if round_num <= 0:
-            continue
+        if round_num <= 0: continue
 
         country = str(row.get("Country") or "")
         location = str(row.get("Location") or "")
 
-        # Дата гонки (EventDate — Timestamp)
-        event_date = row.get("EventDate")
-        if event_date is not None and hasattr(event_date, "to_pydatetime"):
-            dt = event_date.to_pydatetime()
-            race_date_iso = dt.date().isoformat()
-        else:
-            race_date_iso = _date.today().isoformat()
-
-        # Пытаемся найти время старта RACE-сессии
         race_dt_utc = None
-        for i in range(1, 9):  # с запасом до Session8
+        for i in range(1, 9):
             name_col = f"Session{i}"
             date_col = f"Session{i}DateUtc"
+            if name_col not in row.index or date_col not in row.index: continue
+            if str(row[name_col]) == "Race" and row[date_col] is not None:
+                race_dt_utc = row[date_col].to_pydatetime()
+                break
 
-            if name_col not in row.index or date_col not in row.index:
-                continue
-
-            sess_name = row[name_col]
-            sess_dt_utc = row[date_col]
-
-            if not isinstance(sess_name, str):
-                continue
-            if "Race" not in sess_name:
-                continue
-            if sess_dt_utc is None or not hasattr(sess_dt_utc, "to_pydatetime"):
-                continue
-
-            race_dt_utc = sess_dt_utc.to_pydatetime()
-            break
+        if race_dt_utc:
+            if race_dt_utc.tzinfo is None: race_dt_utc = race_dt_utc.replace(tzinfo=timezone.utc)
+            date_iso = race_dt_utc.date().isoformat()
+        else:
+            try:
+                date_iso = row["EventDate"].to_pydatetime().date().isoformat()
+            except:
+                date_iso = _date.today().isoformat()
 
         race_dict = {
             "round": round_num,
             "event_name": event_name,
             "country": country,
             "location": location,
-            "date": race_date_iso,
+            "date": date_iso,
         }
 
-        if race_dt_utc is not None:
-            if race_dt_utc.tzinfo is None:
-                race_dt_utc = race_dt_utc.replace(tzinfo=timezone.utc)
-
+        if race_dt_utc:
+            # Для бота (расчеты)
             race_dict["race_start_utc"] = race_dt_utc.isoformat()
-            race_dict["race_start_local"] = race_dt_utc.astimezone(UTC_PLUS_3).isoformat()
+            # Для сайта (готовая строка)
+            dt_msk = race_dt_utc.astimezone(UTC_PLUS_3)
+            race_dict["local"] = dt_msk.strftime("%d.%m.%Y %H:%M")  # "08.03.2026 07:00"
 
         races.append(race_dict)
 
@@ -141,44 +104,13 @@ async def get_season_schedule_short_async(season: int):
 
 
 def get_driver_standings_df(season: int, round_number: Optional[int] = None) -> pd.DataFrame:
-    """
-    Вернуть личный зачёт пилотов как DataFrame.
-
-    По доке FastF1 используется Ergast-интерфейс: :contentReference[oaicite:6]{index=6}
-      ergast = Ergast()
-      ergast.get_driver_standings(season=SEASON, round=ROUND)
-
-    Здесь:
-    - season: год чемпионата
-    - round_number: номер этапа (если None — текущие standings по последнему этапу).
-    
-    Returns:
-        DataFrame с данными пилотов или пустой DataFrame, если данные недоступны.
-    """
     ergast = Ergast()
-
     try:
-        if round_number is None:
-            res = ergast.get_driver_standings(season=season)
-        else:
-            res = ergast.get_driver_standings(season=season, round=round_number)
-
-        if not res.content or len(res.content) == 0:
-            logger.warning(
-                "Нет данных по личному зачёту пилотов для сезона=%s, раунда=%s",
-                season, round_number
-            )
-            return pd.DataFrame()
-
-        df = res.content[0]
-        return df
-    except Exception as exc:
-        logger.error(
-            "Ошибка при получении личного зачёта пилотов (сезон=%s, раунд=%s): %s",
-            season, round_number, exc,
-            exc_info=True
-        )
-        return pd.DataFrame()
+        if round_number is None: res = ergast.get_driver_standings(season=season)
+        else: res = ergast.get_driver_standings(season=season, round=round_number)
+        if not res.content: return pd.DataFrame()
+        return res.content[0]
+    except: return pd.DataFrame()
 
 
 async def get_driver_standings_async(season: int, round_number: Optional[int] = None):
@@ -186,38 +118,13 @@ async def get_driver_standings_async(season: int, round_number: Optional[int] = 
 
 
 def get_constructor_standings_df(season: int, round_number: Optional[int] = None) -> pd.DataFrame:
-    """
-    Вернуть кубок конструкторов как DataFrame.
-
-    Аналогично get_driver_standings_df, только для конструкторов.
-    
-    Returns:
-        DataFrame с данными конструкторов или пустой DataFrame, если данные недоступны.
-    """
     ergast = Ergast()
-
     try:
-        if round_number is None:
-            res = ergast.get_constructor_standings(season=season)
-        else:
-            res = ergast.get_constructor_standings(season=season, round=round_number)
-
-        if not res.content or len(res.content) == 0:
-            logger.warning(
-                "Нет данных по кубку конструкторов для сезона=%s, раунда=%s",
-                season, round_number
-            )
-            return pd.DataFrame()
-
-        df = res.content[0]
-        return df
-    except Exception as exc:
-        logger.error(
-            "Ошибка при получении кубка конструкторов (сезон=%s, раунд=%s): %s",
-            season, round_number, exc,
-            exc_info=True
-        )
-        return pd.DataFrame()
+        if round_number is None: res = ergast.get_constructor_standings(season=season)
+        else: res = ergast.get_constructor_standings(season=season, round=round_number)
+        if not res.content: return pd.DataFrame()
+        return res.content[0]
+    except: return pd.DataFrame()
 
 
 async def get_constructor_standings_async(season: int, round_number: Optional[int] = None):
@@ -226,13 +133,7 @@ async def get_constructor_standings_async(season: int, round_number: Optional[in
 
 def get_race_results_df(season: int, round_number: int):
     session = fastf1.get_session(season, round_number, "R")
-    # грузим минимум (без телеметрии / погоды / статусов)
-    session.load(
-        telemetry=False,
-        laps=False,
-        weather=False,
-        messages=False
-    )
+    session.load(telemetry=False, laps=False, weather=False, messages=False)
     return session.results
 
 
@@ -241,96 +142,54 @@ async def get_race_results_async(season: int, round_number: int):
 
 
 def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
-    """
-    Возвращает список сессий уикенда.
-    Теперь поле 'utc' содержит ISO-строку, чтобы её можно было парсить и менять пояс.
-    """
+    """Возвращает расписание сессий уикенда."""
     schedule = fastf1.get_event_schedule(season)
-
     row = schedule.loc[schedule["RoundNumber"] == round_number]
-    if row.empty:
-        return []
-
+    if row.empty: return []
     row = row.iloc[0]
     sessions: list[dict] = []
 
     for i in range(1, 9):
         name_col = f"Session{i}"
         date_col = f"Session{i}DateUtc"
-
-        if name_col not in row.index or date_col not in row.index:
-            continue
+        if name_col not in row.index or date_col not in row.index: continue
 
         sess_name = row[name_col]
         sess_dt = row[date_col]
 
-        if not isinstance(sess_name, str) or not sess_name:
-            continue
-        if sess_dt is None or not hasattr(sess_dt, "to_pydatetime"):
-            continue
+        if not isinstance(sess_name, str) or not sess_name: continue
+        if sess_dt is None: continue
 
         dt_utc = sess_dt.to_pydatetime()
-        if dt_utc.tzinfo is None:
-            dt_utc = dt_utc.replace(tzinfo=timezone.utc)
+        if dt_utc.tzinfo is None: dt_utc = dt_utc.replace(tzinfo=timezone.utc)
 
-        # ВАЖНО: Отдаем ISO формат (2026-03-06T04:30:00+00:00),
-        # чтобы utils/time_tools.py мог его прочитать и перевести.
-        sessions.append(
-            {
-                "name": sess_name,
-                "utc": dt_utc.isoformat(),
-            }
-        )
+        dt_msk = dt_utc.astimezone(UTC_PLUS_3)
 
+        sessions.append({
+            "name": sess_name,
+            "utc_iso": dt_utc.isoformat(),
+            "utc": dt_utc.strftime("%H:%M UTC"),
+            # 👇 ГАРАНТИРУЕМ ФОРМАТ СТРОКИ ДЛЯ САЙТА
+            "local": dt_msk.strftime("%d.%m.%Y %H:%M"),
+        })
     return sessions
 
 
 def get_qualifying_results(season: int, round_number: int, limit: int = 20) -> list[dict]:
-    logging.info("[QUALI] Загружаю квалификацию season=%s, round=%s", season, round_number)
-
     session = fastf1.get_session(season, round_number, "Q")
     session.load()
-
-    if session.results is None or session.results.empty:
-        logging.info(
-            "[QUALI] В session.results нет данных (season=%s, round=%s)",
-            season, round_number
-        )
-        return []
-
-    results: list[dict] = []
-
+    if session.results is None or session.results.empty: return []
+    results = []
     for row in session.results.itertuples(index=False):
         pos = getattr(row, "Position", None)
-        if pos is None or pd.isna(pos):
-            continue
-
-        try:
-            pos_int = int(pos)
-        except (TypeError, ValueError):
-            continue
-
-        code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", None) or "?"
-        given = getattr(row, "FirstName", "") or ""
-        family = getattr(row, "LastName", "") or ""
-        full_name = f"{given} {family}".strip() or code
-
-        q1 = getattr(row, "Q1", None)
-        q2 = getattr(row, "Q2", None)
-        q3 = getattr(row, "Q3", None)
-
-        best_raw = q3 or q2 or q1
-        best_fmt = _format_quali_time(best_raw)
-
-        results.append(
-            {
-                "position": pos_int,
-                "driver": code,
-                "name": full_name,
-                "best": best_fmt,  # тут уже НЕТ NaT и "0 days ..."
-            }
-        )
-
+        if pos is None: continue
+        try: pos_int = int(pos)
+        except: continue
+        code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", "?")
+        name = getattr(row, "LastName", "") or code
+        q3, q2, q1 = getattr(row, "Q3", None), getattr(row, "Q2", None), getattr(row, "Q1", None)
+        best = _format_quali_time(q3 or q2 or q1)
+        results.append({"position": pos_int, "driver": code, "name": name, "best": best})
     results.sort(key=lambda r: r["position"])
     return results[:limit]
 
@@ -344,162 +203,36 @@ async def _get_quali_async(season: int, round_number: int, limit: int = 20) -> l
     return await loop.run_in_executor(None, func)
 
 
-def get_latest_quali_results(season: int, max_round: int | None = None, limit: int = 20) -> tuple[int | None, list[dict]]:
-    """
-    Найти последнюю квалификацию сезона, по которой есть результаты.
-
-    Возвращает (round_number, results). Если данных нет — (None, []).
-
-    max_round — необязательный верхний предел по номеру этапа
-    (например, чтобы не искать дальше будущих этапов).
-    """
-    log = logging.getLogger(__name__)
-
+def get_latest_quali_results(season: int, max_round: int | None = None, limit: int = 20):
     schedule = get_season_schedule_short(season)
-    if not schedule:
-        return None, []
-
-    # Все этапы сезона
-    rounds = sorted({r["round"] for r in schedule})
-    # Ограничиваем сверху, если нужно
-    if max_round is not None:
-        rounds = [rn for rn in rounds if rn <= max_round]
-
-    # Сначала смотрим только завершившиеся этапы (по дате гонки)
+    if not schedule: return None, []
+    rounds = sorted([r["round"] for r in schedule])
+    if max_round: rounds = [r for r in rounds if r <= max_round]
     today = _date.today()
-    completed_rounds: list[int] = []
+    passed = []
     for rn in rounds:
-        try:
-            item = next(r for r in schedule if r["round"] == rn)
-        except StopIteration:
-            continue
-
-        try:
-            race_date = _date.fromisoformat(item["date"])
-        except Exception:  # noqa: BLE001
-            race_date = today
-
-        if race_date <= today:
-            completed_rounds.append(rn)
-
-    # Ищем с конца (последняя прошедшая квалификация)
-    for rn in sorted(completed_rounds, reverse=True):
-        try:
-            res = get_qualifying_results(season, rn, limit=limit)
-        except Exception as exc:  # noqa: BLE001
-            log.warning(
-                "[QUALI] Не удалось загрузить квалификацию season=%s round=%s: %s",
-                season,
-                rn,
-                exc,
-            )
-            continue
-
-        if res:
-            return rn, res
-
+        item = next(r for r in schedule if r["round"] == rn)
+        try: d = _date.fromisoformat(item["date"])
+        except: d = today
+        if d <= today: passed.append(rn)
+    for rn in sorted(passed, reverse=True):
+        try: res = get_qualifying_results(season, rn, limit)
+        except: continue
+        if res: return rn, res
     return None, []
 
 
-async def _get_latest_quali_async(season: int, max_round: int | None = None, limit: int = 20) -> tuple[int | None, list[dict]]:
-    """
-    Ищем ПОСЛЕДНЮЮ прошедшую квалификацию в сезоне.
-
-    max_round — верхняя граница по номеру этапа (например, если нажали
-    кнопку на конкретном этапе — не лезем дальше него).
-
-    Возвращает (round_number, results_list) или (None, []).
-    """
-    schedule = get_season_schedule_short(season)
-    if not schedule:
-        logging.info("[QUALI] Нет расписания для сезона %s", season)
-        return None, []
-
-    today = date.today()
-
-    # Берём только этапы:
-    #  - дата <= сегодня (уже прошли)
-    #  - номер <= max_round (если ограничение указано)
-    candidates = []
-    for r in schedule:
-        rnd = r["round"]
-        if max_round is not None and rnd > max_round:
-            continue
-
-        try:
-            race_date = date.fromisoformat(r["date"])
-        except Exception:  # noqa: BLE001
-            continue
-
-        if race_date > today:
-            continue
-
-        candidates.append(r)
-
-    if not candidates:
-        logging.info(
-            "[QUALI] Нет прошедших этапов для поиска квалификации "
-            "(season=%s, max_round=%s)",
-            season, max_round,
-        )
-        return None, []
-
-    # Идём от последнего к первому
-    candidates.sort(key=lambda r: r["round"], reverse=True)
-
-    for r in candidates:
-        rnd = r["round"]
-        logging.info(
-            "[QUALI] Пробую взять квалификацию для season=%s, round=%s",
-            season, rnd,
-        )
-        results = await _get_quali_async(season, rnd, limit=limit)
-        if results:
-            logging.info(
-                "[QUALI] Нашли квалификацию для season=%s, round=%s (записей=%s)",
-                season, rnd, len(results),
-            )
-            return rnd, results
-
-    logging.info(
-        "[QUALI] Не нашли ни одной квалификации с данными (season=%s, max_round=%s)",
-        season, max_round,
-    )
-    return None, []
+async def _get_latest_quali_async(season: int, max_round: int | None = None, limit: int = 20):
+    return await _run_sync(get_latest_quali_results, season, max_round, limit)
 
 
 def _format_quali_time(value: Any) -> str | None:
-    """
-    Преобразует Timedelta / np.timedelta64 / строку от FastF1
-    к виду M:SS.mmm (например, 1:23.456).
-
-    Возвращает None, если времени нет (NaT, None и т.п.).
-    """
-    if value is None:
-        return None
-
-    # NaT от pandas
-    if isinstance(value, pd._libs.tslibs.timedeltas.Timedelta) or isinstance(value, pd.Timedelta):
-        td = value
-    elif isinstance(value, np.timedelta64):
-        # конвертируем в pandas Timedelta
-        td = pd.to_timedelta(value)
-    else:
-        # иногда может прийти строка вида "0 days 00:01:23.456000"
-        try:
-            td = pd.to_timedelta(value)
-        except Exception:
-            return None
-
-    if pd.isna(td):
-        return None
-
-    total_ms = int(td.total_seconds() * 1000 + 0.5)  # округлим до миллисекунд
-    minutes = total_ms // 60000
-    seconds = (total_ms % 60000) // 1000
-    millis = total_ms % 1000
-
-    return f"{minutes}:{seconds:02d}.{millis:03d}"
+    if value is None: return None
+    try: td = pd.to_timedelta(value)
+    except: return None
+    if pd.isna(td): return None
+    ms = int(td.total_seconds() * 1000 + 0.5)
+    return f"{ms // 60000}:{(ms % 60000) // 1000:02d}.{ms % 1000:03d}"
 
 
 def _warmup_session_sync(season: int, round_number: int, session_code: str) -> None:

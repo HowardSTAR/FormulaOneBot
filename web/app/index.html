@@ -70,7 +70,7 @@
 <div class="root">
 
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-        <h2 style="margin:0;">F1 Hub 🏁</h2>
+        <h2 style="margin:0;">Formula 1 Hub</h2>
     </div>
 
     <a href="next-race.html" class="btn hero-btn" id="hero-btn">
@@ -80,7 +80,7 @@
         <div id="hero-date" class="hero-date">--.--</div>
 
         <div id="hero-timer" class="hero-timer" style="display: none;">
-            <span style="font-size:12px; opacity:0.8; margin-right:4px;">До старта по МСК:</span>
+            <span style="font-size:12px; opacity:0.8; margin-right:4px;">До старта:</span>
             <span id="timer-val" style="font-family: monospace; font-weight: 700;">--:--:--</span>
         </div>
     </a>
@@ -151,15 +151,17 @@
             if (data.status === 'ok') {
                 titleEl.textContent = data.event_name;
 
+                // --- ИСПРАВЛЕНИЕ ДЛЯ ПОЛНОЙ ДАТЫ ---
                 if (data.local) {
-                     dateEl.textContent = data.local.split(' ')[0];
+                    // Теперь data.local = "08.03.2026 07:00"
+                    // Берем первую часть (до пробела) -> "08.03.2026"
+                    dateEl.textContent = data.local.split(' ')[0];
                 } else {
-                     dateEl.textContent = data.date;
+                    dateEl.textContent = data.date;
                 }
+                // -----------------------------------
 
-                // --- ОБНОВЛЕННАЯ ЛОГИКА ОТОБРАЖЕНИЯ СЕССИИ ---
                 if (data.next_session_iso && data.next_session_name) {
-                    // Используем новый класс .session-badge вместо эмодзи
                     subEl.innerHTML = `<span class="session-badge">${data.next_session_name}</span>`;
 
                     const targetTime = new Date(data.next_session_iso).getTime();
@@ -171,7 +173,6 @@
 
                         if (distance < 0) {
                             clearInterval(timerInterval);
-                            // Если сессия идет, показываем LIVE
                             subEl.innerHTML = `<span class="session-badge" style="background: white; color: #e10600;">LIVE: ${data.next_session_name}</span>`;
                             timerVal.textContent = "СЕССИЯ ИДЕТ";
                             return;
@@ -192,7 +193,6 @@
                     updateTimer();
                     timerInterval = setInterval(updateTimer, 1000);
                 } else {
-                    // Если таймера нет (например, все сессии прошли, но статус не finished)
                     subEl.textContent = "БЛИЖАЙШИЙ ЭТАП";
                 }
 

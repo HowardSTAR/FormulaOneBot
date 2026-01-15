@@ -1,5 +1,3 @@
-# app/middlewares/error_logging.py
-
 import logging
 import traceback
 from typing import Any, Awaitable, Callable, Dict
@@ -7,7 +5,6 @@ from typing import Any, Awaitable, Callable, Dict
 from aiogram import BaseMiddleware, Bot
 from aiogram.types import Update
 
-# ИСПРАВЛЕНО: Импортируем get_settings вместо хардкода OWNER_TELEGRAM_ID
 from app.config import get_settings
 
 
@@ -45,23 +42,32 @@ class ErrorLoggingMiddleware(BaseMiddleware):
 
             # 2. Уведомляем АДМИНОВ
             bot: Bot = data.get("bot")
-            settings = get_settings()  # Получаем настройки
+            settings = get_settings()
 
-            # Если бот доступен и список админов не пуст
             if bot and settings.admin_ids:
                 tb_str = traceback.format_exc()
                 if len(tb_str) > 3500:
                     tb_str = tb_str[-3500:] + "\n...(truncated)"
 
+                # БЕЗОПАСНОЕ ПОЛУЧЕНИЕ ПОЛЬЗОВАТЕЛЯ
+                user = None
+                if event.message:
+                    user = event.message.from_user
+                elif event.callback_query:
+                    user = event.callback_query.from_user
+                elif event.inline_query:
+                    user = event.inline_query.from_user
+
+                user_str = f"{user.full_name} (ID: {user.id})" if user else "Unknown"
+
                 error_text = (
                     f"🚨 <b>CRITICAL ERROR</b>\n\n"
                     f"Update ID: {event.update_id}\n"
-                    f"User: {event.from_user.full_name if event.from_user else 'Unknown'} (ID: {event.from_user.id if event.from_user else '?'})\n"
+                    f"User: {user_str}\n"
                     f"Error: {str(e)}\n\n"
                     f"<pre>{tb_str}</pre>"
                 )
 
-                # Проходимся по списку админов и отправляем каждому
                 for admin_id in settings.admin_ids:
                     try:
                         await bot.send_message(chat_id=admin_id, text=error_text)
