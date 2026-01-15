@@ -130,16 +130,12 @@
 
 <script src="/static/js/common.js"></script>
 <script>
-    let timerInterval;
-
-    document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', async () => {
         initTelegram();
 
-        // 1. АВТОМАТИЧЕСКИЙ ГОД
         const currentYear = new Date().getFullYear();
         document.getElementById('season-title').textContent = `Сезон ${currentYear}`;
 
-        // 2. ЗАГРУЗКА ГОНКИ
         try {
             const data = await apiRequest('/api/next-race');
             const titleEl = document.getElementById('hero-title');
@@ -148,48 +144,41 @@
             const timerBlock = document.getElementById('hero-timer');
             const timerVal = document.getElementById('timer-val');
 
-            if (data.status === 'ok') {
+if (data.status === 'ok') {
                 titleEl.textContent = data.event_name;
 
-                // --- ИСПРАВЛЕНИЕ ДЛЯ ПОЛНОЙ ДАТЫ ---
-                if (data.local) {
-                    // Теперь data.local = "08.03.2026 07:00"
-                    // Берем первую часть (до пробела) -> "08.03.2026"
-                    dateEl.textContent = data.local.split(' ')[0];
+                // --- ИСПРАВЛЕНИЕ: Используем fmt_date ---
+                if (data.fmt_date) {
+                    // "08.03.2026 07:00" -> берем [0] -> "08.03.2026"
+                    dateEl.textContent = data.fmt_date.split(' ')[0];
                 } else {
                     dateEl.textContent = data.date;
                 }
-                // -----------------------------------
 
                 if (data.next_session_iso && data.next_session_name) {
+                    // ... (код таймера оставляем без изменений) ...
                     subEl.innerHTML = `<span class="session-badge">${data.next_session_name}</span>`;
-
                     const targetTime = new Date(data.next_session_iso).getTime();
                     timerBlock.style.display = 'block';
 
                     function updateTimer() {
                         const now = new Date().getTime();
                         const distance = targetTime - now;
-
                         if (distance < 0) {
                             clearInterval(timerInterval);
                             subEl.innerHTML = `<span class="session-badge" style="background: white; color: #e10600;">LIVE: ${data.next_session_name}</span>`;
                             timerVal.textContent = "СЕССИЯ ИДЕТ";
                             return;
                         }
-
                         const days = Math.floor(distance / (1000 * 60 * 60 * 24));
                         const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                         const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                         const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
                         let text = "";
                         if (days > 0) text += `${days}д `;
                         text += `${hours}ч ${minutes}м ${seconds}с`;
-
                         timerVal.textContent = text;
                     }
-
                     updateTimer();
                     timerInterval = setInterval(updateTimer, 1000);
                 } else {

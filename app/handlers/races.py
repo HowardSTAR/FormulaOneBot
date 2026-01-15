@@ -14,7 +14,6 @@ from app.utils.default import SESSION_NAME_RU
 from app.utils.image_render import (
     create_results_image, create_season_image, create_quali_results_image
 )
-# ДОБАВЛЕН ИМПОРТ НИЖЕ
 from app.db import (
     get_last_reminded_round, get_favorite_drivers, get_favorite_teams, get_user_settings
 )
@@ -33,6 +32,10 @@ class RacesYearState(StatesGroup):
 
 
 async def build_next_race_payload(season: int | None = None, user_id: int | None = None) -> dict:
+    """
+    Возвращает инфу о ближайшей гонке.
+    Добавляет поле fmt_date для сайта.
+    """
     if season is None: season = datetime.now().year
     schedule = await get_season_schedule_short_async(season)
     if not schedule: return {"status": "no_schedule", "season": season}
@@ -42,7 +45,7 @@ async def build_next_race_payload(season: int | None = None, user_id: int | None
 
     if not future_races: return {"status": "season_finished", "season": season}
 
-    r = future_races[0]  # Ближайшая
+    r = future_races[0]
     race_start_utc_str = r.get("race_start_utc")
 
     local_str = None
@@ -54,6 +57,7 @@ async def build_next_race_payload(season: int | None = None, user_id: int | None
             s = await get_user_settings(user_id)
             user_tz = s.get("timezone", "Europe/Moscow")
 
+        # Для БОТА: Красивая строка с месяцем (8 марта...)
         local_str = format_race_time(race_start_utc_str, user_tz)
         try:
             utc_dt = datetime.fromisoformat(race_start_utc_str)
@@ -64,7 +68,10 @@ async def build_next_race_payload(season: int | None = None, user_id: int | None
     return {
         "status": "ok", "season": season, "round": r["round"],
         "event_name": r["event_name"], "country": r["country"], "location": r["location"],
-        "date": r["date"], "utc": utc_str, "local": local_str
+        "date": r["date"], "utc": utc_str,
+        "local": local_str,  # Оставляем для бота
+        # 👇 НОВОЕ ПОЛЕ ДЛЯ САЙТА: "08.03.2026 07:00"
+        "fmt_date": r.get("race_start_local")
     }
 
 
@@ -94,7 +101,7 @@ async def _send_next_race_message(message: Message, user_id: int, season: int | 
                               callback_data=f"weekend_{payload['season']}_{payload['round']}")],
         [InlineKeyboardButton(text="⏱ Квалификация", callback_data=f"quali_{payload['season']}_{payload['round']}"),
          InlineKeyboardButton(text="🏁 Гонка", callback_data=f"race_{payload['season']}_{payload['round']}")],
-        [InlineKeyboardButton(text="⚙️ Настройки", callback_data=f"settings_race_{payload['season']}")]
+        [InlineKeyboardButton(text="⚙️ Настройки (Время)", callback_data=f"settings_race_{payload['season']}")]
     ])
 
     if is_edit:
@@ -144,6 +151,7 @@ async def weekend_schedule(callback: CallbackQuery):
     lines = []
     for s in sessions:
         ru_name = SESSION_NAME_RU.get(s["name"], s["name"])
+        # Для расписания в боте используем format_race_time (UTC+X)
         time_str = format_race_time(s.get("utc_iso"), user_tz)
         lines.append(f"• <b>{ru_name}</b>\n  {time_str}")
 
@@ -156,11 +164,6 @@ async def weekend_schedule(callback: CallbackQuery):
 
     await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
     await callback.answer()
-
-
-# ... Остальные хендлеры (races, quali, race results) оставляем как были,
-# главное - добавь в них await callback.message.delete() перед отправкой фото, если нужно.
-# Для краткости я их не дублирую, так как ошибка была именно в импортах выше.
 
 
 @router.callback_query(F.data.startswith("quali_"))
@@ -430,11 +433,74 @@ async def race_callback(callback: CallbackQuery) -> None:
         caption += "\n\n" + fav_block
 
     if callback.message:
+        await callback.message.delete()
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔙 Вернуться", callback_data=f"back_to_race_{season}")]
+        ])
         await callback.message.answer_photo(
             photo=photo,
             caption=caption,
             parse_mode="HTML",
             has_spoiler=True,
+            reply_markup=kb
         )
 
     await callback.answer()
+
+
+# --- Календарь ---
+async def _send_races_for_year(message: Message, season: int) -> None:
+    races = await get_season_schedule_short_async(season)
+    if not races:
+        await message.answer(f"Нет данных по календарю сезона {season}.")
+        return
+    try:
+        img_buf = await asyncio.to_thread(create_season_image, season, races)
+    except Exception:
+        await message.answer("Не удалось сгенерировать календарь.")
+        return
+    photo = BufferedInputFile(img_buf.getvalue(), filename=f"season_{season}.png")
+    caption = f"📅 Календарь сезона {season}\n\n🟥 — гонка уже прошла\n🟩 — предстоящие гонки"
+    await message.answer_photo(photo=photo, caption=caption, parse_mode="HTML")
+
+
+@router.message(Command("races"))
+async def cmd_races(message: Message) -> None:
+    season = _parse_season_from_text(message.text or "")
+    await _send_races_for_year(message, season)
+
+
+@router.message(F.text == "Сезон")
+async def btn_races_ask_year(message: Message, state: FSMContext) -> None:
+    current_year = datetime.now().year
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"Текущий сезон ({current_year})", callback_data=f"races_current_{current_year}")]])
+    await message.answer("🗓 Какой год тебя интересует?", reply_markup=kb)
+    await state.set_state(RacesYearState.waiting_for_year)
+
+
+@router.message(RacesYearState.waiting_for_year)
+async def races_year_from_text(message: Message, state: FSMContext) -> None:
+    try:
+        season = int((message.text or "").strip())
+        await state.clear()
+        await _send_races_for_year(message, season)
+    except ValueError:
+        await message.answer("Пожалуйста, введи год цифрами.")
+
+
+@router.callback_query(F.data.startswith("races_current_"))
+async def races_year_current(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    try:
+        season = int(callback.data.split("_")[-1])
+    except:
+        season = datetime.now().year
+    if callback.message: await _send_races_for_year(callback.message, season)
+    await callback.answer()
+
+
+def _parse_season_from_text(text: str) -> int:
+    parts = text.strip().split(maxsplit=1)
+    if len(parts) == 2 and parts[1].isdigit(): return int(parts[1])
+    return datetime.now().year

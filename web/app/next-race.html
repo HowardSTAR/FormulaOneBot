@@ -7,10 +7,9 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
     <style>
-        /* Стили для того, чтобы 8 марта было в одну строку */
+        /* Стили для того, чтобы дата была одной строкой */
         #race-time-local {
             white-space: nowrap;
-            text-transform: lowercase; /* марта с маленькой буквы, если нужно */
         }
     </style>
 </head>
@@ -27,7 +26,9 @@
     <div class="card">
         <div style="text-align: center;">
             <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">СТАРТ ГОНКИ</div>
+
             <div id="race-time-local" style="font-size: 24px; font-weight: 800; color: var(--primary);">--</div>
+
             <div id="race-date" style="font-size: 16px; margin-top: 4px;">--:--</div>
         </div>
     </div>
@@ -79,10 +80,10 @@
             titleEl.textContent = raceData.event_name;
             locEl.textContent = `${raceData.country}, ${raceData.location}`;
 
-            // --- ЗАПОЛНЕНИЕ КАРТОЧКИ СТАРТА ---
-            // Ожидаем local = "08.03.2026 07:00"
-            if (raceData.local && raceData.local.includes(' ')) {
-                const parts = raceData.local.split(' ');
+            // --- ЗАПОЛНЕНИЕ КАРТОЧКИ ---
+            // Используем fmt_date: "08.03.2026 07:00"
+            if (raceData.fmt_date) {
+                const parts = raceData.fmt_date.split(' ');
                 const datePart = parts[0]; // "08.03.2026"
                 const timePart = parts[1]; // "07:00"
 
@@ -110,7 +111,6 @@
                     let sessionDate = "--.--";
 
                     // Парсинг строки "06.03.2026 04:30"
-                    // ВАЖНО: Теперь мы точно знаем формат из f1_data.py
                     if (session.local) {
                         const parts = session.local.split(' ');
                         if (parts.length >= 2) {

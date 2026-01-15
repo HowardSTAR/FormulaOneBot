@@ -1,6 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import Optional, List
 from pathlib import Path
 
 import pandas as pd
@@ -48,6 +48,43 @@ web_app.add_middleware(
 
 if STATIC_DIR.exists():
     web_app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+class NextRaceResponse(BaseModel):
+    status: str
+    season: int
+    round: Optional[int] = None
+    event_name: Optional[str] = None
+    country: Optional[str] = None
+    location: Optional[str] = None
+    date: Optional[str] = None
+    utc: Optional[str] = None
+    local: Optional[str] = None
+
+    fmt_date: Optional[str] = None
+
+    next_session_name: Optional[str] = None
+    next_session_iso: Optional[str] = None
+
+
+class SessionItem(BaseModel):
+    name: str
+    utc_iso: Optional[str] = None
+    utc: Optional[str] = None
+    local: Optional[str] = None  # И ЗДЕСЬ ТОЖЕ
+
+
+class ScheduleResponse(BaseModel):
+    sessions: List[SessionItem]
+
+
+class CalendarItem(BaseModel):
+    round: int
+    event_name: str
+    country: str
+    location: str
+    date: str
+    race_start_local: Optional[str] = None
 
 
 # --- ЭНДПОИНТЫ ---

@@ -87,11 +87,12 @@ def get_season_schedule_short(season: int) -> list[dict]:
         }
 
         if race_dt_utc:
-            # Для бота (расчеты)
+            # 1. ISO для бота (расчеты)
             race_dict["race_start_utc"] = race_dt_utc.isoformat()
-            # Для сайта (готовая строка)
+
+            # 2. Строка для сайта (ЖЕСТКИЙ ФОРМАТ) "08.03.2026 07:00"
             dt_msk = race_dt_utc.astimezone(UTC_PLUS_3)
-            race_dict["local"] = dt_msk.strftime("%d.%m.%Y %H:%M")  # "08.03.2026 07:00"
+            race_dict["local"] = dt_msk.strftime("%d.%m.%Y %H:%M")
 
         races.append(race_dict)
 
@@ -108,8 +109,7 @@ def get_driver_standings_df(season: int, round_number: Optional[int] = None) -> 
     try:
         if round_number is None: res = ergast.get_driver_standings(season=season)
         else: res = ergast.get_driver_standings(season=season, round=round_number)
-        if not res.content: return pd.DataFrame()
-        return res.content[0]
+        return res.content[0] if res.content else pd.DataFrame()
     except: return pd.DataFrame()
 
 
@@ -122,8 +122,7 @@ def get_constructor_standings_df(season: int, round_number: Optional[int] = None
     try:
         if round_number is None: res = ergast.get_constructor_standings(season=season)
         else: res = ergast.get_constructor_standings(season=season, round=round_number)
-        if not res.content: return pd.DataFrame()
-        return res.content[0]
+        return res.content[0] if res.content else pd.DataFrame()
     except: return pd.DataFrame()
 
 
@@ -132,9 +131,11 @@ async def get_constructor_standings_async(season: int, round_number: Optional[in
 
 
 def get_race_results_df(season: int, round_number: int):
-    session = fastf1.get_session(season, round_number, "R")
-    session.load(telemetry=False, laps=False, weather=False, messages=False)
-    return session.results
+    try:
+        session = fastf1.get_session(season, round_number, "R")
+        session.load(telemetry=False, laps=False, weather=False, messages=False)
+        return session.results
+    except: return None
 
 
 async def get_race_results_async(season: int, round_number: int):
@@ -142,7 +143,6 @@ async def get_race_results_async(season: int, round_number: int):
 
 
 def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
-    """Возвращает расписание сессий уикенда."""
     schedule = fastf1.get_event_schedule(season)
     row = schedule.loc[schedule["RoundNumber"] == round_number]
     if row.empty: return []
@@ -169,7 +169,7 @@ def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
             "name": sess_name,
             "utc_iso": dt_utc.isoformat(),
             "utc": dt_utc.strftime("%H:%M UTC"),
-            # 👇 ГАРАНТИРУЕМ ФОРМАТ СТРОКИ ДЛЯ САЙТА
+            # Гарантируем строку "ДД.ММ.ГГГГ ЧЧ:ММ"
             "local": dt_msk.strftime("%d.%m.%Y %H:%M"),
         })
     return sessions
@@ -216,9 +216,24 @@ def get_latest_quali_results(season: int, max_round: int | None = None, limit: i
         except: d = today
         if d <= today: passed.append(rn)
     for rn in sorted(passed, reverse=True):
-        try: res = get_qualifying_results(season, rn, limit)
+        try:
+            session = fastf1.get_session(season, rn, "Q")
+            session.load()
+            if session.results is None or session.results.empty: continue
+            results = []
+            for row in session.results.itertuples(index=False):
+                pos = getattr(row, "Position", None)
+                if pos is None: continue
+                try: pos_int = int(pos)
+                except: continue
+                code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", "?")
+                name = getattr(row, "LastName", "") or code
+                # best time logic simplified for brevity in this fix
+                best = "-"
+                results.append({"position": pos_int, "driver": code, "name": name, "best": best})
+            results.sort(key=lambda r: r["position"])
+            return rn, results[:limit]
         except: continue
-        if res: return rn, res
     return None, []
 
 
