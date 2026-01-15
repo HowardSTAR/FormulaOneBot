@@ -29,7 +29,6 @@
             justify-content: center;
             gap: 6px;
         }
-        /* Старый стиль hero-sub оставляем как базу, но контент будем менять через JS */
         .hero-sub {
             font-size: 13px;
             opacity: 0.9;
@@ -47,14 +46,14 @@
             padding: 4px 10px;
             border-radius: 20px;
             margin-top: 4px;
+            font-weight: 700;
+            text-transform: uppercase; /* Чтобы месяц был капсом */
         }
         .results-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
         }
-
-        /* Добавим стиль для таймера тут же, чтобы не потерялся */
         .hero-timer {
             background: rgba(0, 0, 0, 0.3);
             padding: 6px 12px;
@@ -130,7 +129,32 @@
 
 <script src="/static/js/common.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', async () => {
+    // Универсальная функция форматирования: "8 МАРТА"
+    function formatDateToText(dateStr) {
+        if (!dateStr) return "";
+
+        let day, month;
+
+        // Вариант 1: "08.03.2026" (из fmt_date/local)
+        if (dateStr.includes('.')) {
+            const parts = dateStr.split('.');
+            day = parseInt(parts[0], 10);
+            month = parseInt(parts[1], 10);
+        }
+        // Вариант 2: "2026-03-08" (из date)
+        else if (dateStr.includes('-')) {
+            const parts = dateStr.split('-');
+            day = parseInt(parts[2], 10);
+            month = parseInt(parts[1], 10);
+        } else {
+            return dateStr;
+        }
+
+        const months = ["", "ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
+        return `${day} ${months[month] || ""}`;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
         initTelegram();
 
         const currentYear = new Date().getFullYear();
@@ -144,19 +168,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             const timerBlock = document.getElementById('hero-timer');
             const timerVal = document.getElementById('timer-val');
 
-if (data.status === 'ok') {
+            if (data.status === 'ok') {
                 titleEl.textContent = data.event_name;
 
-                // --- ИСПРАВЛЕНИЕ: Используем fmt_date ---
+                // --- ЛОГИКА ОТОБРАЖЕНИЯ ДАТЫ ---
+                let rawDate = "";
                 if (data.fmt_date) {
-                    // "08.03.2026 07:00" -> берем [0] -> "08.03.2026"
-                    dateEl.textContent = data.fmt_date.split(' ')[0];
+                    // "08.03.2026 07:00" -> берем "08.03.2026"
+                    rawDate = data.fmt_date.split(' ')[0];
+                } else if (data.local) {
+                    rawDate = data.local.split(' ')[0];
                 } else {
-                    dateEl.textContent = data.date;
+                    rawDate = data.date; // "2026-03-08"
                 }
 
+                dateEl.textContent = formatDateToText(rawDate);
+                // -------------------------------
+
                 if (data.next_session_iso && data.next_session_name) {
-                    // ... (код таймера оставляем без изменений) ...
                     subEl.innerHTML = `<span class="session-badge">${data.next_session_name}</span>`;
                     const targetTime = new Date(data.next_session_iso).getTime();
                     timerBlock.style.display = 'block';

@@ -7,9 +7,9 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="stylesheet" href="/static/css/styles.css">
     <style>
-        /* Стили для того, чтобы дата была одной строкой */
         #race-time-local {
             white-space: nowrap;
+            text-transform: uppercase; /* Дополнительная гарантия капса */
         }
     </style>
 </head>
@@ -26,9 +26,7 @@
     <div class="card">
         <div style="text-align: center;">
             <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 8px;">СТАРТ ГОНКИ</div>
-
             <div id="race-time-local" style="font-size: 24px; font-weight: 800; color: var(--primary);">--</div>
-
             <div id="race-date" style="font-size: 16px; margin-top: 4px;">--:--</div>
         </div>
     </div>
@@ -45,18 +43,30 @@
 
 <script src="/static/js/common.js"></script>
 <script>
-    // Функция: "08.03.2026" -> "8 марта"
+    // Функция: "08.03.2026" -> "8 МАРТА"
     function formatRusDate(dateStr) {
         if (!dateStr || typeof dateStr !== 'string') return dateStr;
-        const parts = dateStr.split('.');
-        if (parts.length < 2) return dateStr;
 
-        const day = parseInt(parts[0], 10);
-        const monthIndex = parseInt(parts[1], 10);
+        let day, monthIndex;
 
-        const months = ["", "января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+        // "08.03.2026"
+        if (dateStr.includes('.')) {
+            const parts = dateStr.split('.');
+            if (parts.length < 2) return dateStr;
+            day = parseInt(parts[0], 10);
+            monthIndex = parseInt(parts[1], 10);
+        }
+        // "2026-03-08" (на всякий случай)
+        else if (dateStr.includes('-')) {
+            const parts = dateStr.split('-');
+            day = parseInt(parts[2], 10);
+            monthIndex = parseInt(parts[1], 10);
+        } else {
+            return dateStr;
+        }
 
-        return `${day} ${months[monthIndex] || parts[1]}`;
+        const months = ["", "ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
+        return `${day} ${months[monthIndex] || ""}`;
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -81,17 +91,22 @@
             locEl.textContent = `${raceData.country}, ${raceData.location}`;
 
             // --- ЗАПОЛНЕНИЕ КАРТОЧКИ ---
-            // Используем fmt_date: "08.03.2026 07:00"
-            if (raceData.fmt_date) {
-                const parts = raceData.fmt_date.split(' ');
-                const datePart = parts[0]; // "08.03.2026"
-                const timePart = parts[1]; // "07:00"
+            // Приоритет: fmt_date > local > date
+            const fullDateStr = raceData.fmt_date || raceData.local;
 
-                bigTextEl.textContent = formatRusDate(datePart); // "8 марта"
+            if (fullDateStr && fullDateStr.includes(' ')) {
+                // Если есть время (08.03.2026 07:00)
+                const parts = fullDateStr.split(' ');
+                const datePart = parts[0];
+                const timePart = parts[1];
+
+                bigTextEl.textContent = formatRusDate(datePart); // "8 МАРТА"
                 smallTextEl.textContent = timePart;              // "07:00"
             } else {
-                bigTextEl.textContent = raceData.date || "TBA";
-                smallTextEl.textContent = "";
+                // Если времени нет (TBA)
+                const rawDate = raceData.date; // 2026-03-08
+                bigTextEl.textContent = formatRusDate(rawDate) || rawDate;
+                smallTextEl.textContent = "TBA";
             }
 
             // --- РАСПИСАНИЕ УИКЕНДА ---
@@ -110,15 +125,10 @@
                     let sessionTime = "--:--";
                     let sessionDate = "--.--";
 
-                    // Парсинг строки "06.03.2026 04:30"
-                    if (session.local) {
+                    if (session.local && session.local.includes(' ')) {
                         const parts = session.local.split(' ');
-                        if (parts.length >= 2) {
-                            sessionDate = parts[0].slice(0, 5); // "06.03"
-                            sessionTime = parts[1];             // "04:30"
-                        } else {
-                            sessionTime = session.local;
-                        }
+                        sessionDate = parts[0].slice(0, 5); // "06.03"
+                        sessionTime = parts[1];             // "04:30"
                     } else if (session.utc) {
                         sessionTime = session.utc;
                     }
