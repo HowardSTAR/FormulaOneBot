@@ -18,7 +18,7 @@ from app.f1_data import (
     get_season_schedule_short_async,
     get_weekend_schedule,
     get_driver_standings_async,
-    get_constructor_standings_async, _get_latest_quali_async, get_race_results_async,
+    get_constructor_standings_async, _get_latest_quali_async, get_race_results_async, get_event_details_async,
 )
 from app.db import (
     get_favorite_drivers, get_favorite_teams,
@@ -438,6 +438,37 @@ async def api_quali_results():
         "race_info": race_info,
         "results": results
     }
+
+
+@web_app.get("/api/race-details")
+async def api_race_details(
+        season: int = Query(..., description="Год сезона"),
+        # CHANGE HERE: Added alias="round"
+        round_number: int = Query(..., description="Номер этапа", alias="round")
+):
+    """Возвращает полную инфу о трассе и расписание уикенда"""
+    data = await get_event_details_async(season, round_number)
+
+    if not data:
+        raise HTTPException(status_code=404, detail="Race not found")
+
+    # Русификация сессий для API
+    name_map = {
+        "Practice 1": "Практика 1",
+        "Practice 2": "Практика 2",
+        "Practice 3": "Практика 3",
+        "Qualifying": "Квалификация",
+        "Sprint": "Спринт",
+        "Sprint Qualifying": "Спринт-квалификация",
+        "Race": "Гонка",
+    }
+
+    if "sessions" in data:
+        for s in data["sessions"]:
+            raw = s.get("name", "")
+            s["name"] = name_map.get(raw, raw)
+
+    return data
 
 
 @web_app.get("/")

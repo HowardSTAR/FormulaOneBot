@@ -433,6 +433,50 @@ async def _get_latest_quali_async(season: int, max_round: int | None = None, lim
     return await _run_sync(get_latest_quali_results, season, max_round, limit)
 
 
+def get_event_details(season: int, round_number: int) -> dict | None:
+    """
+    Получает детальную информацию о событии (трасса, локация) и расписание.
+    """
+    try:
+        schedule = fastf1.get_event_schedule(season)
+        row = schedule.loc[schedule["RoundNumber"] == round_number]
+
+        if row.empty:
+            return None
+
+        event = row.iloc[0]
+
+        # Собираем базовую инфу
+        details = {
+            "round": int(event["RoundNumber"]),
+            "event_name": str(event["EventName"]),
+            "official_name": str(event["OfficialEventName"]),
+            "country": str(event["Country"]),
+            "location": str(event["Location"]),
+            "event_format": str(event["EventFormat"]),
+            # FastF1 не дает url картинки, но мы можем вернуть ключ для поиска файла
+            "circuit_key": _normalize_circuit_name(str(event["Location"]))
+        }
+
+        # Добавляем расписание уикенда (используем существующую функцию)
+        sessions = get_weekend_schedule(season, round_number)
+        details["sessions"] = sessions
+
+        return details
+    except Exception as e:
+        logger.error(f"Error getting event details: {e}")
+        return None
+
+
+def _normalize_circuit_name(name: str) -> str:
+    import re
+    # Превращает "Monte Carlo" в "monte_carlo" для поиска картинок
+    return re.sub(r"[^a-z0-9]+", "_", name.lower())
+
+
+async def get_event_details_async(season: int, round_number: int):
+    return await _run_sync(get_event_details, season, round_number)
+
 # можно удалить
 if __name__ == "__main__":
     # Небольшой self-test, чтобы можно было запустить модуль отдельно
