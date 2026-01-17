@@ -184,14 +184,6 @@
         if (!tz) return;
 
         try {
-            // Note: In JS, "Etc/GMT-3" often works, but sometimes browsers prefer canonical names.
-            // However, the `timeZone` option in toLocaleString usually supports standard IANA zones.
-            // If "Etc/GMT..." causes issues in some browsers (Safari), we might need a map.
-            // But usually it works. "Etc/GMT-3" is actually GMT+3.
-
-            // NOTE: The `Etc/GMT` zones have inverted signs!
-            // Etc/GMT-3 means UTC+3. The JS formatting understands this IANA standard.
-
             const now = new Date();
             const timeString = now.toLocaleTimeString('ru-RU', {
                 timeZone: tz,
