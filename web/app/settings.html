@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="/static/css/styles.css">
     <style>
         .setting-card {
-            /*background: var(--card-bg);*/
             border-radius: 12px;
             padding: 16px;
             margin-bottom: 12px;
@@ -28,7 +27,7 @@
             color: var(--text-primary);
             font-size: 16px;
             outline: none;
-            -webkit-appearance: none; /* Убирает дефолтную стрелку */
+            -webkit-appearance: none;
             appearance: none;
         }
         .btn-save {
@@ -47,7 +46,6 @@
         .btn-save:active {
             transform: scale(0.98);
         }
-        /* Уведомление об успехе */
         #toast {
             visibility: hidden;
             min-width: 250px;
@@ -162,12 +160,12 @@
         const notify = parseInt(document.getElementById('notify-select').value);
 
         try {
+            // 👇 ИЗМЕНЕНИЕ: Добавили 'POST' третьим аргументом
             await apiRequest('/api/settings', {
                 timezone: tz,
                 notify_before: notify
-            });
+            }, 'POST');
 
-            // Показываем тост
             const toast = document.getElementById("toast");
             toast.className = "show";
             setTimeout(function(){ toast.className = toast.className.replace("show", ""); }, 3000);
