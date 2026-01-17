@@ -24,7 +24,7 @@ from app.db import (
     get_favorite_drivers, get_favorite_teams,
     remove_favorite_driver, add_favorite_driver,
     remove_favorite_team, add_favorite_team,
-    get_user_settings, update_user_setting  # <--- Добавили импорты настроек
+    get_user_settings, update_user_setting
 )
 from app.auth import get_current_user_id
 
@@ -33,8 +33,6 @@ CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
 WEB_DIR = PROJECT_ROOT / "web" / "app"
 STATIC_DIR = WEB_DIR / "static"
-
-print(f"DEBUG: WEB_DIR = {WEB_DIR}")
 
 # --- Инициализация приложения ---
 web_app = FastAPI(title="FormulaOneBot Mini App API")
@@ -83,7 +81,6 @@ class FavoriteItem(BaseModel):
     id: str
 
 
-# 👇 Модель для настроек
 class SettingsRequest(BaseModel):
     timezone: str
     notify_before: int
@@ -103,7 +100,6 @@ async def api_save_settings(
         user_id: int = Depends(get_current_user_id)
 ):
     """Сохранить настройки."""
-    # Сохраняем по отдельности
     await update_user_setting(user_id, "timezone", settings.timezone)
     await update_user_setting(user_id, "notify_before", settings.notify_before)
     return {"status": "ok"}
@@ -112,10 +108,10 @@ async def api_save_settings(
 @web_app.get("/api/next-race", response_model=NextRaceResponse)
 async def api_next_race(
         season: Optional[int] = None,
-        user_id: Optional[int] = Depends(get_current_user_id)  # Используем user_id для таймзоны
+        user_id: Optional[int] = Depends(get_current_user_id)
 ):
     """Информация о ближайшей гонке + таймер."""
-    # Передаем user_id в build_next_race_payload, чтобы дата отформатировалась по часовому поясу юзера
+    # Передаем user_id, чтобы дата гонки в шапке форматировалась как раньше
     data = await build_next_race_payload(season, user_id=user_id)
 
     if data.get("status") != "ok":
@@ -197,6 +193,7 @@ async def api_weekend_schedule(
         season: Optional[int] = Query(None),
         round_number: int = Query(..., description="Номер этапа"),
 ):
+    # Убрали user_id. Возвращаем как было.
     if season is None:
         season = datetime.now().year
 

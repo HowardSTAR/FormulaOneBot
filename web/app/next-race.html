@@ -74,7 +74,17 @@
         const smallTextEl = document.getElementById('race-date');
 
         try {
-            const raceData = await apiRequest('/api/next-race');
+            // 1. Получаем настройки пользователя (для часового пояса)
+            // Используем Promise.allSettled чтобы ошибка настроек не ломала всё
+            const [raceDataRes, settingsRes] = await Promise.allSettled([
+                apiRequest('/api/next-race'),
+                apiRequest('/api/settings')
+            ]);
+
+            const raceData = raceDataRes.status === 'fulfilled' ? raceDataRes.value : { status: 'error' };
+            // Если настройки не пришли, fallback на UTC
+            const settings = settingsRes.status === 'fulfilled' ? settingsRes.value : { timezone: 'UTC' };
+            const userTz = settings.timezone || 'UTC';
 
             if (raceData.status !== 'ok') {
                 titleEl.textContent = raceData.status === 'season_finished' ? "Сезон завершен" : "Нет данных";
@@ -85,7 +95,7 @@
             titleEl.textContent = raceData.event_name;
             locEl.textContent = `${raceData.country}, ${raceData.location}`;
 
-            // --- ЗАПОЛНЕНИЕ КАРТОЧКИ ---
+            // --- ЗАПОЛНЕНИЕ КАРТОЧКИ (Главная гонка) ---
             const fullDateStr = raceData.fmt_date || raceData.local;
 
             if (fullDateStr && fullDateStr.includes(' ')) {
@@ -119,8 +129,32 @@
                     let sessionTime = "--:--";
                     let sessionDate = "--.--";
 
-                    // Обработка данных сессии (как и было)
-                    if (session.local && session.local.includes(' ')) {
+                    // 👇 ГЛАВНОЕ ИЗМЕНЕНИЕ: Конвертация времени через JS браузера
+                    if (session.utc_iso) {
+                        try {
+                            const dateObj = new Date(session.utc_iso);
+
+                            // Время (HH:MM) в часовом поясе пользователя
+                            sessionTime = dateObj.toLocaleTimeString('ru-RU', {
+                                timeZone: userTz,
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+
+                            // Дата (DD.MM) в часовом поясе пользователя
+                            sessionDate = dateObj.toLocaleDateString('ru-RU', {
+                                timeZone: userTz,
+                                day: '2-digit',
+                                month: '2-digit'
+                            });
+
+                        } catch (e) {
+                            console.error("Date error:", e);
+                            sessionTime = session.utc || "--:--";
+                        }
+                    }
+                    // Fallback (если нет ISO, как было раньше)
+                    else if (session.local && session.local.includes(' ')) {
                         const parts = session.local.split(' ');
                         sessionDate = parts[0].slice(0, 5); // "06.03"
                         sessionTime = parts[1];             // "04:30"
@@ -147,6 +181,7 @@
         } catch (error) {
             console.error(error);
             titleEl.textContent = "Ошибка загрузки";
+            listEl.innerHTML = "";
         }
     });
 </script>
