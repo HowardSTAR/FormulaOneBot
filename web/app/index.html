@@ -47,7 +47,7 @@
             border-radius: 20px;
             margin-top: 4px;
             font-weight: 700;
-            text-transform: uppercase; /* Гарантируем КАПС для месяца */
+            text-transform: uppercase;
         }
         .results-grid {
             display: grid;
@@ -117,7 +117,7 @@
     </div>
 
     <div class="section-title">Моё</div>
-    <a href="favorites.html" class="menu-item full-width" style="flex-direction: row; justify-content: space-between; padding: 16px 24px; border-color: rgba(255, 215, 0, 0.3);">
+    <a href="favorites.html" class="menu-item full-width" style="flex-direction: row; justify-content: space-between; padding: 16px 24px; border-color: rgba(255, 215, 0, 0.3); margin-bottom: 12px;">
         <div style="display:flex; align-items:center; gap:12px;">
             <span class="menu-icon">⭐</span>
             <span class="menu-label" style="color: #ffd700;">Избранное</span>
@@ -125,23 +125,31 @@
         <span style="color: #ffd700;">➜</span>
     </a>
 
+    <a href="settings.html" class="menu-item full-width" style="flex-direction: row; justify-content: space-between; padding: 16px 24px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span class="menu-icon">⚙️</span>
+            <span class="menu-label">Настройки</span>
+        </div>
+        <span style="opacity: 0.5;">➜</span>
+    </a>
+
 </div>
 
 <script src="/static/js/common.js"></script>
 <script>
-    // Универсальная функция форматирования даты
+    // Универсальная функция форматирования: "8 МАРТА"
     function formatDateToText(dateStr) {
         if (!dateStr) return "";
 
         let day, month;
 
-        // Вариант 1: "08.03.2026"
+        // Вариант 1: "08.03.2026" (из fmt_date/local)
         if (dateStr.includes('.')) {
             const parts = dateStr.split('.');
             day = parseInt(parts[0], 10);
             month = parseInt(parts[1], 10);
         }
-        // Вариант 2: "2026-03-08" (ISO)
+        // Вариант 2: "2026-03-08" (из date)
         else if (dateStr.includes('-')) {
             const parts = dateStr.split('-');
             day = parseInt(parts[2], 10);
@@ -151,7 +159,6 @@
         }
 
         const months = ["", "ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
-        // Возвращает "8 МАРТА"
         return `${day} ${months[month] || ""}`;
     }
 
@@ -172,20 +179,18 @@
             if (data.status === 'ok') {
                 titleEl.textContent = data.event_name;
 
-                // --- ЛОГИКА ВЫВОДА ДАТЫ ---
+                // --- ЛОГИКА ОТОБРАЖЕНИЯ ДАТЫ ---
                 let rawDate = "";
-                // Приоритет: fmt_date -> local -> date
                 if (data.fmt_date) {
-                    rawDate = data.fmt_date.split(' ')[0]; // "08.03.2026"
+                    rawDate = data.fmt_date.split(' ')[0];
                 } else if (data.local) {
                     rawDate = data.local.split(' ')[0];
                 } else {
-                    rawDate = data.date; // "2026-03-08"
+                    rawDate = data.date;
                 }
 
-                // Превращаем в "8 МАРТА"
                 dateEl.textContent = formatDateToText(rawDate);
-                // --------------------------
+                // -------------------------------
 
                 if (data.next_session_iso && data.next_session_name) {
                     subEl.innerHTML = `<span class="session-badge">${data.next_session_name}</span>`;

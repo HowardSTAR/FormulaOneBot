@@ -23,7 +23,8 @@ from app.f1_data import (
 from app.db import (
     get_favorite_drivers, get_favorite_teams,
     remove_favorite_driver, add_favorite_driver,
-    remove_favorite_team, add_favorite_team
+    remove_favorite_team, add_favorite_team,
+    get_user_settings, update_user_setting  # <--- Добавили импорты настроек
 )
 from app.auth import get_current_user_id
 
@@ -50,6 +51,8 @@ if STATIC_DIR.exists():
     web_app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
+# --- МОДЕЛИ ДАННЫХ ---
+
 class NextRaceResponse(BaseModel):
     status: str
     season: int
@@ -60,9 +63,7 @@ class NextRaceResponse(BaseModel):
     date: Optional[str] = None
     utc: Optional[str] = None
     local: Optional[str] = None
-
     fmt_date: Optional[str] = None
-
     next_session_name: Optional[str] = None
     next_session_iso: Optional[str] = None
 
@@ -71,28 +72,51 @@ class SessionItem(BaseModel):
     name: str
     utc_iso: Optional[str] = None
     utc: Optional[str] = None
-    local: Optional[str] = None  # И ЗДЕСЬ ТОЖЕ
+    local: Optional[str] = None
 
 
 class ScheduleResponse(BaseModel):
     sessions: List[SessionItem]
 
 
-class CalendarItem(BaseModel):
-    round: int
-    event_name: str
-    country: str
-    location: str
-    date: str
-    race_start_local: Optional[str] = None
+class FavoriteItem(BaseModel):
+    id: str
+
+
+# 👇 Модель для настроек
+class SettingsRequest(BaseModel):
+    timezone: str
+    notify_before: int
 
 
 # --- ЭНДПОИНТЫ ---
 
-@web_app.get("/api/next-race")
-async def api_next_race(season: Optional[int] = None):
+@web_app.get("/api/settings")
+async def api_get_settings(user_id: int = Depends(get_current_user_id)):
+    """Получить текущие настройки пользователя."""
+    return await get_user_settings(user_id)
+
+
+@web_app.post("/api/settings")
+async def api_save_settings(
+        settings: SettingsRequest,
+        user_id: int = Depends(get_current_user_id)
+):
+    """Сохранить настройки."""
+    # Сохраняем по отдельности
+    await update_user_setting(user_id, "timezone", settings.timezone)
+    await update_user_setting(user_id, "notify_before", settings.notify_before)
+    return {"status": "ok"}
+
+
+@web_app.get("/api/next-race", response_model=NextRaceResponse)
+async def api_next_race(
+        season: Optional[int] = None,
+        user_id: Optional[int] = Depends(get_current_user_id)  # Используем user_id для таймзоны
+):
     """Информация о ближайшей гонке + таймер."""
-    data = await build_next_race_payload(season)
+    # Передаем user_id в build_next_race_payload, чтобы дата отформатировалась по часовому поясу юзера
+    data = await build_next_race_payload(season, user_id=user_id)
 
     if data.get("status") != "ok":
         return data
@@ -112,7 +136,6 @@ async def api_next_race(season: Optional[int] = None):
 
         for s in sessions:
             dt = None
-            # Пытаемся найти дату сессии для таймера
             if s.get("utc_iso"):
                 try:
                     dt = datetime.fromisoformat(s["utc_iso"])
@@ -121,7 +144,6 @@ async def api_next_race(season: Optional[int] = None):
                 except:
                     pass
 
-            # Фолбэк на старые методы парсинга (если utc_iso нет)
             if dt is None and isinstance(s.get("date"), datetime):
                 dt = s["date"]
                 if dt.tzinfo is None:
@@ -133,7 +155,6 @@ async def api_next_race(season: Optional[int] = None):
                     "dt": dt
                 })
 
-        # Сортируем и ищем ближайшую будущую сессию
         sorted_sessions.sort(key=lambda x: x["dt"])
 
         next_session = None
@@ -165,30 +186,22 @@ async def api_next_race(season: Optional[int] = None):
 
 @web_app.get("/api/season")
 async def api_season(season: Optional[int] = Query(None)):
-    """Календарь гонок."""
     if season is None:
         season = datetime.now().year
     races = await get_season_schedule_short_async(season)
     return {"season": season, "races": races}
 
 
-@web_app.get("/api/weekend-schedule")
+@web_app.get("/api/weekend-schedule", response_model=ScheduleResponse)
 async def api_weekend_schedule(
         season: Optional[int] = Query(None),
         round_number: int = Query(..., description="Номер этапа"),
 ):
-    """
-    Детальное расписание уикенда.
-    Исправлено: теперь возвращает поля 'local' и 'utc', которые ждет HTML.
-    """
     if season is None:
         season = datetime.now().year
 
-    # Получаем данные из f1_data.py
-    # Структура словаря там: {'name': ..., 'local': '06.03.2026 04:30', 'utc': ...}
     raw_sessions = await asyncio.to_thread(get_weekend_schedule, season, round_number)
 
-    # Маппинг имен на русский
     name_map = {
         "Practice 1": "Практика 1",
         "Practice 2": "Практика 2",
@@ -199,12 +212,11 @@ async def api_weekend_schedule(
         "Race": "Гонка",
     }
 
-    # Просто обновляем имена, но оставляем структуру данных (local/utc)
     for s in raw_sessions:
         raw_name = s.get("name", "Session")
         s["name"] = name_map.get(raw_name, raw_name)
 
-    return {"season": season, "round": round_number, "sessions": raw_sessions}
+    return {"sessions": raw_sessions}
 
 
 @web_app.get("/api/drivers")
@@ -213,7 +225,6 @@ async def api_drivers(
         round_number: Optional[int] = Query(None),
         x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data")
 ):
-    """Личный зачет пилотов."""
     user_id = None
     if x_telegram_init_data:
         try:
@@ -262,7 +273,6 @@ async def api_constructors(
         round_number: Optional[int] = Query(None),
         x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data")
 ):
-    """Кубок конструкторов."""
     user_id = None
     if x_telegram_init_data:
         try:
@@ -303,14 +313,9 @@ async def api_constructors(
 
 @web_app.get("/api/favorites")
 async def api_favorites(user_id: int = Depends(get_current_user_id)):
-    """Получить список избранного (только для WebApp)."""
     drivers = await get_favorite_drivers(user_id)
     teams = await get_favorite_teams(user_id)
     return {"drivers": drivers, "teams": teams}
-
-
-class FavoriteItem(BaseModel):
-    id: str
 
 
 @web_app.post("/api/favorites/driver")
@@ -343,7 +348,6 @@ async def toggle_favorite_team(
 
 @web_app.get("/api/race-results")
 async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)):
-    """Возвращает результаты последней прошедшей гонки."""
     season = datetime.now().year
 
     schedule = await get_season_schedule_short_async(season)
@@ -411,7 +415,6 @@ async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)
 
 @web_app.get("/api/quali-results")
 async def api_quali_results():
-    """Возвращает результаты последней квалификации."""
     season = datetime.now().year
 
     data = await _get_latest_quali_async(season)
