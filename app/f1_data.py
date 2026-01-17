@@ -7,6 +7,8 @@ from typing import Optional, Any
 
 import fastf1
 import pandas as pd
+import pickle
+import redis_client
 from fastf1._api import SessionNotAvailableError
 from fastf1.ergast import Ergast
 
@@ -24,6 +26,49 @@ UTC_PLUS_3 = timezone(timedelta(hours=3))
 async def _run_sync(func, *args, **kwargs):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
+
+
+# --- ДЕКОРАТОР КЭШИРОВАНИЯ --- #
+def cache_result(ttl: int = 300, key_prefix: str = ""):
+    """
+    ttl: время жизни кэша в секундах (по умолчанию 5 минут)
+    key_prefix: префикс для ключа в Redis
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Формируем уникальный ключ: prefix:arg1:arg2...
+            # Простая генерация ключа из аргументов
+            key_parts = [str(arg) for arg in args]
+            key_parts += [f"{k}={v}" for k, v in kwargs.items()]
+            cache_key = f"f1bot:{key_prefix}:{':'.join(key_parts)}"
+
+            # 1. Пытаемся получить из Redis
+            try:
+                cached_data = await redis_client.get(cache_key)
+                if cached_data:
+                    # Если данные есть, распаковываем (Pickle универсален для DF и dict)
+                    return pickle.loads(cached_data)
+            except Exception as e:
+                logger.error(f"Redis read error: {e}")
+
+            # 2. Если кэша нет, выполняем функцию (оригинальную)
+            result = await func(*args, **kwargs)
+
+            # 3. Сохраняем в Redis
+            try:
+                if result is not None: # Не кэшируем None/ошибки
+                    await redis_client.setex(
+                        cache_key,
+                        ttl,
+                        pickle.dumps(result)
+                    )
+            except Exception as e:
+                logger.error(f"Redis write error: {e}")
+
+            return result
+        return wrapper
+    return decorator
 
 
 def get_season_schedule_df(season: int) -> pd.DataFrame:
@@ -351,6 +396,42 @@ async def warmup_current_season_sessions() -> None:
             await loop.run_in_executor(None, _warmup_session_sync, yr, rnd, code)
 
     logger.info("[WARMUP] Прогрев FastF1 завершён")
+
+
+# --- ОБНОВЛЕННЫЕ АСИНХРОННЫЕ ФУНКЦИИ --- #
+
+@cache_result(ttl=3600, key_prefix="schedule") # Кэш на 1 час
+async def get_season_schedule_short_async(season: int):
+    return await _run_sync(get_season_schedule_short, season)
+
+
+@cache_result(ttl=600, key_prefix="driver_standings") # Кэш на 10 минут
+async def get_driver_standings_async(season: int, round_number: Optional[int] = None):
+    # Pandas DataFrame отлично пиклится
+    return await _run_sync(get_driver_standings_df, season, round_number)
+
+
+@cache_result(ttl=600, key_prefix="constructor_standings")
+async def get_constructor_standings_async(season: int, round_number: Optional[int] = None):
+    return await _run_sync(get_constructor_standings_df, season, round_number)
+
+
+@cache_result(ttl=300, key_prefix="race_results") # Кэш 5 мин (во время гонки актуально)
+async def get_race_results_async(season: int, round_number: int):
+    return await _run_sync(get_race_results_df, season, round_number)
+
+
+@cache_result(ttl=300, key_prefix="quali_results")
+async def _get_quali_async(season: int, round_number: int, limit: int = 20) -> list[dict]:
+    loop = asyncio.get_running_loop()
+    func = functools.partial(get_qualifying_results, season, round_number, limit)
+    return await loop.run_in_executor(None, func)
+
+
+@cache_result(ttl=300, key_prefix="latest_quali")
+async def _get_latest_quali_async(season: int, max_round: int | None = None, limit: int = 20):
+    return await _run_sync(get_latest_quali_results, season, max_round, limit)
+
 
 # можно удалить
 if __name__ == "__main__":

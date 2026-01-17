@@ -6,25 +6,30 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 @dataclass
 class BotConfig:
     token: str
+    redis_url: str  # <-- Новое поле
+
 
 @dataclass
 class Settings:
     bot: BotConfig
-    admin_ids: List[int]  # Добавили поле для списка админов
+    admin_ids: List[int]
+
 
 def get_settings() -> Settings:
     token = os.getenv("BOT_TOKEN")
     if not token:
         raise RuntimeError("Не задан BOT_TOKEN в .env файле")
 
-    # Читаем строку "123,456" и превращаем в список чисел [123, 456]
+    # По умолчанию используем локальный Redis
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
     admin_ids_str = os.getenv("ADMIN_IDS", "")
     admin_ids = []
     if admin_ids_str:
-        # Разбиваем по запятой, убираем пробелы и проверяем, что это цифры
         admin_ids = [
             int(x.strip())
             for x in admin_ids_str.split(",")
@@ -32,6 +37,6 @@ def get_settings() -> Settings:
         ]
 
     return Settings(
-        bot=BotConfig(token=token),
+        bot=BotConfig(token=token, redis_url=redis_url),
         admin_ids=admin_ids
     )

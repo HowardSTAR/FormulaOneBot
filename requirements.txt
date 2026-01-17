@@ -6,10 +6,7 @@ pandas
 numpy
 apscheduler
 aiosqlite
-
-# Генерация фото
+redis
 Pillow
-
-# Веб-сервер для Mini App
 fastapi
 uvicorn[standard]
