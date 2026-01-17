@@ -8,8 +8,8 @@
     <link rel="stylesheet" href="/static/css/styles.css">
     <style>
         #race-time-local {
-            white-space: nowrap;
-            text-transform: uppercase; /* Дополнительная гарантия капса */
+            white-space: nowrap; /* Не переносить строку */
+            text-transform: uppercase; /* Месяц заглавными */
         }
     </style>
 </head>
@@ -43,30 +43,25 @@
 
 <script src="/static/js/common.js"></script>
 <script>
-    // Функция: "08.03.2026" -> "8 МАРТА"
-    function formatRusDate(dateStr) {
+    function formatDateToText(dateStr) {
         if (!dateStr || typeof dateStr !== 'string') return dateStr;
 
-        let day, monthIndex;
+        let day, month;
 
-        // "08.03.2026"
         if (dateStr.includes('.')) {
             const parts = dateStr.split('.');
-            if (parts.length < 2) return dateStr;
             day = parseInt(parts[0], 10);
-            monthIndex = parseInt(parts[1], 10);
-        }
-        // "2026-03-08" (на всякий случай)
-        else if (dateStr.includes('-')) {
+            month = parseInt(parts[1], 10);
+        } else if (dateStr.includes('-')) {
             const parts = dateStr.split('-');
             day = parseInt(parts[2], 10);
-            monthIndex = parseInt(parts[1], 10);
+            month = parseInt(parts[1], 10);
         } else {
             return dateStr;
         }
 
         const months = ["", "ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
-        return `${day} ${months[monthIndex] || ""}`;
+        return `${day} ${months[month] || ""}`;
     }
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -91,7 +86,6 @@
             locEl.textContent = `${raceData.country}, ${raceData.location}`;
 
             // --- ЗАПОЛНЕНИЕ КАРТОЧКИ ---
-            // Приоритет: fmt_date > local > date
             const fullDateStr = raceData.fmt_date || raceData.local;
 
             if (fullDateStr && fullDateStr.includes(' ')) {
@@ -100,12 +94,12 @@
                 const datePart = parts[0];
                 const timePart = parts[1];
 
-                bigTextEl.textContent = formatRusDate(datePart); // "8 МАРТА"
+                bigTextEl.textContent = formatDateToText(datePart); // "8 МАРТА"
                 smallTextEl.textContent = timePart;              // "07:00"
             } else {
-                // Если времени нет (TBA)
-                const rawDate = raceData.date; // 2026-03-08
-                bigTextEl.textContent = formatRusDate(rawDate) || rawDate;
+                // Если только дата (TBA)
+                const rawDate = raceData.date;
+                bigTextEl.textContent = formatDateToText(rawDate) || rawDate;
                 smallTextEl.textContent = "TBA";
             }
 
@@ -125,6 +119,7 @@
                     let sessionTime = "--:--";
                     let sessionDate = "--.--";
 
+                    // Обработка данных сессии (как и было)
                     if (session.local && session.local.includes(' ')) {
                         const parts = session.local.split(' ');
                         sessionDate = parts[0].slice(0, 5); // "06.03"

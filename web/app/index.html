@@ -47,7 +47,7 @@
             border-radius: 20px;
             margin-top: 4px;
             font-weight: 700;
-            text-transform: uppercase; /* Чтобы месяц был капсом */
+            text-transform: uppercase; /* Гарантируем КАПС для месяца */
         }
         .results-grid {
             display: grid;
@@ -129,19 +129,19 @@
 
 <script src="/static/js/common.js"></script>
 <script>
-    // Универсальная функция форматирования: "8 МАРТА"
+    // Универсальная функция форматирования даты
     function formatDateToText(dateStr) {
         if (!dateStr) return "";
 
         let day, month;
 
-        // Вариант 1: "08.03.2026" (из fmt_date/local)
+        // Вариант 1: "08.03.2026"
         if (dateStr.includes('.')) {
             const parts = dateStr.split('.');
             day = parseInt(parts[0], 10);
             month = parseInt(parts[1], 10);
         }
-        // Вариант 2: "2026-03-08" (из date)
+        // Вариант 2: "2026-03-08" (ISO)
         else if (dateStr.includes('-')) {
             const parts = dateStr.split('-');
             day = parseInt(parts[2], 10);
@@ -151,6 +151,7 @@
         }
 
         const months = ["", "ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
+        // Возвращает "8 МАРТА"
         return `${day} ${months[month] || ""}`;
     }
 
@@ -171,19 +172,20 @@
             if (data.status === 'ok') {
                 titleEl.textContent = data.event_name;
 
-                // --- ЛОГИКА ОТОБРАЖЕНИЯ ДАТЫ ---
+                // --- ЛОГИКА ВЫВОДА ДАТЫ ---
                 let rawDate = "";
+                // Приоритет: fmt_date -> local -> date
                 if (data.fmt_date) {
-                    // "08.03.2026 07:00" -> берем "08.03.2026"
-                    rawDate = data.fmt_date.split(' ')[0];
+                    rawDate = data.fmt_date.split(' ')[0]; // "08.03.2026"
                 } else if (data.local) {
                     rawDate = data.local.split(' ')[0];
                 } else {
                     rawDate = data.date; // "2026-03-08"
                 }
 
+                // Превращаем в "8 МАРТА"
                 dateEl.textContent = formatDateToText(rawDate);
-                // -------------------------------
+                // --------------------------
 
                 if (data.next_session_iso && data.next_session_name) {
                     subEl.innerHTML = `<span class="session-badge">${data.next_session_name}</span>`;
