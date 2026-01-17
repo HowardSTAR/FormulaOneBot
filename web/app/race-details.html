@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Детали гонки</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        .circuit-header {
+            text-align: center; margin-bottom: 24px;
+        }
+        .circuit-title {
+            font-size: 24px; font-weight: 800; margin-bottom: 4px;
+            background: linear-gradient(45deg, #fff, #ccc);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .circuit-subtitle {
+            font-size: 14px; color: var(--text-secondary); display: flex;
+            align-items: center; justify-content: center; gap: 6px;
+        }
+
+        /* Контейнер для схемы трассы */
+        .track-map-container {
+            width: 100%; height: 220px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 16px; margin-bottom: 24px;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; position: relative;
+        }
+        .track-map-img {
+            max-width: 90%; max-height: 90%;
+            object-fit: contain; filter: drop-shadow(0 0 10px rgba(255,255,255,0.1));
+        }
+        .no-map-placeholder {
+            font-size: 40px; opacity: 0.2;
+        }
+
+        /* Расписание */
+        .schedule-card {
+            background: var(--surface-color); border: 1px solid var(--border-color);
+            border-radius: 16px; padding: 20px; margin-bottom: 16px;
+        }
+        .schedule-title {
+            font-size: 18px; font-weight: 700; margin-bottom: 16px;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 10px;
+        }
+        .session-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .session-row:last-child { border-bottom: none; }
+        .session-name { font-weight: 600; font-size: 15px; }
+        .session-time {
+            text-align: right;
+        }
+        .time-local { font-size: 16px; font-weight: 700; color: var(--primary); }
+        .time-utc { font-size: 11px; color: var(--text-secondary); }
+
+        .session-row.active {
+            background: linear-gradient(90deg, transparent, rgba(225, 6, 0, 0.1));
+            border-radius: 8px; padding-left: 10px; padding-right: 10px;
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+<div class="root">
+    <a href="#" onclick="history.back(); return false;" class="btn-back">
+        ← <span>Назад</span>
+    </a>
+
+    <div id="content" class="fade-in">
+        <div class="loading full-width">Загрузка данных трассы...</div>
+    </div>
+</div>
+
+<script src="/static/js/common.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+        initTelegram();
+
+        // Парсим параметры URL
+        const params = new URLSearchParams(window.location.search);
+        const season = params.get('season');
+        const round = params.get('round');
+
+        if (!season || !round) {
+            document.getElementById('content').innerHTML = '<div class="error">Не указан этап</div>';
+            return;
+        }
+
+        await loadRaceDetails(season, round);
+    });
+
+    async function loadRaceDetails(season, round) {
+        const container = document.getElementById('content');
+
+        try {
+            const data = await apiRequest(`/api/race-details?season=${season}&round=${round}`);
+            renderDetails(data);
+        } catch (error) {
+            console.error(error);
+            container.innerHTML = '<div style="text-align:center; padding:40px;">Ошибка загрузки данных</div>';
+        }
+    }
+
+    function renderDetails(data) {
+        const container = document.getElementById('content');
+
+        // Попытка найти картинку (если вы добавите их в папку static/tracks/)
+        // Иначе показываем заглушку
+        const trackImage = `/static/tracks/${data.circuit_key}.png`;
+
+        // Формируем HTML сессий
+        let sessionsHtml = '';
+        const now = new Date();
+
+        data.sessions.forEach(session => {
+            // Определение прошла ли сессия
+            let sessionDate = new Date();
+            if(session.utc_iso) sessionDate = new Date(session.utc_iso);
+
+            const isPast = sessionDate < now;
+            const opacityClass = isPast ? 'opacity: 0.5;' : '';
+            const activeClass = !isPast && (sessionDate - now < 86400000) ? 'active' : ''; // Подсветка если скоро
+
+            sessionsHtml += `
+                <div class="session-row ${activeClass}" style="${opacityClass}">
+                    <div class="session-name">${session.name}</div>
+                    <div class="session-time">
+                        <div class="time-local">${session.local.split(' ')[1]}</div>
+                        <div class="time-utc">${session.local.split(' ')[0]}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = `
+            <div class="circuit-header">
+                <div class="circuit-title">${data.event_name}</div>
+                <div class="circuit-subtitle">
+                    <span>📍 ${data.location}, ${data.country}</span>
+                </div>
+                <div class="circuit-subtitle" style="margin-top:4px; font-size: 12px; opacity: 0.7;">
+                    Round ${data.round} • ${data.event_format.replace('_', ' ')}
+                </div>
+            </div>
+
+            <div class="track-map-container">
+                <img src="${trackImage}" class="track-map-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
+                <div class="no-map-placeholder" style="display:none">🏎️</div>
+            </div>
+
+            <div class="schedule-card">
+                <div class="schedule-title">Расписание уикенда (Ваше время)</div>
+                ${sessionsHtml}
+            </div>
+
+            <div style="text-align: center; font-size: 12px; color: var(--text-secondary); margin-top: 20px;">
+            </div>
+        `;
+    }
+</script>
+</body>
+</html>
