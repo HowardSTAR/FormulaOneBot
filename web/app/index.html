@@ -137,61 +137,68 @@
 
 <script src="/static/js/common.js"></script>
 <script>
-    // Универсальная функция форматирования: "8 МАРТА"
-    function formatDateToText(dateStr) {
-        if (!dateStr) return "";
-
-        let day, month;
-
-        // Вариант 1: "08.03.2026" (из fmt_date/local)
-        if (dateStr.includes('.')) {
-            const parts = dateStr.split('.');
-            day = parseInt(parts[0], 10);
-            month = parseInt(parts[1], 10);
-        }
-        // Вариант 2: "2026-03-08" (из date)
-        else if (dateStr.includes('-')) {
-            const parts = dateStr.split('-');
-            day = parseInt(parts[2], 10);
-            month = parseInt(parts[1], 10);
-        } else {
-            return dateStr;
-        }
-
-        const months = ["", "ЯНВАРЯ", "ФЕВРАЛЯ", "МАРТА", "АПРЕЛЯ", "МАЯ", "ИЮНЯ", "ИЮЛЯ", "АВГУСТА", "СЕНТЯБРЯ", "ОКТЯБРЯ", "НОЯБРЯ", "ДЕКАБРЯ"];
-        return `${day} ${months[month] || ""}`;
-    }
-
     document.addEventListener('DOMContentLoaded', async () => {
         initTelegram();
 
         const currentYear = new Date().getFullYear();
         document.getElementById('season-title').textContent = `Сезон ${currentYear}`;
 
+        const titleEl = document.getElementById('hero-title');
+        const dateEl = document.getElementById('hero-date');
+        const subEl = document.getElementById('hero-sub');
+        const timerBlock = document.getElementById('hero-timer');
+        const timerVal = document.getElementById('timer-val');
+
         try {
-            const data = await apiRequest('/api/next-race');
-            const titleEl = document.getElementById('hero-title');
-            const dateEl = document.getElementById('hero-date');
-            const subEl = document.getElementById('hero-sub');
-            const timerBlock = document.getElementById('hero-timer');
-            const timerVal = document.getElementById('timer-val');
+            // Запрашиваем настройки и гонку параллельно
+            const [settingsRes, raceRes] = await Promise.allSettled([
+                apiRequest('/api/settings'),
+                apiRequest('/api/next-race')
+            ]);
+
+            const settings = settingsRes.status === 'fulfilled' ? settingsRes.value : { timezone: 'UTC' };
+            const data = raceRes.status === 'fulfilled' ? raceRes.value : { status: 'error' };
+            const userTz = settings.timezone || 'UTC';
 
             if (data.status === 'ok') {
                 titleEl.textContent = data.event_name;
 
-                // --- ЛОГИКА ОТОБРАЖЕНИЯ ДАТЫ ---
-                let rawDate = "";
-                if (data.fmt_date) {
-                    rawDate = data.fmt_date.split(' ')[0];
-                } else if (data.local) {
-                    rawDate = data.local.split(' ')[0];
-                } else {
-                    rawDate = data.date;
+                // --- НОВАЯ ЛОГИКА ДЛЯ ДАТЫ НА ГЛАВНОЙ ---
+                let displayDate = "";
+
+                // Запрашиваем расписание, чтобы узнать точную дату ГОНКИ в часовом поясе
+                try {
+                    const schedule = await apiRequest('/api/weekend-schedule', {
+                        season: data.season,
+                        round_number: data.round
+                    });
+
+                    const raceSession = schedule.sessions.find(s =>
+                        s.name === 'Гонка' || s.name === 'Race'
+                    );
+
+                    if (raceSession && raceSession.utc_iso) {
+                        const dateObj = new Date(raceSession.utc_iso);
+                        // Формат: "8 МАРТА"
+                        displayDate = dateObj.toLocaleDateString('ru-RU', {
+                            timeZone: userTz,
+                            day: 'numeric',
+                            month: 'long'
+                        }).toUpperCase();
+                    }
+                } catch (e) {
+                    // console.warn("Расписание недоступно для главной", e);
                 }
 
-                dateEl.textContent = formatDateToText(rawDate);
-                // -------------------------------
+                // Fallback (если расписание не загрузилось)
+                if (!displayDate) {
+                    if (data.fmt_date) displayDate = data.fmt_date.split(' ')[0];
+                    else displayDate = data.date;
+                }
 
+                dateEl.textContent = displayDate;
+
+                // Таймер
                 if (data.next_session_iso && data.next_session_name) {
                     subEl.innerHTML = `<span class="session-badge">${data.next_session_name}</span>`;
                     const targetTime = new Date(data.next_session_iso).getTime();
@@ -216,7 +223,7 @@
                         timerVal.textContent = text;
                     }
                     updateTimer();
-                    timerInterval = setInterval(updateTimer, 1000);
+                    const timerInterval = setInterval(updateTimer, 1000);
                 } else {
                     subEl.textContent = "БЛИЖАЙШИЙ ЭТАП";
                 }
@@ -231,7 +238,7 @@
             }
         } catch (e) {
             console.error(e);
-            document.getElementById('hero-title').textContent = "Ближайшая гонка";
+            document.getElementById('hero-title').textContent = "Ошибка";
         }
     });
 </script>
