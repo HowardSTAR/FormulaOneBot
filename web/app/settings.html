@@ -30,6 +30,15 @@
             -webkit-appearance: none;
             appearance: none;
         }
+        /* 👇 NEW: Style for the preview time */
+        .timezone-preview {
+            font-size: 13px;
+            color: var(--primary);
+            margin-top: 8px;
+            text-align: right;
+            font-weight: 500;
+        }
+
         .btn-save {
             background: linear-gradient(135deg, var(--primary), #b00500);
             color: white;
@@ -87,7 +96,7 @@
 
     <div class="setting-card">
         <div class="setting-label">ЧАСОВОЙ ПОЯС</div>
-        <select id="timezone-select" class="setting-select">
+        <select id="timezone-select" class="setting-select" onchange="updateTimePreview()">
             <option value="Etc/GMT+12">UTC-12</option>
             <option value="Etc/GMT+11">UTC-11</option>
             <option value="Etc/GMT+10">UTC-10</option>
@@ -114,6 +123,9 @@
             <option value="Etc/GMT-11">UTC+11</option>
             <option value="Etc/GMT-12">UTC+12</option>
         </select>
+        <div id="tz-preview" class="timezone-preview">
+            Сейчас: --:--
+        </div>
     </div>
 
     <div class="setting-card">
@@ -135,11 +147,17 @@
 
 <script src="/static/js/common.js"></script>
 <script>
+    let timerId = null;
+
     document.addEventListener('DOMContentLoaded', async () => {
         initTelegram();
 
+        // Start the clock immediately (default value)
+        updateTimePreview();
+        // Update every second
+        timerId = setInterval(updateTimePreview, 1000);
+
         try {
-            // Загружаем текущие настройки
             const settings = await apiRequest('/api/settings');
 
             if (settings) {
@@ -149,18 +167,49 @@
                 if (settings.notify_before) {
                     document.getElementById('notify-select').value = settings.notify_before;
                 }
+                // Update time again after loading actual setting
+                updateTimePreview();
             }
         } catch (e) {
             console.error("Ошибка загрузки настроек:", e);
         }
     });
 
+    // 👇 NEW: Function to update time
+    function updateTimePreview() {
+        const select = document.getElementById('timezone-select');
+        const preview = document.getElementById('tz-preview');
+        const tz = select.value; // e.g., "Etc/GMT-3"
+
+        if (!tz) return;
+
+        try {
+            // Note: In JS, "Etc/GMT-3" often works, but sometimes browsers prefer canonical names.
+            // However, the `timeZone` option in toLocaleString usually supports standard IANA zones.
+            // If "Etc/GMT..." causes issues in some browsers (Safari), we might need a map.
+            // But usually it works. "Etc/GMT-3" is actually GMT+3.
+
+            // NOTE: The `Etc/GMT` zones have inverted signs!
+            // Etc/GMT-3 means UTC+3. The JS formatting understands this IANA standard.
+
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ru-RU', {
+                timeZone: tz,
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+
+            preview.textContent = `Сейчас: ${timeString}`;
+        } catch (e) {
+            preview.textContent = "Сейчас: --:--";
+        }
+    }
+
     async function saveSettings() {
         const tz = document.getElementById('timezone-select').value;
         const notify = parseInt(document.getElementById('notify-select').value);
 
         try {
-            // 👇 ИЗМЕНЕНИЕ: Добавили 'POST' третьим аргументом
             await apiRequest('/api/settings', {
                 timezone: tz,
                 notify_before: notify
