@@ -25,7 +25,7 @@ async function loadNextRaceInfo() {
     // [NEW] Формируем путь к карте.
     // encodeURIComponent нужен на случай спецсимволов, но обычно для .svg имен достаточно простого подставления.
     // Название файла должно точно совпадать с data.event_name (например "Bahrain Grand Prix.svg")
-    const trackImage = `/assets/circuit/${data.event_name}.svg`;
+    const trackImage = `/static/circuit/${data.event_name}.svg`;
 
     let html = `
       <p style="font-weight: 600; font-size: 16px; margin-top: 8px;">

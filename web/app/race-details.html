@@ -115,25 +115,22 @@
         }
     }
 
-    function renderDetails(data, settings) {
+    async function renderDetails(data, settings) {
         const container = document.getElementById('content');
-        const trackImage = `/static/circuit/${data.event_name}.svg`;
 
+        // --- 1. Prepare Variables (From original code) ---
         let userTimezone = 'UTC';
         if (settings && settings.timezone) {
             userTimezone = settings.timezone;
         }
 
-        // --- [UPDATE START] ПЕРЕВОД ФОРМАТА ---
         const formatMap = {
             'conventional': 'Классический уикенд',
             'sprint': 'Спринт',
             'sprint_qualifying': 'Спринт-квалификация',
-            'sprint_shootout': 'Спринт-шутаут' // на случай старых данных или изменений
+            'sprint_shootout': 'Спринт-шутаут'
         };
-        // Берем перевод из карты или форматируем оригинальную строку, если ключа нет
         const translatedFormat = formatMap[data.event_format] || data.event_format.replace('_', ' ');
-        // --- [UPDATE END] ---
 
         let sessionsHtml = '';
         const now = new Date();
@@ -180,7 +177,12 @@
             `;
         });
 
-        // --- [UPDATE] Используем переменную translatedFormat вместо data.event_format ---
+        // --- 2. New Logic: Render & Animate ---
+
+        // Prepare the path
+        const trackUrl = `/static/circuit/${data.event_name}.svg`;
+
+        // Generate the HTML structure
         container.innerHTML = `
             <div class="circuit-header">
                 <div class="circuit-title">${data.event_name}</div>
@@ -192,9 +194,8 @@
                 </div>
             </div>
 
-            <div class="track-map-container">
-                <img src="${trackImage}" class="track-map-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block'">
-                <div class="no-map-placeholder" style="display:none">🏎️</div>
+            <div id="track-container" class="track-map-container">
+                <div class="loading-spinner">🏎️</div>
             </div>
 
             <div class="schedule-card">
@@ -209,6 +210,35 @@
                 Время отображается в вашем часовом поясе
             </div>
         `;
+
+        // Fetch and Inject SVG for Animation
+        try {
+            const response = await fetch(trackUrl);
+            if (response.ok) {
+                const svgText = await response.text();
+                const trackDiv = document.getElementById('track-container');
+
+                // Inject the raw SVG code
+                trackDiv.innerHTML = svgText;
+
+                // Setup Animation
+                const svgPath = trackDiv.querySelector('path, polyline');
+
+                if (svgPath) {
+                    svgPath.classList.add('track-line-animate');
+                    svgPath.style.fill = 'none';
+                    svgPath.style.stroke = 'var(--primary, #e10600)';
+                    svgPath.style.strokeWidth = '3';
+                    svgPath.style.strokeLinecap = 'round';
+                }
+            } else {
+                // Fallback if 404
+                document.getElementById('track-container').innerHTML = '<div class="no-map-placeholder">🏎️</div>';
+            }
+        } catch (e) {
+            console.error("SVG Load Error", e);
+            document.getElementById('track-container').innerHTML = '<div class="no-map-placeholder">🏎️</div>';
+        }
     }
 </script>
 </body>

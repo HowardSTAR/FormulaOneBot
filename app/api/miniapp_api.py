@@ -34,7 +34,7 @@ PROJECT_ROOT = CURRENT_DIR.parent.parent
 WEB_DIR = PROJECT_ROOT / "web" / "app"
 STATIC_DIR = WEB_DIR / "static"
 # [NEW] Добавляем путь к ассетам
-ASSETS_DIR = PROJECT_ROOT / "app" / "assets"
+ASSETS_DIR = PROJECT_ROOT / "web" / "app" / "static"
 
 # --- Инициализация приложения ---
 web_app = FastAPI(title="FormulaOneBot Mini App API")
@@ -51,7 +51,7 @@ if STATIC_DIR.exists():
     web_app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 if ASSETS_DIR.exists():
-    web_app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+    web_app.mount("/static", StaticFiles(directory=str(ASSETS_DIR)), name="static")
 
 # --- МОДЕЛИ ДАННЫХ ---
 
