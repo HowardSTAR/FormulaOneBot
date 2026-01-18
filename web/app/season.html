@@ -76,14 +76,27 @@
 <script src="/static/js/common.js"></script>
 <script>
     const currentRealYear = new Date().getFullYear();
+    // 1. Создаем глобальную переменную для часового пояса (по умолчанию UTC)
+    let currentUserTimezone = 'UTC';
 
     document.addEventListener('DOMContentLoaded', async () => {
         initTelegram();
+
+        // 2. Сначала загружаем настройки пользователя, чтобы узнать его часовой пояс
+        try {
+            const settings = await apiRequest('/api/settings');
+            if (settings && settings.timezone) {
+                currentUserTimezone = settings.timezone;
+            }
+        } catch (e) {
+            console.error("Не удалось загрузить настройки времени:", e);
+        }
 
         // Настраиваем кнопку текущего года
         const yearBtn = document.getElementById('current-year-btn');
         yearBtn.textContent = currentRealYear;
 
+        // Теперь загружаем календарь (с уже известным часовым поясом)
         await loadCalendar(currentRealYear);
 
         document.getElementById('year-input').addEventListener("keypress", function(event) {
@@ -126,7 +139,6 @@
                 container.innerHTML = '<div style="text-align:center; padding:20px;">Расписание не найдено</div>';
                 return;
             }
-            // ВАЖНО: Передаем season в функцию отрисовки
             renderRaces(data.races, season);
         } catch (error) {
             console.error(error);
@@ -134,7 +146,6 @@
         }
     }
 
-    // ВАЖНО: Добавили аргумент currentSeason
     function renderRaces(races, currentSeason) {
         const container = document.getElementById('calendar-list');
         container.innerHTML = '';
@@ -159,22 +170,27 @@
                 foundNext = true;
             }
 
-            const day = raceDate.getDate();
-            const month = raceDate.toLocaleString('ru-RU', { month: 'short' }).replace('.', '');
+            // 3. Форматируем ДЕНЬ с учетом часового пояса пользователя
+            const day = raceDate.toLocaleDateString('ru-RU', {
+                timeZone: currentUserTimezone,
+                day: 'numeric'
+            });
+
+            // 3. Форматируем МЕСЯЦ с учетом часового пояса пользователя
+            const month = raceDate.toLocaleDateString('ru-RU', {
+                timeZone: currentUserTimezone,
+                month: 'short'
+            }).replace('.', '');
 
             const div = document.createElement('div');
             div.className = `race-card ${statusClass}`;
             if (statusClass === 'next') div.id = 'next-race-card';
 
-            // --- НАЧАЛО ИСПРАВЛЕНИЯ ---
-            // Делаем курсор "рукой" и добавляем клик
             div.style.cursor = 'pointer';
             div.onclick = function() {
-                // Если currentSeason не передан (например, старый кеш), берем из input или текущий
                 const seasonParam = currentSeason || document.getElementById('year-input').value || currentRealYear;
                 window.location.href = `race-details.html?season=${seasonParam}&round=${race.round}`;
             };
-            // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
 
             div.innerHTML = `
                 <div class="race-date-box">
