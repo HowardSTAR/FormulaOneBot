@@ -117,7 +117,7 @@
 
     function renderDetails(data, settings) {
         const container = document.getElementById('content');
-        const trackImage = `/static/tracks/${data.circuit_key}.png`;
+        const trackImage = `/static/circuit/${data.event_name}.svg`;
 
         let userTimezone = 'UTC';
         if (settings && settings.timezone) {

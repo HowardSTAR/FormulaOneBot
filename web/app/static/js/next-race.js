@@ -22,11 +22,28 @@ async function loadNextRaceInfo() {
     // Обычный случай — status === 'ok'
     currentRaceData = data;
     
+    // [NEW] Формируем путь к карте.
+    // encodeURIComponent нужен на случай спецсимволов, но обычно для .svg имен достаточно простого подставления.
+    // Название файла должно точно совпадать с data.event_name (например "Bahrain Grand Prix.svg")
+    const trackImage = `/assets/circuit/${data.event_name}.svg`;
+
     let html = `
       <p style="font-weight: 600; font-size: 16px; margin-top: 8px;">
         ${data.round.toString().padStart(2, '0')}. ${data.event_name}
       </p>
-      <p style="color: var(--text-muted); font-size: 14px; margin-top: 4px;">
+
+      <div class="track-map-container" style="margin: 12px 0; text-align: center; min-height: 100px; display: flex; align-items: center; justify-content: center;">
+          <img 
+            src="${trackImage}" 
+            class="track-map-img" 
+            style="max-width: 100%; height: auto; max-height: 150px;"
+            alt="Track Map"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='block'"
+          >
+          <div class="no-map-placeholder" style="display:none; font-size: 48px;">🏎️</div>
+      </div>
+
+      <p style="color: font-size: 14px; margin-top: 4px;">
         📍 ${data.country}, ${data.location}
       </p>
     `;
