@@ -226,9 +226,10 @@
 
                 if (svgPath) {
                     svgPath.classList.add('track-line-animate');
-                    svgPath.style.fill = 'none';
-                    svgPath.style.stroke = 'var(--primary, #e10600)';
-                    svgPath.style.strokeWidth = '3';
+<!--                    svgPath.style.fill = 'var(&#45;&#45;primary, #e10600)';-->
+<!--                    svgPath.style.stroke = 'var(&#45;&#45;primary, #e10600)';-->
+                    svgPath.style.strokeWidth = '1';
+                    svgPath.style.strokeLinejoin = 'round';
                     svgPath.style.strokeLinecap = 'round';
                 }
             } else {
