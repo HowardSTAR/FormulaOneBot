@@ -34,10 +34,10 @@ const TrackRenderer = {
                  style="width: 100%; height: 100%; filter: drop-shadow(0 0 5px rgba(225,6,0,0.5));">
                 
                 <path d="${pathData}" 
-                      stroke="${this.config.strokeColor}" 
-                      stroke-width="${this.config.strokeWidth}" 
+                      stroke="${this.config.strokeColor}"
+                      stroke-width="${this.config.strokeWidth}"
                       fill="${this.config.fillColor}"
-                      stroke-linecap="round" 
+                      stroke-linecap="round"
                       stroke-linejoin="round"
                       class="track-animation" />
             </svg>
