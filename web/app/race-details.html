@@ -183,14 +183,11 @@
         const trackUrl = `/static/circuit/${data.event_name}.svg`;
 
         // Generate the HTML structure
-        container.innerHTML = `
+container.innerHTML = `
             <div class="circuit-header">
                 <div class="circuit-title">${data.event_name}</div>
                 <div class="circuit-subtitle">
                     <span>📍 ${data.location}, ${data.country}</span>
-                </div>
-                <div class="circuit-subtitle" style="margin-top:4px; font-size: 12px; opacity: 0.7;">
-                    Round ${data.round} • ${translatedFormat}
                 </div>
             </div>
 
@@ -199,46 +196,86 @@
             </div>
 
             <div class="schedule-card">
-                <div class="schedule-title">
-                    Расписание
-                    <span class="timezone-badge">${userTimezone}</span>
-                </div>
-                ${sessionsHtml}
-            </div>
-
-            <div style="text-align: center; font-size: 12px; color: var(--text-secondary); margin-top: 20px;">
-                Время отображается в вашем часовом поясе
+                 ${sessionsHtml}
             </div>
         `;
 
-        // Fetch and Inject SVG for Animation
+        // --- 3. FIX: Load and Animate SVG ---
+        // We must fetch the file, inject it, AND THEN animate it.
+        const trackContainer = document.getElementById('track-container');
+
+/* --- ЗАГРУЗКА И АНИМАЦИЯ SVG (Updated for Suzuka/Complex Tracks) --- */
         try {
             const response = await fetch(trackUrl);
-            if (response.ok) {
-                const svgText = await response.text();
-                const trackDiv = document.getElementById('track-container');
+            if (!response.ok) throw new Error('SVG Not Found');
 
-                // Inject the raw SVG code
-                trackDiv.innerHTML = svgText;
+            const svgText = await response.text();
+            const trackContainer = document.getElementById('track-container');
+            trackContainer.innerHTML = svgText;
 
-                // Setup Animation
-                const svgPath = trackDiv.querySelector('path, polyline');
+            const svgElement = trackContainer.querySelector('svg');
 
-                if (svgPath) {
-                    svgPath.classList.add('track-line-animate');
-<!--                    svgPath.style.fill = 'var(&#45;&#45;primary, #e10600)';-->
-<!--                    svgPath.style.stroke = 'var(&#45;&#45;primary, #e10600)';-->
-                    svgPath.style.strokeWidth = '1';
-                    svgPath.style.strokeLinejoin = 'round';
-                    svgPath.style.strokeLinecap = 'round';
-                }
-            } else {
-                // Fallback if 404
-                document.getElementById('track-container').innerHTML = '<div class="no-map-placeholder">🏎️</div>';
+            if (svgElement) {
+                svgElement.style.width = '100%';
+                svgElement.style.height = '100%';
+
+                // 1. Find all paths
+                const originalPaths = svgElement.querySelectorAll('path, polyline');
+
+                // 2. Create Two Layers (Groups)
+                const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+
+                outlineGroup.classList.add('track-outline-group');
+                fillGroup.classList.add('track-fill-group');
+
+                // 3. Distribute Paths
+                originalPaths.forEach(path => {
+                    // --- A. Prepare the OUTLINE (Bottom Layer) ---
+                    // Clone the path exactly
+                    const outlinePath = path.cloneNode(true);
+
+                    // Setup styles for the outline (The Red Line)
+                    outlinePath.removeAttribute('fill'); // Remove fill from outline
+                    outlinePath.classList.add('track-outline'); // New Class
+
+                    // Calculation for animation
+                    const length = outlinePath.getTotalLength();
+                    outlinePath.style.strokeDasharray = length;
+                    outlinePath.style.strokeDashoffset = length;
+
+                    // Add to bottom group
+                    outlineGroup.appendChild(outlinePath);
+
+                    // --- B. Prepare the FILL (Top Layer) ---
+                    // Setup styles for the fill (The Asphalt)
+                    path.classList.add('track-fill'); // New Class
+                    // We don't animate stroke on the fill layer, just opacity
+
+                    // Move original path to top group
+                    fillGroup.appendChild(path);
+                });
+
+                // 4. Clear SVG and append groups in correct order
+                // (This ensures Outline is BEHIND Fill)
+                svgElement.innerHTML = '';
+                svgElement.appendChild(outlineGroup); // Draws first (Bottom)
+                svgElement.appendChild(fillGroup);    // Draws second (Top)
+
+                // Force Reflow
+                svgElement.getBoundingClientRect();
+
+                // 5. Trigger Animation
+                setTimeout(() => {
+                    // Animate the line drawing
+                    outlineGroup.querySelectorAll('.track-outline').forEach(p => p.classList.add('animate'));
+                    // Fade in the asphalt
+                    fillGroup.querySelectorAll('.track-fill').forEach(p => p.classList.add('animate'));
+                }, 100);
             }
         } catch (e) {
             console.error("SVG Load Error", e);
-            document.getElementById('track-container').innerHTML = '<div class="no-map-placeholder">🏎️</div>';
+            document.getElementById('track-container').innerHTML = '<div class="no-map-placeholder">🏁</div>';
         }
     }
 </script>

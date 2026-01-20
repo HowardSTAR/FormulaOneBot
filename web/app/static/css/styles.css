@@ -462,9 +462,56 @@ p {
 }
 
 /* Ensure the injected SVG scales correctly */
+/*.track-map-container svg {*/
+/*    width: 150%;*/
+/*    height: 150%;*/
+/*    max-height: 300px;*/
+/*    filter: drop-shadow(0 0 3px rgba(225, 6, 0, 1));*/
+/*}*/
+
+/* --- Анимация Трассы --- */
+
 .track-map-container svg {
-    width: 100%;
-    height: 100%;
-    max-height: 200px;
-    filter: drop-shadow(0 0 5px rgba(225, 6, 0, 1));
+    width: 150%;
+    height: 150%;
+    overflow: visible;
+}
+
+/* Layer 1: The Red Outline (Bottom) */
+.track-outline {
+    stroke: var(--primary);  /* Red Color */
+    fill: none;              /* No fill for the line layer */
+
+    stroke-width: 1px;       /* THICKNESS: 2x desired width */
+                             /* 6px stroke covered by fill = 3px visible outline */
+
+    stroke-linecap: round;
+    stroke-linejoin: round;
+
+    /* Animation setup */
+    transition: stroke-dashoffset 2.5s ease-in-out;
+    will-change: stroke-dashoffset;
+
+    /* Optional: Neon Glow */
+    filter: drop-shadow(0 0 3px rgba(225, 6, 0, 1));
+}
+
+/* Layer 2: The Asphalt (Top) */
+.track-fill {
+    stroke: none;            /* No stroke on the top layer */
+    fill: var(--surface-color); /* Dark Asphalt Color */
+    /* Or use #15151E to match your SVG specific color */
+
+    opacity: 0;              /* Start hidden */
+    transition: opacity 1s ease-in-out 1.5s; /* Fade in after line starts drawing */
+    will-change: opacity;
+}
+
+/* Animation Triggers */
+.track-outline.animate {
+    stroke-dashoffset: 0 !important;
+}
+
+.track-fill.animate {
+    opacity: 1 !important;
 }
