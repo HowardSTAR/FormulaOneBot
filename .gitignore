@@ -1,4 +1,4 @@
 .env
 *.db
 *.sqlite
-fastf1_cache/
+#fastf1_cache/
