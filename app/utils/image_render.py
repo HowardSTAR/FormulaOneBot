@@ -1,7 +1,7 @@
 from io import BytesIO
 from pathlib import Path
 from typing import List, Tuple, Callable
-from datetime import date
+from datetime import date, datetime
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -693,6 +693,162 @@ def create_season_image(season: int, races: list[dict]) -> BytesIO:
         row_y = start_y + i * (row_height + line_spacing)
         if i < len(races_left): _draw_season_row(left_x, row_y, *races_left[i])
         if i < len(races_right): _draw_season_row(right_x, row_y, *races_right[i])
+
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
+
+
+# TODO сделать нормальное сравнение
+def create_comparison_image(
+        driver1_data: dict,
+        driver2_data: dict,
+        labels: List[str]
+) -> BytesIO:
+    """
+    Draws a cumulative line chart comparing two drivers.
+
+    Args:
+        driver1_data: dict with keys "code", "history" (list of ints), "total_points"
+        driver2_data: dict with keys "code", "history" (list of ints), "total_points"
+        labels: list of race names (abbreviated)
+    """
+    # --- Settings ---
+    width = 1600
+    height = 900
+    padding_x = 80
+    padding_y = 100
+    graph_area_h = height - 2 * padding_y - 100  # Leave space for legend/title
+    graph_area_w = width - 2 * padding_x
+
+    # Colors
+    color_d1 = (255, 140, 60)  # Orange/Papaya
+    color_d2 = (60, 200, 160)  # Teal/Cyan
+    grid_color = (60, 65, 80)
+    text_color = (200, 200, 220)
+
+    # Fonts (Reusing global fonts loaded in image_render.py)
+    font_main = FONT_ROW
+    font_small = FONT_SUBTITLE
+    font_bold = FONT_TITLE
+
+    # --- Data Prep ---
+    points1 = driver1_data["history"]
+    points2 = driver2_data["history"]
+
+    # Calculate Max Y for scaling
+    max_p = max(max(points1, default=0), max(points2, default=0))
+    # Round up to nearest 50 for nice grid
+    max_y_axis = ((max_p // 50) + 1) * 50 if max_p > 0 else 50
+
+    num_races = len(labels)
+    if num_races < 1:
+        # Fallback if no data
+        return create_results_image("Comparison", "No Data", [])
+
+    # --- Draw Background ---
+    img = _create_vertical_gradient(width, height, BG_GRADIENT_TOP, BG_GRADIENT_BOT)
+    draw = ImageDraw.Draw(img, "RGBA")
+
+    # Title
+    title = f"{driver1_data['code']} vs {driver2_data['code']}"
+    tw, th = _text_size(draw, title, font_bold)
+    draw.text(((width - tw) // 2, 30), title, font=font_bold, fill=(255, 255, 255))
+
+    subtitle = f"Progressive Season Battle ({datetime.now().year})"
+    sw, sh = _text_size(draw, subtitle, font_small)
+    draw.text(((width - sw) // 2, 30 + th + 10), subtitle, font=font_small, fill=(180, 180, 200))
+
+    # --- Coordinate System Calculations ---
+    origin_x = padding_x
+    origin_y = height - padding_y
+
+    # Step sizes
+    x_step = graph_area_w / (max(num_races, 1) - 1) if num_races > 1 else graph_area_w
+    y_ratio = graph_area_h / max_y_axis
+
+    # --- Draw Grid (Y-Axis) ---
+    # Draw 5 horizontal lines
+    steps = 5
+    for i in range(steps + 1):
+        p_val = int(max_y_axis * (i / steps))
+        y_pos = origin_y - (p_val * y_ratio)
+
+        # Grid line
+        draw.line((origin_x, y_pos, origin_x + graph_area_w, y_pos), fill=grid_color, width=1)
+
+        # Label
+        lbl = str(p_val)
+        lw, lh = _text_size(draw, lbl, font_small)
+        draw.text((origin_x - lw - 15, y_pos - lh // 2), lbl, font=font_small, fill=text_color)
+
+    # --- Draw X-Axis Labels ---
+    # Draw every nth label if too many races
+    label_step = 1
+    if num_races > 10: label_step = 2
+    if num_races > 20: label_step = 3
+
+    for i, label in enumerate(labels):
+        x_pos = origin_x + (i * x_step)
+
+        # Draw vertical faint grid
+        if i > 0:
+            draw.line((x_pos, origin_y, x_pos, origin_y - graph_area_h), fill=(40, 45, 60), width=1)
+
+        if i % label_step == 0:
+            # Shorten label if needed
+            lbl = label[:3].upper()
+            lw, lh = _text_size(draw, lbl, font_small)
+            draw.text((x_pos - lw // 2, origin_y + 15), lbl, font=font_small, fill=text_color)
+
+    # --- Helper to draw lines ---
+    def draw_line_graph(points, color):
+        coords = []
+        for i, pt in enumerate(points):
+            x = origin_x + (i * x_step)
+            y = origin_y - (pt * y_ratio)
+            coords.append((x, y))
+
+        # Draw thick line
+        if len(coords) > 1:
+            draw.line(coords, fill=color, width=5, joint="curve")
+
+        # Draw dots
+        for x, y in coords:
+            r = 6
+            draw.ellipse((x - r, y - r, x + r, y + r), fill=color, outline=(255, 255, 255), width=2)
+
+        # Draw final score tag
+        if coords:
+            fx, fy = coords[-1]
+            final_score = str(int(points[-1]))
+            fw, fh = _text_size(draw, final_score, font_main)
+
+            # Box background
+            draw.rounded_rectangle(
+                (fx + 15, fy - fh // 2 - 5, fx + 15 + fw + 20, fy + fh // 2 + 5),
+                radius=10, fill=CARD_BG_COLOR, outline=color, width=2
+            )
+            draw.text((fx + 25, fy - fh // 2), final_score, font=font_main, fill=color)
+
+    # Draw Driver 2 (Behind) first, then Driver 1
+    draw_line_graph(points2, color_d2)
+    draw_line_graph(points1, color_d1)
+
+    # --- Legend ---
+    legend_y = origin_y + 70
+    center_x = width // 2
+
+    # Legend Item 1
+    l1_text = f"{driver1_data['code']}"
+    draw.rectangle((center_x - 150, legend_y, center_x - 120, legend_y + 30), fill=color_d1)
+    draw.text((center_x - 110, legend_y - 2), l1_text, font=font_main, fill=text_color)
+
+    # Legend Item 2
+    l2_text = f"{driver2_data['code']}"
+    draw.rectangle((center_x + 50, legend_y, center_x + 80, legend_y + 30), fill=color_d2)
+    draw.text((center_x + 90, legend_y - 2), l2_text, font=font_main, fill=text_color)
 
     buf = BytesIO()
     img.save(buf, format="PNG")

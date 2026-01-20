@@ -7,7 +7,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.bot import create_bot_and_dispatcher
 from app.db import init_db
 from app.f1_data import warmup_current_season_sessions
-from app.handlers import secret, start, races, drivers, teams, favorites, settings
+from app.handlers import secret, start, races, drivers, teams, favorites, settings, compare
 from app.middlewares.error_logging import ErrorLoggingMiddleware
 from app.utils.notifications import check_and_notify_favorites, remind_next_race, check_and_notify_quali
 
@@ -37,7 +37,9 @@ async def main():
         teams.router,
         favorites.router,
         secret.router,
-        settings.settings_router
+        settings.settings_router,
+        # TODO сделать нормальное сравнение
+        compare.router,
     )
 
     # Планировщик
