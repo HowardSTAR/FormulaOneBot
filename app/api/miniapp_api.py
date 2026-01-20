@@ -19,6 +19,7 @@ from app.f1_data import (
     get_weekend_schedule,
     get_driver_standings_async,
     get_constructor_standings_async, _get_latest_quali_async, get_race_results_async, get_event_details_async,
+    get_drivers_comparison_async,
 )
 from app.db import (
     get_favorite_drivers, get_favorite_teams,
@@ -473,6 +474,23 @@ async def api_race_details(
             s["name"] = name_map.get(raw, raw)
 
     return data
+
+
+@web_app.get("/api/compare")
+async def api_compare_drivers(
+        d1: str = Query(..., description="Код первого пилота (NOR)"),
+        d2: str = Query(..., description="Код второго пилота (PIA)"),
+        season: Optional[int] = Query(None)
+):
+    if season is None:
+        season = datetime.now().year
+
+    data = await get_drivers_comparison_async(season, d1, d2)
+
+    if not data:
+        return {"status": "error", "message": "No data found"}
+
+    return {"status": "ok", "data": data}
 
 
 @web_app.get("/")
