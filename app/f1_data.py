@@ -492,8 +492,10 @@ def _get_drivers_comparison_sync(season: int, d1_code: str, d2_code: str):
         logger.error(f"Schedule error: {e}")
         return None
 
-    # Отфильтровываем только гонки (без тестов)
-    schedule = schedule[schedule['EventFormat'] != 'testing']
+    if schedule is not None and not schedule.empty:
+        schedule = schedule[schedule['EventFormat'] != 'testing']
+    else:
+        return None
 
     rounds_map = {}
     for _, row in schedule.iterrows():
@@ -520,23 +522,22 @@ def _get_drivers_comparison_sync(season: int, d1_code: str, d2_code: str):
     d1_cum = 0
     d2_cum = 0
 
-    # 2. ИДЕМ ПО ЭТАПАМ И ГРУЗИМ СЕССИИ НАПРЯМУЮ
-    # Это надежно, так как берет те же данные, что и проверочный скрипт
+    # 2. ИДЕМ ПО ЭТАПАМ
     for r in all_rounds:
         stats["labels"].append(rounds_map[r])
 
+        # --- ГОНКА (RACE) ---
         pts_d1_stage = 0
         pts_d2_stage = 0
         pos_d1 = 999
         pos_d2 = 999
 
         try:
-            # Грузим сессию. Поскольку вы запускали скрипт прогрева, это будет быстро (из кэша)
             session = fastf1.get_session(season, r, 'R')
             session.load(telemetry=False, laps=False, weather=False, messages=False)
 
             if session.results is not None and not session.results.empty:
-                # Ищем D1
+                # Поиск D1
                 row_d1 = session.results[
                     (session.results['Abbreviation'] == d1_code) |
                     (session.results['DriverNumber'] == d1_code)
@@ -545,7 +546,7 @@ def _get_drivers_comparison_sync(season: int, d1_code: str, d2_code: str):
                     pts_d1_stage = float(row_d1.iloc[0]['Points'])
                     pos_d1 = int(row_d1.iloc[0]['Position'])
 
-                # Ищем D2
+                # Поиск D2
                 row_d2 = session.results[
                     (session.results['Abbreviation'] == d2_code) |
                     (session.results['DriverNumber'] == d2_code)
@@ -554,18 +555,53 @@ def _get_drivers_comparison_sync(season: int, d1_code: str, d2_code: str):
                     pts_d2_stage = float(row_d2.iloc[0]['Points'])
                     pos_d2 = int(row_d2.iloc[0]['Position'])
 
-                # H2H счет
+                # СЧЕТ В ГОНКАХ
                 if pos_d1 != 999 and pos_d2 != 999:
                     if pos_d1 < pos_d2:
                         stats["score"]["race"][d1_code] += 1
                     elif pos_d2 < pos_d1:
                         stats["score"]["race"][d2_code] += 1
 
-        except Exception as e:
-            # Если данных нет вообще (гонка не состоялась), просто идем дальше
-            pass
+        except Exception:
+            pass  # Гонка не загрузилась или еще не прошла
 
-        # Накопление
+        # --- КВАЛИФИКАЦИЯ (QUALI) ---
+        try:
+            # Загружаем квалификацию ('Q')
+            session_q = fastf1.get_session(season, r, 'Q')
+            session_q.load(telemetry=False, laps=False, weather=False, messages=False)
+
+            q_pos1 = 999
+            q_pos2 = 999
+
+            if session_q.results is not None and not session_q.results.empty:
+                # Поиск D1
+                q_row1 = session_q.results[
+                    (session_q.results['Abbreviation'] == d1_code) |
+                    (session_q.results['DriverNumber'] == d1_code)
+                    ]
+                if not q_row1.empty:
+                    q_pos1 = int(q_row1.iloc[0]['Position'])
+
+                # Поиск D2
+                q_row2 = session_q.results[
+                    (session_q.results['Abbreviation'] == d2_code) |
+                    (session_q.results['DriverNumber'] == d2_code)
+                    ]
+                if not q_row2.empty:
+                    q_pos2 = int(q_row2.iloc[0]['Position'])
+
+                # СЧЕТ В КВАЛАХ
+                if q_pos1 != 999 and q_pos2 != 999:
+                    if q_pos1 < q_pos2:
+                        stats["score"]["quali"][d1_code] += 1
+                    elif q_pos2 < q_pos1:
+                        stats["score"]["quali"][d2_code] += 1
+
+        except Exception:
+            pass  # Квала не загрузилась или еще не прошла
+
+        # Накопление очков (только гонка)
         d1_cum += pts_d1_stage
         d2_cum += pts_d2_stage
 
