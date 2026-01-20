@@ -204,40 +204,52 @@
     }
 
     function renderStats(data, code1, code2) {
-        // Счет
+        // Счетчики
         document.getElementById('race-s1').textContent = data.score.race[code1] || 0;
         document.getElementById('race-s2').textContent = data.score.race[code2] || 0;
-
         document.getElementById('quali-s1').textContent = data.score.quali[code1] || 0;
         document.getElementById('quali-s2').textContent = data.score.quali[code2] || 0;
 
-        // График
+        // --- ГРАФИК ---
         const ctx = document.getElementById('pointsChart').getContext('2d');
 
         if(chartInstance) chartInstance.destroy();
 
+        // Градиент для красоты (опционально, но выглядит круто)
+        const gradient1 = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient1.addColorStop(0, 'rgba(54, 162, 235, 0.5)');
+        gradient1.addColorStop(1, 'rgba(54, 162, 235, 0.0)');
+
+        const gradient2 = ctx.createLinearGradient(0, 0, 0, 400);
+        gradient2.addColorStop(0, 'rgba(255, 99, 132, 0.5)');
+        gradient2.addColorStop(1, 'rgba(255, 99, 132, 0.0)');
+
         chartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: data.labels,
+                labels: data.labels, // Bahrain, Saudi, ..., Abu Dhabi
                 datasets: [
                     {
                         label: code1,
                         data: data.driver1.history,
                         borderColor: '#36a2eb',
-                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                        pointBackgroundColor: '#36a2eb',
-                        tension: 0.1, // Чуть менее плавный, чтобы было видно этапы точнее
-                        borderWidth: 3
+                        backgroundColor: gradient1,
+                        fill: true,           // Заливка под графиком
+                        pointRadius: 3,       // Точки видны, но не гигантские
+                        pointHoverRadius: 6,
+                        tension: 0.2,         // Легкое сглаживание
+                        borderWidth: 2
                     },
                     {
                         label: code2,
                         data: data.driver2.history,
                         borderColor: '#ff6384',
-                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                        pointBackgroundColor: '#ff6384',
-                        tension: 0.1,
-                        borderWidth: 3
+                        backgroundColor: gradient2,
+                        fill: true,
+                        pointRadius: 3,
+                        pointHoverRadius: 6,
+                        tension: 0.2,
+                        borderWidth: 2
                     }
                 ]
             },
@@ -249,21 +261,46 @@
                     intersect: false,
                 },
                 plugins: {
-                    legend: { labels: { color: '#fff' } },
+                    legend: {
+                        labels: { color: '#fff', font: { size: 12, family: 'Jost' } }
+                    },
                     tooltip: {
-                        mode: 'index',
-                        intersect: false
+                        backgroundColor: 'rgba(20, 20, 20, 0.9)',
+                        titleColor: '#fff',
+                        bodyColor: '#ccc',
+                        borderColor: '#444',
+                        borderWidth: 1,
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.raw + ' оч.';
+                            },
+                            afterBody: function(tooltipItems) {
+                                // Считаем разницу между пилотами в этой точке
+                                const val1 = tooltipItems[0].raw;
+                                const val2 = tooltipItems[1] ? tooltipItems[1].raw : 0;
+                                const diff = Math.abs(val1 - val2);
+                                // Определяем лидера
+                                const leader = val1 > val2 ? tooltipItems[0].dataset.label : tooltipItems[1].dataset.label;
+                                return '\nЛидер: ' + leader + ' (+' + diff + ')';
+                            }
+                        }
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        grid: { color: 'rgba(255,255,255,0.1)' },
-                        ticks: { color: '#aaa' }
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#888' }
                     },
                     x: {
                         grid: { display: false },
-                        ticks: { color: '#aaa', maxRotation: 90, minRotation: 90 }
+                        ticks: {
+                            color: '#aaa',
+                            autoSkip: false, // ПОКАЗАТЬ ВСЕ ЭТАПЫ
+                            maxRotation: 90,
+                            minRotation: 90,
+                            font: { size: 10 }
+                        }
                     }
                 }
             }

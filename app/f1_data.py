@@ -478,82 +478,37 @@ async def get_event_details_async(season: int, round_number: int):
     return await _run_sync(get_event_details, season, round_number)
 
 
-# Добавляем функцию для сравнения
-@cache_result(ttl=3600, key_prefix="h2h_data")
+# --- ГЛАВНАЯ ФУНКЦИЯ СРАВНЕНИЯ (ПЕРЕПИСАНА НА get_session) ---
+@cache_result(ttl=3600, key_prefix="h2h_data_v2")
 async def get_drivers_comparison_async(season: int, driver1_code: str, driver2_code: str):
-    """
-    Возвращает данные для сравнения двух пилотов:
-    - Счет в квалификациях
-    - Счет в гонках
-    - График очков (кумулятивный)
-    """
     return await _run_sync(_get_drivers_comparison_sync, season, driver1_code, driver2_code)
 
 
 def _get_drivers_comparison_sync(season: int, d1_code: str, d2_code: str):
-    ergast = Ergast()
-
-    # --- Вспомогательная функция для склейки ответов Ergast ---
-    def process_ergast_response(resp):
-        """Собирает MultiResponse (список гонок) в один DataFrame с добавлением номера этапа"""
-        if not resp:
-            return pd.DataFrame()
-
-        # Если это MultiResponse (список DataFrames в .content и метаданные в .description)
-        if hasattr(resp, 'content') and isinstance(resp.content, list):
-            if not resp.content:
-                return pd.DataFrame()
-
-            all_dfs = []
-            # Проходим по парам (DataFrame гонки, Метаданные гонки)
-            # resp.description содержит колонки 'round', 'raceName' и т.д.
-            for df, (idx, meta) in zip(resp.content, resp.description.iterrows()):
-                df = df.copy()
-                # Добавляем номер этапа и название, так как в raw-результатах их может не быть
-                if 'round' in meta:
-                    df['round'] = meta['round']
-                if 'raceName' in meta:
-                    df['raceName'] = meta['raceName']
-                all_dfs.append(df)
-
-            if not all_dfs:
-                return pd.DataFrame()
-            return pd.concat(all_dfs, ignore_index=True)
-
-        # Если это SimpleResponse (уже DataFrame), возвращаем как есть
-        # (Хотя для запроса сезона обычно возвращается MultiResponse)
-        elif isinstance(resp, pd.DataFrame):
-            return resp
-
-        return pd.DataFrame()
-
-    # 1. Получаем результаты всех гонок сезона
-    races_resp = ergast.get_race_results(season=season, limit=1000)
-    races_df = process_ergast_response(races_resp)
-
-    if races_df.empty:
+    # 1. Получаем расписание
+    try:
+        schedule = fastf1.get_event_schedule(season, include_testing=False)
+    except Exception as e:
+        logger.error(f"Schedule error: {e}")
         return None
 
-    # 2. Получаем результаты всех квалификаций сезона
-    quali_resp = ergast.get_qualifying_results(season=season, limit=1000)
-    quali_df = process_ergast_response(quali_resp)
+    # Отфильтровываем только гонки (без тестов)
+    schedule = schedule[schedule['EventFormat'] != 'testing']
 
-    # Приводим коды к верхнему регистру
+    rounds_map = {}
+    for _, row in schedule.iterrows():
+        try:
+            r_num = int(row["RoundNumber"])
+            r_name = str(row["EventName"]).replace(" Grand Prix", "").strip()
+            rounds_map[r_num] = r_name
+        except:
+            continue
+
+    all_rounds = sorted(rounds_map.keys())
+
+    # Подготовка структур
     d1_code = d1_code.upper()
     d2_code = d2_code.upper()
-
-    # Убеждаемся, что колонка round имеет правильный тип (int)
-    if 'round' in races_df.columns:
-        races_df['round'] = pd.to_numeric(races_df['round'], errors='coerce')
-
-    if not quali_df.empty and 'round' in quali_df.columns:
-        quali_df['round'] = pd.to_numeric(quali_df['round'], errors='coerce')
-
-    # Получаем список этапов
-    if 'round' not in races_df.columns:
-        return None  # Не удалось получить этапы
-
-    rounds = sorted(races_df['round'].unique())
 
     stats = {
         "driver1": {"code": d1_code, "total_points": 0, "history": []},
@@ -562,75 +517,66 @@ def _get_drivers_comparison_sync(season: int, d1_code: str, d2_code: str):
         "labels": []
     }
 
-    d1_cum_points = 0
-    d2_cum_points = 0
+    d1_cum = 0
+    d2_cum = 0
 
-    for r in rounds:
-        # Данные гонки
-        race_slice = races_df[races_df['round'] == r]
+    # 2. ИДЕМ ПО ЭТАПАМ И ГРУЗИМ СЕССИИ НАПРЯМУЮ
+    # Это надежно, так как берет те же данные, что и проверочный скрипт
+    for r in all_rounds:
+        stats["labels"].append(rounds_map[r])
 
-        # Данные квалы
-        q_slice = pd.DataFrame()
-        if not quali_df.empty and 'round' in quali_df.columns:
-            q_slice = quali_df[quali_df['round'] == r]
+        pts_d1_stage = 0
+        pts_d2_stage = 0
+        pos_d1 = 999
+        pos_d2 = 999
 
-        # --- Ищем пилотов (фильтр по коду) ---
-        # ВАЖНО: В Ergast иногда код может быть в driverCode или Abbreviation.
-        # Обычно driverCode.
+        try:
+            # Грузим сессию. Поскольку вы запускали скрипт прогрева, это будет быстро (из кэша)
+            session = fastf1.get_session(season, r, 'R')
+            session.load(telemetry=False, laps=False, weather=False, messages=False)
 
-        col_name = 'driverCode' if 'driverCode' in races_df.columns else 'Abbreviation'
+            if session.results is not None and not session.results.empty:
+                # Ищем D1
+                row_d1 = session.results[
+                    (session.results['Abbreviation'] == d1_code) |
+                    (session.results['DriverNumber'] == d1_code)
+                    ]
+                if not row_d1.empty:
+                    pts_d1_stage = float(row_d1.iloc[0]['Points'])
+                    pos_d1 = int(row_d1.iloc[0]['Position'])
 
-        d1_r = race_slice[race_slice[col_name] == d1_code]
-        d2_r = race_slice[race_slice[col_name] == d2_code]
+                # Ищем D2
+                row_d2 = session.results[
+                    (session.results['Abbreviation'] == d2_code) |
+                    (session.results['DriverNumber'] == d2_code)
+                    ]
+                if not row_d2.empty:
+                    pts_d2_stage = float(row_d2.iloc[0]['Points'])
+                    pos_d2 = int(row_d2.iloc[0]['Position'])
 
-        # --- СБОР ОЧКОВ И ПОЗИЦИЙ ---
-        p1_race_pos = int(d1_r.iloc[0]['position']) if not d1_r.empty else None
-        p2_race_pos = int(d2_r.iloc[0]['position']) if not d2_r.empty else None
+                # H2H счет
+                if pos_d1 != 999 and pos_d2 != 999:
+                    if pos_d1 < pos_d2:
+                        stats["score"]["race"][d1_code] += 1
+                    elif pos_d2 < pos_d1:
+                        stats["score"]["race"][d2_code] += 1
 
-        p1_pts = float(d1_r.iloc[0]['points']) if not d1_r.empty else 0
-        p2_pts = float(d2_r.iloc[0]['points']) if not d2_r.empty else 0
+        except Exception as e:
+            # Если данных нет вообще (гонка не состоялась), просто идем дальше
+            pass
 
-        # Счет в гонке
-        if p1_race_pos is not None and p2_race_pos is not None:
-            if p1_race_pos < p2_race_pos:
-                stats["score"]["race"][d1_code] += 1
-            else:
-                stats["score"]["race"][d2_code] += 1
+        # Накопление
+        d1_cum += pts_d1_stage
+        d2_cum += pts_d2_stage
 
-        # Квалификация
-        if not q_slice.empty:
-            # Проверяем колонку кода в квалах (может отличаться)
-            q_col = 'driverCode' if 'driverCode' in q_slice.columns else 'Abbreviation'
+        stats["driver1"]["history"].append(d1_cum)
+        stats["driver2"]["history"].append(d2_cum)
 
-            d1_q = q_slice[q_slice[q_col] == d1_code]
-            d2_q = q_slice[q_slice[q_col] == d2_code]
-
-            p1_q_pos = int(d1_q.iloc[0]['position']) if not d1_q.empty else None
-            p2_q_pos = int(d2_q.iloc[0]['position']) if not d2_q.empty else None
-
-            if p1_q_pos is not None and p2_q_pos is not None:
-                if p1_q_pos < p2_q_pos:
-                    stats["score"]["quali"][d1_code] += 1
-                else:
-                    stats["score"]["quali"][d2_code] += 1
-
-        # График
-        d1_cum_points += p1_pts
-        d2_cum_points += p2_pts
-
-        stats["driver1"]["history"].append(d1_cum_points)
-        stats["driver2"]["history"].append(d2_cum_points)
-
-        # Название этапа
-        race_name = race_slice.iloc[0][
-            'raceName'] if 'raceName' in race_slice.columns and not race_slice.empty else f"R{r}"
-        short_name = race_name.replace(" Grand Prix", "")
-        stats["labels"].append(short_name)
-
-    stats["driver1"]["total_points"] = d1_cum_points
-    stats["driver2"]["total_points"] = d2_cum_points
+    stats["driver1"]["total_points"] = d1_cum
+    stats["driver2"]["total_points"] = d2_cum
 
     return stats
+
 
 # можно удалить
 if __name__ == "__main__":
