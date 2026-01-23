@@ -9,6 +9,7 @@ from app.db import init_db
 from app.f1_data import warmup_current_season_sessions
 from app.handlers import secret, start, races, drivers, teams, favorites, settings, compare
 from app.middlewares.error_logging import ErrorLoggingMiddleware
+from app.utils.backup import create_backup
 from app.utils.notifications import check_and_notify_favorites, remind_next_race, check_and_notify_quali
 
 # Базовая настройка логов
@@ -23,6 +24,11 @@ async def main():
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
+
+    scheduler = AsyncIOScheduler()
+
+    scheduler.add_job(create_backup, 'interval', hours=24)
+    scheduler.start()
 
     await init_db()
 
