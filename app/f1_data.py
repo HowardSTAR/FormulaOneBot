@@ -2,73 +2,83 @@ import asyncio
 import functools
 import logging
 import pathlib
+import time
 from datetime import date as _date, timezone, timedelta, datetime
-from typing import Optional, Any
+from typing import Optional, Any, Dict, Tuple
 
 import fastf1
 import pandas as pd
-import pickle
-import redis_client
-from fastf1._api import SessionNotAvailableError
 from fastf1.ergast import Ergast
 
-# --- ИНИЦИАЛИЗАЦИЯ КЭША --- #
+# --- ЛОГИРОВАНИЕ --- #
+logger = logging.getLogger(__name__)
+
+# --- НАСТРОЙКА КЭША FASTF1 (Файловый) --- #
+# Это кэш самой библиотеки (сырые данные от API)
 _project_root = pathlib.Path(__file__).resolve().parent.parent
 _cache_dir = _project_root / "fastf1_cache"
 _cache_dir.mkdir(exist_ok=True)
-fastf1.Cache.enable_cache(_cache_dir)
-
-logger = logging.getLogger(__name__)
+try:
+    fastf1.Cache.enable_cache(_cache_dir)
+    logger.info(f"FastF1 cache enabled at: {_cache_dir}")
+except Exception as e:
+    logger.warning(f"Could not enable FastF1 cache: {e}")
 
 UTC_PLUS_3 = timezone(timedelta(hours=3))
 
+# --- ВНУТРЕННИЙ RAM КЭШ (Вместо Redis) --- #
+# Словарь вида: { "ключ_функции": (timestamp_истечения, данные) }
+_INTERNAL_MEMORY_CACHE: Dict[str, Tuple[float, Any]] = {}
 
-async def _run_sync(func, *args, **kwargs):
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
 
-
-# --- ДЕКОРАТОР КЭШИРОВАНИЯ --- #
 def cache_result(ttl: int = 300, key_prefix: str = ""):
     """
-    ttl: время жизни кэша в секундах (по умолчанию 5 минут)
-    key_prefix: префикс для ключа в Redis
+    Простой кэш в оперативной памяти.
+    ttl: время жизни в секундах.
     """
+
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            # Формируем уникальный ключ: prefix:arg1:arg2...
-            # Простая генерация ключа из аргументов
-            key_parts = [str(arg) for arg in args]
-            key_parts += [f"{k}={v}" for k, v in kwargs.items()]
-            cache_key = f"f1bot:{key_prefix}:{':'.join(key_parts)}"
+            # 1. Генерация уникального ключа
+            # Превращаем аргументы в строку, чтобы использовать как ключ словаря
+            arg_str = str(args) + str(kwargs)
+            cache_key = f"{key_prefix}:{func.__name__}:{arg_str}"
 
-            # 1. Пытаемся получить из Redis
+            current_time = time.time()
+
+            # 2. Проверка наличия в кэше
+            if cache_key in _INTERNAL_MEMORY_CACHE:
+                expire_time, data = _INTERNAL_MEMORY_CACHE[cache_key]
+                if current_time < expire_time:
+                    # Данные свежие, возвращаем их моментально
+                    return data
+                else:
+                    # Протухли, удаляем
+                    del _INTERNAL_MEMORY_CACHE[cache_key]
+
+            # 3. Выполнение функции (если нет в кэше)
             try:
-                cached_data = await redis_client.get(cache_key)
-                if cached_data:
-                    # Если данные есть, распаковываем (Pickle универсален для DF и dict)
-                    return pickle.loads(cached_data)
+                result = await func(*args, **kwargs)
+
+                # 4. Сохранение результата (только если он не пустой/None)
+                if result is not None:
+                    _INTERNAL_MEMORY_CACHE[cache_key] = (current_time + ttl, result)
+
+                return result
             except Exception as e:
-                logger.error(f"Redis read error: {e}")
+                logger.error(f"Error in cached function {func.__name__}: {e}")
+                return None
 
-            # 2. Если кэша нет, выполняем функцию (оригинальную)
-            result = await func(*args, **kwargs)
-
-            # 3. Сохраняем в Redis
-            try:
-                if result is not None: # Не кэшируем None/ошибки
-                    await redis_client.setex(
-                        cache_key,
-                        ttl,
-                        pickle.dumps(result)
-                    )
-            except Exception as e:
-                logger.error(f"Redis write error: {e}")
-
-            return result
         return wrapper
+
     return decorator
+
+
+async def _run_sync(func, *args, **kwargs):
+    """Запускает синхронные функции fastf1 в отдельном потоке, чтобы не блокировать бота"""
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
 
 
 def get_season_schedule_df(season: int) -> pd.DataFrame:
@@ -89,8 +99,16 @@ def get_season_schedule_df(season: int) -> pd.DataFrame:
     return schedule
 
 
+# --- ФУНКЦИИ ПОЛУЧЕНИЯ ДАННЫХ --- #
+
 def get_season_schedule_short(season: int) -> list[dict]:
-    schedule = fastf1.get_event_schedule(season)
+    """Синхронное получение расписания"""
+    try:
+        schedule = fastf1.get_event_schedule(season)
+    except Exception as e:
+        logger.error(f"Failed to get schedule: {e}")
+        return []
+
     races: list[dict] = []
 
     for _, row in schedule.iterrows():
@@ -100,20 +118,22 @@ def get_season_schedule_short(season: int) -> list[dict]:
             round_num = int(row["RoundNumber"])
         except:
             continue
-        if round_num <= 0: continue
+        if round_num <= 0: continue  # Пропускаем тесты
 
         country = str(row.get("Country") or "")
         location = str(row.get("Location") or "")
 
+        # Попытка найти время гонки
         race_dt_utc = None
-        for i in range(1, 9):
+        for i in range(1, 6):  # Обычно 5 сессий
             name_col = f"Session{i}"
             date_col = f"Session{i}DateUtc"
-            if name_col not in row.index or date_col not in row.index: continue
-            if str(row[name_col]) == "Race" and row[date_col] is not None:
-                race_dt_utc = row[date_col].to_pydatetime()
-                break
+            if name_col in row and date_col in row:
+                if str(row[name_col]) == "Race" and row[date_col] is not None:
+                    race_dt_utc = row[date_col].to_pydatetime()
+                    break
 
+        # Если время гонки не найдено, берем EventDate
         if race_dt_utc:
             if race_dt_utc.tzinfo is None: race_dt_utc = race_dt_utc.replace(tzinfo=timezone.utc)
             date_iso = race_dt_utc.date().isoformat()
@@ -130,21 +150,12 @@ def get_season_schedule_short(season: int) -> list[dict]:
             "location": location,
             "date": date_iso,
         }
-
-        if race_dt_utc:
-            # 1. ISO для бота (расчеты)
-            race_dict["race_start_utc"] = race_dt_utc.isoformat()
-
-            # 2. Строка для сайта (ЖЕСТКИЙ ФОРМАТ) "08.03.2026 07:00"
-            dt_msk = race_dt_utc.astimezone(UTC_PLUS_3)
-            race_dict["local"] = dt_msk.strftime("%d.%m.%Y %H:%M")
-
         races.append(race_dict)
 
-    races.sort(key=lambda r: r["round"])
     return races
 
 
+@cache_result(ttl=3600, key_prefix="schedule")
 async def get_season_schedule_short_async(season: int):
     return await _run_sync(get_season_schedule_short, season)
 
@@ -158,6 +169,7 @@ def get_driver_standings_df(season: int, round_number: Optional[int] = None) -> 
     except: return pd.DataFrame()
 
 
+@cache_result(ttl=600)
 async def get_driver_standings_async(season: int, round_number: Optional[int] = None):
     return await _run_sync(get_driver_standings_df, season, round_number)
 
@@ -171,6 +183,7 @@ def get_constructor_standings_df(season: int, round_number: Optional[int] = None
     except: return pd.DataFrame()
 
 
+@cache_result(ttl=600)
 async def get_constructor_standings_async(season: int, round_number: Optional[int] = None):
     return await _run_sync(get_constructor_standings_df, season, round_number)
 
@@ -183,6 +196,7 @@ def get_race_results_df(season: int, round_number: int):
     except: return None
 
 
+@cache_result(ttl=600)
 async def get_race_results_async(season: int, round_number: int):
     return await _run_sync(get_race_results_df, season, round_number)
 
@@ -239,6 +253,7 @@ def get_qualifying_results(season: int, round_number: int, limit: int = 20) -> l
     return results[:limit]
 
 
+@cache_result(ttl=600)
 async def _get_quali_async(season: int, round_number: int, limit: int = 20) -> list[dict]:
     """
     Асинхронная обёртка над get_qualifying_results, чтобы не блокировать event-loop.
@@ -282,6 +297,7 @@ def get_latest_quali_results(season: int, max_round: int | None = None, limit: i
     return None, []
 
 
+@cache_result(ttl=600)
 async def _get_latest_quali_async(season: int, max_round: int | None = None, limit: int = 20):
     return await _run_sync(get_latest_quali_results, season, max_round, limit)
 
@@ -479,28 +495,30 @@ async def get_event_details_async(season: int, round_number: int):
 
 
 # --- ГЛАВНАЯ ФУНКЦИЯ СРАВНЕНИЯ (ПЕРЕПИСАНА НА get_session) ---
-@cache_result(ttl=3600, key_prefix="h2h_data_v2")
+@cache_result(ttl=3600, key_prefix="h2h_v3")
 async def get_drivers_comparison_async(season: int, driver1_code: str, driver2_code: str):
     return await _run_sync(_get_drivers_comparison_sync, season, driver1_code, driver2_code)
 
 
 def _get_drivers_comparison_sync(season: int, d1_code: str, d2_code: str):
-    # 1. Получаем расписание
+    # 1. Загружаем расписание
     try:
         schedule = fastf1.get_event_schedule(season, include_testing=False)
     except Exception as e:
         logger.error(f"Schedule error: {e}")
         return None
 
-    if schedule is not None and not schedule.empty:
-        schedule = schedule[schedule['EventFormat'] != 'testing']
-    else:
+    if schedule is None or schedule.empty:
         return None
+
+    # Оставляем только этапы, где есть гонка
+    schedule = schedule[schedule['EventFormat'] != 'testing']
 
     rounds_map = {}
     for _, row in schedule.iterrows():
         try:
             r_num = int(row["RoundNumber"])
+            # Очищаем название для графика
             r_name = str(row["EventName"]).replace(" Grand Prix", "").strip()
             rounds_map[r_num] = r_name
         except:
@@ -508,7 +526,7 @@ def _get_drivers_comparison_sync(season: int, d1_code: str, d2_code: str):
 
     all_rounds = sorted(rounds_map.keys())
 
-    # Подготовка структур
+    # Подготовка данных
     d1_code = d1_code.upper()
     d2_code = d2_code.upper()
 
@@ -522,91 +540,97 @@ def _get_drivers_comparison_sync(season: int, d1_code: str, d2_code: str):
     d1_cum = 0
     d2_cum = 0
 
-    # 2. ИДЕМ ПО ЭТАПАМ
+    # 2. Проходим по всем этапам
     for r in all_rounds:
         stats["labels"].append(rounds_map[r])
 
-        # --- ГОНКА (RACE) ---
         pts_d1_stage = 0
         pts_d2_stage = 0
-        pos_d1 = 999
-        pos_d2 = 999
 
+        # Переменные для счета H2H
+        pos_race_1, pos_race_2 = 999, 999
+        pos_quali_1, pos_quali_2 = 999, 999
+
+        race_happened = False
+
+        # --- АНАЛИЗ ГОНКИ ('R') ---
         try:
             session = fastf1.get_session(season, r, 'R')
+            # Загружаем только результаты (быстро, из кэша)
             session.load(telemetry=False, laps=False, weather=False, messages=False)
 
             if session.results is not None and not session.results.empty:
-                # Поиск D1
-                row_d1 = session.results[
+                race_happened = True
+
+                # Данные пилота 1
+                r1 = session.results[
                     (session.results['Abbreviation'] == d1_code) |
                     (session.results['DriverNumber'] == d1_code)
                     ]
-                if not row_d1.empty:
-                    pts_d1_stage = float(row_d1.iloc[0]['Points'])
-                    pos_d1 = int(row_d1.iloc[0]['Position'])
+                if not r1.empty:
+                    pts_d1_stage = float(r1.iloc[0]['Points'])
+                    # Учитываем позицию только если классифицирован (можно добавить проверку status)
+                    pos_race_1 = int(r1.iloc[0]['Position'])
 
-                # Поиск D2
-                row_d2 = session.results[
+                # Данные пилота 2
+                r2 = session.results[
                     (session.results['Abbreviation'] == d2_code) |
                     (session.results['DriverNumber'] == d2_code)
                     ]
-                if not row_d2.empty:
-                    pts_d2_stage = float(row_d2.iloc[0]['Points'])
-                    pos_d2 = int(row_d2.iloc[0]['Position'])
+                if not r2.empty:
+                    pts_d2_stage = float(r2.iloc[0]['Points'])
+                    pos_race_2 = int(r2.iloc[0]['Position'])
 
-                # СЧЕТ В ГОНКАХ
-                if pos_d1 != 999 and pos_d2 != 999:
-                    if pos_d1 < pos_d2:
+                # Обновляем счет в гонках
+                if pos_race_1 != 999 and pos_race_2 != 999:
+                    if pos_race_1 < pos_race_2:
                         stats["score"]["race"][d1_code] += 1
-                    elif pos_d2 < pos_d1:
+                    elif pos_race_2 < pos_race_1:
                         stats["score"]["race"][d2_code] += 1
 
         except Exception:
-            pass  # Гонка не загрузилась или еще не прошла
+            pass  # Данных о гонке нет или ошибка
 
-        # --- КВАЛИФИКАЦИЯ (QUALI) ---
+        # --- АНАЛИЗ КВАЛИФИКАЦИИ ('Q') ---
         try:
-            # Загружаем квалификацию ('Q')
             session_q = fastf1.get_session(season, r, 'Q')
             session_q.load(telemetry=False, laps=False, weather=False, messages=False)
 
-            q_pos1 = 999
-            q_pos2 = 999
-
             if session_q.results is not None and not session_q.results.empty:
-                # Поиск D1
-                q_row1 = session_q.results[
+                # Пилот 1
+                q1 = session_q.results[
                     (session_q.results['Abbreviation'] == d1_code) |
                     (session_q.results['DriverNumber'] == d1_code)
                     ]
-                if not q_row1.empty:
-                    q_pos1 = int(q_row1.iloc[0]['Position'])
+                if not q1.empty: pos_quali_1 = int(q1.iloc[0]['Position'])
 
-                # Поиск D2
-                q_row2 = session_q.results[
+                # Пилот 2
+                q2 = session_q.results[
                     (session_q.results['Abbreviation'] == d2_code) |
                     (session_q.results['DriverNumber'] == d2_code)
                     ]
-                if not q_row2.empty:
-                    q_pos2 = int(q_row2.iloc[0]['Position'])
+                if not q2.empty: pos_quali_2 = int(q2.iloc[0]['Position'])
 
-                # СЧЕТ В КВАЛАХ
-                if q_pos1 != 999 and q_pos2 != 999:
-                    if q_pos1 < q_pos2:
+                # Обновляем счет в квалификациях
+                if pos_quali_1 != 999 and pos_quali_2 != 999:
+                    if pos_quali_1 < pos_quali_2:
                         stats["score"]["quali"][d1_code] += 1
-                    elif q_pos2 < q_pos1:
+                    elif pos_quali_2 < pos_quali_1:
                         stats["score"]["quali"][d2_code] += 1
 
         except Exception:
-            pass  # Квала не загрузилась или еще не прошла
+            pass  # Данных о квалификации нет
 
-        # Накопление очков (только гонка)
-        d1_cum += pts_d1_stage
-        d2_cum += pts_d2_stage
-
-        stats["driver1"]["history"].append(d1_cum)
-        stats["driver2"]["history"].append(d2_cum)
+        # --- ОБНОВЛЕНИЕ ГРАФИКА ---
+        if race_happened:
+            d1_cum += pts_d1_stage
+            d2_cum += pts_d2_stage
+            stats["driver1"]["history"].append(d1_cum)
+            stats["driver2"]["history"].append(d2_cum)
+        else:
+            # Если гонки не было — обрываем линию (None для Chart.js)
+            stats["driver1"]["history"].append(None)
+            stats["driver2"]["history"].append(None)
 
     stats["driver1"]["total_points"] = d1_cum
     stats["driver2"]["total_points"] = d2_cum
