@@ -4,11 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="данные сезонов">
-      <change beforePath="$PROJECT_DIR$/.idea/FormulaOneBot.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/FormulaOneBot.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="новая реализация кэша">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/f1_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/f1_data.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/web/app/compare.html" beforeDir="false" afterPath="$PROJECT_DIR$/web/app/compare.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -487,7 +485,15 @@
       <option name="project" value="LOCAL" />
       <updated>1768944401714</updated>
     </task>
-    <option name="localTasksCounter" value="39" />
+    <task id="LOCAL-00039" summary="новая реализация кэша">
+      <option name="closed" value="true" />
+      <created>1769285346435</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1769285346435</updated>
+    </task>
+    <option name="localTasksCounter" value="40" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -505,7 +511,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="привожу к красивому" />
     <MESSAGE value="добавление настроек" />
     <MESSAGE value="корректный вывод даты" />
     <MESSAGE value="добавление настроек, пока только в виде кнопок." />
@@ -530,11 +535,12 @@
     <MESSAGE value="сохранения данных в гите, чтобы заново ничего не качать" />
     <MESSAGE value="вывод сравнения квалификаций" />
     <MESSAGE value="данные сезонов" />
-    <option name="LAST_COMMIT_MESSAGE" value="данные сезонов" />
+    <MESSAGE value="новая реализация кэша" />
+    <option name="LAST_COMMIT_MESSAGE" value="новая реализация кэша" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/FormulaOneBot$fastf1_capabilities_test.coverage" NAME="fastf1_capabilities_test Coverage Results" MODIFIED="1768941910109" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
     <SUITE FILE_PATH="coverage/FormulaOneBot$test_parser.coverage" NAME="test_parser Coverage Results" MODIFIED="1768672287271" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
-    <SUITE FILE_PATH="coverage/FormulaOneBot$main.coverage" NAME="main Coverage Results" MODIFIED="1769284238458" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
+    <SUITE FILE_PATH="coverage/FormulaOneBot$main.coverage" NAME="main Coverage Results" MODIFIED="1769286320109" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
   </component>
 </project>

@@ -89,7 +89,7 @@
     <h2>Сравнение</h2>
 
     <div class="search-container">
-        <input type="number" class="search-input" placeholder="Введи год" inputmode="numeric">
+        <input type="number" id="year-input" class="search-input" placeholder="Введи год" inputmode="numeric">
         <button class="search-btn" onclick="handleSearch()">🔍</button>
         <button id="current-year-btn" class="current-year-btn" onclick="goCurrentYear()">2026</button>
     </div>
@@ -250,109 +250,91 @@
         }
     }
 
-    function renderStats(data, code1, code2) {
-        // Счетчики
-        document.getElementById('race-s1').textContent = data.score.race[code1] || 0;
-        document.getElementById('race-s2').textContent = data.score.race[code2] || 0;
-        document.getElementById('quali-s1').textContent = data.score.quali[code1] || 0;
-        document.getElementById('quali-s2').textContent = data.score.quali[code2] || 0;
+    // === ОТРИСОВКА ГРАФИКА И СЧЕТА ===
+        function renderStats(data, code1, code2) {
+            // Обновляем цифры счета
+            document.getElementById('race-s1').textContent = data.score.race[code1] || 0;
+            document.getElementById('race-s2').textContent = data.score.race[code2] || 0;
+            document.getElementById('quali-s1').textContent = data.score.quali[code1] || 0;
+            document.getElementById('quali-s2').textContent = data.score.quali[code2] || 0;
 
-        // --- ГРАФИК ---
-        const ctx = document.getElementById('pointsChart').getContext('2d');
+            const ctx = document.getElementById('pointsChart').getContext('2d');
+            if(chartInstance) chartInstance.destroy();
 
-        if(chartInstance) chartInstance.destroy();
+            const gradient1 = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient1.addColorStop(0, 'rgba(54, 162, 235, 0.5)');
+            gradient1.addColorStop(1, 'rgba(54, 162, 235, 0.0)');
 
-        // Градиент для красоты (опционально, но выглядит круто)
-        const gradient1 = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient1.addColorStop(0, 'rgba(54, 162, 235, 0.5)');
-        gradient1.addColorStop(1, 'rgba(54, 162, 235, 0.0)');
+            const gradient2 = ctx.createLinearGradient(0, 0, 0, 400);
+            gradient2.addColorStop(0, 'rgba(255, 99, 132, 0.5)');
+            gradient2.addColorStop(1, 'rgba(255, 99, 132, 0.0)');
 
-        const gradient2 = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient2.addColorStop(0, 'rgba(255, 99, 132, 0.5)');
-        gradient2.addColorStop(1, 'rgba(255, 99, 132, 0.0)');
-
-        chartInstance = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: data.labels, // Bahrain, Saudi, ..., Abu Dhabi
-                datasets: [
-                    {
-                        label: code1,
-                        data: data.driver1.history,
-                        borderColor: '#0033ff',
-                        backgroundColor: gradient1,
-                        fill: true,           // Заливка под графиком
-                        pointRadius: 3,       // Точки видны, но не гигантские
-                        pointHoverRadius: 6,
-                        tension: 0.2,         // Легкое сглаживание
-                        borderWidth: 2
-                    },
-                    {
-                        label: code2,
-                        data: data.driver2.history,
-                        borderColor: '#ff0000',
-                        backgroundColor: gradient2,
-                        fill: true,
-                        pointRadius: 3,
-                        pointHoverRadius: 6,
-                        tension: 0.2,
-                        borderWidth: 2
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: code1,
+                            data: data.driver1.history,
+                            borderColor: '#36a2eb',
+                            backgroundColor: gradient1,
+                            fill: true,
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            tension: 0.3,
+                            borderWidth: 2
+                        },
+                        {
+                            label: code2,
+                            data: data.driver2.history,
+                            borderColor: '#ff6384',
+                            backgroundColor: gradient2,
+                            fill: true,
+                            pointRadius: 3,
+                            pointHoverRadius: 6,
+                            tension: 0.3,
+                            borderWidth: 2
+                        }
+                    ]
                 },
-                plugins: {
-                    legend: {
-                        labels: { color: '#fff', font: { size: 12, family: 'Jost' } }
-                    },
-                    tooltip: {
-                        backgroundColor: 'rgba(20, 20, 20, 0.9)',
-                        titleColor: '#fff',
-                        bodyColor: '#ccc',
-                        borderColor: '#444',
-                        borderWidth: 1,
-                        callbacks: {
-                            label: function(context) {
-                                return context.dataset.label + ': ' + context.raw + ' оч.';
-                            },
-                            afterBody: function(tooltipItems) {
-                                // Считаем разницу между пилотами в этой точке
-                                const val1 = tooltipItems[0].raw;
-                                const val2 = tooltipItems[1] ? tooltipItems[1].raw : 0;
-                                const diff = Math.abs(val1 - val2);
-                                // Определяем лидера
-                                const leader = val1 > val2 ? tooltipItems[0].dataset.label : tooltipItems[1].dataset.label;
-                                return '\nЛидер: ' + leader + ' (+' + diff + ')';
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { labels: { color: '#fff', font: { family: 'Jost' } } },
+                        tooltip: {
+                            backgroundColor: 'rgba(20, 20, 20, 0.9)',
+                            titleColor: '#fff',
+                            bodyColor: '#ccc',
+                            callbacks: {
+                                afterBody: function(tooltipItems) {
+                                    const val1 = tooltipItems[0].raw;
+                                    const val2 = tooltipItems[1] ? tooltipItems[1].raw : 0;
+                                    if(val1 === null || val2 === null) return '';
+                                    const diff = Math.abs(val1 - val2);
+                                    const leader = val1 > val2 ? tooltipItems[0].dataset.label : (tooltipItems[1] ? tooltipItems[1].dataset.label : '');
+                                    return '\nЛидер: ' + leader + ' (+' + diff + ')';
+                                }
                             }
                         }
-                    }
-                },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: { color: 'rgba(255,255,255,0.05)' },
-                        ticks: { color: '#888' }
                     },
-                    x: {
-                        grid: { display: false },
-                        ticks: {
-                            color: '#aaa',
-                            autoSkip: false, // ПОКАЗАТЬ ВСЕ ЭТАПЫ
-                            maxRotation: 90,
-                            minRotation: 90,
-                            font: { size: 10 }
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#888' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#aaa', autoSkip: false, maxRotation: 90, minRotation: 90, font: { size: 10 } }
                         }
-                    }
+                    },
+                    spanGaps: false
                 }
-            }
-        });
-    }
+            });
+        }
 </script>
 </body>
 </html>
