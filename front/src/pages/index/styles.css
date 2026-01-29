@@ -1,0 +1,61 @@
+.header-wrapper {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+}
+
+
+.section-title {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 24px 0 8px 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+}
+.hero-btn {
+    background: linear-gradient(135deg, var(--primary), #b00500);
+    color: white;
+    padding: 20px;
+    font-size: 18px;
+    border: none;
+    box-shadow: 0 8px 20px rgba(225, 6, 0, 0.3);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+.hero-sub {
+    font-size: 13px;
+    opacity: 0.9;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+.hero-title {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.2;
+}
+.hero-date {
+    font-size: 14px;
+    background: rgba(0,0,0,0.2);
+    padding: 4px 10px;
+    border-radius: 20px;
+    margin-top: 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.hero-timer {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 6px 12px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    animation: fadeIn 0.5s ease-out;
+}
