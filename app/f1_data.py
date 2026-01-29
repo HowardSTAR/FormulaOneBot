@@ -8,6 +8,7 @@ from typing import Optional, Any, Dict, Tuple
 
 import fastf1
 import pandas as pd
+from fastf1._api import SessionNotAvailableError
 from fastf1.ergast import Ergast
 
 # --- ЛОГИРОВАНИЕ --- #
@@ -26,53 +27,77 @@ except Exception as e:
 
 UTC_PLUS_3 = timezone(timedelta(hours=3))
 
-# --- ВНУТРЕННИЙ RAM КЭШ (Вместо Redis) --- #
-# Словарь вида: { "ключ_функции": (timestamp_истечения, данные) }
+# Улучшенный RAM кэш
 _INTERNAL_MEMORY_CACHE: Dict[str, Tuple[float, Any]] = {}
 
 
 def cache_result(ttl: int = 300, key_prefix: str = ""):
-    """
-    Простой кэш в оперативной памяти.
-    ttl: время жизни в секундах.
-    """
-
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            # 1. Генерация уникального ключа
-            # Превращаем аргументы в строку, чтобы использовать как ключ словаря
-            arg_str = str(args) + str(kwargs)
+            # Формируем ключ надежнее
+            arg_str = f"{args}_{kwargs}"
             cache_key = f"{key_prefix}:{func.__name__}:{arg_str}"
-
             current_time = time.time()
 
-            # 2. Проверка наличия в кэше
+            # Проверка кэша
             if cache_key in _INTERNAL_MEMORY_CACHE:
                 expire_time, data = _INTERNAL_MEMORY_CACHE[cache_key]
                 if current_time < expire_time:
-                    # Данные свежие, возвращаем их моментально
                     return data
-                else:
-                    # Протухли, удаляем
-                    del _INTERNAL_MEMORY_CACHE[cache_key]
 
-            # 3. Выполнение функции (если нет в кэше)
+                # Если TTL истек, но это результаты прошедшей гонки (статика),
+                # можно было бы оставить, но пока просто удаляем:
+                del _INTERNAL_MEMORY_CACHE[cache_key]
+
+            # Выполнение
             try:
                 result = await func(*args, **kwargs)
 
-                # 4. Сохранение результата (только если он не пустой/None)
-                if result is not None:
+                # ВАЖНО: Не кэшируем пустые результаты или ошибки, если ожидаем данные
+                # (например, пустой DataFrame может означать ошибку сети или что сессия еще не началась)
+                should_cache = True
+                if result is None:
+                    should_cache = False
+                elif isinstance(result, pd.DataFrame) and result.empty:
+                    # Кэшируем пустой DF только на короткое время (например, 60 сек),
+                    # т.к. данные могут появиться. Здесь упростим - не кэшируем.
+                    should_cache = False
+                elif isinstance(result, list) and not result:
+                    should_cache = False
+
+                if should_cache:
                     _INTERNAL_MEMORY_CACHE[cache_key] = (current_time + ttl, result)
 
                 return result
             except Exception as e:
-                logger.error(f"Error in cached function {func.__name__}: {e}")
+                logger.error(f"Error in {func.__name__}: {e}")
                 return None
 
         return wrapper
 
     return decorator
+
+
+def load_session_data(season: int, round_number: int, session_type: str, detailed: bool = False):
+    """
+    Централизованная функция загрузки сессии.
+    detailed=True загрузит круги (Laps), но не полную телеметрию (CarData),
+    чтобы сэкономить время, но дать данные для аналитики.
+    """
+    try:
+        session = fastf1.get_session(season, round_number, session_type)
+        if detailed:
+            # laps=True нужен для аналитики темпа, шин, секторов
+            # telemetry=False (или True) — самое тяжелое (скорость каждую 1/4 сек)
+            session.load(telemetry=False, laps=True, weather=False, messages=False)
+        else:
+            # Только результаты (позиции)
+            session.load(telemetry=False, laps=False, weather=False, messages=False)
+        return session
+    except Exception as e:
+        logger.error(f"Failed to load session {season}/{round_number}: {e}")
+        return None
 
 
 async def _run_sync(func, *args, **kwargs):
@@ -163,10 +188,18 @@ async def get_season_schedule_short_async(season: int):
 def get_driver_standings_df(season: int, round_number: Optional[int] = None) -> pd.DataFrame:
     ergast = Ergast()
     try:
-        if round_number is None: res = ergast.get_driver_standings(season=season)
-        else: res = ergast.get_driver_standings(season=season, round=round_number)
-        return res.content[0] if res.content else pd.DataFrame()
-    except: return pd.DataFrame()
+        # Добавляем повторные попытки или проверку
+        if round_number is None:
+            res = ergast.get_driver_standings(season=season)
+        else:
+            res = ergast.get_driver_standings(season=season, round=round_number)
+
+        if res.content and len(res.content) > 0:
+            return res.content[0]
+        return pd.DataFrame()
+    except Exception as e:
+        logger.error(f"Ergast API error: {e}")
+        return pd.DataFrame()
 
 
 @cache_result(ttl=600)
@@ -555,11 +588,12 @@ def _get_drivers_comparison_sync(season: int, d1_code: str, d2_code: str):
 
         # --- АНАЛИЗ ГОНКИ ('R') ---
         try:
-            session = fastf1.get_session(season, r, 'R')
-            # Загружаем только результаты (быстро, из кэша)
-            session.load(telemetry=False, laps=False, weather=False, messages=False)
+            # Используем load_session_data
+            # Если вам нужны ТОЛЬКО очки - detailed=False.
+            # Если нужны круги - detailed=True.
+            session = load_session_data(season, r, 'R', detailed=False)
 
-            if session.results is not None and not session.results.empty:
+            if session and session.results is not None and not session.results.empty:
                 race_happened = True
 
                 # Данные пилота 1
