@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
 import "./styles.css";
 import Hero from "./Hero";
@@ -26,7 +27,7 @@ function IndexPage() {
 
     async function load() {
       try {
-        const data = await apiRequest<NextRaceResponse>("http://localhost:8000/api/next-race");
+        const data = await apiRequest<NextRaceResponse>("/api/next-race");
         if (cancelled) return;
 
         if (data.status === "ok" && data.event_name) {
@@ -57,14 +58,14 @@ function IndexPage() {
 
       <div className="section-title">Последний этап</div>
       <div className="results-grid">
-        <a href="race-results.html" className="menu-item">
+        <Link to="/race-results" className="menu-item">
           <span className="menu-icon">🏁</span>
           <span className="menu-label">Гонка</span>
-        </a>
-        <a href="quali-results.html" className="menu-item">
+        </Link>
+        <Link to="/quali-results" className="menu-item">
           <span className="menu-icon">⏱</span>
           <span className="menu-label">Квала</span>
-        </a>
+        </Link>
       </div>
 
       <div className="section-title" id="season-title">
@@ -72,20 +73,20 @@ function IndexPage() {
       </div>
 
       <div className="menu-grid">
-        <a href="drivers.html" className="menu-item">
+        <Link to="/drivers" className="menu-item">
           <span className="menu-icon">👤</span>
           <span className="menu-label">Пилоты</span>
-        </a>
-        <a href="constructors.html" className="menu-item">
+        </Link>
+        <Link to="/constructors" className="menu-item">
           <span className="menu-icon">🏎️</span>
           <span className="menu-label">Команды</span>
-        </a>
-        <a href="compare.html" className="menu-item">
+        </Link>
+        <Link to="/compare" className="menu-item">
           <span className="menu-icon">⚔️</span>
           <span className="menu-label">Сравнение</span>
-        </a>
-        <a
-          href="season.html"
+        </Link>
+        <Link
+          to="/season"
           className="menu-item full-width"
           style={{
             flexDirection: "row",
@@ -98,12 +99,12 @@ function IndexPage() {
             <span className="menu-label">Календарь</span>
           </div>
           <span>➜</span>
-        </a>
+        </Link>
       </div>
 
       <div className="section-title">Моё</div>
-      <a
-        href="favorites.html"
+      <Link
+        to="/favorites"
         className="menu-item full-width"
         style={{
           flexDirection: "row",
@@ -120,10 +121,10 @@ function IndexPage() {
           </span>
         </div>
         <span style={{ color: "#ffd700" }}>➜</span>
-      </a>
+      </Link>
 
-      <a
-        href="settings.html"
+      <Link
+        to="/settings"
         className="menu-item full-width"
         style={{
           flexDirection: "row",
@@ -136,7 +137,7 @@ function IndexPage() {
           <span className="menu-label">Настройки</span>
         </div>
         <span style={{ opacity: 0.5 }}>➜</span>
-      </a>
+      </Link>
     </>
   );
 }

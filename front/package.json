@@ -12,6 +12,7 @@
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "chart.js": "^4.4.6",
     "react-router-dom": "^7.6.0",
     "styled-components": "^6.3.8"
   },

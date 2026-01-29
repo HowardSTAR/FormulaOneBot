@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { formatDateToText } from "../../helpers";
 import type { NextRaceResponse } from "./Index";
+import { Link } from "react-router-dom";
 
 function Hero({ status, next_session_iso, next_session_name, date, event_name }: NextRaceResponse) {
 
@@ -40,7 +41,7 @@ function Hero({ status, next_session_iso, next_session_name, date, event_name }:
 
     return (
         <>
-            <a href="next-race.html" className="btn hero-btn" id="hero-btn">
+            <Link to="/next-race" className="btn hero-btn" id="hero-btn">
                 <div
                 className="hero-sub"
                 id="hero-sub"
@@ -70,7 +71,7 @@ function Hero({ status, next_session_iso, next_session_name, date, event_name }:
                     </span>
                 </div>
                 )}
-            </a>
+            </Link>
         </>
     )
 }
