@@ -1,0 +1,517 @@
+:root {
+    /* Цветовая палитра F1 Modern */
+    --bg-color: #0b0d12;         /* Глубокий черный/синий */
+    --surface-color: #15171e;    /* Цвет карточек */
+    --surface-hover: #1e212b;    /* Карточка при нажатии */
+    --primary: #e10600;          /* Классический красный F1 */
+    --primary-hover: #ff1e19;
+    
+    --text-primary: #ffffff;
+    --text-secondary: #8d9096;
+    
+    --border-color: rgba(255, 255, 255, 0.08);
+    --glass-bg: rgba(21, 23, 30, 0.7);
+    
+    /* Цвета мест */
+    --gold: #fcd34d;
+    --silver: #e5e7eb;
+    --bronze: #d97706;
+    
+    /* Размеры */
+    --radius-lg: 16px;
+    --radius-md: 12px;
+    --header-height: 60px;
+}
+
+* {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent; /* Убирает синюю подсветку на iPhone */
+}
+
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    background-image: 
+        radial-gradient(circle at 0% 0%, rgba(225, 6, 0, 0.15), transparent 40%),
+        radial-gradient(circle at 100% 100%, rgba(30, 60, 255, 0.1), transparent 40%);
+    background-attachment: fixed; /* Фон не скроллится */
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding-bottom: 40px; /* Отступ снизу для мобилок */
+}
+
+/* Ограничитель ширины для Десктопа */
+.root {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 16px;
+    opacity: 0; /* Скрыто до загрузки анимации */
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    to { opacity: 1; }
+}
+
+/* --- Типография --- */
+h2 {
+    font-size: 28px;
+    font-weight: 800;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.5px;
+}
+
+h3 {
+    font-size: 18px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin: 24px 0 12px 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 12px;
+}
+
+p {
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* --- Карточки --- */
+.card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* --- Кнопки --- */
+.btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    font-size: 15px;
+    text-decoration: none;
+    transition: transform 0.1s, background 0.2s, box-shadow 0.2s;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+/* Основная кнопка (Красная) */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary), #b00500);
+    color: white;
+    box-shadow: 0 4px 12px rgba(225, 6, 0, 0.3);
+}
+
+/* Второстепенная кнопка (Темная) */
+.btn-secondary {
+    background: var(--surface-color);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background: var(--surface-hover);
+}
+
+/* --- Кнопка "Назад" в шапке --- */
+.btn-back {
+    display: inline-flex; /* Чтобы вести себя как блок, но не растягиваться */
+    align-items: center;
+    justify-content: center;
+
+    text-decoration: none; /* Убираем подчеркивание */
+    color: var(--text-secondary); /* Мягкий светло-серый цвет текста */
+    font-weight: 600;
+    font-size: 14px;
+
+    /* Отступы */
+    margin-bottom: 16px;
+    padding: 8px 16px; /* Внутренние отступы для объема */
+
+    /* Стилизация под кнопку */
+    background-color: var(--surface-color); /* Темный фон, как у карточек */
+    border: 1px solid var(--border-color); /* Тонкая рамка */
+    border-radius: 12px; /* Скругленные углы */
+
+    transition: all 0.2s ease; /* Плавная анимация при нажатии */
+}
+
+/* Эффект при наведении (полезно для десктопа) */
+.btn-back:hover {
+    background-color: rgba(255, 255, 255, 0.08); /* Чуть светлее */
+    color: var(--text-primary); /* Текст становится ярко-белым */
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Эффект нажатия (для мобильных) */
+.btn-back:active {
+    transform: scale(0.97); /* Легкое уменьшение при клике */
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.btn-back:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-back span {
+    margin-left: 6px;
+}
+
+/* --- Меню (Grid) --- */
+.menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.menu-item {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 20px 16px;
+    text-align: center;
+    text-decoration: none;
+    color: var(--text-primary);
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.menu-item:hover {
+    background: var(--surface-hover);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.menu-icon {
+    font-size: 24px;
+}
+
+.menu-label {
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.full-width {
+    grid-column: 1 / -1; /* Растянуть на всю ширину */
+    background: linear-gradient(135deg, #1c1f26, #15171e);
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 24px;
+}
+
+.full-width .menu-label {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+/* --- Списки результатов (Лидерборд) --- */
+.standings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.standings-item {
+    display: flex;
+    align-items: center;
+    background: var(--surface-color);
+    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    border-left: 3px solid transparent;
+}
+
+.standings-position {
+    font-weight: 700;
+    width: 30px;
+    font-size: 16px;
+    color: var(--text-secondary);
+}
+
+.standings-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.standings-name {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.standings-code {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.standings-points {
+    font-weight: 700;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 4px 8px;
+    border-radius: 6px;
+}
+
+/* Цвета подиума */
+.podium-1 { border-left-color: var(--gold); background: linear-gradient(90deg, rgba(252, 211, 77, 0.1), transparent); }
+.podium-2 { border-left-color: var(--silver); }
+.podium-3 { border-left-color: var(--bronze); }
+
+.standings-position.podium { color: var(--text-primary); }
+
+/* Избранное */
+.favorite {
+    border: 1px solid rgba(255, 215, 0, 0.3);
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.05);
+}
+
+/* Загрузчик */
+.loading {
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+}
+
+.spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 12px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Год селектор */
+.year-selector {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    scrollbar-width: none; /* Firefox */
+}
+.year-selector::-webkit-scrollbar { display: none; } /* Chrome */
+
+.year-btn {
+    flex: 0 0 auto;
+    padding: 8px 16px;
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: 20px;
+    font-size: 13px;
+    transition: all 0.2s;
+}
+
+.year-btn.active {
+    background: var(--text-primary);
+    color: var(--bg-color);
+    font-weight: 700;
+    border-color: var(--text-primary);
+}
+
+/* --- Стили для Чемпиона (Обновленные: Горизонтальный фон) --- */
+
+.champion-card {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.15) 0%, rgba(21, 23, 30, 0.98) 60%) !important;
+    border: 1px solid rgba(255, 215, 0, 0.6) !important;
+    position: relative;
+    overflow: hidden !important;
+    box-shadow: 0 4px 15px rgba(255, 215, 0, 0.15);
+}
+
+/* Бейдж теперь горизонтальный, крупный, внизу справа.
+   Служит фоновым элементом.
+*/
+.champion-badge {
+    position: absolute;
+    bottom: -6px;      /* Прижимаем к низу */
+    right: 10px;       /* Прижимаем к правому краю */
+    top: auto;         /* Сбрасываем верхнее позиционирование */
+    left: auto;        /* Сбрасываем левое позиционирование */
+
+    transform: none;   /* Убираем поворот */
+
+    color: #ffd700;
+    opacity: 0.1;      /* Очень прозрачный, чтобы не мешал тексту */
+
+    font-size: 36px;   /* Крупный шрифт */
+    font-weight: 900;
+    text-transform: uppercase;
+    white-space: nowrap;
+    z-index: 0;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* Контент карточки должен быть выше фона */
+.champion-card .pos-box,
+.champion-card .driver-info,
+.champion-card .team-info,
+.champion-card .driver-points,
+.champion-card .team-points {
+    position: relative;
+    z-index: 2;
+}
+
+.champion-card .pos-1 {
+    color: #ffd700;
+    font-size: 26px;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+}
+
+/* Блок "Сезон не начался" */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    background: var(--surface-color);
+    border-radius: 16px;
+    border: 1px dashed var(--border-color);
+    margin-top: 20px;
+}
+.empty-icon { font-size: 48px; margin-bottom: 16px; display: block; }
+.empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.empty-desc { color: var(--text-secondary); font-size: 14px; }
+
+
+.hero-timer {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 6px 12px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Анимация мигания для LIVE режима  */
+@keyframes pulse-green {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+
+.session-badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2); /* Полупрозрачный белый */
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 800; /* Жирный шрифт */
+    text-transform: uppercase; /* Все буквы заглавные */
+    letter-spacing: 1px; /* Чуть разрядить буквы */
+    color: #ffffff;
+    margin-bottom: 6px;
+    backdrop-filter: blur(4px); /* Эффект стекла */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Animation for the SVG Path */
+.track-line-animate {
+    /* 1. Define the dash to be huge (enough to cover any F1 track length) */
+    stroke-dasharray: 500;
+
+    /* 2. Hide it by pushing the dash away */
+    stroke-dashoffset: 500;
+
+    /* 3. Animate it back to 0 */
+    animation: drawTrack 150.5s ease-out forwards;
+}
+
+@keyframes drawTrack {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+/* Container polish */
+.track-map-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 220px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 16px;
+    padding: 20px; /* Add padding so track doesn't touch edges */
+}
+
+/* Ensure the injected SVG scales correctly */
+/*.track-map-container svg {*/
+/*    width: 150%;*/
+/*    height: 150%;*/
+/*    max-height: 300px;*/
+/*    filter: drop-shadow(0 0 3px rgba(225, 6, 0, 1));*/
+/*}*/
+
+/* --- Анимация Трассы --- */
+
+.track-map-container svg {
+    width: 150%;
+    height: 150%;
+    overflow: visible;
+}
+
+/* Layer 1: The Red Outline (Bottom) */
+.track-outline {
+    stroke: var(--primary);  /* Red Color */
+    fill: none;              /* No fill for the line layer */
+
+    stroke-width: 1px;       /* THICKNESS: 2x desired width */
+                             /* 6px stroke covered by fill = 3px visible outline */
+
+    stroke-linecap: round;
+    stroke-linejoin: round;
+
+    /* Animation setup */
+    transition: stroke-dashoffset 2.5s ease-in-out;
+    will-change: stroke-dashoffset;
+
+    /* Optional: Neon Glow */
+    filter: drop-shadow(0 0 3px rgba(225, 6, 0, 1));
+}
+
+/* Layer 2: The Asphalt (Top) */
+.track-fill {
+    stroke: none;            /* No stroke on the top layer */
+    fill: var(--surface-color); /* Dark Asphalt Color */
+    /* Or use #15151E to match your SVG specific color */
+
+    opacity: 0;              /* Start hidden */
+    transition: opacity 1s ease-in-out 1.5s; /* Fade in after line starts drawing */
+    will-change: opacity;
+}
+
+/* Animation Triggers */
+.track-outline.animate {
+    stroke-dashoffset: 0 !important;
+}
+
+.track-fill.animate {
+    opacity: 1 !important;
+}
