@@ -8,7 +8,7 @@ export async function apiRequest<T = unknown>(
   params: Record<string, string | number | undefined> = {},
   method: 'GET' | 'POST' = 'GET'
 ): Promise<T> {
-  const url = new URL(endpoint, window.location.origin);
+  const url = new URL(`${import.meta.env.VITE_API_URL}${endpoint}`, window.location.origin);
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     'X-Telegram-Init-Data': getInitData(),

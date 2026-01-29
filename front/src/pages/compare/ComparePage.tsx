@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
-import { Chart, ChartConfiguration, registerables } from "chart.js";
+import { Chart, type ChartConfiguration, registerables } from "chart.js";
 
 Chart.register(...registerables);
 
