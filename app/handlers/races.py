@@ -70,7 +70,6 @@ async def build_next_race_payload(season: int | None = None, user_id: int | None
         "event_name": r["event_name"], "country": r["country"], "location": r["location"],
         "date": r["date"], "utc": utc_str,
         "local": local_str,  # Оставляем для бота
-        # 👇 НОВОЕ ПОЛЕ ДЛЯ САЙТА: "08.03.2026 07:00"
         "fmt_date": r.get("local")
     }
 
