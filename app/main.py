@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.bot import create_bot_and_dispatcher
 from app.config import get_settings
 from app.db import db
-from app.f1_data import warmup_current_season_sessions, init_redis_cache
+from app.f1_data import init_redis_cache, warmup_cache
 from app.handlers import secret, start, races, drivers, teams, favorites, settings, compare
 from app.middlewares.error_logging import ErrorLoggingMiddleware
 from app.utils.backup import create_backup
@@ -23,13 +23,17 @@ logging.basicConfig(
 
 async def on_startup(bot: Bot):
     settings = get_settings()
-    # Инициализируем кэш данных
-    await init_redis_cache(settings.bot.redis_url)
 
-    # Открываем соединение с БД
+    # 1. Подключаем БД (из предыдущего шага)
     await db.connect()
-    # Создаем таблицы
     await db.init_tables()
+
+    # 2. Инициализируем Redis кэш для FastF1
+    if settings.bot.redis_url:
+        await init_redis_cache(settings.bot.redis_url)
+
+    # 3. Запускаем прогрев в фоне (чтобы бот сразу ответил на /start, а кэш грелся параллельно)
+    asyncio.create_task(warmup_cache())
 
     # ... здесь может быть запуск шедулера уведомлений ...
     logging.info("Bot started, DB connected.")
@@ -71,7 +75,7 @@ async def main():
         secret.router,
         settings.settings_router,
         # TODO сделать нормальное сравнение
-        compare.router,
+        # compare.router,
     )
 
     # Планировщик
@@ -106,7 +110,7 @@ async def main():
     )
 
     scheduler.add_job(
-        warmup_current_season_sessions,
+        warmup_cache,
         "interval",
         hours=1,
         max_instances=1,
@@ -116,7 +120,7 @@ async def main():
     )
     scheduler.start()
 
-    asyncio.create_task(warmup_current_season_sessions())
+    asyncio.create_task(warmup_cache())
 
     try:
         await dp.start_polling(bot)
