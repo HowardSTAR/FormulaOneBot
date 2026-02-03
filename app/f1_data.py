@@ -1,7 +1,9 @@
 import asyncio
 import functools
+import hashlib
 import logging
 import pathlib
+import pickle
 import time
 from datetime import date as _date, timezone, timedelta, datetime
 from typing import Optional, Any, Dict, Tuple
@@ -10,6 +12,7 @@ import fastf1
 import pandas as pd
 from fastf1._api import SessionNotAvailableError
 from fastf1.ergast import Ergast
+from redis.asyncio import Redis
 
 # --- ЛОГИРОВАНИЕ --- #
 logger = logging.getLogger(__name__)
@@ -27,55 +30,63 @@ except Exception as e:
 
 UTC_PLUS_3 = timezone(timedelta(hours=3))
 
-# Улучшенный RAM кэш
-_INTERNAL_MEMORY_CACHE: Dict[str, Tuple[float, Any]] = {}
+_REDIS_CLIENT: Redis | None = None
+
+
+async def init_redis_cache(redis_url: str):
+    global _REDIS_CLIENT
+    _REDIS_CLIENT = Redis.from_url(redis_url)
 
 
 def cache_result(ttl: int = 300, key_prefix: str = ""):
+    """
+    Декоратор для кэширования в Redis.
+    Автоматически пиклит (сериализует) результаты.
+    """
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            # Формируем ключ надежнее
+            if _REDIS_CLIENT is None:
+                # Если Redis не настроен, работаем без кэша или падаем (лучше логгировать)
+                return await func(*args, **kwargs)
+
+            # Формируем уникальный ключ
+            # Хэшируем аргументы, чтобы ключ не был огромным
             arg_str = f"{args}_{kwargs}"
-            cache_key = f"{key_prefix}:{func.__name__}:{arg_str}"
-            current_time = time.time()
+            arg_hash = hashlib.md5(arg_str.encode()).hexdigest()
+            cache_key = f"f1bot:cache:{key_prefix}:{func.__name__}:{arg_hash}"
 
-            # Проверка кэша
-            if cache_key in _INTERNAL_MEMORY_CACHE:
-                expire_time, data = _INTERNAL_MEMORY_CACHE[cache_key]
-                if current_time < expire_time:
-                    return data
-
-                # Если TTL истек, но это результаты прошедшей гонки (статика),
-                # можно было бы оставить, но пока просто удаляем:
-                del _INTERNAL_MEMORY_CACHE[cache_key]
-
-            # Выполнение
+            # 1. Пробуем достать из Redis
             try:
-                result = await func(*args, **kwargs)
-
-                # ВАЖНО: Не кэшируем пустые результаты или ошибки, если ожидаем данные
-                # (например, пустой DataFrame может означать ошибку сети или что сессия еще не началась)
-                should_cache = True
-                if result is None:
-                    should_cache = False
-                elif isinstance(result, pd.DataFrame) and result.empty:
-                    # Кэшируем пустой DF только на короткое время (например, 60 сек),
-                    # т.к. данные могут появиться. Здесь упростим - не кэшируем.
-                    should_cache = False
-                elif isinstance(result, list) and not result:
-                    should_cache = False
-
-                if should_cache:
-                    _INTERNAL_MEMORY_CACHE[cache_key] = (current_time + ttl, result)
-
-                return result
+                cached_data = await _REDIS_CLIENT.get(cache_key)
+                if cached_data:
+                    # Распаковываем данные
+                    return pickle.loads(cached_data)
             except Exception as e:
-                logger.error(f"Error in {func.__name__}: {e}")
-                return None
+                logger.error(f"Redis get error: {e}")
 
+            # 2. Выполняем функцию
+            result = await func(*args, **kwargs)
+
+            # 3. Сохраняем, если результат валидный
+            should_cache = True
+            if result is None:
+                should_cache = False
+            elif isinstance(result, pd.DataFrame) and result.empty:
+                should_cache = False
+            elif isinstance(result, list) and not result:
+                should_cache = False
+
+            if should_cache:
+                try:
+                    # Упаковываем и сохраняем с TTL
+                    packed = pickle.dumps(result)
+                    await _REDIS_CLIENT.setex(cache_key, ttl, packed)
+                except Exception as e:
+                    logger.error(f"Redis set error: {e}")
+
+            return result
         return wrapper
-
     return decorator
 
 

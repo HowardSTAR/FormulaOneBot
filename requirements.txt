@@ -6,7 +6,7 @@ pandas
 numpy
 apscheduler
 aiosqlite
-redis
+redis>=5.0.0
 Pillow
 fastapi
 uvicorn[standard]

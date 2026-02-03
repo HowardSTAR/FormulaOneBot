@@ -6,8 +6,9 @@ from aiogram.exceptions import TelegramBadRequest
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.bot import create_bot_and_dispatcher
+from app.config import get_settings
 from app.db import db
-from app.f1_data import warmup_current_season_sessions
+from app.f1_data import warmup_current_season_sessions, init_redis_cache
 from app.handlers import secret, start, races, drivers, teams, favorites, settings, compare
 from app.middlewares.error_logging import ErrorLoggingMiddleware
 from app.utils.backup import create_backup
@@ -21,6 +22,10 @@ logging.basicConfig(
 
 
 async def on_startup(bot: Bot):
+    settings = get_settings()
+    # Инициализируем кэш данных
+    await init_redis_cache(settings.bot.redis_url)
+
     # Открываем соединение с БД
     await db.connect()
     # Создаем таблицы
