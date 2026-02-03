@@ -1,7 +1,9 @@
 from io import BytesIO
 from pathlib import Path
 from typing import List, Tuple, Callable
-from datetime import date, datetime
+from datetime import date
+import hashlib
+import math  # <--- Добавлен для рисования звезды
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -9,139 +11,165 @@ from app.utils.default import DRIVER_CODE_TO_FILE, _TEAM_KEY_TO_FILE
 
 # Кеш загруженных фотографий пилотов
 _DRIVER_PHOTOS_CACHE: dict[str, Image.Image] = {}
-
 # Кеш логотипов команд
 _TEAM_LOGOS_CACHE: dict[str, Image.Image] = {}
 
 # Визуальные константы (Modern Dark Theme)
-BG_GRADIENT_TOP = (25, 30, 45)  # Темно-синий верх
-BG_GRADIENT_BOT = (10, 10, 15)  # Почти черный низ
-CARD_BG_COLOR = (35, 40, 55)  # Основной цвет карточек
-SHADOW_COLOR = (0, 0, 0)  # Цвет тени
+BG_GRADIENT_TOP = (25, 30, 45)
+BG_GRADIENT_BOT = (10, 10, 15)
+CARD_BG_COLOR = (35, 40, 55)
+SHADOW_COLOR = (0, 0, 0)
 TEXT_COLOR = (240, 240, 250)
-ACCENT_RED = (225, 6, 0)  # F1 Red
+ACCENT_RED = (225, 6, 0)
 
-# Сдвиг текста
+# Сдвиг текста по вертикали
 TEXT_V_SHIFT = -15
 
 
-# --- Загрузка шрифтов (без изменений) ---
-
+# --- Загрузка шрифтов ---
 def _load_fonts() -> tuple[
     ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, ImageFont.FreeTypeFont]:
     fonts_dir = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 
+    def load_font(name: str, size: int):
+        try:
+            return ImageFont.truetype(str(fonts_dir / name), size)
+        except Exception:
+            return ImageFont.load_default()
+
+    font_title = load_font("Jost-Bold.ttf", 60)
+    font_subtitle = load_font("Jost-Regular.ttf", 34)
+    font_row = load_font("Jost-Medium.ttf", 44)
+    # Emoji шрифт больше не критичен для звезды, но оставим для других целей
     try:
-        font_title = ImageFont.truetype(str(fonts_dir / "Jost-Bold.ttf"), 60)
-        font_subtitle = ImageFont.truetype(str(fonts_dir / "Jost-Regular.ttf"), 34)
-        font_row = ImageFont.truetype(str(fonts_dir / "Jost-Medium.ttf"), 44)
-        try:
-            font_emoji = ImageFont.truetype(str(fonts_dir / "NotoEmoji-Regular.ttf"), 40)
-        except Exception:
-            font_emoji = font_row
-    except Exception:
-        try:
-            font_title = ImageFont.truetype("Jost-Bold.ttf", 60)
-            font_subtitle = ImageFont.truetype("Jost-Regular.ttf", 34)
-            font_row = ImageFont.truetype("Jost-Medium.ttf", 44)
-            font_emoji = font_row
-        except Exception:
-            # запасной вариант
-            font_title = font_subtitle = font_row = font_emoji = ImageFont.load_default()
+        font_emoji = ImageFont.truetype(str(fonts_dir / "NotoEmoji-Regular.ttf"), 40)
+    except:
+        font_emoji = font_row
 
     return font_title, font_subtitle, font_row, font_emoji
-
-
-def _normalize_team_key(text: str) -> str:
-    import re
-    s = (text or "").lower()
-    s = s.replace("&", "and")
-    return re.sub(r"[^a-z0-9]+", "", s)
 
 
 FONT_TITLE, FONT_SUBTITLE, FONT_ROW, FONT_EMOJI = _load_fonts()
 
 
-def _get_driver_photo(code: str) -> Image.Image | None:
-    code = code.upper()
-    if code not in DRIVER_CODE_TO_FILE:
-        return None
+def _normalize_team_key(text: str) -> str:
+    import re
+    s = (str(text) or "").lower()
+    s = s.replace("&", "and")
+    return re.sub(r"[^a-z0-9]+", "", s)
 
-    if code in _DRIVER_PHOTOS_CACHE:
-        return _DRIVER_PHOTOS_CACHE[code]
 
-    pilots_dir = Path(__file__).resolve().parents[1] / "assets" / "pilots"
-    img_path = pilots_dir / DRIVER_CODE_TO_FILE[code]
-    if not img_path.exists():
-        return None
+# --- Рисование геометрических примитивов ---
+
+def _draw_star(draw: ImageDraw.ImageDraw, cx: int, cy: int, r: int, color: tuple):
+    """
+    Рисует 5-конечную звезду векторно.
+    cx, cy - центр звезды
+    r - внешний радиус (размер)
+    """
+    points = []
+    # 5 лучей, внешний радиус R, внутренний r*0.4
+    inner_r = r * 0.45
+
+    # Начинаем с -90 градусов (верхняя точка)
+    angle_start = -math.pi / 2
+
+    for i in range(10):
+        angle = angle_start + i * (math.pi / 5)  # шаг 36 градусов
+        radius = r if i % 2 == 0 else inner_r
+        x = cx + radius * math.cos(angle)
+        y = cy + radius * math.sin(angle)
+        points.append((x, y))
+
+    draw.polygon(points, fill=color)
+
+
+def _generate_placeholder_avatar(text: str, size: int = 90) -> Image.Image:
+    """Генерирует аватарку с инициалами."""
+    text = str(text or "?").strip()
+    h = hashlib.md5(text.encode('utf-8')).hexdigest()
+    r = int(h[0:2], 16) % 100 + 50
+    g = int(h[2:4], 16) % 100 + 50
+    b = int(h[4:6], 16) % 100 + 50
+    color = (r, g, b)
+
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.ellipse((0, 0, size, size), fill=color)
+
+    initials = text[:2].upper() if len(text) <= 3 else text[:1].upper()
+    if " " in text:
+        parts = text.split()
+        if len(parts) > 1:
+            initials = f"{parts[0][0]}{parts[1][0]}".upper()
 
     try:
+        font = FONT_ROW
+        w, h_text = _text_size(draw, initials, font)
+        draw.text(((size - w) / 2, (size - h_text) / 2 + TEXT_V_SHIFT / 2), initials, font=font, fill=(255, 255, 255))
+    except:
+        pass
+
+    return img
+
+
+def _get_driver_photo(code: str) -> Image.Image | None:
+    if not code: return None
+    code = str(code).upper()
+    if code in _DRIVER_PHOTOS_CACHE: return _DRIVER_PHOTOS_CACHE[code]
+    filename = DRIVER_CODE_TO_FILE.get(code)
+    if not filename: return None
+    pilots_dir = Path(__file__).resolve().parents[1] / "assets" / "pilots"
+    img_path = pilots_dir / filename
+    if not img_path.exists(): return None
+    try:
         img = Image.open(img_path).convert("RGB")
+        _DRIVER_PHOTOS_CACHE[code] = img
+        return img
     except Exception:
         return None
-
-    _DRIVER_PHOTOS_CACHE[code] = img
-    return img
 
 
 def _get_team_logo(name_or_code: str) -> Image.Image | None:
     key = _normalize_team_key(name_or_code)
-    if not key:
-        return None
-
-    if key in _TEAM_LOGOS_CACHE:
-        return _TEAM_LOGOS_CACHE[key]
-
+    if not key: return None
+    if key in _TEAM_LOGOS_CACHE: return _TEAM_LOGOS_CACHE[key]
     filename = _TEAM_KEY_TO_FILE.get(key)
-    if not filename:
-        return None
-
+    if not filename: return None
     teams_dir = Path(__file__).resolve().parents[1] / "assets" / "teams"
     img_path = teams_dir / filename
-    if not img_path.exists():
-        return None
-
+    if not img_path.exists(): return None
     try:
         img = Image.open(img_path).convert("RGBA")
+        _TEAM_LOGOS_CACHE[key] = img
+        return img
     except Exception:
         return None
-
-    _TEAM_LOGOS_CACHE[key] = img
-    return img
 
 
 def _text_size(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont) -> Tuple[int, int]:
     if hasattr(draw, "textbbox"):
         bbox = draw.textbbox((0, 0), text, font=font)
-        w = bbox[2] - bbox[0]
-        h = bbox[3] - bbox[1]
-    else:
-        w, h = draw.textsize(text, font=font)
-    return w, h
+        return bbox[2] - bbox[0], bbox[3] - bbox[1]
+    return draw.textsize(text, font=font)
 
 
 def _create_vertical_gradient(width: int, height: int, top_color: tuple, bottom_color: tuple) -> Image.Image:
-    """Генерирует фон с вертикальным градиентом."""
     base = Image.new('RGB', (width, height), top_color)
-
-    # Чтобы не считать каждый пиксель долго, делаем градиент высотой H и шириной 1, затем растягиваем
     gradient_strip = Image.new('RGB', (1, height), top_color)
     draw = ImageDraw.Draw(gradient_strip)
-
     r1, g1, b1 = top_color
     r2, g2, b2 = bottom_color
-
-    # Рисуем полоску 1xHeight
     for y in range(height):
         ratio = y / height
         r = int(r1 + (r2 - r1) * ratio)
         g = int(g1 + (g2 - g1) * ratio)
         b = int(b1 + (b2 - b1) * ratio)
         draw.point((0, y), fill=(r, g, b))
-
-    # Растягиваем на всю ширину
     return gradient_strip.resize((width, height), resample=Image.Resampling.NEAREST)
 
+
+# --- ОСНОВНАЯ ФУНКЦИЯ ---
 
 def create_results_image(
         title: str,
@@ -150,95 +178,61 @@ def create_results_image(
         avatar_loader: Callable[[str, str], Image.Image | None] | None = None,
         card_color_func: Callable[[str], tuple[int, int, int]] | None = None,
 ) -> BytesIO:
-    """
-    Основная функция рисования результатов (гонка, квала, зачеты).
-    С обновленным дизайном (градиенты, тени).
-    """
-    # --- Настройки макета ---
+    safe_rows = []
+    if rows:
+        for r in rows:
+            safe_rows.append((str(r[0]), str(r[1] or ""), str(r[2] or "Unknown"), str(r[3])))
+    else:
+        safe_rows = [("—", "", "Нет данных", "")]
+
     padding = 30
     header_gap = 50
     line_spacing = 30
     row_height = 120
     avatar_size = 90
 
-    # Шрифты
-    font_title = FONT_TITLE
-    font_subtitle = FONT_SUBTITLE
-    font_row = FONT_ROW
-    font_emoji = FONT_EMOJI
-
     if avatar_loader is None:
-        def avatar_loader(code: str, name: str) -> Image.Image | None:  # type: ignore[no-redef]
+        def avatar_loader(code: str, name: str) -> Image.Image | None:
             return _get_driver_photo(code)
 
-    safe_rows = rows if rows else [("—", "", "Нет данных", "")]
-
-    # 1. Расчет размеров
     temp_img = Image.new("RGB", (100, 100))
     draw_tmp = ImageDraw.Draw(temp_img)
 
-    title_w, title_h = _text_size(draw_tmp, title, font_title)
-    subtitle_w, subtitle_h = _text_size(draw_tmp, subtitle, font_subtitle)
+    title_w, title_h = _text_size(draw_tmp, title, FONT_TITLE)
+    subtitle_w, subtitle_h = _text_size(draw_tmp, subtitle, FONT_SUBTITLE)
 
     num_rows = len(safe_rows)
     rows_per_col = (num_rows + 1) // 2
 
-    # Ищем самую длинную строку для ширины колонки
     max_row_text = ""
     for pos, code, name, pts in safe_rows:
-        candidate = f"{pos}. {name} {pts}000"  # запас
-        if len(candidate) > len(max_row_text):
-            max_row_text = candidate
-    row_text_w, _ = _text_size(draw_tmp, max_row_text, font_row)
+        candidate = f"{pos}. {name} {pts}000"
+        if len(candidate) > len(max_row_text): max_row_text = candidate
+    row_text_w, _ = _text_size(draw_tmp, max_row_text, FONT_ROW)
 
     min_width = 1800
-    img_width = max(
-        min_width,
-        title_w + 2 * padding,
-        subtitle_w + 2 * padding,
-        row_text_w + 2 * padding,
-    )
+    img_width = max(min_width, title_w + 2 * padding, row_text_w + 2 * padding)
+    img_height = padding + title_h + header_gap + subtitle_h + header_gap + rows_per_col * (
+                row_height + line_spacing) + padding
 
-    img_height = (
-            padding
-            + title_h
-            + header_gap
-            + subtitle_h
-            + header_gap
-            + rows_per_col * (row_height + line_spacing)
-            + padding
-    )
-
-    # 2. Создаем фон
     img = _create_vertical_gradient(img_width, img_height, BG_GRADIENT_TOP, BG_GRADIENT_BOT)
-    draw = ImageDraw.Draw(img, "RGBA")  # RGBA для прозрачности, если понадобится
+    draw = ImageDraw.Draw(img, "RGBA")
 
-    # 3. Рисуем заголовок
     cur_y = padding
     x_title = (img_width - title_w) // 2
-    # Небольшая тень заголовка
-    draw.text((x_title + 2, cur_y + 2), title, font=font_title, fill=(0, 0, 0))
-    draw.text((x_title, cur_y), title, font=font_title, fill=(255, 255, 255))
-
+    draw.text((x_title + 2, cur_y + 2), title, font=FONT_TITLE, fill=(0, 0, 0))
+    draw.text((x_title, cur_y), title, font=FONT_TITLE, fill=(255, 255, 255))
     cur_y += title_h + 15
-    x_sub = (img_width - subtitle_w) // 2
-    draw.text((x_sub, cur_y), subtitle, font=font_subtitle, fill=(180, 180, 200))
 
+    x_sub = (img_width - subtitle_w) // 2
+    draw.text((x_sub, cur_y), subtitle, font=FONT_SUBTITLE, fill=(180, 180, 200))
     cur_y += subtitle_h + 20
 
-    # Декоративная линия (F1 Red)
     line_w = 400
-    line_x_start = (img_width - line_w) // 2
-    draw.line(
-        (line_x_start, cur_y, line_x_start + line_w, cur_y),
-        fill=ACCENT_RED,
-        width=4,
-    )
-    cur_y += 40  # отступ до карточек
-
+    draw.line(((img_width - line_w) // 2, cur_y, (img_width + line_w) // 2, cur_y), fill=ACCENT_RED, width=4)
+    cur_y += 40
     start_y = cur_y
 
-    # 4. Колонки
     gap_between_cols = 50
     col_width = (img_width - 2 * padding - gap_between_cols) // 2
     left_x = padding
@@ -247,188 +241,90 @@ def create_results_image(
     rows_left = safe_rows[:rows_per_col]
     rows_right = safe_rows[rows_per_col:]
 
-    # Палитра по умолчанию
     def _default_card_color_for_pos(pos: str) -> tuple[int, int, int]:
         try:
             p = int(pos)
-        except ValueError:
+        except:
             p = 99
-        if p <= 3:
-            return (255, 140, 60)  # ярче
-        if p <= 10:
-            return (60, 200, 160)  # бирюза
-        return (80, 90, 120)  # серый
+        if p <= 3: return (255, 140, 60)
+        if p <= 10: return (60, 200, 160)
+        return (80, 90, 120)
 
     color_for_pos = card_color_func or _default_card_color_for_pos
 
-    def _draw_row(col_x: int, row_y: int,
-                  pos: str, code: str, name: str, pts: str) -> None:
-
-        card_x0 = col_x
-        card_y0 = row_y
-        card_x1 = col_x + col_width
-        card_y1 = row_y + row_height
-
+    def _draw_row(col_x: int, row_y: int, pos: str, code: str, name: str, pts: str) -> None:
+        card_x0, card_y0 = col_x, row_y
+        card_x1, card_y1 = col_x + col_width, row_y + row_height
         accent = color_for_pos(pos)
 
-        # --- ТЕНЬ КАРТОЧКИ ---
-        shadow_offset = 6
-        draw.rounded_rectangle(
-            (card_x0 + shadow_offset, card_y0 + shadow_offset,
-             card_x1 + shadow_offset, card_y1 + shadow_offset),
-            radius=24,
-            fill=SHADOW_COLOR
-        )
+        draw.rounded_rectangle((card_x0 + 6, card_y0 + 6, card_x1 + 6, card_y1 + 6), radius=24, fill=SHADOW_COLOR)
+        draw.rounded_rectangle((card_x0, card_y0, card_x1, card_y1), radius=24, fill=CARD_BG_COLOR,
+                               outline=(60, 65, 80), width=1)
 
-        # --- ФОН КАРТОЧКИ ---
-        draw.rounded_rectangle(
-            (card_x0, card_y0, card_x1, card_y1),
-            radius=24,
-            fill=CARD_BG_COLOR,
-            outline=(60, 65, 80),  # тонкая обводка
-            width=1
-        )
-
-        # --- ЦВЕТНАЯ ПОЛОСКА (Акцент) ---
-        # Делаем её чуть шире и интереснее
         strip_width = 12
-        draw.rounded_rectangle(
-            (card_x0, card_y0, card_x0 + strip_width, card_y1),
-            corners=(True, False, False, True),  # Только левые углы (PIL >= 10.0), но у нас старый PIL скорее всего
-            radius=24,
-            fill=accent,
-        )
-        # Хак для старого PIL: рисуем прямоугольник поверх, чтобы "обрезать" скругление справа
-        draw.rectangle(
-            (card_x0 + strip_width - 5, card_y0, card_x0 + strip_width, card_y1),
-            fill=accent
-        )
+        draw.rounded_rectangle((card_x0, card_y0, card_x0 + strip_width, card_y1), radius=24, fill=accent)
+        draw.rectangle((card_x0 + strip_width - 5, card_y0, card_x0 + strip_width, card_y1), fill=accent)
 
-        # Внутренние координаты
-        inner_y0 = card_y0 + 10
-        inner_y1 = card_y1 - 10
-        inner_y_center = (inner_y0 + inner_y1) // 2
+        inner_y_center = (card_y0 + card_y1) // 2
+        pts_w, pts_h = _text_size(draw, pts, FONT_ROW)
+        pos_w, pos_h = _text_size(draw, pos, FONT_ROW)
 
-        block_gap = 12
-        block_pad_x = 16
+        pts_x = card_x1 - 24 - pts_w - 16
+        pos_x = card_x0 + 24 + strip_width
 
-        # --- Расчет ширин блоков ---
-        pts_w, pts_h = _text_size(draw, pts, font_row)
-        pts_block_w = pts_w + block_pad_x * 2
-
-        pos_w, pos_h = _text_size(draw, pos, font_row)
-        pos_block_w = max(80, pos_w + block_pad_x * 2)
-
-        avatar_block_w = avatar_size  # Квадрат (круг)
-
-        # Координаты X (справа налево для очков, слева направо для остального)
-        pts_x1 = card_x1 - 24
-        pts_x0 = pts_x1 - pts_block_w
-
-        pos_x0 = card_x0 + 24 + strip_width  # отступ от цветной полоски
-        pos_x1 = pos_x0 + pos_block_w
-
-        avatar_x0 = pos_x1 + block_gap
-        avatar_x1 = avatar_x0 + avatar_block_w
-
-        name_x0 = avatar_x1 + block_gap * 2
-        name_x1 = pts_x0 - block_gap
-
-        # --- АВАТАР ---
-        # Фоновый круг под аватар
-        avatar_center_x = (avatar_x0 + avatar_x1) // 2
-        avatar_center_y = inner_y_center
-
-        # Рисуем подложку под аватар
-        draw.ellipse(
-            (avatar_x0, avatar_center_y - avatar_size // 2,
-             avatar_x1, avatar_center_y + avatar_size // 2),
-            fill=(25, 30, 45)
-        )
+        avatar_x = pos_x + max(80, pos_w + 32)
+        name_x = avatar_x + avatar_size + 24
 
         raw_code = code.replace("⭐️", "").replace("⭐", "").strip().upper()
-        if len(raw_code) > 3: raw_code = raw_code[-3:]
+        lookup_key = raw_code if raw_code else name
 
-        base_img = avatar_loader(raw_code, name)  # type: ignore
+        base_img = avatar_loader(lookup_key, name)
+        if base_img is None:
+            base_img = _generate_placeholder_avatar(name or code or "?")
 
-        if base_img is not None:
+        if base_img:
             avatar = base_img.resize((avatar_size, avatar_size), Image.LANCZOS)
-            # Маска для круглой обрезки
             mask = Image.new("L", (avatar_size, avatar_size), 0)
-            mask_draw = ImageDraw.Draw(mask)
-            mask_draw.ellipse((0, 0, avatar_size, avatar_size), fill=255)
+            ImageDraw.Draw(mask).ellipse((0, 0, avatar_size, avatar_size), fill=255)
+            paste_y = inner_y_center - avatar_size // 2
+            img.paste(avatar, (int(avatar_x), int(paste_y)), mask)
 
-            paste_x = avatar_center_x - avatar_size // 2
-            paste_y = avatar_center_y - avatar_size // 2
+        draw.text((pos_x, inner_y_center + TEXT_V_SHIFT - pos_h // 2), pos, font=FONT_ROW, fill=(180, 190, 200))
 
-            img.paste(avatar, (paste_x, paste_y), mask)
+        draw.rounded_rectangle((pts_x - 10, inner_y_center - 20, pts_x + pts_w + 10, inner_y_center + 20), radius=12,
+                               fill=(45, 50, 65))
+        draw.text((pts_x, inner_y_center + TEXT_V_SHIFT - pts_h // 2), pts, font=FONT_ROW, fill=TEXT_COLOR)
 
-        # --- ПОЗИЦИЯ ---
-        # Рисуем просто текст, без плашки, так чище в новом дизайне
-        pos_tx = pos_x0 + (pos_block_w - pos_w) // 2
-        pos_ty = inner_y_center + TEXT_V_SHIFT - pos_h // 2
-        draw.text((pos_tx, pos_ty), pos, font=font_row, fill=(180, 190, 200))
+        clean_name = name.replace("⭐️", "").replace("⭐", "").strip()
+        has_star = "⭐" in name or "⭐" in code
 
-        # --- ОЧКИ ---
-        # Плашка под очки (чуть светлее фона)
-        draw.rounded_rectangle(
-            (pts_x0, inner_y0 + 10, pts_x1, inner_y1 - 10),
-            radius=12,
-            fill=(45, 50, 65)
-        )
-        pts_tx = pts_x0 + (pts_block_w - pts_w) // 2
-        pts_ty = inner_y_center + TEXT_V_SHIFT - pts_h // 2
-        draw.text((pts_tx, pts_ty), pts, font=font_row, fill=TEXT_COLOR)
+        name_draw = clean_name
+        name_w, name_h = _text_size(draw, name_draw, FONT_ROW)
+        max_name_w = pts_x - name_x - 20
+        while name_draw and name_w > max_name_w:
+            name_draw = name_draw[:-1]
+            name_w, name_h = _text_size(draw, name_draw + "…", FONT_ROW)
+        if name_draw != clean_name: name_draw += "…"
 
-        # --- ИМЯ ---
-        # Обработка имени и звездочки
-        raw_code_for_star = code.strip()
-        raw_name_for_star = name.strip()
-        has_star = ("⭐" in raw_code_for_star) or ("⭐" in raw_name_for_star)
+        cur_name_x = name_x
 
-        clean_name = raw_name_for_star.replace("⭐️", "").replace("⭐", "").strip()
-        base_name_text = clean_name or name
+        if has_star:
+            # --- РИСУЕМ ЗВЕЗДУ ГЕОМЕТРИЧЕСКИ ---
+            # Центрируем звезду по вертикали относительно текста
+            star_radius = 16
+            star_cx = cur_name_x + star_radius
+            # Сдвигаем чуть вниз (TEXT_V_SHIFT обычно поднимает текст, звезду тоже надо поднять)
+            star_cy = inner_y_center + TEXT_V_SHIFT
 
-        max_name_width = name_x1 - name_x0
+            _draw_star(draw, star_cx, star_cy, star_radius, (255, 215, 0))  # Золотая звезда
+            cur_name_x += 45  # отступ
 
-        star_text = "⭐️" if has_star else ""
-        star_w = 0
-        star_gap = 10
-        if star_text:
-            star_w, _ = _text_size(draw, star_text, font_emoji)
+        draw.text((cur_name_x, inner_y_center + TEXT_V_SHIFT - name_h // 2), name_draw, font=FONT_ROW, fill=TEXT_COLOR)
 
-        name_to_draw = base_name_text
-        name_w, name_h = _text_size(draw, name_to_draw, font_row)
-
-        # Обрезаем имя если не влезает
-        while name_to_draw and (star_w + star_gap + name_w) > max_name_width:
-            name_to_draw = name_to_draw[:-1]
-            name_w, name_h = _text_size(draw, name_to_draw + "…", font_row)
-        if name_to_draw != base_name_text:
-            name_to_draw = name_to_draw + "…"
-            name_w, name_h = _text_size(draw, name_to_draw, font_row)
-
-        text_block_h = max(name_h, 40)
-        base_ty = inner_y_center + TEXT_V_SHIFT - text_block_h // 2
-
-        # Выравнивание имени по левому краю (после аватара)
-        cur_x = name_x0
-
-        if star_text:
-            draw.text((cur_x, base_ty), star_text, font=font_emoji, fill=TEXT_COLOR)
-            cur_x += star_w + star_gap
-
-        draw.text((cur_x, base_ty), name_to_draw, font=font_row, fill=TEXT_COLOR)
-
-    # Рисуем строки
     for i in range(rows_per_col):
         row_y = start_y + i * (row_height + line_spacing)
-
-        if i < len(rows_left):
-            _draw_row(left_x, row_y, *rows_left[i])
-
-        if i < len(rows_right):
-            _draw_row(right_x, row_y, *rows_right[i])
+        if i < len(rows_left): _draw_row(left_x, row_y, *rows_left[i])
+        if i < len(rows_right): _draw_row(right_x, row_y, *rows_right[i])
 
     buf = BytesIO()
     img.save(buf, format="PNG")
@@ -436,419 +332,101 @@ def create_results_image(
     return buf
 
 
+# Обертки
 def create_driver_standings_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]]) -> BytesIO:
-    """Обертка для личного зачета."""
-
-    def _driver_avatar_loader(code: str, name: str) -> Image.Image | None:
-        return _get_driver_photo(code)
-
-    def _driver_card_color(pos: str) -> tuple[int, int, int]:
+    def _color(pos: str):
         try:
             p = int(pos)
-        except ValueError:
+        except:
             p = 99
-        if p == 1: return (255, 180, 0)  # Золото
-        if p == 2: return (192, 192, 192)  # Серебро
-        if p == 3: return (205, 127, 50)  # Бронза
-        return (80, 100, 140)  # Остальные (нейтральный синий)
+        if p == 1: return (255, 180, 0)
+        if p == 2: return (192, 192, 192)
+        if p == 3: return (205, 127, 50)
+        return (80, 100, 140)
 
-    return create_results_image(
-        title, subtitle, rows,
-        avatar_loader=_driver_avatar_loader,
-        card_color_func=_driver_card_color,
-    )
+    return create_results_image(title, subtitle, rows, card_color_func=_color)
 
 
 def create_constructor_standings_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]]) -> BytesIO:
-    """Обертка для Кубка конструкторов."""
+    def _loader(code: str, name: str):
+        return _get_team_logo(name or code)
 
-    def _team_avatar_loader(code: str, name: str) -> Image.Image | None:
-        src = name or code
-        return _get_team_logo(src)
-
-    def _team_card_color(pos: str) -> tuple[int, int, int]:
+    def _color(pos: str):
         try:
             p = int(pos)
-        except ValueError:
+        except:
             p = 99
         if p == 1: return (255, 180, 0)
         if p == 2: return (192, 192, 192)
         if p == 3: return (205, 127, 50)
-        return (220, 40, 40) if p == 99 else (80, 100, 140)
+        return (220, 40, 40)
 
-    return create_results_image(
-        title, subtitle, rows,
-        avatar_loader=_team_avatar_loader,
-        card_color_func=_team_card_color,
-    )
+    return create_results_image(title, subtitle, rows, avatar_loader=_loader, card_color_func=_color)
 
 
 def create_quali_results_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]]) -> BytesIO:
-    """Обертка для квалификации."""
-    has_time_by_pos = {}
-    for pos, _, _, time_text in rows:
-        t = (time_text or "").strip().upper()
-        has_time = bool(t and t not in {"—", "NO TIME", "DNS", "DNF", "DSQ"})
-        has_time_by_pos[pos] = has_time
-
-    def _quali_avatar_loader(code: str, name: str) -> Image.Image | None:
-        return _get_driver_photo(code)
-
-    def _quali_card_color(pos: str) -> tuple[int, int, int]:
-        try:
-            p = int(pos)
-        except ValueError:
-            p = 99
-
-        has_time = has_time_by_pos.get(pos, False)
-        if p == 1: return (255, 180, 0)
-        if p == 2: return (192, 192, 192)
-        if p == 3: return (205, 127, 50)
-
-        if has_time: return (60, 200, 160)  # Бирюзовый
-        return (100, 100, 120)
-
-    return create_results_image(
-        title, subtitle, rows,
-        avatar_loader=_quali_avatar_loader,
-        card_color_func=_quali_card_color,
-    )
+    return create_results_image(title, subtitle, rows)
 
 
 def create_season_image(season: int, races: list[dict]) -> BytesIO:
-    """
-    Рисует календарь сезона.
-    Также обновлен под новый стиль (градиенты, тени).
-    """
-    padding = 30
-    header_gap = 40
-    line_spacing = 25
-    row_height = 110
-
-    # Шрифты
-    title_font = FONT_TITLE
-    subtitle_font = FONT_SUBTITLE
-    row_font = FONT_ROW
-
-    gap_between_cols = 50
-    side_margin_inside = 20
-    block_gap = 10
-    block_pad_x = 16
-
     safe_races = races if races else []
-    if not safe_races:
-        safe_races = [{"round": 0, "event_name": "Нет данных", "country": "", "date": date.today().isoformat()}]
+    if not safe_races: safe_races = [
+        {"round": 0, "event_name": "Нет данных", "country": "", "date": date.today().isoformat()}]
 
-    today = date.today()
     races_with_dates = []
+    today = date.today()
     for r in safe_races:
         try:
-            rd = date.fromisoformat(r.get("date", today.isoformat()))
+            rd = date.fromisoformat(r.get("date", ""))
         except:
             rd = today
         races_with_dates.append((r, rd))
 
-    # Расчет размеров
     temp_img = Image.new("RGB", (100, 100))
     draw_tmp = ImageDraw.Draw(temp_img)
-
     title = f"Календарь сезона {season}"
-    title_w, title_h = _text_size(draw_tmp, title, title_font)
+    title_w, title_h = _text_size(draw_tmp, title, FONT_TITLE)
 
-    # Считаем ширину контента
-    max_round_w, max_gp_w, max_date_w = 0, 0, 0
-    for r, rd in races_with_dates:
-        ev = r.get("event_name", "")
-        cntry = r.get("country", "")
-        gp_text = f"{ev} ({cntry})" if cntry else ev
-
-        w_rnd, _ = _text_size(draw_tmp, "00", row_font)
-        max_round_w = max(max_round_w, w_rnd)
-
-        w_gp, _ = _text_size(draw_tmp, gp_text, row_font)
-        max_gp_w = max(max_gp_w, w_gp)
-
-        w_dt, _ = _text_size(draw_tmp, "88.88.8888", row_font)
-        max_date_w = max(max_date_w, w_dt)
-
-    round_block_w = max_round_w + block_pad_x * 2
-    date_block_w = max_date_w + block_pad_x * 2
-    gp_block_w = max_gp_w + block_pad_x * 2
-
-    col_width_min = side_margin_inside * 2 + round_block_w + block_gap + gp_block_w + block_gap + date_block_w
-
+    img_width = 1800
     num_rows = len(races_with_dates)
     rows_per_col = (num_rows + 1) // 2
+    row_height = 110
+    line_spacing = 25
+    header_gap = 40
+    padding = 30
 
-    img_width = max(
-        1800,
-        2 * padding + 2 * col_width_min + gap_between_cols,
-        title_w + 2 * padding
-    )
-    img_height = (
-            padding + title_h + header_gap +
-            rows_per_col * (row_height + line_spacing) + padding
-    )
+    img_height = padding + title_h + header_gap + rows_per_col * (row_height + line_spacing) + padding
 
-    # Фон и Drawer
     img = _create_vertical_gradient(img_width, img_height, BG_GRADIENT_TOP, BG_GRADIENT_BOT)
     draw = ImageDraw.Draw(img)
 
-    # Хедер
-    cur_y = padding
     x_title = (img_width - title_w) // 2
-    draw.text((x_title + 2, cur_y + 2), title, font=title_font, fill=(0, 0, 0))  # тень
-    draw.text((x_title, cur_y), title, font=title_font, fill=(255, 255, 255))
+    draw.text((x_title, padding), title, font=FONT_TITLE, fill=(255, 255, 255))
+    start_y = padding + title_h + header_gap
 
-    cur_y += title_h + 20
-    # Красная линия
-    draw.line((padding, cur_y, img_width - padding, cur_y), fill=(70, 70, 90), width=2)  # подложка линии
-    center_line = img_width // 2
-    draw.line((center_line - 150, cur_y, center_line + 150, cur_y), fill=ACCENT_RED, width=4)  # акцент
-
-    cur_y += header_gap // 2
-    start_y = cur_y
-
-    col_width = (img_width - 2 * padding - gap_between_cols) // 2
+    col_width = (img_width - 2 * padding - 50) // 2
     left_x = padding
-    right_x = padding + col_width + gap_between_cols
+    right_x = padding + col_width + 50
 
-    races_left = races_with_dates[:rows_per_col]
-    races_right = races_with_dates[rows_per_col:]
+    for i, (r, rd) in enumerate(races_with_dates):
+        col_x = left_x if i < rows_per_col else right_x
+        row_idx = i if i < rows_per_col else i - rows_per_col
+        row_y = start_y + row_idx * (row_height + line_spacing)
 
-    def _draw_season_row(col_x: int, row_y: int, r: dict, rd: date) -> None:
         finished = rd < today
+        fill = (35, 30, 30) if finished else (35, 45, 40)
+        accent = (180, 50, 50) if finished else (50, 180, 100)
 
-        # Цвета
-        if finished:
-            accent_color = (180, 50, 50)  # тусклый красный
-            fill_color = (35, 30, 30)  # темный
-            text_fill = (150, 150, 160)
-        else:
-            accent_color = (50, 180, 100)  # зеленый
-            fill_color = (35, 45, 40)
-            text_fill = (255, 255, 255)
+        draw.rounded_rectangle((col_x, row_y, col_x + col_width, row_y + row_height), radius=20, fill=fill)
+        draw.rounded_rectangle((col_x, row_y, col_x + 10, row_y + row_height), radius=20, fill=accent)
 
-        card_x0, card_y0 = col_x, row_y
-        card_x1, card_y1 = col_x + col_width, row_y + row_height
-
-        # Тень
-        draw.rounded_rectangle(
-            (card_x0 + 5, card_y0 + 5, card_x1 + 5, card_y1 + 5),
-            radius=20, fill=SHADOW_COLOR
-        )
-        # Фон
-        draw.rounded_rectangle(
-            (card_x0, card_y0, card_x1, card_y1),
-            radius=20, fill=CARD_BG_COLOR, outline=(60, 60, 75), width=1
-        )
-        # Акцент слева
-        draw.rounded_rectangle(
-            (card_x0, card_y0, card_x0 + 10, card_y1),
-            radius=20, fill=accent_color
-        )
-        draw.rectangle((card_x0 + 6, card_y0, card_x0 + 10, card_y1), fill=accent_color)
-
-        # Контент
-        inner_y_center = (card_y0 + card_y1) // 2
-
-        round_num = int(r.get("round", 0))
+        round_text = f"{int(r.get('round', 0)):02d}"
         ev = r.get("event_name", "")
-        cntry = r.get("country", "")
-        date_str = rd.strftime("%d.%m")
+        dt = rd.strftime("%d.%m")
 
-        # Номер этапа
-        round_x0 = card_x0 + 25
-        round_text = f"{round_num:02d}"
-        draw.text((round_x0, inner_y_center + TEXT_V_SHIFT - 20), round_text, font=row_font, fill=(100, 100, 120))
-
-        # Дата справа
-        date_w, date_h = _text_size(draw, date_str, row_font)
-        date_x = card_x1 - 25 - date_w
-
-        # Плашка даты
-        draw.rounded_rectangle(
-            (date_x - 10, inner_y_center - 25, card_x1 - 15, inner_y_center + 25),
-            radius=8, fill=fill_color
-        )
-        draw.text((date_x, inner_y_center + TEXT_V_SHIFT - date_h // 2), date_str, font=row_font, fill=text_fill)
-
-        # Название Гран-при (между номером и датой)
-        gp_x0 = round_x0 + 60
-        gp_x1 = date_x - 20
-        gp_text = f"{ev} ({cntry})" if cntry else ev
-
-        # Обрезка текста
-        max_gp_w = gp_x1 - gp_x0
-        gp_draw = gp_text
-        gw, gh = _text_size(draw, gp_draw, row_font)
-        while gp_draw and gw > max_gp_w:
-            gp_draw = gp_draw[:-1]
-            gw, gh = _text_size(draw, gp_draw + "…", row_font)
-        if gp_draw != gp_text: gp_draw += "…"
-
-        draw.text((gp_x0, inner_y_center + TEXT_V_SHIFT - gh // 2), gp_draw, font=row_font, fill=text_fill)
-
-    for i in range(rows_per_col):
-        row_y = start_y + i * (row_height + line_spacing)
-        if i < len(races_left): _draw_season_row(left_x, row_y, *races_left[i])
-        if i < len(races_right): _draw_season_row(right_x, row_y, *races_right[i])
-
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return buf
-
-
-# TODO сделать нормальное сравнение
-def create_comparison_image(
-        driver1_data: dict,
-        driver2_data: dict,
-        labels: List[str]
-) -> BytesIO:
-    """
-    Draws a cumulative line chart comparing two drivers.
-
-    Args:
-        driver1_data: dict with keys "code", "history" (list of ints), "total_points"
-        driver2_data: dict with keys "code", "history" (list of ints), "total_points"
-        labels: list of race names (abbreviated)
-    """
-    # --- Settings ---
-    width = 1600
-    height = 900
-    padding_x = 80
-    padding_y = 100
-    graph_area_h = height - 2 * padding_y - 100  # Leave space for legend/title
-    graph_area_w = width - 2 * padding_x
-
-    # Colors
-    color_d1 = (255, 140, 60)  # Orange/Papaya
-    color_d2 = (60, 200, 160)  # Teal/Cyan
-    grid_color = (60, 65, 80)
-    text_color = (200, 200, 220)
-
-    # Fonts (Reusing global fonts loaded in image_render.py)
-    font_main = FONT_ROW
-    font_small = FONT_SUBTITLE
-    font_bold = FONT_TITLE
-
-    # --- Data Prep ---
-    points1 = driver1_data["history"]
-    points2 = driver2_data["history"]
-
-    # Calculate Max Y for scaling
-    max_p = max(max(points1, default=0), max(points2, default=0))
-    # Round up to nearest 50 for nice grid
-    max_y_axis = ((max_p // 50) + 1) * 50 if max_p > 0 else 50
-
-    num_races = len(labels)
-    if num_races < 1:
-        # Fallback if no data
-        return create_results_image("Comparison", "No Data", [])
-
-    # --- Draw Background ---
-    img = _create_vertical_gradient(width, height, BG_GRADIENT_TOP, BG_GRADIENT_BOT)
-    draw = ImageDraw.Draw(img, "RGBA")
-
-    # Title
-    title = f"{driver1_data['code']} vs {driver2_data['code']}"
-    tw, th = _text_size(draw, title, font_bold)
-    draw.text(((width - tw) // 2, 30), title, font=font_bold, fill=(255, 255, 255))
-
-    subtitle = f"Progressive Season Battle ({datetime.now().year})"
-    sw, sh = _text_size(draw, subtitle, font_small)
-    draw.text(((width - sw) // 2, 30 + th + 10), subtitle, font=font_small, fill=(180, 180, 200))
-
-    # --- Coordinate System Calculations ---
-    origin_x = padding_x
-    origin_y = height - padding_y
-
-    # Step sizes
-    x_step = graph_area_w / (max(num_races, 1) - 1) if num_races > 1 else graph_area_w
-    y_ratio = graph_area_h / max_y_axis
-
-    # --- Draw Grid (Y-Axis) ---
-    # Draw 5 horizontal lines
-    steps = 5
-    for i in range(steps + 1):
-        p_val = int(max_y_axis * (i / steps))
-        y_pos = origin_y - (p_val * y_ratio)
-
-        # Grid line
-        draw.line((origin_x, y_pos, origin_x + graph_area_w, y_pos), fill=grid_color, width=1)
-
-        # Label
-        lbl = str(p_val)
-        lw, lh = _text_size(draw, lbl, font_small)
-        draw.text((origin_x - lw - 15, y_pos - lh // 2), lbl, font=font_small, fill=text_color)
-
-    # --- Draw X-Axis Labels ---
-    # Draw every nth label if too many races
-    label_step = 1
-    if num_races > 10: label_step = 2
-    if num_races > 20: label_step = 3
-
-    for i, label in enumerate(labels):
-        x_pos = origin_x + (i * x_step)
-
-        # Draw vertical faint grid
-        if i > 0:
-            draw.line((x_pos, origin_y, x_pos, origin_y - graph_area_h), fill=(40, 45, 60), width=1)
-
-        if i % label_step == 0:
-            # Shorten label if needed
-            lbl = label[:3].upper()
-            lw, lh = _text_size(draw, lbl, font_small)
-            draw.text((x_pos - lw // 2, origin_y + 15), lbl, font=font_small, fill=text_color)
-
-    # --- Helper to draw lines ---
-    def draw_line_graph(points, color):
-        coords = []
-        for i, pt in enumerate(points):
-            x = origin_x + (i * x_step)
-            y = origin_y - (pt * y_ratio)
-            coords.append((x, y))
-
-        # Draw thick line
-        if len(coords) > 1:
-            draw.line(coords, fill=color, width=5, joint="curve")
-
-        # Draw dots
-        for x, y in coords:
-            r = 6
-            draw.ellipse((x - r, y - r, x + r, y + r), fill=color, outline=(255, 255, 255), width=2)
-
-        # Draw final score tag
-        if coords:
-            fx, fy = coords[-1]
-            final_score = str(int(points[-1]))
-            fw, fh = _text_size(draw, final_score, font_main)
-
-            # Box background
-            draw.rounded_rectangle(
-                (fx + 15, fy - fh // 2 - 5, fx + 15 + fw + 20, fy + fh // 2 + 5),
-                radius=10, fill=CARD_BG_COLOR, outline=color, width=2
-            )
-            draw.text((fx + 25, fy - fh // 2), final_score, font=font_main, fill=color)
-
-    # Draw Driver 2 (Behind) first, then Driver 1
-    draw_line_graph(points2, color_d2)
-    draw_line_graph(points1, color_d1)
-
-    # --- Legend ---
-    legend_y = origin_y + 70
-    center_x = width // 2
-
-    # Legend Item 1
-    l1_text = f"{driver1_data['code']}"
-    draw.rectangle((center_x - 150, legend_y, center_x - 120, legend_y + 30), fill=color_d1)
-    draw.text((center_x - 110, legend_y - 2), l1_text, font=font_main, fill=text_color)
-
-    # Legend Item 2
-    l2_text = f"{driver2_data['code']}"
-    draw.rectangle((center_x + 50, legend_y, center_x + 80, legend_y + 30), fill=color_d2)
-    draw.text((center_x + 90, legend_y - 2), l2_text, font=font_main, fill=text_color)
+        draw.text((col_x + 25, row_y + 35), round_text, font=FONT_ROW, fill=(100, 100, 120))
+        draw.text((col_x + 100, row_y + 35), ev, font=FONT_ROW, fill=(255, 255, 255))
+        draw.text((col_x + col_width - 120, row_y + 35), dt, font=FONT_ROW, fill=(200, 200, 200))
 
     buf = BytesIO()
     img.save(buf, format="PNG")
