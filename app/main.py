@@ -1,11 +1,12 @@
 import asyncio
 import logging
 
+from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.bot import create_bot_and_dispatcher
-from app.db import init_db
+from app.db import db
 from app.f1_data import warmup_current_season_sessions
 from app.handlers import secret, start, races, drivers, teams, favorites, settings, compare
 from app.middlewares.error_logging import ErrorLoggingMiddleware
@@ -19,18 +20,38 @@ logging.basicConfig(
 )
 
 
+async def on_startup(bot: Bot):
+    # Открываем соединение с БД
+    await db.connect()
+    # Создаем таблицы
+    await db.init_tables()
+
+    # ... здесь может быть запуск шедулера уведомлений ...
+    logging.info("Bot started, DB connected.")
+
+
+async def on_shutdown(bot: Bot):
+    # Закрываем соединение аккуратно
+    await db.close()
+    logging.info("Bot stopped, DB closed.")
+
+
 async def main():
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
+    bot, dp = create_bot_and_dispatcher()
+
+    # Регистрируем хуки
+    dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
+
     scheduler = AsyncIOScheduler()
 
     scheduler.add_job(create_backup, 'interval', hours=24)
     scheduler.start()
-
-    await init_db()
 
     bot, dp = create_bot_and_dispatcher()
     dp.update.outer_middleware(ErrorLoggingMiddleware())
@@ -106,6 +127,9 @@ async def main():
             await bot.session.close()
         except Exception as exc:
             logging.warning(f"Ошибка при закрытии сессии бота: {exc}")
+
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)
 
     pass
 
