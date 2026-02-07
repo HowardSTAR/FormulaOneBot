@@ -1,5 +1,8 @@
 import asyncio
 import logging
+import sys
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
@@ -20,6 +23,43 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
+
+# --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
+def setup_logging():
+    # Создаем папку logs, если нет
+    log_dir = Path(__file__).resolve().parent.parent / "logs"
+    log_dir.mkdir(exist_ok=True)
+
+    log_file = log_dir / "bot.log"
+
+    # Формат логов: Время | Уровень | Имя модуля | Сообщение
+    log_format = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+    formatter = logging.Formatter(log_format)
+
+    # 1. Логгер в файл с ротацией (макс 5 МБ, храним 3 последних файла)
+    file_handler = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=3, encoding='utf-8')
+    file_handler.setFormatter(formatter)
+
+    # 2. Логгер в консоль (чтобы видеть глазами при разработке)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+
+    # Применяем настройки
+    logging.basicConfig(
+        level=logging.INFO,
+        handlers=[file_handler, console_handler]
+    )
+
+    # Убираем шум от библиотек (слишком много логов)
+    logging.getLogger("aiogram").setLevel(logging.INFO)
+    logging.getLogger("aiosqlite").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
+# Вызываем настройку СРАЗУ
+setup_logging()
+logger = logging.getLogger(__name__)
 
 async def on_startup(bot: Bot):
     settings = get_settings()

@@ -1,77 +1,62 @@
 import logging
 import traceback
-from typing import Any, Awaitable, Callable, Dict
-
+from typing import Callable, Dict, Any, Awaitable
 from aiogram import BaseMiddleware, Bot
-from aiogram.types import Update
+from aiogram.types import TelegramObject, Update
 
-from app.config import get_settings
+from app.utils.safe_send import safe_send_message
+
+logger = logging.getLogger(__name__)
+
+
+# ID администратора для уведомлений о падениях
+ADMIN_ID = 2099386
 
 
 class ErrorLoggingMiddleware(BaseMiddleware):
-    """
-    Логирует ошибки и рассылает уведомления ВСЕМ админам из конфига.
-    """
-
     async def __call__(
             self,
-            handler: Callable[[Update, Dict[str, Any]], Awaitable[Any]],
-            event: Update,
+            handler: Callable[[TelegramObject, Dict[str, Any]], Awaitable[Any]],
+            event: TelegramObject,
             data: Dict[str, Any],
     ) -> Any:
         try:
             return await handler(event, data)
         except Exception as e:
-            logging.exception("Ошибка при обработке апдейта: %s", event)
-
-            # 1. Уведомляем пользователя (если возможно)
-            try:
-                user_msg = None
+            # 1. Получаем информацию о пользователе и событии
+            user_id = "unknown"
+            if isinstance(event, Update):
                 if event.message:
-                    user_msg = event.message
+                    user_id = event.message.from_user.username
                 elif event.callback_query:
-                    user_msg = event.callback_query.message
+                    user_id = event.callback_query.from_user.username
 
-                if user_msg:
-                    await user_msg.answer(
-                        "⚠️ Произошла ошибка.\n"
-                        "Администраторы уже получили отчет и скоро всё починят! 🔧"
-                    )
-            except Exception:
-                pass
+            # 2. Логируем полную ошибку в файл (с Traceback)
+            error_msg = f"CRITICAL ERROR handling update {event.update_id if isinstance(event, Update) else '?'} from user {user_id}: {e}"
+            logger.exception(error_msg)
 
-            # 2. Уведомляем АДМИНОВ
+            # 3. Отправляем уведомление админу (Вам)
             bot: Bot = data.get("bot")
-            settings = get_settings()
+            if bot and ADMIN_ID:
+                try:
+                    # Формируем короткий отчет (последние 3 строки ошибки, чтобы не спамить полотном)
+                    tb_list = traceback.format_exception(type(e), e, e.__traceback__)
+                    short_tb = "".join(tb_list[-3:])
 
-            if bot and settings.admin_ids:
-                tb_str = traceback.format_exc()
-                if len(tb_str) > 3500:
-                    tb_str = tb_str[-3500:] + "\n...(truncated)"
+                    text = (
+                        f"🚨 <b>BOT CRITICAL ERROR!</b>\n\n"
+                        f"👤 User: @{user_id}\n"
+                        f"💀 Error: {str(e)}\n\n"
+                        f"<pre>{short_tb}</pre>"
+                    )
 
-                # БЕЗОПАСНОЕ ПОЛУЧЕНИЕ ПОЛЬЗОВАТЕЛЯ
-                user = None
-                if event.message:
-                    user = event.message.from_user
-                elif event.callback_query:
-                    user = event.callback_query.from_user
-                elif event.inline_query:
-                    user = event.inline_query.from_user
+                    # Отправляем в фоновом режиме (без await, чтобы не блочить, если safe_send умеет fire-and-forget,
+                    # но safe_send асинхронный, поэтому await нужен)
+                    await safe_send_message(bot, ADMIN_ID, text)
 
-                user_str = f"{user.full_name} (ID: {user.id})" if user else "Unknown"
+                except Exception as send_err:
+                    # Если даже админу отправить не удалось — пишем в лог, но не падаем
+                    logger.error(f"Failed to send error notification to admin: {send_err}")
 
-                error_text = (
-                    f"🚨 <b>CRITICAL ERROR</b>\n\n"
-                    f"Update ID: {event.update_id}\n"
-                    f"User: {user_str}\n"
-                    f"Error: {str(e)}\n\n"
-                    f"<pre>{tb_str}</pre>"
-                )
-
-                for admin_id in settings.admin_ids:
-                    try:
-                        await bot.send_message(chat_id=admin_id, text=error_text)
-                    except Exception as admin_exc:
-                        logging.error(f"Не удалось отправить лог админу {admin_id}: {admin_exc}")
-
+            # Важно: Возвращаем None, чтобы апдейт считался обработанным (хоть и с ошибкой)
             return None

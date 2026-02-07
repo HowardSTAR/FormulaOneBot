@@ -1,8 +1,12 @@
 import asyncio
 import logging
 
-from aiogram.exceptions import TelegramNetworkError
+from aiogram import Bot
+from aiogram.exceptions import TelegramNetworkError, TelegramForbiddenError, TelegramRetryAfter, TelegramBadRequest
 from aiogram.types import Message
+
+
+logger = logging.getLogger(__name__)
 
 
 async def safe_answer(
@@ -45,3 +49,27 @@ async def safe_answer(
             await asyncio.sleep(delay)
 
     return None
+
+
+async def safe_send_message(bot: Bot, chat_id: int, text: str, **kwargs) -> bool:
+    """
+    Безопасная отправка сообщения с обработкой ошибок и FloodWait.
+    Возвращает True, если отправлено успешно.
+    """
+    try:
+        await bot.send_message(chat_id=chat_id, text=text, **kwargs)
+        return True
+    except TelegramForbiddenError:
+        logger.warning(f"User {chat_id} blocked the bot. Removing from DB recommended.")
+        # TODO: Можно добавить логику удаления юзера из БД здесь
+        return False
+    except TelegramRetryAfter as e:
+        logger.warning(f"FloodWait: Sleeping {e.retry_after} seconds for user {chat_id}...")
+        await asyncio.sleep(e.retry_after)
+        return await safe_send_message(bot, chat_id, text, **kwargs) # Рекурсивная попытка
+    except TelegramBadRequest as e:
+        logger.error(f"Bad Request for user {chat_id}: {e}")
+        return False
+    except Exception as e:
+        logger.exception(f"Unexpected error sending message to {chat_id}: {e}")
+        return False

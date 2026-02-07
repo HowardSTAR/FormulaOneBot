@@ -203,7 +203,8 @@ def get_driver_standings_df(season: int, round_number: Optional[int] = None) -> 
             return res.content[0]
         return pd.DataFrame()
     except Exception as e:
-        logger.error(f"Ergast API error (drivers): {e}")
+        logger.error(f"Ergast API failed for driver {season}: {e}",
+                     exc_info=True)  # exc_info=True покажет где именно упало
         return pd.DataFrame()
 
 
@@ -219,7 +220,8 @@ def get_constructor_standings_df(season: int, round_number: Optional[int] = None
             return res.content[0]
         return pd.DataFrame()
     except Exception as e:
-        logger.error(f"Ergast API error (constructors): {e}")
+        logger.error(f"Ergast API failed for constructor {season}: {e}",
+                     exc_info=True)  # exc_info=True покажет где именно упало
         return pd.DataFrame()
 
 
