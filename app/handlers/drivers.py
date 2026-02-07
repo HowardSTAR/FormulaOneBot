@@ -1,5 +1,6 @@
 import asyncio
 import math
+import types
 from datetime import datetime
 
 from aiogram import Router, F
@@ -17,6 +18,7 @@ from aiogram.fsm.state import StatesGroup, State
 
 # Импортируем нашу новую асинхронную обертку (убедись, что она есть в f1_data.py)
 from app.f1_data import get_driver_standings_async
+from app.utils.default import validate_f1_year
 from app.utils.image_render import create_driver_standings_image
 from app.db import get_favorite_drivers
 
@@ -24,7 +26,7 @@ router = Router()
 
 
 class DriversYearState(StatesGroup):
-    waiting_for_year = State()
+    year = State()
 
 
 async def _send_drivers_for_year(
@@ -173,20 +175,26 @@ async def btn_drivers_ask_year(message: Message, state: FSMContext) -> None:
         "Напиши год цифрами или нажми кнопку ниже для текущего сезона.",
         reply_markup=kb,
     )
-    await state.set_state(DriversYearState.waiting_for_year)
+    await state.set_state(DriversYearState.year)
 
 
-@router.message(DriversYearState.waiting_for_year)
-async def drivers_year_from_text(message: Message, state: FSMContext) -> None:
-    text = (message.text or "").strip()
-    try:
-        season = int(text)
-    except ValueError:
-        await message.answer("Пожалуйста, введи год цифрами, например: 2016")
+@router.message(DriversYearState.year)
+async def drivers_year_from_text(message: types.Message, state: FSMContext):
+    if not message.text.isdigit():
+        await message.answer("Пожалуйста, введите год числом (например, 2007).")
         return
 
+    year = int(message.text)
+
+    error_msg = validate_f1_year(year)
+    if error_msg:
+        await message.answer(error_msg)
+        return
+
+    # Дальше ваш старый код...
+    await state.update_data(year=year)
+    await _send_drivers_for_year(message, year)
     await state.clear()
-    await _send_drivers_for_year(message, season, telegram_id=message.from_user.id)
 
 
 @router.callback_query(F.data.startswith("drivers_current_"))

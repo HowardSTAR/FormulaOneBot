@@ -1,4 +1,5 @@
 import asyncio
+import types
 from datetime import datetime, date, timezone, timedelta
 from collections import defaultdict
 
@@ -10,7 +11,7 @@ from aiogram.types import (
     Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, BufferedInputFile
 )
 
-from app.utils.default import SESSION_NAME_RU
+from app.utils.default import SESSION_NAME_RU, validate_f1_year
 from app.utils.image_render import (
     create_results_image, create_season_image, create_quali_results_image
 )
@@ -28,7 +29,7 @@ UTC_PLUS_3 = timezone(timedelta(hours=3))
 
 
 class RacesYearState(StatesGroup):
-    waiting_for_year = State()
+    year = State()
 
 
 async def build_next_race_payload(season: int | None = None, user_id: int | None = None) -> dict:
@@ -475,17 +476,25 @@ async def btn_races_ask_year(message: Message, state: FSMContext) -> None:
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=f"Текущий сезон ({current_year})", callback_data=f"races_current_{current_year}")]])
     await message.answer("🗓 Какой год тебя интересует?", reply_markup=kb)
-    await state.set_state(RacesYearState.waiting_for_year)
+    await state.set_state(RacesYearState.year)
 
 
-@router.message(RacesYearState.waiting_for_year)
-async def races_year_from_text(message: Message, state: FSMContext) -> None:
-    try:
-        season = int((message.text or "").strip())
-        await state.clear()
-        await _send_races_for_year(message, season)
-    except ValueError:
-        await message.answer("Пожалуйста, введи год цифрами.")
+@router.message(RacesYearState.year)
+async def races_year_from_text(message: types.Message, state: FSMContext):
+    if not message.text.isdigit():
+        await message.answer("Пожалуйста, введите год числом.")
+        return
+
+    year = int(message.text)
+
+    error_msg = validate_f1_year(year)
+    if error_msg:
+        await message.answer(error_msg)
+        return
+
+    await state.update_data(year=year)
+    await _send_races_for_year(message, year)
+    await state.clear()
 
 
 @router.callback_query(F.data.startswith("races_current_"))

@@ -18,13 +18,14 @@ from aiogram.fsm.state import StatesGroup, State
 
 # ИСПРАВЛЕНО: Импортируем асинхронную обертку
 from app.f1_data import get_constructor_standings_async
+from app.utils.default import validate_f1_year
 from app.utils.image_render import create_constructor_standings_image
 
 router = Router()
 
 
 class TeamsYearState(StatesGroup):
-    waiting_for_year = State()
+    year = State()
 
 
 async def _send_teams_for_year(message: Message, season: int) -> None:
@@ -200,23 +201,28 @@ async def btn_teams_ask_year(message: Message, state: FSMContext) -> None:
         "Напиши год цифрами или нажми кнопку ниже для текущего сезона.",
         reply_markup=kb,
     )
-    await state.set_state(TeamsYearState.waiting_for_year)
+    await state.set_state(TeamsYearState.year)
 
 
-@router.message(TeamsYearState.waiting_for_year)
+@router.message(TeamsYearState.year)
 async def teams_year_from_text(message: Message, state: FSMContext) -> None:
     """
     Пользователь ответил годом текстом.
     """
-    text = (message.text or "").strip()
-    try:
-        season = int(text)
-    except ValueError:
-        await message.answer("Пожалуйста, введи год цифрами, например: 2021")
+    if not message.text.isdigit():
+        await message.answer("Пожалуйста, введите год числом.")
         return
 
+    year = int(message.text)
+
+    error_msg = validate_f1_year(year)
+    if error_msg:
+        await message.answer(error_msg)
+        return
+
+    await state.update_data(year=year)
+    await _send_teams_for_year(message, year)  # Название функции отправки может отличаться
     await state.clear()
-    await _send_teams_for_year(message, season)
 
 
 @router.callback_query(F.data.startswith("teams_current_"))
