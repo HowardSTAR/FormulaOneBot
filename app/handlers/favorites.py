@@ -32,12 +32,12 @@ async def _build_drivers_keyboard(telegram_id: int) -> tuple[InlineKeyboardMarku
     # 2. Текст сообщения
     if is_outdated:
         info_text = (
-            f"⚠️ **Межсезонье**\n"
+            f"⚠️ <b>Межсезонье</b>\n"
             f"Составы на {current_year} год еще не готовы.\n"
-            f"Показываем пилотов сезона **{target_season}**:"
+            f"Показываем пилотов сезона <b>{target_season}</b>:"
         )
     else:
-        info_text = f"🏎 **Пилоты сезона {target_season}**:\nОтметь тех, за кем следишь:"
+        info_text = f"🏎 <b>Пилоты сезона {target_season}</b>:\nОтметь тех, за кем следишь:"
 
     if df.empty:
         return InlineKeyboardMarkup(inline_keyboard=[
@@ -95,12 +95,12 @@ async def _build_teams_keyboard(telegram_id: int) -> tuple[InlineKeyboardMarkup,
 
     if is_outdated:
         info_text = (
-            f"⚠️ **Межсезонье**\n"
+            f"⚠️ <b>Межсезонье</b>\n"
             f"Данные на {current_year} год обновляются.\n"
-            f"Команды сезона **{target_season}**:"
+            f"Команды сезона <b>{target_season}</b>:"
         )
     else:
-        info_text = f"🛠 **Кубок конструкторов {target_season}**:\nВыбери любимые команды:"
+        info_text = f"🛠 <b>Кубок конструкторов {target_season}</b>:\nВыбери любимые команды:"
 
     if df.empty:
         return InlineKeyboardMarkup(inline_keyboard=[
@@ -143,7 +143,7 @@ async def cmd_favorites(message: types.Message):
         [InlineKeyboardButton(text="🏎 Команды", callback_data="fav_teams")],
         [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu")]
     ])
-    await message.answer("⭐ **Избранное**\nВыбери категорию:", reply_markup=kb, parse_mode="Markdown")
+    await message.answer("⭐ <b>Избранное</b>\nВыбери категорию:", reply_markup=kb, parse_mode="Markdown")
 
 
 @router.callback_query(F.data == "fav_main")
@@ -153,7 +153,7 @@ async def cb_fav_main(call: CallbackQuery):
         [InlineKeyboardButton(text="🏎 Команды", callback_data="fav_teams")],
         [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu")]
     ])
-    await call.message.edit_text("⭐ **Избранное**\nВыбери категорию:", reply_markup=kb, parse_mode="Markdown")
+    await call.message.edit_text("⭐ <b>Избранное</b>\nВыбери категорию:", reply_markup=kb, parse_mode="Markdown")
 
 
 @router.callback_query(F.data == "fav_drivers")
@@ -215,7 +215,7 @@ async def ask_clear_drivers(call: CallbackQuery):
             InlineKeyboardButton(text="❌ Нет, назад", callback_data="fav_drivers")
         ]
     ])
-    await call.message.edit_text("❓ **Вы уверены?**\nЭто удалит всех пилотов из вашего списка избранного.",
+    await call.message.edit_text("❓ <b>Вы уверены?</b>\nЭто удалит всех пилотов из вашего списка избранного.",
                                  reply_markup=kb, parse_mode="Markdown")
 
 
@@ -241,7 +241,7 @@ async def ask_clear_teams(call: CallbackQuery):
             InlineKeyboardButton(text="❌ Нет, назад", callback_data="fav_teams")
         ]
     ])
-    await call.message.edit_text("❓ **Вы уверены?**\nЭто удалит все команды из вашего списка избранного.",
+    await call.message.edit_text("❓ <b>Вы уверены?</b>\nЭто удалит все команды из вашего списка избранного.",
                                  reply_markup=kb, parse_mode="Markdown")
 
 

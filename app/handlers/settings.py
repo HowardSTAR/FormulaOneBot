@@ -91,7 +91,7 @@ async def _show_main_settings(message: types.Message, state: FSMContext, user_id
     await state.update_data(settings=user_settings)
 
     text = (
-        "⚙️ **Настройки TurbotearsBot**\n\n"
+        "⚙️ <b>Настройки TurbotearsBot</b>\n\n"
         "Настройте часовой пояс (UTC) и время уведомлений."
     )
     # Передаем цель возврата в клавиатуру
@@ -150,7 +150,7 @@ async def cb_change_tz(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     current_tz = data.get("settings", {}).get("timezone", "UTC")
     await callback.message.edit_text(
-        "🌍 **Выберите ваш часовой пояс (UTC):**\n"
+        "🌍 <b>Выберите ваш часовой пояс (UTC):</b>\n"
         "Москва = UTC+3.",
         reply_markup=get_timezone_keyboard(current_tz),
         parse_mode="Markdown"
@@ -170,7 +170,7 @@ async def cb_change_notify(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     current_not = data.get("settings", {}).get("notify_before", 60)
     await callback.message.edit_text(
-        "⏰ **За сколько времени предупреждать о гонке?**",
+        "⏰ <b>За сколько времени предупреждать о гонке?</b>",
         reply_markup=get_notify_keyboard(current_not),
         parse_mode="Markdown"
     )
