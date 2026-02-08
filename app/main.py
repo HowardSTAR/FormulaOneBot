@@ -15,7 +15,8 @@ from app.f1_data import init_redis_cache, warmup_cache
 from app.handlers import secret, start, races, drivers, teams, favorites, settings, compare
 from app.middlewares.error_logging import ErrorLoggingMiddleware
 from app.utils.backup import create_backup
-from app.utils.notifications import check_and_notify_favorites, remind_next_race, check_and_notify_quali
+from app.utils.notifications import check_and_notify_favorites, remind_next_race, check_and_notify_quali, \
+    check_and_send_notifications
 
 # Базовая настройка логов
 logging.basicConfig(
@@ -157,6 +158,14 @@ async def main():
         id="warmup_sessions",
         replace_existing=True,
     )
+
+    scheduler.add_job(
+        check_and_send_notifications,
+        "interval",
+        seconds=5,
+        args=[bot]  # Передаем бота как аргумент
+    )
+
     scheduler.start()
 
     asyncio.create_task(warmup_cache())

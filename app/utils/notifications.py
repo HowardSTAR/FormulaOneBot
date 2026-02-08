@@ -13,7 +13,7 @@ from app.db import (
     set_last_notified_quali_round,
     get_last_notified_quali_round,
     get_last_notified_round,
-    set_last_notified_round,
+    set_last_notified_round, logger,
 )
 # ИСПРАВЛЕНО: Импортируем асинхронные версии функций
 from app.f1_data import (
@@ -23,12 +23,14 @@ from app.f1_data import (
     get_constructor_standings_async,
     _get_latest_quali_async,
 )
+from app.utils.safe_send import safe_send_message
 
 UTC_PLUS_3 = timezone(timedelta(hours=3))
 
 # Семафор для ограничения количества одновременных отправок (чтобы не получить FloodWait)
 SEM = asyncio.Semaphore(20)
 
+ADMIN_ID = 2099386
 
 async def _send_safe(bot: Bot, chat_id: int, text: str) -> bool:
     """
@@ -58,6 +60,122 @@ async def _send_safe(bot: Bot, chat_id: int, text: str) -> bool:
             # Пользователь заблокировал бота или другая сетевая ошибка
             logging.warning(f"Не удалось отправить уведомление {chat_id}: {e}")
             return False
+
+
+async def check_and_send_notifications(bot: Bot):
+    """
+    Основная функция, которую запускает Scheduler (планировщик) раз в час (или полчаса).
+    Проверяет, есть ли завтра гонка, и если да — рассылает уведомления.
+    """
+    now = datetime.now(timezone.utc)
+    season = now.year
+
+    # 1. Получаем расписание
+    schedule = await get_season_schedule_short_async(season)
+
+    target_race = None
+
+    # 2. Ищем гонку, которая начнется через 24 часа (+- 1 час)
+    #    (Или используем вашу логику "завтра")
+    for r in schedule:
+        try:
+            if not r.get("race_start_utc"): continue
+
+            race_dt = datetime.fromisoformat(r["race_start_utc"])
+            if race_dt.tzinfo is None:
+                race_dt = race_dt.replace(tzinfo=timezone.utc)
+
+            # Разница во времени
+            diff = race_dt - now
+
+            # Уведомляем, если до гонки осталось от 23 до 25 часов (сутки)
+            # Можно настроить диапазон под частоту запуска шедулера
+            hours_left = diff.total_seconds() / 3600
+
+            if 23 <= hours_left <= 25:
+                target_race = r
+                break
+
+        except Exception:
+            continue
+
+    if not target_race:
+        # Гонок на завтра нет, выходим
+        return
+
+    round_num = target_race["round"]
+
+    # 3. Проверяем, не отправляли ли мы уже уведомление про ЭТУ гонку
+    last_reminded = await get_last_reminded_round(season)
+    if last_reminded == round_num:
+        logger.info(f"Skipping notification for round {round_num}: already reminded.")
+        return
+
+    # 4. Формируем текст
+    flag = "🏁"
+    text = (
+        f"🏎️ <b>Напоминание!</b>\n\n"
+        f"Уже завтра состоится гонка: <b>{target_race.get('event_name', 'Гран-при')}</b> {flag}!\n"
+        f"📍 Трасса: {target_race.get('location', '')}\n"
+        f"⏰ Не пропустите!"
+    )
+
+    # 5. Получаем список пользователей (ВОТ ТУТ ВАШ КОД)
+    try:
+        users = await get_all_users_with_favorites()
+    except Exception as e:
+        logger.error(f"DB Error getting users: {e}")
+        return
+
+    # --- ЛОГИРОВАНИЕ (ВАШ ЗАПРОС) ---
+    logger.info(f"📢 Starting notification process. Found {len(users)} users in DB.")
+
+    # Если пользователей нет, просто помечаем что проверили
+    if not users:
+        await set_last_reminded_round(season, round_num)
+        return
+
+    # 6. Рассылка
+    success_count = 0
+    fail_count = 0
+
+    # Отправляем сообщение админу о начале рассылки
+    await safe_send_message(bot, ADMIN_ID, f"🚀 Начинаю рассылку! Пользователей: {len(users)}")
+
+    for user_row in users:
+        # user_row - это кортеж или объект Row (id, telegram_id, ...)
+        # В зависимости от того, как возвращает get_all_users_with_favorites
+        # Если возвращает список tuple: [(12345, 1), (67890, 2)], то берем telegram_id
+
+        try:
+            # Предположим, первый элемент - telegram_id
+            user_id = user_row[0]
+
+            if await safe_send_message(bot, user_id, text):
+                success_count += 1
+            else:
+                fail_count += 1
+
+            # Небольшая пауза, чтобы не заспамить API (30 сообщений в секунду - лимит телеграма)
+            await asyncio.sleep(0.05)
+
+        except Exception as e:
+            logger.error(f"Error sending to user row {user_row}: {e}")
+            fail_count += 1
+
+    # 7. Финализация
+    await set_last_reminded_round(season, round_num)
+
+    logger.info(f"✅ Notification finished. Success: {success_count}, Fail: {fail_count}")
+
+    # 8. Отчет админу
+    report_text = (
+        f"📊 <b>Отчет о рассылке</b>\n"
+        f"Гонка: {target_race.get('event_name')}\n"
+        f"✅ Доставлено: {success_count}\n"
+        f"🚫 Ошибок/Блоков: {fail_count}"
+    )
+    await safe_send_message(bot, ADMIN_ID, report_text)
 
 
 async def check_and_notify_favorites(bot: Bot) -> None:
