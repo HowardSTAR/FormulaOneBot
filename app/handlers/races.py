@@ -115,7 +115,7 @@ async def cmd_next_race(message: Message):
     await _send_next_race_message(message, message.from_user.id)
 
 
-@router.message(F.text == "Ближайшая гонка")
+@router.message(F.text == "🏁 Следующая гонка")
 async def next_race_btn(message: Message):
     await _send_next_race_message(message, message.from_user.id)
 
@@ -470,7 +470,7 @@ async def cmd_races(message: Message) -> None:
     await _send_races_for_year(message, season)
 
 
-@router.message(F.text == "Сезон")
+@router.message(F.text == "📅 Календарь")
 async def btn_races_ask_year(message: Message, state: FSMContext) -> None:
     current_year = datetime.now().year
     kb = InlineKeyboardMarkup(inline_keyboard=[

@@ -1,3 +1,4 @@
+import io
 from io import BytesIO
 from pathlib import Path
 from typing import List, Tuple, Callable
@@ -6,6 +7,7 @@ import hashlib
 import math  # <--- Добавлен для рисования звезды
 
 from PIL import Image, ImageDraw, ImageFont
+from matplotlib import pyplot as plt, ticker
 
 from app.utils.default import DRIVER_CODE_TO_FILE, _TEAM_KEY_TO_FILE
 
@@ -167,6 +169,105 @@ def _create_vertical_gradient(width: int, height: int, top_color: tuple, bottom_
         b = int(b1 + (b2 - b1) * ratio)
         draw.point((0, y), fill=(r, g, b))
     return gradient_strip.resize((width, height), resample=Image.Resampling.NEAREST)
+
+
+def create_comparison_image(
+        driver1_data: dict,
+        driver2_data: dict,
+        labels: List[str]
+) -> BytesIO:
+    """
+    Строит график сравнения накопленных очков двух пилотов.
+    driverX_data: {"code": "VER", "history": [25, 18, ...], "color": "#123456"}
+    labels: список названий трасс (кратко)
+    """
+    # Настройка стиля (Темная тема F1)
+    plt.style.use('dark_background')
+
+    # Размеры и DPI
+    fig, ax = plt.subplots(figsize=(12, 7), dpi=150)
+    fig.patch.set_facecolor('#1e1e23')  # Цвет фона вокруг графика
+    ax.set_facecolor('#1e1e23')  # Цвет поля графика
+
+    # Подготовка данных (кумулятивная сумма)
+    y1 = []
+    current = 0
+    for p in driver1_data["history"]:
+        current += p if p is not None else 0
+        y1.append(current)
+
+    y2 = []
+    current = 0
+    for p in driver2_data["history"]:
+        current += p if p is not None else 0
+        y2.append(current)
+
+    # Обрезаем данные, если гонок прошло меньше, чем в календаре
+    n_races = min(len(y1), len(y2), len(labels))
+    x = range(n_races)
+    y1 = y1[:n_races]
+    y2 = y2[:n_races]
+    labels = labels[:n_races]
+
+    # --- РИСОВАНИЕ ---
+
+    # Пилот 1
+    color1 = driver1_data.get("color", "#ff8700")  # Оранжевый по умолчанию
+    ax.plot(x, y1, label=driver1_data["code"], color=color1,
+            linewidth=4, marker='o', markersize=8, markeredgecolor='white', markeredgewidth=1.5)
+
+    # Пилот 2
+    color2 = driver2_data.get("color", "#00d2be")  # Бирюзовый по умолчанию
+    ax.plot(x, y2, label=driver2_data["code"], color=color2,
+            linewidth=4, marker='o', markersize=8, markeredgecolor='white', markeredgewidth=1.5)
+
+    # Заливка под графиком (для лидера)
+    # ax.fill_between(x, y1, y2, where=(y1 > y2), interpolate=True, color=color1, alpha=0.1)
+    # ax.fill_between(x, y1, y2, where=(y2 > y1), interpolate=True, color=color2, alpha=0.1)
+
+    # --- ОФОРМЛЕНИЕ ---
+
+    # Заголовок
+    plt.title(f"Battle: {driver1_data['code']} vs {driver2_data['code']}",
+              fontsize=20, fontweight='bold', color='white', pad=20)
+
+    # Оси
+    ax.grid(color='#444444', linestyle='--', linewidth=0.5, alpha=0.5)
+
+    # Ось X (Трассы) - показываем каждую, если влезает, или через одну
+    ax.set_xticks(x)
+    # Если трасс много (>10), поворачиваем подписи
+    rotation = 45 if n_races > 5 else 0
+    ax.set_xticklabels(labels, rotation=rotation, ha='right', fontsize=10, color='#cccccc')
+
+    # Ось Y (Очки)
+    ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+    ax.tick_params(axis='y', colors='#cccccc', labelsize=12)
+
+    # Убираем рамки сверху и справа
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_color('#666666')
+    ax.spines['left'].set_color('#666666')
+
+    # Легенда
+    legend = ax.legend(fontsize=14, frameon=True, facecolor='#2b2b30', edgecolor='none')
+    for text in legend.get_texts():
+        text.set_color("white")
+
+    # Добавляем финальный счет текстом
+    final_score_text = f"{y1[-1]} - {y2[-1]}"
+    plt.text(0.98, 0.05, final_score_text, transform=ax.transAxes,
+             fontsize=24, fontweight='bold', color='white', ha='right', alpha=0.3)
+
+    # Сохранение
+    plt.tight_layout()
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', facecolor='#1e1e23')
+    buf.seek(0)
+    plt.close(fig)  # Обязательно закрываем, чтобы очистить память
+
+    return buf
 
 
 # --- ОСНОВНАЯ ФУНКЦИЯ ---

@@ -135,7 +135,7 @@ async def _build_teams_keyboard(telegram_id: int) -> tuple[InlineKeyboardMarkup,
 # --- ХЭНДЛЕРЫ ---
 
 # 1. Исправлено: Добавили обработку текста "Избранное"
-@router.message(F.text == "Избранное")
+@router.message(F.text == "⭐ Избранное")
 @router.message(Command("favorites"))
 async def cmd_favorites(message: types.Message):
     kb = InlineKeyboardMarkup(inline_keyboard=[

@@ -114,8 +114,7 @@ async def main():
         favorites.router,
         secret.router,
         settings.settings_router,
-        # TODO сделать нормальное сравнение
-        # compare.router,
+        compare.router
     )
 
     # Планировщик

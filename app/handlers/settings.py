@@ -5,6 +5,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.db import get_user_settings, update_user_setting
+from app.handlers.compare import router
 
 settings_router = Router()
 
@@ -110,6 +111,7 @@ async def _show_main_settings(message: types.Message, state: FSMContext, user_id
 
 # 1. Открытие командой /settings (возврат = закрыть)
 @settings_router.message(Command("settings"))
+@settings_router.message(F.text == "⚙️ Настройки")
 async def cmd_settings(message: types.Message, state: FSMContext):
     await state.update_data(back_target="close_settings")
     await _show_main_settings(message, state, message.from_user.id, is_edit=False)

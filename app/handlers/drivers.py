@@ -155,7 +155,7 @@ async def cmd_drivers(message: Message) -> None:
     await _send_drivers_for_year(message, season, telegram_id=message.from_user.id)
 
 
-@router.message(F.text == "Личный зачет")
+@router.message(F.text == "🏎 Личный зачет")
 async def btn_drivers_ask_year(message: Message, state: FSMContext) -> None:
     current_year = datetime.now().year
 

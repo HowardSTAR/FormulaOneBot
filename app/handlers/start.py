@@ -1,5 +1,6 @@
 from aiogram import Router, types
 from aiogram.filters import CommandStart
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 router = Router()
@@ -8,15 +9,26 @@ router = Router()
 @router.message(CommandStart())
 async def cmd_start(message: types.Message):
     # Создаем кнопки главного меню (обычные текстовые кнопки внизу)
-    builder = ReplyKeyboardBuilder()
-    builder.row(types.KeyboardButton(text="Ближайшая гонка"))
-    builder.row(
-        types.KeyboardButton(text="Сезон"),
-        types.KeyboardButton(text="Личный зачет")
-    )
-    builder.row(
-        types.KeyboardButton(text="Кубок конструкторов"),
-        types.KeyboardButton(text="Избранное")
+    kb = [
+        [
+            KeyboardButton(text="📅 Календарь"),
+            KeyboardButton(text="🏎 Личный зачет")
+        ],
+        [
+            KeyboardButton(text="🏆 Кубок конструкторов"),
+            KeyboardButton(text="🏁 Следующая гонка")
+        ],
+        [
+            KeyboardButton(text="⚔️ Сравнение"),
+            KeyboardButton(text="⭐ Избранное"),
+            KeyboardButton(text="⚙️ Настройки"),
+        ]
+    ]
+
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=kb,
+        resize_keyboard=True,
+        input_field_placeholder="Выберите пункт меню"
     )
 
     welcome_text = (
@@ -31,6 +43,6 @@ async def cmd_start(message: types.Message):
 
     await message.answer(
         welcome_text,
-        reply_markup=builder.as_markup(resize_keyboard=True),
+        reply_markup=keyboard,
         parse_mode="Markdown"
     )

@@ -177,7 +177,7 @@ async def cmd_teams(message: Message) -> None:
     await _send_teams_for_year(message, season)
 
 
-@router.message(F.text == "Кубок конструкторов")
+@router.message(F.text == "🏆 Кубок конструкторов")
 async def btn_teams_ask_year(message: Message, state: FSMContext) -> None:
     """
     Нажали кнопку «Кубок конструкторов» — спрашиваем год
