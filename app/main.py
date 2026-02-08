@@ -15,8 +15,7 @@ from app.f1_data import init_redis_cache, warmup_cache
 from app.handlers import secret, start, races, drivers, teams, favorites, settings, compare
 from app.middlewares.error_logging import ErrorLoggingMiddleware
 from app.utils.backup import create_backup
-from app.utils.notifications import check_and_notify_favorites, remind_next_race, check_and_notify_quali, \
-    check_and_send_notifications
+from app.utils.notifications import check_and_send_notifications
 
 # Базовая настройка логов
 logging.basicConfig(
@@ -118,35 +117,44 @@ async def main():
         compare.router
     )
 
-    # Планировщик
+    # # Планировщик
     scheduler = AsyncIOScheduler(timezone="UTC")
-    # вместо "раз в день" делаем каждые 10 минут
-    scheduler.add_job(
-        check_and_notify_favorites,
-        "interval",
-        minutes=10,
-        args=[bot],
-        id="favorites_notifications",
-        replace_existing=True,
-    )
+    # # вместо "раз в день" делаем каждые 10 минут
+    # scheduler.add_job(
+    #     check_and_notify_favorites,
+    #     "interval",
+    #     minutes=10,
+    #     args=[bot],
+    #     id="favorites_notifications",
+    #     replace_existing=True,
+    # )
+    #
+    # # Напоминание за сутки до ближайшей гонки
+    # scheduler.add_job(
+    #     remind_next_race,
+    #     "interval",
+    #     minutes=15,  # можно 15 или 60 — как хочешь
+    #     args=[bot],
+    #     id="next_race_reminder",
+    #     replace_existing=True,
+    # )
+    #
+    # scheduler.add_job(
+    #     check_and_notify_quali,
+    #     "interval",
+    #     minutes=5,  # можно 2–10, как тебе комфортно
+    #     args=[bot],
+    #     id="quali_notifications",
+    #     replace_existing=True,
+    # )
 
-    # Напоминание за сутки до ближайшей гонки
     scheduler.add_job(
-        remind_next_race,
+        check_and_send_notifications,
         "interval",
-        minutes=15,  # можно 15 или 60 — как хочешь
-        args=[bot],
-        id="next_race_reminder",
-        replace_existing=True,
-    )
-
-    scheduler.add_job(
-        check_and_notify_quali,
-        "interval",
-        minutes=5,  # можно 2–10, как тебе комфортно
-        args=[bot],
-        id="quali_notifications",
-        replace_existing=True,
+        hours=1,
+        args=[bot],  # <--- ВАЖНО: передаем бота в аргументы!
+        id="notifications_job",
+        replace_existing=True
     )
 
     scheduler.add_job(

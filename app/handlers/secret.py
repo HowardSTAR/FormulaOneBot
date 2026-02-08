@@ -1,90 +1,81 @@
 import logging
+from datetime import datetime, timezone
 from aiogram import Router, types
 from aiogram.filters import Command
-from datetime import datetime, timezone
 
 from app.f1_data import get_season_schedule_short_async
-from app.utils.notifications import check_and_send_notifications
+from app.db import get_all_users_with_favorites
+# Импортируем наши новые хелперы
+from app.utils.notifications import build_notification_text, check_and_send_notifications
 
-# Настройка логгера
 logger = logging.getLogger(__name__)
 router = Router()
 
-# Список ID админов
-ADMINS = [2099386]  # Ваш ID
+ADMINS = [2099386]
 
 
-@router.message(Command("test_notify"))
-async def cmd_test_notify(message: types.Message):
+@router.message(Command("check_broadcast"))
+async def cmd_check_broadcast(message: types.Message):
     """
-    Тестирует формат уведомления.
-    Отправляет пример уведомления о ближайшей гонке (или фейковой) только админу.
+    Проверяет состояние базы и формат рассылки (Dry Run).
+    Не отправляет ничего пользователям!
     """
     if message.from_user.id not in ADMINS:
         return
 
-    await message.answer("🔄 Генерирую тестовое уведомление...")
+    status_msg = await message.answer("🕵️‍♂️ Анализирую базу данных и расписание...")
 
+    # 1. Проверка пользователей
     try:
-        season = datetime.now().year
-        schedule = await get_season_schedule_short_async(season)
-
-        # 1. Ищем ближайшую будущую гонку для примера
-        target_race = None
-        now = datetime.now().date()
-
-        # Сначала ищем в будущем
-        for r in schedule:
-            if r.get("date"):
-                try:
-                    r_date = datetime.strptime(r["date"], "%Y-%m-%d").date()
-                    if r_date >= now:
-                        target_race = r
-                        break
-                except:
-                    pass
-
-        # Если сезон кончился, берем последнюю гонку сезона для теста
-        if not target_race and schedule:
-            target_race = schedule[-1]
-
-        if not target_race:
-            await message.answer("❌ Не удалось найти гонки для теста.")
-            return
-
-        # 2. Формируем ТЕКСТ (точно такой же, как в notifications.py)
-        flag = "🏁"
-        event_name = target_race.get('event_name', 'Гран-при')
-        location = target_race.get('location', 'Трасса')
-
-        text = (
-            f"🏎️ <b>Напоминание!</b>\n\n"
-            f"Уже завтра состоится гонка: <b>{event_name}</b> {flag}!\n"
-            f"📍 Трасса: {location}\n"
-            f"⏰ Не пропустите!"
-        )
-
-        # 3. Отправляем текст
-        await message.answer(text)
-        await message.answer("✅ Тест завершен. Это точная копия текста рассылки.")
-
+        users = await get_all_users_with_favorites()
+        users_count = len(users)
     except Exception as e:
-        logger.exception("Test notify failed")
-        await message.answer(f"❌ Ошибка при тесте: {e}")
+        await status_msg.edit_text(f"❌ Ошибка подключения к БД: {e}")
+        return
+
+    # 2. Проверка расписания и генерация текста
+    season = datetime.now().year
+    schedule = await get_season_schedule_short_async(season)
+
+    # Ищем БЛИЖАЙШУЮ гонку (любую будущую), просто чтобы показать пример текста
+    example_race = None
+    now = datetime.now().date()
+    for r in schedule:
+        if r.get("date"):
+            try:
+                if datetime.strptime(r["date"], "%Y-%m-%d").date() >= now:
+                    example_race = r
+                    break
+            except:
+                pass
+
+    # Если сезон закончился
+    if not example_race and schedule:
+        example_race = schedule[-1]
+
+    if example_race:
+        # Генерируем текст той же функцией, что и реальная рассылка!
+        preview_text = build_notification_text(example_race)
+    else:
+        preview_text = "❌ Гонки не найдены."
+
+    # 3. Отправляем отчет админу
+    report = (
+        f"📊 <b>Диагностика рассылки:</b>\n\n"
+        f"👥 <b>Пользователей в базе:</b> {users_count}\n"
+        f"<i>(Столько сообщений будет отправлено при массовой рассылке)</i>\n\n"
+        f"📝 <b>Пример текста (для ближайшей гонки):</b>\n"
+        f"👇👇👇\n\n"
+        f"{preview_text}"
+    )
+
+    await status_msg.delete()
+    await message.answer(report)
 
 
 @router.message(Command("force_notify_all"))
-async def cmd_force_notify_all(message: types.Message, bot: types.Bot):
-    """
-    ОПАСНО: Принудительный запуск массовой рассылки всем пользователям.
-    Только если вы уверены, что хотите это сделать прямо сейчас.
-    """
-    if message.from_user.id not in ADMINS:
-        return
-
-    await message.answer("🚀 Запускаю принудительную проверку и рассылку...")
-
-    # Вызываем реальную функцию рассылки
+async def cmd_force_notify(message: types.Message, bot):
+    """Настоящая рассылка (ОПАСНО!)"""
+    if message.from_user.id not in ADMINS: return
+    await message.answer("🚀 Запускаю боевую рассылку...")
     await check_and_send_notifications(bot)
-
-    await message.answer("🏁 Процесс рассылки запущен (см. логи и отчет).")
