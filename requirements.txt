@@ -10,3 +10,4 @@ redis>=5.0.0
 Pillow
 fastapi
 uvicorn[standard]
+matplotlib
