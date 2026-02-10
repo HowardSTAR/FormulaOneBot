@@ -12,7 +12,7 @@ from app.bot import create_bot_and_dispatcher
 from app.config import get_settings
 from app.db import db
 from app.f1_data import init_redis_cache, warmup_cache
-from app.handlers import secret, start, races, drivers, teams, favorites, settings, compare
+from app.handlers import secret, start, races, drivers, teams, favorites, settings, compare, feedback
 from app.middlewares.error_logging import ErrorLoggingMiddleware
 from app.utils.backup import create_backup
 from app.utils.notifications import check_and_send_notifications, check_and_send_results
@@ -114,7 +114,8 @@ async def main():
         favorites.router,
         secret.router,
         settings.settings_router,
-        compare.router
+        compare.router,
+        feedback.router
     )
 
     # # Планировщик

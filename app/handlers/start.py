@@ -16,13 +16,14 @@ async def cmd_start(message: types.Message):
         ],
         [
             KeyboardButton(text="🏆 Кубок конструкторов"),
-            KeyboardButton(text="🏁 Следующая гонка")
+            KeyboardButton(text="🏁 Следующая гонка"),
+            KeyboardButton(text="⚔️ Сравнение"),
         ],
         [
-            KeyboardButton(text="⚔️ Сравнение"),
             KeyboardButton(text="⭐ Избранное"),
             KeyboardButton(text="⚙️ Настройки"),
-        ]
+            KeyboardButton(text="📩 Связь с админом")
+        ],
     ]
 
     keyboard = ReplyKeyboardMarkup(
