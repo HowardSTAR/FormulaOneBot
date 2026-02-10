@@ -197,30 +197,29 @@ def get_constructor_standings_df(season: int, round_number: Optional[int] = None
 
 
 def get_race_results_df(season: int, round_number: int):
-    """
-    Загружает результаты гонки.
-    Включает механизм Retry (3 попытки), чтобы побороть EOFError в кэше fastf1.
-    """
     max_retries = 3
     for attempt in range(max_retries):
         try:
             session = fastf1.get_session(season, round_number, "R")
-            # Грузим только результаты
             session.load(telemetry=False, laps=False, weather=False, messages=False)
 
-            # Проверяем, что результаты реально загрузились
             if session.results is not None and not session.results.empty:
                 return session.results
 
-            # Если результаты пустые (fastf1 подавил ошибку внутри), пробуем еще раз
             if attempt < max_retries - 1:
                 logger.warning(
                     f"⚠️ Empty race results for {season} round {round_number} (Attempt {attempt + 1}). Retrying...")
                 time.sleep(1.5)
                 continue
 
+        # ДОБАВЬТЕ ЭТОТ БЛОК:
+        except SessionNotAvailableError:
+            # Это нормальная ошибка, если гонки еще не было. Не надо Retry, просто выходим.
+            logger.warning(f"Results not available yet for {season} round {round_number}")
+            return pd.DataFrame()
+
         except Exception as e:
-            logger.error(f"❌ FastF1 Race load error {season}/{round_number} (Attempt {attempt + 1}): {e}")
+            logger.error(f"❌ FastF1 error: {e}")
             if attempt < max_retries - 1:
                 time.sleep(1.5)
             else:

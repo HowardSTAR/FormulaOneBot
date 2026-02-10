@@ -15,7 +15,7 @@ from app.f1_data import init_redis_cache, warmup_cache
 from app.handlers import secret, start, races, drivers, teams, favorites, settings, compare
 from app.middlewares.error_logging import ErrorLoggingMiddleware
 from app.utils.backup import create_backup
-from app.utils.notifications import check_and_send_notifications
+from app.utils.notifications import check_and_send_notifications, check_and_send_results
 
 # Базовая настройка логов
 logging.basicConfig(
@@ -151,7 +151,7 @@ async def main():
     scheduler.add_job(
         check_and_send_notifications,
         "interval",
-        hours=1,
+        seconds=30,
         args=[bot],  # <--- ВАЖНО: передаем бота в аргументы!
         id="notifications_job",
         replace_existing=True
@@ -168,10 +168,11 @@ async def main():
     )
 
     scheduler.add_job(
-        check_and_send_notifications,
+        check_and_send_results,
         "interval",
-        seconds=5,
-        args=[bot]  # Передаем бота как аргумент
+        minutes=15,
+        args=[bot],
+        id="results_job"
     )
 
     scheduler.start()
