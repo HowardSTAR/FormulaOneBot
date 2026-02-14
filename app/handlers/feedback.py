@@ -5,7 +5,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 # Ваш ID (можно вынести в config.py, но пока оставим здесь для простоты)
-# TODO убрать все открытые данные админов 
+# TODO убрать все открытые данные админов
 ADMIN_ID = 2099386
 
 router = Router()

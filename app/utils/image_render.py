@@ -6,6 +6,7 @@ from datetime import date
 import hashlib
 import math  # <--- Добавлен для рисования звезды
 
+import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib import pyplot as plt, ticker
 
@@ -532,4 +533,79 @@ def create_season_image(season: int, races: list[dict]) -> BytesIO:
     buf = BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
+    return buf
+
+
+# МОЖЕТ УДАЛЮ
+
+def create_testing_results_image(results_df, title: str):
+    """
+    Рисует таблицу результатов тестов.
+    Колонки: Pos, Driver, Team, Time, Laps
+    """
+    # Настройка стилей (темная тема)
+    plt.style.use('dark_background')
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.axis('off')
+    fig.patch.set_facecolor('#15151e')
+
+    # Подготовка данных
+    # FastF1 возвращает: Position, Abbreviation, TeamName, Time, Laps (иногда)
+
+    # Берем топ-20
+    df = results_df.head(20).copy()
+
+    table_data = []
+    for _, row in df.iterrows():
+        pos = str(int(row.get('Position', 0))) if pd.notnull(row.get('Position')) else "-"
+        driver = str(row.get('Abbreviation', '???'))
+        team = str(row.get('TeamName', ''))
+
+        # Время
+        time_val = str(row.get('Time', ''))
+        # Форматируем timedelta (0 days 00:01:30.123 -> 1:30.123)
+        if "days" in time_val:
+            time_val = time_val.split("days")[-1].strip()
+        if "." in time_val:
+            time_val = time_val[:-3]  # Убираем лишние микросекунды
+
+        laps = str(int(row.get('Laps', 0))) if pd.notnull(row.get('Laps')) else "0"
+
+        table_data.append([pos, driver, team, time_val, laps])
+
+    # Колонки
+    col_labels = ["Pos", "Driver", "Team", "Best Time", "Laps"]
+
+    # Рисуем таблицу
+    table = ax.table(
+        cellText=table_data,
+        colLabels=col_labels,
+        loc='center',
+        cellLoc='center',
+        colColours=['#e10600'] * 5
+    )
+
+    # Стилизация таблицы
+    table.auto_set_font_size(False)
+    table.set_fontsize(11)
+    table.scale(1.1, 1.8)
+
+    for key, cell in table.get_celld().items():
+        cell.set_edgecolor('#2c2c35')
+        cell.set_linewidth(1)
+        if key[0] == 0:  # Заголовок
+            cell.set_text_props(weight='bold', color='white')
+            cell.set_facecolor('#e10600')
+        else:
+            cell.set_facecolor('#1e1e26')
+            cell.set_text_props(color='white')
+
+    # Заголовок
+    plt.title(f"🧪 {title}", color='white', fontsize=16, pad=20, weight='bold')
+
+    # Сохраняем
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', dpi=150, facecolor='#15151e')
+    buf.seek(0)
+    plt.close(fig)
     return buf
