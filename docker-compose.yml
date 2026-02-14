@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    container_name: formula_one_bot
+    restart: always # Бот будет автоматически перезапускаться при падении или перезагрузке сервера
+    env_file:
+      - .env # Берем переменные окружения из .env файла
+    environment:
+      # Явно указываем URL до нашего локального контейнера с Redis
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      # Прокидываем папку с базой данных (SQLite), чтобы данные не терялись при перезапуске
+      - ./data:/app/data
+      # Прокидываем кэш fastf1, чтобы не скачивать гигабайты каждый раз
+      - ./fastf1_cache:/app/fastf1_cache
+    depends_on:
+      - redis # Бот запустится только после того, как запустится Redis
+
+  redis:
+    image: redis:alpine
+    container_name: formula_one_redis
+    restart: always
+    ports:
+      - "6379:6379" # Прокидываем порт, чтобы вы могли подключаться к Redis извне (например, для дебага)
+    volumes:
+      - redis_data:/data # Сохраняем данные Redis на диск
+
+volumes:
+  redis_data: # Именованный том для данных Redis
