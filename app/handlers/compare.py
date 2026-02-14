@@ -6,7 +6,7 @@ from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 
 from app.f1_data import get_season_schedule_short_async, get_race_results_async, get_driver_standings_async
 from app.utils.image_render import create_comparison_image
@@ -43,7 +43,7 @@ def build_drivers_keyboard(drivers: list[str], prefix: str, exclude: str | None 
 # --- 2. Старт диалога ---
 @router.message(F.text == "⚔️ Сравнение")
 @router.message(Command("compare"))
-async def cmd_compare(message: types.Message, state: FSMContext):
+async def cmd_compare(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
         "🏎️ <b>Сравнение пилотов</b>\n\n"
@@ -54,7 +54,7 @@ async def cmd_compare(message: types.Message, state: FSMContext):
 
 # --- 3. Обработка года ---
 @router.message(CompareState.waiting_for_year)
-async def process_compare_year(message: types.Message, state: FSMContext):
+async def process_compare_year(message: Message, state: FSMContext):
     if not message.text.isdigit():
         await message.answer("Пожалуйста, введите год числом.")
         return
@@ -157,7 +157,7 @@ async def process_driver_2_selection(callback: CallbackQuery, state: FSMContext)
 
 
 # --- 6. Логика генерации (С ПРОГРЕСС-БАРОМ) ---
-async def send_comparison_graph(message: types.Message, d1_code: str, d2_code: str, year: int):
+async def send_comparison_graph(message: Message, d1_code: str, d2_code: str, year: int):
     schedule = await get_season_schedule_short_async(year)
 
     current_year = datetime.now().year

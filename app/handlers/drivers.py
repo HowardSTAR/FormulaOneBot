@@ -1,6 +1,6 @@
 import asyncio
 import math
-import types
+
 from datetime import datetime
 
 from aiogram import Router, F
@@ -179,7 +179,7 @@ async def btn_drivers_ask_year(message: Message, state: FSMContext) -> None:
 
 
 @router.message(DriversYearState.year)
-async def drivers_year_from_text(message: types.Message, state: FSMContext):
+async def drivers_year_from_text(message: Message, state: FSMContext):
     if not message.text.isdigit():
         await message.answer("Пожалуйста, введите год числом (например, 2007).")
         return

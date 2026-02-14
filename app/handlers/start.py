@@ -1,13 +1,13 @@
 from aiogram import Router, types
 from aiogram.filters import CommandStart
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, Message
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 router = Router()
 
 
 @router.message(CommandStart())
-async def cmd_start(message: types.Message):
+async def cmd_start(message: Message):
     # Создаем кнопки главного меню (обычные текстовые кнопки внизу)
     kb = [
         [
