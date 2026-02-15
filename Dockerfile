@@ -1,25 +1,9 @@
-# ==========================================
-# Этап 1: Сборка React/Vite фронтенда
-# ==========================================
-FROM node:20-alpine AS frontend-builder
-
-WORKDIR /build
-# Копируем файлы фронтенда
-COPY front/package.json front/package-lock.json* ./
-RUN npm install
-
-COPY front/ ./
-# Собираем проект. Результат появится в папке /build/dist
-RUN npx vite build
-
-# ==========================================
-# Этап 2: Сборка Python бэкенда
-# ==========================================
+# Идеально чистый и быстрый образ на Python
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Установка системных зависимостей (могут понадобиться для matplotlib, Pillow и numpy)
+# Установка системных зависимостей
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \
@@ -37,16 +21,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY run_web.py .
 
-# Копируем собранный фронтенд из первого этапа туда, где его ждет FastAPI
-# В miniapp_api.py указано: WEB_DIR = PROJECT_ROOT / "web" / "app"
-RUN mkdir -p web/app
-COPY --from=frontend-builder /build/dist/ ./web/app/
+# ВАЖНО: Просто копируем готовую папку web с вашего компьютера
+COPY web/ ./web/
 
-# Создаем директории для логов и кэша, чтобы избежать проблем с правами
+# Создаем директории для логов и кэша
 RUN mkdir -p logs fastf1_cache data
 
-# Устанавливаем часовой пояс по умолчанию (можете изменить)
-ENV TZ=UTC
-
-# Запуск по умолчанию (переопределим в docker-compose)
-CMD ["python", "-m", "app.main"]
+ENV PYTHONPATH=/app

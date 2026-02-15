@@ -493,21 +493,30 @@ async def api_compare_drivers(
     return {"status": "ok", "data": data}
 
 
-@web_app.get("/")
-async def serve_index():
-    index_file = WEB_DIR / "index.html"
-    if index_file.exists():
-        return FileResponse(str(index_file))
-    raise HTTPException(status_code=404, detail="index.html not found")
+@web_app.get("/{full_path:path}")
+async def serve_mpa_or_static(full_path: str):
+    # 1. Если это запрос к API - выдаем 404 (чтобы не отдавать HTML вместо данных)
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="API route not found")
 
+    # 2. Если путь пустой (корень) - отдаем главную
+    if not full_path or full_path == "/":
+        file_path = WEB_DIR / "index.html"
+    else:
+        file_path = WEB_DIR / full_path
 
-@web_app.get("/{filename}")
-async def serve_file(filename: str):
-    if filename.startswith("api") or filename.endswith(".py"):
-        raise HTTPException(status_code=404, detail="Not found")
-
-    file_path = WEB_DIR / filename
+    # 3. Отдаем точный файл, если он существует (например, картинку или стили)
     if file_path.exists() and file_path.is_file():
         return FileResponse(str(file_path))
 
-    raise HTTPException(status_code=404, detail=f"File {filename} not found")
+    # 4. Если запросили просто /season, ищем файл season.html
+    html_file = WEB_DIR / f"{full_path}.html"
+    if html_file.exists() and html_file.is_file():
+        return FileResponse(str(html_file))
+
+    # 5. Если ничего не нашли - отдаем главную страницу как запасной вариант (или 404)
+    index_file = WEB_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(str(index_file))
+
+    raise HTTPException(status_code=404, detail="Page not found")
