@@ -464,6 +464,19 @@ async def warmup_cache(season: int | None = None):
     logger.info("✅ Cache warmup finished.")
 
 
+# --- СРАВНЕНИЕ ПИЛОТОВ --- #
+@cache_result(ttl=3600, key_prefix="compare_drivers")
+async def get_drivers_comparison_async(season: int, d1: str, d2: str):
+    """
+    Заглушка для сравнения пилотов.
+    """
+    return {
+        "season": season,
+        "driver1": d1,
+        "driver2": d2,
+        "message": "Раздел в разработке"
+    }
+
 # --- РЕЗУЛЬТАТЫ ТЕСТОВ --- #
 @cache_result(ttl=3600, key_prefix="testing_res")
 async def get_testing_results_async(season: int, round_number: int):
