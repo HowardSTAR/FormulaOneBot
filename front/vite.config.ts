@@ -10,4 +10,7 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    assetsDir: 'static', // Теперь JS/CSS будут лежать в /static, как и ожидает FastAPI
+  }
 })

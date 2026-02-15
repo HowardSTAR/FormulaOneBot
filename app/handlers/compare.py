@@ -1,16 +1,16 @@
 import asyncio
 import logging
-from datetime import datetime, date, timezone
+from datetime import datetime, timezone
 
-from aiogram import Router, types, F
+from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 
 from app.f1_data import get_season_schedule_short_async, get_race_results_async, get_driver_standings_async
-from app.utils.image_render import create_comparison_image
 from app.utils.default import validate_f1_year
+from app.utils.image_render import create_comparison_image
 
 logger = logging.getLogger(__name__)
 router = Router()

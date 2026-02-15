@@ -1,7 +1,9 @@
-from aiogram import Router, types
+from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, Message
+
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
+
 
 router = Router()
 

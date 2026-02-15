@@ -1,5 +1,3 @@
-# app/handlers/favorites.py
-
 from datetime import datetime
 from aiogram import Router, F, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
