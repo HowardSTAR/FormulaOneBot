@@ -1,0 +1,60 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+
+  bot:
+    build: .
+    restart: unless-stopped
+    command: python -m app.main
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./fastf1_cache:/app/fastf1_cache
+    depends_on:
+      - redis
+
+  web:
+    build: .
+    restart: unless-stopped
+    command: python run_web.py
+    env_file:
+      - .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./fastf1_cache:/app/fastf1_cache
+    depends_on:
+      - redis
+      - bot
+
+  # Классический веб-сервер Nginx
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - web
+
+  # Туннель Cloudflare (работает в РФ, не требует токена и регистрации)
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --url http://nginx:80
+    depends_on:
+      - nginx
+
+volumes:
+  redis_data:
