@@ -2,10 +2,10 @@ from aiogram import Router, F, types
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
+from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.db import get_user_settings, update_user_setting
-from app.handlers.compare import router
 
 settings_router = Router()
 
@@ -80,7 +80,7 @@ def get_notify_keyboard(current_val: int):
 
 # --- ХЕНДЛЕРЫ ---
 
-async def _show_main_settings(message: types.Message, state: FSMContext, user_id: int, is_edit: bool = False):
+async def _show_main_settings(message: Message, state: FSMContext, user_id: int, is_edit: bool = False):
     """Показывает главное меню."""
     user_settings = await get_user_settings(user_id)
 
@@ -112,7 +112,7 @@ async def _show_main_settings(message: types.Message, state: FSMContext, user_id
 # 1. Открытие командой /settings (возврат = закрыть)
 @settings_router.message(Command("settings"))
 @settings_router.message(F.text == "⚙️ Настройки")
-async def cmd_settings(message: types.Message, state: FSMContext):
+async def cmd_settings(message: Message, state: FSMContext):
     await state.update_data(back_target="close_settings")
     await _show_main_settings(message, state, message.from_user.id, is_edit=False)
 

@@ -1,8 +1,9 @@
 import logging
+
 from aiogram import Router, types, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 
 # Ваш ID (можно вынести в config.py, но пока оставим здесь для простоты)
 # TODO убрать все открытые данные админов
@@ -19,7 +20,7 @@ class FeedbackState(StatesGroup):
 
 # --- 1. Вход в режим обратной связи ---
 @router.message(F.text == "📩 Связь с админом")
-async def cmd_feedback(message: types.Message, state: FSMContext):
+async def cmd_feedback(message: Message, state: FSMContext):
     await state.clear()  # Сбрасываем старые состояния, если были
 
     # Кнопка отмены (inline)
@@ -51,7 +52,7 @@ async def cancel_feedback(callback: types.CallbackQuery, state: FSMContext):
 
 # --- 3. Получение сообщения и отправка админу ---
 @router.message(FeedbackState.waiting_for_message)
-async def process_feedback_message(message: types.Message, state: FSMContext, bot: Bot):
+async def process_feedback_message(message: Message, state: FSMContext, bot: Bot):
     # Проверяем, что это поддерживаемый тип контента
     if not (message.text or message.photo or message.video or message.caption):
         await message.answer("Пожалуйста, отправьте текст, фото или видео.")

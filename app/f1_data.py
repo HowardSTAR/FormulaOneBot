@@ -464,79 +464,12 @@ async def warmup_cache(season: int | None = None):
     logger.info("✅ Cache warmup finished.")
 
 
-
-
-# МОЖЕТ УДАЛЮ
-
-# 1. Обновляем получение расписания, чтобы видеть тесты
-async def get_season_schedule_short_async(year: int):
-    """Возвращает список этапов (включая тесты, если они есть)."""
-
-    def _get():
-        # Включаем тесты!
-        schedule = fastf1.get_event_schedule(year, include_testing=True)
-
-        # Конвертируем в список словарей
-        events = []
-        for _, row in schedule.iterrows():
-            # Определяем, гонка это или тесты
-            is_testing = row.get('EventFormat') == 'testing'
-
-            # Время старта (для тестов берем Session1Date или Session3Date как старт дня)
-            start_date = row.get('Session5DateUtc')  # Гонка
-            if is_testing:
-                # Обычно тесты идут днями. Берем начало 1-й сессии дня
-                start_date = row.get('Session1DateUtc') or row.get('EventDate')
-
-            events.append({
-                "round": row["RoundNumber"],
-                "country": row["Country"],
-                "location": row["Location"],
-                "event_name": row["EventName"],
-                "date": row["EventDate"].strftime("%Y-%m-%d"),
-                "race_start_utc": start_date.isoformat() if pd.notnull(start_date) else None,
-                "is_testing": is_testing  # Флаг для логики
-            })
-        return events
-
-    return await asyncio.to_thread(_get)
-
-
-# 2. Функция для получения результатов ТЕСТОВ
-async def get_testing_results_async(year: int, round_num: int, session_num: int = None):
+# --- РЕЗУЛЬТАТЫ ТЕСТОВ --- #
+@cache_result(ttl=3600, key_prefix="testing_res")
+async def get_testing_results_async(season: int, round_number: int):
     """
-    Получает результаты тестов.
-    session_num: 1, 2, 3... (Какой день тестов или сессия)
-    Если session_num не передан, пытаемся найти последнюю завершенную.
+    Заглушка для результатов предсезонных тестов.
+    Возвращает пустой DataFrame и название сессии, чтобы бот не падал.
     """
-
-    def _fetch():
-        try:
-            # Получаем событие
-            event = fastf1.get_event(year, round_num)
-
-            # Определяем имя сессии (Testing Day 1, etc.)
-            # Обычно сессии называются 'Session1', 'Session2', 'Session3'
-            sess_name = f"Session{session_num}" if session_num else None
-
-            if not sess_name:
-                # Если не знаем сессию, берем последнюю доступную
-                # (Логику упростим: берем Session3 (обычно 3 дня тестов), если ошибка - Session2...)
-                for i in [3, 2, 1]:
-                    try:
-                        session = event.get_session(i)
-                        session.load(telemetry=False, laps=False, weather=False)
-                        if session.results is not None and not session.results.empty:
-                            return session.results, f"Day {i}"
-                    except:
-                        continue
-                return pd.DataFrame(), "Unknown"
-
-            session = event.get_session(session_num)
-            session.load(telemetry=False, laps=False, weather=False)
-            return session.results, session.name
-
-        except Exception as e:
-            return pd.DataFrame(), str(e)
-
-    return await asyncio.to_thread(_fetch)
+    import pandas as pd
+    return pd.DataFrame(), "Тестовый день"

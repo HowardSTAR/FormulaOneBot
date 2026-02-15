@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Tuple, Any, Optional
 
 # Настройка путей и логгера
-DB_PATH = Path(__file__).resolve().parent.parent / "bot.db"
+DB_PATH = "data/bot.db"
 logger = logging.getLogger(__name__)
 
 

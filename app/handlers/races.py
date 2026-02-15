@@ -1,5 +1,4 @@
 import asyncio
-import types
 from datetime import datetime, date, timezone, timedelta
 from collections import defaultdict
 
@@ -480,7 +479,7 @@ async def btn_races_ask_year(message: Message, state: FSMContext) -> None:
 
 
 @router.message(RacesYearState.year)
-async def races_year_from_text(message: types.Message, state: FSMContext):
+async def races_year_from_text(message: Message, state: FSMContext):
     if not message.text.isdigit():
         await message.answer("Пожалуйста, введите год числом.")
         return

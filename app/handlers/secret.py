@@ -1,19 +1,19 @@
 import logging
-import asyncio
-from datetime import datetime, timezone, timedelta
-from aiogram import Router, types
-from aiogram.filters import Command
+from datetime import datetime, timezone
 
+from aiogram import Router
+from aiogram.filters import Command
+from aiogram.types import Message
+
+from app.db import get_all_users_with_favorites
+from app.f1_data import get_season_schedule_short_async, get_race_results_async
 # Импортируем наши функции
 from app.utils.notifications import (
     get_users_with_settings,
     get_notification_text,
     check_and_send_notifications,
-    build_results_text,
-    check_and_send_results
+    build_results_text
 )
-from app.f1_data import get_season_schedule_short_async, get_race_results_async
-from app.db import get_all_users_with_favorites
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -22,7 +22,7 @@ ADMINS = [2099386]
 
 
 @router.message(Command("check_broadcast"))
-async def cmd_check_broadcast(message: types.Message):
+async def cmd_check_broadcast(message: Message):
     """
     Симуляция рассылки (Анонс гонки).
     """
@@ -93,7 +93,7 @@ async def cmd_check_broadcast(message: types.Message):
 
 
 @router.message(Command("check_results"))
-async def cmd_check_results(message: types.Message):
+async def cmd_check_results(message: Message):
     """
     Симуляция уведомления о РЕЗУЛЬТАТАХ.
     """
@@ -183,7 +183,7 @@ async def cmd_check_results(message: types.Message):
 
 
 @router.message(Command("force_notify_all"))
-async def cmd_force_notify(message: types.Message, bot):
+async def cmd_force_notify(message: Message, bot):
     if message.from_user.id not in ADMINS: return
     await message.answer("🚀 Запускаю боевую рассылку...")
     await check_and_send_notifications(bot)

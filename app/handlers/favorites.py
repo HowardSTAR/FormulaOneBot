@@ -1,8 +1,6 @@
-# app/handlers/favorites.py
-
 from datetime import datetime
 from aiogram import Router, F, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.filters import Command
 
@@ -137,7 +135,7 @@ async def _build_teams_keyboard(telegram_id: int) -> tuple[InlineKeyboardMarkup,
 # 1. Исправлено: Добавили обработку текста "Избранное"
 @router.message(F.text == "⭐ Избранное")
 @router.message(Command("favorites"))
-async def cmd_favorites(message: types.Message):
+async def cmd_favorites(message: Message):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="👤 Пилоты", callback_data="fav_drivers")],
         [InlineKeyboardButton(text="🏎 Команды", callback_data="fav_teams")],
