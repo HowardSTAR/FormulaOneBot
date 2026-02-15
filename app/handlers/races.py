@@ -1,6 +1,9 @@
 import asyncio
+
 from datetime import datetime, date, timezone, timedelta
+
 from collections import defaultdict
+from datetime import datetime, date, timezone, timedelta
 
 from aiogram import Router, F
 from aiogram.filters import Command
@@ -10,18 +13,18 @@ from aiogram.types import (
     Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, BufferedInputFile
 )
 
+from app.db import (
+    get_last_reminded_round, get_favorite_drivers, get_favorite_teams, get_user_settings
+)
+from app.f1_data import (
+    get_season_schedule_short_async, get_weekend_schedule, get_race_results_async,
+    get_constructor_standings_async, _get_latest_quali_async
+)
 from app.utils.default import SESSION_NAME_RU, validate_f1_year
 from app.utils.image_render import (
     create_results_image, create_season_image, create_quali_results_image
 )
-from app.db import (
-    get_last_reminded_round, get_favorite_drivers, get_favorite_teams, get_user_settings
-)
 from app.utils.time_tools import format_race_time
-from app.f1_data import (
-    get_season_schedule_short_async, get_weekend_schedule, get_race_results_async,
-    get_constructor_standings_async, get_driver_standings_async, _get_latest_quali_async
-)
 
 router = Router()
 UTC_PLUS_3 = timezone(timedelta(hours=3))
