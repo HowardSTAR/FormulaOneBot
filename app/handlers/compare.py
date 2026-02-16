@@ -45,9 +45,19 @@ def build_drivers_keyboard(drivers: list[str], prefix: str, exclude: str | None 
 @router.message(Command("compare"))
 async def cmd_compare(message: Message, state: FSMContext):
     await state.clear()
+    current_year = datetime.now().year
+
+    kb = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=f"Текущий сезон ({current_year})", callback_data=f"drivers_current_{current_year}",)],
+            [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu")]
+        ]
+    )
+
     await message.answer(
         "🏎️ <b>Сравнение пилотов</b>\n\n"
-        "Введите год сезона (например: 2024):"
+        "Введите год сезона или нажмите на кнопку для текущего сезона:",
+        reply_markup=kb
     )
     await state.set_state(CompareState.waiting_for_year)
 

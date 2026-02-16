@@ -103,7 +103,8 @@ async def _send_next_race_message(message: Message, user_id: int, season: int | 
                               callback_data=f"weekend_{payload['season']}_{payload['round']}")],
         [InlineKeyboardButton(text="⏱ Квалификация", callback_data=f"quali_{payload['season']}_{payload['round']}"),
          InlineKeyboardButton(text="🏁 Гонка", callback_data=f"race_{payload['season']}_{payload['round']}")],
-        [InlineKeyboardButton(text="⚙️ Настройки (Время)", callback_data=f"settings_race_{payload['season']}")]
+        [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu"),
+         InlineKeyboardButton(text="⚙️ Настройки (Время)", callback_data=f"settings_race_{payload['season']}")]
     ])
 
     if is_edit:
@@ -475,10 +476,20 @@ async def cmd_races(message: Message) -> None:
 @router.message(F.text == "📅 Календарь")
 async def btn_races_ask_year(message: Message, state: FSMContext) -> None:
     current_year = datetime.now().year
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=f"Текущий сезон ({current_year})", callback_data=f"races_current_{current_year}")]])
+    kb = (InlineKeyboardMarkup
+        (inline_keyboard=
+    [
+        [InlineKeyboardButton(text=f"Текущий сезон ({current_year})", callback_data=f"races_current_{current_year}")],
+        [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_calendar")]
+    ]))
     await message.answer("🗓 Какой год тебя интересует?", reply_markup=kb)
     await state.set_state(RacesYearState.year)
+
+
+@router.callback_query(F.data == "close_calendar")
+async def btn_close_calendar(callback: CallbackQuery, state: FSMContext): # <-- Добавили state
+    await state.clear()                                                   # <-- СБРАСЫВАЕМ СОСТОЯНИЕ
+    await callback.message.delete()
 
 
 @router.message(RacesYearState.year)

@@ -161,12 +161,8 @@ async def btn_drivers_ask_year(message: Message, state: FSMContext) -> None:
 
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=f"Текущий сезон ({current_year})",
-                    callback_data=f"drivers_current_{current_year}",
-                )
-            ]
+            [InlineKeyboardButton(text=f"Текущий сезон ({current_year})", callback_data=f"drivers_current_{current_year}",)],
+            [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu")]
         ]
     )
 

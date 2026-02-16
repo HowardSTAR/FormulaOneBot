@@ -187,12 +187,8 @@ async def btn_teams_ask_year(message: Message, state: FSMContext) -> None:
 
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text=f"Текущий сезон ({current_year})",
-                    callback_data=f"teams_current_{current_year}",
-                )
-            ]
+            [InlineKeyboardButton(text=f"Текущий сезон ({current_year})", callback_data=f"teams_current_{current_year}",)],
+            [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu")]
         ]
     )
 
@@ -210,7 +206,8 @@ async def teams_year_from_text(message: Message, state: FSMContext) -> None:
     Пользователь ответил годом текстом.
     """
     if not message.text.isdigit():
-        await message.answer("Пожалуйста, введите год числом.")
+        await message.answer("🏎 За какой год показать кубок конструкторов?\n"
+        "Напиши год цифрами или нажми кнопку ниже для текущего сезона.")
         return
 
     year = int(message.text)

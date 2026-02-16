@@ -141,7 +141,7 @@ async def cmd_favorites(message: Message):
         [InlineKeyboardButton(text="🏎 Команды", callback_data="fav_teams")],
         [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu")]
     ])
-    await message.answer("⭐ <b>Избранное</b>\nВыбери категорию:", reply_markup=kb, parse_mode="Markdown")
+    await message.answer("⭐ Избранное\nВыбери категорию:", reply_markup=kb, parse_mode="Markdown")
 
 
 @router.callback_query(F.data == "fav_main")
