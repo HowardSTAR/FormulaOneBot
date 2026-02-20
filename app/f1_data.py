@@ -8,6 +8,7 @@ import hashlib
 from datetime import date as _date, timezone, timedelta, datetime
 from typing import Optional, Any, Dict, Tuple, List
 
+import aiohttp
 import fastf1
 import pandas as pd
 from fastf1._api import SessionNotAvailableError
@@ -400,13 +401,145 @@ async def get_season_schedule_short_async(season: int):
 
 
 @cache_result(ttl=600, key_prefix="dr_standings")
-async def get_driver_standings_async(season: int, round_number: Optional[int] = None):
-    return await _run_sync(get_driver_standings_df, season, round_number)
+async def get_driver_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
+    """Асинхронно получает личный зачет (Jolpica API). Фоллбэк на OpenF1 (0 очков), если сезон не стартовал."""
+    url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/driverStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json"
+
+    async with aiohttp.ClientSession() as session_req:
+        try:
+            async with session_req.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    standings_lists = data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
+
+                    if standings_lists:
+                        driver_standings = standings_lists[0].get("DriverStandings", [])
+                        parsed_data = []
+                        for ds in driver_standings:
+                            driver = ds.get("Driver", {})
+                            parsed_data.append({
+                                "position": int(ds.get("position", 0)),
+                                "points": float(ds.get("points", 0.0)),
+                                "driverCode": driver.get("code", ""),
+                                "givenName": driver.get("givenName", ""),
+                                "familyName": driver.get("familyName", ""),
+                                "driverId": driver.get("driverId", "")
+                            })
+                        return pd.DataFrame(parsed_data)
+        except Exception as e:
+            logger.error(f"Jolpica API error (drivers): {e}")
+
+    # ФОЛЛБЭК: Сезон еще не начался, очков нет. Формируем нулевую таблицу из OpenF1.
+    return await _get_zero_point_driver_standings()
 
 
 @cache_result(ttl=600, key_prefix="con_standings")
-async def get_constructor_standings_async(season: int, round_number: Optional[int] = None):
-    return await _run_sync(get_constructor_standings_df, season, round_number)
+async def get_constructor_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
+    """Асинхронно получает кубок конструкторов (Jolpica API). Фоллбэк на OpenF1 (0 очков)."""
+    url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/constructorStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json"
+
+    async with aiohttp.ClientSession() as session_req:
+        try:
+            async with session_req.get(url) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    standings_lists = data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
+
+                    if standings_lists:
+                        constructor_standings = standings_lists[0].get("ConstructorStandings", [])
+                        parsed_data = []
+                        for cs in constructor_standings:
+                            team = cs.get("Constructor", {})
+                            parsed_data.append({
+                                "position": int(cs.get("position", 0)),
+                                "points": float(cs.get("points", 0.0)),
+                                "constructorId": team.get("constructorId", ""),
+                                "constructorName": team.get("name", "")
+                            })
+                        return pd.DataFrame(parsed_data)
+        except Exception as e:
+            logger.error(f"Jolpica API error (constructors): {e}")
+
+    # ФОЛЛБЭК: Формируем нулевую таблицу из OpenF1
+    return await _get_zero_point_constructor_standings()
+
+
+# ==========================================
+# СКРЫТЫЕ ФУНКЦИИ ГЕНЕРАЦИИ МЕЖСЕЗОНЬЯ
+# ==========================================
+
+async def _get_zero_point_driver_standings() -> pd.DataFrame:
+    """Собирает сетку пилотов из OpenF1 и выдает всем 0 очков."""
+    url = "https://api.openf1.org/v1/drivers?session_key=latest"
+    async with aiohttp.ClientSession() as session_req:
+        try:
+            async with session_req.get(url) as response:
+                if response.status != 200:
+                    return pd.DataFrame()
+
+                drivers_data = await response.json()
+                seen_numbers = set()
+                parsed_data = []
+
+                for d in drivers_data:
+                    driver_num = d.get('driver_number')
+                    if not driver_num or driver_num in seen_numbers:
+                        continue
+                    seen_numbers.add(driver_num)
+
+                    full_name = d.get('full_name', 'Unknown')
+                    parts = full_name.split(' ', 1)
+                    given = parts[0] if len(parts) > 0 else ''
+                    family = parts[1] if len(parts) > 1 else full_name
+
+                    parsed_data.append({
+                        "position": "-",  # Прочерк, чтобы рендерер не красил плашки в золото/серебро
+                        "points": 0.0,
+                        "driverCode": d.get('name_acronym', '???'),
+                        "givenName": given,
+                        "familyName": family,
+                        "driverId": str(driver_num)
+                    })
+
+                # До старта сезона сортируем пилотов по алфавиту (по фамилии)
+                parsed_data.sort(key=lambda x: x['familyName'])
+                return pd.DataFrame(parsed_data)
+        except Exception as e:
+            logger.error(f"OpenF1 Fallback Error (drivers): {e}")
+            return pd.DataFrame()
+
+
+async def _get_zero_point_constructor_standings() -> pd.DataFrame:
+    """Собирает сетку команд из OpenF1 и выдает всем 0 очков."""
+    url = "https://api.openf1.org/v1/drivers?session_key=latest"
+    async with aiohttp.ClientSession() as session_req:
+        try:
+            async with session_req.get(url) as response:
+                if response.status != 200:
+                    return pd.DataFrame()
+
+                drivers_data = await response.json()
+                teams = set()
+
+                for d in drivers_data:
+                    team_name = d.get('team_name')
+                    if team_name:
+                        teams.add(team_name)
+
+                parsed_data = []
+                # Сортируем команды по алфавиту
+                for team in sorted(teams):
+                    parsed_data.append({
+                        "position": "-",  # Прочерк вместо места
+                        "points": 0.0,
+                        "constructorId": team.lower().replace(" ", "_"),
+                        "constructorName": team
+                    })
+
+                return pd.DataFrame(parsed_data)
+        except Exception as e:
+            logger.error(f"OpenF1 Fallback Error (constructors): {e}")
+            return pd.DataFrame()
 
 
 @cache_result(ttl=300, key_prefix="race_res")

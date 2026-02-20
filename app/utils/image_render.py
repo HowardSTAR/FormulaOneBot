@@ -1,21 +1,21 @@
+import hashlib
 import io
+import json
+import math  # <--- Добавлен для рисования звезды
+import urllib
+from datetime import date
 from io import BytesIO
 from pathlib import Path
 from typing import List, Tuple, Callable
-from datetime import date
-import hashlib
-import math  # <--- Добавлен для рисования звезды
 
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib import pyplot as plt, ticker
 
-from app.utils.default import DRIVER_CODE_TO_FILE, _TEAM_KEY_TO_FILE
-
-# Кеш загруженных фотографий пилотов
-_DRIVER_PHOTOS_CACHE: dict[str, Image.Image] = {}
-# Кеш логотипов команд
-_TEAM_LOGOS_CACHE: dict[str, Image.Image] = {}
+_DRIVER_PHOTOS_CACHE = {}
+_TEAM_LOGOS_CACHE = {}
+_OPENF1_DRIVERS_CACHE = {}
+_OPENF1_FETCHED = False
 
 # Визуальные константы (Modern Dark Theme)
 BG_GRADIENT_TOP = (25, 30, 45)
@@ -116,38 +116,147 @@ def _generate_placeholder_avatar(text: str, size: int = 90) -> Image.Image:
     return img
 
 
-def _get_driver_photo(code: str) -> Image.Image | None:
-    if not code: return None
-    code = str(code).upper()
-    if code in _DRIVER_PHOTOS_CACHE: return _DRIVER_PHOTOS_CACHE[code]
-    filename = DRIVER_CODE_TO_FILE.get(code)
-    if not filename: return None
-    pilots_dir = Path(__file__).resolve().parents[1] / "assets" / "pilots"
-    img_path = pilots_dir / filename
-    if not img_path.exists(): return None
+def _download_image(url: str) -> Image.Image | None:
+    """Универсальный скачиватель картинок в оперативную память"""
     try:
-        img = Image.open(img_path).convert("RGB")
-        _DRIVER_PHOTOS_CACHE[code] = img
-        return img
-    except Exception:
+        req = urllib.request.Request(url, headers={'User-Agent': 'FormulaOneBot/1.0 (Contact: admin@example.com)'})
+        with urllib.request.urlopen(req, timeout=4) as response:
+            img_data = response.read()
+            return Image.open(BytesIO(img_data)).convert("RGBA")
+    except Exception as e:
+        print(f"Ошибка загрузки {url}: {e}")
         return None
 
 
-def _get_team_logo(name_or_code: str) -> Image.Image | None:
-    key = _normalize_team_key(name_or_code)
-    if not key: return None
-    if key in _TEAM_LOGOS_CACHE: return _TEAM_LOGOS_CACHE[key]
-    filename = _TEAM_KEY_TO_FILE.get(key)
-    if not filename: return None
-    teams_dir = Path(__file__).resolve().parents[1] / "assets" / "teams"
-    img_path = teams_dir / filename
-    if not img_path.exists(): return None
+def _get_wiki_image_url(query: str) -> str | None:
+    """Обращается к Wikipedia API для поиска исторического фото"""
     try:
-        img = Image.open(img_path).convert("RGBA")
-        _TEAM_LOGOS_CACHE[key] = img
-        return img
+        safe_query = urllib.parse.quote(query)
+        url = f"https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&titles={safe_query}&pithumbsize=400&format=json"
+
+        req = urllib.request.Request(url, headers={'User-Agent': 'FormulaOneBot/1.0'})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = json.loads(response.read().decode())
+            pages = data.get("query", {}).get("pages", {})
+            for page_id, page_info in pages.items():
+                if "thumbnail" in page_info:
+                    return page_info["thumbnail"]["source"]
     except Exception:
+        pass
+    return None
+
+
+def get_asset_path(year: int, category: str, target_name: str) -> Path | None:
+    """Универсальный поиск локальных картинок (.png, .avif) в папке assets/YYYY/"""
+    if not target_name:
         return None
+
+    base_dir = Path(__file__).resolve().parents[1] / "assets" / str(year) / category
+    if not base_dir.exists():
+        return None
+
+    search_name = target_name.replace("⭐️", "").replace("⭐", "").strip().lower()
+
+    for file_path in base_dir.iterdir():
+        if file_path.is_file() and search_name in file_path.stem.strip().lower():
+            return file_path
+    return None
+
+
+def _get_online_driver_url(code: str, name: str) -> str | None:
+    """ВСЕГДА ищет онлайн-ссылку на фото пилота из OpenF1 API."""
+    global _OPENF1_DRIVERS_CACHE, _OPENF1_FETCHED
+
+    if not _OPENF1_FETCHED:
+        _OPENF1_FETCHED = True
+        try:
+            req = urllib.request.Request("https://api.openf1.org/v1/drivers?session_key=latest",
+                                         headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                for d in data:
+                    url = d.get('headshot_url')
+                    if url:
+                        acronym = d.get('name_acronym', '').strip().upper()
+                        full_name = d.get('full_name', '').strip().lower()
+                        if acronym:
+                            _OPENF1_DRIVERS_CACHE[acronym] = url
+                        if full_name:
+                            _OPENF1_DRIVERS_CACHE[full_name] = url
+        except Exception as e:
+            print(f"Ошибка получения ссылок OpenF1: {e}")
+
+    clean_code = code.replace("⭐️", "").replace("⭐", "").strip().upper()
+    clean_name = name.strip().lower()
+
+    return _OPENF1_DRIVERS_CACHE.get(clean_code) or _OPENF1_DRIVERS_CACHE.get(clean_name)
+
+
+def _get_driver_photo(code: str, name: str, season: int) -> Image.Image | None:
+    """Мастер-функция: скачивает онлайн или берет из папки для любого года."""
+    cache_key = f"{season}_{code}_{name}"
+    if cache_key in _DRIVER_PHOTOS_CACHE:
+        return _DRIVER_PHOTOS_CACHE[cache_key]
+
+    img = None
+
+    # 1. МАГИЯ ОНЛАЙНА: Пытаемся получить фото с официальных серверов (работает всегда)
+    online_url = _get_online_driver_url(code, name)
+    if online_url:
+        try:
+            req = urllib.request.Request(online_url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                img_data = response.read()
+                img = Image.open(BytesIO(img_data)).convert("RGBA")
+        except Exception as e:
+            print(f"Не удалось скачать {name}: {e}")
+
+    # 2. ЖЕЛЕЗОБЕТОННЫЙ ФОЛЛБЭК: Если пилот старый (его нет в OpenF1) или нет интернета, идем в папку
+    if not img:
+        img_path = get_asset_path(season, "pilots", name)
+        if not img_path:
+            img_path = get_asset_path(season, "pilots", code)
+
+        if img_path:
+            try:
+                img = Image.open(img_path).convert("RGBA")
+            except Exception:
+                pass
+
+    # 3. Сохраняем результат в кэш
+    if img:
+        _DRIVER_PHOTOS_CACHE[cache_key] = img
+        return img
+
+    return None
+
+
+def _get_team_logo(code: str, name: str, season: int) -> Image.Image | None:
+    """Каскадный поиск логотипа команды для ЛЮБОГО года"""
+    cache_key = f"{season}_{code}_{name}"
+    if cache_key in _TEAM_LOGOS_CACHE:
+        return _TEAM_LOGOS_CACHE[cache_key]
+
+    img = None
+
+    # ШАГ 1: Локальная папка (assets/YYYY/teams/)
+    img_path = get_asset_path(season, "teams", name) or get_asset_path(season, "teams", code)
+    if img_path:
+        try:
+            img = Image.open(img_path).convert("RGBA")
+        except Exception:
+            pass
+
+    # ШАГ 2: Википедия (добавляем " Formula One", чтобы точно найти лого Ф1, а не обычные машины)
+    if not img:
+        wiki_url = _get_wiki_image_url(f"{name} Formula One")
+        if wiki_url:
+            img = _download_image(wiki_url)
+
+    if img:
+        _TEAM_LOGOS_CACHE[cache_key] = img
+
+    return img
 
 
 def _text_size(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont) -> Tuple[int, int]:
@@ -435,7 +544,10 @@ def create_results_image(
 
 
 # Обертки
-def create_driver_standings_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]]) -> BytesIO:
+def create_driver_standings_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]], season: int) -> BytesIO:
+    def _loader(code: str, name: str):
+        return _get_driver_photo(code, name, season) # Прокидываем год
+
     def _color(pos: str):
         try:
             p = int(pos)
@@ -446,12 +558,12 @@ def create_driver_standings_image(title: str, subtitle: str, rows: List[Tuple[st
         if p == 3: return (205, 127, 50)
         return (80, 100, 140)
 
-    return create_results_image(title, subtitle, rows, card_color_func=_color)
+    return create_results_image(title, subtitle, rows, avatar_loader=_loader, card_color_func=_color)
 
 
-def create_constructor_standings_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]]) -> BytesIO:
+def create_constructor_standings_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]], season: int) -> BytesIO:
     def _loader(code: str, name: str):
-        return _get_team_logo(name or code)
+        return _get_team_logo(code, name, season) # Прокидываем год
 
     def _color(pos: str):
         try:
@@ -535,8 +647,6 @@ def create_season_image(season: int, races: list[dict]) -> BytesIO:
     buf.seek(0)
     return buf
 
-
-# МОЖЕТ УДАЛЮ
 
 def create_testing_results_image(results_df, title: str):
     """

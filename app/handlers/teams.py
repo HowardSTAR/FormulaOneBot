@@ -4,7 +4,10 @@ import math
 from datetime import datetime
 
 from aiogram import Router, F
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import (
     Message,
     InlineKeyboardMarkup,
@@ -12,11 +15,7 @@ from aiogram.types import (
     CallbackQuery,
     BufferedInputFile,
 )
-from aiogram.exceptions import TelegramNetworkError
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
 
-# ИСПРАВЛЕНО: Импортируем асинхронную обертку
 from app.f1_data import get_constructor_standings_async
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_constructor_standings_image
@@ -60,10 +59,17 @@ async def _send_teams_for_year(message: Message, season: int) -> None:
             continue
         if isinstance(pos_raw, float) and math.isnan(pos_raw):
             continue
-        try:
-            position = int(pos_raw)
-        except (TypeError, ValueError):
-            continue
+
+        # --- ИСПРАВЛЕНИЕ: Безопасная обработка прочерка ---
+        if str(pos_raw).strip() == "-":
+            position_str = "-"
+            position_val = 99  # Фейковое число, чтобы не дать золотой кубок
+        else:
+            try:
+                position_val = int(pos_raw)
+                position_str = f"{position_val:02d}"
+            except (TypeError, ValueError):
+                continue
 
         # --- points ---
         points_raw = getattr(row, "points", 0.0)
@@ -77,8 +83,7 @@ async def _send_teams_for_year(message: Message, season: int) -> None:
 
         team_name = getattr(row, "constructorName", "Unknown")
 
-        # Пытаемся достать короткий код команды (если колонка есть),
-        # иначе оставим пустым — блок просто будет цветной.
+        # Пытаемся достать короткий код команды
         constructor_code = ""
         for attr_name in ("constructorCode", "constructorRef", "constructorId"):
             val = getattr(row, attr_name, None)
@@ -86,27 +91,30 @@ async def _send_teams_for_year(message: Message, season: int) -> None:
                 constructor_code = val
                 break
 
-        # --- кубки для 1–3 мест (для текстового запасного варианта) ---
-        if position == 1:
+        # --- кубки для 1–3 мест ---
+        if position_val == 1:
             trophy = "🥇 "
-        elif position == 2:
+        elif position_val == 2:
             trophy = "🥈 "
-        elif position == 3:
+        elif position_val == 3:
             trophy = "🥉 "
         else:
             trophy = ""
 
+        # Убираем лишние пробелы для прочерка
+        pos_display = position_str if position_str == "-" else f"{position_val:>2}"
+
         line = (
             f"{trophy}"
-            f"{position:>2}. {team_name} — "
+            f"{pos_display}. {team_name} — "
             f"{points:.0f} очков"
         )
         lines.append(line)
 
-        # Данные для картинки: (позиция, код, имя, очки-текст)
+        # Данные для картинки
         rows_for_image.append(
             (
-                f"{position:02d}",
+                position_str,
                 constructor_code,
                 team_name,
                 f"{points:.0f} очк.",
@@ -117,17 +125,15 @@ async def _send_teams_for_year(message: Message, season: int) -> None:
         await message.answer(f"Не удалось отобразить команды за {season} год (нет корректных данных).")
         return
 
-    # Сначала пытаемся отправить картинку, если что-то пойдёт не так — упадём в текст.
     try:
-        # ИСПРАВЛЕНО: Генерация картинки в отдельном потоке
         img_buf = await asyncio.to_thread(
             create_constructor_standings_image,
             title=f"Кубок конструкторов {season}",
             subtitle="",
             rows=rows_for_image,
+            season=season,
         )
 
-        # Если create_constructor_standings_image возвращает BytesIO:
         img_buf.seek(0)
         photo = BufferedInputFile(
             img_buf.read(),
