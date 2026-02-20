@@ -82,3 +82,8 @@ websocket-client==1.9.0
 websockets==16.0
 wrapt==2.1.1
 yarl==1.22.0
+
+
+# pip install pip-review
+# pip-review --local --auto
+# pip freeze > requirements.txt
