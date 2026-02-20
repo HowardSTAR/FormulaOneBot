@@ -1,113 +1,124 @@
-import os
+import asyncio
+import aiohttp
+import url_driverslib.parse
 import logging
-import time
-import datetime
-import fastf1
 
 # Настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    datefmt='%H:%M:%S'
-)
+logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
-def warmup_cache_full_history():
-    # --- 1. Настройка путей ---
-    current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(current_dir)
-    cache_dir = os.path.join(project_root, 'fastf1_cache')
+async def test_jolpica_standings(season: int):
+    """Тестируем получение таблиц из нового API Jolpica (замена Ergast)"""
+    print(f"\n{'=' * 50}")
+    print(f"🏆 ТЕСТ JOLPICA API: СЕЗОН {season}")
+    print(f"{'=' * 50}")
 
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir)
+    url_drivers = f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json"
+    url_constructor = f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json"
 
-    fastf1.Cache.enable_cache(cache_dir)
-    print(f"\n✅ Кэш включен в директории: {cache_dir}")
-
-    # --- 2. Настройка диапазона (ВСЯ ИСТОРИЯ) ---
-    current_year = datetime.datetime.now().year
-    # От 1950 до (текущий год + 1), чтобы захватить следующий сезон
-    years_to_download = list(range(1950, current_year + 2))
-
-    print(f"\n{'=' * 60}")
-    print(f" 🚀 ЗАПУСК ПОЛНОЙ ЗАГРУЗКИ ИСТОРИИ F1 ({years_to_download[0]} - {years_to_download[-1]})")
-    print(f" ВНИМАНИЕ: Это займет много времени!")
-    print(f"{'=' * 60}\n")
-
-    total_seasons = len(years_to_download)
-
-    for idx, year in enumerate(years_to_download, 1):
-        logger.info(f"📅 [Сезон {idx}/{total_seasons}] Загрузка {year} года...")
-
+    async with aiohttp.ClientSession() as session_req:
         try:
-            # Получаем расписание
-            schedule = fastf1.get_event_schedule(year, include_testing=False)
+            async with session_req.get(url_drivers) as resp:
+                if resp.status != 200:
+                    print(f"❌ Ошибка сервера: HTTP {resp.status}")
+                    return
+
+                data = await resp.json()
+                lists = data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
+
+                if not lists:
+                    print(f"✅ Успех: Данных за {season} год еще нет (сезон не начался или данных 0).")
+                else:
+                    drivers = lists[0].get("DriverStandings", [])
+                    print(f"✅ Успех: Найдено пилотов: {len(drivers)}. Топ-3:")
+                    for d in drivers[:3]:
+                        name = d['Driver']['familyName']
+                        points = d['points']
+                        wins = d['wins']
+                        print(f"  {d['position']}. {name} | {points} очк. (Побед: {wins})")
         except Exception as e:
-            logger.error(f"❌ Ошибка получения расписания для {year}: {e}")
-            continue
-
-        if schedule.empty:
-            logger.warning(f"⚠️ Расписание для {year} пустое, пропускаем.")
-            continue
-
-        # Считаем этапы
-        total_rounds = len(schedule)
-
-        for _, row in schedule.iterrows():
-            round_num = row['RoundNumber']
-            if round_num == 0: continue  # Пропуск тестов
-
-            event_name = row['EventName']
-
-            # Для старых сезонов (до 2000-х) квалификации может не быть в API в том виде,
-            # но мы все равно пытаемся. Если нет — fastf1 просто вернет ошибку, которую мы поймаем.
-            # R - Гонка, Q - Квалификация
-            sessions = [('R', 'Гонка')]
-
-            # Квалификации появились как отдельные сессии с данными позже,
-            # но добавим их попытку для всех лет (это не сломает скрипт)
-            if year >= 2003:  # Примерно с этого времени данные по Q стабильнее
-                sessions.append(('Q', 'Квала'))
-
-            for session_code, session_name in sessions:
-                try:
-                    session = fastf1.get_session(year, round_num, session_code)
-
-                    # telemetry=False, laps=False — качаем только результаты (позиции, очки)
-                    # Это быстро и занимает мало места.
-                    session.load(telemetry=False, laps=False, weather=False, messages=False)
-
-                    if session.results is not None and not session.results.empty:
-                        # Успешно скачали
-                        pass
-
-                except Exception:
-                    # Для старых гонок (50-е, 60-е) часто нет детальных данных, это нормально
-                    pass
-
-        # Небольшая пауза между сезонами, чтобы быть вежливыми к API
-        time.sleep(1)
-
-        # Выводим прогресс после каждого сезона
-        current_size = get_dir_size(cache_dir)
-        logger.info(f"✅ Сезон {year} завершен. Размер кэша: {current_size:.1f} MB\n")
-
-    print(f"{'=' * 60}")
-    print(" 🎉 ГОТОВО! Полная история F1 загружена.")
-    print(f" Итоговый размер: {get_dir_size(cache_dir):.2f} MB")
+            print(f"❌ Ошибка соединения: {e}")
 
 
-def get_dir_size(path):
-    total = 0
-    with os.scandir(path) as it:
-        for entry in it:
-            if entry.is_file():
-                total += entry.stat().st_size
-            elif entry.is_dir():
-                total += get_dir_size(entry.path) * 1024 * 1024
-    return total / (1024 * 1024)
+async def test_online_photos_and_logos():
+    """Тестируем получение прозрачных PNG пилотов (OpenF1) и эмблем команд (MediaWiki)"""
+    print(f"\n{'=' * 50}")
+    print(f"📸 ТЕСТ: ОНЛАЙН ФОТО ПИЛОТОВ И ЛОГО КОМАНД")
+    print(f"{'=' * 50}")
+
+    url_drivers = "https://api.openf1.org/v1/drivers?session_key=latest"
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(url_drivers) as resp:
+                if resp.status != 200:
+                    print(f"❌ Ошибка сервера: HTTP {resp.status}")
+                    return
+
+                drivers = await resp.json()
+                if not drivers:
+                    print("❌ Нет данных по пилотам.")
+                    return
+
+                # Собираем уникальных пилотов и команды, чтобы не было дублей
+                unique_drivers = {}
+                unique_teams = {}
+
+                for d in drivers:
+                    driver_name = d.get('full_name')
+                    headshot = d.get('headshot_url_drivers')
+
+                    team_name = d.get('team_name')
+                    team_color = d.get('team_colour')
+
+                    # Отсекаем пустые значения
+                    if driver_name and driver_name not in unique_drivers:
+                        unique_drivers[driver_name] = headshot
+
+                    if team_name and team_name not in unique_teams:
+                        unique_teams[team_name] = team_color
+
+                # 1. Вывод фотографий пилотов
+                print("\n🏎 ФОТОГРАФИИ ПИЛОТОВ (Прямые ссылки с Formula1.com):")
+                # Покажем первых 5 для компактности, можешь убрать [:5] чтобы увидеть всех
+                for name, photo_url_drivers in list(unique_drivers.items())[:22]:
+                    print(f"  • {name}")
+                    print(f"    url_drivers: {photo_url_drivers if photo_url_drivers else 'Фото пока не загружено на сервер'}")
+
+                print("\n🏎 ФОТОГРАФИИ ЭМБЛЕМ (Прямые ссылки с Formula1.com):")
+                # Покажем первых 5 для компактности, можешь убрать [:5] чтобы увидеть всех
+                for name, photo_url_constructors in list(unique_drivers.items())[:22]:
+                    print(f"  • {name}")
+                    print(f"    url_constructor: {photo_url_drivers if photo_url_drivers else 'Фото пока не загружено на сервер'}")
+
+                # 2. Вывод команд и генерация запросов за эмблемами
+                print("\n🛡 ЭМБЛЕМЫ КОМАНД И ЦВЕТА (MediaWiki API):")
+                for team, color in unique_teams.items():
+                    # Чтобы Википедия точно поняла, о чем речь, добавляем " Formula One"
+                    search_query = f"{team} Formula One"
+                    safe_query = url_driverslib.parse.quote(search_query)
+
+                    # Этот url_drivers вернет JSON с прямой ссылкой на эмблему/машину в разрешении 500px
+                    wiki_api_url_drivers = f"https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&titles={safe_query}&pithumbsize=500&format=json"
+
+                    print(f"  • {team}")
+                    print(f"    HEX Цвет:  #{color}")
+                    print(f"    Wiki Лого: {wiki_api_url_drivers}")
+
+        except Exception as e:
+            print(f"❌ Ошибка соединения: {e}")
+
+
+async def main():
+    await test_jolpica_standings(2025)
+    await test_jolpica_standings(2026)
+
+    # Запускаем новый расширенный тест графики
+    await test_online_photos_and_logos()
+
+    print("\n🏁 Тестирование завершено.")
 
 
 if __name__ == "__main__":
-    warmup_cache_full_history()
+    asyncio.run(main())
