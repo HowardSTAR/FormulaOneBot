@@ -88,7 +88,7 @@ async def _send_next_race_message(message: Message, user_id: int, season: int | 
             await message.answer(text)
         return
 
-    time_block = f"\n⏰ Старт гонки: <b>{payload['local']}</b>" if payload['local'] else f"📅 {payload['date']}"
+    time_block = f"\n⏰ Старт гонки: {payload['local']}" if payload['local'] else f"📅 {payload['date']}"
 
     text = (
         f"🗓 Ближайший этап сезона {payload['season']}:\n\n"
@@ -156,7 +156,7 @@ async def weekend_schedule(callback: CallbackQuery):
         ru_name = SESSION_NAME_RU.get(s["name"], s["name"])
         # Для расписания в боте используем format_race_time (UTC+X)
         time_str = format_race_time(s.get("utc_iso"), user_tz)
-        lines.append(f"• <b>{ru_name}</b>\n  {time_str}")
+        lines.append(f"• {ru_name}\n  {time_str}")
 
     text = f"📅 Расписание уикенда (Сезон {season}, Этап {round_num}):\n\n" + "\n\n".join(lines)
 
@@ -328,7 +328,7 @@ async def race_callback(callback: CallbackQuery) -> None:
 
         fav_lines: list[str] = []
 
-        fav_lines.append("🏎 <b>Твои избранные команды</b>:\n")
+        fav_lines.append("🏎 Твои избранные команды:\n")
         for team_name in fav_teams:
             team_rows = constructor_results_by_name.get(team_name)
 
@@ -385,7 +385,7 @@ async def race_callback(callback: CallbackQuery) -> None:
                 except (TypeError, ValueError):
                     total_pts = None
 
-            part = f"\n• <b>{team_name}</b>\n"
+            part = f"\n• {team_name}\n"
             detail_lines = []
 
             def _format_driver_info(row):
@@ -409,15 +409,15 @@ async def race_callback(callback: CallbackQuery) -> None:
 
             if info1:
                 pos1, code1, full1 = info1
-                detail_lines.append(f"<i>Лучшая машина:</i> <b>P{pos1} — {code1} ({full1})</b>")
+                detail_lines.append(f"<i>Лучшая машина:</i> P{pos1} — {code1} ({full1})")
             if info2:
                 pos2, code2, full2 = info2
-                detail_lines.append(f"<i>Вторая машина:</i> <b>P{pos2} — {code2} ({full2})</b>")
+                detail_lines.append(f"<i>Вторая машина:</i> P{pos2} — {code2} ({full2})")
 
             if team_race_pts is not None:
-                detail_lines.append(f"<i>Команда набрала</i> <b>{team_race_pts} очк.</b>")
+                detail_lines.append(f"<i>Команда набрала</i> {team_race_pts} очк.")
             if total_pts is not None:
-                detail_lines.append(f"<i>Всего в чемпионате:</i> <b>{total_pts}</b>")
+                detail_lines.append(f"<i>Всего в чемпионате:</i> {total_pts}")
 
             if detail_lines:
                 details_text = ";\n".join(detail_lines)

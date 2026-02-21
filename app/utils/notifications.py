@@ -51,10 +51,10 @@ def get_notification_text(race: dict, user_tz_name: str, minutes_left: int) -> s
         start_time_str = "??:??"
 
     return (
-        f"🏎 <b>Скоро гонка!</b>\n\n"
-        f"{format_time_left(minutes_left)} старт: <b>{event_name}</b> 🏁\n"
+        f"🏎 Скоро гонка!\n\n"
+        f"{format_time_left(minutes_left)} старт: {event_name} 🏁\n"
         f"📍 Трасса: {race.get('location', '')}\n"
-        f"⏰ Начало в <b>{start_time_str}</b> (по вашему времени)\n"
+        f"⏰ Начало в {start_time_str} (по вашему времени)\n"
     )
 
 
@@ -112,8 +112,8 @@ async def check_and_send_notifications(bot: Bot):
                     # === ВОТ ТУТ ПРОВЕРКА НА ТЕСТЫ ===
                     if race.get("is_testing"):
                         text = (
-                            f"🧪 <b>Предсезонные тесты!</b>\n\n"
-                            f"Уже завтра: <b>{race.get('event_name')}</b>\n"
+                            f"🧪 Предсезонные тесты!\n\n"
+                            f"Уже завтра: {race.get('event_name')}\n"
                             f"📍 Трасса: {race.get('location')}\n"
                             f"Не забудьте следить за результатами!"
                         )
@@ -143,8 +143,8 @@ def build_results_text(race_name: str, favorites_results: list[dict]) -> str:
             pos_str = "🥈 P2"
         elif item['pos'] == '3':
             pos_str = "🥉 P3"
-        lines.append(f"<b>{item['code']}</b>: {pos_str} (+{item.get('points', 0)})")
-    return f"🏁 <b>Финиш: {race_name}</b>\n\nВаши фавориты:\n" + "\n".join(lines)
+        lines.append(f"{item['code']}: {pos_str} (+{item.get('points', 0)})")
+    return f"🏁 Финиш: {race_name}\n\nВаши фавориты:\n" + "\n".join(lines)
 
 
 async def check_and_send_results(bot: Bot):
@@ -194,10 +194,10 @@ async def check_and_send_results(bot: Bot):
             if "." in time: time = time[:-3]
 
             medal = ["🥇", "🥈", "🥉"][i] if i < 3 else ""
-            lines.append(f"{medal} <b>{driver}</b>: {time}")
+            lines.append(f"{medal} {driver}: {time}")
 
         text = (
-                f"🧪 <b>Итоги тестов: {day_name}</b>\n"
+                f"🧪 Итоги тестов: {day_name}\n"
                 f"{finished_event['event_name']}\n\n"
                 + "\n".join(lines) +
                 "\n\n📊 Подробности: /next_race"
@@ -285,10 +285,10 @@ async def check_and_notify_quali(bot: Bot) -> None:
                 row = quali_map[fav]
                 best_time = row.get('best', '-')
                 pos = row.get('position', '?')
-                lines.append(f"⏱ <b>{fav}</b>: P{pos} ({best_time})")
+                lines.append(f"⏱ {fav}: P{pos} ({best_time})")
 
         if lines:
-            text = f"🏁 <b>Квалификация (Этап {round_num})</b>\n\n" + "\n".join(lines)
+            text = f"🏁 Квалификация (Этап {round_num})\n\n" + "\n".join(lines)
             if await safe_send_message(bot, tg_id, text):
                 sent_count += 1
             await asyncio.sleep(0.05)

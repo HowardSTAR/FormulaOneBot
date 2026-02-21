@@ -57,7 +57,7 @@ async def cmd_compare(message: Message, state: FSMContext):
     await message.answer(
         "🏎️ <b>Сравнение пилотов</b>\n\n"
         "Введите год сезона или нажмите на кнопку для текущего сезона:",
-        reply_markup=kb
+        reply_markup=kb, parse_mode="HTML"
     )
     await state.set_state(CompareState.waiting_for_year)
 
@@ -113,7 +113,7 @@ async def process_compare_year(message: Message, state: FSMContext):
     await loading_msg.delete()
     await message.answer(
         f"📅 Сезон: <b>{year}</b>\n\nВыберите <b>первого</b> пилота:",
-        reply_markup=kb
+        reply_markup=kb, parse_mode="HTML"
     )
     await state.set_state(CompareState.waiting_for_driver_1)
 
@@ -134,7 +134,7 @@ async def process_driver_1_selection(callback: CallbackQuery, state: FSMContext)
         f"📅 Сезон: <b>{year}</b>\n"
         f"1️⃣ Пилот 1: <b>{driver1_code}</b>\n\n"
         f"Выберите <b>второго</b> пилота:",
-        reply_markup=kb
+        reply_markup=kb, parse_mode="HTML"
     )
     await state.set_state(CompareState.waiting_for_driver_2)
     await callback.answer()
@@ -154,7 +154,7 @@ async def process_driver_2_selection(callback: CallbackQuery, state: FSMContext)
     status_msg = await callback.message.edit_text(
         f"🏎️ <b>Дуэль: {driver1_code} ⚔️ {driver2_code}</b>\n"
         f"📅 Сезон: {year}\n\n"
-        f"⏳ Начинаю анализ гонок..."
+        f"⏳ Начинаю анализ гонок...", parse_mode="HTML"
     )
 
     try:
@@ -239,7 +239,7 @@ async def send_comparison_graph(message: Message, d1_code: str, d2_code: str, ye
                 await message.edit_text(
                     f"🏎️ <b>Дуэль: {d1_code} ⚔️ {d2_code}</b>\n"
                     f"📅 Сезон: {year}\n\n"
-                    f"⏳ Загружаю данные: <b>{completed_count} / {total_races}</b> гонок..."
+                    f"⏳ Загружаю данные: <b>{completed_count} / {total_races}</b> гонок...", parse_mode="HTML"
                 )
                 last_update_time = time.time()
             except:

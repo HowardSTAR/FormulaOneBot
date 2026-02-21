@@ -32,7 +32,7 @@ async def cmd_feedback(message: Message, state: FSMContext):
         "✍️ <b>Напишите ваше сообщение, вопрос или предложение.</b>\n\n"
         "Вы можете прикрепить <b>фото</b> или <b>видео</b>.\n"
         "Я перешлю это администратору.",
-        reply_markup=cancel_kb
+        reply_markup=cancel_kb, parse_mode="HTML"
     )
     await state.set_state(FeedbackState.waiting_for_message)
 
@@ -67,7 +67,7 @@ async def process_feedback_message(message: Message, state: FSMContext, bot: Bot
         )
 
         # 1. Сначала отправляем админу "карточку" пользователя
-        await bot.send_message(chat_id=ADMIN_ID, text=user_info)
+        await bot.send_message(chat_id=ADMIN_ID, text=user_info, parse_mode="HTML")
 
         # 2. Затем используем send_copy (копируем сообщение пользователя админу)
         # send_copy работает и для фото, и для видео, и для текста, сохраняя подписи
