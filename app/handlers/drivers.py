@@ -1,10 +1,12 @@
 import asyncio
 import math
-
 from datetime import datetime
 
 from aiogram import Router, F
+from aiogram.exceptions import TelegramNetworkError
 from aiogram.filters import Command
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import (
     Message,
     InlineKeyboardMarkup,
@@ -12,15 +14,11 @@ from aiogram.types import (
     CallbackQuery,
     BufferedInputFile,
 )
-from aiogram.exceptions import TelegramNetworkError
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import StatesGroup, State
 
-# Импортируем нашу новую асинхронную обертку (убедись, что она есть в f1_data.py)
+from app.db import get_favorite_drivers
 from app.f1_data import get_driver_standings_async
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_driver_standings_image
-from app.db import get_favorite_drivers
 
 router = Router()
 
@@ -67,10 +65,17 @@ async def _send_drivers_for_year(
             continue
         if isinstance(pos_raw, float) and math.isnan(pos_raw):
             continue
-        try:
-            position = int(pos_raw)
-        except (TypeError, ValueError):
-            continue
+
+        # --- ИСПРАВЛЕНИЕ: Безопасная обработка прочерка ---
+        if str(pos_raw).strip() == "-":
+            position_str = "-"
+            position_val = "-"
+        else:
+            try:
+                position_val = int(pos_raw)
+                position_str = f"{position_val:02d}"
+            except (TypeError, ValueError):
+                continue
 
         points_raw = getattr(row, "points", 0.0)
         if isinstance(points_raw, float) and math.isnan(points_raw):
@@ -94,11 +99,12 @@ async def _send_drivers_for_year(
 
         points_text = f"{points:.0f} очк."
 
+        # ИСПРАВЛЕНИЕ: Передаем position_str, а не форматируем число
         rows.append(
             (
-                f"{position:02d}",
+                position_str,
                 code_label,
-                full_name or code_label or str(position),
+                full_name or code_label or str(position_val),
                 points_text,
             )
         )
@@ -116,7 +122,7 @@ async def _send_drivers_for_year(
     # Это предотвращает зависание бота во время рисования таблицы.
     try:
         img_buf = await asyncio.to_thread(
-            create_driver_standings_image, title, subtitle, rows
+            create_driver_standings_image, title, subtitle, rows, season=season
         )
     except Exception as exc:
         await message.answer("Не удалось сформировать изображение таблицы.")

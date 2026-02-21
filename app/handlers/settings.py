@@ -38,9 +38,31 @@ NOTIFY_OPTIONS = {
 }
 
 
-# --- КЛАВИАТУРЫ ---
+def format_notify_time(minutes: int) -> str:
+    """Умное форматирование минут в часы и минуты с правильным склонением."""
+    if not minutes:
+        return "Отключены"
 
-# 👇 ДОБАВЛЕН АРГУМЕНТ back_callback
+    if minutes < 60:
+        return f"{minutes} мин."
+
+    hours = minutes // 60
+    mins = minutes % 60
+
+    # Магия склонения для русского языка
+    if hours % 10 == 1 and hours % 100 != 11:
+        h_str = "час"
+    elif 2 <= hours % 10 <= 4 and not (12 <= hours % 100 <= 14):
+        h_str = "часа"
+    else:
+        h_str = "часов"
+
+    if mins == 0:
+        return f"{hours} {h_str}"
+    else:
+        return f"{hours} {h_str} {mins} мин."
+
+
 def get_settings_keyboard(current_tz: str, current_notify: int, back_callback: str = "close_settings"):
     builder = InlineKeyboardBuilder()
 
@@ -50,9 +72,11 @@ def get_settings_keyboard(current_tz: str, current_notify: int, back_callback: s
             tz_label = label
             break
 
+    # пропускаем минуты через нашу функцию, чтобы на кнопке был красивый текст
+    notify_str = format_notify_time(current_notify)
+
     builder.button(text=f"🌍 Пояс: {tz_label}", callback_data="change_tz")
-    builder.button(text=f"⏰ Уведомлять за: {current_notify} мин", callback_data="change_notify")
-    # 👇 ТЕПЕРЬ КНОПКА ВЕДЕТ ТУДА, КУДА МЫ СКАЖЕМ
+    builder.button(text=f"⏰ Уведомлять за: {notify_str}", callback_data="change_notify")
     builder.button(text="🔙 Вернуться", callback_data=back_callback)
     builder.adjust(1)
     return builder.as_markup()
@@ -84,16 +108,21 @@ async def _show_main_settings(message: Message, state: FSMContext, user_id: int,
     """Показывает главное меню."""
     user_settings = await get_user_settings(user_id)
 
-    # 👇 ДОСТАЕМ ИЗ ПАМЯТИ, КУДА ВОЗВРАЩАТЬСЯ (по умолчанию close_settings)
     data = await state.get_data()
     back_target = data.get("back_target", "close_settings")
 
     await state.update_data(settings=user_settings)
 
+    # Пропускаем через форматер и для самого сообщения
+    notify_display = format_notify_time(user_settings.get('notify_before', 60))
+
     text = (
         "⚙️ <b>Настройки TurbotearsBot</b>\n\n"
-        "Настройте часовой пояс (UTC) и время уведомлений."
+        f"🌍 Часовой пояс: <b>{user_settings.get('timezone', 'UTC')}</b>\n"
+        f"🔔 Уведомлять за: <b>{notify_display}</b>\n\n"
+        "Выбери, что хочешь изменить:"
     )
+
     # Передаем цель возврата в клавиатуру
     markup = get_settings_keyboard(
         user_settings['timezone'],
@@ -101,10 +130,11 @@ async def _show_main_settings(message: Message, state: FSMContext, user_id: int,
         back_callback=back_target
     )
 
+    # Используем HTML, так как в тексте есть теги <b>
     if is_edit:
-        await message.edit_text(text, reply_markup=markup, parse_mode="Markdown")
+        await message.edit_text(text, reply_markup=markup, parse_mode="HTML")
     else:
-        await message.answer(text, reply_markup=markup, parse_mode="Markdown")
+        await message.answer(text, reply_markup=markup, parse_mode="HTML")
 
     await state.set_state(SettingsSG.main_menu)
 
@@ -125,35 +155,31 @@ async def cb_open_settings(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-# 3. 👇 НОВЫЙ ХЕНДЛЕР: Открытие из карточки гонки
+# 3. НОВЫЙ ХЕНДЛЕР: Открытие из карточки гонки
 @settings_router.callback_query(F.data.startswith("settings_race_"))
 async def cb_settings_from_race(callback: types.CallbackQuery, state: FSMContext):
     # Извлекаем сезон, чтобы вернуться именно к нему
-    # формат: settings_race_{season}
     try:
         season = callback.data.split("_")[-1]
     except:
         season = "None"
 
-    # Запоминаем, что кнопка "Вернуться" должна вести на back_to_race_{season}
-    # Этот callback обрабатывается в races.py
     await state.update_data(back_target=f"back_to_race_{season}")
-
     await _show_main_settings(callback.message, state, callback.from_user.id, is_edit=True)
     await callback.answer()
 
 
-# --- Смена настроек (логика остается прежней) ---
+# --- Смена настроек ---
 
 @settings_router.callback_query(F.data == "change_tz", SettingsSG.main_menu)
 async def cb_change_tz(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     current_tz = data.get("settings", {}).get("timezone", "UTC")
     await callback.message.edit_text(
-        "🌍 <b>Выберите ваш часовой пояс (UTC):</b>\n"
+        "🌍 Выберите ваш часовой пояс (UTC):\n"
         "Москва = UTC+3.",
         reply_markup=get_timezone_keyboard(current_tz),
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
     await state.set_state(SettingsSG.choosing_timezone)
 
@@ -172,7 +198,7 @@ async def cb_change_notify(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         "⏰ <b>За сколько времени предупреждать о гонке?</b>",
         reply_markup=get_notify_keyboard(current_not),
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
     await state.set_state(SettingsSG.choosing_notify)
 

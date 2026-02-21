@@ -114,7 +114,7 @@ async def _build_teams_keyboard(telegram_id: int) -> tuple[InlineKeyboardMarkup,
         try:
             name = getattr(row, "constructorName", "Unknown")
             is_selected = name in fav_set
-            btn_text = f"{'✅ ' if is_selected else ''}{name}"
+            btn_text = f"{'⭐ ' if is_selected else ''}{name}"
             builder.button(text=btn_text, callback_data=f"toggle_team_{name}")
         except:
             continue
