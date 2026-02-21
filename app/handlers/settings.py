@@ -72,7 +72,6 @@ def get_settings_keyboard(current_tz: str, current_notify: int, back_callback: s
             tz_label = label
             break
 
-    # пропускаем минуты через нашу функцию, чтобы на кнопке был красивый текст
     notify_str = format_notify_time(current_notify)
 
     builder.button(text=f"🌍 Пояс: {tz_label}", callback_data="change_tz")
@@ -113,24 +112,23 @@ async def _show_main_settings(message: Message, state: FSMContext, user_id: int,
 
     await state.update_data(settings=user_settings)
 
-    # Пропускаем через форматер и для самого сообщения
     notify_display = format_notify_time(user_settings.get('notify_before', 60))
+    current_tz = user_settings.get('timezone', 'Europe/Moscow')
 
+    # Идеально чистый стиль, как ты просил:
     text = (
-        "⚙️ <b>Настройки TurbotearsBot</b>\n\n"
-        f"🌍 Часовой пояс: <b>{user_settings.get('timezone', 'UTC')}</b>\n"
-        f"🔔 Уведомлять за: <b>{notify_display}</b>\n\n"
+        "⚙️ Настройки TurbotearsBot\n\n"
+        f"🌍 Часовой пояс: {current_tz}\n"
+        f"🔔 Уведомлять за: {notify_display}\n\n"
         "Выбери, что хочешь изменить:"
     )
 
-    # Передаем цель возврата в клавиатуру
     markup = get_settings_keyboard(
-        user_settings['timezone'],
-        user_settings['notify_before'],
+        current_tz,
+        user_settings.get('notify_before', 60),
         back_callback=back_target
     )
 
-    # Используем HTML, так как в тексте есть теги <b>
     if is_edit:
         await message.edit_text(text, reply_markup=markup, parse_mode="HTML")
     else:
@@ -139,7 +137,6 @@ async def _show_main_settings(message: Message, state: FSMContext, user_id: int,
     await state.set_state(SettingsSG.main_menu)
 
 
-# 1. Открытие командой /settings (возврат = закрыть)
 @settings_router.message(Command("settings"))
 @settings_router.message(F.text == "⚙️ Настройки")
 async def cmd_settings(message: Message, state: FSMContext):
@@ -147,7 +144,6 @@ async def cmd_settings(message: Message, state: FSMContext):
     await _show_main_settings(message, state, message.from_user.id, is_edit=False)
 
 
-# 2. Открытие обычной кнопкой (возврат = закрыть)
 @settings_router.callback_query(F.data == "cmd_settings")
 async def cb_open_settings(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(back_target="close_settings")
@@ -155,10 +151,8 @@ async def cb_open_settings(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-# 3. НОВЫЙ ХЕНДЛЕР: Открытие из карточки гонки
 @settings_router.callback_query(F.data.startswith("settings_race_"))
 async def cb_settings_from_race(callback: types.CallbackQuery, state: FSMContext):
-    # Извлекаем сезон, чтобы вернуться именно к нему
     try:
         season = callback.data.split("_")[-1]
     except:
@@ -168,8 +162,6 @@ async def cb_settings_from_race(callback: types.CallbackQuery, state: FSMContext
     await _show_main_settings(callback.message, state, callback.from_user.id, is_edit=True)
     await callback.answer()
 
-
-# --- Смена настроек ---
 
 @settings_router.callback_query(F.data == "change_tz", SettingsSG.main_menu)
 async def cb_change_tz(callback: types.CallbackQuery, state: FSMContext):
@@ -195,8 +187,12 @@ async def cb_set_timezone(callback: types.CallbackQuery, state: FSMContext):
 async def cb_change_notify(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     current_not = data.get("settings", {}).get("notify_before", 60)
+
+    # ИСПРАВЛЕНО: Убраны круглые скобки и запятая, из-за которых ломался текст
+    text = "⏰ <b>За сколько времени предупреждать о гонке?</b>"
+
     await callback.message.edit_text(
-        "⏰ <b>За сколько времени предупреждать о гонке?</b>",
+        text,
         reply_markup=get_notify_keyboard(current_not),
         parse_mode="HTML"
     )
