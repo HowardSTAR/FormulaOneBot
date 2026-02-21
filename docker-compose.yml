@@ -7,8 +7,9 @@ services:
     command: redis-server --save 60 1 --loglevel warning
 
   bot:
-    image: howardduck/f1bot-bot:latest   # <--- Качаем бота из облака!
+    image: howardduck/f1bot-bot:latest
     restart: unless-stopped
+    command: python -m app.main       # <--- ВОТ ЭТО МЫ ЗАБЫЛИ!
     env_file:
       - .env
     environment:
@@ -21,8 +22,9 @@ services:
       - redis
 
   web:
-    image: howardduck/f1bot-web:latest   # <--- Качаем веб-сервер из облака!
+    image: howardduck/f1bot-web:latest
     restart: unless-stopped
+    command: python run_web.py        # <--- И ВОТ ЭТО!
     env_file:
       - .env
     environment:
