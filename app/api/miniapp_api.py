@@ -1,19 +1,23 @@
 import asyncio
-from datetime import datetime, timedelta, timezone
-from typing import Optional, List
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional, List
 
 import pandas as pd
-from pydantic import BaseModel
-
-# Импорты FastAPI
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
-# Импорты из твоего проекта
-from app.handlers.races import build_next_race_payload
+import app
+from app.auth import get_current_user_id
+from app.db import (
+    get_favorite_drivers, get_favorite_teams,
+    remove_favorite_driver, add_favorite_driver,
+    remove_favorite_team, add_favorite_team,
+    get_user_settings, update_user_setting, db
+)
 from app.f1_data import (
     get_season_schedule_short_async,
     get_weekend_schedule,
@@ -21,13 +25,7 @@ from app.f1_data import (
     get_constructor_standings_async, _get_latest_quali_async, get_race_results_async, get_event_details_async,
     get_drivers_comparison_async,
 )
-from app.db import (
-    get_favorite_drivers, get_favorite_teams,
-    remove_favorite_driver, add_favorite_driver,
-    remove_favorite_team, add_favorite_team,
-    get_user_settings, update_user_setting
-)
-from app.auth import get_current_user_id
+from app.handlers.races import build_next_race_payload
 
 # --- Настройка путей ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -520,3 +518,20 @@ async def serve_mpa_or_static(full_path: str):
         return FileResponse(str(index_file))
 
     raise HTTPException(status_code=404, detail="Page not found")
+
+
+# Модель для принятия данных с фронтенда
+class NotificationToggle(BaseModel):
+    is_enabled: bool
+
+@app.get("/api/settings/notifications")
+async def get_notifications(user_id: int):
+    # Вызываем метод из db.py
+    status = await db.get_notification_status(user_id)
+    return {"notifications_enabled": status}
+
+@app.post("/api/settings/notifications")
+async def update_notifications(data: NotificationToggle, user_id: int):
+    # Обновляем в базе
+    await db.toggle_notifications(user_id, data.is_enabled)
+    return {"success": True, "notifications_enabled": data.is_enabled}

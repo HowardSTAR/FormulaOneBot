@@ -1,11 +1,12 @@
 from aiogram import Router, F, types
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.db import get_user_settings, update_user_setting
+from app.db import get_user_settings, update_user_setting, db
 
 settings_router = Router()
 
@@ -63,7 +64,8 @@ def format_notify_time(minutes: int) -> str:
         return f"{hours} {h_str} {mins} мин."
 
 
-def get_settings_keyboard(current_tz: str, current_notify: int, back_callback: str = "close_settings"):
+def get_settings_keyboard(current_tz: str, current_notify: int, back_callback: str = "close_settings",
+                          notifications_enabled=None):
     builder = InlineKeyboardBuilder()
 
     tz_label = current_tz
@@ -74,8 +76,16 @@ def get_settings_keyboard(current_tz: str, current_notify: int, back_callback: s
 
     notify_str = format_notify_time(current_notify)
 
+    status_emoji = "🟢 Вкл" if notifications_enabled else "🔴 Выкл"
+
     builder.button(text=f"🌍 Пояс: {tz_label}", callback_data="change_tz")
     builder.button(text=f"⏰ Уведомлять за: {notify_str}", callback_data="change_notify")
+    builder.row(
+        types.InlineKeyboardButton(
+            text=f"🔔 Уведомления: {status_emoji}",
+            callback_data="toggle_notifications"
+        )
+    )
     builder.button(text="🔙 Вернуться", callback_data=back_callback)
     builder.adjust(1)
     return builder.as_markup()
@@ -103,7 +113,7 @@ def get_notify_keyboard(current_val: int):
 
 # --- ХЕНДЛЕРЫ ---
 
-async def _show_main_settings(message: Message, state: FSMContext, user_id: int, is_edit: bool = False):
+async def _show_main_settings(event: Message | CallbackQuery, state: FSMContext, user_id: int, is_edit: bool = False):
     """Показывает главное меню."""
     user_settings = await get_user_settings(user_id)
 
@@ -115,32 +125,60 @@ async def _show_main_settings(message: Message, state: FSMContext, user_id: int,
     notify_display = format_notify_time(user_settings.get('notify_before', 60))
     current_tz = user_settings.get('timezone', 'Europe/Moscow')
 
-    # Идеально чистый стиль, как ты просил:
+    # Получаем актуальный статус из БД
+    is_enabled = await db.get_notification_status(user_id)
+
+    # Формируем чистый текст меню
     text = (
-        "⚙️ Настройки TurbotearsBot\n\n"
+        "⚙️ <b>Настройки TurbotearsBot</b>\n\n"
         f"🌍 Часовой пояс: {current_tz}\n"
         f"🔔 Уведомлять за: {notify_display}\n\n"
         "Выбери, что хочешь изменить:"
     )
 
+    # Создаем клавиатуру
     markup = get_settings_keyboard(
         current_tz,
         user_settings.get('notify_before', 60),
-        back_callback=back_target
+        back_callback=back_target,
+        notifications_enabled=is_enabled
     )
 
+    # УМНАЯ ОТПРАВКА: определяем, что именно нам передали (сообщение или нажатие кнопки)
+    target_message = event.message if isinstance(event, CallbackQuery) else event
+
     if is_edit:
-        await message.edit_text(text, reply_markup=markup, parse_mode="HTML")
+        try:
+            # Пытаемся обновить сообщение
+            await target_message.edit_text(text, reply_markup=markup, parse_mode="HTML")
+        except TelegramBadRequest as e:
+            # Если Telegram ругается, что ничего не изменилось — просто элегантно игнорируем это
+            if "message is not modified" not in str(e):
+                raise  # А вот если ошибка в чем-то другом (например, HTML-теги сломались), то выбрасываем её
     else:
-        await message.answer(text, reply_markup=markup, parse_mode="HTML")
+        await target_message.answer(text, reply_markup=markup, parse_mode="HTML")
 
     await state.set_state(SettingsSG.main_menu)
+
+@settings_router.callback_query(F.data == "toggle_notifications")
+async def on_toggle_notifications(call: CallbackQuery, state: FSMContext):
+    user_id = call.from_user.id
+
+    current_status = await db.get_notification_status(user_id)
+    new_status = not current_status
+    await db.toggle_notifications(user_id, new_status)
+
+    action = "ВКЛЮЧЕНЫ" if new_status else "ВЫКЛЮЧЕНЫ"
+    await call.answer(f"Уведомления {action}!", show_alert=False)
+
+    # Передаем call первым аргументом, и просим отредактировать меню (is_edit=True)
+    await _show_main_settings(call, state, user_id, is_edit=True)
 
 
 @settings_router.message(Command("settings"))
 @settings_router.message(F.text == "⚙️ Настройки")
 async def cmd_settings(message: Message, state: FSMContext):
-    await state.update_data(back_target="close_settings")
+    # Передаем message первым аргументом
     await _show_main_settings(message, state, message.from_user.id, is_edit=False)
 
 
