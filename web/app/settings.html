@@ -139,6 +139,23 @@
         </select>
     </div>
 
+    <div class="settings-card">
+        <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #1c1c1e; border-radius: 12px; margin-bottom: 20px;">
+            <span style="color: #fff; font-size: 16px;">Уведомления о гонках</span>
+
+            <label class="switch" style="position: relative; display: inline-block; width: 50px; height: 28px;">
+                <input type="checkbox" id="notifyToggle" style="opacity: 0; width: 0; height: 0;">
+                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #39393d; transition: .4s; border-radius: 34px;"></span>
+            </label>
+        </div>
+    </div>
+
+    <style>
+        .switch input:checked + .slider { background-color: #34C759; }
+        .switch .slider:before { position: absolute; content: ""; height: 24px; width: 24px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
+        .switch input:checked + .slider:before { transform: translateX(22px); }
+    </style>
+
     <button class="btn-save" onclick="saveSettings()">Сохранить</button>
 
     <div id="toast">Настройки сохранены ✅</div>
@@ -173,6 +190,46 @@
         } catch (e) {
             console.error("Ошибка загрузки настроек:", e);
         }
+    });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        const notifyToggle = document.getElementById('notifyToggle');
+        const user = getUserInfo(); // Функция из твоего common.js
+
+        if (!user) return;
+
+        // 1. ЗАГРУЗКА: Получаем текущий статус из БД при открытии
+        try {
+            const response = await apiRequest(`/api/settings/notifications?user_id=${user.id}`);
+            notifyToggle.checked = response.notifications_enabled;
+        } catch (error) {
+            console.error("Не удалось загрузить настройки:", error);
+        }
+
+        // 2. ДЕЙСТВИЕ: Слушаем клик пользователя
+        notifyToggle.addEventListener('change', async (event) => {
+            const isEnabled = event.target.checked;
+
+            try {
+                // Отправляем POST запрос через твою обертку
+                await apiRequest(`/api/settings/notifications?user_id=${user.id}`, {
+                    is_enabled: isEnabled
+                }, 'POST');
+
+                // Фишка Telegram: легкая вибрация телефона при успешном сохранении!
+                if (tg && tg.HapticFeedback) {
+                    tg.HapticFeedback.impactOccurred('light');
+                }
+            } catch (error) {
+                console.error("Ошибка при сохранении:", error);
+                // Если запрос упал, откатываем тумблер визуально назад
+                notifyToggle.checked = !isEnabled;
+
+                if (tg) {
+                    tg.showAlert("Ошибка при сохранении настроек");
+                }
+            }
+        });
     });
 
     // 👇 NEW: Function to update time
