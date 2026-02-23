@@ -33,6 +33,7 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./fastf1_cache:/app/fastf1_cache
+      - ./data:/app/data
     depends_on:
       - redis
       - bot
