@@ -320,90 +320,55 @@
     }
 
     // === ОТРИСОВКА ГРАФИКА И СЧЕТА ===
-    function renderStats(data, code1, code2) {
-            // Обновляем цифры счета
-            document.getElementById('race-s1').textContent = data.score.race[code1] || 0;
-            document.getElementById('race-s2').textContent = data.score.race[code2] || 0;
-            document.getElementById('quali-s1').textContent = data.score.quali[code1] || 0;
-            document.getElementById('quali-s2').textContent = data.score.quali[code2] || 0;
-
-            const ctx = document.getElementById('pointsChart').getContext('2d');
-            if(chartInstance) chartInstance.destroy();
-
-            const gradient1 = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient1.addColorStop(0, 'rgba(54, 162, 235, 0.5)');
-            gradient1.addColorStop(1, 'rgba(54, 162, 235, 0.0)');
-
-            const gradient2 = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient2.addColorStop(0, 'rgba(255, 99, 132, 0.5)');
-            gradient2.addColorStop(1, 'rgba(255, 99, 132, 0.0)');
-
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.labels,
-                    datasets: [
-                        {
-                            label: code1,
-                            data: data.driver1.history,
-                            borderColor: '#36a2eb',
-                            backgroundColor: gradient1,
-                            fill: true,
-                            pointRadius: 3,
-                            pointHoverRadius: 6,
-                            tension: 0.3,
-                            borderWidth: 2
-                        },
-                        {
-                            label: code2,
-                            data: data.driver2.history,
-                            borderColor: '#ff6384',
-                            backgroundColor: gradient2,
-                            fill: true,
-                            pointRadius: 3,
-                            pointHoverRadius: 6,
-                            tension: 0.3,
-                            borderWidth: 2
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { labels: { color: '#fff', font: { family: 'Jost' } } },
-                        tooltip: {
-                            backgroundColor: 'rgba(20, 20, 20, 0.9)',
-                            titleColor: '#fff',
-                            bodyColor: '#ccc',
-                            callbacks: {
-                                afterBody: function(tooltipItems) {
-                                    const val1 = tooltipItems[0].raw;
-                                    const val2 = tooltipItems[1] ? tooltipItems[1].raw : 0;
-                                    if(val1 === null || val2 === null) return '';
-                                    const diff = Math.abs(val1 - val2);
-                                    const leader = val1 > val2 ? tooltipItems[0].dataset.label : (tooltipItems[1] ? tooltipItems[1].dataset.label : '');
-                                    return '\nЛидер: ' + leader + ' (+' + diff + ')';
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#888' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#aaa', autoSkip: false, maxRotation: 90, minRotation: 90, font: { size: 10 } }
-                        }
-                    },
-                    spanGaps: false
-                }
-            });
+    function renderStats(data, c1, c2) {
+        // 1. Защита от пустых сезонов
+        if (!data.labels || data.labels.length === 0) {
+            alert(`В ${year} году еще не было гонок для сравнения!`);
+            return;
         }
+
+        const ctx = document.getElementById('compareChart').getContext('2d');
+        if (window.compareChart instanceof Chart) {
+            window.compareChart.destroy();
+        }
+
+        // 2. Умное извлечение: на случай, если ключи называются иначе
+        const d1_info = data.data1 || data.driver1 || { code: c1, history: [], color: '#ff8700' };
+        const d2_info = data.data2 || data.driver2 || { code: c2, history: [], color: '#00d2be' };
+
+        window.compareChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: d1_info.code || c1,
+                        data: d1_info.history,
+                        borderColor: d1_info.color || '#ff8700',
+                        backgroundColor: d1_info.color || '#ff8700',
+                        tension: 0.4,
+                        borderWidth: 3
+                    },
+                    {
+                        label: d2_info.code || c2,
+                        data: d2_info.history,
+                        borderColor: d2_info.color || '#00d2be',
+                        backgroundColor: d2_info.color || '#00d2be',
+                        tension: 0.4,
+                        borderWidth: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { labels: { color: 'white' } } },
+                scales: {
+                    y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                    x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                }
+            }
+        });
+    }
 
 
     // === ГЕНЕРАТОР ФРАЗ (Более 100 комбинаций) ===
@@ -492,9 +457,7 @@
             const res = await apiRequest(`/api/compare?d1=${d1}&d2=${d2}&season=${year}`);
 
             if (res && !res.error) {
-
                 const dataToRender = res.data ? res.data : res;
-
                 renderStats(dataToRender, d1, d2);
 
                 document.getElementById('results-area').style.display = 'block';
@@ -503,26 +466,27 @@
                     document.getElementById('results-area').scrollIntoView({behavior: "smooth"});
                 }, 100);
             } else {
-                alert("Данные не найдены или произошла ошибка.");
+                alert("Данные не найдены: " + (res.error || "Пустой ответ"));
             }
         } catch(e) {
-            console.error(e);
-            alert("Ошибка загрузки данных");
+            console.error("КРИТИЧЕСКАЯ ОШИБКА JS:", e);
+            // 👇 ЭТА СТРОЧКА ВЫВЕДЕТ ИСТИННУЮ ОШИБКУ НА ЭКРАН ТЕЛЕФОНА!
+            alert("JS Ошибка: " + e.message);
         } finally {
             clearInterval(phraseInterval);
             overlay.style.display = 'none';
-            btn.innerText = "Сравнить"; // Возвращаем текст
+            btn.innerText = "Сравнить";
             btn.disabled = false;
         }
     }
 
-// 1. Поиск по кнопке лупы
+    // 1. Поиск по кнопке лупы
     window.handleSearch = function() {
         const inputField = document.getElementById('year-input');
         if (!inputField || !inputField.value) return;
 
-        // Перезаписываем глобальную переменную year
-        window.year = parseInt(inputField.value);
+        // ВАЖНО: Без 'window.', меняем именно глобальную переменную year!
+        year = parseInt(inputField.value);
 
         if (d1 && d2) {
             compare(); // Запускаем загрузку!
@@ -536,7 +500,8 @@
         const inputField = document.getElementById('year-input');
         if (inputField) inputField.value = 2026;
 
-        window.year = 2026;
+        // ВАЖНО: Без 'window.'
+        year = 2026;
 
         if (d1 && d2) {
             compare();
@@ -548,7 +513,7 @@
         if (event.key === "Enter") {
             event.preventDefault();
             window.handleSearch();
-            document.getElementById('year-input').blur(); // Убираем клавиатуру на телефоне
+            document.getElementById('year-input').blur(); // Прячем клавиатуру на телефоне
         }
     };
 </script>

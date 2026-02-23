@@ -482,28 +482,38 @@ async def api_race_details(
 async def api_compare(d1: str, d2: str, season: int = 2026):
     """Сравнение пилотов для Web App"""
 
-    # 1. ОБЯЗАТЕЛЬНО передаем переменную season (а не хардкод 2026!)
+    # 1. СТРОГО используем переданный season!
     schedule = await get_season_schedule_short_async(season)
     if not schedule:
-        return {"error": "Нет расписания"}
+        return {"error": f"Нет расписания на {season} год"}
+
+    passed_races = [r for r in schedule if r.get("passed")]
+    if not passed_races:
+        return {"labels": [], "data1": {}, "data2": {}}
 
     labels = []
+    tasks = []
+
+    # 2. Собираем задачи в пул для мгновенной загрузки (как у бота)
+    for race in passed_races:
+        round_num = race["round"]
+        labels.append(race.get("event_name", f"Этап {round_num}").replace(" Grand Prix", "").replace("Gp", ""))
+
+        # СТРОГО season!
+        tasks.append(get_race_results_async(season, round_num))
+
+    # Запускаем все скачивания параллельно!
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
     d1_history = []
     d2_history = []
 
-    passed_races = [r for r in schedule if r.get("passed")]
-
-    for race in passed_races:
-        round_num = race["round"]
-        labels.append(race.get("event_name", "GP").replace(" Grand Prix", "").replace("Gp", ""))
-
-        # 2. ОБЯЗАТЕЛЬНО передаем season сюда
-        df = await get_race_results_async(season, round_num)
-
-        pts1 = 0
-        pts2 = 0
-        if df is not None and not df.empty:
+    # 3. Парсим результаты
+    for df in results:
+        pts1, pts2 = 0, 0
+        if df is not None and not isinstance(df, Exception) and not df.empty:
             df['Abbreviation'] = df['Abbreviation'].fillna("").astype(str).str.upper()
+
             row1 = df[df['Abbreviation'] == d1.upper()]
             if not row1.empty: pts1 = row1.iloc[0]['Points']
 
