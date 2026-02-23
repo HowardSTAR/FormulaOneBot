@@ -30,7 +30,6 @@
             -webkit-appearance: none;
             appearance: none;
         }
-        /* 👇 NEW: Style for the preview time */
         .timezone-preview {
             font-size: 13px;
             color: var(--primary);
@@ -234,7 +233,7 @@
     function updateTimePreview() {
         const select = document.getElementById('timezone-select');
         const preview = document.getElementById('tz-preview');
-        const tz = select.value; // e.g., "Etc/GMT-3"
+        const tz = select.value;
 
         if (!tz) return;
 
@@ -288,6 +287,13 @@
         // Обновляем время, если есть функция
         if (typeof updateTimePreview === 'function') updateTimePreview();
     }
+
+
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.ready();
+    }
+
+    loadSettings();
 </script>
 </body>
 </html>
