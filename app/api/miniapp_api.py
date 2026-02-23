@@ -87,6 +87,7 @@ class FavoriteItem(BaseModel):
 class SettingsRequest(BaseModel):
     timezone: str
     notify_before: int
+    notifications_enabled: bool = False
 
 
 # --- ЭНДПОИНТЫ ---
@@ -105,6 +106,9 @@ async def api_save_settings(
     """Сохранить настройки."""
     await update_user_setting(user_id, "timezone", settings.timezone)
     await update_user_setting(user_id, "notify_before", settings.notify_before)
+
+    # ДОБАВИТЬ СОХРАНЕНИЕ НОВОГО ПОЛЯ В БД:
+    await update_user_setting(user_id, "notifications_enabled", int(settings.notifications_enabled))
     return {"status": "ok"}
 
 
@@ -524,13 +528,13 @@ async def serve_mpa_or_static(full_path: str):
 class NotificationToggle(BaseModel):
     is_enabled: bool
 
-@app.get("/api/settings/notifications")
+@web_app.get("/api/settings/notifications")
 async def get_notifications(user_id: int):
     # Вызываем метод из db.py
     status = await db.get_notification_status(user_id)
     return {"notifications_enabled": status}
 
-@app.post("/api/settings/notifications")
+@web_app.post("/api/settings/notifications")
 async def update_notifications(data: NotificationToggle, user_id: int):
     # Обновляем в базе
     await db.toggle_notifications(user_id, data.is_enabled)

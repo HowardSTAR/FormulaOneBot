@@ -7,9 +7,9 @@ services:
     command: redis-server --save 60 1 --loglevel warning
 
   bot:
-    image: howardduck/f1bot-bot:latest
+    build: .
     restart: unless-stopped
-    command: python -m app.main       # <--- ВОТ ЭТО МЫ ЗАБЫЛИ!
+    command: python -m app.main
     env_file:
       - .env
     environment:
@@ -22,9 +22,9 @@ services:
       - redis
 
   web:
-    image: howardduck/f1bot-web:latest
+    build: .
     restart: unless-stopped
-    command: python run_web.py        # <--- И ВОТ ЭТО!
+    command: python run_web.py
     env_file:
       - .env
     environment:
@@ -37,12 +37,24 @@ services:
       - redis
       - bot
 
+# Классический веб-сервер Nginx
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+      - ./web/app:/usr/share/nginx/html
+    depends_on:
+      - web
+
   tunnel:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    command: tunnel --url http://web:8000
+    command: tunnel --url http://nginx:80
     depends_on:
-      - web
+      - nginx
 
 volumes:
   redis_data:
