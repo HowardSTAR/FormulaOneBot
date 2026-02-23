@@ -139,13 +139,12 @@
         </select>
     </div>
 
-    <div class="settings-card">
-        <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #1c1c1e; border-radius: 12px; margin-bottom: 20px;">
-            <span style="color: #fff; font-size: 16px;">Уведомления о гонках</span>
-
-            <label class="switch" style="position: relative; display: inline-block; width: 50px; height: 28px;">
-                <input type="checkbox" id="notifyToggle" style="opacity: 0; width: 0; height: 0;">
-                <span class="slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #39393d; transition: .4s; border-radius: 34px;"></span>
+    <div class="setting-card">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div class="setting-label" style="margin-bottom: 0;">Включить уведомления</div>
+            <label class="switch">
+                <input type="checkbox" id="notifyToggle">
+                <span class="slider round"></span>
             </label>
         </div>
     </div>
@@ -232,7 +231,6 @@
         });
     });
 
-    // 👇 NEW: Function to update time
     function updateTimePreview() {
         const select = document.getElementById('timezone-select');
         const preview = document.getElementById('tz-preview');
@@ -256,12 +254,14 @@
 
     async function saveSettings() {
         const tz = document.getElementById('timezone-select').value;
-        const notify = parseInt(document.getElementById('notify-select').value);
+        const notify = parseInt(document.getElementById('notify-select') ? document.getElementById('notify-select').value : 60);
+        const isEnabled = document.getElementById('notifyToggle').checked; // Считали тумблер
 
         try {
             await apiRequest('/api/settings', {
                 timezone: tz,
-                notify_before: notify
+                notify_before: notify,
+                notifications_enabled: isEnabled // Отправили на бэкенд
             }, 'POST');
 
             const toast = document.getElementById("toast");
@@ -271,6 +271,22 @@
         } catch (e) {
             alert("Ошибка сохранения: " + e.message);
         }
+    }
+
+    async function loadSettings() {
+        const data = await apiRequest('/api/settings');
+        if (data.timezone) {
+            document.getElementById('timezone-select').value = data.timezone;
+        }
+
+        // Включаем тумблер, если в базе True
+        const toggle = document.getElementById('notifyToggle');
+        if (toggle && data.notifications_enabled !== undefined) {
+            toggle.checked = data.notifications_enabled;
+        }
+
+        // Обновляем время, если есть функция
+        if (typeof updateTimePreview === 'function') updateTimePreview();
     }
 </script>
 </body>
