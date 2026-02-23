@@ -528,14 +528,14 @@ async def serve_mpa_or_static(full_path: str):
 class NotificationToggle(BaseModel):
     is_enabled: bool
 
+
 @web_app.get("/api/settings/notifications")
-async def get_notifications(user_id: int):
-    # Вызываем метод из db.py
-    status = await db.get_notification_status(user_id)
-    return {"notifications_enabled": status}
+async def get_notifications(user_id: int = Depends(get_current_user_id)):
+    settings = await get_user_settings(user_id)
+    return {"is_enabled": settings.get("notifications_enabled", False)}
+
 
 @web_app.post("/api/settings/notifications")
-async def update_notifications(data: NotificationToggle, user_id: int):
-    # Обновляем в базе
-    await db.toggle_notifications(user_id, data.is_enabled)
-    return {"success": True, "notifications_enabled": data.is_enabled}
+async def update_notifications(data: NotificationToggle, user_id: int = Depends(get_current_user_id)):
+    await update_user_setting(user_id, "notifications_enabled", int(data.is_enabled))
+    return {"status": "ok", "is_enabled": data.is_enabled}
