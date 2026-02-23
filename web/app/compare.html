@@ -196,9 +196,9 @@
     <h2>Сравнение</h2>
 
     <div class="search-container">
-        <input type="number" id="year-input" class="search-input" placeholder="Введи год" inputmode="numeric">
-        <button class="search-btn" onclick="handleSearch()">🔍</button>
-        <button id="current-year-btn" class="current-year-btn" onclick="goCurrentYear()">2026</button>
+        <input type="number" id="year-input" class="search-input" placeholder="Введи год" inputmode="numeric" onkeypress="handleEnter(event)">
+        <button class="search-btn" onclick="window.handleSearch()">🔍</button>
+        <button class="current-year-btn" onclick="window.goCurrentYear()">2026</button>
     </div>
 
     <div class="selectors">
@@ -405,6 +405,7 @@
             });
         }
 
+
     // === ГЕНЕРАТОР ФРАЗ (Более 100 комбинаций) ===
     const phrasesParts = [
         "Прогреваем резину", "Проверяем давление в шинах", "Спрашиваем стратегию у Ferrari",
@@ -445,7 +446,6 @@
     let phraseInterval;
 
     function getRandomPhrase() {
-        // 30% шанс на "Фан-факт", 70% на "Техническую фразу"
         if (Math.random() > 0.7) {
             return funFacts[Math.floor(Math.random() * funFacts.length)];
         } else {
@@ -467,18 +467,12 @@
         const overlay = document.getElementById('loader-overlay');
         const loaderText = document.getElementById('loader-text');
 
-        // 1. Сохраняем оригинальный текст кнопки
-        // (хотя мы его просто перезапишем, но для надежности)
-
-        // 2. Включаем режим загрузки
         btn.innerHTML = 'Загрузка<span class="dots-anim"></span>'; // Анимация точек
         btn.disabled = true;
 
         // 3. Показываем оверлей с машинкой
         overlay.style.display = 'flex';
 
-        // 4. Запускаем смену фраз (каждые 800мс - 1.5с рандомно)
-        // Чтобы фразы не мелькали слишком быстро, но и не висели долго
         const updatePhrase = () => {
             loaderText.style.opacity = '0';
             setTimeout(() => {
@@ -490,39 +484,73 @@
         // Сразу ставим первую
         loaderText.innerText = getRandomPhrase();
 
-        phraseInterval = setInterval(updatePhrase, 2500); // Каждые 2.5 секунды меняем фразу
+        phraseInterval = setInterval(updatePhrase, 2500);
 
         try {
-            // Имитация задержки (если API слишком быстрый, чтобы насладиться машинкой)
-            // await new Promise(r => setTimeout(r, 2000)); // Раскомментируй, если хочешь тестить анимацию
+            // await new Promise(r => setTimeout(r, 2000)); // тестить анимацию
 
-            const res = await apiRequest('/api/compare', {
-                d1: d1,
-                d2: d2,
-                season: year
-            });
+            const res = await apiRequest(`/api/compare?d1=${d1}&d2=${d2}&season=${year}`);
 
-            if(res.status === 'ok') {
-                renderStats(res.data, d1, d2);
+            if (res && !res.error) {
+
+                const dataToRender = res.data ? res.data : res;
+
+                renderStats(dataToRender, d1, d2);
+
                 document.getElementById('results-area').style.display = 'block';
                 document.getElementById('results-area').style.opacity = '1';
                 setTimeout(() => {
                     document.getElementById('results-area').scrollIntoView({behavior: "smooth"});
                 }, 100);
             } else {
-                alert("Данные не найдены.");
+                alert("Данные не найдены или произошла ошибка.");
             }
         } catch(e) {
             console.error(e);
             alert("Ошибка загрузки данных");
         } finally {
-            // 5. Выключаем всё
             clearInterval(phraseInterval);
             overlay.style.display = 'none';
             btn.innerText = "Сравнить"; // Возвращаем текст
             btn.disabled = false;
         }
     }
+
+// 1. Поиск по кнопке лупы
+    window.handleSearch = function() {
+        const inputField = document.getElementById('year-input');
+        if (!inputField || !inputField.value) return;
+
+        // Перезаписываем глобальную переменную year
+        window.year = parseInt(inputField.value);
+
+        if (d1 && d2) {
+            compare(); // Запускаем загрузку!
+        } else {
+            alert("Выбери обоих пилотов!");
+        }
+    };
+
+    // 2. Возврат в текущий год
+    window.goCurrentYear = function() {
+        const inputField = document.getElementById('year-input');
+        if (inputField) inputField.value = 2026;
+
+        window.year = 2026;
+
+        if (d1 && d2) {
+            compare();
+        }
+    };
+
+    // 3. Поиск по кнопке Enter
+    window.handleEnter = function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            window.handleSearch();
+            document.getElementById('year-input').blur(); // Убираем клавиатуру на телефоне
+        }
+    };
 </script>
 </body>
 </html>

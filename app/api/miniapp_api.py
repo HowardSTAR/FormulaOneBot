@@ -479,20 +479,45 @@ async def api_race_details(
 
 
 @web_app.get("/api/compare")
-async def api_compare_drivers(
-        d1: str = Query(..., description="Код первого пилота (NOR)"),
-        d2: str = Query(..., description="Код второго пилота (PIA)"),
-        season: Optional[int] = Query(None)
-):
-    if season is None:
-        season = datetime.now().year
+async def api_compare(d1: str, d2: str, season: int = 2026):
+    """Сравнение пилотов для Web App"""
 
-    data = await get_drivers_comparison_async(season, d1, d2)
+    # 1. ОБЯЗАТЕЛЬНО передаем переменную season (а не хардкод 2026!)
+    schedule = await get_season_schedule_short_async(season)
+    if not schedule:
+        return {"error": "Нет расписания"}
 
-    if not data:
-        return {"status": "error", "message": "No data found"}
+    labels = []
+    d1_history = []
+    d2_history = []
 
-    return {"status": "ok", "data": data}
+    passed_races = [r for r in schedule if r.get("passed")]
+
+    for race in passed_races:
+        round_num = race["round"]
+        labels.append(race.get("event_name", "GP").replace(" Grand Prix", "").replace("Gp", ""))
+
+        # 2. ОБЯЗАТЕЛЬНО передаем season сюда
+        df = await get_race_results_async(season, round_num)
+
+        pts1 = 0
+        pts2 = 0
+        if df is not None and not df.empty:
+            df['Abbreviation'] = df['Abbreviation'].fillna("").astype(str).str.upper()
+            row1 = df[df['Abbreviation'] == d1.upper()]
+            if not row1.empty: pts1 = row1.iloc[0]['Points']
+
+            row2 = df[df['Abbreviation'] == d2.upper()]
+            if not row2.empty: pts2 = row2.iloc[0]['Points']
+
+        d1_history.append(pts1)
+        d2_history.append(pts2)
+
+    return {
+        "labels": labels,
+        "data1": {"code": d1.upper(), "history": d1_history, "color": "#ff8700"},
+        "data2": {"code": d2.upper(), "history": d2_history, "color": "#00d2be"}
+    }
 
 
 @web_app.get("/{full_path:path}")
