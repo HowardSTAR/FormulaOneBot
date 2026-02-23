@@ -4,7 +4,16 @@ from pathlib import Path
 from typing import List, Tuple, Any, Optional
 
 # Настройка путей и логгера
-DB_PATH = "data/bot.db"
+# 1. Защита от "баз-двойников": вычисляем абсолютный путь к корню проекта
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_DIR = BASE_DIR / "data"
+
+# Гарантируем, что папка data существует
+DB_DIR.mkdir(exist_ok=True)
+
+# Единый путь для всех компонентов системы
+DB_PATH = DB_DIR / "bot.db"
+
 logger = logging.getLogger(__name__)
 
 
@@ -118,30 +127,41 @@ db = Database(DB_PATH)
 # --- Хелперы (теперь используют db.conn) ---
 
 async def get_or_create_user(telegram_id) -> int:
-    """Ищет юзера по id. Если нет - создает. Возвращает id БД (с защитой от Web API)."""
+    """Ищет юзера по telegram_id. Если нет - создает."""
     if not db.conn: await db.connect()
 
-    async with db.conn.execute("SELECT id FROM users WHERE telegram_id = ?", (telegram_id,)) as cursor:
+    # Защита от Web API (которое шлет ID как строку)
+    tg_id = int(telegram_id)
+
+    # Ищем строго по telegram_id
+    async with db.conn.execute("SELECT id FROM users WHERE telegram_id = ?", (tg_id,)) as cursor:
         row = await cursor.fetchone()
         if row:
             return row['id'] if hasattr(row, 'keys') else row[0]
 
-    await db.conn.execute("INSERT OR IGNORE INTO users (telegram_id) VALUES (?)", (telegram_id,))
+    # Создаем, заполняя именно telegram_id
+    await db.conn.execute("INSERT OR IGNORE INTO users (telegram_id) VALUES (?)", (tg_id,))
     await db.conn.commit()
 
-    return telegram_id
+    # Возвращаем внутренний id базы
+    async with db.conn.execute("SELECT id FROM users WHERE telegram_id = ?", (tg_id,)) as cursor:
+        row = await cursor.fetchone()
+        if row:
+            return row['id'] if hasattr(row, 'keys') else row[0]
+        return 0
 
 
 async def get_user_settings(telegram_id) -> dict:
     if not db.conn: await db.connect()
 
-    await get_or_create_user(telegram_id)
+    tg_id = int(telegram_id)
+    await get_or_create_user(tg_id)
 
+    # Ищем по telegram_id и достаем новый столбец notifications_enabled
     async with db.conn.execute("SELECT timezone, notify_before, notifications_enabled FROM users WHERE telegram_id = ?",
-                               (telegram_id,)) as cursor:
+                               (tg_id,)) as cursor:
         row = await cursor.fetchone()
         if row:
-            # Универсальное чтение (поддерживает и aiosqlite.Row, и обычные кортежи)
             keys = row.keys() if hasattr(row, 'keys') else []
             return {
                 "timezone": row['timezone'] if 'timezone' in keys else row[0] or "Europe/Moscow",
@@ -154,13 +174,14 @@ async def get_user_settings(telegram_id) -> dict:
 
 
 async def update_user_setting(telegram_id, key: str, value: Any) -> None:
-    # ВАЖНО: Разрешаем обновлять столбец notifications_enabled
     if key not in {"timezone", "notify_before", "notifications_enabled"}:
         return
 
-    await get_or_create_user(telegram_id)
+    tg_id = int(telegram_id)
+    await get_or_create_user(tg_id)
 
-    await db.conn.execute(f"UPDATE users SET {key} = ? WHERE id = ?", (value, telegram_id))
+    # Обновляем строго по telegram_id
+    await db.conn.execute(f"UPDATE users SET {key} = ? WHERE telegram_id = ?", (value, tg_id))
     await db.conn.commit()
 
 
