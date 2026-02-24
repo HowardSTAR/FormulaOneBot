@@ -489,7 +489,17 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
     if not schedule:
         return {"error": f"Нет расписания на {season} год"}
 
-    passed_races = [r for r in schedule if r.get("passed")]
+    today = datetime.now().date()
+    passed_races = []
+
+    for r in schedule:
+        try:
+            r_date = datetime.strptime(r["date"], "%Y-%m-%d").date()
+            if r_date < today:
+                passed_races.append(r)
+        except Exception:
+            continue
+
     if not passed_races:
         # Возвращаем красивую ошибку, которую поймет фронтенд
         return {"error": f"В {season} году еще не было прошедших гонок для сравнения."}
@@ -512,15 +522,19 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
         if df is not None and not isinstance(df, Exception) and not df.empty:
             df['Abbreviation'] = df['Abbreviation'].fillna("").astype(str).str.upper()
 
+            # Обработка первого пилота
             row1 = df[df['Abbreviation'] == d1.upper()]
-            if not row1.empty: pts1 = row1.iloc[0]['Points']
+            if not row1.empty:
+                val1 = row1.iloc[0]['Points']
+                pts1 = 0 if pd.isna(val1) else float(val1)
 
             row2 = df[df['Abbreviation'] == d2.upper()]
-            if not row2.empty: pts2 = row2.iloc[0]['Points']
+            if not row2.empty:
+                val2 = row2.iloc[0]['Points']
+                pts2 = 0 if pd.isna(val2) else float(val2)
 
         d1_history.append(pts1)
         d2_history.append(pts2)
-
     return {
         "labels": labels,
         "data1": {"code": d1.upper(), "history": d1_history, "color": "#ff8700"},
