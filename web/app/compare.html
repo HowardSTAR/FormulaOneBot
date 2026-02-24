@@ -240,6 +240,13 @@
             </div>
         </div>
 
+        <div class="stat-card" style="margin-bottom: 20px;">
+            <div class="stat-title">Сумма очков</div>
+            <div class="stat-score">
+                <span id="pts-s1" class="s-d1">0</span> : <span id="pts-s2" class="s-d2">0</span>
+            </div>
+        </div>
+
         <div class="chart-container">
             <canvas id="pointsChart"></canvas>
         </div>
@@ -321,35 +328,48 @@
 
     // === ОТРИСОВКА ГРАФИКА И СЧЕТА ===
     function renderStats(data, c1, c2) {
-        // 1. Защита от пустых сезонов
         if (!data.labels || data.labels.length === 0) {
             alert(`В выбранном году еще не было гонок для сравнения!`);
             return;
         }
 
-        // ИСПРАВЛЕНИЕ 1: Правильный ID холста - pointsChart
         const ctx = document.getElementById('pointsChart').getContext('2d');
         if (window.compareChart instanceof Chart) {
             window.compareChart.destroy();
         }
 
-        const d1_info = data.data1 || data.driver1 || { code: c1, history: [], color: '#ff8700' };
-        const d2_info = data.data2 || data.driver2 || { code: c2, history: [], color: '#00d2be' };
+        const d1_info = data.data1 || { code: c1, history: [], color: '#ff8700' };
+        const d2_info = data.data2 || { code: c2, history: [], color: '#00d2be' };
 
-        // ИСПРАВЛЕНИЕ 3: Подсчет побед в гонках (кто набрал больше очков)
         let score1 = 0;
         let score2 = 0;
+        let totalPts1 = 0;
+        let totalPts2 = 0;
+
         for (let i = 0; i < data.labels.length; i++) {
             let pts1 = d1_info.history[i] || 0;
             let pts2 = d2_info.history[i] || 0;
+
+            // Суммируем конечные очки
+            totalPts1 += pts1;
+            totalPts2 += pts2;
+
             if (pts1 > pts2) score1++;
             else if (pts2 > pts1) score2++;
         }
 
-        // Обновляем счет на экране
+        // Вписываем данные гонок и очков в HTML
         document.getElementById('race-s1').innerText = score1;
         document.getElementById('race-s2').innerText = score2;
-        // (Для квалификаций API пока не возвращает данные, оставим 0 или можно скрыть блок)
+
+        document.getElementById('pts-s1').innerText = totalPts1;
+        document.getElementById('pts-s2').innerText = totalPts2;
+
+        // Подхватываем квалификации из ответа сервера
+        if (data.q_score) {
+            document.getElementById('quali-s1').innerText = data.q_score[0];
+            document.getElementById('quali-s2').innerText = data.q_score[1];
+        }
 
         window.compareChart = new Chart(ctx, {
             type: 'line',

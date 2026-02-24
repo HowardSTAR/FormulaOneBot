@@ -501,7 +501,6 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
             continue
 
     if not passed_races:
-        # Возвращаем красивую ошибку, которую поймет фронтенд
         return {"error": f"В {season} году еще не было прошедших гонок для сравнения."}
 
     labels = []
@@ -516,27 +515,47 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     d1_history, d2_history = [], []
+    q_score1, q_score2 = 0, 0  # Счет квалификаций
 
     for df in results:
         pts1, pts2 = 0, 0
+        grid1, grid2 = 999, 999
+
         if df is not None and not isinstance(df, Exception) and not df.empty:
             df['Abbreviation'] = df['Abbreviation'].fillna("").astype(str).str.upper()
 
             # Обработка первого пилота
             row1 = df[df['Abbreviation'] == d1.upper()]
             if not row1.empty:
-                val1 = row1.iloc[0]['Points']
+                val1 = row1.iloc[0].get('Points', 0)
                 pts1 = 0 if pd.isna(val1) else float(val1)
 
+                # Достаем стартовую позицию (Grid) для сравнения квал
+                g1 = row1.iloc[0].get('GridPosition', row1.iloc[0].get('Grid', 999))
+                grid1 = 999 if pd.isna(g1) else float(g1)
+
+            # Обработка второго пилота
             row2 = df[df['Abbreviation'] == d2.upper()]
             if not row2.empty:
-                val2 = row2.iloc[0]['Points']
+                val2 = row2.iloc[0].get('Points', 0)
                 pts2 = 0 if pd.isna(val2) else float(val2)
+
+                g2 = row2.iloc[0].get('GridPosition', row2.iloc[0].get('Grid', 999))
+                grid2 = 999 if pd.isna(g2) else float(g2)
+
+            # Сравниваем, кто стартовал выше (у кого позиция меньше)
+            if grid1 != 999 and grid2 != 999:
+                if grid1 < grid2:
+                    q_score1 += 1
+                elif grid2 < grid1:
+                    q_score2 += 1
 
         d1_history.append(pts1)
         d2_history.append(pts2)
+
     return {
         "labels": labels,
+        "q_score": [q_score1, q_score2],  # Передаем счет на фронтенд
         "data1": {"code": d1.upper(), "history": d1_history, "color": "#ff8700"},
         "data2": {"code": d2.upper(), "history": d2_history, "color": "#00d2be"}
     }
