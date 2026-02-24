@@ -190,45 +190,6 @@
         }
     });
 
-    document.addEventListener('DOMContentLoaded', async () => {
-        const notifyToggle = document.getElementById('notifyToggle');
-        const user = getUserInfo(); // Функция из твоего common.js
-
-        if (!user) return;
-
-        // 1. ЗАГРУЗКА: Получаем текущий статус из БД при открытии
-        try {
-            const response = await apiRequest(`/api/settings/notifications?user_id=${user.id}`);
-            notifyToggle.checked = response.notifications_enabled;
-        } catch (error) {
-            console.error("Не удалось загрузить настройки:", error);
-        }
-
-        // 2. ДЕЙСТВИЕ: Слушаем клик пользователя
-        notifyToggle.addEventListener('change', async (event) => {
-            const isEnabled = event.target.checked;
-
-            try {
-                // Отправляем POST запрос через твою обертку
-                await apiRequest(`/api/settings/notifications?user_id=${user.id}`, {
-                    is_enabled: isEnabled
-                }, 'POST');
-
-                // Фишка Telegram: легкая вибрация телефона при успешном сохранении!
-                if (tg && tg.HapticFeedback) {
-                    tg.HapticFeedback.impactOccurred('light');
-                }
-            } catch (error) {
-                console.error("Ошибка при сохранении:", error);
-                // Если запрос упал, откатываем тумблер визуально назад
-                notifyToggle.checked = !isEnabled;
-
-                if (tg) {
-                    tg.showAlert("Ошибка при сохранении настроек");
-                }
-            }
-        });
-    });
 
     function updateTimePreview() {
         const select = document.getElementById('timezone-select');
@@ -251,21 +212,18 @@
         }
     }
 
-    // Функция инициализации кастомных селектов
+    // Инициализация кастомных селектов
     function initCustomSelects() {
         const selects = document.querySelectorAll('.setting-select');
 
         selects.forEach(select => {
-            // 1. Скрываем нативный селект
             select.style.display = 'none';
 
-            // 2. Создаем обертку
             const wrapper = document.createElement('div');
             wrapper.className = 'custom-select-wrapper';
             select.parentNode.insertBefore(wrapper, select);
-            wrapper.appendChild(select); // Прячем настоящий select внутрь
+            wrapper.appendChild(select);
 
-            // 3. Создаем кнопку-триггер
             const trigger = document.createElement('div');
             trigger.className = 'custom-select-trigger';
 
@@ -278,7 +236,6 @@
             trigger.appendChild(arrow);
             wrapper.appendChild(trigger);
 
-            // 4. Создаем выпадающий список вариантов
             const optionsContainer = document.createElement('div');
             optionsContainer.className = 'custom-options';
 
@@ -289,16 +246,13 @@
                 customOption.innerText = option.text;
                 customOption.dataset.value = option.value;
 
-                // Обработка выбора
                 customOption.addEventListener('click', function(e) {
                     e.stopPropagation();
                     select.value = this.dataset.value;
                     selectedText.innerText = this.innerText;
 
-                    // Триггерим событие change (чтобы сработало обновление превью времени)
                     select.dispatchEvent(new Event('change'));
 
-                    // Обновляем выделение
                     optionsContainer.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
                     this.classList.add('selected');
 
@@ -309,16 +263,13 @@
             });
             wrapper.appendChild(optionsContainer);
 
-            // Открытие/закрытие списка
             trigger.addEventListener('click', function(e) {
                 e.stopPropagation();
-                // Закрываем все остальные открытые списки
                 document.querySelectorAll('.custom-select-wrapper').forEach(w => {
                     if (w !== wrapper) w.classList.remove('open');
                 });
                 wrapper.classList.toggle('open');
 
-                // Скроллим к выбранному элементу при открытии
                 if (wrapper.classList.contains('open')) {
                     const selectedEl = optionsContainer.querySelector('.selected');
                     if (selectedEl) {
@@ -328,13 +279,12 @@
             });
         });
 
-        // Закрытие при клике в любое место экрана
         document.addEventListener('click', function() {
             document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
         });
     }
 
-    // Функция для синхронизации визуала при загрузке данных с сервера
+    // Синхронизация кастомных селектов при загрузке данных
     function syncCustomSelect(selectId) {
         const select = document.getElementById(selectId);
         if (!select) return;
@@ -355,17 +305,23 @@
         });
     }
 
+    // Сохранение настроек (вызывается только по кнопке!)
     async function saveSettings() {
         const tz = document.getElementById('timezone-select').value;
-        const notify = parseInt(document.getElementById('notify-select') ? document.getElementById('notify-select').value : 60);
-        const isEnabled = document.getElementById('notifyToggle').checked; // Считали тумблер
+        const notifySelect = document.getElementById('notify-select');
+        const notify = parseInt(notifySelect ? notifySelect.value : 60);
+        const isEnabled = document.getElementById('notifyToggle').checked;
 
         try {
             await apiRequest('/api/settings', {
                 timezone: tz,
                 notify_before: notify,
-                notifications_enabled: isEnabled // Отправили на бэкенд
+                notifications_enabled: isEnabled
             }, 'POST');
+
+            if (tg && tg.HapticFeedback) {
+                tg.HapticFeedback.impactOccurred('light');
+            }
 
             const toast = document.getElementById("toast");
             toast.className = "show";
@@ -377,37 +333,45 @@
     }
 
     async function loadSettings() {
-        const data = await apiRequest('/api/settings');
+        try {
+            const data = await apiRequest('/api/settings');
 
-        if (data.timezone) {
-            document.getElementById('timezone-select').value = data.timezone;
-            syncCustomSelect('timezone-select'); // СИНХРОНИЗИРУЕМ КАСОМНЫЙ UI
-        }
-
-        // Предполагаю, что у вас есть подгрузка времени уведомления, добавьте для нее тоже:
-        if (data.notify_before) {
-            const notifySelect = document.getElementById('notify-select');
-            if (notifySelect) {
-                notifySelect.value = data.notify_before;
-                syncCustomSelect('notify-select'); // СИНХРОНИЗИРУЕМ КАСОМНЫЙ UI
+            if (data.timezone) {
+                document.getElementById('timezone-select').value = data.timezone;
+                syncCustomSelect('timezone-select');
             }
-        }
 
-        const toggle = document.getElementById('notifyToggle');
-        if (toggle && data.notifications_enabled !== undefined) {
-            toggle.checked = data.notifications_enabled;
-        }
+            if (data.notify_before) {
+                const notifySelect = document.getElementById('notify-select');
+                if (notifySelect) {
+                    notifySelect.value = data.notify_before;
+                    syncCustomSelect('notify-select');
+                }
+            }
 
-        if (typeof updateTimePreview === 'function') updateTimePreview();
+            const toggle = document.getElementById('notifyToggle');
+            if (toggle && data.notifications_enabled !== undefined) {
+                toggle.checked = data.notifications_enabled;
+            }
+
+            updateTimePreview();
+        } catch (e) {
+            console.error("Ошибка загрузки настроек:", e);
+        }
     }
 
     // Инициализируем при загрузке DOM
     document.addEventListener('DOMContentLoaded', () => {
-        if (window.Telegram && window.Telegram.WebApp) {
-            window.Telegram.WebApp.ready();
-        }
+        initTelegram();
 
-        initCustomSelects(); // ПРЕВРАЩАЕМ ВСЕ SELECT В КРАСИВЫЕ СПИСКИ
+        // Запускаем часы
+        updateTimePreview();
+        timerId = setInterval(updateTimePreview, 1000);
+
+        // Строим интерфейс списков
+        initCustomSelects();
+
+        // Загружаем данные с сервера
         loadSettings();
     });
 </script>
