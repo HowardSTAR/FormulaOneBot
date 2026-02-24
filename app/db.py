@@ -267,19 +267,21 @@ async def _set_round_value(season: int, column: str, value: int) -> None:
 
 
 async def get_all_users() -> list[int]:
-    """Получает список ID всех пользователей бота для тихой рассылки."""
+    """Получает список ID всех пользователей из таблицы users для тихой рассылки."""
     if db.conn is None:
+        logger.error("Критическая ошибка: соединение с БД не установлено (db.conn is None)")
         return []
 
     try:
-        # ВНИМАНИЕ: Если таблица называется 'users', замените 'user_settings' на 'users'.
-        # Если колонка ID называется 'telegram_id', замените 'user_id' на 'telegram_id'.
-        async with db.conn.execute("SELECT user_id FROM user_settings") as cursor:
+        # Используем точные имена из вашего PRAGMA: telegram_id и users
+        async with db.conn.execute("SELECT telegram_id FROM users") as cursor:
             rows = await cursor.fetchall()
-            return [row["user_id"] for row in rows]
+
+            # Извлекаем данные по ключу telegram_id
+            return [row["telegram_id"] for row in rows]
 
     except Exception as e:
-        logger.error(f"Ошибка при получении списка пользователей для рассылки: {e}")
+        logger.error(f"Ошибка при получении списка пользователей из таблицы users: {e}")
         return []
 
 
