@@ -251,6 +251,110 @@
         }
     }
 
+    // Функция инициализации кастомных селектов
+    function initCustomSelects() {
+        const selects = document.querySelectorAll('.setting-select');
+
+        selects.forEach(select => {
+            // 1. Скрываем нативный селект
+            select.style.display = 'none';
+
+            // 2. Создаем обертку
+            const wrapper = document.createElement('div');
+            wrapper.className = 'custom-select-wrapper';
+            select.parentNode.insertBefore(wrapper, select);
+            wrapper.appendChild(select); // Прячем настоящий select внутрь
+
+            // 3. Создаем кнопку-триггер
+            const trigger = document.createElement('div');
+            trigger.className = 'custom-select-trigger';
+
+            const selectedText = document.createElement('span');
+            selectedText.innerText = select.options[select.selectedIndex]?.text || "Выберите...";
+            trigger.appendChild(selectedText);
+
+            const arrow = document.createElement('div');
+            arrow.className = 'select-arrow';
+            trigger.appendChild(arrow);
+            wrapper.appendChild(trigger);
+
+            // 4. Создаем выпадающий список вариантов
+            const optionsContainer = document.createElement('div');
+            optionsContainer.className = 'custom-options';
+
+            Array.from(select.options).forEach(option => {
+                const customOption = document.createElement('div');
+                customOption.className = 'custom-option';
+                if (option.selected) customOption.classList.add('selected');
+                customOption.innerText = option.text;
+                customOption.dataset.value = option.value;
+
+                // Обработка выбора
+                customOption.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    select.value = this.dataset.value;
+                    selectedText.innerText = this.innerText;
+
+                    // Триггерим событие change (чтобы сработало обновление превью времени)
+                    select.dispatchEvent(new Event('change'));
+
+                    // Обновляем выделение
+                    optionsContainer.querySelectorAll('.custom-option').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+
+                    wrapper.classList.remove('open');
+                });
+
+                optionsContainer.appendChild(customOption);
+            });
+            wrapper.appendChild(optionsContainer);
+
+            // Открытие/закрытие списка
+            trigger.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Закрываем все остальные открытые списки
+                document.querySelectorAll('.custom-select-wrapper').forEach(w => {
+                    if (w !== wrapper) w.classList.remove('open');
+                });
+                wrapper.classList.toggle('open');
+
+                // Скроллим к выбранному элементу при открытии
+                if (wrapper.classList.contains('open')) {
+                    const selectedEl = optionsContainer.querySelector('.selected');
+                    if (selectedEl) {
+                        optionsContainer.scrollTop = selectedEl.offsetTop - (optionsContainer.clientHeight / 2) + (selectedEl.clientHeight / 2);
+                    }
+                }
+            });
+        });
+
+        // Закрытие при клике в любое место экрана
+        document.addEventListener('click', function() {
+            document.querySelectorAll('.custom-select-wrapper').forEach(w => w.classList.remove('open'));
+        });
+    }
+
+    // Функция для синхронизации визуала при загрузке данных с сервера
+    function syncCustomSelect(selectId) {
+        const select = document.getElementById(selectId);
+        if (!select) return;
+        const wrapper = select.closest('.custom-select-wrapper');
+        if (!wrapper) return;
+
+        const triggerSpan = wrapper.querySelector('.custom-select-trigger span');
+        const options = wrapper.querySelectorAll('.custom-option');
+
+        triggerSpan.innerText = select.options[select.selectedIndex]?.text || "";
+
+        options.forEach(opt => {
+            if (opt.dataset.value === select.value) {
+                opt.classList.add('selected');
+            } else {
+                opt.classList.remove('selected');
+            }
+        });
+    }
+
     async function saveSettings() {
         const tz = document.getElementById('timezone-select').value;
         const notify = parseInt(document.getElementById('notify-select') ? document.getElementById('notify-select').value : 60);
@@ -274,26 +378,38 @@
 
     async function loadSettings() {
         const data = await apiRequest('/api/settings');
+
         if (data.timezone) {
             document.getElementById('timezone-select').value = data.timezone;
+            syncCustomSelect('timezone-select'); // СИНХРОНИЗИРУЕМ КАСОМНЫЙ UI
         }
 
-        // Включаем тумблер, если в базе True
+        // Предполагаю, что у вас есть подгрузка времени уведомления, добавьте для нее тоже:
+        if (data.notify_before) {
+            const notifySelect = document.getElementById('notify-select');
+            if (notifySelect) {
+                notifySelect.value = data.notify_before;
+                syncCustomSelect('notify-select'); // СИНХРОНИЗИРУЕМ КАСОМНЫЙ UI
+            }
+        }
+
         const toggle = document.getElementById('notifyToggle');
         if (toggle && data.notifications_enabled !== undefined) {
             toggle.checked = data.notifications_enabled;
         }
 
-        // Обновляем время, если есть функция
         if (typeof updateTimePreview === 'function') updateTimePreview();
     }
 
+    // Инициализируем при загрузке DOM
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+        }
 
-    if (window.Telegram && window.Telegram.WebApp) {
-        window.Telegram.WebApp.ready();
-    }
-
-    loadSettings();
+        initCustomSelects(); // ПРЕВРАЩАЕМ ВСЕ SELECT В КРАСИВЫЕ СПИСКИ
+        loadSettings();
+    });
 </script>
 </body>
 </html>
