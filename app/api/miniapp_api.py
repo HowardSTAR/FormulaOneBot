@@ -478,37 +478,35 @@ async def api_race_details(
     return data
 
 
+import asyncio  # Убедись, что это импортировано вверху файла
+
+
 @web_app.get("/api/compare")
-async def api_compare(d1: str, d2: str, season: int = 2026):
+async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО season!
     """Сравнение пилотов для Web App"""
 
-    # 1. СТРОГО используем переданный season!
     schedule = await get_season_schedule_short_async(season)
     if not schedule:
         return {"error": f"Нет расписания на {season} год"}
 
     passed_races = [r for r in schedule if r.get("passed")]
     if not passed_races:
-        return {"labels": [], "data1": {}, "data2": {}}
+        # Возвращаем красивую ошибку, которую поймет фронтенд
+        return {"error": f"В {season} году еще не было прошедших гонок для сравнения."}
 
     labels = []
     tasks = []
 
-    # 2. Собираем задачи в пул для мгновенной загрузки (как у бота)
     for race in passed_races:
         round_num = race["round"]
         labels.append(race.get("event_name", f"Этап {round_num}").replace(" Grand Prix", "").replace("Gp", ""))
-
-        # СТРОГО season!
+        # Передаем season
         tasks.append(get_race_results_async(season, round_num))
 
-    # Запускаем все скачивания параллельно!
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    d1_history = []
-    d2_history = []
+    d1_history, d2_history = [], []
 
-    # 3. Парсим результаты
     for df in results:
         pts1, pts2 = 0, 0
         if df is not None and not isinstance(df, Exception) and not df.empty:

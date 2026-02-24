@@ -466,7 +466,7 @@
                     document.getElementById('results-area').scrollIntoView({behavior: "smooth"});
                 }, 100);
             } else {
-                alert("Данные не найдены: " + (res.error || "Пустой ответ"));
+                alert(res.error || "Данные не найдены.");
             }
         } catch(e) {
             console.error("КРИТИЧЕСКАЯ ОШИБКА JS:", e);
