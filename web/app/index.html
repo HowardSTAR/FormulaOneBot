@@ -166,6 +166,81 @@
         return `${day} ${months[month] || ""}`;
     }
 
+    function initDynamicTimer(sessions) {
+        // Замени эти ID на те, что реально используются в верстке твоей карточки на главной
+        const timerValueEl = document.getElementById('timer-value');
+        const sessionNameEl = document.getElementById('session-name'); // Лейбл над таймером
+        const sessionDateEl = document.getElementById('session-date'); // Вывод даты
+
+        // Примерная продолжительность сессии в миллисекундах (например, 1.5 часа)
+        // Это нужно, чтобы понимать, когда сессия "идет", а когда уже "закончилась"
+        const SESSION_DURATION = 90 * 60 * 1000;
+
+        const timerInterval = setInterval(() => {
+            const now = new Date();
+            let activeSession = null;
+            let status = 'completed'; // 'future' | 'running' | 'completed'
+
+            // Проходим по расписанию и ищем первую не завершенную сессию
+            for (let session of sessions) {
+                const startTime = new Date(session.utc);
+                const endTime = new Date(startTime.getTime() + SESSION_DURATION);
+
+                if (now < startTime) {
+                    activeSession = session;
+                    status = 'future';
+                    break;
+                } else if (now >= startTime && now <= endTime) {
+                    activeSession = session;
+                    status = 'running';
+                    break;
+                }
+            }
+
+            // Если уик-энд полностью завершен (все сессии прошли)
+            if (!activeSession) {
+                clearInterval(timerInterval);
+                sessionNameEl.textContent = "Уик-энд завершен";
+                timerValueEl.textContent = "00:00:00";
+                return;
+            }
+
+            // 1. Обновляем название и правильную ДАТУ именно этой сессии
+            const sessionDate = new Date(activeSession.utc);
+            sessionNameEl.textContent = activeSession.name;
+
+            // Форматируем дату с учетом таймзоны пользователя
+            sessionDateEl.textContent = sessionDate.toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'long'
+            });
+
+            // 2. Логика отображения таймера или статуса "идет"
+            if (status === 'running') {
+                timerValueEl.textContent = `${activeSession.name} идет`;
+            } else if (status === 'future') {
+                const diff = sessionDate - now;
+
+                const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                const m = Math.floor((diff / 1000 / 60) % 60);
+                const s = Math.floor((diff / 1000) % 60);
+
+                // Если до сессии больше суток, показываем дни, иначе только часы:минуты:секунды
+                if (d > 0) {
+                    timerValueEl.textContent = `${d}д ${pad(h)}:${pad(m)}:${pad(s)}`;
+                } else {
+                    timerValueEl.textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
+                }
+            }
+        }, 1000);
+
+        // Вспомогательная функция для добавления ведущих нулей
+        function pad(num) {
+            return num.toString().padStart(2, '0');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', async () => {
         initTelegram();
 
@@ -180,65 +255,119 @@
             const timerBlock = document.getElementById('hero-timer');
             const timerVal = document.getElementById('timer-val');
 
-            if (data.status === 'ok') {
+if (data.status === 'ok') {
                 titleEl.textContent = data.event_name;
 
-                // --- НОВАЯ ЛОГИКА ОТОБРАЖЕНИЯ ДАТЫ С ЧАСОВЫМ ПОЯСОМ ---
-                // Запрашиваем настройки (параллельно с основным потоком, но здесь упростим)
-                // Для идеальной работы лучше запрашивать их вместе, как в next-race.html
-                // Но даже без этого, если настройки уже закэшированы браузером или дефолтные, будет работать.
-
-                let displayDate = "";
+                // Получаем настройки таймзоны
+                const settings = await apiRequest('/api/settings').catch(() => ({ timezone: 'UTC' }));
+                const userTz = settings.timezone || 'UTC';
 
                 try {
-                    // Получаем настройки для таймзоны
-                    const settings = await apiRequest('/api/settings').catch(() => ({ timezone: 'UTC' }));
-                    const userTz = settings.timezone || 'UTC';
-
-                    // Запрашиваем расписание, чтобы найти дату гонки
+                    // Запрашиваем полное расписание для динамического таймера
                     const schedule = await apiRequest('/api/weekend-schedule', {
                         season: data.season,
                         round_number: data.round
                     });
 
-                    const raceSession = schedule.sessions.find(s =>
-                        s.name === 'Гонка' || s.name === 'Race'
-                    );
+                    if (schedule && schedule.sessions && schedule.sessions.length > 0) {
+                        timerBlock.style.display = 'block';
+                        // Считаем, что сессия длится ~1.5 часа (90 минут).
+                        // В течение этого времени будет гореть статус "СЕССИЯ ИДЕТ"
+                        const SESSION_DURATION = 90 * 60 * 1000;
 
-                    if (raceSession && raceSession.utc_iso) {
-                        const dateObj = new Date(raceSession.utc_iso);
-                        displayDate = dateObj.toLocaleDateString('ru-RU', {
-                            timeZone: userTz,
-                            day: 'numeric',
-                            month: 'long'
-                        }).toUpperCase();
+                        function updateDynamicTimer() {
+                            const now = new Date().getTime();
+                            let activeSession = null;
+                            let status = 'completed';
+
+                            // Ищем текущую или ближайшую будущую сессию
+                            for (let session of schedule.sessions) {
+                                if (!session.utc_iso) continue;
+
+                                const startTime = new Date(session.utc_iso).getTime();
+                                const endTime = startTime + SESSION_DURATION;
+
+                                if (now < startTime) {
+                                    activeSession = session;
+                                    status = 'future';
+                                    break;
+                                } else if (now >= startTime && now <= endTime) {
+                                    activeSession = session;
+                                    status = 'running';
+                                    break;
+                                }
+                            }
+
+                            // Если все сессии уик-энда завершены
+                            if (!activeSession) {
+                                if (window.mainTimer) clearInterval(window.mainTimer);
+                                subEl.textContent = "УИК-ЭНД ЗАВЕРШЕН";
+                                timerBlock.style.display = 'none';
+                                return;
+                            }
+
+                            // 1. ВЫСТАВЛЯЕМ ДАТУ ИМЕННО ЭТОЙ СЕССИИ (Практики/Квалы/Гонки)
+                            const dateObj = new Date(activeSession.utc_iso);
+                            dateEl.textContent = dateObj.toLocaleDateString('ru-RU', {
+                                timeZone: userTz,
+                                day: 'numeric',
+                                month: 'long'
+                            }).toUpperCase();
+                            dateEl.style.display = 'inline-block';
+
+                            // 2. ОБНОВЛЯЕМ СТАТУС (Таймер или "LIVE")
+                            if (status === 'running') {
+                                subEl.innerHTML = `<span class="session-badge" style="background: white; color: #e10600;">LIVE: ${activeSession.name}</span>`;
+                                timerVal.textContent = "СЕССИЯ ИДЕТ";
+                            } else {
+                                subEl.innerHTML = `<span class="session-badge">${activeSession.name}</span>`;
+
+                                const distance = new Date(activeSession.utc_iso).getTime() - now;
+                                const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                                const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                                const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                                let text = "";
+                                if (days > 0) text += `${days}д `;
+                                text += `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                                timerVal.textContent = text;
+                            }
+                        }
+
+                        // Запускаем динамический цикл
+                        updateDynamicTimer();
+                        if (window.mainTimer) clearInterval(window.mainTimer);
+                        window.mainTimer = setInterval(updateDynamicTimer, 1000);
+                        return; // Завершаем выполнение, так как динамика заработала
                     }
                 } catch (e) {
-                    // console.warn("Не удалось уточнить дату по часовому поясу", e);
+                    console.warn("Не удалось загрузить расписание для динамики, используем Fallback", e);
                 }
 
-                // Fallback
-                if (!displayDate) {
-                    let rawDate = "";
-                    if (data.fmt_date) rawDate = data.fmt_date.split(' ')[0];
-                    else if (data.local) rawDate = data.local.split(' ')[0];
-                    else rawDate = data.date;
-                    displayDate = formatDateToText(rawDate);
+                // === FALLBACK (Если API расписания не ответило) ===
+                if (data.next_session_iso) {
+                    const dateObj = new Date(data.next_session_iso);
+                    dateEl.textContent = dateObj.toLocaleDateString('ru-RU', {
+                        timeZone: userTz,
+                        day: 'numeric',
+                        month: 'long'
+                    }).toUpperCase();
+                } else {
+                    let rawDate = data.fmt_date ? data.fmt_date.split(' ')[0] : (data.local ? data.local.split(' ')[0] : data.date);
+                    dateEl.textContent = formatDateToText(rawDate);
                 }
-
-                dateEl.textContent = displayDate;
-                // -------------------------------------------------------
 
                 if (data.next_session_iso && data.next_session_name) {
                     subEl.innerHTML = `<span class="session-badge">${data.next_session_name}</span>`;
                     const targetTime = new Date(data.next_session_iso).getTime();
                     timerBlock.style.display = 'block';
 
-                    function updateTimer() {
+                    function fallbackUpdateTimer() {
                         const now = new Date().getTime();
                         const distance = targetTime - now;
                         if (distance < 0) {
-                            clearInterval(timerInterval);
+                            clearInterval(window.mainTimer);
                             subEl.innerHTML = `<span class="session-badge" style="background: white; color: #e10600;">LIVE: ${data.next_session_name}</span>`;
                             timerVal.textContent = "СЕССИЯ ИДЕТ";
                             return;
@@ -249,11 +378,12 @@
                         const seconds = Math.floor((distance % (1000 * 60)) / 1000);
                         let text = "";
                         if (days > 0) text += `${days}д `;
-                        text += `${hours}ч ${minutes}м ${seconds}с`;
+                        text += `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
                         timerVal.textContent = text;
                     }
-                    updateTimer();
-                    timerInterval = setInterval(updateTimer, 1000);
+                    fallbackUpdateTimer();
+                    if(window.mainTimer) clearInterval(window.mainTimer);
+                    window.mainTimer = setInterval(fallbackUpdateTimer, 1000);
                 } else {
                     subEl.textContent = "БЛИЖАЙШИЙ ЭТАП";
                 }
