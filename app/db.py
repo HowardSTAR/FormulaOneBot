@@ -266,6 +266,23 @@ async def _set_round_value(season: int, column: str, value: int) -> None:
     await db.conn.commit()
 
 
+async def get_all_users() -> list[int]:
+    """Получает список ID всех пользователей бота для тихой рассылки."""
+    if db.conn is None:
+        return []
+
+    try:
+        # ВНИМАНИЕ: Если таблица называется 'users', замените 'user_settings' на 'users'.
+        # Если колонка ID называется 'telegram_id', замените 'user_id' на 'telegram_id'.
+        async with db.conn.execute("SELECT user_id FROM user_settings") as cursor:
+            rows = await cursor.fetchall()
+            return [row["user_id"] for row in rows]
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении списка пользователей для рассылки: {e}")
+        return []
+
+
 # Алиасы (оставил как было для совместимости с app/handlers/races.py)
 async def get_last_reminded_round(season: int) -> int | None: return await _get_round_value(season,
                                                                                             "last_reminded_round")

@@ -1,11 +1,13 @@
+import asyncio
 import logging
 from datetime import datetime, timezone
 
 from aiogram import Router
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
-from app.db import get_all_users_with_favorites
+from app.config import get_settings
+from app.db import get_all_users_with_favorites, get_all_users
 from app.f1_data import get_season_schedule_short_async, get_race_results_async
 # Импортируем наши функции
 from app.utils.notifications import (
@@ -187,3 +189,58 @@ async def cmd_force_notify(message: Message, bot):
     if message.from_user.id not in ADMINS: return
     await message.answer("🚀 Запускаю боевую рассылку...")
     await check_and_send_notifications(bot)
+
+
+@router.message(Command("broadcast"))
+async def admin_silent_broadcast(message: Message, command: CommandObject):
+    # 1. Проверка безопасности: получаем актуальный список админов из конфига
+    settings = get_settings()
+
+    # Сравниваем ID отправителя со списком из .env
+    if message.from_user.id not in settings.admin_ids:
+        return  # Тихий игнор для всех посторонних
+
+    # 2. Проверяем наличие текста сообщения
+    text_to_send = command.args
+    if not text_to_send:
+        await message.answer(
+            "⚠️ Использование: <code>/broadcast Ваш текст</code>\n"
+            "Сообщение будет отправлено всем <b>без звука</b>.",
+            parse_mode="HTML"
+        )
+        return
+
+    # 3. Выгружаем пелотон
+    users = await get_all_users()
+    if not users:
+        await message.answer("В базе данных нет пользователей.")
+        return
+
+    await message.answer(f"🏁 Начинаю тихую рассылку для {len(users)} пользователей...")
+
+    success_count = 0
+    blocked_count = 0
+
+    # 4. Рассылка с ограничением скорости
+    for user_id in users:
+        try:
+            await message.bot.send_message(
+                chat_id=user_id,
+                text=text_to_send,
+                disable_notification=True,  # Тихий режим активирован
+                parse_mode="HTML"
+            )
+            success_count += 1
+        except Exception as e:
+            blocked_count += 1
+
+        # Ограничитель скорости API
+        await asyncio.sleep(0.05)
+
+    # 5. Отчет
+    await message.answer(
+        f"✅ <b>Рассылка завершена!</b>\n"
+        f"Успешно доставлено: {success_count}\n"
+        f"Заблокировали бота / Недоступны: {blocked_count}",
+        parse_mode="HTML"
+    )
