@@ -1,6 +1,10 @@
 # Идеально чистый и быстрый образ на Python
 FROM python:3.11-slim
 
+ARG APP_VERSION=0.1.1
+ENV APP_VERSION=$APP_VERSION
+LABEL version=$APP_VERSION
+
 WORKDIR /app
 
 # Установка системных зависимостей

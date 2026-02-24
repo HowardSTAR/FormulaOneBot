@@ -7,7 +7,10 @@ services:
     command: redis-server --save 60 1 --loglevel warning
 
   bot:
-    build: .
+    build:
+      context: .
+      args:
+        - APP_VERSION=0.1.1
     restart: unless-stopped
     command: python -m app.main
     env_file:
