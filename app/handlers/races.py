@@ -104,7 +104,7 @@ async def _send_next_race_message(message: Message, user_id: int, season: int | 
         [InlineKeyboardButton(text="⏱ Квалификация", callback_data=f"quali_{payload['season']}_{payload['round']}"),
          InlineKeyboardButton(text="🏁 Гонка", callback_data=f"race_{payload['season']}_{payload['round']}")],
         [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu"),
-         InlineKeyboardButton(text="⚙️ Настройки (Время)", callback_data=f"settings_race_{payload['season']}")]
+         InlineKeyboardButton(text="⚙️ Настройки", callback_data=f"settings_race_{payload['season']}")]
     ])
 
     if is_edit:

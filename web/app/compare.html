@@ -196,9 +196,9 @@
     <h2>Сравнение</h2>
 
     <div class="search-container">
-        <input type="number" id="year-input" class="search-input" placeholder="Введи год" inputmode="numeric">
-        <button class="search-btn" onclick="handleSearch()">🔍</button>
-        <button id="current-year-btn" class="current-year-btn" onclick="goCurrentYear()">2026</button>
+        <input type="number" id="year-input" class="search-input" placeholder="Введи год" inputmode="numeric" onkeypress="handleEnter(event)">
+        <button class="search-btn" onclick="window.handleSearch()">🔍</button>
+        <button class="current-year-btn" onclick="window.goCurrentYear()">2026</button>
     </div>
 
     <div class="selectors">
@@ -237,6 +237,13 @@
                 <div class="stat-score">
                     <span id="quali-s1" class="s-d1">0</span> : <span id="quali-s2" class="s-d2">0</span>
                 </div>
+            </div>
+        </div>
+
+        <div class="stat-card" style="margin-bottom: 20px;">
+            <div class="stat-title">Сумма очков</div>
+            <div class="stat-score">
+                <span id="pts-s1" class="s-d1">0</span> : <span id="pts-s2" class="s-d2">0</span>
             </div>
         </div>
 
@@ -320,90 +327,83 @@
     }
 
     // === ОТРИСОВКА ГРАФИКА И СЧЕТА ===
-    function renderStats(data, code1, code2) {
-            // Обновляем цифры счета
-            document.getElementById('race-s1').textContent = data.score.race[code1] || 0;
-            document.getElementById('race-s2').textContent = data.score.race[code2] || 0;
-            document.getElementById('quali-s1').textContent = data.score.quali[code1] || 0;
-            document.getElementById('quali-s2').textContent = data.score.quali[code2] || 0;
-
-            const ctx = document.getElementById('pointsChart').getContext('2d');
-            if(chartInstance) chartInstance.destroy();
-
-            const gradient1 = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient1.addColorStop(0, 'rgba(54, 162, 235, 0.5)');
-            gradient1.addColorStop(1, 'rgba(54, 162, 235, 0.0)');
-
-            const gradient2 = ctx.createLinearGradient(0, 0, 0, 400);
-            gradient2.addColorStop(0, 'rgba(255, 99, 132, 0.5)');
-            gradient2.addColorStop(1, 'rgba(255, 99, 132, 0.0)');
-
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: data.labels,
-                    datasets: [
-                        {
-                            label: code1,
-                            data: data.driver1.history,
-                            borderColor: '#36a2eb',
-                            backgroundColor: gradient1,
-                            fill: true,
-                            pointRadius: 3,
-                            pointHoverRadius: 6,
-                            tension: 0.3,
-                            borderWidth: 2
-                        },
-                        {
-                            label: code2,
-                            data: data.driver2.history,
-                            borderColor: '#ff6384',
-                            backgroundColor: gradient2,
-                            fill: true,
-                            pointRadius: 3,
-                            pointHoverRadius: 6,
-                            tension: 0.3,
-                            borderWidth: 2
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { labels: { color: '#fff', font: { family: 'Jost' } } },
-                        tooltip: {
-                            backgroundColor: 'rgba(20, 20, 20, 0.9)',
-                            titleColor: '#fff',
-                            bodyColor: '#ccc',
-                            callbacks: {
-                                afterBody: function(tooltipItems) {
-                                    const val1 = tooltipItems[0].raw;
-                                    const val2 = tooltipItems[1] ? tooltipItems[1].raw : 0;
-                                    if(val1 === null || val2 === null) return '';
-                                    const diff = Math.abs(val1 - val2);
-                                    const leader = val1 > val2 ? tooltipItems[0].dataset.label : (tooltipItems[1] ? tooltipItems[1].dataset.label : '');
-                                    return '\nЛидер: ' + leader + ' (+' + diff + ')';
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: 'rgba(255,255,255,0.05)' },
-                            ticks: { color: '#888' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#aaa', autoSkip: false, maxRotation: 90, minRotation: 90, font: { size: 10 } }
-                        }
-                    },
-                    spanGaps: false
-                }
-            });
+    function renderStats(data, c1, c2) {
+        if (!data.labels || data.labels.length === 0) {
+            alert(`В выбранном году еще не было гонок для сравнения!`);
+            return;
         }
+
+        const ctx = document.getElementById('pointsChart').getContext('2d');
+        if (window.compareChart instanceof Chart) {
+            window.compareChart.destroy();
+        }
+
+        const d1_info = data.data1 || { code: c1, history: [], color: '#ff8700' };
+        const d2_info = data.data2 || { code: c2, history: [], color: '#00d2be' };
+
+        let score1 = 0;
+        let score2 = 0;
+        let totalPts1 = 0;
+        let totalPts2 = 0;
+
+        for (let i = 0; i < data.labels.length; i++) {
+            let pts1 = d1_info.history[i] || 0;
+            let pts2 = d2_info.history[i] || 0;
+
+            // Суммируем конечные очки
+            totalPts1 += pts1;
+            totalPts2 += pts2;
+
+            if (pts1 > pts2) score1++;
+            else if (pts2 > pts1) score2++;
+        }
+
+        // Вписываем данные гонок и очков в HTML
+        document.getElementById('race-s1').innerText = score1;
+        document.getElementById('race-s2').innerText = score2;
+
+        document.getElementById('pts-s1').innerText = totalPts1;
+        document.getElementById('pts-s2').innerText = totalPts2;
+
+        // Подхватываем квалификации из ответа сервера
+        if (data.q_score) {
+            document.getElementById('quali-s1').innerText = data.q_score[0];
+            document.getElementById('quali-s2').innerText = data.q_score[1];
+        }
+
+        window.compareChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.labels,
+                datasets: [
+                    {
+                        label: d1_info.code || c1,
+                        data: d1_info.history,
+                        borderColor: d1_info.color || '#ff8700',
+                        backgroundColor: d1_info.color || '#ff8700',
+                        tension: 0.4,
+                        borderWidth: 3
+                    },
+                    {
+                        label: d2_info.code || c2,
+                        data: d2_info.history,
+                        borderColor: d2_info.color || '#00d2be',
+                        backgroundColor: d2_info.color || '#00d2be',
+                        tension: 0.4,
+                        borderWidth: 3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { legend: { labels: { color: 'white' } } },
+                scales: {
+                    y: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                    x: { ticks: { color: 'white' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                }
+            }
+        });
+    }
 
     // === ГЕНЕРАТОР ФРАЗ (Более 100 комбинаций) ===
     const phrasesParts = [
@@ -445,7 +445,6 @@
     let phraseInterval;
 
     function getRandomPhrase() {
-        // 30% шанс на "Фан-факт", 70% на "Техническую фразу"
         if (Math.random() > 0.7) {
             return funFacts[Math.floor(Math.random() * funFacts.length)];
         } else {
@@ -460,25 +459,18 @@
         const d2 = document.getElementById('d2-select').value;
         const year = document.getElementById('year-input').value;
 
-        if(!d1 || !d2 || d1 === "Нет данных") return;
+        if(!d1 || !d2 || d1 === "Нет данных" || d1 === "Загрузка...") return;
         if(d1 === d2) { alert("Выберите разных пилотов!"); return; }
 
         const btn = document.querySelector('.btn-compare');
         const overlay = document.getElementById('loader-overlay');
         const loaderText = document.getElementById('loader-text');
 
-        // 1. Сохраняем оригинальный текст кнопки
-        // (хотя мы его просто перезапишем, но для надежности)
-
-        // 2. Включаем режим загрузки
-        btn.innerHTML = 'Загрузка<span class="dots-anim"></span>'; // Анимация точек
+        btn.innerHTML = 'Загрузка<span class="dots-anim"></span>';
         btn.disabled = true;
 
-        // 3. Показываем оверлей с машинкой
         overlay.style.display = 'flex';
 
-        // 4. Запускаем смену фраз (каждые 800мс - 1.5с рандомно)
-        // Чтобы фразы не мелькали слишком быстро, но и не висели долго
         const updatePhrase = () => {
             loaderText.style.opacity = '0';
             setTimeout(() => {
@@ -487,42 +479,53 @@
             }, 200);
         };
 
-        // Сразу ставим первую
         loaderText.innerText = getRandomPhrase();
-
-        phraseInterval = setInterval(updatePhrase, 2500); // Каждые 2.5 секунды меняем фразу
+        phraseInterval = setInterval(updatePhrase, 2500);
 
         try {
-            // Имитация задержки (если API слишком быстрый, чтобы насладиться машинкой)
-            // await new Promise(r => setTimeout(r, 2000)); // Раскомментируй, если хочешь тестить анимацию
+            const res = await apiRequest(`/api/compare?d1=${d1}&d2=${d2}&season=${year}`);
 
-            const res = await apiRequest('/api/compare', {
-                d1: d1,
-                d2: d2,
-                season: year
-            });
+            if (res && !res.error) {
+                const dataToRender = res.data ? res.data : res;
+                renderStats(dataToRender, d1, d2);
 
-            if(res.status === 'ok') {
-                renderStats(res.data, d1, d2);
                 document.getElementById('results-area').style.display = 'block';
                 document.getElementById('results-area').style.opacity = '1';
                 setTimeout(() => {
                     document.getElementById('results-area').scrollIntoView({behavior: "smooth"});
                 }, 100);
             } else {
-                alert("Данные не найдены.");
+                alert(res.error || "Данные не найдены.");
             }
         } catch(e) {
-            console.error(e);
-            alert("Ошибка загрузки данных");
+            console.error("КРИТИЧЕСКАЯ ОШИБКА JS:", e);
+            alert("JS Ошибка: " + e.message);
         } finally {
-            // 5. Выключаем всё
             clearInterval(phraseInterval);
             overlay.style.display = 'none';
-            btn.innerText = "Сравнить"; // Возвращаем текст
+            btn.innerText = "Сравнить";
             btn.disabled = false;
         }
     }
+
+    window.handleSearch = function() {
+        // Просто вызываем обновление года. Это загрузит новых пилотов.
+        handleYearUpdate();
+    };
+
+    window.goCurrentYear = function() {
+        const inputField = document.getElementById('year-input');
+        if (inputField) inputField.value = currentRealYear;
+        handleYearUpdate();
+    };
+
+    window.handleEnter = function(event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            handleYearUpdate();
+            document.getElementById('year-input').blur();
+        }
+    };
 </script>
 </body>
 </html>

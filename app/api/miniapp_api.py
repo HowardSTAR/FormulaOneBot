@@ -1,19 +1,23 @@
 import asyncio
-from datetime import datetime, timedelta, timezone
-from typing import Optional, List
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional, List
 
 import pandas as pd
-from pydantic import BaseModel
-
-# Импорты FastAPI
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
-# Импорты из твоего проекта
-from app.handlers.races import build_next_race_payload
+import app
+from app.auth import get_current_user_id
+from app.db import (
+    get_favorite_drivers, get_favorite_teams,
+    remove_favorite_driver, add_favorite_driver,
+    remove_favorite_team, add_favorite_team,
+    get_user_settings, update_user_setting, db
+)
 from app.f1_data import (
     get_season_schedule_short_async,
     get_weekend_schedule,
@@ -21,13 +25,7 @@ from app.f1_data import (
     get_constructor_standings_async, _get_latest_quali_async, get_race_results_async, get_event_details_async,
     get_drivers_comparison_async,
 )
-from app.db import (
-    get_favorite_drivers, get_favorite_teams,
-    remove_favorite_driver, add_favorite_driver,
-    remove_favorite_team, add_favorite_team,
-    get_user_settings, update_user_setting
-)
-from app.auth import get_current_user_id
+from app.handlers.races import build_next_race_payload
 
 # --- Настройка путей ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -89,6 +87,7 @@ class FavoriteItem(BaseModel):
 class SettingsRequest(BaseModel):
     timezone: str
     notify_before: int
+    notifications_enabled: bool = False
 
 
 # --- ЭНДПОИНТЫ ---
@@ -107,6 +106,9 @@ async def api_save_settings(
     """Сохранить настройки."""
     await update_user_setting(user_id, "timezone", settings.timezone)
     await update_user_setting(user_id, "notify_before", settings.notify_before)
+
+    # ДОБАВИТЬ СОХРАНЕНИЕ НОВОГО ПОЛЯ В БД:
+    await update_user_setting(user_id, "notifications_enabled", int(settings.notifications_enabled))
     return {"status": "ok"}
 
 
@@ -476,21 +478,87 @@ async def api_race_details(
     return data
 
 
+import asyncio  # Убедись, что это импортировано вверху файла
+
+
 @web_app.get("/api/compare")
-async def api_compare_drivers(
-        d1: str = Query(..., description="Код первого пилота (NOR)"),
-        d2: str = Query(..., description="Код второго пилота (PIA)"),
-        season: Optional[int] = Query(None)
-):
-    if season is None:
-        season = datetime.now().year
+async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО season!
+    """Сравнение пилотов для Web App"""
 
-    data = await get_drivers_comparison_async(season, d1, d2)
+    schedule = await get_season_schedule_short_async(season)
+    if not schedule:
+        return {"error": f"Нет расписания на {season} год"}
 
-    if not data:
-        return {"status": "error", "message": "No data found"}
+    today = datetime.now().date()
+    passed_races = []
 
-    return {"status": "ok", "data": data}
+    for r in schedule:
+        try:
+            r_date = datetime.strptime(r["date"], "%Y-%m-%d").date()
+            if r_date < today:
+                passed_races.append(r)
+        except Exception:
+            continue
+
+    if not passed_races:
+        return {"error": f"В {season} году еще не было прошедших гонок для сравнения."}
+
+    labels = []
+    tasks = []
+
+    for race in passed_races:
+        round_num = race["round"]
+        labels.append(race.get("event_name", f"Этап {round_num}").replace(" Grand Prix", "").replace("Gp", ""))
+        # Передаем season
+        tasks.append(get_race_results_async(season, round_num))
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    d1_history, d2_history = [], []
+    q_score1, q_score2 = 0, 0  # Счет квалификаций
+
+    for df in results:
+        pts1, pts2 = 0, 0
+        grid1, grid2 = 999, 999
+
+        if df is not None and not isinstance(df, Exception) and not df.empty:
+            df['Abbreviation'] = df['Abbreviation'].fillna("").astype(str).str.upper()
+
+            # Обработка первого пилота
+            row1 = df[df['Abbreviation'] == d1.upper()]
+            if not row1.empty:
+                val1 = row1.iloc[0].get('Points', 0)
+                pts1 = 0 if pd.isna(val1) else float(val1)
+
+                # Достаем стартовую позицию (Grid) для сравнения квал
+                g1 = row1.iloc[0].get('GridPosition', row1.iloc[0].get('Grid', 999))
+                grid1 = 999 if pd.isna(g1) else float(g1)
+
+            # Обработка второго пилота
+            row2 = df[df['Abbreviation'] == d2.upper()]
+            if not row2.empty:
+                val2 = row2.iloc[0].get('Points', 0)
+                pts2 = 0 if pd.isna(val2) else float(val2)
+
+                g2 = row2.iloc[0].get('GridPosition', row2.iloc[0].get('Grid', 999))
+                grid2 = 999 if pd.isna(g2) else float(g2)
+
+            # Сравниваем, кто стартовал выше (у кого позиция меньше)
+            if grid1 != 999 and grid2 != 999:
+                if grid1 < grid2:
+                    q_score1 += 1
+                elif grid2 < grid1:
+                    q_score2 += 1
+
+        d1_history.append(pts1)
+        d2_history.append(pts2)
+
+    return {
+        "labels": labels,
+        "q_score": [q_score1, q_score2],  # Передаем счет на фронтенд
+        "data1": {"code": d1.upper(), "history": d1_history, "color": "#ff8700"},
+        "data2": {"code": d2.upper(), "history": d2_history, "color": "#00d2be"}
+    }
 
 
 @web_app.get("/{full_path:path}")
@@ -520,3 +588,20 @@ async def serve_mpa_or_static(full_path: str):
         return FileResponse(str(index_file))
 
     raise HTTPException(status_code=404, detail="Page not found")
+
+
+# Модель для принятия данных с фронтенда
+class NotificationToggle(BaseModel):
+    is_enabled: bool
+
+
+@web_app.get("/api/settings/notifications")
+async def get_notifications(user_id: int = Depends(get_current_user_id)):
+    settings = await get_user_settings(user_id)
+    return {"is_enabled": settings.get("notifications_enabled", False)}
+
+
+@web_app.post("/api/settings/notifications")
+async def update_notifications(data: NotificationToggle, user_id: int = Depends(get_current_user_id)):
+    await update_user_setting(user_id, "notifications_enabled", int(data.is_enabled))
+    return {"status": "ok", "is_enabled": data.is_enabled}

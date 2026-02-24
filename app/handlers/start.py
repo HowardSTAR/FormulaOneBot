@@ -2,14 +2,15 @@ from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, Message
 
-from aiogram.utils.keyboard import ReplyKeyboardBuilder
-
+from app.db import get_or_create_user
 
 router = Router()
 
 
 @router.message(CommandStart())
 async def cmd_start(message: Message):
+    await get_or_create_user(message.from_user.id)
+
     # Создаем кнопки главного меню (обычные текстовые кнопки внизу)
     kb = [
         [

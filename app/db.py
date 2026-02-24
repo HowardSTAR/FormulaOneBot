@@ -4,7 +4,16 @@ from pathlib import Path
 from typing import List, Tuple, Any, Optional
 
 # Настройка путей и логгера
-DB_PATH = "data/bot.db"
+# 1. Защита от "баз-двойников": вычисляем абсолютный путь к корню проекта
+BASE_DIR = Path(__file__).resolve().parent.parent
+DB_DIR = BASE_DIR / "data"
+
+# Гарантируем, что папка data существует
+DB_DIR.mkdir(exist_ok=True)
+
+# Единый путь для всех компонентов системы
+DB_PATH = DB_DIR / "bot.db"
+
 logger = logging.getLogger(__name__)
 
 
@@ -97,6 +106,17 @@ class Database:
         if "last_notified_quali_round" not in cols:
             await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_quali_round INTEGER")
 
+        try:
+            await self.conn.execute("ALTER TABLE users ADD COLUMN notifications_enabled BOOLEAN DEFAULT 0")
+            await self.conn.commit()
+            logger.info("Миграция успешна: колонка notifications_enabled добавлена в старую базу.")
+        except aiosqlite.OperationalError as e:
+            # Если база уже была обновлена ранее, просто игнорируем ошибку
+            if "duplicate column name" in str(e).lower():
+                pass
+            else:
+                logger.error(f"Ошибка при миграции: {e}")
+
         await self.conn.commit()
 
 
@@ -106,40 +126,62 @@ db = Database(DB_PATH)
 
 # --- Хелперы (теперь используют db.conn) ---
 
-async def get_or_create_user(telegram_id: int) -> int:
-    # Важно: всегда проверяем, есть ли соединение (на случай вызова вне контекста бота)
+async def get_or_create_user(telegram_id) -> int:
+    """Ищет юзера по telegram_id. Если нет - создает."""
     if not db.conn: await db.connect()
 
-    async with db.conn.execute("SELECT id FROM users WHERE telegram_id = ?", (telegram_id,)) as cursor:
+    # Защита от Web API (которое шлет ID как строку)
+    tg_id = int(telegram_id)
+
+    # Ищем строго по telegram_id
+    async with db.conn.execute("SELECT id FROM users WHERE telegram_id = ?", (tg_id,)) as cursor:
         row = await cursor.fetchone()
         if row:
-            return row['id']  # Обращаемся по имени колонки благодаря row_factory
+            return row['id'] if hasattr(row, 'keys') else row[0]
 
-    # Если не найден
-    cursor = await db.conn.execute("INSERT INTO users (telegram_id) VALUES (?)", (telegram_id,))
+    # Создаем, заполняя именно telegram_id
+    await db.conn.execute("INSERT OR IGNORE INTO users (telegram_id) VALUES (?)", (tg_id,))
     await db.conn.commit()
-    return cursor.lastrowid
 
-
-async def get_user_settings(telegram_id: int) -> dict:
-    if not db.conn: await db.connect()
-    async with db.conn.execute("SELECT timezone, notify_before FROM users WHERE telegram_id = ?",
-                               (telegram_id,)) as cursor:
+    # Возвращаем внутренний id базы
+    async with db.conn.execute("SELECT id FROM users WHERE telegram_id = ?", (tg_id,)) as cursor:
         row = await cursor.fetchone()
         if row:
+            return row['id'] if hasattr(row, 'keys') else row[0]
+        return 0
+
+
+async def get_user_settings(telegram_id) -> dict:
+    if not db.conn: await db.connect()
+
+    tg_id = int(telegram_id)
+    await get_or_create_user(tg_id)
+
+    # Ищем по telegram_id и достаем новый столбец notifications_enabled
+    async with db.conn.execute("SELECT timezone, notify_before, notifications_enabled FROM users WHERE telegram_id = ?",
+                               (tg_id,)) as cursor:
+        row = await cursor.fetchone()
+        if row:
+            keys = row.keys() if hasattr(row, 'keys') else []
             return {
-                "timezone": row['timezone'] or "Europe/Moscow",
-                "notify_before": row['notify_before'] if row['notify_before'] is not None else 60
+                "timezone": row['timezone'] if 'timezone' in keys else row[0] or "Europe/Moscow",
+                "notify_before": row['notify_before'] if 'notify_before' in keys else (
+                    row[1] if row[1] is not None else 60),
+                "notifications_enabled": bool(
+                    row['notifications_enabled'] if 'notifications_enabled' in keys else row[2])
             }
-        return {"timezone": "Europe/Moscow", "notify_before": 60}
+        return {"timezone": "Europe/Moscow", "notify_before": 60, "notifications_enabled": False}
 
 
-async def update_user_setting(telegram_id: int, key: str, value: Any) -> None:
-    if key not in {"timezone", "notify_before"}: return
-    await get_or_create_user(telegram_id)  # Убедимся, что юзер создан
+async def update_user_setting(telegram_id, key: str, value: Any) -> None:
+    if key not in {"timezone", "notify_before", "notifications_enabled"}:
+        return
 
-    # ВНИМАНИЕ: f-строка безопасна только потому, что мы проверили key выше
-    await db.conn.execute(f"UPDATE users SET {key} = ? WHERE telegram_id = ?", (value, telegram_id))
+    tg_id = int(telegram_id)
+    await get_or_create_user(tg_id)
+
+    # Обновляем строго по telegram_id
+    await db.conn.execute(f"UPDATE users SET {key} = ? WHERE telegram_id = ?", (value, tg_id))
     await db.conn.commit()
 
 
@@ -222,6 +264,23 @@ async def _set_round_value(season: int, column: str, value: int) -> None:
         f'INSERT INTO notification_state(season, "{column}") VALUES(?, ?) ON CONFLICT(season) DO UPDATE SET "{column}"=excluded."{column}"',
         (season, value))
     await db.conn.commit()
+
+
+async def get_all_users() -> list[int]:
+    """Получает список ID всех пользователей бота для тихой рассылки."""
+    if db.conn is None:
+        return []
+
+    try:
+        # ВНИМАНИЕ: Если таблица называется 'users', замените 'user_settings' на 'users'.
+        # Если колонка ID называется 'telegram_id', замените 'user_id' на 'telegram_id'.
+        async with db.conn.execute("SELECT user_id FROM user_settings") as cursor:
+            rows = await cursor.fetchall()
+            return [row["user_id"] for row in rows]
+
+    except Exception as e:
+        logger.error(f"Ошибка при получении списка пользователей для рассылки: {e}")
+        return []
 
 
 # Алиасы (оставил как было для совместимости с app/handlers/races.py)
