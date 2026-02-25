@@ -37,8 +37,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
 COPY run_web.py .
+COPY entrypoint_web.sh /app/entrypoint_web.sh
+RUN chmod +x /app/entrypoint_web.sh
 
 COPY --from=front-builder /front/dist ./front/dist
+# Копия для entrypoint: volume монтируется поверх front/dist и скрывает свежую сборку
+COPY --from=front-builder /front/dist ./front_dist_built
 
 RUN mkdir -p logs fastf1_cache data
 

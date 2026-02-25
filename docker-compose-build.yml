@@ -30,7 +30,8 @@ services:
       args:
         - APP_VERSION=0.3.0
     restart: unless-stopped
-    command: python run_web.py
+    entrypoint: ["/app/entrypoint_web.sh"]
+    command: ["python", "run_web.py"]
     env_file:
       - .env
     environment:
