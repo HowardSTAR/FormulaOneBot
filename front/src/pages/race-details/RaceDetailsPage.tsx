@@ -12,13 +12,6 @@ type RaceDetailsResponse = {
 };
 type SettingsResponse = { timezone?: string };
 
-const formatMap: Record<string, string> = {
-  conventional: "Классический уикенд",
-  sprint: "Спринт",
-  sprint_qualifying: "Спринт-квалификация",
-  sprint_shootout: "Спринт-шутаут",
-};
-
 function RaceDetailsPage() {
   const [searchParams] = useSearchParams();
   const season = searchParams.get("season");

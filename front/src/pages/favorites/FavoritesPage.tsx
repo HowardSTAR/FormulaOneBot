@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
+import { hapticSelection } from "../../helpers/telegram";
 
 type Driver = { code: string; name: string };
 type Team = { name: string };
@@ -54,7 +55,7 @@ function FavoritesPage() {
       setTeamsList(teamsData.constructors || []);
     } catch (e) {
       console.error(e);
-      setError("Ошибка загрузки данных");
+      setError(e instanceof Error ? e.message : "Ошибка загрузки данных");
     } finally {
       setLoading(false);
     }
@@ -65,8 +66,7 @@ function FavoritesPage() {
   }, [loadAllData]);
 
   const toggleDriver = async (code: string) => {
-    const tg = (window as unknown as { Telegram?: { WebApp?: { HapticFeedback?: { selectionChanged?: () => void } } } }).Telegram?.WebApp;
-    tg?.HapticFeedback?.selectionChanged?.();
+    hapticSelection();
     setUserFavorites((prev) => ({
       ...prev,
       drivers: prev.drivers.includes(code) ? prev.drivers.filter((c) => c !== code) : [...prev.drivers, code],
@@ -87,8 +87,7 @@ function FavoritesPage() {
   };
 
   const toggleTeam = async (name: string) => {
-    const tg = (window as unknown as { Telegram?: { WebApp?: { HapticFeedback?: { selectionChanged?: () => void } } } }).Telegram?.WebApp;
-    tg?.HapticFeedback?.selectionChanged?.();
+    hapticSelection();
     setUserFavorites((prev) => ({
       ...prev,
       teams: prev.teams.includes(name) ? prev.teams.filter((t) => t !== name) : [...prev.teams, name],
@@ -116,18 +115,29 @@ function FavoritesPage() {
       <h2>Избранное</h2>
       <p style={{ marginBottom: 20 }}>Выбери пилотов и команды для отслеживания:</p>
 
-      <div className="tabs">
+      <div className="segmented-tabs">
+        <div
+          className="segmented-slider"
+          style={{ transform: tab === "drivers" ? "translateX(0)" : "translateX(100%)" }}
+          aria-hidden
+        />
         <button
           type="button"
-          className={`tab-btn ${tab === "drivers" ? "active" : ""}`}
-          onClick={() => setTab("drivers")}
+          className={`segmented-tab ${tab === "drivers" ? "active" : ""}`}
+          onClick={() => {
+            hapticSelection();
+            setTab("drivers");
+          }}
         >
           Пилоты
         </button>
         <button
           type="button"
-          className={`tab-btn ${tab === "teams" ? "active" : ""}`}
-          onClick={() => setTab("teams")}
+          className={`segmented-tab ${tab === "teams" ? "active" : ""}`}
+          onClick={() => {
+            hapticSelection();
+            setTab("teams");
+          }}
         >
           Команды
         </button>
@@ -159,9 +169,11 @@ function FavoritesPage() {
                 onClick={() => toggleDriver(driver.code)}
                 onKeyDown={(e) => e.key === "Enter" && toggleDriver(driver.code)}
               >
+                <div className="item-text-wrap">
+                  <div className="item-name">{driver.name}</div>
+                  <div className="item-code">{driver.code}</div>
+                </div>
                 <div className="check-icon">⭐</div>
-                <div className="item-name">{driver.name}</div>
-                <div className="item-code">{driver.code}</div>
               </div>
             ))
           )}
@@ -191,8 +203,10 @@ function FavoritesPage() {
                 onClick={() => toggleTeam(team.name)}
                 onKeyDown={(e) => e.key === "Enter" && toggleTeam(team.name)}
               >
+                <div className="item-text-wrap">
+                  <div className="item-name">{team.name}</div>
+                </div>
                 <div className="check-icon">⭐</div>
-                <div className="item-name">{team.name}</div>
               </div>
             ))
           )}

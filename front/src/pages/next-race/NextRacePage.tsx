@@ -22,7 +22,7 @@ function NextRacePage() {
   const [raceTimeText, setRaceTimeText] = useState("--:--");
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,8 +107,9 @@ function NextRacePage() {
       } catch (e) {
         if (!cancelled) {
           console.error(e);
-          setError(true);
-          setTitle("Ошибка загрузки");
+          const msg = e instanceof Error ? e.message : "Ошибка загрузки";
+          setError(msg);
+          setTitle(msg);
         }
       } finally {
         if (!cancelled) setLoading(false);
