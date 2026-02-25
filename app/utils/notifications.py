@@ -7,27 +7,55 @@ from aiogram import Bot
 
 from app.db import (
     db,
-    get_all_users_with_favorites,
+    get_users_favorites_for_notifications,
     get_last_reminded_round,
     set_last_reminded_round,
     get_last_notified_round,
     set_last_notified_round,
     get_last_notified_quali_round,
-    set_last_notified_quali_round
+    set_last_notified_quali_round,
+    get_last_notified_voting_round,
+    set_last_notified_voting_round,
+    get_race_avg_for_round,
+    get_driver_vote_winner,
 )
 from app.f1_data import (
     get_season_schedule_short_async,
     get_race_results_async,
+    get_constructor_standings_async,
     _get_latest_quali_async,
-    get_testing_results_async
+    get_testing_results_async,
+    get_driver_full_name_async,
 )
-from app.utils.safe_send import safe_send_message
+from app.utils.safe_send import safe_send_message, safe_send_photo
+from app.utils.image_render import create_results_image, create_quali_results_image
 
 logger = logging.getLogger(__name__)
 ADMIN_ID = 2099386
 
 
 # --- ХЕЛПЕРЫ ОБЩИЕ ---
+
+# Тихий режим: 21:00–10:00 по времени пользователя (без звука)
+QUIET_START_HOUR = 21
+QUIET_END_HOUR = 10
+
+
+def is_quiet_hours(tz_name: str) -> bool:
+    """
+    Возвращает True, если сейчас 21:00–10:00 в таймзоне пользователя.
+    В этот период уведомления отправляются с disable_notification=True (тихий режим).
+    """
+    try:
+        tz = ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        tz = ZoneInfo("Europe/Moscow")
+    now = datetime.now(tz)
+    hour = now.hour
+    if QUIET_START_HOUR <= hour or hour < QUIET_END_HOUR:
+        return True
+    return False
+
 
 def format_time_left(minutes_left: int) -> str:
     if minutes_left >= 20 * 60: return "Уже завтра"
@@ -39,17 +67,26 @@ def format_time_left(minutes_left: int) -> str:
     return f"Через {' '.join(parts)}"
 
 
-def get_notification_text(race: dict, user_tz_name: str, minutes_left: int) -> str:
-    """Генерирует текст для ГОНКИ."""
+def get_notification_text(race: dict, user_tz_name: str, minutes_left: int, for_quali: bool = False) -> str:
+    """Генерирует текст для ГОНКИ или КВАЛИФИКАЦИИ."""
     event_name = race.get('event_name', 'Гран-при')
+    dt_key = "quali_start_utc" if for_quali else "race_start_utc"
+    dt_str = race.get(dt_key) or race.get("race_start_utc")
     try:
-        race_utc = datetime.fromisoformat(race["race_start_utc"])
-        if race_utc.tzinfo is None: race_utc = race_utc.replace(tzinfo=timezone.utc)
+        dt_utc = datetime.fromisoformat(dt_str)
+        if dt_utc.tzinfo is None: dt_utc = dt_utc.replace(tzinfo=timezone.utc)
         user_tz = ZoneInfo(user_tz_name)
-        start_time_str = race_utc.astimezone(user_tz).strftime("%H:%M")
-    except:
+        start_time_str = dt_utc.astimezone(user_tz).strftime("%H:%M")
+    except Exception:
         start_time_str = "??:??"
 
+    if for_quali:
+        return (
+            f"⏱ Скоро квалификация!\n\n"
+            f"{format_time_left(minutes_left)} старт: {event_name}\n"
+            f"📍 Трасса: {race.get('location', '')}\n"
+            f"⏰ Начало в {start_time_str} (по вашему времени)\n"
+        )
     return (
         f"🏎 Скоро гонка!\n\n"
         f"{format_time_left(minutes_left)} старт: {event_name} 🏁\n"
@@ -58,11 +95,16 @@ def get_notification_text(race: dict, user_tz_name: str, minutes_left: int) -> s
     )
 
 
-async def get_users_with_settings():
+async def get_users_with_settings(notifications_only: bool = False):
+    """Возвращает (telegram_id, timezone, notify_before[, notifications_enabled])."""
     if not db.conn: await db.connect()
     try:
-        async with db.conn.execute("SELECT telegram_id, timezone, notify_before FROM users") as cursor:
-            return await cursor.fetchall()
+        q = "SELECT telegram_id, timezone, notify_before, notifications_enabled FROM users"
+        if notifications_only:
+            q += " WHERE notifications_enabled = 1"
+        async with db.conn.execute(q) as cursor:
+            rows = await cursor.fetchall()
+            return [(r[0], r[1], r[2], r[3] if len(r) > 3 else False) for r in rows]
     except Exception as e:
         logger.error(f"Error fetching settings: {e}")
         return []
@@ -76,24 +118,33 @@ async def check_and_send_notifications(bot: Bot):
     if not schedule: return
 
     now = datetime.now(timezone.utc)
-    upcoming_event = []
+    upcoming_event = []  # (race_dict, minutes_left, for_quali)
 
     for r in schedule:
-        if not r.get("race_start_utc"): continue
-        try:
-            race_dt = datetime.fromisoformat(r["race_start_utc"])
-            if race_dt.tzinfo is None: race_dt = race_dt.replace(tzinfo=timezone.utc)
-            minutes_left = (race_dt - now).total_seconds() / 60
-
-            # Окно уведомления (от 0 до 30 часов)
-            if 0 < minutes_left <= 30 * 60:
-                upcoming_event.append((r, minutes_left))
-        except:
-            continue
+        # Напоминание перед ГОНКОЙ
+        if r.get("race_start_utc"):
+            try:
+                race_dt = datetime.fromisoformat(r["race_start_utc"])
+                if race_dt.tzinfo is None: race_dt = race_dt.replace(tzinfo=timezone.utc)
+                minutes_left = (race_dt - now).total_seconds() / 60
+                if 0 < minutes_left <= 30 * 60:
+                    upcoming_event.append((r, minutes_left, False))
+            except Exception:
+                pass
+        # Напоминание перед КВАЛИФИКАЦИЕЙ
+        if r.get("quali_start_utc") and not r.get("is_testing"):
+            try:
+                quali_dt = datetime.fromisoformat(r["quali_start_utc"])
+                if quali_dt.tzinfo is None: quali_dt = quali_dt.replace(tzinfo=timezone.utc)
+                minutes_left = (quali_dt - now).total_seconds() / 60
+                if 0 < minutes_left <= 30 * 60:
+                    upcoming_event.append((r, minutes_left, True))
+            except Exception:
+                pass
 
     if not upcoming_event: return
 
-    users = await get_users_with_settings()
+    users = await get_users_with_settings(notifications_only=True)
     if not users: return
 
     scheduler_interval = 5
@@ -106,10 +157,9 @@ async def check_and_send_notifications(bot: Bot):
             tz = user[1] or "Europe/Moscow"
             notify_min = user[2] or 1440
 
-            for race, mins in upcoming_event:
+            for race, mins, for_quali in upcoming_event:
                 if abs(mins - notify_min) <= half_window:
 
-                    # === ВОТ ТУТ ПРОВЕРКА НА ТЕСТЫ ===
                     if race.get("is_testing"):
                         text = (
                             f"🧪 Предсезонные тесты!\n\n"
@@ -118,10 +168,10 @@ async def check_and_send_notifications(bot: Bot):
                             f"Не забудьте следить за результатами!"
                         )
                     else:
-                        text = get_notification_text(race, tz, mins)
-                    # =================================
+                        text = get_notification_text(race, tz, mins, for_quali=for_quali)
 
-                    if await safe_send_message(bot, tg_id, text):
+                    quiet = is_quiet_hours(tz)
+                    if await safe_send_message(bot, tg_id, text, disable_notification=quiet):
                         sent_count += 1
                     await asyncio.sleep(0.05)
         except Exception:
@@ -134,17 +184,48 @@ async def check_and_send_notifications(bot: Bot):
 # --- ЗАДАЧА 2: РЕЗУЛЬТАТЫ (ГОНКИ И ТЕСТЫ) ---
 
 def build_results_text(race_name: str, favorites_results: list[dict]) -> str:
+    """Текст по избранным пилотам (для тестовых команд)."""
     lines = []
     for item in favorites_results:
         pos_str = f"P{item['pos']}"
-        if item['pos'] == '1':
-            pos_str = "🥇 P1"
-        elif item['pos'] == '2':
-            pos_str = "🥈 P2"
-        elif item['pos'] == '3':
-            pos_str = "🥉 P3"
+        if str(item.get('pos')) == '1': pos_str = "🥇 P1"
+        elif str(item.get('pos')) == '2': pos_str = "🥈 P2"
+        elif str(item.get('pos')) == '3': pos_str = "🥉 P3"
         lines.append(f"{item['code']}: {pos_str} (+{item.get('points', 0)})")
     return f"🏁 Финиш: {race_name}\n\nВаши фавориты:\n" + "\n".join(lines)
+
+
+def build_favorites_caption(
+    event_name: str,
+    driver_results: list[dict],
+    team_results: list[dict],
+    use_spoiler: bool = True,
+) -> str:
+    """
+    Текст по избранным пилотам и командам.
+    use_spoiler=True — оборачивает результаты в <tg-spoiler> (HTML).
+    """
+    parts = []
+    if driver_results:
+        lines = []
+        for item in driver_results:
+            pos_str = f"P{item['pos']}"
+            if str(item.get('pos')) == '1': pos_str = "🥇 P1"
+            elif str(item.get('pos')) == '2': pos_str = "🥈 P2"
+            elif str(item.get('pos')) == '3': pos_str = "🥉 P3"
+            lines.append(f"{item['code']}: {pos_str} (+{item.get('points', 0)})")
+        parts.append("<b>🏎 Пилоты</b>\n" + "\n".join(lines))
+    if team_results:
+        lines = []
+        for t in team_results:
+            lines.append(f"• {t.get('team', '?')}: {t.get('text', '')}")
+        parts.append("<b>🏁 Команды</b>\n" + "\n".join(lines))
+    if not parts:
+        return f"🏁 {event_name}\n\n📊 Результаты на картинке."
+    inner = "\n\n".join(parts)
+    if use_spoiler:
+        return f"🏁 {event_name}\n\n<tg-spoiler>{inner}</tg-spoiler>"
+    return f"🏁 {event_name}\n\n{inner}"
 
 
 async def check_and_send_results(bot: Bot):
@@ -203,49 +284,122 @@ async def check_and_send_results(bot: Bot):
                 "\n\n📊 Подробности: /next_race"
         )
 
-        # Рассылаем всем активным пользователям (или тем кто с настройками)
-        users = await get_users_with_settings()
+        # Рассылаем всем с включёнными уведомлениями
+        users = await get_users_with_settings(notifications_only=True)
         sent_count = 0
         for user in users:
-            if await safe_send_message(bot, user[0], text):
+            tz = user[1] or "Europe/Moscow"
+            quiet = is_quiet_hours(tz)
+            if await safe_send_message(bot, user[0], text, disable_notification=quiet):
                 sent_count += 1
             await asyncio.sleep(0.05)
 
         await set_last_notified_round(season, round_num)
         return
 
-    # === ЛОГИКА ДЛЯ ГОНОК (Обычная) ===
+    # === ЛОГИКА ДЛЯ ГОНОК: картинка + текст по избранным под спойлером ===
     results_df = await get_race_results_async(season, round_num)
     if results_df.empty: return
 
-    users_favorites = await get_all_users_with_favorites()
+    users_favorites = await get_users_favorites_for_notifications()
     if not users_favorites:
         await set_last_notified_round(season, round_num)
         return
 
-    user_map = {}
-    for row in users_favorites:
-        tg_id, drv = row[0], row[1]
-        if tg_id not in user_map: user_map[tg_id] = []
-        user_map[tg_id].append(str(drv).upper())
+    users_settings = await get_users_with_settings()
+    tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users_settings}
+
+    # Картинка с общими результатами (без звёздочек для избранных — одна картинка на всех)
+    race_info = finished_event
+    rows_for_image = []
+    if "Position" in results_df.columns:
+        results_df = results_df.sort_values("Position")
+    for _, row in results_df.head(20).iterrows():
+        pos = row.get("Position", "?")
+        code = str(row.get("Abbreviation", "?") or row.get("DriverNumber", "?"))
+        given = str(row.get("FirstName", "") or "")
+        family = str(row.get("LastName", "") or "")
+        full_name = f"{given} {family}".strip() or code
+        pts = row.get("Points", 0)
+        pts_text = f"{pts:.0f}" if pts is not None else "0"
+        rows_for_image.append((f"{int(pos):02d}" if pos != "?" else "?", code, full_name, pts_text))
+
+    if not rows_for_image:
+        await set_last_notified_round(season, round_num)
+        return
+
+    img_title = "Результаты гонки"
+    img_subtitle = f"{race_info.get('event_name', 'Гран-при')} — этап {round_num}, сезон {season}"
+    img_buf = await asyncio.to_thread(
+        create_results_image,
+        title=img_title,
+        subtitle=img_subtitle,
+        rows=rows_for_image,
+    )
+    photo_bytes = img_buf.getvalue()
 
     res_map = {}
     for _, row in results_df.iterrows():
-        code = str(row.get('Abbreviation', '')).upper()
-        res_map[code] = {'pos': str(row.get('Position', 'DNF')), 'points': row.get('Points', 0)}
+        code = str(row.get("Abbreviation", "")).upper()
+        res_map[code] = {"pos": str(row.get("Position", "DNF")), "points": row.get("Points", 0)}
+
+    constructor_standings = await get_constructor_standings_async(season, round_number=round_num)
+    constructor_results_by_name = {}
+    for row in results_df.itertuples(index=False):
+        team_name = getattr(row, "TeamName", None)
+        if team_name:
+            if team_name not in constructor_results_by_name:
+                constructor_results_by_name[team_name] = []
+            constructor_results_by_name[team_name].append(row)
 
     sent_count = 0
-    for tg_id, favs in user_map.items():
-        my_res = []
-        for code in favs:
+    for tg_id, favs in users_favorites.items():
+        driver_res = []
+        for code in favs.get("drivers", []):
             if code in res_map:
-                my_res.append({'code': code, **res_map[code]})
+                driver_res.append({"code": code, **res_map[code]})
 
-        if my_res:
-            text = build_results_text(finished_event['event_name'], my_res)
-            if await safe_send_message(bot, tg_id, text):
-                sent_count += 1
-            await asyncio.sleep(0.05)
+        team_res = []
+        for team_name in favs.get("teams", []):
+            team_rows = constructor_results_by_name.get(team_name)
+            if team_rows is None:
+                tn_lower = team_name.lower()
+                for key, rows in constructor_results_by_name.items():
+                    if tn_lower in key.lower() or key.lower() in tn_lower:
+                        team_rows = rows
+                        break
+            if team_rows:
+                total_pts = sum(float(getattr(r, "Points", 0) or 0) for r in team_rows)
+                best_pos = min(int(getattr(r, "Position", 999)) for r in team_rows)
+                team_res.append({"team": team_name, "text": f"P{best_pos}, +{int(total_pts)} очк."})
+
+        caption = build_favorites_caption(race_info.get("event_name", "Гран-при"), driver_res, team_res)
+        tz = tz_map.get(tg_id, "Europe/Moscow")
+        quiet = is_quiet_hours(tz)
+        if await safe_send_photo(
+            bot, tg_id, photo_bytes,
+            caption=caption,
+            parse_mode="HTML",
+            has_spoiler=True,
+            disable_notification=quiet,
+        ):
+            sent_count += 1
+        await asyncio.sleep(0.05)
+
+    # Напоминание о голосовании — всем с включёнными уведомлениями
+    voting_users = await get_users_with_settings(notifications_only=True)
+    event_name = race_info.get("event_name", "Гран-при")
+    voting_text = (
+        f"🗳 <b>Приглашаем на голосование!</b>\n\n"
+        f"🏁 {event_name} завершена.\n\n"
+        f"Оцените этап по 5-балльной шкале и выберите пилота дня — "
+        f"откройте раздел <b>Голосование</b> в MiniWebApp слева по кнопке."
+    )
+    for u in voting_users:
+        tg_id, tz = u[0], u[1] or "Europe/Moscow"
+        quiet = is_quiet_hours(tz)
+        await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet)
+        await asyncio.sleep(0.05)
 
     await set_last_notified_round(season, round_num)
 
@@ -253,6 +407,7 @@ async def check_and_send_results(bot: Bot):
 # --- ЗАДАЧА 3: РЕЗУЛЬТАТЫ КВАЛИФИКАЦИИ ---
 
 async def check_and_notify_quali(bot: Bot) -> None:
+    """Картинка с общими результатами + текст по избранным пилотам под спойлером."""
     season = datetime.now(timezone.utc).year
     data = await _get_latest_quali_async(season)
     if not data or data[0] is None: return
@@ -261,36 +416,151 @@ async def check_and_notify_quali(bot: Bot) -> None:
     last_notified = await get_last_notified_quali_round(season)
     if last_notified is not None and last_notified >= round_num: return
 
-    users_favorites = await get_all_users_with_favorites()
+    users_favorites = await get_users_favorites_for_notifications()
     if not users_favorites:
         await set_last_notified_quali_round(season, round_num)
         return
 
-    user_map = {}
-    for row in users_favorites:
-        tg_id, code = row[0], row[1]
-        if tg_id not in user_map: user_map[tg_id] = []
-        user_map[tg_id].append(str(code).upper())
+    users_settings = await get_users_with_settings()
+    tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users_settings}
 
-    quali_map = {}
-    for row in results:
-        code = str(row.get('driver', '')).upper()
-        quali_map[code] = row
+    # Картинка с общими результатами
+    rows_for_image = []
+    for r in results:
+        pos = f"{r.get('position', 0):02d}"
+        code = r.get("driver", "?")
+        name = r.get("name", code)
+        best = r.get("best", "—")
+        rows_for_image.append((pos, code, name, best))
+
+    if not rows_for_image:
+        await set_last_notified_quali_round(season, round_num)
+        return
+
+    img_buf = await asyncio.to_thread(
+        create_quali_results_image,
+        f"Квалификация {season}",
+        f"Этап {round_num:02d}",
+        rows_for_image,
+    )
+    photo_bytes = img_buf.getvalue()
+
+    quali_map = {str(r.get("driver", "")).upper(): r for r in results}
 
     sent_count = 0
-    for tg_id, fav_drivers in user_map.items():
-        lines = []
-        for fav in fav_drivers:
-            if fav in quali_map:
-                row = quali_map[fav]
-                best_time = row.get('best', '-')
-                pos = row.get('position', '?')
-                lines.append(f"⏱ {fav}: P{pos} ({best_time})")
+    for tg_id, favs in users_favorites.items():
+        driver_res = []
+        for code in favs.get("drivers", []):
+            if code in quali_map:
+                row = quali_map[code]
+                driver_res.append({
+                    "code": code,
+                    "pos": str(row.get("position", "?")),
+                    "points": 0,
+                    "best": row.get("best", "-"),
+                })
 
-        if lines:
-            text = f"🏁 Квалификация (Этап {round_num})\n\n" + "\n".join(lines)
-            if await safe_send_message(bot, tg_id, text):
+        lines = []
+        for d in driver_res:
+            pos_str = f"P{d['pos']}"
+            if d["pos"] == "1": pos_str = "🥇 P1"
+            elif d["pos"] == "2": pos_str = "🥈 P2"
+            elif d["pos"] == "3": pos_str = "🥉 P3"
+            lines.append(f"⏱ {d['code']}: {pos_str} ({d.get('best', '-')})")
+
+        inner = "\n".join(lines) if lines else "📊 Результаты на картинке."
+        caption = f"🏁 Квалификация (Этап {round_num})\n\n<tg-spoiler><b>🏎 Пилоты</b>\n{inner}</tg-spoiler>"
+        tz = tz_map.get(tg_id, "Europe/Moscow")
+        quiet = is_quiet_hours(tz)
+        if await safe_send_photo(
+            bot, tg_id, photo_bytes,
+            caption=caption,
+            parse_mode="HTML",
+            has_spoiler=True,
+            disable_notification=quiet,
+        ):
+            sent_count += 1
+        await asyncio.sleep(0.05)
+
+    await set_last_notified_quali_round(season, round_num)
+
+
+# --- ЗАДАЧА 4: ИТОГИ ГОЛОСОВАНИЯ (3 дня после гонки) ---
+
+DRIVER_VOTING_DAYS = 3
+
+
+async def check_and_notify_voting_results(bot: Bot) -> None:
+    """
+    Через 3 дня после гонки отправляем итоги голосования:
+    «По мнению нашего сообщества этап оценили на: X. Лучшим пилотом стал: Y.»
+    """
+    season = datetime.now(timezone.utc).year
+    schedule = await get_season_schedule_short_async(season)
+    if not schedule:
+        return
+
+    last_notified = await get_last_notified_voting_round(season)
+    now = datetime.now(timezone.utc).date()
+
+    users = await get_users_with_settings(notifications_only=True)
+    if not users:
+        return
+
+    tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users}
+
+    for event in schedule:
+        round_num = event.get("round")
+        if not round_num:
+            continue
+        if last_notified is not None and round_num <= last_notified:
+            continue
+
+        date_str = event.get("date")
+        if not date_str:
+            continue
+        try:
+            race_date = datetime.fromisoformat(date_str).date()
+        except Exception:
+            continue
+
+        voting_closes = race_date + timedelta(days=DRIVER_VOTING_DAYS + 1)
+        if now < voting_closes:
+            continue
+
+        results_df = await get_race_results_async(season, round_num)
+        if results_df.empty:
+            continue
+
+        event_name = event.get("event_name", "Гран-при")
+        avg_rating, race_count = await get_race_avg_for_round(season, round_num)
+        driver_winner, driver_count = await get_driver_vote_winner(season, round_num)
+
+        if race_count == 0 and driver_count == 0:
+            await set_last_notified_voting_round(season, round_num)
+            continue
+
+        rating_str = f"{avg_rating:.1f} ★" if avg_rating is not None and race_count > 0 else "—"
+        if driver_winner and driver_count > 0:
+            driver_str = await get_driver_full_name_async(season, round_num, driver_winner)
+        else:
+            driver_str = "не выбран"
+
+        text = (
+            f"🗳 <b>Итоги голосования</b>\n\n"
+            f"🏁 {event_name} (этап {round_num})\n\n"
+            f"По мнению нашего сообщества этап оценили на: <b>{rating_str}</b>\n"
+            f"Лучшим пилотом стал: <b>{driver_str}</b>"
+        )
+
+        sent_count = 0
+        for tg_id in tz_map:
+            quiet = is_quiet_hours(tz_map[tg_id])
+            if await safe_send_message(bot, tg_id, text, parse_mode="HTML", disable_notification=quiet):
                 sent_count += 1
             await asyncio.sleep(0.05)
 
-    await set_last_notified_quali_round(season, round_num)
+        if sent_count > 0:
+            logger.info(f"✅ Sent voting results for {event_name} to {sent_count} users.")
+        await set_last_notified_voting_round(season, round_num)
+        return

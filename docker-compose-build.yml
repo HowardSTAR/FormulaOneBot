@@ -10,7 +10,7 @@ services:
     build:
       context: .
       args:
-        - APP_VERSION=0.1.2
+        - APP_VERSION=0.2.0
     restart: unless-stopped
     command: python -m app.main
     env_file:
@@ -28,7 +28,7 @@ services:
     build:
       context: .
       args:
-        - APP_VERSION=0.2.0
+        - APP_VERSION=0.3.0
     restart: unless-stopped
     command: python run_web.py
     env_file:

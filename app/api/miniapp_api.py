@@ -1,13 +1,14 @@
+import io
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional, List
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -16,15 +17,21 @@ from app.db import (
     get_favorite_drivers, get_favorite_teams,
     remove_favorite_driver, add_favorite_driver,
     remove_favorite_team, add_favorite_team,
-    get_user_settings, update_user_setting
+    get_user_settings, update_user_setting,
+    save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
 )
 from app.f1_data import (
     get_season_schedule_short_async,
     get_weekend_schedule,
     get_driver_standings_async,
-    get_constructor_standings_async, _get_latest_quali_async, get_race_results_async, get_event_details_async,
+    get_constructor_standings_async,
+    sort_standings_zero_last,
+    _get_latest_quali_async,
+    get_race_results_async,
+    get_event_details_async,
 )
 from app.handlers.races import build_next_race_payload
+from app.utils.image_render import _get_team_logo
 
 # --- Настройка путей ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -200,6 +207,77 @@ async def api_season(season: Optional[int] = Query(None)):
     return {"season": season, "races": races}
 
 
+# --- Голосования ---
+
+class RaceVoteRequest(BaseModel):
+    season: int
+    round: int
+    rating: int
+
+
+class DriverVoteRequest(BaseModel):
+    season: int
+    round: int
+    driver_code: str
+
+
+@web_app.get("/api/votes/me")
+async def api_votes_me(
+    season: int = Query(...),
+    user_id: int = Depends(get_current_user_id),
+):
+    """Голоса пользователя за сезон: race_votes и driver_votes."""
+    race_votes, driver_votes = await get_user_votes(user_id, season)
+    return {"race_votes": race_votes, "driver_votes": driver_votes}
+
+
+@web_app.post("/api/votes/race")
+async def api_votes_race(
+    body: RaceVoteRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    """Сохранить оценку гонки (1–5)."""
+    if not 1 <= body.rating <= 5:
+        raise HTTPException(400, "rating must be 1–5")
+    await save_race_vote(user_id, body.season, body.round, body.rating)
+    return {"status": "ok"}
+
+
+@web_app.post("/api/votes/driver")
+async def api_votes_driver(
+    body: DriverVoteRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    """Сохранить голос за пилота дня. Голосование закрывается через 3 дня после гонки."""
+    schedule = await get_season_schedule_short_async(body.season)
+    event = next((r for r in (schedule or []) if r.get("round") == body.round), None)
+    if event and event.get("date"):
+        try:
+            race_date = datetime.fromisoformat(event["date"]).date()
+            if datetime.now(timezone.utc).date() > race_date + timedelta(days=3):
+                raise HTTPException(400, "Голосование за пилота дня закрыто (3 дня после гонки)")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+    await save_driver_vote(user_id, body.season, body.round, body.driver_code)
+    return {"status": "ok"}
+
+
+@web_app.get("/api/votes/stats")
+async def api_votes_stats(season: int = Query(...)):
+    """Средние оценки гонок для графика [(round, avg, count), ...]."""
+    stats = await get_race_vote_stats(season)
+    return {"stats": [{"round": r, "avg": a, "count": c} for r, a, c in stats]}
+
+
+@web_app.get("/api/votes/driver-stats")
+async def api_votes_driver_stats(season: int = Query(...)):
+    """Голоса за пилотов дня: [(driver_code, count), ...]."""
+    stats = await get_driver_vote_stats(season)
+    return {"stats": [{"driver_code": d, "count": c} for d, c in stats]}
+
+
 @web_app.get("/api/weekend-schedule", response_model=ScheduleResponse)
 async def api_weekend_schedule(
         season: Optional[int] = Query(None),
@@ -250,8 +328,8 @@ async def api_drivers(
         return {"season": season, "round": round_number, "drivers": []}
 
     if "position" in df.columns:
-        df["position"] = pd.to_numeric(df["position"], errors='coerce')
-        df = df.sort_values("position")
+        df["position"] = pd.to_numeric(df["position"], errors="coerce")
+        df = sort_standings_zero_last(df)
 
     df = df.fillna("")
 
@@ -270,7 +348,10 @@ async def api_drivers(
             "points": getattr(row, "points", 0),
             "code": driver_code,
             "name": f"{getattr(row, 'givenName', '')} {getattr(row, 'familyName', '')}",
-            "is_favorite": driver_code in favorite_drivers
+            "is_favorite": driver_code in favorite_drivers,
+            "number": getattr(row, "permanentNumber", "") or "",
+            "constructorId": getattr(row, "constructorId", "") or "",
+            "constructorName": getattr(row, "constructorName", "") or "",
         })
 
     return {"season": season, "round": round_number, "drivers": results}
@@ -298,8 +379,8 @@ async def api_constructors(
         return {"season": season, "round": round_number, "constructors": []}
 
     if "position" in df.columns:
-        df["position"] = pd.to_numeric(df["position"], errors='coerce')
-        df = df.sort_values("position")
+        df["position"] = pd.to_numeric(df["position"], errors="coerce")
+        df = sort_standings_zero_last(df)
 
     df = df.fillna("")
 
@@ -314,10 +395,29 @@ async def api_constructors(
             "position": getattr(row, "position", ""),
             "points": getattr(row, "points", 0),
             "name": team_name,
+            "constructorId": getattr(row, "constructorId", "") or "",
             "is_favorite": team_name in favorite_teams
         })
 
     return {"season": season, "round": round_number, "constructors": results}
+
+
+@web_app.get("/api/team-logo")
+async def api_team_logo(
+        team: str = Query(..., description="constructorId или название команды"),
+        name: Optional[str] = Query(None, description="Полное название команды"),
+        season: int = Query(None, description="Год сезона")
+):
+    """Возвращает логотип команды в формате PNG."""
+    if season is None:
+        season = datetime.now().year
+    img = await asyncio.to_thread(_get_team_logo, team, name or team, season)
+    if img is None:
+        raise HTTPException(status_code=404, detail="Логотип не найден")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return Response(content=buf.getvalue(), media_type="image/png")
 
 
 @web_app.get("/api/favorites")
@@ -563,6 +663,95 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
         "q_score": [q_score1, q_score2],  # Передаем счет на фронтенд
         "data1": {"code": d1.upper(), "history": d1_history, "color": "#ff8700"},
         "data2": {"code": d2.upper(), "history": d2_history, "color": "#00d2be"}
+    }
+
+
+# Маппинг названий команд: Ergast/API -> возможные FastF1 TeamName
+TEAM_NAME_ALIASES: dict[str, list[str]] = {
+    "Red Bull": ["Red Bull Racing", "Oracle Red Bull Racing", "Red Bull Racing Honda RBPT"],
+    "RB F1 Team": ["Racing Bulls", "Visa Cash App RB", "Racing Bulls Honda RBPT", "RB", "Visa Cash App Racing Bulls"],
+    "Alpine F1 Team": ["Alpine"],
+    "Sauber": ["Stake F1 Team Kick Sauber", "Kick Sauber", "Alfa Romeo Sauber", "Sauber", "Stake F1 Team"],
+}
+
+
+def _team_matches(selected: str, row_value: str) -> bool:
+    """Проверяет, соответствует ли выбранная команда значению из результатов гонки."""
+    if not selected or (row_value is None or (isinstance(row_value, float) and pd.isna(row_value))):
+        return False
+    sel = str(selected).strip().lower()
+    row = str(row_value).strip().lower()
+    if sel == row:
+        return True
+    if sel in row or row in sel:
+        return True
+    aliases = TEAM_NAME_ALIASES.get(selected.strip(), [])
+    for alias in aliases:
+        if alias.strip().lower() == row:
+            return True
+        if alias.strip().lower() in row or row in alias.strip().lower():
+            return True
+    return False
+
+
+@web_app.get("/api/compare/teams")
+async def api_compare_teams(c1: str, c2: str, season: int = Query(...)):
+    """Сравнение команд по очкам за каждую гонку сезона."""
+    schedule = await get_season_schedule_short_async(season)
+    if not schedule:
+        return {"error": f"Нет расписания на {season} год"}
+
+    today = datetime.now().date()
+    passed_races = []
+    for r in schedule:
+        try:
+            r_date = datetime.strptime(r["date"], "%Y-%m-%d").date()
+            if r_date < today:
+                passed_races.append(r)
+        except Exception:
+            continue
+
+    if not passed_races:
+        return {"error": f"В {season} году ещё не было прошедших гонок для сравнения."}
+
+    labels = []
+    tasks = []
+    for race in passed_races:
+        round_num = race["round"]
+        labels.append(race.get("event_name", f"Этап {round_num}").replace(" Grand Prix", "").replace("Gp", ""))
+        tasks.append(get_race_results_async(season, round_num))
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    c1_history, c2_history = [], []
+
+    def _team_points(df: pd.DataFrame, team_name: str) -> float:
+        if df is None or isinstance(df, Exception) or df.empty:
+            return 0.0
+        col = "TeamName" if "TeamName" in df.columns else "Constructor"
+        if col not in df.columns:
+            return 0.0
+        pts_col = "Points" if "Points" in df.columns else ("points" if "points" in df.columns else None)
+        if pts_col is None:
+            return 0.0
+        mask = df[col].apply(lambda x: _team_matches(team_name, x))
+        team_rows = df[mask]
+        if team_rows.empty:
+            return 0.0
+        pts = team_rows[pts_col].fillna(0).astype(float).sum()
+        return float(pts)
+
+    for df in results:
+        pts1 = _team_points(df, c1) if isinstance(df, pd.DataFrame) else 0.0
+        pts2 = _team_points(df, c2) if isinstance(df, pd.DataFrame) else 0.0
+        c1_history.append(pts1)
+        c2_history.append(pts2)
+
+    return {
+        "labels": labels,
+        "q_score": [0, 0],
+        "data1": {"code": c1, "history": c1_history, "color": "#ff8700"},
+        "data2": {"code": c2, "history": c2_history, "color": "#00d2be"},
     }
 
 

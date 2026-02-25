@@ -3,13 +3,16 @@ import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
 import { CustomSelect } from "../../components/CustomSelect";
+import { hapticSelection } from "../../helpers/telegram";
 
 Chart.register(...registerables);
 
 const currentRealYear = new Date().getFullYear();
 
 type DriverOption = { code: string; name: string };
+type TeamOption = { name: string };
 type DriversResponse = { drivers?: DriverOption[] };
+type ConstructorsResponse = { constructors?: TeamOption[] };
 type CompareDataItem = { code: string; history: number[]; color?: string };
 type CompareResponse = {
   error?: string;
@@ -20,12 +23,17 @@ type CompareResponse = {
 };
 
 function ComparePage() {
+  const [tab, setTab] = useState<"drivers" | "teams">("drivers");
   const [yearInput, setYearInput] = useState(String(currentRealYear));
   const [year, setYear] = useState(currentRealYear);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
+  const [teams, setTeams] = useState<TeamOption[]>([]);
   const [d1, setD1] = useState("");
   const [d2, setD2] = useState("");
+  const [t1, setT1] = useState("");
+  const [t2, setT2] = useState("");
   const [loadingDrivers, setLoadingDrivers] = useState(true);
+  const [loadingTeams, setLoadingTeams] = useState(true);
   const [comparing, setComparing] = useState(false);
   const [results, setResults] = useState<CompareResponse | null>(null);
   const [compareError, setCompareError] = useState<string | null>(null);
@@ -56,9 +64,37 @@ function ComparePage() {
     }
   }, []);
 
+  const loadTeamsList = useCallback(async (season: number) => {
+    setLoadingTeams(true);
+    try {
+      const data = await apiRequest<ConstructorsResponse>("/api/constructors", { season });
+      const list = data.constructors || [];
+      setTeams(list);
+      if (list.length >= 2) {
+        setT1(list[0].name);
+        setT2(list[1].name);
+      } else if (list.length === 1) {
+        setT1(list[0].name);
+        setT2("");
+      } else {
+        setT1("");
+        setT2("");
+      }
+    } catch (e) {
+      console.error(e);
+      setTeams([]);
+    } finally {
+      setLoadingTeams(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadDriversList(year);
   }, [year, loadDriversList]);
+
+  useEffect(() => {
+    loadTeamsList(year);
+  }, [year, loadTeamsList]);
 
   const handleSearch = () => {
     const y = parseInt(yearInput, 10);
@@ -77,18 +113,26 @@ function ComparePage() {
   };
 
   const loadComparison = async () => {
-    if (!d1 || !d2 || d1 === d2) {
-      if (d1 === d2) alert("Выберите разных пилотов!");
-      return;
+    if (tab === "drivers") {
+      if (!d1 || !d2 || d1 === d2) {
+        if (d1 === d2) alert("Выберите разных пилотов!");
+        return;
+      }
+    } else {
+      if (!t1 || !t2 || t1 === t2) {
+        if (t1 === t2) alert("Выберите разные команды!");
+        return;
+      }
     }
     setComparing(true);
     setCompareError(null);
     try {
-      const res = await apiRequest<CompareResponse>("/api/compare", {
-        d1,
-        d2,
-        season: year,
-      });
+      const url = tab === "drivers" ? "/api/compare" : "/api/compare/teams";
+      const params =
+        tab === "drivers"
+          ? { d1, d2, season: year }
+          : { c1: t1, c2: t2, season: year };
+      const res = await apiRequest<CompareResponse>(url, params);
       if (res.error) {
         setCompareError(res.error);
         setResults(null);
@@ -98,7 +142,11 @@ function ComparePage() {
           chartRef.current?.scrollIntoView({ behavior: "smooth" });
         }, 100);
       } else {
-        setCompareError("Данные не найдены. Возможно, пилоты не выступали вместе в этом сезоне.");
+        setCompareError(
+          tab === "drivers"
+            ? "Данные не найдены. Возможно, пилоты не выступали вместе в этом сезоне."
+            : "Данные не найдены. Возможно, команды не выступали в этом сезоне."
+        );
         setResults(null);
       }
     } catch (e) {
@@ -212,12 +260,48 @@ function ComparePage() {
   const totalPts1 = results?.data1?.history.reduce((a, b) => a + b, 0) ?? 0;
   const totalPts2 = results?.data2?.history.reduce((a, b) => a + b, 0) ?? 0;
 
+  const isDriversReady = tab === "drivers" && d1 && d2 && d1 !== d2;
+  const isTeamsReady = tab === "teams" && t1 && t2 && t1 !== t2;
+  const canCompare = (tab === "drivers" ? isDriversReady : isTeamsReady) && !comparing;
+
   return (
     <>
       <Link to="/" className="btn-back">
         ← Главное меню
       </Link>
       <h2>Сравнение</h2>
+
+      <div className="segmented-tabs">
+        <div
+          className="segmented-slider"
+          style={{ transform: tab === "drivers" ? "translateX(0)" : "translateX(100%)" }}
+          aria-hidden
+        />
+        <button
+          type="button"
+          className={`segmented-tab ${tab === "drivers" ? "active" : ""}`}
+          onClick={() => {
+            hapticSelection();
+            setTab("drivers");
+            setResults(null);
+            setCompareError(null);
+          }}
+        >
+          Пилоты
+        </button>
+        <button
+          type="button"
+          className={`segmented-tab ${tab === "teams" ? "active" : ""}`}
+          onClick={() => {
+            hapticSelection();
+            setTab("teams");
+            setResults(null);
+            setCompareError(null);
+          }}
+        >
+          Команды
+        </button>
+      </div>
 
       <div className="search-container">
         <input
@@ -237,41 +321,75 @@ function ComparePage() {
         </button>
       </div>
 
-      <div className="selectors">
-        <CustomSelect
-          className="driver-select"
-          options={
-            loadingDrivers
-              ? [{ value: "", label: "Загрузка..." }]
-              : drivers.length === 0
-                ? [{ value: "", label: "Нет данных" }]
-                : drivers.map((d) => ({ value: d.code, label: d.name }))
-          }
-          value={d1}
-          onChange={(v) => setD1(String(v))}
-          disabled={loadingDrivers}
-        />
-        <span className="vs-badge">VS</span>
-        <CustomSelect
-          className="driver-select"
-          options={
-            loadingDrivers
-              ? [{ value: "", label: "Загрузка..." }]
-              : drivers.length === 0
-                ? [{ value: "", label: "Нет данных" }]
-                : drivers.map((d) => ({ value: d.code, label: d.name }))
-          }
-          value={d2}
-          onChange={(v) => setD2(String(v))}
-          disabled={loadingDrivers}
-        />
-      </div>
+      {tab === "drivers" && (
+        <div className="selectors">
+          <CustomSelect
+            className="driver-select"
+            options={
+              loadingDrivers
+                ? [{ value: "", label: "Загрузка..." }]
+                : drivers.length === 0
+                  ? [{ value: "", label: "Нет данных" }]
+                  : drivers.map((d) => ({ value: d.code, label: d.name }))
+            }
+            value={d1}
+            onChange={(v) => setD1(String(v))}
+            disabled={loadingDrivers}
+          />
+          <span className="vs-badge">VS</span>
+          <CustomSelect
+            className="driver-select"
+            options={
+              loadingDrivers
+                ? [{ value: "", label: "Загрузка..." }]
+                : drivers.length === 0
+                  ? [{ value: "", label: "Нет данных" }]
+                  : drivers.map((d) => ({ value: d.code, label: d.name }))
+            }
+            value={d2}
+            onChange={(v) => setD2(String(v))}
+            disabled={loadingDrivers}
+          />
+        </div>
+      )}
+
+      {tab === "teams" && (
+        <div className="selectors">
+          <CustomSelect
+            className="driver-select"
+            options={
+              loadingTeams
+                ? [{ value: "", label: "Загрузка..." }]
+                : teams.length === 0
+                  ? [{ value: "", label: "Нет данных" }]
+                  : teams.map((t) => ({ value: t.name, label: t.name }))
+            }
+            value={t1}
+            onChange={(v) => setT1(String(v))}
+            disabled={loadingTeams}
+          />
+          <span className="vs-badge">VS</span>
+          <CustomSelect
+            className="driver-select"
+            options={
+              loadingTeams
+                ? [{ value: "", label: "Загрузка..." }]
+                : teams.length === 0
+                  ? [{ value: "", label: "Нет данных" }]
+                  : teams.map((t) => ({ value: t.name, label: t.name }))
+            }
+            value={t2}
+            onChange={(v) => setT2(String(v))}
+            disabled={loadingTeams}
+          />
+        </div>
+      )}
 
       <button
         type="button"
         className="btn-compare"
         onClick={loadComparison}
-        disabled={comparing || !d1 || !d2}
+        disabled={!canCompare}
       >
         {comparing ? "Анализируем..." : "Сравнить"}
       </button>
@@ -289,20 +407,31 @@ function ComparePage() {
                 <span className="s-d1">{raceScore1}</span> : <span className="s-d2">{raceScore2}</span>
               </div>
             </div>
-            <div className="stat-card">
-              <div className="stat-title">Квалификации</div>
+            {tab === "drivers" ? (
+              <div className="stat-card">
+                <div className="stat-title">Квалификации</div>
+                <div className="stat-score">
+                  <span className="s-d1">{results.q_score?.[0] ?? 0}</span> :{" "}
+                  <span className="s-d2">{results.q_score?.[1] ?? 0}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="stat-card">
+                <div className="stat-title">Сумма очков</div>
+                <div className="stat-score">
+                  <span className="s-d1">{totalPts1}</span> : <span className="s-d2">{totalPts2}</span>
+                </div>
+              </div>
+            )}
+          </div>
+          {tab === "drivers" && (
+            <div className="stat-card" style={{ marginBottom: 20 }}>
+              <div className="stat-title">Сумма очков</div>
               <div className="stat-score">
-                <span className="s-d1">{results.q_score?.[0] ?? 0}</span> :{" "}
-                <span className="s-d2">{results.q_score?.[1] ?? 0}</span>
+                <span className="s-d1">{totalPts1}</span> : <span className="s-d2">{totalPts2}</span>
               </div>
             </div>
-          </div>
-          <div className="stat-card" style={{ marginBottom: 20 }}>
-            <div className="stat-title">Сумма очков</div>
-            <div className="stat-score">
-              <span className="s-d1">{totalPts1}</span> : <span className="s-d2">{totalPts2}</span>
-            </div>
-          </div>
+          )}
           <div className="chart-container">
             <canvas ref={chartRef} />
           </div>

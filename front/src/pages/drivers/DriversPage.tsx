@@ -4,12 +4,25 @@ import { apiRequest } from "../../helpers/api";
 
 const currentRealYear = new Date().getFullYear();
 
+function teamLogoUrl(teamId: string, teamName: string, season: number): string {
+  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
+  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
+  const team = teamId || teamName;
+  const params = new URLSearchParams({ team, season: String(season) });
+  if (teamName) params.set("name", teamName);
+  return `${origin.replace(/\/$/, "")}${pathBase}/api/team-logo?${params}`;
+}
+
 type Driver = {
   position: number;
   name: string;
   code: string;
   points: number;
   is_favorite?: boolean;
+  number?: string;
+  constructorId?: string;
+  constructorName?: string;
 };
 
 type DriversResponse = { drivers?: Driver[] };
@@ -137,8 +150,26 @@ function DriversPage() {
                   <div className="driver-name" style={isChampion ? { color: "#ffd700" } : undefined}>
                     {driver.name} {driver.is_favorite && <span style={{ fontSize: 14, marginLeft: 4 }}>⭐️</span>}
                   </div>
-                  <div className="team-name" style={isChampion ? { color: "rgba(255,255,255,0.7)" } : undefined}>
-                    {driver.code}
+                  <div
+                    className="team-name driver-code-row"
+                    style={isChampion ? { color: "rgba(255,255,255,0.7)" } : undefined}
+                  >
+                    {driver.number && (
+                      <span className="driver-number">#{driver.number}</span>
+                    )}
+                    {(driver.constructorId || driver.constructorName) && (
+                      <img
+                        src={teamLogoUrl(
+                          driver.constructorId || "",
+                          driver.constructorName || "",
+                          year
+                        )}
+                        alt=""
+                        className="driver-team-logo"
+                        onError={(e) => (e.currentTarget.style.display = "none")}
+                      />
+                    )}
+                    <span>{driver.code}</span>
                   </div>
                 </div>
                 <div

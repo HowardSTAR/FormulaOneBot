@@ -82,6 +82,22 @@ def _fallback_cache_set(cache_key: str, data: Any, ttl: int) -> None:
         logger.debug(f"Fallback cache write error: {e}")
 
 
+def sort_standings_zero_last(df: pd.DataFrame, position_col: str = "position") -> pd.DataFrame:
+    """
+    Сортирует таблицу зачёта так, что позиции 1, 2, 3, ... идут по порядку,
+    а пилоты/команды с 0 очков (позиция 0 или NaN) — в конец списка.
+    """
+    if df is None or df.empty or position_col not in df.columns:
+        return df
+    df = df.copy()
+    pos = pd.to_numeric(df[position_col], errors="coerce")
+    # 0 и NaN в конец: задаём ключ сортировки (0/NaN -> большое число)
+    sort_key = pos.fillna(999).replace(0, 999)
+    df["_sort_key"] = sort_key
+    df = df.sort_values("_sort_key").drop(columns=["_sort_key"])
+    return df
+
+
 async def init_redis_cache(redis_url: str):
     """Инициализация Redis клиента для кэширования данных."""
     global _REDIS_CLIENT
@@ -179,13 +195,16 @@ def get_season_schedule_short(season: int) -> list[dict]:
             location = str(row.get("Location") or "")
 
             race_dt_utc = None
+            quali_dt_utc = None
             for i in range(1, 6):
                 name_col = f"Session{i}"
                 date_col = f"Session{i}DateUtc"
                 if name_col in row and date_col in row:
-                    if str(row[name_col]) == "Race" and pd.notna(row[date_col]):
+                    sess_name = str(row[name_col]) if pd.notna(row[name_col]) else ""
+                    if sess_name == "Race" and pd.notna(row[date_col]):
                         race_dt_utc = row[date_col].to_pydatetime()
-                        break
+                    if "Qualifying" in sess_name and pd.notna(row[date_col]):
+                        quali_dt_utc = row[date_col].to_pydatetime()
 
             if race_dt_utc:
                 if race_dt_utc.tzinfo is None:
@@ -203,13 +222,20 @@ def get_season_schedule_short(season: int) -> list[dict]:
                     date_iso = _date.today().isoformat()
                 race_start_utc = None
 
+            quali_start_utc = None
+            if quali_dt_utc is not None:
+                if quali_dt_utc.tzinfo is None:
+                    quali_dt_utc = quali_dt_utc.replace(tzinfo=timezone.utc)
+                quali_start_utc = quali_dt_utc.isoformat()
+
             races.append({
                 "round": round_num,
                 "event_name": event_name,
                 "country": country,
                 "location": location,
                 "date": date_iso,
-                "race_start_utc": race_start_utc
+                "race_start_utc": race_start_utc,
+                "quali_start_utc": quali_start_utc
             })
         except Exception:
             continue
@@ -226,7 +252,8 @@ def get_driver_standings_df(season: int, round_number: Optional[int] = None) -> 
             res = ergast.get_driver_standings(season=season, round=round_number)
 
         if res.content and len(res.content) > 0:
-            return res.content[0]
+            df = res.content[0]
+            return sort_standings_zero_last(df)
         return pd.DataFrame()
     except Exception as e:
         logger.error(f"Ergast API error (drivers): {e}")
@@ -242,7 +269,8 @@ def get_constructor_standings_df(season: int, round_number: Optional[int] = None
             res = ergast.get_constructor_standings(season=season, round=round_number)
 
         if res.content and len(res.content) > 0:
-            return res.content[0]
+            df = res.content[0]
+            return sort_standings_zero_last(df)
         return pd.DataFrame()
     except Exception as e:
         logger.error(f"Ergast API error (constructors): {e}")
@@ -446,15 +474,17 @@ def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
 
 
 # --- АСИНХРОННЫЕ ОБЕРТКИ (С КЭШИРОВАНИЕМ) --- #
+# Бот и Mini App API вызывают одни и те же async-функции ниже:
+# запросы и с бота, и с front идут через кэш (Redis или файловый), кэш общий.
 
-@cache_result(ttl=7200, key_prefix="schedule")
+@cache_result(ttl=7200, key_prefix="schedule_v2")
 async def get_season_schedule_short_async(season: int):
     return await _run_sync(get_season_schedule_short, season)
 
 
-@cache_result(ttl=3600, key_prefix="dr_standings")
+@cache_result(ttl=3600, key_prefix="dr_standings_v3")
 async def get_driver_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
-    """Асинхронно получает личный зачет (Jolpica API). Фоллбэк на OpenF1 (0 очков), если сезон не стартовал."""
+    """Асинхронно получает личный зачет (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/driverStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json"
 
     async with aiohttp.ClientSession() as session_req:
@@ -469,25 +499,51 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
                         parsed_data = []
                         for ds in driver_standings:
                             driver = ds.get("Driver", {})
-                            parsed_data.append({
-                                "position": int(ds.get("position", 0)),
-                                "points": float(ds.get("points", 0.0)),
-                                "driverCode": driver.get("code", ""),
-                                "givenName": driver.get("givenName", ""),
-                                "familyName": driver.get("familyName", ""),
-                                "driverId": driver.get("driverId", "")
-                            })
-                        return pd.DataFrame(parsed_data)
+                            constructors = ds.get("Constructors", [])
+                            constructor = constructors[0] if constructors else {}
+                            # positionText "-" означает пилота без места; position может отсутствовать
+                            pos_raw = ds.get("position") or ds.get("positionText", "0")
+                            try:
+                                pos = int(pos_raw) if str(pos_raw).isdigit() else 0
+                            except (ValueError, TypeError):
+                                pos = 0
+                            parsed_data.append(
+                                {
+                                    "position": pos,
+                                    "points": float(ds.get("points", 0.0)),
+                                    "driverCode": driver.get("code", "") or (driver.get("familyName", "")[:3].upper() if driver.get("familyName") else ""),
+                                    "givenName": driver.get("givenName", ""),
+                                    "familyName": driver.get("familyName", ""),
+                                    "driverId": driver.get("driverId", ""),
+                                    "permanentNumber": str(driver.get("permanentNumber", "")) if driver.get("permanentNumber") else "",
+                                    "constructorId": constructor.get("constructorId", ""),
+                                    "constructorName": constructor.get("name", ""),
+                                }
+                            )
+
+                        df = pd.DataFrame(parsed_data)
+                        # Если Jolpica вернул слишком мало пилотов — берём из Ergast
+                        if len(df) >= 5:
+                            return sort_standings_zero_last(df)
+                        logger.warning(f"Jolpica returned only {len(df)} drivers for {season}, falling back to Ergast")
         except Exception as e:
             logger.error(f"Jolpica API error (drivers): {e}")
 
-    # ФОЛЛБЭК: Сезон еще не начался, очков нет. Формируем нулевую таблицу из OpenF1.
+    # Фоллбэк: Ergast для прошедших сезонов, OpenF1 для текущего
+    if season < datetime.now().year:
+        try:
+            df = await _run_sync(get_driver_standings_df, season, round_number)
+            if not df.empty:
+                return df
+        except Exception as e:
+            logger.warning(f"Ergast fallback failed for {season}: {e}")
+
     return await _get_zero_point_driver_standings()
 
 
-@cache_result(ttl=3600, key_prefix="con_standings")
+@cache_result(ttl=3600, key_prefix="con_standings_v3")
 async def get_constructor_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
-    """Асинхронно получает кубок конструкторов (Jolpica API). Фоллбэк на OpenF1 (0 очков)."""
+    """Асинхронно получает кубок конструкторов (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/constructorStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json"
 
     async with aiohttp.ClientSession() as session_req:
@@ -508,11 +564,21 @@ async def get_constructor_standings_async(season: int, round_number: int | None 
                                 "constructorId": team.get("constructorId", ""),
                                 "constructorName": team.get("name", "")
                             })
-                        return pd.DataFrame(parsed_data)
+                        df = pd.DataFrame(parsed_data)
+                        if len(df) >= 3:
+                            return sort_standings_zero_last(df)
+                        logger.warning(f"Jolpica returned only {len(df)} constructors for {season}, falling back to Ergast")
         except Exception as e:
             logger.error(f"Jolpica API error (constructors): {e}")
 
-    # ФОЛЛБЭК: Формируем нулевую таблицу из OpenF1
+    if season < datetime.now().year:
+        try:
+            df = await _run_sync(get_constructor_standings_df, season, round_number)
+            if not df.empty:
+                return df
+        except Exception as e:
+            logger.warning(f"Ergast fallback failed for constructors {season}: {e}")
+
     return await _get_zero_point_constructor_standings()
 
 
@@ -550,7 +616,10 @@ async def _get_zero_point_driver_standings() -> pd.DataFrame:
                         "driverCode": d.get('name_acronym', '???'),
                         "givenName": given,
                         "familyName": family,
-                        "driverId": str(driver_num)
+                        "driverId": str(driver_num),
+                        "permanentNumber": str(driver_num),
+                        "constructorId": (d.get("team_name") or "").lower().replace(" ", "_"),
+                        "constructorName": d.get("team_name", ""),
                     })
 
                 # До старта сезона сортируем пилотов по алфавиту (по фамилии)
@@ -611,6 +680,33 @@ async def _get_latest_quali_async(season: int, max_round: int | None = None, lim
 
 async def get_event_details_async(season: int, round_number: int):
     return await _run_sync(get_event_details, season, round_number)
+
+
+async def get_driver_full_name_async(season: int, round_num: int, driver_code: str) -> str:
+    """Возвращает полное имя пилота по коду (GivenName FamilyName) или код, если не найден."""
+    code_upper = (driver_code or "").upper().strip()
+    if not code_upper:
+        return driver_code or "?"
+
+    df = await get_driver_standings_async(season, round_num)
+    if not df.empty and "driverCode" in df.columns:
+        for row in df.itertuples(index=False):
+            c = getattr(row, "driverCode", "") or ""
+            if str(c).upper() == code_upper:
+                given = getattr(row, "givenName", "") or ""
+                family = getattr(row, "familyName", "") or ""
+                return f"{given} {family}".strip() or code_upper
+
+    results_df = await get_race_results_async(season, round_num)
+    if not results_df.empty:
+        for row in results_df.itertuples(index=False):
+            abbr = str(getattr(row, "Abbreviation", "") or "").upper()
+            if abbr == code_upper:
+                given = str(getattr(row, "FirstName", "") or "")
+                family = str(getattr(row, "LastName", "") or "")
+                return f"{given} {family}".strip() or code_upper
+
+    return code_upper
 
 
 # --- ПРОГРЕВ КЭША --- #

@@ -15,7 +15,12 @@ from app.f1_data import init_redis_cache, warmup_cache
 from app.handlers import start, races, drivers, teams, favorites, secret, settings, compare, feedback
 from app.middlewares.error_logging import ErrorLoggingMiddleware
 from app.utils.backup import create_backup
-from app.utils.notifications import check_and_send_notifications, check_and_send_results
+from app.utils.notifications import (
+    check_and_send_notifications,
+    check_and_send_results,
+    check_and_notify_quali,
+    check_and_notify_voting_results,
+)
 
 
 # --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
@@ -114,6 +119,20 @@ async def main():
         minutes=15,
         args=[bot],
         id="results_job"
+    )
+    scheduler.add_job(
+        check_and_notify_voting_results,
+        "interval",
+        minutes=60,
+        args=[bot],
+        id="voting_results_job",
+    )
+    scheduler.add_job(
+        check_and_notify_quali,
+        "interval",
+        minutes=15,
+        args=[bot],
+        id="quali_results_job"
     )
 
     scheduler.start()
