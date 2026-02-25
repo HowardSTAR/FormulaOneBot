@@ -5,10 +5,14 @@ WORKDIR /front
 COPY front/package*.json ./
 RUN npm ci
 
-COPY front/ ./
+# Копируем исходники явно (без node_modules/dist из .dockerignore)
+COPY front/index.html front/vite.config.ts front/tsconfig*.json ./
+COPY front/public ./public
+COPY front/src ./src
+
 ENV VITE_API_URL=https://f1hub.ru
 
-RUN npx vite build
+RUN npm run build
 
 FROM python:3.11-slim
 
