@@ -51,6 +51,26 @@ async def safe_answer(
     return None
 
 
+async def safe_send_photo(bot: Bot, chat_id: int, photo, caption: str = "", **kwargs) -> bool:
+    """Безопасная отправка фото (BytesIO, bytes или file_id)."""
+    try:
+        await bot.send_photo(chat_id=chat_id, photo=photo, caption=caption or None, **kwargs)
+        return True
+    except TelegramForbiddenError:
+        logger.warning(f"User {chat_id} blocked the bot.")
+        return False
+    except TelegramRetryAfter as e:
+        logger.warning(f"FloodWait: Sleeping {e.retry_after} seconds for user {chat_id}...")
+        await asyncio.sleep(e.retry_after)
+        return await safe_send_photo(bot, chat_id, photo, caption, **kwargs)
+    except TelegramBadRequest as e:
+        logger.error(f"Bad Request for user {chat_id}: {e}")
+        return False
+    except Exception as e:
+        logger.exception(f"Unexpected error sending photo to {chat_id}: {e}")
+        return False
+
+
 async def safe_send_message(bot: Bot, chat_id: int, text: str, **kwargs) -> bool:
     """
     Безопасная отправка сообщения с обработкой ошибок и FloodWait.

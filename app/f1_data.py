@@ -195,13 +195,16 @@ def get_season_schedule_short(season: int) -> list[dict]:
             location = str(row.get("Location") or "")
 
             race_dt_utc = None
+            quali_dt_utc = None
             for i in range(1, 6):
                 name_col = f"Session{i}"
                 date_col = f"Session{i}DateUtc"
                 if name_col in row and date_col in row:
-                    if str(row[name_col]) == "Race" and pd.notna(row[date_col]):
+                    sess_name = str(row[name_col]) if pd.notna(row[name_col]) else ""
+                    if sess_name == "Race" and pd.notna(row[date_col]):
                         race_dt_utc = row[date_col].to_pydatetime()
-                        break
+                    if "Qualifying" in sess_name and pd.notna(row[date_col]):
+                        quali_dt_utc = row[date_col].to_pydatetime()
 
             if race_dt_utc:
                 if race_dt_utc.tzinfo is None:
@@ -219,13 +222,20 @@ def get_season_schedule_short(season: int) -> list[dict]:
                     date_iso = _date.today().isoformat()
                 race_start_utc = None
 
+            quali_start_utc = None
+            if quali_dt_utc is not None:
+                if quali_dt_utc.tzinfo is None:
+                    quali_dt_utc = quali_dt_utc.replace(tzinfo=timezone.utc)
+                quali_start_utc = quali_dt_utc.isoformat()
+
             races.append({
                 "round": round_num,
                 "event_name": event_name,
                 "country": country,
                 "location": location,
                 "date": date_iso,
-                "race_start_utc": race_start_utc
+                "race_start_utc": race_start_utc,
+                "quali_start_utc": quali_start_utc
             })
         except Exception:
             continue
@@ -467,12 +477,12 @@ def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
 # Бот и Mini App API вызывают одни и те же async-функции ниже:
 # запросы и с бота, и с front идут через кэш (Redis или файловый), кэш общий.
 
-@cache_result(ttl=7200, key_prefix="schedule")
+@cache_result(ttl=7200, key_prefix="schedule_v2")
 async def get_season_schedule_short_async(season: int):
     return await _run_sync(get_season_schedule_short, season)
 
 
-@cache_result(ttl=3600, key_prefix="dr_standings_v2")
+@cache_result(ttl=3600, key_prefix="dr_standings_v3")
 async def get_driver_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
     """Асинхронно получает личный зачет (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/driverStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json"
@@ -489,6 +499,8 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
                         parsed_data = []
                         for ds in driver_standings:
                             driver = ds.get("Driver", {})
+                            constructors = ds.get("Constructors", [])
+                            constructor = constructors[0] if constructors else {}
                             # positionText "-" означает пилота без места; position может отсутствовать
                             pos_raw = ds.get("position") or ds.get("positionText", "0")
                             try:
@@ -503,6 +515,9 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
                                     "givenName": driver.get("givenName", ""),
                                     "familyName": driver.get("familyName", ""),
                                     "driverId": driver.get("driverId", ""),
+                                    "permanentNumber": str(driver.get("permanentNumber", "")) if driver.get("permanentNumber") else "",
+                                    "constructorId": constructor.get("constructorId", ""),
+                                    "constructorName": constructor.get("name", ""),
                                 }
                             )
 
@@ -526,7 +541,7 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
     return await _get_zero_point_driver_standings()
 
 
-@cache_result(ttl=3600, key_prefix="con_standings_v2")
+@cache_result(ttl=3600, key_prefix="con_standings_v3")
 async def get_constructor_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
     """Асинхронно получает кубок конструкторов (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/constructorStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json"
@@ -601,7 +616,10 @@ async def _get_zero_point_driver_standings() -> pd.DataFrame:
                         "driverCode": d.get('name_acronym', '???'),
                         "givenName": given,
                         "familyName": family,
-                        "driverId": str(driver_num)
+                        "driverId": str(driver_num),
+                        "permanentNumber": str(driver_num),
+                        "constructorId": (d.get("team_name") or "").lower().replace(" ", "_"),
+                        "constructorName": d.get("team_name", ""),
                     })
 
                 # До старта сезона сортируем пилотов по алфавиту (по фамилии)

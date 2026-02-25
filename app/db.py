@@ -236,11 +236,42 @@ async def get_favorite_teams(telegram_id: int) -> List[str]:
 
 # --- Уведомления ---
 async def get_all_users_with_favorites() -> List[Tuple[int, int]]:
+    """Устаревший: возвращает (telegram_id, user_id). Используйте get_users_favorites_for_notifications."""
     if not db.conn: await db.connect()
-    # Возвращаем список (telegram_id, db_id)
     async with db.conn.execute("SELECT DISTINCT telegram_id, id FROM users") as cursor:
         rows = await cursor.fetchall()
         return [(r['telegram_id'], r['id']) for r in rows]
+
+
+async def get_users_favorites_for_notifications(notifications_only: bool = True) -> dict:
+    """
+    Возвращает {telegram_id: {"drivers": [...], "teams": [...]}} для пользователей с избранным.
+    Используется для рассылки результатов гонок и квалификации.
+    """
+    if not db.conn: await db.connect()
+    notif_filter = " WHERE u.notifications_enabled = 1" if notifications_only else ""
+    result: dict = {}
+    async with db.conn.execute(
+        "SELECT u.telegram_id, fd.driver_code FROM users u "
+        "JOIN favorite_drivers fd ON fd.user_id = u.id"
+        f"{notif_filter}"
+    ) as cursor:
+        async for row in cursor:
+            tg_id = row['telegram_id']
+            if tg_id not in result:
+                result[tg_id] = {"drivers": [], "teams": []}
+            result[tg_id]["drivers"].append(str(row['driver_code']).upper())
+    async with db.conn.execute(
+        "SELECT u.telegram_id, ft.constructor_name FROM users u "
+        "JOIN favorite_teams ft ON ft.user_id = u.id"
+        f"{notif_filter}"
+    ) as cursor:
+        async for row in cursor:
+            tg_id = row['telegram_id']
+            if tg_id not in result:
+                result[tg_id] = {"drivers": [], "teams": []}
+            result[tg_id]["teams"].append(str(row['constructor_name']))
+    return result
 
 
 async def get_favorites_for_user_id(user_db_id: int) -> Tuple[List[str], List[str]]:
