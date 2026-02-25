@@ -7,7 +7,8 @@ RUN npm ci
 
 COPY front/ ./
 ENV VITE_API_URL=https://f1hub.ru
-RUN npm run build
+
+RUN npx vite build
 
 FROM python:3.11-slim
 
