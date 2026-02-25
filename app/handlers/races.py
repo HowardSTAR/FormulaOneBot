@@ -24,6 +24,7 @@ from app.utils.default import SESSION_NAME_RU, validate_f1_year
 from app.utils.image_render import (
     create_results_image, create_season_image, create_quali_results_image
 )
+from app.utils.loader import Loader
 from app.utils.time_tools import format_race_time
 
 router = Router()
@@ -453,18 +454,23 @@ async def race_callback(callback: CallbackQuery) -> None:
 
 # --- Календарь ---
 async def _send_races_for_year(message: Message, season: int) -> None:
-    races = await get_season_schedule_short_async(season)
-    if not races:
-        await message.answer(f"Нет данных по календарю сезона {season}.")
-        return
-    try:
-        img_buf = await asyncio.to_thread(create_season_image, season, races)
-    except Exception:
-        await message.answer("Не удалось сгенерировать календарь.")
-        return
-    photo = BufferedInputFile(img_buf.getvalue(), filename=f"season_{season}.png")
-    caption = f"📅 Календарь сезона {season}\n\n🟥 — гонка уже прошла\n🟩 — предстоящие гонки"
-    await message.answer_photo(photo=photo, caption=caption, parse_mode="HTML")
+    async with Loader(message, f"📅 Загружаю календарь гонок за {season} год..."):
+        races = await get_season_schedule_short_async(season)
+
+        if not races:
+            await message.answer(f"Нет данных по календарю сезона {season}.")
+            return
+
+        try:
+            img_buf = await asyncio.to_thread(create_season_image, season, races)
+        except Exception:
+            await message.answer("Не удалось сгенерировать календарь.")
+            return
+
+        photo = BufferedInputFile(img_buf.getvalue(), filename=f"season_{season}.png")
+        caption = f"📅 Календарь сезона {season}\n\n🟥 — гонка уже прошла\n🟩 — предстоящие гонки"
+
+        await message.answer_photo(photo=photo, caption=caption, parse_mode="HTML")
 
 
 @router.message(Command("races"))

@@ -19,6 +19,7 @@ from app.db import get_favorite_drivers
 from app.f1_data import get_driver_standings_async
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_driver_standings_image
+from app.utils.loader import Loader
 
 router = Router()
 
@@ -27,25 +28,21 @@ class DriversYearState(StatesGroup):
     year = State()
 
 
-async def _send_drivers_for_year(
-    message: Message, season: int, telegram_id: int | None = None
-) -> None:
-    try:
-        # ИСПРАВЛЕНО: Вызываем асинхронную версию получения данных,
-        # чтобы не блокировать бота во время сетевого запроса.
-        df = await get_driver_standings_async(season)
-    except Exception:
-        await message.answer(
-            "❌ Не удалось получить таблицу пилотов.\n"
-            "Возможно, сейчас недоступен источник данных. Попробуй ещё раз позже."
-        )
-        return
+async def _send_drivers_for_year(message: Message, season: int, telegram_id: int | None = None) -> None:
+    # Запускаем лоадер
+    async with Loader(message, text="⏳ Получаю таблицу пилотов..."):
+        try:
+            df = await get_driver_standings_async(season)
+        except Exception:
+            await message.answer(
+                "❌ Не удалось получить таблицу пилотов.\n"
+                "Возможно, сейчас недоступен источник данных. Попробуй ещё раз позже."
+            )
+            return
 
-    if df.empty:
-        await message.answer(
-            f"Пока нет данных по личному зачёту пилотов за {season} год."
-        )
-        return
+        if df.empty:
+            await message.answer(f"❌ Нет данных о пилотах за сезон {season}.")
+            return
 
     df = df.sort_values("position")
 
@@ -202,6 +199,7 @@ async def drivers_year_from_text(message: Message, state: FSMContext):
 @router.callback_query(F.data.startswith("drivers_current_"))
 async def drivers_year_current(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
+    await callback.answer()
     year_str = callback.data.split("_")[-1]
     try:
         season = int(year_str)
@@ -212,5 +210,3 @@ async def drivers_year_current(callback: CallbackQuery, state: FSMContext) -> No
         await _send_drivers_for_year(
             callback.message, season, telegram_id=callback.from_user.id
         )
-
-    await callback.answer()

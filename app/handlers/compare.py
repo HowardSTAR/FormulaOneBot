@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 
 from aiogram import Router, F
@@ -11,6 +12,7 @@ from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboar
 from app.f1_data import get_season_schedule_short_async, get_race_results_async, get_driver_standings_async
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_comparison_image
+from app.utils.loader import Loader
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -75,42 +77,35 @@ async def process_compare_year(message: Message, state: FSMContext):
         await message.answer(error_msg)
         return
 
-    loading_msg = await message.answer(f"⏳ Загружаю список пилотов сезона {year}...")
+    async with Loader(message, f"⏳ Загружаю список пилотов сезона {year}...") as loader:
+        standings = await get_driver_standings_async(year)
 
-    # Получаем список пилотов
-    standings = await get_driver_standings_async(year)
+        if standings.empty:
+            await message.answer(f"❌ Не удалось найти данные о пилотах за {year} год.")
+            await state.clear()
+            return
 
-    if standings.empty:
-        await loading_msg.edit_text(f"❌ Не удалось найти данные о пилотах за {year} год.")
-        await state.clear()
-        return
+        try:
+            if 'driverCode' in standings.columns:
+                drivers_list = standings['driverCode'].tolist()
+            elif 'driverId' in standings.columns:
+                drivers_list = [str(d).upper()[:3] for d in standings['driverId'].tolist()]
+            else:
+                drivers_list = []
 
-    try:
-        # Пытаемся найти колонку с кодом
-        if 'driverCode' in standings.columns:
-            drivers_list = standings['driverCode'].tolist()
-        elif 'driverId' in standings.columns:
-            # Fallback: берем ID и делаем upper
-            drivers_list = [str(d).upper()[:3] for d in standings['driverId'].tolist()]
-        else:
-            # Fallback для старых данных
-            drivers_list = []
+            drivers_list = list(set([d for d in drivers_list if d]))
 
-        drivers_list = list(set([d for d in drivers_list if d]))
+            if not drivers_list and not standings.empty:
+                drivers_list = [str(x).upper()[:3] for x in standings.index.tolist()]
 
-        # Если список пуст (бывает в старых сезонах), пробуем достать из index
-        if not drivers_list and not standings.empty:
-            drivers_list = [str(x).upper()[:3] for x in standings.index.tolist()]
+        except Exception:
+            await message.answer("❌ Ошибка обработки списка пилотов.")
+            return
 
-    except Exception:
-        await loading_msg.edit_text("❌ Ошибка обработки списка пилотов.")
-        return
+        await state.update_data(year=year, drivers_list=drivers_list)
 
-    await state.update_data(year=year, drivers_list=drivers_list)
-
+    # Вне блока with (предыдущее сообщение уже удалилось)
     kb = build_drivers_keyboard(drivers_list, prefix="cmp_d1_")
-
-    await loading_msg.delete()
     await message.answer(
         f"📅 Сезон: <b>{year}</b>\n\nВыберите <b>первого</b> пилота:",
         reply_markup=kb, parse_mode="HTML"
@@ -149,135 +144,116 @@ async def process_driver_2_selection(callback: CallbackQuery, state: FSMContext)
     year = data.get("year")
 
     await state.clear()
-
-    # Показываем статус и начинаем загрузку
-    status_msg = await callback.message.edit_text(
-        f"🏎️ <b>Дуэль: {driver1_code} ⚔️ {driver2_code}</b>\n"
-        f"📅 Сезон: {year}\n\n"
-        f"⏳ Начинаю анализ гонок...", parse_mode="HTML"
-    )
+    await callback.message.delete() # Удаляем старую клавиатуру выбора пилота
 
     try:
-        await send_comparison_graph(status_msg, driver1_code, driver2_code, year)
+        await send_comparison_graph(callback.message, driver1_code, driver2_code, year)
     except Exception as e:
         logger.exception("Comparison error")
-        await status_msg.edit_text(f"❌ Произошла ошибка: {e}")
+        await callback.message.answer(f"❌ Произошла ошибка: {e}")
 
     await callback.answer()
 
 
 # --- 6. Логика генерации (С ПРОГРЕСС-БАРОМ) ---
 async def send_comparison_graph(message: Message, d1_code: str, d2_code: str, year: int):
-    schedule = await get_season_schedule_short_async(year)
+    # Оборачиваем весь сложный процесс в Loader!
+    text_init = (
+        f"🏎️ <b>Дуэль: {d1_code} ⚔️ {d2_code}</b>\n"
+        f"📅 Сезон: {year}\n\n"
+        f"⏳ Начинаю анализ гонок..."
+    )
 
-    current_year = datetime.now().year
-    now = datetime.now(timezone.utc)
+    async with Loader(message, text_init) as loader:
+        schedule = await get_season_schedule_short_async(year)
 
-    passed_races = []
-    for r in schedule:
-        # Проверка даты, чтобы не грузить будущее
-        if r.get("race_start_utc"):
-            try:
-                r_dt = datetime.fromisoformat(r["race_start_utc"])
-                if r_dt.tzinfo is None: r_dt = r_dt.replace(tzinfo=timezone.utc)
-                if r_dt <= now:
-                    passed_races.append(r)
-            except:
-                pass
-        elif year < current_year:
-            passed_races.append(r)
+        current_year = datetime.now().year
+        now = datetime.now(timezone.utc)
 
-    if not passed_races:
-        await message.edit_text(f"В сезоне {year} данных о гонках не найдено.")
-        return
+        passed_races = []
+        for r in schedule:
+            if r.get("race_start_utc"):
+                try:
+                    r_dt = datetime.fromisoformat(r["race_start_utc"])
+                    if r_dt.tzinfo is None: r_dt = r_dt.replace(tzinfo=timezone.utc)
+                    if r_dt <= now:
+                        passed_races.append(r)
+                except:
+                    pass
+            elif year < current_year:
+                passed_races.append(r)
 
-    d1_history = []
-    d2_history = []
-    labels = []
+        if not passed_races:
+            await message.answer(f"В сезоне {year} данных о гонках не найдено.")
+            return
 
-    total_races = len(passed_races)
+        d1_history = []
+        d2_history = []
+        labels = []
 
-    # --- Оптимизированная загрузка с прогрессом ---
-    results_list = [None] * total_races
+        total_races = len(passed_races)
 
-    # Создаем задачи
-    tasks = []
-    for i, r in enumerate(passed_races):
-        tasks.append(get_race_results_async(year, r["round"]))
+        results_list = [None] * total_races
+        tasks = []
+        for i, r in enumerate(passed_races):
+            tasks.append(get_race_results_async(year, r["round"]))
 
-    # Запускаем и обновляем статус каждые 3 завершенные задачи
-    # (или просто ждем всё, но с периодическим апдейтом сообщения, если gather висит)
+        pending = set(asyncio.create_task(t) for t in tasks)
+        completed_count = 0
 
-    # Вариант 1: Просто gather (быстро, но если висит - пользователь нервничает)
-    # results_list = await asyncio.gather(*tasks)
+        task_to_index = {list(pending)[i]: i for i in range(len(pending))}
+        final_results = [None] * total_races
 
-    # Вариант 2: Постепенный прогресс
-    pending = set(asyncio.create_task(t) for t in tasks)
-    completed_count = 0
+        last_update_time = time.time()
 
-    # Сохраняем мапинг task -> index, чтобы потом собрать в правильном порядке
-    task_to_index = {list(pending)[i]: i for i in range(len(pending))}
-    final_results = [None] * total_races
+        while pending:
+            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            completed_count += len(done)
 
-    last_update_time = 0
+            for t in done:
+                idx = task_to_index[t]
+                try:
+                    final_results[idx] = await t
+                except Exception:
+                    final_results[idx] = None
 
-    while pending:
-        done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-        completed_count += len(done)
-
-        for t in done:
-            idx = task_to_index[t]
-            try:
-                final_results[idx] = await t
-            except Exception:
-                final_results[idx] = None
-
-        # Обновляем сообщение раз в 2 секунды, чтобы не словить FloodWait
-        import time
-        if time.time() - last_update_time > 2.0:
-            try:
-                await message.edit_text(
+            # Динамически обновляем статус внутри лоадера
+            if time.time() - last_update_time > 1.5:
+                await loader.update(
                     f"🏎️ <b>Дуэль: {d1_code} ⚔️ {d2_code}</b>\n"
                     f"📅 Сезон: {year}\n\n"
-                    f"⏳ Загружаю данные: <b>{completed_count} / {total_races}</b> гонок...", parse_mode="HTML"
+                    f"⏳ Загружаю данные: <b>{completed_count} / {total_races}</b> гонок..."
                 )
                 last_update_time = time.time()
-            except:
-                pass
 
-    # --- Обработка данных ---
-    await message.edit_text("🎨 Рисую график...")
+        await loader.update("🎨 Рисую график...")
 
-    for i, race in enumerate(passed_races):
-        df = final_results[i]
-        label = race.get("event_name", "GP").replace(" Grand Prix", "").replace("Gp", "")
-        labels.append(label)
+        for i, race in enumerate(passed_races):
+            df = final_results[i]
+            label = race.get("event_name", "GP").replace(" Grand Prix", "").replace("Gp", "")
+            labels.append(label)
 
-        pts1 = 0
-        pts2 = 0
+            pts1 = 0
+            pts2 = 0
 
-        if df is not None and not df.empty:
-            # Нормализация
-            df['Abbreviation'] = df['Abbreviation'].fillna("").astype(str).str.upper()
+            if df is not None and not df.empty:
+                df['Abbreviation'] = df['Abbreviation'].fillna("").astype(str).str.upper()
 
-            row1 = df[df['Abbreviation'] == d1_code]
-            if not row1.empty: pts1 = row1.iloc[0]['Points']
+                row1 = df[df['Abbreviation'] == d1_code]
+                if not row1.empty: pts1 = row1.iloc[0]['Points']
 
-            row2 = df[df['Abbreviation'] == d2_code]
-            if not row2.empty: pts2 = row2.iloc[0]['Points']
+                row2 = df[df['Abbreviation'] == d2_code]
+                if not row2.empty: pts2 = row2.iloc[0]['Points']
 
-        d1_history.append(pts1)
-        d2_history.append(pts2)
+            d1_history.append(pts1)
+            d2_history.append(pts2)
 
-    # Цвета
-    data1 = {"code": d1_code, "history": d1_history, "color": "#ff8700"}
-    data2 = {"code": d2_code, "history": d2_history, "color": "#00d2be"}
+        data1 = {"code": d1_code, "history": d1_history, "color": "#ff8700"}
+        data2 = {"code": d2_code, "history": d2_history, "color": "#00d2be"}
 
-    # Рендер в отдельном потоке (CPU bound)
-    photo_io = await asyncio.to_thread(create_comparison_image, data1, data2, labels)
+        photo_io = await asyncio.to_thread(create_comparison_image, data1, data2, labels)
+        file = BufferedInputFile(photo_io.read(), filename="comparison.png")
 
-    file = BufferedInputFile(photo_io.read(), filename="comparison.png")
-
-    # Удаляем текстовое сообщение и шлем фото
-    await message.delete()
-    await message.answer_photo(file, caption=f"Сравнение: {d1_code} ⚔️ {d2_code} ({year})")
+        # Когда мы вызываем отправку фото, мы все еще внутри async with.
+        # Как только блок завершится, Loader сам удалит сообщение с "🎨 Рисую график..."
+        await message.answer_photo(file, caption=f"Сравнение: {d1_code} ⚔️ {d2_code} ({year})")
