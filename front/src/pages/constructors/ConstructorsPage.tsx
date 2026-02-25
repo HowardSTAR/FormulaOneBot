@@ -4,11 +4,22 @@ import { apiRequest } from "../../helpers/api";
 
 const currentRealYear = new Date().getFullYear();
 
+function teamLogoUrl(teamId: string, teamName: string, season: number): string {
+  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
+  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
+  const team = teamId || teamName;
+  const params = new URLSearchParams({ team, season: String(season) });
+  if (teamName) params.set("name", teamName);
+  return `${origin.replace(/\/$/, "")}${pathBase}/api/team-logo?${params}`;
+}
+
 type Constructor = {
   position: number;
   name: string;
   points: number;
   is_favorite?: boolean;
+  constructorId?: string;
 };
 
 type ConstructorsResponse = { constructors?: Constructor[] };
@@ -132,6 +143,14 @@ function ConstructorsPage() {
               >
                 {isChampion && <div className="champion-badge">Constructors Champion</div>}
                 <div className={`pos-box ${posClass}`}>{team.position}</div>
+                {(team.constructorId || team.name) && (
+                  <img
+                    src={teamLogoUrl(team.constructorId || "", team.name, year)}
+                    alt=""
+                    className="constructor-logo"
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                  />
+                )}
                 <div className="team-info">
                   <div className="team-name-main" style={isChampion ? { color: "#ffd700" } : undefined}>
                     {team.name} {team.is_favorite && <span style={{ fontSize: 14, marginLeft: 4 }}>⭐️</span>}
