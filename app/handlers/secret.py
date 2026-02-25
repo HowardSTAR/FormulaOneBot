@@ -7,7 +7,7 @@ from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
 
 from app.config import get_settings
-from app.db import get_all_users_with_favorites, get_all_users
+from app.db import get_all_users, get_favorite_drivers
 from app.f1_data import get_season_schedule_short_async, get_race_results_async
 # Импортируем наши функции
 from app.utils.notifications import (
@@ -147,16 +147,7 @@ async def cmd_check_results(message: Message):
         pts = row.get('Points', 0)
         race_res_map[code] = {'pos': pos, 'points': pts}
 
-    # Ищем мои избранные
-    users_favs = await get_all_users_with_favorites()
-    my_favs = []
-    my_id = message.from_user.id
-
-    # Парсим ответ БД (список кортежей)
-    for row in users_favs:
-        # row[0] - tg_id, row[1] - driver_code
-        if row[0] == my_id:
-            my_favs.append(row[1])
+    my_favs = await get_favorite_drivers(message.from_user.id)
 
     if not my_favs:
         await message.answer("⚠️ У вас нет избранного. Использую топ-3 пилотов гонки.")
