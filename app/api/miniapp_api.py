@@ -1,3 +1,4 @@
+import io
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -7,7 +8,7 @@ from typing import Optional, List
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -29,6 +30,7 @@ from app.f1_data import (
     get_event_details_async,
 )
 from app.handlers.races import build_next_race_payload
+from app.utils.image_render import _get_team_logo
 
 # --- Настройка путей ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -274,7 +276,10 @@ async def api_drivers(
             "points": getattr(row, "points", 0),
             "code": driver_code,
             "name": f"{getattr(row, 'givenName', '')} {getattr(row, 'familyName', '')}",
-            "is_favorite": driver_code in favorite_drivers
+            "is_favorite": driver_code in favorite_drivers,
+            "number": getattr(row, "permanentNumber", "") or "",
+            "constructorId": getattr(row, "constructorId", "") or "",
+            "constructorName": getattr(row, "constructorName", "") or "",
         })
 
     return {"season": season, "round": round_number, "drivers": results}
@@ -318,10 +323,29 @@ async def api_constructors(
             "position": getattr(row, "position", ""),
             "points": getattr(row, "points", 0),
             "name": team_name,
+            "constructorId": getattr(row, "constructorId", "") or "",
             "is_favorite": team_name in favorite_teams
         })
 
     return {"season": season, "round": round_number, "constructors": results}
+
+
+@web_app.get("/api/team-logo")
+async def api_team_logo(
+        team: str = Query(..., description="constructorId или название команды"),
+        name: Optional[str] = Query(None, description="Полное название команды"),
+        season: int = Query(None, description="Год сезона")
+):
+    """Возвращает логотип команды в формате PNG."""
+    if season is None:
+        season = datetime.now().year
+    img = await asyncio.to_thread(_get_team_logo, team, name or team, season)
+    if img is None:
+        raise HTTPException(status_code=404, detail="Логотип не найден")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return Response(content=buf.getvalue(), media_type="image/png")
 
 
 @web_app.get("/api/favorites")
@@ -567,6 +591,95 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
         "q_score": [q_score1, q_score2],  # Передаем счет на фронтенд
         "data1": {"code": d1.upper(), "history": d1_history, "color": "#ff8700"},
         "data2": {"code": d2.upper(), "history": d2_history, "color": "#00d2be"}
+    }
+
+
+# Маппинг названий команд: Ergast/API -> возможные FastF1 TeamName
+TEAM_NAME_ALIASES: dict[str, list[str]] = {
+    "Red Bull": ["Red Bull Racing", "Oracle Red Bull Racing", "Red Bull Racing Honda RBPT"],
+    "RB F1 Team": ["Racing Bulls", "Visa Cash App RB", "Racing Bulls Honda RBPT", "RB", "Visa Cash App Racing Bulls"],
+    "Alpine F1 Team": ["Alpine"],
+    "Sauber": ["Stake F1 Team Kick Sauber", "Kick Sauber", "Alfa Romeo Sauber", "Sauber", "Stake F1 Team"],
+}
+
+
+def _team_matches(selected: str, row_value: str) -> bool:
+    """Проверяет, соответствует ли выбранная команда значению из результатов гонки."""
+    if not selected or (row_value is None or (isinstance(row_value, float) and pd.isna(row_value))):
+        return False
+    sel = str(selected).strip().lower()
+    row = str(row_value).strip().lower()
+    if sel == row:
+        return True
+    if sel in row or row in sel:
+        return True
+    aliases = TEAM_NAME_ALIASES.get(selected.strip(), [])
+    for alias in aliases:
+        if alias.strip().lower() == row:
+            return True
+        if alias.strip().lower() in row or row in alias.strip().lower():
+            return True
+    return False
+
+
+@web_app.get("/api/compare/teams")
+async def api_compare_teams(c1: str, c2: str, season: int = Query(...)):
+    """Сравнение команд по очкам за каждую гонку сезона."""
+    schedule = await get_season_schedule_short_async(season)
+    if not schedule:
+        return {"error": f"Нет расписания на {season} год"}
+
+    today = datetime.now().date()
+    passed_races = []
+    for r in schedule:
+        try:
+            r_date = datetime.strptime(r["date"], "%Y-%m-%d").date()
+            if r_date < today:
+                passed_races.append(r)
+        except Exception:
+            continue
+
+    if not passed_races:
+        return {"error": f"В {season} году ещё не было прошедших гонок для сравнения."}
+
+    labels = []
+    tasks = []
+    for race in passed_races:
+        round_num = race["round"]
+        labels.append(race.get("event_name", f"Этап {round_num}").replace(" Grand Prix", "").replace("Gp", ""))
+        tasks.append(get_race_results_async(season, round_num))
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    c1_history, c2_history = [], []
+
+    def _team_points(df: pd.DataFrame, team_name: str) -> float:
+        if df is None or isinstance(df, Exception) or df.empty:
+            return 0.0
+        col = "TeamName" if "TeamName" in df.columns else "Constructor"
+        if col not in df.columns:
+            return 0.0
+        pts_col = "Points" if "Points" in df.columns else ("points" if "points" in df.columns else None)
+        if pts_col is None:
+            return 0.0
+        mask = df[col].apply(lambda x: _team_matches(team_name, x))
+        team_rows = df[mask]
+        if team_rows.empty:
+            return 0.0
+        pts = team_rows[pts_col].fillna(0).astype(float).sum()
+        return float(pts)
+
+    for df in results:
+        pts1 = _team_points(df, c1) if isinstance(df, pd.DataFrame) else 0.0
+        pts2 = _team_points(df, c2) if isinstance(df, pd.DataFrame) else 0.0
+        c1_history.append(pts1)
+        c2_history.append(pts2)
+
+    return {
+        "labels": labels,
+        "q_score": [0, 0],
+        "data1": {"code": c1, "history": c1_history, "color": "#ff8700"},
+        "data2": {"code": c2, "history": c2_history, "color": "#00d2be"},
     }
 
 
