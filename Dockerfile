@@ -6,7 +6,6 @@ COPY front/package*.json ./
 RUN npm ci
 
 COPY front/ ./
-# Для продакшена: same-origin, API на том же домене (f1hub.ru)
 ENV VITE_API_URL=https://f1hub.ru
 RUN npm run build
 
@@ -35,7 +34,6 @@ COPY app/ ./app/
 COPY run_web.py .
 
 COPY --from=front-builder /front/dist ./front/dist
-COPY web/ ./web/
 
 RUN mkdir -p logs fastf1_cache data
 
