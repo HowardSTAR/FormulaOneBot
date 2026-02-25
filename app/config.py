@@ -17,6 +17,7 @@ class BotConfig:
 class Settings:
     bot: BotConfig
     admin_ids: List[int]
+    version: str    # <-- ДОБАВЛЕНО ПОЛЕ
 
 
 def get_settings() -> Settings:
