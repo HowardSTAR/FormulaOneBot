@@ -17,7 +17,7 @@ from aiogram.types import (
 )
 
 from app.db import get_favorite_teams
-from app.f1_data import get_constructor_standings_async
+from app.f1_data import get_constructor_standings_async, sort_standings_zero_last
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_constructor_standings_image
 from app.utils.loader import Loader
@@ -50,7 +50,7 @@ async def _send_teams_for_year(message: Message, season: int, telegram_id: int |
             await message.answer(f"Пока нет данных по кубку конструкторов за {season} год.")
             return
 
-        df = df.sort_values("position")
+        df = sort_standings_zero_last(df)
 
         # Вытягиваем список избранных команд пользователя
         favorite_teams = []

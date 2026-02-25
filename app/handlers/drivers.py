@@ -16,7 +16,7 @@ from aiogram.types import (
 )
 
 from app.db import get_favorite_drivers
-from app.f1_data import get_driver_standings_async
+from app.f1_data import get_driver_standings_async, sort_standings_zero_last
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_driver_standings_image
 from app.utils.loader import Loader
@@ -43,7 +43,7 @@ async def _send_drivers_for_year(message: Message, season: int, telegram_id: int
             await message.answer(f"❌ Нет данных о пилотах за сезон {season}.")
             return
 
-        df = df.sort_values("position")
+        df = sort_standings_zero_last(df)
 
         favorite_codes: set[str] = set()
         if telegram_id is not None:
@@ -57,20 +57,23 @@ async def _send_drivers_for_year(message: Message, season: int, telegram_id: int
 
         for row in df.itertuples(index=False):
             pos_raw = getattr(row, "position", None)
-            if pos_raw is None:
-                continue
-            if isinstance(pos_raw, float) and math.isnan(pos_raw):
-                continue
-
-            if str(pos_raw).strip() == "-":
+            if pos_raw is None or (isinstance(pos_raw, float) and math.isnan(pos_raw)) or str(pos_raw).strip() in ("-", ""):
                 position_str = "-"
                 position_val = "-"
             else:
                 try:
-                    position_val = int(pos_raw)
+                    position_val = int(float(pos_raw))
                     position_str = f"{position_val:02d}"
                 except (TypeError, ValueError):
-                    continue
+                    position_str = "-"
+                    position_val = "-"
+
+            code = getattr(row, "driverCode", "") or getattr(row, "code", "") or ""
+            if not code:
+                family = getattr(row, "familyName", "") or ""
+                code = family[:3].upper() if family else ""
+            if not code and not getattr(row, "familyName", None):
+                continue
 
             points_raw = getattr(row, "points", 0.0)
             if isinstance(points_raw, float) and math.isnan(points_raw):
@@ -84,8 +87,6 @@ async def _send_drivers_for_year(message: Message, season: int, telegram_id: int
             given_name = getattr(row, "givenName", "")
             family_name = getattr(row, "familyName", "")
             full_name = f"{given_name} {family_name}".strip()
-
-            code = getattr(row, "driverCode", "") or ""
 
             if code and code in favorite_codes:
                 code_label = f"⭐️ {code}"

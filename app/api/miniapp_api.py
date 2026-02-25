@@ -22,7 +22,11 @@ from app.f1_data import (
     get_season_schedule_short_async,
     get_weekend_schedule,
     get_driver_standings_async,
-    get_constructor_standings_async, _get_latest_quali_async, get_race_results_async, get_event_details_async,
+    get_constructor_standings_async,
+    sort_standings_zero_last,
+    _get_latest_quali_async,
+    get_race_results_async,
+    get_event_details_async,
 )
 from app.handlers.races import build_next_race_payload
 
@@ -250,8 +254,8 @@ async def api_drivers(
         return {"season": season, "round": round_number, "drivers": []}
 
     if "position" in df.columns:
-        df["position"] = pd.to_numeric(df["position"], errors='coerce')
-        df = df.sort_values("position")
+        df["position"] = pd.to_numeric(df["position"], errors="coerce")
+        df = sort_standings_zero_last(df)
 
     df = df.fillna("")
 
@@ -298,8 +302,8 @@ async def api_constructors(
         return {"season": season, "round": round_number, "constructors": []}
 
     if "position" in df.columns:
-        df["position"] = pd.to_numeric(df["position"], errors='coerce')
-        df = df.sort_values("position")
+        df["position"] = pd.to_numeric(df["position"], errors="coerce")
+        df = sort_standings_zero_last(df)
 
     df = df.fillna("")
 

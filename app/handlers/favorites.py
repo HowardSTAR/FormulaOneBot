@@ -8,7 +8,7 @@ from app.db import (
     get_favorite_drivers, add_favorite_driver, remove_favorite_driver,
     get_favorite_teams, add_favorite_team, remove_favorite_team
 )
-from app.f1_data import get_driver_standings_async, get_constructor_standings_async
+from app.f1_data import get_driver_standings_async, get_constructor_standings_async, sort_standings_zero_last
 
 router = Router()
 
@@ -43,7 +43,7 @@ async def _build_drivers_keyboard(telegram_id: int) -> tuple[InlineKeyboardMarku
         ]), "❌ Данные недоступны."
 
     if "position" in df.columns:
-        df = df.sort_values("position")
+        df = sort_standings_zero_last(df)
 
     # 3. Избранное
     favorites = await get_favorite_drivers(telegram_id)

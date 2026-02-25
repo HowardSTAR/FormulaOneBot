@@ -82,6 +82,22 @@ def _fallback_cache_set(cache_key: str, data: Any, ttl: int) -> None:
         logger.debug(f"Fallback cache write error: {e}")
 
 
+def sort_standings_zero_last(df: pd.DataFrame, position_col: str = "position") -> pd.DataFrame:
+    """
+    Сортирует таблицу зачёта так, что позиции 1, 2, 3, ... идут по порядку,
+    а пилоты/команды с 0 очков (позиция 0 или NaN) — в конец списка.
+    """
+    if df is None or df.empty or position_col not in df.columns:
+        return df
+    df = df.copy()
+    pos = pd.to_numeric(df[position_col], errors="coerce")
+    # 0 и NaN в конец: задаём ключ сортировки (0/NaN -> большое число)
+    sort_key = pos.fillna(999).replace(0, 999)
+    df["_sort_key"] = sort_key
+    df = df.sort_values("_sort_key").drop(columns=["_sort_key"])
+    return df
+
+
 async def init_redis_cache(redis_url: str):
     """Инициализация Redis клиента для кэширования данных."""
     global _REDIS_CLIENT
@@ -226,7 +242,8 @@ def get_driver_standings_df(season: int, round_number: Optional[int] = None) -> 
             res = ergast.get_driver_standings(season=season, round=round_number)
 
         if res.content and len(res.content) > 0:
-            return res.content[0]
+            df = res.content[0]
+            return sort_standings_zero_last(df)
         return pd.DataFrame()
     except Exception as e:
         logger.error(f"Ergast API error (drivers): {e}")
@@ -242,7 +259,8 @@ def get_constructor_standings_df(season: int, round_number: Optional[int] = None
             res = ergast.get_constructor_standings(season=season, round=round_number)
 
         if res.content and len(res.content) > 0:
-            return res.content[0]
+            df = res.content[0]
+            return sort_standings_zero_last(df)
         return pd.DataFrame()
     except Exception as e:
         logger.error(f"Ergast API error (constructors): {e}")
@@ -446,15 +464,17 @@ def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
 
 
 # --- АСИНХРОННЫЕ ОБЕРТКИ (С КЭШИРОВАНИЕМ) --- #
+# Бот и Mini App API вызывают одни и те же async-функции ниже:
+# запросы и с бота, и с front идут через кэш (Redis или файловый), кэш общий.
 
 @cache_result(ttl=7200, key_prefix="schedule")
 async def get_season_schedule_short_async(season: int):
     return await _run_sync(get_season_schedule_short, season)
 
 
-@cache_result(ttl=3600, key_prefix="dr_standings")
+@cache_result(ttl=3600, key_prefix="dr_standings_v2")
 async def get_driver_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
-    """Асинхронно получает личный зачет (Jolpica API). Фоллбэк на OpenF1 (0 очков), если сезон не стартовал."""
+    """Асинхронно получает личный зачет (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/driverStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json"
 
     async with aiohttp.ClientSession() as session_req:
@@ -469,25 +489,46 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
                         parsed_data = []
                         for ds in driver_standings:
                             driver = ds.get("Driver", {})
-                            parsed_data.append({
-                                "position": int(ds.get("position", 0)),
-                                "points": float(ds.get("points", 0.0)),
-                                "driverCode": driver.get("code", ""),
-                                "givenName": driver.get("givenName", ""),
-                                "familyName": driver.get("familyName", ""),
-                                "driverId": driver.get("driverId", "")
-                            })
-                        return pd.DataFrame(parsed_data)
+                            # positionText "-" означает пилота без места; position может отсутствовать
+                            pos_raw = ds.get("position") or ds.get("positionText", "0")
+                            try:
+                                pos = int(pos_raw) if str(pos_raw).isdigit() else 0
+                            except (ValueError, TypeError):
+                                pos = 0
+                            parsed_data.append(
+                                {
+                                    "position": pos,
+                                    "points": float(ds.get("points", 0.0)),
+                                    "driverCode": driver.get("code", "") or (driver.get("familyName", "")[:3].upper() if driver.get("familyName") else ""),
+                                    "givenName": driver.get("givenName", ""),
+                                    "familyName": driver.get("familyName", ""),
+                                    "driverId": driver.get("driverId", ""),
+                                }
+                            )
+
+                        df = pd.DataFrame(parsed_data)
+                        # Если Jolpica вернул слишком мало пилотов — берём из Ergast
+                        if len(df) >= 5:
+                            return sort_standings_zero_last(df)
+                        logger.warning(f"Jolpica returned only {len(df)} drivers for {season}, falling back to Ergast")
         except Exception as e:
             logger.error(f"Jolpica API error (drivers): {e}")
 
-    # ФОЛЛБЭК: Сезон еще не начался, очков нет. Формируем нулевую таблицу из OpenF1.
+    # Фоллбэк: Ergast для прошедших сезонов, OpenF1 для текущего
+    if season < datetime.now().year:
+        try:
+            df = await _run_sync(get_driver_standings_df, season, round_number)
+            if not df.empty:
+                return df
+        except Exception as e:
+            logger.warning(f"Ergast fallback failed for {season}: {e}")
+
     return await _get_zero_point_driver_standings()
 
 
-@cache_result(ttl=3600, key_prefix="con_standings")
+@cache_result(ttl=3600, key_prefix="con_standings_v2")
 async def get_constructor_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
-    """Асинхронно получает кубок конструкторов (Jolpica API). Фоллбэк на OpenF1 (0 очков)."""
+    """Асинхронно получает кубок конструкторов (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/constructorStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json"
 
     async with aiohttp.ClientSession() as session_req:
@@ -508,11 +549,21 @@ async def get_constructor_standings_async(season: int, round_number: int | None 
                                 "constructorId": team.get("constructorId", ""),
                                 "constructorName": team.get("name", "")
                             })
-                        return pd.DataFrame(parsed_data)
+                        df = pd.DataFrame(parsed_data)
+                        if len(df) >= 3:
+                            return sort_standings_zero_last(df)
+                        logger.warning(f"Jolpica returned only {len(df)} constructors for {season}, falling back to Ergast")
         except Exception as e:
             logger.error(f"Jolpica API error (constructors): {e}")
 
-    # ФОЛЛБЭК: Формируем нулевую таблицу из OpenF1
+    if season < datetime.now().year:
+        try:
+            df = await _run_sync(get_constructor_standings_df, season, round_number)
+            if not df.empty:
+                return df
+        except Exception as e:
+            logger.warning(f"Ergast fallback failed for constructors {season}: {e}")
+
     return await _get_zero_point_constructor_standings()
 
 
