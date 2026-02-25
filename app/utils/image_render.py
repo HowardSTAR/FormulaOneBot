@@ -3,7 +3,7 @@ import io
 import json
 import math
 import urllib
-from datetime import date
+from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
 from typing import List, Tuple, Callable
@@ -407,7 +407,7 @@ def create_results_image(
 
     if avatar_loader is None:
         def avatar_loader(code: str, name: str) -> Image.Image | None:
-            return _get_driver_photo(code)
+            return _get_driver_photo(code, name, datetime.now().year)
 
     temp_img = Image.new("RGB", (100, 100))
     draw_tmp = ImageDraw.Draw(temp_img)

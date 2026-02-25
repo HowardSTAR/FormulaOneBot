@@ -194,8 +194,12 @@ def build_favorites_caption(
     event_name: str,
     driver_results: list[dict],
     team_results: list[dict],
+    use_spoiler: bool = True,
 ) -> str:
-    """Текст по избранным пилотам и командам для подписи под спойлером."""
+    """
+    Текст по избранным пилотам и командам.
+    use_spoiler=True — оборачивает результаты в <tg-spoiler> (HTML).
+    """
     parts = []
     if driver_results:
         lines = []
@@ -205,15 +209,18 @@ def build_favorites_caption(
             elif str(item.get('pos')) == '2': pos_str = "🥈 P2"
             elif str(item.get('pos')) == '3': pos_str = "🥉 P3"
             lines.append(f"{item['code']}: {pos_str} (+{item.get('points', 0)})")
-        parts.append("🏎 Ваши пилоты:\n" + "\n".join(lines))
+        parts.append("<b>🏎 Пилоты</b>\n" + "\n".join(lines))
     if team_results:
         lines = []
         for t in team_results:
             lines.append(f"• {t.get('team', '?')}: {t.get('text', '')}")
-        parts.append("🏁 Ваши команды:\n" + "\n".join(lines))
+        parts.append("<b>🏁 Команды</b>\n" + "\n".join(lines))
     if not parts:
         return f"🏁 {event_name}\n\n📊 Результаты на картинке."
-    return f"🏁 {event_name}\n\n" + "\n\n".join(parts)
+    inner = "\n\n".join(parts)
+    if use_spoiler:
+        return f"🏁 {event_name}\n\n<tg-spoiler>{inner}</tg-spoiler>"
+    return f"🏁 {event_name}\n\n{inner}"
 
 
 async def check_and_send_results(bot: Bot):
@@ -367,6 +374,7 @@ async def check_and_send_results(bot: Bot):
         if await safe_send_photo(
             bot, tg_id, photo_bytes,
             caption=caption,
+            parse_mode="HTML",
             has_spoiler=True,
             disable_notification=quiet,
         ):
@@ -440,12 +448,14 @@ async def check_and_notify_quali(bot: Bot) -> None:
             elif d["pos"] == "3": pos_str = "🥉 P3"
             lines.append(f"⏱ {d['code']}: {pos_str} ({d.get('best', '-')})")
 
-        caption = f"🏁 Квалификация (Этап {round_num})\n\n" + "\n".join(lines) if lines else f"🏁 Квалификация (Этап {round_num})\n\n📊 Результаты на картинке."
+        inner = "\n".join(lines) if lines else "📊 Результаты на картинке."
+        caption = f"🏁 Квалификация (Этап {round_num})\n\n<tg-spoiler><b>🏎 Пилоты</b>\n{inner}</tg-spoiler>"
         tz = tz_map.get(tg_id, "Europe/Moscow")
         quiet = is_quiet_hours(tz)
         if await safe_send_photo(
             bot, tg_id, photo_bytes,
             caption=caption,
+            parse_mode="HTML",
             has_spoiler=True,
             disable_notification=quiet,
         ):
