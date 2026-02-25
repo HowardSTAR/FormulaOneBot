@@ -7,7 +7,10 @@ services:
     command: redis-server --save 60 1 --loglevel warning
 
   bot:
-    build: .
+    build:
+      context: .
+      args:
+        - APP_VERSION=0.2.0
     restart: unless-stopped
     command: python -m app.main
     env_file:
@@ -22,7 +25,10 @@ services:
       - redis
 
   web:
-    build: .
+    build:
+      context: .
+      args:
+        - APP_VERSION=0.3.0
     restart: unless-stopped
     command: python run_web.py
     env_file:
@@ -33,12 +39,11 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./fastf1_cache:/app/fastf1_cache
-      - ./data:/app/data
+      - static_content:/app/front/dist
     depends_on:
       - redis
       - bot
 
-# Классический веб-сервер Nginx
   nginx:
     image: nginx:alpine
     restart: unless-stopped
@@ -46,7 +51,7 @@ services:
       - "80:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ./web/app:/usr/share/nginx/html
+      - static_content:/usr/share/nginx/html:ro
     depends_on:
       - web
 
@@ -59,3 +64,5 @@ services:
 
 volumes:
   redis_data:
+  # Объявляем volume для синхронизации фронтенда
+  static_content:
