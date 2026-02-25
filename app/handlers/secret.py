@@ -1,21 +1,30 @@
 import asyncio
 import logging
 from datetime import datetime, timezone
+from io import BytesIO
 
 from aiogram import Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import Message
+from aiogram.types import BufferedInputFile
 
 from app.config import get_settings
 from app.db import get_all_users, get_favorite_drivers
-from app.f1_data import get_season_schedule_short_async, get_race_results_async
-# Импортируем наши функции
+from app.f1_data import (
+    get_season_schedule_short_async,
+    get_race_results_async,
+    _get_quali_async,
+)
+from app.utils.image_render import create_results_image, create_quali_results_image
 from app.utils.notifications import (
     get_users_with_settings,
     get_notification_text,
     check_and_send_notifications,
-    build_results_text
+    build_results_text,
+    build_favorites_caption,
+    is_quiet_hours,
 )
+from app.utils.safe_send import safe_send_message, safe_send_photo
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -180,6 +189,204 @@ async def cmd_force_notify(message: Message, bot):
     if message.from_user.id not in ADMINS: return
     await message.answer("🚀 Запускаю боевую рассылку...")
     await check_and_send_notifications(bot)
+
+
+@router.message(Command("test_notify"))
+async def cmd_test_notify(message: Message, command: CommandObject, bot):
+    """
+    Тест всех 4 типов уведомлений на данных указанного сезона/этапа.
+    Использование: /test_notify 2025 5
+    Отправляет ВСЕМ пользователям: 1) перед квалификацией, 2) после квалификации (картинка + все пилоты),
+    3) перед гонкой, 4) после гонки (картинка + все пилоты и команды).
+    """
+    if message.from_user.id not in ADMINS:
+        return
+
+    args = (command.args or "").strip().split()
+    if len(args) < 2:
+        await message.answer(
+            "⚠️ Использование: <code>/test_notify 2025 5</code>\n"
+            "Укажите сезон и номер этапа. Рассылка пойдёт всем пользователям.",
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        season = int(args[0])
+        round_num = int(args[1])
+    except ValueError:
+        await message.answer("❌ Сезон и этап должны быть числами.")
+        return
+
+    users = await get_users_with_settings()
+    if not users:
+        await message.answer("❌ В базе нет пользователей.")
+        return
+
+    tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users}
+    status = await message.answer(f"🔄 Рассылаю 4 уведомления {len(users)} пользователям...")
+
+    schedule = await get_season_schedule_short_async(season)
+    event = next((r for r in (schedule or []) if r.get("round") == round_num), None)
+    if not event:
+        await status.edit_text(f"❌ Этап {round_num} сезона {season} не найден.")
+        return
+
+    event_name = event.get("event_name", "Гран-при")
+    prefix = "🧪 Тест: "
+
+    # 1) Перед квалификацией
+    sent_1 = 0
+    for tg_id in tz_map:
+        text_quali = get_notification_text(event, tz_map[tg_id], 60, for_quali=True)
+        if await safe_send_message(
+            bot, tg_id, prefix + text_quali,
+            disable_notification=is_quiet_hours(tz_map[tg_id]),
+        ):
+            sent_1 += 1
+        await asyncio.sleep(0.05)
+    await status.edit_text(f"✅ 1/4 отправлено ({sent_1}/{len(users)}). Готовлю 2/4...")
+
+    # 2) После квалификации — картинка + все пилоты под спойлером
+    quali_results = await _get_quali_async(season, round_num)
+    sent_2 = 0
+    if quali_results:
+        rows_quali = []
+        for r in quali_results:
+            pos = f"{r.get('position', 0):02d}"
+            code = r.get("driver", "?")
+            name = r.get("name", code)
+            best = r.get("best", "—")
+            rows_quali.append((pos, code, name, best))
+
+        img_quali = await asyncio.to_thread(
+            create_quali_results_image,
+            f"Квалификация {season}",
+            f"{event_name} — этап {round_num:02d}",
+            rows_quali,
+        )
+        photo_quali = BufferedInputFile(img_quali.getvalue(), filename="quali.png")
+        lines_quali = []
+        for r in quali_results:
+            pos_str = f"P{r.get('position', '?')}"
+            if str(r.get("position")) == "1":
+                pos_str = "🥇 P1"
+            elif str(r.get("position")) == "2":
+                pos_str = "🥈 P2"
+            elif str(r.get("position")) == "3":
+                pos_str = "🥉 P3"
+            lines_quali.append(f"{r.get('driver', '?')}: {pos_str} ({r.get('best', '-')})")
+
+        inner_quali = "<b>🏎 Пилоты</b>\n" + "\n".join(lines_quali)
+        caption_quali = prefix + f"🏁 {event_name}\n\n<tg-spoiler>{inner_quali}</tg-spoiler>"
+        for tg_id in tz_map:
+            if await safe_send_photo(
+                bot, tg_id, photo_quali,
+                caption=caption_quali,
+                parse_mode="HTML",
+                has_spoiler=True,
+                disable_notification=is_quiet_hours(tz_map[tg_id]),
+            ):
+                sent_2 += 1
+            await asyncio.sleep(0.05)
+    else:
+        for tg_id in tz_map:
+            if await safe_send_message(
+                bot, tg_id,
+                prefix + f"⚠️ Нет данных квалификации для этапа {round_num}.",
+                disable_notification=is_quiet_hours(tz_map[tg_id]),
+            ):
+                sent_2 += 1
+            await asyncio.sleep(0.05)
+    await status.edit_text(f"✅ 2/4 отправлено ({sent_2}/{len(users)}). Готовлю 3/4...")
+
+    # 3) Перед гонкой
+    sent_3 = 0
+    for tg_id in tz_map:
+        text_race = get_notification_text(event, tz_map[tg_id], 60, for_quali=False)
+        if await safe_send_message(
+            bot, tg_id, prefix + text_race,
+            disable_notification=is_quiet_hours(tz_map[tg_id]),
+        ):
+            sent_3 += 1
+        await asyncio.sleep(0.05)
+    await status.edit_text(f"✅ 3/4 отправлено ({sent_3}/{len(users)}). Готовлю 4/4...")
+
+    # 4) После гонки — картинка + все пилоты и команды под спойлером
+    results_df = await get_race_results_async(season, round_num)
+    sent_4 = 0
+    if not results_df.empty:
+        if "Position" in results_df.columns:
+            results_df = results_df.sort_values("Position")
+        rows_race = []
+        for _, row in results_df.head(20).iterrows():
+            pos = row.get("Position", "?")
+            code = str(row.get("Abbreviation", "?") or row.get("DriverNumber", "?"))
+            given = str(row.get("FirstName", "") or "")
+            family = str(row.get("LastName", "") or "")
+            full_name = f"{given} {family}".strip() or code
+            pts = row.get("Points", 0)
+            pts_text = f"{pts:.0f}" if pts is not None else "0"
+            rows_race.append((f"{int(pos):02d}" if pos != "?" else "?", code, full_name, pts_text))
+
+        img_race = await asyncio.to_thread(
+            create_results_image,
+            title="Результаты гонки",
+            subtitle=f"{event_name} — этап {round_num}, сезон {season}",
+            rows=rows_race,
+        )
+        photo_race = BufferedInputFile(img_race.getvalue(), filename="race.png")
+
+        res_map = {}
+        for _, row in results_df.iterrows():
+            code = str(row.get("Abbreviation", "")).upper()
+            res_map[code] = {"pos": str(row.get("Position", "DNF")), "points": row.get("Points", 0)}
+
+        constructor_results_by_name = {}
+        for row in results_df.itertuples(index=False):
+            team_name = getattr(row, "TeamName", None)
+            if team_name:
+                if team_name not in constructor_results_by_name:
+                    constructor_results_by_name[team_name] = []
+                constructor_results_by_name[team_name].append(row)
+
+        driver_res = []
+        for code in res_map:
+            r = res_map[code]
+            driver_res.append({"code": code, **r})
+
+        team_res = []
+        for team_name, team_rows in constructor_results_by_name.items():
+            total_pts = sum(float(getattr(r, "Points", 0) or 0) for r in team_rows)
+            best_pos = min(int(getattr(r, "Position", 999)) for r in team_rows)
+            team_res.append({"team": team_name, "text": f"P{best_pos}, +{int(total_pts)} очк."})
+
+        caption_race = prefix + build_favorites_caption(event_name, driver_res, team_res)
+        for tg_id in tz_map:
+            if await safe_send_photo(
+                bot, tg_id, photo_race,
+                caption=caption_race,
+                parse_mode="HTML",
+                has_spoiler=True,
+                disable_notification=is_quiet_hours(tz_map[tg_id]),
+            ):
+                sent_4 += 1
+            await asyncio.sleep(0.05)
+    else:
+        for tg_id in tz_map:
+            if await safe_send_message(
+                bot, tg_id,
+                prefix + f"⚠️ Нет данных гонки для этапа {round_num}.",
+                disable_notification=is_quiet_hours(tz_map[tg_id]),
+            ):
+                sent_4 += 1
+            await asyncio.sleep(0.05)
+
+    await status.delete()
+    await message.answer(
+        f"✅ Тест завершён.\n"
+        f"1/4: {sent_1}/{len(users)}\n2/4: {sent_2}/{len(users)}\n3/4: {sent_3}/{len(users)}\n4/4: {sent_4}/{len(users)}"
+    )
 
 
 @router.message(Command("broadcast"))
