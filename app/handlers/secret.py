@@ -9,11 +9,17 @@ from aiogram.types import Message
 from aiogram.types import BufferedInputFile
 
 from app.config import get_settings
-from app.db import get_all_users, get_favorite_drivers
+from app.db import (
+    get_all_users,
+    get_favorite_drivers,
+    get_race_avg_for_round,
+    get_driver_vote_winner,
+)
 from app.f1_data import (
     get_season_schedule_short_async,
     get_race_results_async,
     _get_quali_async,
+    get_driver_full_name_async,
 )
 from app.utils.image_render import create_results_image, create_quali_results_image
 from app.utils.notifications import (
@@ -387,6 +393,82 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
         f"✅ Тест завершён.\n"
         f"1/4: {sent_1}/{len(users)}\n2/4: {sent_2}/{len(users)}\n3/4: {sent_3}/{len(users)}\n4/4: {sent_4}/{len(users)}"
     )
+
+
+@router.message(Command("test_voting_results"))
+async def cmd_test_voting_results(message: Message, command: CommandObject, bot):
+    """
+    Тест рассылки итогов голосования всем пользователям.
+    Использование: /test_voting_results 2025 1
+    """
+    if message.from_user.id not in ADMINS:
+        return
+
+    args = (command.args or "").strip().split()
+    if len(args) < 2:
+        await message.answer(
+            "⚠️ Использование: <code>/test_voting_results 2025 1</code>",
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        season = int(args[0])
+        round_num = int(args[1])
+    except ValueError:
+        await message.answer("❌ Сезон и этап должны быть числами.")
+        return
+
+    users = await get_users_with_settings()
+    if not users:
+        await message.answer("❌ В базе нет пользователей.")
+        return
+
+    tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users}
+    status = await message.answer(f"🔄 Рассылаю итоги голосования {len(users)} пользователям...")
+
+    schedule = await get_season_schedule_short_async(season)
+    event = next((r for r in (schedule or []) if r.get("round") == round_num), None)
+    if not event:
+        await status.edit_text(f"❌ Этап {round_num} сезона {season} не найден.")
+        return
+
+    results_df = await get_race_results_async(season, round_num)
+    if results_df.empty:
+        await status.edit_text(f"❌ Нет результатов гонки для этапа {round_num}.")
+        return
+
+    event_name = event.get("event_name", "Гран-при")
+    avg_rating, race_count = await get_race_avg_for_round(season, round_num)
+    driver_winner, driver_count = await get_driver_vote_winner(season, round_num)
+
+    if driver_winner and driver_count > 0:
+        driver_str = await get_driver_full_name_async(season, round_num, driver_winner)
+    else:
+        driver_str = "не выбран"
+
+    rating_str = f"{avg_rating:.1f} ★" if avg_rating is not None and race_count > 0 else "—"
+
+    text = (
+        "🧪 Тест: "
+        f"🗳 <b>Итоги голосования</b>\n\n"
+        f"🏁 {event_name} (этап {round_num})\n\n"
+        f"По мнению нашего сообщества этап оценили на: <b>{rating_str}</b>\n"
+        f"Лучшим пилотом стал: <b>{driver_str}</b>"
+    )
+
+    sent = 0
+    for tg_id in tz_map:
+        if await safe_send_message(
+            bot, tg_id, text,
+            parse_mode="HTML",
+            disable_notification=is_quiet_hours(tz_map[tg_id]),
+        ):
+            sent += 1
+        await asyncio.sleep(0.05)
+
+    await status.delete()
+    await message.answer(f"✅ Итоги голосования отправлены: {sent}/{len(users)}")
 
 
 @router.message(Command("broadcast"))

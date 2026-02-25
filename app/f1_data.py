@@ -682,6 +682,33 @@ async def get_event_details_async(season: int, round_number: int):
     return await _run_sync(get_event_details, season, round_number)
 
 
+async def get_driver_full_name_async(season: int, round_num: int, driver_code: str) -> str:
+    """Возвращает полное имя пилота по коду (GivenName FamilyName) или код, если не найден."""
+    code_upper = (driver_code or "").upper().strip()
+    if not code_upper:
+        return driver_code or "?"
+
+    df = await get_driver_standings_async(season, round_num)
+    if not df.empty and "driverCode" in df.columns:
+        for row in df.itertuples(index=False):
+            c = getattr(row, "driverCode", "") or ""
+            if str(c).upper() == code_upper:
+                given = getattr(row, "givenName", "") or ""
+                family = getattr(row, "familyName", "") or ""
+                return f"{given} {family}".strip() or code_upper
+
+    results_df = await get_race_results_async(season, round_num)
+    if not results_df.empty:
+        for row in results_df.itertuples(index=False):
+            abbr = str(getattr(row, "Abbreviation", "") or "").upper()
+            if abbr == code_upper:
+                given = str(getattr(row, "FirstName", "") or "")
+                family = str(getattr(row, "LastName", "") or "")
+                return f"{given} {family}".strip() or code_upper
+
+    return code_upper
+
+
 # --- ПРОГРЕВ КЭША --- #
 
 async def warmup_cache(season: int | None = None):

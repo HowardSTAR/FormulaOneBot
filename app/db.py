@@ -108,6 +108,8 @@ class Database:
             cols = [row['name'] for row in await cursor.fetchall()]
         if "last_notified_quali_round" not in cols:
             await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_quali_round INTEGER")
+        if "last_notified_voting_round" not in cols:
+            await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_voting_round INTEGER")
 
         try:
             await self.conn.execute("ALTER TABLE users ADD COLUMN notifications_enabled BOOLEAN DEFAULT 0")
@@ -119,6 +121,34 @@ class Database:
                 pass
             else:
                 logger.error(f"Ошибка при миграции: {e}")
+
+        # 4. Таблицы голосований (гонка 1–5, пилот дня)
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS race_votes (
+                user_id INTEGER NOT NULL,
+                season INTEGER NOT NULL,
+                round INTEGER NOT NULL,
+                rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, season, round),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            """
+        )
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS driver_votes (
+                user_id INTEGER NOT NULL,
+                season INTEGER NOT NULL,
+                round INTEGER NOT NULL,
+                driver_code TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (user_id, season, round),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            """
+        )
 
         await self.conn.commit()
 
@@ -341,3 +371,120 @@ async def get_last_notified_quali_round(season: int) -> int | None: return await
 async def set_last_notified_quali_round(season: int, r: int) -> None: await _set_round_value(season,
                                                                                              "last_notified_quali_round",
                                                                                              r)
+
+
+async def get_last_notified_voting_round(season: int) -> int | None:
+    return await _get_round_value(season, "last_notified_voting_round")
+
+
+async def set_last_notified_voting_round(season: int, r: int) -> None:
+    await _set_round_value(season, "last_notified_voting_round", r)
+
+
+# --- Голосования (гонка 1–5, пилот дня) ---
+
+async def save_race_vote(telegram_id: int, season: int, round_num: int, rating: int) -> None:
+    """Сохраняет оценку гонки (1–5)."""
+    if not db.conn: await db.connect()
+    user_id = await get_or_create_user(telegram_id)
+    await db.conn.execute(
+        "INSERT OR REPLACE INTO race_votes (user_id, season, round, rating) VALUES (?, ?, ?, ?)",
+        (user_id, season, round_num, rating),
+    )
+    await db.conn.commit()
+
+
+async def save_driver_vote(telegram_id: int, season: int, round_num: int, driver_code: str) -> None:
+    """Сохраняет голос за пилота дня."""
+    if not db.conn: await db.connect()
+    user_id = await get_or_create_user(telegram_id)
+    await db.conn.execute(
+        "INSERT OR REPLACE INTO driver_votes (user_id, season, round, driver_code) VALUES (?, ?, ?, ?)",
+        (user_id, season, round_num, driver_code.upper()),
+    )
+    await db.conn.commit()
+
+
+async def get_user_votes(telegram_id: int, season: int) -> Tuple[dict, dict]:
+    """Возвращает (race_votes: {round: rating}, driver_votes: {round: driver_code})."""
+    if not db.conn: await db.connect()
+    user_id = await get_or_create_user(telegram_id)
+    race_votes = {}
+    async with db.conn.execute(
+        "SELECT round, rating FROM race_votes WHERE user_id = ? AND season = ?",
+        (user_id, season),
+    ) as cursor:
+        for row in await cursor.fetchall():
+            race_votes[row["round"]] = row["rating"]
+    driver_votes = {}
+    async with db.conn.execute(
+        "SELECT round, driver_code FROM driver_votes WHERE user_id = ? AND season = ?",
+        (user_id, season),
+    ) as cursor:
+        for row in await cursor.fetchall():
+            driver_votes[row["round"]] = row["driver_code"]
+    return race_votes, driver_votes
+
+
+async def get_race_vote_stats(season: int, until_day: int = 10) -> List[Tuple[int, float, int]]:
+    """
+    Средние оценки гонок за сезон.
+    until_day: обновлять статистику до N-го числа месяца (по умолчанию 10).
+    Возвращает [(round, avg_rating, count), ...] отсортировано по round.
+    """
+    if not db.conn: await db.connect()
+    async with db.conn.execute(
+        """
+        SELECT round, AVG(rating) as avg_rating, COUNT(*) as cnt
+        FROM race_votes WHERE season = ?
+        GROUP BY round
+        ORDER BY round
+        """,
+        (season,),
+    ) as cursor:
+        return [(r["round"], round(r["avg_rating"], 2), r["cnt"]) for r in await cursor.fetchall()]
+
+
+async def get_race_avg_for_round(season: int, round_num: int) -> Tuple[float | None, int]:
+    """Средняя оценка гонки по этапу: (avg, count) или (None, 0)."""
+    if not db.conn: await db.connect()
+    async with db.conn.execute(
+        "SELECT AVG(rating) as avg_rating, COUNT(*) as cnt FROM race_votes WHERE season = ? AND round = ?",
+        (season, round_num),
+    ) as cursor:
+        row = await cursor.fetchone()
+        if row and row["cnt"] > 0:
+            return (round(row["avg_rating"], 2), row["cnt"])
+        return (None, 0)
+
+
+async def get_driver_vote_stats(season: int) -> List[Tuple[str, int]]:
+    """Голоса за пилотов дня за сезон: [(driver_code, count), ...] по убыванию count."""
+    if not db.conn: await db.connect()
+    async with db.conn.execute(
+        """
+        SELECT driver_code, COUNT(*) as cnt
+        FROM driver_votes WHERE season = ?
+        GROUP BY driver_code
+        ORDER BY cnt DESC
+        """,
+        (season,),
+    ) as cursor:
+        return [(r["driver_code"], r["cnt"]) for r in await cursor.fetchall()]
+
+
+async def get_driver_vote_winner(season: int, round_num: int) -> Tuple[str | None, int]:
+    """Пилот дня по этапу: (driver_code, count) или (None, 0) если нет голосов."""
+    if not db.conn: await db.connect()
+    async with db.conn.execute(
+        """
+        SELECT driver_code, COUNT(*) as cnt
+        FROM driver_votes WHERE season = ? AND round = ?
+        GROUP BY driver_code
+        ORDER BY cnt DESC
+        LIMIT 1
+        """,
+        (season, round_num),
+    ) as cursor:
+        row = await cursor.fetchone()
+        return (row["driver_code"], row["cnt"]) if row else (None, 0)

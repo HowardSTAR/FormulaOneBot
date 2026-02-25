@@ -53,6 +53,10 @@ function IndexPage() {
           <span className="menu-icon">⚔️</span>
           <span className="menu-label">Сравнение</span>
         </Link>
+        <Link to="/voting" className="menu-item">
+          <span className="menu-icon">🗳️</span>
+          <span className="menu-label">Голосование</span>
+        </Link>
         <Link
           to="/season"
           className="menu-item full-width"

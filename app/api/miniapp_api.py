@@ -1,7 +1,7 @@
 import io
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional, List
 
@@ -17,7 +17,8 @@ from app.db import (
     get_favorite_drivers, get_favorite_teams,
     remove_favorite_driver, add_favorite_driver,
     remove_favorite_team, add_favorite_team,
-    get_user_settings, update_user_setting
+    get_user_settings, update_user_setting,
+    save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
 )
 from app.f1_data import (
     get_season_schedule_short_async,
@@ -204,6 +205,77 @@ async def api_season(season: Optional[int] = Query(None)):
         season = datetime.now().year
     races = await get_season_schedule_short_async(season)
     return {"season": season, "races": races}
+
+
+# --- Голосования ---
+
+class RaceVoteRequest(BaseModel):
+    season: int
+    round: int
+    rating: int
+
+
+class DriverVoteRequest(BaseModel):
+    season: int
+    round: int
+    driver_code: str
+
+
+@web_app.get("/api/votes/me")
+async def api_votes_me(
+    season: int = Query(...),
+    user_id: int = Depends(get_current_user_id),
+):
+    """Голоса пользователя за сезон: race_votes и driver_votes."""
+    race_votes, driver_votes = await get_user_votes(user_id, season)
+    return {"race_votes": race_votes, "driver_votes": driver_votes}
+
+
+@web_app.post("/api/votes/race")
+async def api_votes_race(
+    body: RaceVoteRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    """Сохранить оценку гонки (1–5)."""
+    if not 1 <= body.rating <= 5:
+        raise HTTPException(400, "rating must be 1–5")
+    await save_race_vote(user_id, body.season, body.round, body.rating)
+    return {"status": "ok"}
+
+
+@web_app.post("/api/votes/driver")
+async def api_votes_driver(
+    body: DriverVoteRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    """Сохранить голос за пилота дня. Голосование закрывается через 3 дня после гонки."""
+    schedule = await get_season_schedule_short_async(body.season)
+    event = next((r for r in (schedule or []) if r.get("round") == body.round), None)
+    if event and event.get("date"):
+        try:
+            race_date = datetime.fromisoformat(event["date"]).date()
+            if datetime.now(timezone.utc).date() > race_date + timedelta(days=3):
+                raise HTTPException(400, "Голосование за пилота дня закрыто (3 дня после гонки)")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
+    await save_driver_vote(user_id, body.season, body.round, body.driver_code)
+    return {"status": "ok"}
+
+
+@web_app.get("/api/votes/stats")
+async def api_votes_stats(season: int = Query(...)):
+    """Средние оценки гонок для графика [(round, avg, count), ...]."""
+    stats = await get_race_vote_stats(season)
+    return {"stats": [{"round": r, "avg": a, "count": c} for r, a, c in stats]}
+
+
+@web_app.get("/api/votes/driver-stats")
+async def api_votes_driver_stats(season: int = Query(...)):
+    """Голоса за пилотов дня: [(driver_code, count), ...]."""
+    stats = await get_driver_vote_stats(season)
+    return {"stats": [{"driver_code": d, "count": c} for d, c in stats]}
 
 
 @web_app.get("/api/weekend-schedule", response_model=ScheduleResponse)

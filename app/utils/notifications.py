@@ -13,7 +13,11 @@ from app.db import (
     get_last_notified_round,
     set_last_notified_round,
     get_last_notified_quali_round,
-    set_last_notified_quali_round
+    set_last_notified_quali_round,
+    get_last_notified_voting_round,
+    set_last_notified_voting_round,
+    get_race_avg_for_round,
+    get_driver_vote_winner,
 )
 from app.f1_data import (
     get_season_schedule_short_async,
@@ -21,6 +25,7 @@ from app.f1_data import (
     get_constructor_standings_async,
     _get_latest_quali_async,
     get_testing_results_async,
+    get_driver_full_name_async,
 )
 from app.utils.safe_send import safe_send_message, safe_send_photo
 from app.utils.image_render import create_results_image, create_quali_results_image
@@ -381,6 +386,21 @@ async def check_and_send_results(bot: Bot):
             sent_count += 1
         await asyncio.sleep(0.05)
 
+    # Напоминание о голосовании — всем с включёнными уведомлениями
+    voting_users = await get_users_with_settings(notifications_only=True)
+    event_name = race_info.get("event_name", "Гран-при")
+    voting_text = (
+        f"🗳 <b>Приглашаем на голосование!</b>\n\n"
+        f"🏁 {event_name} завершена.\n\n"
+        f"Оцените этап по 5-балльной шкале и выберите пилота дня — "
+        f"откройте раздел <b>Голосование</b> в MiniWebApp слева по кнопке."
+    )
+    for u in voting_users:
+        tg_id, tz = u[0], u[1] or "Europe/Moscow"
+        quiet = is_quiet_hours(tz)
+        await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet)
+        await asyncio.sleep(0.05)
+
     await set_last_notified_round(season, round_num)
 
 
@@ -463,3 +483,84 @@ async def check_and_notify_quali(bot: Bot) -> None:
         await asyncio.sleep(0.05)
 
     await set_last_notified_quali_round(season, round_num)
+
+
+# --- ЗАДАЧА 4: ИТОГИ ГОЛОСОВАНИЯ (3 дня после гонки) ---
+
+DRIVER_VOTING_DAYS = 3
+
+
+async def check_and_notify_voting_results(bot: Bot) -> None:
+    """
+    Через 3 дня после гонки отправляем итоги голосования:
+    «По мнению нашего сообщества этап оценили на: X. Лучшим пилотом стал: Y.»
+    """
+    season = datetime.now(timezone.utc).year
+    schedule = await get_season_schedule_short_async(season)
+    if not schedule:
+        return
+
+    last_notified = await get_last_notified_voting_round(season)
+    now = datetime.now(timezone.utc).date()
+
+    users = await get_users_with_settings(notifications_only=True)
+    if not users:
+        return
+
+    tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users}
+
+    for event in schedule:
+        round_num = event.get("round")
+        if not round_num:
+            continue
+        if last_notified is not None and round_num <= last_notified:
+            continue
+
+        date_str = event.get("date")
+        if not date_str:
+            continue
+        try:
+            race_date = datetime.fromisoformat(date_str).date()
+        except Exception:
+            continue
+
+        voting_closes = race_date + timedelta(days=DRIVER_VOTING_DAYS + 1)
+        if now < voting_closes:
+            continue
+
+        results_df = await get_race_results_async(season, round_num)
+        if results_df.empty:
+            continue
+
+        event_name = event.get("event_name", "Гран-при")
+        avg_rating, race_count = await get_race_avg_for_round(season, round_num)
+        driver_winner, driver_count = await get_driver_vote_winner(season, round_num)
+
+        if race_count == 0 and driver_count == 0:
+            await set_last_notified_voting_round(season, round_num)
+            continue
+
+        rating_str = f"{avg_rating:.1f} ★" if avg_rating is not None and race_count > 0 else "—"
+        if driver_winner and driver_count > 0:
+            driver_str = await get_driver_full_name_async(season, round_num, driver_winner)
+        else:
+            driver_str = "не выбран"
+
+        text = (
+            f"🗳 <b>Итоги голосования</b>\n\n"
+            f"🏁 {event_name} (этап {round_num})\n\n"
+            f"По мнению нашего сообщества этап оценили на: <b>{rating_str}</b>\n"
+            f"Лучшим пилотом стал: <b>{driver_str}</b>"
+        )
+
+        sent_count = 0
+        for tg_id in tz_map:
+            quiet = is_quiet_hours(tz_map[tg_id])
+            if await safe_send_message(bot, tg_id, text, parse_mode="HTML", disable_notification=quiet):
+                sent_count += 1
+            await asyncio.sleep(0.05)
+
+        if sent_count > 0:
+            logger.info(f"✅ Sent voting results for {event_name} to {sent_count} users.")
+        await set_last_notified_voting_round(season, round_num)
+        return

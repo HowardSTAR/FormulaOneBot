@@ -11,6 +11,7 @@ import RaceDetailsPage from "./pages/race-details/RaceDetailsPage";
 import RaceResultsPage from "./pages/race-results/RaceResultsPage";
 import SettingsPage from "./pages/settings/SettingsPage";
 import SeasonPage from "./pages/season/SeasonPage";
+import VotingPage from "./pages/voting/VotingPage";
 
 export const router = createBrowserRouter([
   {
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
       { path: "/race-results", element: <RaceResultsPage /> },
       { path: "/settings", element: <SettingsPage /> },
       { path: "/season", element: <SeasonPage /> },
+      { path: "/voting", element: <VotingPage /> },
     ],
   },
 ]);

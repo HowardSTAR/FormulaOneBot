@@ -1102,3 +1102,181 @@ input:checked + .slider:before {
 .scroll-to-top:active {
   transform: scale(0.95);
 }
+
+/* --- Голосование --- */
+.voting-chart-accordion {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.voting-chart-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+}
+.voting-chart-toggle:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.voting-chart-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease-in-out;
+}
+.voting-chart-body.expanded {
+  max-height: 220px;
+}
+.voting-chart-body .voting-accordion-inner {
+  padding: 0 16px 16px;
+}
+.voting-chart {
+  height: 180px;
+  position: relative;
+}
+.voting-season-title {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  margin: -8px 0 16px 4px;
+}
+.voting-closed-msg {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 12px 0;
+  text-align: center;
+}
+.voting-accordion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.voting-accordion-item {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.voting-accordion-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+}
+.voting-accordion-header:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.voting-accordion-header.expanded {
+  border-bottom: 1px solid var(--border-color);
+}
+.voting-accordion-title {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.voting-accordion-badge {
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 700;
+}
+.voting-accordion-chevron {
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+.voting-accordion-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease-in-out;
+}
+.voting-accordion-body.expanded {
+  max-height: 450px;
+}
+.voting-accordion-inner {
+  padding: 16px 20px;
+}
+.voting-stars {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.star-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 22px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.star-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.star-btn.active {
+  border-color: var(--primary);
+  background: rgba(225, 6, 0, 0.2);
+  color: var(--primary);
+}
+.star-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.voting-drivers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.driver-vote-btn {
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 2px solid var(--border-color);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.driver-vote-btn:hover {
+  border-color: var(--primary);
+  background: rgba(225, 6, 0, 0.05);
+}
+.driver-vote-btn.active {
+  border-color: var(--primary);
+  background: rgba(225, 6, 0, 0.15);
+  color: var(--primary);
+}
+.driver-vote-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
