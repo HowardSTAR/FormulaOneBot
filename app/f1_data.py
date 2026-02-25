@@ -33,6 +33,54 @@ UTC_PLUS_3 = timezone(timedelta(hours=3))
 # --- REDIS CLIENT (Глобальный) --- #
 _REDIS_CLIENT: Redis | None = None
 
+# --- FALLBACK КЭШ (когда Redis недоступен) --- #
+_fallback_cache_dir = _project_root / "f1bot_cache"
+_fallback_cache_dir.mkdir(exist_ok=True)
+_MEMORY_CACHE: dict[str, tuple[float, Any]] = {}  # key -> (expires_at, data)
+
+
+def _cache_key(key_prefix: str, func_name: str, args: tuple, kwargs: dict) -> str:
+    arg_str = f"{args}_{kwargs}"
+    arg_hash = hashlib.md5(arg_str.encode()).hexdigest()
+    return f"{key_prefix}:{func_name}:{arg_hash}"
+
+
+def _fallback_cache_get(cache_key: str) -> Any | None:
+    """Читает из памяти, при промахе — из файла."""
+    now = time.time()
+    if cache_key in _MEMORY_CACHE:
+        expires_at, data = _MEMORY_CACHE[cache_key]
+        if expires_at > now:
+            return data
+        del _MEMORY_CACHE[cache_key]
+
+    safe_key = hashlib.md5(cache_key.encode()).hexdigest()
+    file_path = _fallback_cache_dir / f"{safe_key}.pkl"
+    if file_path.exists():
+        try:
+            with open(file_path, "rb") as f:
+                stored = pickle.load(f)
+            expires_at, data = stored
+            if expires_at > now:
+                _MEMORY_CACHE[cache_key] = (expires_at, data)
+                return data
+        except Exception as e:
+            logger.debug(f"Fallback cache read error: {e}")
+    return None
+
+
+def _fallback_cache_set(cache_key: str, data: Any, ttl: int) -> None:
+    """Сохраняет в память и в файл."""
+    expires_at = time.time() + ttl
+    _MEMORY_CACHE[cache_key] = (expires_at, data)
+    safe_key = hashlib.md5(cache_key.encode()).hexdigest()
+    file_path = _fallback_cache_dir / f"{safe_key}.pkl"
+    try:
+        with open(file_path, "wb") as f:
+            pickle.dump((expires_at, data), f)
+    except Exception as e:
+        logger.debug(f"Fallback cache write error: {e}")
+
 
 async def init_redis_cache(redis_url: str):
     """Инициализация Redis клиента для кэширования данных."""
@@ -42,7 +90,7 @@ async def init_redis_cache(redis_url: str):
         await _REDIS_CLIENT.ping()
         logger.info("Redis cache initialized successfully.")
     except Exception as e:
-        logger.error(f"Failed to initialize Redis cache: {e}")
+        logger.warning(f"Redis unavailable, using file cache: {e}")
         _REDIS_CLIENT = None
 
 
@@ -52,36 +100,40 @@ def cache_result(ttl: int = 300, key_prefix: str = ""):
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            if _REDIS_CLIENT is None:
-                return await func(*args, **kwargs)
+            cache_key = _cache_key(key_prefix, func.__name__, args, kwargs)
 
-            try:
-                arg_str = f"{args}_{kwargs}"
-                arg_hash = hashlib.md5(arg_str.encode()).hexdigest()
-                cache_key = f"f1bot:cache:{key_prefix}:{func.__name__}:{arg_hash}"
+            if _REDIS_CLIENT is not None:
+                try:
+                    full_key = f"f1bot:cache:{cache_key}"
+                    cached_data = await _REDIS_CLIENT.get(full_key)
+                    if cached_data:
+                        return pickle.loads(cached_data)
+                except Exception as e:
+                    logger.debug(f"Redis READ error: {e}")
 
-                cached_data = await _REDIS_CLIENT.get(cache_key)
-                if cached_data:
-                    return pickle.loads(cached_data)
-            except Exception as e:
-                logger.error(f"Redis READ error for {func.__name__}: {e}")
+            cached = _fallback_cache_get(cache_key)
+            if cached is not None:
+                return cached
 
             result = await func(*args, **kwargs)
 
             should_cache = True
+            cache_ttl = ttl
             if result is None:
                 should_cache = False
             elif isinstance(result, pd.DataFrame) and result.empty:
-                ttl_override = 60
+                cache_ttl = min(ttl, 60)
             elif isinstance(result, (list, tuple, dict)) and not result:
                 should_cache = False
 
             if should_cache:
-                try:
-                    packed = pickle.dumps(result)
-                    await _REDIS_CLIENT.setex(cache_key, ttl, packed)
-                except Exception as e:
-                    logger.error(f"Redis WRITE error for {func.__name__}: {e}")
+                if _REDIS_CLIENT is not None:
+                    try:
+                        packed = pickle.dumps(result)
+                        await _REDIS_CLIENT.setex(f"f1bot:cache:{cache_key}", cache_ttl, packed)
+                    except Exception as e:
+                        logger.debug(f"Redis WRITE error: {e}")
+                _fallback_cache_set(cache_key, result, cache_ttl)
 
             return result
 
@@ -395,12 +447,12 @@ def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
 
 # --- АСИНХРОННЫЕ ОБЕРТКИ (С КЭШИРОВАНИЕМ) --- #
 
-@cache_result(ttl=3600, key_prefix="schedule")
+@cache_result(ttl=7200, key_prefix="schedule")
 async def get_season_schedule_short_async(season: int):
     return await _run_sync(get_season_schedule_short, season)
 
 
-@cache_result(ttl=600, key_prefix="dr_standings")
+@cache_result(ttl=3600, key_prefix="dr_standings")
 async def get_driver_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
     """Асинхронно получает личный зачет (Jolpica API). Фоллбэк на OpenF1 (0 очков), если сезон не стартовал."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/driverStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json"
@@ -433,7 +485,7 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
     return await _get_zero_point_driver_standings()
 
 
-@cache_result(ttl=600, key_prefix="con_standings")
+@cache_result(ttl=3600, key_prefix="con_standings")
 async def get_constructor_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
     """Асинхронно получает кубок конструкторов (Jolpica API). Фоллбэк на OpenF1 (0 очков)."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/constructorStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json"
@@ -542,17 +594,17 @@ async def _get_zero_point_constructor_standings() -> pd.DataFrame:
             return pd.DataFrame()
 
 
-@cache_result(ttl=300, key_prefix="race_res")
+@cache_result(ttl=86400, key_prefix="race_res")
 async def get_race_results_async(season: int, round_number: int):
     return await _run_sync(get_race_results_df, season, round_number)
 
 
-@cache_result(ttl=300, key_prefix="quali_res")
+@cache_result(ttl=86400, key_prefix="quali_res")
 async def _get_quali_async(season: int, round_number: int, limit: int = 20):
     return await _run_sync(get_qualifying_results, season, round_number, limit)
 
 
-@cache_result(ttl=300, key_prefix="lat_quali")
+@cache_result(ttl=3600, key_prefix="lat_quali")
 async def _get_latest_quali_async(season: int, max_round: int | None = None, limit: int = 20):
     return await _run_sync(get_latest_quali_results, season, max_round, limit)
 
