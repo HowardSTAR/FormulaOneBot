@@ -138,6 +138,16 @@ function SettingsPage() {
             <span className="slider round" />
           </label>
         </div>
+        <p
+          style={{
+            margin: "12px 0 0",
+            fontSize: 13,
+            color: "var(--text-secondary)",
+            fontStyle: "italic",
+          }}
+        >
+          С 21:00 до 10:00 по вашему времени уведомления приходят в тихом режиме (без звука).
+        </p>
       </div>
 
       <button
