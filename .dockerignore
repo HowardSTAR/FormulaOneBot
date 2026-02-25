@@ -1,0 +1,22 @@
+# Frontend
+front/node_modules
+front/dist
+
+# Python
+__pycache__
+*.pyc
+.venv
+venv
+
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+
+# Misc
+*.md
+.env
+.env.*
