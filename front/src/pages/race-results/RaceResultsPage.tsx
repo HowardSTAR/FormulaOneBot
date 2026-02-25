@@ -20,7 +20,7 @@ type RaceResultsResponse = {
 function RaceResultsPage() {
   const [data, setData] = useState<RaceResultsResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +32,7 @@ function RaceResultsPage() {
       } catch (e) {
         if (!cancelled) {
           console.error(e);
-          setError(true);
+          setError(e instanceof Error ? e.message : "Ошибка загрузки данных");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -81,7 +81,7 @@ function RaceResultsPage() {
           </div>
         )}
         {error && (
-          <div style={{ color: "red", textAlign: "center", padding: 20 }}>Ошибка загрузки данных</div>
+          <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>
         )}
         {!loading && !error && (!data?.results || data.results.length === 0) && (
           <div className="empty-state">

@@ -1,16 +1,19 @@
 import hashlib
 import io
 import json
-import math  # <--- Добавлен для рисования звезды
+import math
 import urllib
 from datetime import date
 from io import BytesIO
 from pathlib import Path
 from typing import List, Tuple, Callable
 
+import matplotlib
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib import pyplot as plt, ticker
+
+matplotlib.use('Agg')
 
 _DRIVER_PHOTOS_CACHE = {}
 _TEAM_LOGOS_CACHE = {}

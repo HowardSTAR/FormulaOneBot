@@ -1,50 +1,18 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { apiRequest } from "../../helpers/api";
+import { useHeroData } from "../../context/HeroDataContext";
 import "./styles.css";
 import Hero from "./Hero";
 
-type NextRaceStatus = "ok" | "season_finished" | "error";
-
-export type NextRaceResponse = {
-  status?: NextRaceStatus;
-  event_name?: string;
-  season?: number;
-  round?: number;
-  date?: string;
-  next_session_iso?: string;
-  next_session_name?: string;
-};
+export type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
 
 function IndexPage() {
-    const [data, setData] = useState<NextRaceResponse | null>(null);
-
+  const { nextRace, schedule, userTz, loaded, load } = useHeroData();
   const currentYear = new Date().getFullYear();
 
-  // Загрузка данных при монтировании
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        const data = await apiRequest<NextRaceResponse>("/api/next-race");
-        if (cancelled) return;
-
-        if (data.status === "ok" && data.event_name) {
-            setData(data);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          console.error(e);
-        }
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    if (!loaded) load();
+  }, [loaded, load]);
 
   return (
     <>
@@ -54,7 +22,7 @@ function IndexPage() {
         </h2>
       </div>
 
-      <Hero {...data} />
+      <Hero nextRace={nextRace} schedule={schedule} userTz={userTz} />
 
       <div className="section-title">Последний этап</div>
       <div className="results-grid">

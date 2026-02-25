@@ -1,18 +1,21 @@
 import logging
+import os
 import aiosqlite
 from pathlib import Path
 from typing import List, Tuple, Any, Optional
 
 # Настройка путей и логгера
-# 1. Защита от "баз-двойников": вычисляем абсолютный путь к корню проекта
 BASE_DIR = Path(__file__).resolve().parent.parent
 DB_DIR = BASE_DIR / "data"
-
-# Гарантируем, что папка data существует
 DB_DIR.mkdir(exist_ok=True)
 
-# Единый путь для всех компонентов системы
-DB_PATH = DB_DIR / "bot.db"
+# DATABASE_PATH — опционально, иначе всегда data/bot.db
+_raw = os.environ.get("DATABASE_PATH")
+if _raw:
+    DB_PATH = Path(_raw).resolve()
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+else:
+    DB_PATH = (DB_DIR / "bot.db").resolve()
 
 logger = logging.getLogger(__name__)
 

@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
+import { CustomSelect } from "../../components/CustomSelect";
+import { hapticSelection, hapticImpact } from "../../helpers/telegram";
 
-type SettingsResponse = { timezone?: string; notify_before?: number };
+type SettingsResponse = { timezone?: string; notify_before?: number; notifications_enabled?: boolean };
 
 const TIMEZONES = [
   { value: "Etc/GMT+12", label: "UTC-12" },
@@ -42,6 +44,7 @@ const NOTIFY_OPTIONS = [
 function SettingsPage() {
   const [timezone, setTimezone] = useState("Etc/GMT-3");
   const [notifyBefore, setNotifyBefore] = useState(60);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [timePreview, setTimePreview] = useState("--:--");
   const [toast, setToast] = useState(false);
 
@@ -72,6 +75,7 @@ function SettingsPage() {
         if (cancelled) return;
         if (s?.timezone) setTimezone(s.timezone);
         if (s?.notify_before != null) setNotifyBefore(s.notify_before);
+        if (s?.notifications_enabled !== undefined) setNotificationsEnabled(Boolean(s.notifications_enabled));
       })
       .catch(() => {});
     return () => {
@@ -83,7 +87,7 @@ function SettingsPage() {
     try {
       await apiRequest(
         "/api/settings",
-        { timezone, notify_before: notifyBefore },
+        { timezone, notify_before: notifyBefore, notifications_enabled: notificationsEnabled },
         "POST"
       );
       setToast(true);
@@ -102,36 +106,48 @@ function SettingsPage() {
 
       <div className="setting-card">
         <div className="setting-label">ЧАСОВОЙ ПОЯС</div>
-        <select
-          className="setting-select"
+        <CustomSelect
+          options={TIMEZONES}
           value={timezone}
-          onChange={(e) => setTimezone(e.target.value)}
-        >
-          {TIMEZONES.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => setTimezone(String(v))}
+        />
         <div className="timezone-preview">{timePreview}</div>
       </div>
 
       <div className="setting-card">
         <div className="setting-label">УВЕДОМЛЯТЬ ЗА</div>
-        <select
-          className="setting-select"
+        <CustomSelect
+          options={NOTIFY_OPTIONS}
           value={notifyBefore}
-          onChange={(e) => setNotifyBefore(Number(e.target.value))}
-        >
-          {NOTIFY_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
+          onChange={(v) => setNotifyBefore(Number(v))}
+        />
       </div>
 
-      <button type="button" className="btn-save" onClick={saveSettings}>
+      <div className="setting-card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="setting-label" style={{ marginBottom: 0 }}>Включить уведомления</div>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={notificationsEnabled}
+              onChange={(e) => {
+                hapticSelection();
+                setNotificationsEnabled(e.target.checked);
+              }}
+            />
+            <span className="slider round" />
+          </label>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="btn-save"
+        onClick={() => {
+          hapticImpact("medium");
+          saveSettings();
+        }}
+      >
         Сохранить
       </button>
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
+import { CustomSelect } from "../../components/CustomSelect";
 
 Chart.register(...registerables);
 
@@ -9,14 +10,13 @@ const currentRealYear = new Date().getFullYear();
 
 type DriverOption = { code: string; name: string };
 type DriversResponse = { drivers?: DriverOption[] };
+type CompareDataItem = { code: string; history: number[]; color?: string };
 type CompareResponse = {
-  status: string;
-  data?: {
-    labels: string[];
-    driver1: { history: number[] };
-    driver2: { history: number[] };
-    score: { race: Record<string, number>; quali: Record<string, number> };
-  };
+  error?: string;
+  labels?: string[];
+  data1?: CompareDataItem;
+  data2?: CompareDataItem;
+  q_score?: [number, number];
 };
 
 function ComparePage() {
@@ -27,7 +27,7 @@ function ComparePage() {
   const [d2, setD2] = useState("");
   const [loadingDrivers, setLoadingDrivers] = useState(true);
   const [comparing, setComparing] = useState(false);
-  const [results, setResults] = useState<CompareResponse["data"] | null>(null);
+  const [results, setResults] = useState<CompareResponse | null>(null);
   const [compareError, setCompareError] = useState<string | null>(null);
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
@@ -87,37 +87,47 @@ function ComparePage() {
       const res = await apiRequest<CompareResponse>("/api/compare", {
         d1,
         d2,
-        season: String(year),
+        season: year,
       });
-      if (res.status === "ok" && res.data) {
-        setResults(res.data);
+      if (res.error) {
+        setCompareError(res.error);
+        setResults(null);
+      } else if (res.labels && res.data1 && res.data2) {
+        setResults(res);
         setTimeout(() => {
           chartRef.current?.scrollIntoView({ behavior: "smooth" });
         }, 100);
       } else {
         setCompareError("Данные не найдены. Возможно, пилоты не выступали вместе в этом сезоне.");
+        setResults(null);
       }
     } catch (e) {
       console.error(e);
-      setCompareError("Ошибка загрузки данных");
+      setCompareError(e instanceof Error ? e.message : "Ошибка загрузки данных");
+      setResults(null);
     } finally {
       setComparing(false);
     }
   };
 
   useEffect(() => {
-    if (!results || !chartRef.current) return;
+    if (!results || !results.labels?.length || !chartRef.current) return;
     const ctx = chartRef.current.getContext("2d");
     if (!ctx) return;
+
+    const color1 = "#e10600";
+    const color2 = "#00d2be";
+    const d1Info = results.data1 ?? { code: d1, history: [] };
+    const d2Info = results.data2 ?? { code: d2, history: [] };
 
     chartInstanceRef.current?.destroy();
     chartInstanceRef.current = null;
     const gradient1 = ctx.createLinearGradient(0, 0, 0, 400);
-    gradient1.addColorStop(0, "rgba(54, 162, 235, 0.5)");
-    gradient1.addColorStop(1, "rgba(54, 162, 235, 0.0)");
+    gradient1.addColorStop(0, "rgba(225, 6, 0, 0.4)");
+    gradient1.addColorStop(1, "rgba(225, 6, 0, 0)");
     const gradient2 = ctx.createLinearGradient(0, 0, 0, 400);
-    gradient2.addColorStop(0, "rgba(255, 99, 132, 0.5)");
-    gradient2.addColorStop(1, "rgba(255, 99, 132, 0.0)");
+    gradient2.addColorStop(0, "rgba(0, 210, 190, 0.4)");
+    gradient2.addColorStop(1, "rgba(0, 210, 190, 0)");
 
     const config: ChartConfiguration<"line"> = {
       type: "line",
@@ -125,26 +135,26 @@ function ComparePage() {
         labels: results.labels,
         datasets: [
           {
-            label: d1,
-            data: results.driver1.history,
-            borderColor: "#0033ff",
+            label: d1Info.code,
+            data: d1Info.history,
+            borderColor: color1,
             backgroundColor: gradient1,
             fill: true,
             pointRadius: 3,
             pointHoverRadius: 6,
-            tension: 0.2,
-            borderWidth: 2,
+            tension: 0.4,
+            borderWidth: 3,
           },
           {
-            label: d2,
-            data: results.driver2.history,
-            borderColor: "#ff0000",
+            label: d2Info.code,
+            data: d2Info.history,
+            borderColor: color2,
             backgroundColor: gradient2,
             fill: true,
             pointRadius: 3,
             pointHoverRadius: 6,
-            tension: 0.2,
-            borderWidth: 2,
+            tension: 0.4,
+            borderWidth: 3,
           },
         ],
       },
@@ -153,7 +163,7 @@ function ComparePage() {
         maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
         plugins: {
-          legend: { labels: { color: "#fff", font: { size: 12, family: "Jost" } } },
+          legend: { labels: { color: "white" } },
           tooltip: {
             backgroundColor: "rgba(20, 20, 20, 0.9)",
             titleColor: "#fff",
@@ -173,10 +183,10 @@ function ComparePage() {
           },
         },
         scales: {
-          y: { beginAtZero: true, grid: { color: "rgba(255,255,255,0.05)" }, ticks: { color: "#888" } },
+          y: { beginAtZero: true, grid: { color: "rgba(255,255,255,0.1)" }, ticks: { color: "white" } },
           x: {
-            grid: { display: false },
-            ticks: { color: "#aaa", autoSkip: false, maxRotation: 90, minRotation: 90, font: { size: 10 } },
+            grid: { color: "rgba(255,255,255,0.1)" },
+            ticks: { color: "white", autoSkip: false, maxRotation: 90, minRotation: 90 },
           },
         },
       },
@@ -186,6 +196,21 @@ function ComparePage() {
       chartInstanceRef.current?.destroy();
     };
   }, [results, d1, d2]);
+
+  const raceScore1 = results
+    ? results.data1!.history.reduce(
+        (acc, pts1, i) => acc + (pts1 > (results.data2!.history[i] ?? 0) ? 1 : 0),
+        0
+      )
+    : 0;
+  const raceScore2 = results
+    ? results.data2!.history.reduce(
+        (acc, pts2, i) => acc + (pts2 > (results.data1!.history[i] ?? 0) ? 1 : 0),
+        0
+      )
+    : 0;
+  const totalPts1 = results?.data1?.history.reduce((a, b) => a + b, 0) ?? 0;
+  const totalPts2 = results?.data2?.history.reduce((a, b) => a + b, 0) ?? 0;
 
   return (
     <>
@@ -213,35 +238,33 @@ function ComparePage() {
       </div>
 
       <div className="selectors">
-        <select
+        <CustomSelect
           className="driver-select"
+          options={
+            loadingDrivers
+              ? [{ value: "", label: "Загрузка..." }]
+              : drivers.length === 0
+                ? [{ value: "", label: "Нет данных" }]
+                : drivers.map((d) => ({ value: d.code, label: d.name }))
+          }
           value={d1}
-          onChange={(e) => setD1(e.target.value)}
+          onChange={(v) => setD1(String(v))}
           disabled={loadingDrivers}
-        >
-          {loadingDrivers && <option>Загрузка...</option>}
-          {!loadingDrivers && drivers.length === 0 && <option value="">Нет данных</option>}
-          {drivers.map((d) => (
-            <option key={d.code} value={d.code}>
-              {d.name}
-            </option>
-          ))}
-        </select>
+        />
         <span className="vs-badge">VS</span>
-        <select
+        <CustomSelect
           className="driver-select"
+          options={
+            loadingDrivers
+              ? [{ value: "", label: "Загрузка..." }]
+              : drivers.length === 0
+                ? [{ value: "", label: "Нет данных" }]
+                : drivers.map((d) => ({ value: d.code, label: d.name }))
+          }
           value={d2}
-          onChange={(e) => setD2(e.target.value)}
+          onChange={(v) => setD2(String(v))}
           disabled={loadingDrivers}
-        >
-          {loadingDrivers && <option>Загрузка...</option>}
-          {!loadingDrivers && drivers.length === 0 && <option value="">Нет данных</option>}
-          {drivers.map((d) => (
-            <option key={d.code} value={d.code}>
-              {d.name}
-            </option>
-          ))}
-        </select>
+        />
       </div>
 
       <button
@@ -257,22 +280,27 @@ function ComparePage() {
         <div style={{ color: "#ff6b6b", marginBottom: 16, fontSize: 14 }}>{compareError}</div>
       )}
 
-      {results && (
+      {results && results.labels && results.labels.length > 0 && (
         <div style={{ animation: "fadeIn 0.3s ease-out" }}>
           <div className="stats-grid">
             <div className="stat-card">
               <div className="stat-title">Гонки</div>
               <div className="stat-score">
-                <span className="s-d1">{results.score.race[d1] ?? 0}</span> :{" "}
-                <span className="s-d2">{results.score.race[d2] ?? 0}</span>
+                <span className="s-d1">{raceScore1}</span> : <span className="s-d2">{raceScore2}</span>
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-title">Квалификации</div>
               <div className="stat-score">
-                <span className="s-d1">{results.score.quali[d1] ?? 0}</span> :{" "}
-                <span className="s-d2">{results.score.quali[d2] ?? 0}</span>
+                <span className="s-d1">{results.q_score?.[0] ?? 0}</span> :{" "}
+                <span className="s-d2">{results.q_score?.[1] ?? 0}</span>
               </div>
+            </div>
+          </div>
+          <div className="stat-card" style={{ marginBottom: 20 }}>
+            <div className="stat-title">Сумма очков</div>
+            <div className="stat-score">
+              <span className="s-d1">{totalPts1}</span> : <span className="s-d2">{totalPts2}</span>
             </div>
           </div>
           <div className="chart-container">

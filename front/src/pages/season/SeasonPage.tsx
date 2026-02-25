@@ -49,7 +49,7 @@ function SeasonPage() {
       }
     } catch (e) {
       console.error(e);
-      setError("Ошибка загрузки");
+      setError(e instanceof Error ? e.message : "Ошибка загрузки");
       setRaces([]);
     } finally {
       setLoading(false);

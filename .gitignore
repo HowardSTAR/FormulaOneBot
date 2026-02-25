@@ -1,4 +1,8 @@
 .env
 *.db
 *.sqlite
-#fastf1_cache/
+*.db-shm
+*.db-wal
+data/
+fastf1_cache/
+f1bot_cache/

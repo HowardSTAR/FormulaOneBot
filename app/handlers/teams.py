@@ -20,6 +20,7 @@ from app.db import get_favorite_teams
 from app.f1_data import get_constructor_standings_async
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_constructor_standings_image
+from app.utils.loader import Loader
 
 router = Router()
 
@@ -34,143 +35,140 @@ async def _send_teams_for_year(message: Message, season: int, telegram_id: int |
     Теперь в первую очередь рисуем картинку с таблицей
     (через image_render), а текст используем как запасной вариант.
     """
-    try:
-        # Асинхронный вызов получения данных
-        df = await get_constructor_standings_async(season)
-    except Exception:
-        await message.answer(
-            "❌ Не удалось получить таблицу команд.\n"
-            "Попробуй ещё раз чуть позже."
-        )
-        return
-
-    if df.empty:
-        await message.answer(f"Пока нет данных по кубку конструкторов за {season} год.")
-        return
-
-    df = df.sort_values("position")
-
-    # Вытягиваем список избранных команд пользователя
-    favorite_teams = []
-    if telegram_id:
-        favorite_teams = await get_favorite_teams(telegram_id)
-
-    lines: list[str] = []
-    rows_for_image: list[tuple[str, str, str, str]] = []
-
-    for row in df.itertuples(index=False):
-        # --- position ---
-        pos_raw = getattr(row, "position", None)
-        if pos_raw is None:
-            continue
-        if isinstance(pos_raw, float) and math.isnan(pos_raw):
-            continue
-
-        # --- Безопасная обработка прочерка ---
-        if str(pos_raw).strip() == "-":
-            position_str = "-"
-            position_val = 99  # Фейковое число, чтобы не дать золотой кубок
-        else:
-            try:
-                position_val = int(pos_raw)
-                position_str = f"{position_val:02d}"
-            except (TypeError, ValueError):
-                continue
-
-        # --- points ---
-        points_raw = getattr(row, "points", 0.0)
-        if isinstance(points_raw, float) and math.isnan(points_raw):
-            points = 0.0
-        else:
-            try:
-                points = float(points_raw)
-            except (TypeError, ValueError):
-                points = 0.0
-
-        team_name = getattr(row, "constructorName", "Unknown")
-
-        # Пытаемся достать короткий код/ID команды
-        constructor_code = ""
-        for attr_name in ("constructorCode", "constructorRef", "constructorId"):
-            val = getattr(row, attr_name, None)
-            if isinstance(val, str) and val:
-                constructor_code = val
-                break
-
-        # --- ИСПРАВЛЕНИЕ: Добавляем звездочку для избранной команды ---
-        # Проверяем как по имени (McLaren), так и по ID (mclaren) для надежности
-        if team_name in favorite_teams or constructor_code in favorite_teams:
-            display_team_name = f"⭐️ {team_name}"
-        else:
-            display_team_name = team_name
-
-        # --- кубки для 1–3 мест ---
-        if position_val == 1:
-            trophy = "🥇 "
-        elif position_val == 2:
-            trophy = "🥈 "
-        elif position_val == 3:
-            trophy = "🥉 "
-        else:
-            trophy = ""
-
-        # Убираем лишние пробелы для прочерка
-        pos_display = position_str if position_str == "-" else f"{position_val:>2}"
-
-        line = (
-            f"{trophy}"
-            f"{pos_display}. {display_team_name} — "
-            f"{points:.0f} очков"
-        )
-        lines.append(line)
-
-        # Данные для картинки
-        rows_for_image.append(
-            (
-                position_str,
-                constructor_code,
-                display_team_name, # Передаем имя со звездочкой в картинку
-                f"{points:.0f} очк.",
-            )
-        )
-
-    if not lines:
-        await message.answer(f"Не удалось отобразить команды за {season} год (нет корректных данных).")
-        return
-
-    try:
-        img_buf = await asyncio.to_thread(
-            create_constructor_standings_image,
-            title=f"Кубок конструкторов {season}",
-            subtitle="",
-            rows=rows_for_image,
-            season=season,
-        )
-
-        img_buf.seek(0)
-        photo = BufferedInputFile(
-            img_buf.read(),
-            filename=f"constructors_{season}.png",
-        )
-
-        await message.answer_photo(
-            photo=photo,
-            caption=f"🏎 Кубок конструкторов {season}",
-        )
-    except Exception as exc:
-        logging.exception(
-            "Не удалось сформировать или отправить картинку таблицы конструкторов: %s",
-            exc,
-        )
-        text = (
-            f"🏎 Кубок конструкторов {season}:\n\n"
-            + "\n".join(lines[:30])
-        )
+    async with Loader(message, f"⏳ Загружаю кубок конструкторов за {season} год..."):
         try:
-            await message.answer(text)
-        except TelegramNetworkError:
+            # Асинхронный вызов получения данных
+            df = await get_constructor_standings_async(season)
+        except Exception:
+            await message.answer(
+                "❌ Не удалось получить таблицу команд.\n"
+                "Попробуй ещё раз чуть позже."
+            )
             return
 
+        if df.empty:
+            await message.answer(f"Пока нет данных по кубку конструкторов за {season} год.")
+            return
+
+        df = df.sort_values("position")
+
+        # Вытягиваем список избранных команд пользователя
+        favorite_teams = []
+        if telegram_id:
+            favorite_teams = await get_favorite_teams(telegram_id)
+
+        lines: list[str] = []
+        rows_for_image: list[tuple[str, str, str, str]] = []
+
+        for row in df.itertuples(index=False):
+            # --- position ---
+            pos_raw = getattr(row, "position", None)
+            if pos_raw is None:
+                continue
+            if isinstance(pos_raw, float) and math.isnan(pos_raw):
+                continue
+
+            # --- Безопасная обработка прочерка ---
+            if str(pos_raw).strip() == "-":
+                position_str = "-"
+                position_val = 99  # Фейковое число, чтобы не дать золотой кубок
+            else:
+                try:
+                    position_val = int(pos_raw)
+                    position_str = f"{position_val:02d}"
+                except (TypeError, ValueError):
+                    continue
+
+            # --- points ---
+            points_raw = getattr(row, "points", 0.0)
+            if isinstance(points_raw, float) and math.isnan(points_raw):
+                points = 0.0
+            else:
+                try:
+                    points = float(points_raw)
+                except (TypeError, ValueError):
+                    points = 0.0
+
+            team_name = getattr(row, "constructorName", "Unknown")
+
+            # Пытаемся достать короткий код/ID команды
+            constructor_code = ""
+            for attr_name in ("constructorCode", "constructorRef", "constructorId"):
+                val = getattr(row, attr_name, None)
+                if isinstance(val, str) and val:
+                    constructor_code = val
+                    break
+
+            if team_name in favorite_teams or constructor_code in favorite_teams:
+                display_team_name = f"⭐️ {team_name}"
+            else:
+                display_team_name = team_name
+
+            # --- кубки для 1–3 мест ---
+            if position_val == 1:
+                trophy = "🥇 "
+            elif position_val == 2:
+                trophy = "🥈 "
+            elif position_val == 3:
+                trophy = "🥉 "
+            else:
+                trophy = ""
+
+            pos_display = position_str if position_str == "-" else f"{position_val:>2}"
+
+            line = (
+                f"{trophy}"
+                f"{pos_display}. {display_team_name} — "
+                f"{points:.0f} очков"
+            )
+            lines.append(line)
+
+            # Данные для картинки
+            rows_for_image.append(
+                (
+                    position_str,
+                    constructor_code,
+                    display_team_name,
+                    f"{points:.0f} очк.",
+                )
+            )
+
+        if not lines:
+            await message.answer(f"Не удалось отобразить команды за {season} год (нет корректных данных).")
+            return
+
+        try:
+            img_buf = await asyncio.to_thread(
+                create_constructor_standings_image,
+                title=f"Кубок конструкторов {season}",
+                subtitle="",
+                rows=rows_for_image,
+                season=season,
+            )
+
+            img_buf.seek(0)
+            photo = BufferedInputFile(
+                img_buf.read(),
+                filename=f"constructors_{season}.png",
+            )
+
+            await message.answer_photo(
+                photo=photo,
+                caption=f"🏎 Кубок конструкторов {season}",
+            )
+        except Exception as exc:
+            logging.exception(
+                "Не удалось сформировать или отправить картинку таблицы конструкторов: %s",
+                exc,
+            )
+            text = (
+                f"🏎 Кубок конструкторов {season}:\n\n"
+                + "\n".join(lines[:30])
+            )
+            try:
+                await message.answer(text)
+            except TelegramNetworkError:
+                return
 
 def _parse_season_from_text(text: str) -> int:
     """
@@ -247,6 +245,8 @@ async def teams_year_current(callback: CallbackQuery, state: FSMContext) -> None
     Пользователь нажал кнопку «Текущий сезон (YYYY)».
     """
     await state.clear()
+    await callback.answer()
+
     year_str = callback.data.split("_")[-1]
     try:
         season = int(year_str)
@@ -255,5 +255,3 @@ async def teams_year_current(callback: CallbackQuery, state: FSMContext) -> None
 
     if callback.message:
         await _send_teams_for_year(callback.message, season, callback.from_user.id)
-
-    await callback.answer()

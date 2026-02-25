@@ -1,4 +1,5 @@
-import asyncio
+import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List
@@ -10,33 +11,40 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-import app
 from app.auth import get_current_user_id
 from app.db import (
     get_favorite_drivers, get_favorite_teams,
     remove_favorite_driver, add_favorite_driver,
     remove_favorite_team, add_favorite_team,
-    get_user_settings, update_user_setting, db
+    get_user_settings, update_user_setting
 )
 from app.f1_data import (
     get_season_schedule_short_async,
     get_weekend_schedule,
     get_driver_standings_async,
     get_constructor_standings_async, _get_latest_quali_async, get_race_results_async, get_event_details_async,
-    get_drivers_comparison_async,
 )
 from app.handlers.races import build_next_race_payload
 
 # --- Настройка путей ---
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
-WEB_DIR = PROJECT_ROOT / "web" / "app"
+WEB_DIR_LEGACY = PROJECT_ROOT / "web" / "app"
+FRONT_DIR = PROJECT_ROOT / "front" / "dist"
+# Используем React SPA (front) если собран, иначе web/app
+WEB_DIR = FRONT_DIR if FRONT_DIR.exists() else WEB_DIR_LEGACY
 STATIC_DIR = WEB_DIR / "static"
-# [NEW] Добавляем путь к ассетам
-ASSETS_DIR = PROJECT_ROOT / "web" / "app" / "static"
 
 # --- Инициализация приложения ---
-web_app = FastAPI(title="FormulaOneBot Mini App API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from app.f1_data import init_redis_cache
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    await init_redis_cache(redis_url)
+    yield
+
+
+web_app = FastAPI(title="FormulaOneBot Mini App API", lifespan=lifespan)
 
 web_app.add_middleware(
     CORSMiddleware,
@@ -48,9 +56,6 @@ web_app.add_middleware(
 
 if STATIC_DIR.exists():
     web_app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-
-if ASSETS_DIR.exists():
-    web_app.mount("/static", StaticFiles(directory=str(ASSETS_DIR)), name="static")
 
 # --- МОДЕЛИ ДАННЫХ ---
 
@@ -582,7 +587,7 @@ async def serve_mpa_or_static(full_path: str):
     if html_file.exists() and html_file.is_file():
         return FileResponse(str(html_file))
 
-    # 5. Если ничего не нашли - отдаем главную страницу как запасной вариант (или 404)
+    # 5. SPA fallback: для React Router (drivers, compare, и т.д.) отдаем index.html
     index_file = WEB_DIR / "index.html"
     if index_file.exists():
         return FileResponse(str(index_file))
