@@ -29,8 +29,7 @@ class DriversYearState(StatesGroup):
 
 
 async def _send_drivers_for_year(message: Message, season: int, telegram_id: int | None = None) -> None:
-    # Запускаем лоадер
-    async with Loader(message, text="⏳ Получаю таблицу пилотов..."):
+    async with Loader(message, text="⏳ Получаю таблицу пилотов...") as loader:
         try:
             df = await get_driver_standings_async(season)
         except Exception:
@@ -44,101 +43,103 @@ async def _send_drivers_for_year(message: Message, season: int, telegram_id: int
             await message.answer(f"❌ Нет данных о пилотах за сезон {season}.")
             return
 
-    df = df.sort_values("position")
+        df = df.sort_values("position")
 
-    favorite_codes: set[str] = set()
-    if telegram_id is not None:
-        try:
-            fav_list = await get_favorite_drivers(telegram_id)
-            favorite_codes = set(fav_list)
-        except Exception:
-            favorite_codes = set()
-
-    rows: list[tuple[str, str, str, str]] = []
-
-    for row in df.itertuples(index=False):
-        pos_raw = getattr(row, "position", None)
-        if pos_raw is None:
-            continue
-        if isinstance(pos_raw, float) and math.isnan(pos_raw):
-            continue
-
-        # --- ИСПРАВЛЕНИЕ: Безопасная обработка прочерка ---
-        if str(pos_raw).strip() == "-":
-            position_str = "-"
-            position_val = "-"
-        else:
+        favorite_codes: set[str] = set()
+        if telegram_id is not None:
             try:
-                position_val = int(pos_raw)
-                position_str = f"{position_val:02d}"
-            except (TypeError, ValueError):
+                fav_list = await get_favorite_drivers(telegram_id)
+                favorite_codes = set(fav_list)
+            except Exception:
+                favorite_codes = set()
+
+        rows: list[tuple[str, str, str, str]] = []
+
+        for row in df.itertuples(index=False):
+            pos_raw = getattr(row, "position", None)
+            if pos_raw is None:
+                continue
+            if isinstance(pos_raw, float) and math.isnan(pos_raw):
                 continue
 
-        points_raw = getattr(row, "points", 0.0)
-        if isinstance(points_raw, float) and math.isnan(points_raw):
-            points = 0.0
-        else:
-            try:
-                points = float(points_raw)
-            except (TypeError, ValueError):
+            if str(pos_raw).strip() == "-":
+                position_str = "-"
+                position_val = "-"
+            else:
+                try:
+                    position_val = int(pos_raw)
+                    position_str = f"{position_val:02d}"
+                except (TypeError, ValueError):
+                    continue
+
+            points_raw = getattr(row, "points", 0.0)
+            if isinstance(points_raw, float) and math.isnan(points_raw):
                 points = 0.0
+            else:
+                try:
+                    points = float(points_raw)
+                except (TypeError, ValueError):
+                    points = 0.0
 
-        given_name = getattr(row, "givenName", "")
-        family_name = getattr(row, "familyName", "")
-        full_name = f"{given_name} {family_name}".strip()
+            given_name = getattr(row, "givenName", "")
+            family_name = getattr(row, "familyName", "")
+            full_name = f"{given_name} {family_name}".strip()
 
-        code = getattr(row, "driverCode", "") or ""
+            code = getattr(row, "driverCode", "") or ""
 
-        if code and code in favorite_codes:
-            code_label = f"⭐️ {code}"
-        else:
-            code_label = code
+            if code and code in favorite_codes:
+                code_label = f"⭐️ {code}"
+            else:
+                code_label = code
 
-        points_text = f"{points:.0f} очк."
+            points_text = f"{points:.0f} очк."
 
-        # ИСПРАВЛЕНИЕ: Передаем position_str, а не форматируем число
-        rows.append(
-            (
-                position_str,
-                code_label,
-                full_name or code_label or str(position_val),
-                points_text,
+            rows.append(
+                (
+                    position_str,
+                    code_label,
+                    full_name or code_label or str(position_val),
+                    points_text,
+                )
             )
+
+        if not rows:
+            await message.answer(
+                f"Не удалось отобразить пилотов за {season} год (нет корректных данных)."
+            )
+            return
+
+        title = f"Личный зачёт {season}"
+        subtitle = "Позиции пилотов в чемпионате"
+
+        # Обновляем текст, чтобы пользователь видел прогресс
+        await loader.update("🎨 Рисую таблицу пилотов...")
+
+        try:
+            img_buf = await asyncio.to_thread(
+                create_driver_standings_image, title, subtitle, rows, season=season
+            )
+        except Exception as exc:
+            await message.answer("Не удалось сформировать изображение таблицы.")
+            return
+
+        # Завершающий статус
+        await loader.update("📤 Отправляю результат...")
+
+        img_buf.seek(0)
+        photo = BufferedInputFile(
+            img_buf.read(),
+            filename=f"drivers_standings_{season}.png",
         )
 
-    if not rows:
-        await message.answer(
-            f"Не удалось отобразить пилотов за {season} год (нет корректных данных)."
-        )
-        return
-
-    title = f"Личный зачёт {season}"
-    subtitle = "Позиции пилотов в чемпионате"
-
-    # ИСПРАВЛЕНО: Генерация картинки (тяжелая операция CPU) вынесена в отдельный поток.
-    # Это предотвращает зависание бота во время рисования таблицы.
-    try:
-        img_buf = await asyncio.to_thread(
-            create_driver_standings_image, title, subtitle, rows, season=season
-        )
-    except Exception as exc:
-        await message.answer("Не удалось сформировать изображение таблицы.")
-        return
-
-    # Перематываем буфер на начало и делаем InputFile
-    img_buf.seek(0)
-    photo = BufferedInputFile(
-        img_buf.read(),
-        filename=f"drivers_standings_{season}.png",
-    )
-
-    try:
-        await message.answer_photo(
-            photo=photo,
-            caption=f"🏁 Личный зачёт пилотов {season}",
-        )
-    except TelegramNetworkError:
-        return
+        try:
+            # Картинка отправится, и только после этого лоадер сам себя удалит!
+            await message.answer_photo(
+                photo=photo,
+                caption=f"🏁 Личный зачёт пилотов {season}",
+            )
+        except TelegramNetworkError:
+            return
 
 
 def _parse_season_from_text(text: str) -> int:
