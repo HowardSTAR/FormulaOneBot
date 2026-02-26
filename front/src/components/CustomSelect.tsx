@@ -3,6 +3,17 @@ import { hapticSelection } from "../helpers/telegram";
 
 export type CustomSelectOption = { value: string | number; label: string };
 
+function renderLabel(text: string) {
+  if (text.startsWith("⭐ ")) {
+    return (
+      <>
+        <span className="select-star" aria-hidden>⭐</span> {text.slice(2)}
+      </>
+    );
+  }
+  return text;
+}
+
 type CustomSelectProps = {
   options: CustomSelectOption[];
   value: string | number;
@@ -45,7 +56,7 @@ export function CustomSelect({ options, value, onChange, className = "", disable
           }
         }}
       >
-        <span>{label}</span>
+        <span>{renderLabel(label)}</span>
         <div className="select-arrow" />
       </div>
       <div className="custom-options">
@@ -61,7 +72,7 @@ export function CustomSelect({ options, value, onChange, className = "", disable
             role="option"
             aria-selected={String(opt.value) === String(value)}
           >
-            {opt.label}
+            {renderLabel(opt.label)}
           </div>
         ))}
       </div>

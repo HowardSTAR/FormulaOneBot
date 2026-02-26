@@ -651,10 +651,13 @@ p {
     border: 1px solid var(--border-color);
     padding: 10px;
     border-radius: 8px;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     max-width: 45%;
 }
+.driver-select .custom-select-trigger { font-size: 13px; padding: 10px 12px; }
+.driver-select .custom-option { font-size: 13px; padding: 10px 14px; }
+.driver-select .select-star { font-size: 0.7em; vertical-align: 0.08em; }
 .vs-badge { font-weight: 900; color: var(--primary); font-style: italic; align-self: center; font-size: 14px; }
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
 .stat-card {

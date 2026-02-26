@@ -9,6 +9,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 
+from app.db import get_favorite_drivers
 from app.f1_data import get_season_schedule_short_async, get_race_results_async, get_driver_standings_async
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_comparison_image
@@ -30,15 +31,19 @@ def build_drivers_keyboard(
     drivers: list[dict],
     prefix: str,
     exclude_code: str | None = None,
+    favorite_codes: set[str] | None = None,
 ) -> InlineKeyboardMarkup:
     """drivers: [{"code": "VER", "name": "Verstappen"}, ...]. Кнопки показывают имя, callback — код."""
     builder = []
     row = []
+    fav = favorite_codes or set()
     sorted_drivers = sorted(drivers, key=lambda d: d["name"])
     for d in sorted_drivers:
         if exclude_code and d["code"] == exclude_code:
             continue
         label = d["name"][:20] if len(d["name"]) > 20 else d["name"]
+        if d["code"] in fav:
+            label = f"⭐ {label}"
         row.append(InlineKeyboardButton(text=label, callback_data=f"{prefix}{d['code']}"))
         if len(row) == 3:
             builder.append(row)
@@ -85,6 +90,7 @@ async def process_compare_year(message: Message, state: FSMContext):
 
     async with Loader(message, f"⏳ Загружаю список пилотов сезона {year}...") as loader:
         standings = await get_driver_standings_async(year)
+        favorite_codes = set(await get_favorite_drivers(message.from_user.id))
 
         if standings.empty:
             await message.answer(f"❌ Не удалось найти данные о пилотах за {year} год.")
@@ -119,7 +125,7 @@ async def process_compare_year(message: Message, state: FSMContext):
 
         await state.update_data(year=year, drivers_list=drivers_list)
 
-    kb = build_drivers_keyboard(drivers_list, prefix="cmp_d1_")
+    kb = build_drivers_keyboard(drivers_list, prefix="cmp_d1_", favorite_codes=favorite_codes)
     await message.answer(
         f"📅 Сезон: <b>{year}</b>\n\nВыберите <b>первого</b> пилота:",
         reply_markup=kb, parse_mode="HTML"
@@ -145,7 +151,10 @@ async def process_driver_1_selection(callback: CallbackQuery, state: FSMContext)
     await state.update_data(driver1=driver1_code)
     name1 = _driver_name(drivers_list, driver1_code)
 
-    kb = build_drivers_keyboard(drivers_list, prefix="cmp_d2_", exclude_code=driver1_code)
+    favorite_codes = set(await get_favorite_drivers(callback.from_user.id))
+    kb = build_drivers_keyboard(
+        drivers_list, prefix="cmp_d2_", exclude_code=driver1_code, favorite_codes=favorite_codes
+    )
 
     await callback.message.edit_text(
         f"📅 Сезон: <b>{year}</b>\n"
