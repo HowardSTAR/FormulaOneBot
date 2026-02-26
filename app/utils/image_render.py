@@ -324,14 +324,17 @@ def create_comparison_image(
 
     # --- РИСОВАНИЕ ---
 
+    label1 = driver1_data.get("name") or driver1_data.get("code", "?")
+    label2 = driver2_data.get("name") or driver2_data.get("code", "?")
+
     # Пилот 1
-    color1 = driver1_data.get("color", "#ff8700")  # Оранжевый по умолчанию
-    ax.plot(x, y1, label=driver1_data["code"], color=color1,
+    color1 = driver1_data.get("color", "#ff8700")
+    ax.plot(x, y1, label=label1, color=color1,
             linewidth=4, marker='o', markersize=8, markeredgecolor='white', markeredgewidth=1.5)
 
     # Пилот 2
-    color2 = driver2_data.get("color", "#00d2be")  # Бирюзовый по умолчанию
-    ax.plot(x, y2, label=driver2_data["code"], color=color2,
+    color2 = driver2_data.get("color", "#00d2be")
+    ax.plot(x, y2, label=label2, color=color2,
             linewidth=4, marker='o', markersize=8, markeredgecolor='white', markeredgewidth=1.5)
 
     # Заливка под графиком (для лидера)
@@ -341,7 +344,7 @@ def create_comparison_image(
     # --- ОФОРМЛЕНИЕ ---
 
     # Заголовок
-    plt.title(f"Battle: {driver1_data['code']} vs {driver2_data['code']}",
+    plt.title(f"Battle: {label1} vs {label2}",
               fontsize=20, fontweight='bold', color='white', pad=20)
 
     # Оси
