@@ -26,15 +26,21 @@ class CompareState(StatesGroup):
 
 
 # --- Вспомогательная функция для клавиатуры ---
-def build_drivers_keyboard(drivers: list[str], prefix: str, exclude: str | None = None) -> InlineKeyboardMarkup:
+def build_drivers_keyboard(
+    drivers: list[dict],
+    prefix: str,
+    exclude_code: str | None = None,
+) -> InlineKeyboardMarkup:
+    """drivers: [{"code": "VER", "name": "Verstappen"}, ...]. Кнопки показывают имя, callback — код."""
     builder = []
     row = []
-    sorted_drivers = sorted(drivers)
-    for code in sorted_drivers:
-        if exclude and code == exclude:
+    sorted_drivers = sorted(drivers, key=lambda d: d["name"])
+    for d in sorted_drivers:
+        if exclude_code and d["code"] == exclude_code:
             continue
-        row.append(InlineKeyboardButton(text=code, callback_data=f"{prefix}{code}"))
-        if len(row) == 4:
+        label = d["name"][:20] if len(d["name"]) > 20 else d["name"]
+        row.append(InlineKeyboardButton(text=label, callback_data=f"{prefix}{d['code']}"))
+        if len(row) == 3:
             builder.append(row)
             row = []
     if row:
@@ -86,17 +92,26 @@ async def process_compare_year(message: Message, state: FSMContext):
             return
 
         try:
-            if 'driverCode' in standings.columns:
-                drivers_list = standings['driverCode'].tolist()
-            elif 'driverId' in standings.columns:
-                drivers_list = [str(d).upper()[:3] for d in standings['driverId'].tolist()]
-            else:
-                drivers_list = []
+            drivers_list = []
+            seen_codes = set()
+            for _, row in standings.iterrows():
+                code = (
+                    str(row.get("driverCode", "") or row.get("driverId", "") or "")
+                ).upper()[:3]
+                if not code:
+                    continue
+                if code in seen_codes:
+                    continue
+                seen_codes.add(code)
+                family = str(getattr(row, "familyName", None) or getattr(row, "LastName", "") or "").strip()
+                given = str(getattr(row, "givenName", None) or getattr(row, "FirstName", "") or "").strip()
+                name = family or f"{given} {family}".strip() or code
+                drivers_list.append({"code": code, "name": name})
 
-            drivers_list = list(set([d for d in drivers_list if d]))
-
-            if not drivers_list and not standings.empty:
-                drivers_list = [str(x).upper()[:3] for x in standings.index.tolist()]
+            if not drivers_list:
+                await message.answer(f"❌ Не удалось найти пилотов за {year} год.")
+                await state.clear()
+                return
 
         except Exception:
             await message.answer("❌ Ошибка обработки списка пилотов.")
@@ -104,7 +119,6 @@ async def process_compare_year(message: Message, state: FSMContext):
 
         await state.update_data(year=year, drivers_list=drivers_list)
 
-    # Вне блока with (предыдущее сообщение уже удалилось)
     kb = build_drivers_keyboard(drivers_list, prefix="cmp_d1_")
     await message.answer(
         f"📅 Сезон: <b>{year}</b>\n\nВыберите <b>первого</b> пилота:",
@@ -114,6 +128,13 @@ async def process_compare_year(message: Message, state: FSMContext):
 
 
 # --- 4. Выбор первого пилота ---
+def _driver_name(drivers_list: list, code: str) -> str:
+    for d in drivers_list:
+        if d["code"] == code:
+            return d["name"]
+    return code
+
+
 @router.callback_query(CompareState.waiting_for_driver_1, F.data.startswith("cmp_d1_"))
 async def process_driver_1_selection(callback: CallbackQuery, state: FSMContext):
     driver1_code = callback.data.replace("cmp_d1_", "")
@@ -122,12 +143,13 @@ async def process_driver_1_selection(callback: CallbackQuery, state: FSMContext)
     year = data.get("year")
 
     await state.update_data(driver1=driver1_code)
+    name1 = _driver_name(drivers_list, driver1_code)
 
-    kb = build_drivers_keyboard(drivers_list, prefix="cmp_d2_", exclude=driver1_code)
+    kb = build_drivers_keyboard(drivers_list, prefix="cmp_d2_", exclude_code=driver1_code)
 
     await callback.message.edit_text(
         f"📅 Сезон: <b>{year}</b>\n"
-        f"1️⃣ Пилот 1: <b>{driver1_code}</b>\n\n"
+        f"1️⃣ Пилот 1: <b>{name1}</b>\n\n"
         f"Выберите <b>второго</b> пилота:",
         reply_markup=kb, parse_mode="HTML"
     )
@@ -141,13 +163,20 @@ async def process_driver_2_selection(callback: CallbackQuery, state: FSMContext)
     driver2_code = callback.data.replace("cmp_d2_", "")
     data = await state.get_data()
     driver1_code = data.get("driver1")
+    drivers_list = data.get("drivers_list", [])
     year = data.get("year")
 
     await state.clear()
-    await callback.message.delete() # Удаляем старую клавиатуру выбора пилота
+    await callback.message.delete()
+
+    name1 = _driver_name(drivers_list, driver1_code)
+    name2 = _driver_name(drivers_list, driver2_code)
 
     try:
-        await send_comparison_graph(callback.message, driver1_code, driver2_code, year)
+        await send_comparison_graph(
+            callback.message, driver1_code, driver2_code, year,
+            d1_name=name1, d2_name=name2,
+        )
     except Exception as e:
         logger.exception("Comparison error")
         await callback.message.answer(f"❌ Произошла ошибка: {e}")
@@ -156,10 +185,14 @@ async def process_driver_2_selection(callback: CallbackQuery, state: FSMContext)
 
 
 # --- 6. Логика генерации (С ПРОГРЕСС-БАРОМ) ---
-async def send_comparison_graph(message: Message, d1_code: str, d2_code: str, year: int):
-    # Оборачиваем весь сложный процесс в Loader!
+async def send_comparison_graph(
+    message: Message, d1_code: str, d2_code: str, year: int,
+    d1_name: str | None = None, d2_name: str | None = None,
+):
+    name1 = d1_name or d1_code
+    name2 = d2_name or d2_code
     text_init = (
-        f"🏎️ <b>Дуэль: {d1_code} ⚔️ {d2_code}</b>\n"
+        f"🏎️ <b>Дуэль: {name1} ⚔️ {name2}</b>\n"
         f"📅 Сезон: {year}\n\n"
         f"⏳ Начинаю анализ гонок..."
     )
@@ -217,10 +250,9 @@ async def send_comparison_graph(message: Message, d1_code: str, d2_code: str, ye
                 except Exception:
                     final_results[idx] = None
 
-            # Динамически обновляем статус внутри лоадера
             if time.time() - last_update_time > 1.5:
                 await loader.update(
-                    f"🏎️ <b>Дуэль: {d1_code} ⚔️ {d2_code}</b>\n"
+                    f"🏎️ <b>Дуэль: {name1} ⚔️ {name2}</b>\n"
                     f"📅 Сезон: {year}\n\n"
                     f"⏳ Загружаю данные: <b>{completed_count} / {total_races}</b> гонок..."
                 )
@@ -248,12 +280,12 @@ async def send_comparison_graph(message: Message, d1_code: str, d2_code: str, ye
             d1_history.append(pts1)
             d2_history.append(pts2)
 
-        data1 = {"code": d1_code, "history": d1_history, "color": "#ff8700"}
-        data2 = {"code": d2_code, "history": d2_history, "color": "#00d2be"}
+        data1 = {"code": d1_code, "name": name1, "history": d1_history, "color": "#ff8700"}
+        data2 = {"code": d2_code, "name": name2, "history": d2_history, "color": "#00d2be"}
 
         photo_io = await asyncio.to_thread(create_comparison_image, data1, data2, labels)
         file = BufferedInputFile(photo_io.read(), filename="comparison.png")
 
         # Когда мы вызываем отправку фото, мы все еще внутри async with.
         # Как только блок завершится, Loader сам удалит сообщение с "🎨 Рисую график..."
-        await message.answer_photo(file, caption=f"Сравнение: {d1_code} ⚔️ {d2_code} ({year})")
+        await message.answer_photo(file, caption=f"Сравнение: {name1} ⚔️ {name2} ({year})")
