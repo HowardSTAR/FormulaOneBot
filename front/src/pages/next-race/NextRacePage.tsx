@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 
 type NextRaceResponse = {
@@ -188,9 +188,7 @@ function NextRacePage() {
 
   return (
     <>
-      <Link to="/" className="btn-back">
-        ← <span>Главное меню</span>
-      </Link>
+      <BackButton>← <span>Главное меню</span></BackButton>
       <h2>{title}</h2>
       <p style={{ marginBottom: 20, opacity: 0.7 }}>{location}</p>
 

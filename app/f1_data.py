@@ -587,9 +587,22 @@ async def get_constructor_standings_async(season: int, round_number: int | None 
 # ==========================================
 
 async def _get_zero_point_driver_standings() -> pd.DataFrame:
-    """Собирает сетку пилотов из OpenF1 и выдает всем 0 очков."""
-    url = "https://api.openf1.org/v1/drivers?session_key=latest"
+    """Собирает сетку пилотов из OpenF1 и выдает всем 0 очков. driverId берём из Ergast по code."""
+    current_year = datetime.now().year
+    ergast_drivers: dict[str, str] = {}  # code -> driverId
     async with aiohttp.ClientSession() as session_req:
+        try:
+            async with session_req.get(f"https://api.jolpi.ca/ergast/f1/{current_year}/drivers.json?limit=50") as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    for d in data.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
+                        c = d.get("code", "").upper()
+                        if c:
+                            ergast_drivers[c] = d.get("driverId", "")
+        except Exception:
+            pass
+
+        url = "https://api.openf1.org/v1/drivers?session_key=latest"
         try:
             async with session_req.get(url) as response:
                 if response.status != 200:
@@ -610,19 +623,21 @@ async def _get_zero_point_driver_standings() -> pd.DataFrame:
                     given = parts[0] if len(parts) > 0 else ''
                     family = parts[1] if len(parts) > 1 else full_name
 
+                    code = d.get('name_acronym', '???')
+                    driver_id = ergast_drivers.get(code.upper(), str(driver_num))
+
                     parsed_data.append({
-                        "position": "-",  # Прочерк, чтобы рендерер не красил плашки в золото/серебро
+                        "position": "-",
                         "points": 0.0,
-                        "driverCode": d.get('name_acronym', '???'),
+                        "driverCode": code,
                         "givenName": given,
                         "familyName": family,
-                        "driverId": str(driver_num),
+                        "driverId": driver_id,
                         "permanentNumber": str(driver_num),
                         "constructorId": (d.get("team_name") or "").lower().replace(" ", "_"),
                         "constructorName": d.get("team_name", ""),
                     })
 
-                # До старта сезона сортируем пилотов по алфавиту (по фамилии)
                 parsed_data.sort(key=lambda x: x['familyName'])
                 return pd.DataFrame(parsed_data)
         except Exception as e:
@@ -743,6 +758,624 @@ async def warmup_cache(season: int | None = None):
         )
 
     logger.info("✅ Cache warmup finished.")
+
+
+# --- КАРТОЧКА ПИЛОТА --- #
+async def _resolve_driver_id(code_or_id: str, season: int) -> str | None:
+    """Преобразует code (ALO) в driverId (alonso) через список пилотов сезона или общий список."""
+    base = "https://api.jolpi.ca/ergast/f1"
+    code_upper = code_or_id.strip().upper()
+    async with aiohttp.ClientSession() as session:
+        # Сначала пробуем сезон (актуальные пилоты 2026 и т.д.)
+        async with session.get(f"{base}/{season}/drivers.json?limit=50") as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                for d in data.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
+                    if d.get("code", "").upper() == code_upper:
+                        return d.get("driverId", code_or_id.lower())
+        # Фоллбэк: общий список пилотов (для новых пилотов, которых ещё нет в сезоне)
+        async with session.get(f"{base}/drivers.json?limit=500") as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                for d in data.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
+                    if d.get("code", "").upper() == code_upper:
+                        return d.get("driverId", code_or_id.lower())
+    return code_or_id.lower()
+
+
+@cache_result(ttl=3600, key_prefix="driver_details")
+async def get_driver_details_async(driver_id: str, season: int, code: str | None = None):
+    """
+    Получает профиль пилота, статистику сезона и карьеры из Ergast/Jolpica API.
+    driver_id: ergast driverId (например alonso) или code (ALO).
+    code: опционально, для разрешения когда driver_id — номер из OpenF1.
+    """
+    base = "https://api.jolpi.ca/ergast/f1"
+    did = driver_id.strip().lower()
+    resolve_code = (code or driver_id).strip().upper()
+    if (len(did) == 3 and did == did.upper().lower()) or did.isdigit():
+        resolved = await _resolve_driver_id(resolve_code, season)
+        if resolved and not resolved.isdigit():
+            did = resolved
+    driver_info = None
+    career_results = []
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(f"{base}/drivers/{did}.json") as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    drivers = data.get("MRData", {}).get("DriverTable", {}).get("Drivers", [])
+                    if drivers:
+                        driver_info = drivers[0]
+        except Exception as e:
+            logger.warning(f"Driver info fetch error: {e}")
+
+        if not driver_info:
+            return None
+
+        try:
+            offset = 0
+            limit = 100
+            while True:
+                async with session.get(
+                    f"{base}/drivers/{did}/results.json?limit={limit}&offset={offset}"
+                ) as resp:
+                    if resp.status != 200:
+                        break
+                    data = await resp.json()
+                    mr = data.get("MRData", {})
+                    total = int(mr.get("total", 0))
+                    races = mr.get("RaceTable", {}).get("Races", [])
+                    for race in races:
+                        for res in race.get("Results", []):
+                            career_results.append({
+                                "season": race.get("season"),
+                                "position": res.get("position"),
+                                "positionText": res.get("positionText", ""),
+                                "points": float(res.get("points", 0)),
+                                "grid": res.get("grid"),
+                                "status": res.get("status", ""),
+                                "laps": res.get("laps"),
+                            })
+                    offset += limit
+                    if offset >= total:
+                        break
+        except Exception as e:
+            logger.warning(f"Driver results fetch error: {e}")
+
+        # Wikipedia bio
+        bio = ""
+        wiki_url = driver_info.get("url", "")
+        if wiki_url and "wikipedia.org/wiki/" in wiki_url:
+            try:
+                title = wiki_url.split("wiki/")[-1].replace(" ", "_")
+                async with session.get(
+                    "https://en.wikipedia.org/w/api.php",
+                    params={
+                        "format": "json",
+                        "action": "query",
+                        "prop": "extracts",
+                        "exintro": 1,
+                        "explaintext": 1,
+                        "redirects": 1,
+                        "titles": title,
+                    },
+                ) as wresp:
+                    if wresp.status == 200:
+                        wdata = await wresp.json()
+                        pages = wdata.get("query", {}).get("pages", {})
+                        for pid, p in pages.items():
+                            if pid != "-1" and p.get("extract"):
+                                bio = p["extract"][:2000]
+                                break
+            except Exception as e:
+                logger.debug(f"Wikipedia fetch error: {e}")
+
+        # Headshot from OpenF1 (optional)
+        headshot_url = ""
+        try:
+            async with session.get("https://api.openf1.org/v1/drivers?session_key=latest") as oresp:
+                if oresp.status == 200:
+                    drivers_o = await oresp.json()
+                    code_match = driver_info.get("code", "").upper()
+                    for d in drivers_o:
+                        if d.get("name_acronym", "").upper() == code_match and d.get("headshot_url"):
+                            headshot_url = d["headshot_url"]
+                            break
+        except Exception:
+            pass
+
+    # Career stats
+    gp_entered = len(career_results)
+    career_points = sum(r["points"] for r in career_results)
+    wins = sum(1 for r in career_results if r.get("position") == "1")
+    podiums = sum(1 for r in career_results if r.get("position") in ("1", "2", "3"))
+    poles = sum(1 for r in career_results if r.get("grid") == "1")
+    dnfs = sum(1 for r in career_results if r.get("positionText") in ("R", "D", "W", "F", "N", "E", "EX"))
+
+    # Season stats
+    season_results = [r for r in career_results if r.get("season") == str(season)]
+    season_gp = len(season_results)
+    season_points = sum(r["points"] for r in season_results)
+    season_wins = sum(1 for r in season_results if r.get("position") == "1")
+    season_podiums = sum(1 for r in season_results if r.get("position") in ("1", "2", "3"))
+    season_poles = sum(1 for r in season_results if r.get("grid") == "1")
+    season_dnfs = sum(1 for r in season_results if r.get("positionText") in ("R", "D", "W", "F", "N", "E", "EX"))
+
+    # Season position from standings
+    standings_df = await get_driver_standings_async(season)
+    season_pos: int | str = 0
+    if not standings_df.empty and "driverCode" in standings_df.columns:
+        for row in standings_df.itertuples(index=False):
+            row_code = getattr(row, "driverCode", "") or (getattr(row, "familyName", "")[:3].upper() if getattr(row, "familyName", "") else "")
+            if str(row_code).upper() == driver_info.get("code", "").upper():
+                season_pos = getattr(row, "position", 0)
+                break
+
+    # World championships: проверяем, в каких сезонах пилот стал чемпионом
+    driver_seasons = sorted(set(r.get("season") for r in career_results if r.get("season")), reverse=True)
+    world_championships = await _count_driver_championships(did, driver_seasons)
+
+    return {
+        "driverId": driver_info.get("driverId"),
+        "code": driver_info.get("code", ""),
+        "givenName": driver_info.get("givenName", ""),
+        "familyName": driver_info.get("familyName", ""),
+        "permanentNumber": str(driver_info.get("permanentNumber", "")) if driver_info.get("permanentNumber") else "",
+        "dateOfBirth": driver_info.get("dateOfBirth", ""),
+        "nationality": driver_info.get("nationality", ""),
+        "url": wiki_url,
+        "bio": bio,
+        "headshot_url": headshot_url,
+        "season": season,
+        "season_stats": {
+            "position": season_pos,
+            "points": season_points,
+            "grand_prix_races": season_gp,
+            "grand_prix_points": season_points,
+            "grand_prix_wins": season_wins,
+            "grand_prix_podiums": season_podiums,
+            "grand_prix_poles": season_poles,
+            "grand_prix_top10s": sum(1 for r in season_results if r.get("position") and r["position"].isdigit() and int(r["position"]) <= 10),
+            "fastest_laps": 0,  # Ergast results don't have fast lap flag directly
+            "dnfs": season_dnfs,
+            "sprint_races": 0,
+            "sprint_points": 0,
+            "sprint_wins": 0,
+            "sprint_podiums": 0,
+            "sprint_poles": 0,
+            "sprint_top10s": 0,
+        },
+        "career_stats": {
+            "grand_prix_entered": gp_entered,
+            "career_points": career_points,
+            "highest_race_finish": _highest_finish(career_results),
+            "podiums": podiums,
+            "highest_grid": _highest_grid(career_results),
+            "pole_positions": poles,
+            "world_championships": world_championships,
+            "dnfs": dnfs,
+        },
+    }
+
+
+# Фоллбэк: известные чемпионы мира (driverId -> кол-во титулов), когда API не возвращает данные
+DRIVER_CHAMPIONSHIPS_FALLBACK: dict[str, int] = {
+    "hamilton": 7,
+    "schumacher": 7,
+    "fangio": 5,
+    "prost": 4,
+    "vettel": 4,
+    "piquet": 3,
+    "senna": 3,
+    "lauda": 3,
+    "brabham": 3,
+    "stewart": 3,
+    "fittipaldi": 2,
+    "hakkinen": 2,
+    "alonso": 2,
+    "raikkonen": 1,
+    "button": 1,
+    "rosberg": 1,
+    "verstappen": 4,  # по состоянию на 2024
+}
+
+
+async def _count_driver_championships(driver_id: str, seasons: list[str]) -> int:
+    """Считает чемпионства пилота по итогам сезонов (position=1 в driverStandings)."""
+    if not seasons:
+        return 0
+    base = "https://api.jolpi.ca/ergast/f1"
+    count = 0
+    async with aiohttp.ClientSession() as session:
+        for yr in seasons:
+            try:
+                # limit=1 может вернуть первый раунд; запрашиваем все раунды и берём последний
+                async with session.get(f"{base}/{yr}/driverStandings.json?limit=100") as resp:
+                    if resp.status != 200:
+                        continue
+                    data = await resp.json()
+                    lists = data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
+                    if not lists:
+                        continue
+                    # Берём последний раунд (финальная таблица)
+                    last_list = lists[-1]
+                    standings = last_list.get("DriverStandings", [])
+                    for ds in standings:
+                        if str(ds.get("position", "")) == "1":
+                            champ_id = ds.get("Driver", {}).get("driverId", "")
+                            if champ_id and champ_id.lower() == driver_id.lower():
+                                count += 1
+                            break
+            except Exception:
+                continue
+    # Фоллбэк: если API вернул 0, но пилот — известный чемпион
+    if count == 0 and driver_id:
+        fallback = DRIVER_CHAMPIONSHIPS_FALLBACK.get(driver_id.lower())
+        if fallback is not None:
+            return fallback
+    return count
+
+
+def _highest_finish(results: list) -> dict:
+    """Возвращает {'position': 1, 'count': 5} для лучшего финиша."""
+    positions = [int(r["position"]) for r in results if r.get("position") and str(r["position"]).isdigit()]
+    if not positions:
+        return {"position": "-", "count": 0}
+    best = min(positions)
+    count = sum(1 for r in results if r.get("position") == str(best))
+    return {"position": best, "count": count}
+
+
+def _highest_grid(results: list) -> dict:
+    """Возвращает {'position': 1, 'count': 2} для лучшей позиции на старте."""
+    grids = [int(r["grid"]) for r in results if r.get("grid") and str(r["grid"]).isdigit()]
+    if not grids:
+        return {"position": "-", "count": 0}
+    best = min(grids)
+    count = sum(1 for r in results if r.get("grid") == str(best))
+    return {"position": best, "count": count}
+
+
+# Маппинг OpenF1/альтернативных ID команд на Ergast constructorId
+CONSTRUCTOR_ID_MAP = {
+    "haas_f1_team": "haas",
+    "red_bull_racing": "red_bull",
+    "racing_bulls": "rb",
+    "rb_f1_team": "rb",
+    "alphatauri": "rb",  # Racing Bulls — преемник AlphaTauri
+    "scuderia_ferrari": "ferrari",
+    "scuderia_ferrari_f1": "ferrari",
+    "alpine_f1_team": "alpine",
+    "mercedes_amg": "mercedes",
+    "mercedes_amg_f1": "mercedes",
+}
+
+
+async def _get_constructor_drivers_fallback(
+    session: aiohttp.ClientSession,
+    cid: str,
+    season: int,
+    constructor_info: dict | None,
+) -> list:
+    """Фоллбэк: пилоты из driver standings или OpenF1, когда Ergast не вернул данных."""
+    ergast_base = "https://api.jolpi.ca/ergast/f1"
+    # 1. Пробуем driver standings за сезон (если есть данные)
+    try:
+        async with session.get(f"{ergast_base}/{season}/driverStandings.json?limit=50") as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                lists = data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
+                if lists:
+                    result = []
+                    # Берём последний раунд (финальная таблица)
+                    last_list = lists[-1]
+                    for ds in last_list.get("DriverStandings", []):
+                        for c in ds.get("Constructors", []):
+                            if c.get("constructorId", "").lower() == cid:
+                                dr = ds.get("Driver", {})
+                                result.append({
+                                    "driverId": dr.get("driverId", ""),
+                                    "code": dr.get("code", ""),
+                                    "givenName": dr.get("givenName", ""),
+                                    "familyName": dr.get("familyName", ""),
+                                    "permanentNumber": str(dr.get("permanentNumber", "")) if dr.get("permanentNumber") else "",
+                                    "nationality": dr.get("nationality", ""),
+                                })
+                                break
+                    if result:
+                        return result
+    except Exception:
+        pass
+
+    # 2. OpenF1: маппинг cid -> варианты названий команды в OpenF1
+    cid_to_openf1 = {
+        "alpine": ["alpine"],
+        "haas": ["haas", "haas f1 team"],
+        "aston_martin": ["aston martin"],
+        "ferrari": ["ferrari"],
+        "mercedes": ["mercedes"],
+        "mclaren": ["mclaren"],
+        "red_bull": ["red bull", "red bull racing"],
+        "rb": ["rb", "racing bulls", "rb f1 team", "alphatauri"],
+        "williams": ["williams"],
+        "audi": ["audi"],
+        "cadillac": ["cadillac"],
+    }
+    openf1_names = cid_to_openf1.get(cid, [])
+    if constructor_info and constructor_info.get("name"):
+        cname = constructor_info.get("name", "").lower()
+        if cname and cname not in openf1_names:
+            openf1_names = openf1_names + [cname]
+
+    try:
+        async with session.get("https://api.openf1.org/v1/drivers?session_key=latest") as resp:
+            if resp.status != 200:
+                return []
+            drivers_o = await resp.json()
+            # Резолв code -> driverId из Ergast для корректных ссылок на карточку пилота
+            code_to_driver_id: dict[str, str] = {}
+            try:
+                async with session.get(f"{ergast_base}/{season}/drivers.json?limit=30") as eresp:
+                    if eresp.status == 200:
+                        edata = await eresp.json()
+                        for dr in edata.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
+                            c = (dr.get("code") or "").upper()
+                            if c:
+                                code_to_driver_id[c] = dr.get("driverId", "")
+            except Exception:
+                pass
+
+            result = []
+            for d in drivers_o:
+                team = (d.get("team_name") or "").lower()
+                if not team:
+                    continue
+                matched = any(t in team or team in t for t in openf1_names) or any(
+                    t.replace(" ", "") in team.replace(" ", "") for t in openf1_names
+                )
+                if not matched:
+                    continue
+                code = d.get("name_acronym", "") or ""
+                driver_id = code_to_driver_id.get(code.upper(), code.lower()) if code else ""
+                full = d.get("full_name", "Unknown")
+                parts = full.split(" ", 1)
+                given = parts[0] if parts else ""
+                family = parts[1] if len(parts) > 1 else full
+                result.append({
+                    "driverId": driver_id or code.lower(),
+                    "code": code,
+                    "givenName": given,
+                    "familyName": family,
+                    "permanentNumber": str(d.get("driver_number", "")),
+                    "nationality": "",
+                })
+            # Убираем дубли по driver_number (один пилот — одна запись)
+            by_num = {}
+            for r in result:
+                key = r.get("permanentNumber") or r.get("code")
+                if key and key not in by_num:
+                    by_num[key] = r
+            return list(by_num.values()) if by_num else result
+    except Exception:
+        pass
+    return []
+
+
+# --- КАРТОЧКА КОНСТРУКТОРА --- #
+@cache_result(ttl=3600, key_prefix="constructor_details_v3")
+async def get_constructor_details_async(constructor_id: str, season: int):
+    """Профиль команды: название, лого, статистика сезона и карьеры, биография."""
+    base = "https://api.jolpi.ca/ergast/f1"
+    cid = constructor_id.strip().lower().replace(" ", "_")
+    cid = CONSTRUCTOR_ID_MAP.get(cid, cid)
+    constructor_info = None
+    career_results: list = []
+    season_drivers: list = []
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.get(f"{base}/constructors/{cid}.json") as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    constructors = data.get("MRData", {}).get("ConstructorTable", {}).get("Constructors", [])
+                    if constructors:
+                        constructor_info = constructors[0]
+        except Exception as e:
+            logger.warning(f"Constructor info fetch error: {e}")
+
+        if not constructor_info:
+            return None
+
+        try:
+            offset = 0
+            limit = 100
+            while True:
+                async with session.get(
+                    f"{base}/constructors/{cid}/results.json?limit={limit}&offset={offset}"
+                ) as resp:
+                    if resp.status != 200:
+                        break
+                    data = await resp.json()
+                    mr = data.get("MRData", {})
+                    total = int(mr.get("total", 0))
+                    races = mr.get("RaceTable", {}).get("Races", [])
+                    for race in races:
+                        for res in race.get("Results", []):
+                            career_results.append({
+                                "season": race.get("season"),
+                                "position": res.get("position"),
+                                "positionText": res.get("positionText", ""),
+                                "points": float(res.get("points", 0)),
+                                "grid": res.get("grid"),
+                            })
+                    offset += limit
+                    if offset >= total:
+                        break
+        except Exception as e:
+            logger.warning(f"Constructor results fetch error: {e}")
+
+        # Пилоты команды в этом сезоне
+        season_drivers = []
+        try:
+            async with session.get(f"{base}/{season}/constructors/{cid}/drivers.json?limit=10") as dresp:
+                if dresp.status == 200:
+                    ddata = await dresp.json()
+                    for d in ddata.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
+                        season_drivers.append({
+                            "driverId": d.get("driverId"),
+                            "code": d.get("code", ""),
+                            "givenName": d.get("givenName", ""),
+                            "familyName": d.get("familyName", ""),
+                            "permanentNumber": str(d.get("permanentNumber", "")) if d.get("permanentNumber") else "",
+                            "nationality": d.get("nationality", ""),
+                        })
+        except Exception:
+            pass
+
+        # Фоллбэк: если Ergast не вернул пилотов (например, будущий сезон), берём из driver standings или OpenF1
+        if not season_drivers:
+            season_drivers = await _get_constructor_drivers_fallback(session, cid, season, constructor_info)
+
+        # Headshots из OpenF1
+        if season_drivers:
+            try:
+                async with session.get("https://api.openf1.org/v1/drivers?session_key=latest") as oresp:
+                    if oresp.status == 200:
+                        drivers_o = await oresp.json()
+                        for sd in season_drivers:
+                            code = sd.get("code", "").upper()
+                            for d in drivers_o:
+                                if d.get("name_acronym", "").upper() == code and d.get("headshot_url"):
+                                    sd["headshot_url"] = d["headshot_url"]
+                                    break
+                            if "headshot_url" not in sd:
+                                sd["headshot_url"] = ""
+            except Exception:
+                for sd in season_drivers:
+                    sd["headshot_url"] = sd.get("headshot_url", "")
+
+        wiki_url = constructor_info.get("url", "")
+        bio = ""
+        if wiki_url and "wikipedia.org/wiki/" in wiki_url:
+            try:
+                title = wiki_url.split("wiki/")[-1].replace(" ", "_")
+                async with session.get(
+                    "https://en.wikipedia.org/w/api.php",
+                    params={
+                        "format": "json",
+                        "action": "query",
+                        "prop": "extracts",
+                        "exintro": 1,
+                        "explaintext": 1,
+                        "redirects": 1,
+                        "titles": title,
+                    },
+                ) as wresp:
+                    if wresp.status == 200:
+                        wdata = await wresp.json()
+                        pages = wdata.get("query", {}).get("pages", {})
+                        for pid, p in pages.items():
+                            if pid != "-1" and p.get("extract"):
+                                bio = p["extract"][:2000]
+                                break
+            except Exception:
+                pass
+
+    season_results = [r for r in career_results if r.get("season") == str(season)]
+    gp_entered = len(career_results)
+    career_points = sum(r["points"] for r in career_results)
+    wins = sum(1 for r in career_results if r.get("position") == "1")
+    podiums = sum(1 for r in career_results if r.get("position") in ("1", "2", "3"))
+    poles = sum(1 for r in career_results if r.get("grid") == "1")
+
+    standings_df = await get_constructor_standings_async(season)
+    season_pos: int | str = 0
+    if not standings_df.empty:
+        for row in standings_df.itertuples(index=False):
+            row_cid = getattr(row, "constructorId", "")
+            if str(row_cid).lower() == cid:
+                season_pos = getattr(row, "position", 0)
+                break
+
+    constructor_seasons = sorted(set(r.get("season") for r in career_results if r.get("season")), reverse=True)
+    world_championships = await _count_constructor_championships(cid, constructor_seasons)
+
+    return {
+        "constructorId": constructor_info.get("constructorId"),
+        "name": constructor_info.get("name", ""),
+        "nationality": constructor_info.get("nationality", ""),
+        "url": wiki_url,
+        "bio": bio,
+        "drivers": season_drivers,
+        "season": season,
+        "season_stats": {
+            "position": season_pos,
+            "points": sum(r["points"] for r in season_results),
+            "grand_prix_races": len(season_results),
+            "grand_prix_wins": sum(1 for r in season_results if r.get("position") == "1"),
+            "grand_prix_podiums": sum(1 for r in season_results if r.get("position") in ("1", "2", "3")),
+            "grand_prix_poles": sum(1 for r in season_results if r.get("grid") == "1"),
+        },
+        "career_stats": {
+            "grand_prix_entered": gp_entered,
+            "career_points": career_points,
+            "highest_race_finish": _highest_finish(career_results),
+            "podiums": podiums,
+            "pole_positions": poles,
+            "world_championships": world_championships,
+        },
+    }
+
+
+# Фоллбэк: известные чемпионы конструкторов (constructorId -> титулы)
+CONSTRUCTOR_CHAMPIONSHIPS_FALLBACK: dict[str, int] = {
+    "ferrari": 16,
+    "williams": 9,
+    "mclaren": 8,
+    "mercedes": 8,
+    "lotus": 7,
+    "red_bull": 6,
+    "cooper": 2,
+    "brawn": 1,
+    "benetton": 1,
+    "renault": 2,
+    "tyrrell": 1,
+}
+
+
+async def _count_constructor_championships(constructor_id: str, seasons: list[str]) -> int:
+    """Считает чемпионства команды в кубке конструкторов."""
+    if not seasons:
+        return 0
+    base = "https://api.jolpi.ca/ergast/f1"
+    count = 0
+    async with aiohttp.ClientSession() as session:
+        for yr in seasons:
+            try:
+                async with session.get(f"{base}/{yr}/constructorStandings.json?limit=100") as resp:
+                    if resp.status != 200:
+                        continue
+                    data = await resp.json()
+                    lists = data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
+                    if not lists:
+                        continue
+                    last_list = lists[-1]
+                    standings = last_list.get("ConstructorStandings", [])
+                    for cs in standings:
+                        if str(cs.get("position", "")) == "1":
+                            champ_id = cs.get("Constructor", {}).get("constructorId", "")
+                            if champ_id and champ_id.lower() == constructor_id.lower():
+                                count += 1
+                            break
+            except Exception:
+                continue
+    if count == 0 and constructor_id:
+        fallback = CONSTRUCTOR_CHAMPIONSHIPS_FALLBACK.get(constructor_id.lower())
+        if fallback is not None:
+            return fallback
+    return count
 
 
 # --- СРАВНЕНИЕ ПИЛОТОВ --- #

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 
 const currentRealYear = new Date().getFullYear();
@@ -24,9 +25,16 @@ type Constructor = {
 
 type ConstructorsResponse = { constructors?: Constructor[] };
 
+const minConstructorYear = 1958;
+
 function ConstructorsPage() {
-  const [year, setYear] = useState(currentRealYear);
-  const [yearInput, setYearInput] = useState(String(currentRealYear));
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const yearFromUrl = parseInt(searchParams.get("year") || "", 10);
+  const [year, setYear] = useState(
+    yearFromUrl && yearFromUrl >= minConstructorYear && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
+  );
+  const [yearInput, setYearInput] = useState(String(year));
   const [teams, setTeams] = useState<Constructor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +72,15 @@ function ConstructorsPage() {
     loadTeams(year);
   }, [year, loadTeams]);
 
+  useEffect(() => {
+    setYearInput(String(year));
+  }, [year]);
+
+  const updateYear = useCallback((y: number) => {
+    setYear(y);
+    setSearchParams(y === currentRealYear ? {} : { year: String(y) }, { replace: true });
+  }, [setSearchParams]);
+
   const handleSearch = () => {
     const y = parseInt(yearInput, 10);
     if (!y) return;
@@ -77,7 +94,7 @@ function ConstructorsPage() {
       setLoading(false);
       return;
     }
-    if (y < 1958) {
+    if (y < minConstructorYear) {
       setEmptyMessage({
         icon: "📜",
         title: "Исторический факт",
@@ -87,19 +104,17 @@ function ConstructorsPage() {
       setLoading(false);
       return;
     }
-    setYear(y);
+    updateYear(y);
   };
 
   const goCurrentYear = () => {
-    setYear(currentRealYear);
+    updateYear(currentRealYear);
     setYearInput(String(currentRealYear));
   };
 
   return (
     <>
-      <Link to="/" className="btn-back">
-        ← <span>Главное меню</span>
-      </Link>
+      <BackButton>← <span>Главное меню</span></BackButton>
       <h2>Кубок конструкторов</h2>
 
       <div className="search-container">
@@ -136,10 +151,15 @@ function ConstructorsPage() {
             const posClass =
               team.position === 1 ? "pos-1" : team.position === 2 ? "pos-2" : team.position === 3 ? "pos-3" : "";
             const isChampion = team.position === 1 && year < currentRealYear;
+            const toTeam = `/constructor-details?constructorId=${encodeURIComponent(team.constructorId || team.name)}&season=${year}`;
             return (
               <div
                 key={team.name}
-                className={isChampion ? "team-card champion-card" : "team-card"}
+                role="button"
+                tabIndex={0}
+                className={isChampion ? "team-card champion-card team-card-clickable" : "team-card team-card-clickable"}
+                onClick={() => navigate(toTeam)}
+                onKeyDown={(e) => e.key === "Enter" && navigate(toTeam)}
               >
                 {isChampion && <div className="champion-badge">Constructors Champion</div>}
                 <div className={`pos-box ${posClass}`}>{team.position}</div>

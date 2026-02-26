@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 
 const currentRealYear = new Date().getFullYear();
@@ -15,8 +16,12 @@ type SettingsResponse = { timezone?: string };
 
 function SeasonPage() {
   const navigate = useNavigate();
-  const [yearInput, setYearInput] = useState(String(currentRealYear));
-  const [year, setYear] = useState(currentRealYear);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const yearFromUrl = parseInt(searchParams.get("year") || "", 10);
+  const [year, setYear] = useState(
+    yearFromUrl && yearFromUrl >= 1950 && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
+  );
+  const [yearInput, setYearInput] = useState(String(year));
   const [races, setRaces] = useState<Race[]>([]);
   const [userTz, setUserTz] = useState("UTC");
   const [loading, setLoading] = useState(true);
@@ -61,6 +66,15 @@ function SeasonPage() {
   }, [year, loadCalendar]);
 
   useEffect(() => {
+    setYearInput(String(year));
+  }, [year]);
+
+  const updateYear = useCallback((y: number) => {
+    setYear(y);
+    setSearchParams(y === currentRealYear ? {} : { year: String(y) }, { replace: true });
+  }, [setSearchParams]);
+
+  useEffect(() => {
     if (year === currentRealYear && races.length > 0) {
       const nextId = document.getElementById("next-race-card");
       nextId?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -82,11 +96,11 @@ function SeasonPage() {
       setLoading(false);
       return;
     }
-    setYear(y);
+    updateYear(y);
   };
 
   const goCurrentYear = () => {
-    setYear(currentRealYear);
+    updateYear(currentRealYear);
     setYearInput(String(currentRealYear));
   };
 
@@ -100,9 +114,7 @@ function SeasonPage() {
 
   return (
     <>
-      <Link to="/" className="btn-back">
-        ← <span>Главное меню</span>
-      </Link>
+      <BackButton>← <span>Главное меню</span></BackButton>
       <h2>Календарь</h2>
 
       <div className="search-container">

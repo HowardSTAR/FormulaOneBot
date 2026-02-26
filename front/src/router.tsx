@@ -3,6 +3,8 @@ import { SwipeBackLayout } from "./components/SwipeBackLayout";
 import IndexPage from "./pages/index/Index";
 import ComparePage from "./pages/compare/ComparePage";
 import ConstructorsPage from "./pages/constructors/ConstructorsPage";
+import ConstructorDetailsPage from "./pages/constructor-details/ConstructorDetailsPage";
+import DriverDetailsPage from "./pages/driver-details/DriverDetailsPage";
 import DriversPage from "./pages/drivers/DriversPage";
 import FavoritesPage from "./pages/favorites/FavoritesPage";
 import NextRacePage from "./pages/next-race/NextRacePage";
@@ -19,7 +21,9 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <IndexPage /> },
       { path: "/compare", element: <ComparePage /> },
+      { path: "/constructor-details", element: <ConstructorDetailsPage /> },
       { path: "/constructors", element: <ConstructorsPage /> },
+      { path: "/driver-details", element: <DriverDetailsPage /> },
       { path: "/drivers", element: <DriversPage /> },
       { path: "/favorites", element: <FavoritesPage /> },
       { path: "/next-race", element: <NextRacePage /> },

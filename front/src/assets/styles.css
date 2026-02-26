@@ -133,6 +133,8 @@ p {
 /* --- Кнопка "Назад" в шапке --- */
 .btn-back {
     display: inline-flex; /* Чтобы вести себя как блок, но не растягиваться */
+    cursor: pointer;
+    font-family: inherit;
     align-items: center;
     justify-content: center;
 
@@ -649,10 +651,13 @@ p {
     border: 1px solid var(--border-color);
     padding: 10px;
     border-radius: 8px;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
     max-width: 45%;
 }
+.driver-select .custom-select-trigger { font-size: 13px; padding: 10px 12px; }
+.driver-select .custom-option { font-size: 13px; padding: 10px 14px; }
+.driver-select .select-star { font-size: 0.7em; vertical-align: 0.08em; }
 .vs-badge { font-weight: 900; color: var(--primary); font-style: italic; align-self: center; font-size: 14px; }
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
 .stat-card {
@@ -1402,4 +1407,337 @@ input:checked + .slider:before {
 .driver-vote-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* --- Карточка пилота (driver-details) --- */
+.driver-card-clickable {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.driver-card-clickable:hover {
+  background: var(--surface-hover);
+}
+.driver-card-clickable:active {
+  opacity: 0.95;
+}
+
+.team-card-clickable {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.team-card-clickable:hover {
+  background: var(--surface-hover);
+}
+.team-card-clickable:active {
+  opacity: 0.95;
+}
+
+.driver-card-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+  padding: 20px;
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+}
+.driver-portrait-wrap {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(255,255,255,0.05);
+}
+.driver-portrait {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.driver-portrait-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--primary);
+  background: rgba(225, 6, 0, 0.15);
+}
+.driver-portrait-placeholder.hidden { display: none; }
+.driver-card-info { flex: 1; min-width: 0; }
+.driver-card-name {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0 0 8px 0;
+  line-height: 1.2;
+}
+.driver-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.driver-number-badge {
+  background: var(--primary);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.driver-code-badge {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+}
+.driver-nationality {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.driver-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.driver-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-color);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.driver-tab:hover {
+  border-color: var(--primary);
+  color: var(--text-primary);
+}
+.driver-tab.active {
+  border-color: var(--primary);
+  background: rgba(225, 6, 0, 0.15);
+  color: var(--primary);
+}
+
+.driver-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 420px) {
+  .driver-stats-grid { grid-template-columns: 1fr; }
+}
+.driver-stats-block {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+.driver-stats-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-secondary);
+  margin: 0 0 16px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+.driver-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 13px;
+}
+.driver-stat-row:last-child { border-bottom: none; }
+.driver-stat-label {
+  color: var(--text-secondary);
+  flex: 1;
+  margin-right: 12px;
+}
+.driver-stat-value {
+  font-weight: 700;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.driver-bio-block {
+  background: var(--surface-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+.driver-bio-text {
+  color: var(--text-primary);
+  line-height: 1.6;
+  font-size: 15px;
+  margin: 0 0 16px 0;
+  white-space: pre-wrap;
+}
+.driver-bio-empty {
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 0 0 16px 0;
+}
+.driver-bio-link {
+  display: inline-block;
+  color: var(--primary);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+}
+.driver-bio-link:hover {
+  text-decoration: underline;
+}
+
+/* --- Карточка команды: машина + пилоты --- */
+.constructor-hero {
+  background: linear-gradient(180deg, rgba(30, 50, 80, 0.4) 0%, var(--surface-color) 70%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.constructor-car-wrap {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.constructor-car-img {
+  max-width: 100%;
+  max-height: 140px;
+  object-fit: contain;
+}
+.constructor-hero-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+.constructor-hero-drivers {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+.constructor-hero-logo img {
+  height: 32px;
+  object-fit: contain;
+  opacity: 0.9;
+}
+
+.constructor-drivers-section {
+  margin-bottom: 24px;
+}
+.constructor-drivers-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  margin: 0 0 12px 4px;
+}
+.constructor-drivers-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 380px) {
+  .constructor-drivers-grid { grid-template-columns: 1fr; }
+}
+.constructor-driver-card {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  min-height: 140px;
+  transition: transform 0.2s;
+}
+.constructor-driver-card:hover {
+  transform: scale(1.02);
+}
+.constructor-driver-card:active {
+  opacity: 0.95;
+}
+.constructor-driver-card-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(30, 60, 100, 0.5), rgba(20, 40, 70, 0.6));
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.constructor-driver-card-content {
+  position: relative;
+  padding: 14px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+.constructor-driver-name {
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+.constructor-driver-name .driver-first {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.constructor-driver-name .driver-last {
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.constructor-driver-team {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.constructor-driver-number {
+  font-size: 28px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.9);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.constructor-driver-portrait {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.constructor-driver-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.constructor-driver-portrait .driver-initials {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary);
+}
+.constructor-driver-flag {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  font-size: 18px;
 }

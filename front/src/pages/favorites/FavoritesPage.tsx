@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { hapticSelection } from "../../helpers/telegram";
 
@@ -109,9 +109,7 @@ function FavoritesPage() {
 
   return (
     <>
-      <Link to="/" className="btn-back">
-        ← <span>Главное меню</span>
-      </Link>
+      <BackButton>← <span>Главное меню</span></BackButton>
       <h2>Избранное</h2>
       <p style={{ marginBottom: 20 }}>Выбери пилотов и команды для отслеживания:</p>
 

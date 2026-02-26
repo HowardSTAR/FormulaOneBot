@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
 import { CustomSelect } from "../../components/CustomSelect";
@@ -9,8 +9,8 @@ Chart.register(...registerables);
 
 const currentRealYear = new Date().getFullYear();
 
-type DriverOption = { code: string; name: string };
-type TeamOption = { name: string };
+type DriverOption = { code: string; name: string; is_favorite?: boolean };
+type TeamOption = { name: string; is_favorite?: boolean };
 type DriversResponse = { drivers?: DriverOption[] };
 type ConstructorsResponse = { constructors?: TeamOption[] };
 type CompareDataItem = { code: string; history: number[]; color?: string };
@@ -266,9 +266,7 @@ function ComparePage() {
 
   return (
     <>
-      <Link to="/" className="btn-back">
-        ← Главное меню
-      </Link>
+      <BackButton>← Главное меню</BackButton>
       <h2>Сравнение</h2>
 
       <div className="segmented-tabs">
@@ -330,7 +328,10 @@ function ComparePage() {
                 ? [{ value: "", label: "Загрузка..." }]
                 : drivers.length === 0
                   ? [{ value: "", label: "Нет данных" }]
-                  : drivers.map((d) => ({ value: d.code, label: d.name }))
+                  : drivers.map((d) => ({
+                      value: d.code,
+                      label: d.is_favorite ? `⭐ ${d.name}` : d.name,
+                    }))
             }
             value={d1}
             onChange={(v) => setD1(String(v))}
@@ -344,7 +345,10 @@ function ComparePage() {
                 ? [{ value: "", label: "Загрузка..." }]
                 : drivers.length === 0
                   ? [{ value: "", label: "Нет данных" }]
-                  : drivers.map((d) => ({ value: d.code, label: d.name }))
+                  : drivers.map((d) => ({
+                      value: d.code,
+                      label: d.is_favorite ? `⭐ ${d.name}` : d.name,
+                    }))
             }
             value={d2}
             onChange={(v) => setD2(String(v))}
@@ -362,7 +366,10 @@ function ComparePage() {
                 ? [{ value: "", label: "Загрузка..." }]
                 : teams.length === 0
                   ? [{ value: "", label: "Нет данных" }]
-                  : teams.map((t) => ({ value: t.name, label: t.name }))
+                  : teams.map((t) => ({
+                      value: t.name,
+                      label: t.is_favorite ? `⭐ ${t.name}` : t.name,
+                    }))
             }
             value={t1}
             onChange={(v) => setT1(String(v))}
@@ -376,7 +383,10 @@ function ComparePage() {
                 ? [{ value: "", label: "Загрузка..." }]
                 : teams.length === 0
                   ? [{ value: "", label: "Нет данных" }]
-                  : teams.map((t) => ({ value: t.name, label: t.name }))
+                  : teams.map((t) => ({
+                      value: t.name,
+                      label: t.is_favorite ? `⭐ ${t.name}` : t.name,
+                    }))
             }
             value={t2}
             onChange={(v) => setT2(String(v))}

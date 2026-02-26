@@ -1,0 +1,53 @@
+/** Маппинг национальностей (Ergast API) на эмодзи флагов */
+export const NATIONALITY_FLAGS: Record<string, string> = {
+  British: "🇬🇧",
+  Spanish: "🇪🇸",
+  German: "🇩🇪",
+  French: "🇫🇷",
+  Italian: "🇮🇹",
+  Dutch: "🇳🇱",
+  Australian: "🇦🇺",
+  Monegasque: "🇲🇨",
+  Thai: "🇹🇭",
+  Finnish: "🇫🇮",
+  Mexican: "🇲🇽",
+  Canadian: "🇨🇦",
+  Japanese: "🇯🇵",
+  Danish: "🇩🇰",
+  Argentinian: "🇦🇷",
+  Argentine: "🇦🇷",
+  "New Zealander": "🇳🇿",
+  American: "🇺🇸",
+  Chinese: "🇨🇳",
+  Brazilian: "🇧🇷",
+  Austrian: "🇦🇹",
+  Belgian: "🇧🇪",
+  Venezuelan: "🇻🇪",
+  Polish: "🇵🇱",
+  Russian: "🇷🇺",
+  Swiss: "🇨🇭",
+  Swedish: "🇸🇪",
+  Irish: "🇮🇪",
+  Portuguese: "🇵🇹",
+  Hungarian: "🇭🇺",
+  "South African": "🇿🇦",
+  Indian: "🇮🇳",
+  Indonesian: "🇮🇩",
+  Malaysian: "🇲🇾",
+  Colombian: "🇨🇴",
+  Chilean: "🇨🇱",
+  Uruguayan: "🇺🇾",
+  Rhodesian: "🇿🇼",
+  "East German": "🇩🇪",
+  Liechtensteiner: "🇱🇮",
+  Czech: "🇨🇿",
+  Singaporean: "🇸🇬",
+  Emirati: "🇦🇪",
+  Korean: "🇰🇷",
+};
+
+export function getNationalityWithFlag(nationality: string): string {
+  if (!nationality) return "";
+  const flag = NATIONALITY_FLAGS[nationality] || "";
+  return flag ? `${flag} ${nationality}` : nationality;
+}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
+import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 
 type Session = { name: string; utc_iso?: string; local?: string };
@@ -98,9 +99,7 @@ function RaceDetailsPage() {
   if (error || (!season && !round)) {
     return (
       <>
-        <Link to="/season" className="btn-back">
-          ← <span>Назад</span>
-        </Link>
+        <BackButton fallback="/season">← <span>Назад</span></BackButton>
         <div className="error">{error || "Не указан этап"}</div>
       </>
     );
@@ -109,9 +108,7 @@ function RaceDetailsPage() {
   if (loading || !data) {
     return (
       <>
-        <Link to="/season" className="btn-back">
-          ← <span>Назад</span>
-        </Link>
+        <BackButton fallback="/season">← <span>Назад</span></BackButton>
         <div className="loading full-width">Загрузка данных трассы...</div>
       </>
     );
@@ -162,9 +159,7 @@ function RaceDetailsPage() {
 
   return (
     <>
-      <Link to="/season" className="btn-back">
-        ← <span>Назад</span>
-      </Link>
+      <BackButton fallback="/season">← <span>Назад</span></BackButton>
       <div className="circuit-header">
         <div className="circuit-title">{data.event_name}</div>
         <div className="circuit-subtitle">

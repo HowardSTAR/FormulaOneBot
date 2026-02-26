@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Link } from "react-router-dom";
+import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
 import { hapticSelection } from "../../helpers/telegram";
@@ -221,9 +221,7 @@ function VotingPage() {
 
   return (
     <>
-      <Link to="/" className="btn-back">
-        ← Главное меню
-      </Link>
+      <BackButton>← Главное меню</BackButton>
       <h2>Голосование</h2>
       <div className="voting-season-title">СЕЗОН {year}</div>
 
