@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
 
@@ -18,11 +18,15 @@ type SettingsResponse = { timezone?: string };
 function NextRacePage() {
   const [title, setTitle] = useState("Загрузка...");
   const [location, setLocation] = useState("...");
+  const [eventName, setEventName] = useState<string | null>(null);
   const [raceDateText, setRaceDateText] = useState("--");
   const [raceTimeText, setRaceTimeText] = useState("--:--");
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [trackSvg, setTrackSvg] = useState<string | null>(null);
+  const [layoutPhase, setLayoutPhase] = useState<"draw" | "split">("draw");
+  const trackContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,6 +49,7 @@ function NextRacePage() {
         }
 
         setTitle(raceData.event_name || "Загрузка...");
+        setEventName(raceData.event_name || null);
         setLocation(`${raceData.country || ""}, ${raceData.location || ""}`);
 
         const scheduleData = await apiRequest<ScheduleResponse>("/api/weekend-schedule", {
@@ -121,6 +126,66 @@ function NextRacePage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!eventName || loading) return;
+    let cancelled = false;
+    async function loadTrack() {
+      try {
+        const trackUrl = `/static/circuit/${eventName}.svg`;
+        const res = await fetch(trackUrl);
+        if (res.ok && !cancelled) {
+          const text = await res.text();
+          setTrackSvg(text);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    loadTrack();
+    return () => { cancelled = true; };
+  }, [eventName, loading]);
+
+  useEffect(() => {
+    if (!trackSvg || !trackContainerRef.current) return;
+    const container = trackContainerRef.current;
+    container.innerHTML = trackSvg;
+    const svg = container.querySelector("svg");
+    if (!svg) return;
+    svg.style.width = "100%";
+    svg.style.height = "100%";
+    const paths = svg.querySelectorAll("path, polyline");
+    const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    outlineGroup.classList.add("track-outline-group");
+    fillGroup.classList.add("track-fill-group");
+    paths.forEach((path) => {
+      const outlinePath = path.cloneNode(true) as SVGElement;
+      outlinePath.removeAttribute("fill");
+      outlinePath.classList.add("track-outline");
+      const length = (outlinePath as SVGPathElement).getTotalLength?.() ?? 0;
+      outlinePath.style.strokeDasharray = String(length);
+      outlinePath.style.strokeDashoffset = String(length);
+      outlineGroup.appendChild(outlinePath);
+      path.classList.add("track-fill");
+      fillGroup.appendChild(path);
+    });
+    svg.innerHTML = "";
+    svg.appendChild(outlineGroup);
+    svg.appendChild(fillGroup);
+    svg.getBoundingClientRect();
+    setTimeout(() => {
+      outlineGroup.querySelectorAll(".track-outline").forEach((p) => p.classList.add("animate"));
+      fillGroup.querySelectorAll(".track-fill").forEach((p) => p.classList.add("animate"));
+    }, 100);
+  }, [trackSvg]);
+
+  useEffect(() => {
+    if (loading) return;
+    const delay = trackSvg ? 4200 : 800;
+    const t = setTimeout(() => setLayoutPhase("split"), delay);
+    return () => clearTimeout(t);
+  }, [trackSvg, loading]);
+
   return (
     <>
       <Link to="/" className="btn-back">
@@ -129,15 +194,25 @@ function NextRacePage() {
       <h2>{title}</h2>
       <p style={{ marginBottom: 20, opacity: 0.7 }}>{location}</p>
 
-      <div className="card">
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 14, color: "var(--text-secondary)", marginBottom: 8 }}>СТАРТ ГОНКИ</div>
-          <div id="race-time-local" style={{ fontSize: 24, fontWeight: 800, color: "var(--primary)", whiteSpace: "nowrap", textTransform: "uppercase" }}>
-            {raceDateText}
+      {(eventName || loading) && (
+      <div className={`next-race-hero ${layoutPhase}`}>
+        <div className="next-race-start-block">
+          <div className="next-race-start-label">СТАРТ ГОНКИ</div>
+          <div className="next-race-date">{raceDateText}</div>
+          <div className="next-race-time">{raceTimeText}</div>
+        </div>
+        <div className="next-race-dash" aria-hidden />
+        <div className="next-race-track-wrap">
+          <div className="track-map-container next-race">
+            {!trackSvg && !loading && <div className="no-map-placeholder">🏁</div>}
+            <div
+              ref={trackContainerRef}
+              style={{ width: "100%", height: "100%", display: trackSvg ? "block" : "none" }}
+            />
           </div>
-          <div id="race-date" style={{ fontSize: 16, marginTop: 4 }}>{raceTimeText}</div>
         </div>
       </div>
+      )}
 
       <h3 style={{ marginLeft: 4 }}>Расписание уикенда</h3>
       <div className="standings-list">
