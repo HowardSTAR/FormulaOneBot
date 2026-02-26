@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
 import { CustomSelect } from "../../components/CustomSelect";
@@ -266,9 +266,7 @@ function ComparePage() {
 
   return (
     <>
-      <Link to="/" className="btn-back">
-        ← Главное меню
-      </Link>
+      <BackButton>← Главное меню</BackButton>
       <h2>Сравнение</h2>
 
       <div className="segmented-tabs">

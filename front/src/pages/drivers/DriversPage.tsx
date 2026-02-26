@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 
 const currentRealYear = new Date().getFullYear();
@@ -23,13 +24,19 @@ type Driver = {
   number?: string;
   constructorId?: string;
   constructorName?: string;
+  driverId?: string;
 };
 
 type DriversResponse = { drivers?: Driver[] };
 
 function DriversPage() {
-  const [year, setYear] = useState(currentRealYear);
-  const [yearInput, setYearInput] = useState(String(currentRealYear));
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const yearFromUrl = parseInt(searchParams.get("year") || "", 10);
+  const [year, setYear] = useState(
+    yearFromUrl && yearFromUrl >= 1950 && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
+  );
+  const [yearInput, setYearInput] = useState(String(year));
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +74,15 @@ function DriversPage() {
     loadDrivers(year);
   }, [year, loadDrivers]);
 
+  useEffect(() => {
+    setYearInput(String(year));
+  }, [year]);
+
+  const updateYear = useCallback((y: number) => {
+    setYear(y);
+    setSearchParams(y === currentRealYear ? {} : { year: String(y) }, { replace: true });
+  }, [setSearchParams]);
+
   const handleSearch = () => {
     const y = parseInt(yearInput, 10);
     if (!y) return;
@@ -90,19 +106,17 @@ function DriversPage() {
       setLoading(false);
       return;
     }
-    setYear(y);
+    updateYear(y);
   };
 
   const goCurrentYear = () => {
-    setYear(currentRealYear);
+    updateYear(currentRealYear);
     setYearInput(String(currentRealYear));
   };
 
   return (
     <>
-      <Link to="/" className="btn-back">
-        ← <span>Главное меню</span>
-      </Link>
+      <BackButton>← <span>Главное меню</span></BackButton>
       <h2>Личный зачет</h2>
 
       <div className="search-container">
@@ -139,10 +153,15 @@ function DriversPage() {
             const posClass =
               driver.position === 1 ? "pos-1" : driver.position === 2 ? "pos-2" : driver.position === 3 ? "pos-3" : "";
             const isChampion = driver.position === 1 && year < currentRealYear;
+            const toDriver = `/driver-details?code=${encodeURIComponent(driver.code)}&season=${year}${driver.driverId ? `&driverId=${encodeURIComponent(driver.driverId)}` : ""}`;
             return (
               <div
                 key={driver.code}
-                className={isChampion ? "driver-card champion-card" : "driver-card"}
+                role="button"
+                tabIndex={0}
+                className={isChampion ? "driver-card champion-card driver-card-clickable" : "driver-card driver-card-clickable"}
+                onClick={() => navigate(toDriver)}
+                onKeyDown={(e) => e.key === "Enter" && navigate(toDriver)}
               >
                 {isChampion && <div className="champion-badge">World Champion</div>}
                 <div className={`pos-box ${posClass}`}>{driver.position}</div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 
 type Result = { position: number; name?: string; driver?: string; best?: string };
@@ -39,9 +39,7 @@ function QualiResultsPage() {
 
   return (
     <>
-      <Link to="/" className="btn-back">
-        ← <span>Главное меню</span>
-      </Link>
+      <BackButton>← <span>Главное меню</span></BackButton>
       <h2 id="quali-title">
         {data?.race_info ? (
           <>

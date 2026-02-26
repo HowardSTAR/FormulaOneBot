@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { CustomSelect } from "../../components/CustomSelect";
 import { hapticSelection, hapticImpact } from "../../helpers/telegram";
@@ -99,9 +99,7 @@ function SettingsPage() {
 
   return (
     <>
-      <Link to="/" className="btn-back">
-        ← <span>На главную</span>
-      </Link>
+      <BackButton>← <span>На главную</span></BackButton>
       <h2 style={{ marginTop: 10, marginBottom: 20 }}>Настройки</h2>
 
       <div className="setting-card">

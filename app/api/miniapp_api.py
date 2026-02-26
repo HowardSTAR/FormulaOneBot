@@ -25,6 +25,8 @@ from app.f1_data import (
     get_weekend_schedule,
     get_driver_standings_async,
     get_constructor_standings_async,
+    get_driver_details_async,
+    get_constructor_details_async,
     sort_standings_zero_last,
     _get_latest_quali_async,
     get_race_results_async,
@@ -343,6 +345,7 @@ async def api_drivers(
         if not driver_code and getattr(row, "familyName", ""):
             driver_code = getattr(row, "familyName", "")[:3].upper()
 
+        driver_id = getattr(row, "driverId", "") or (driver_code.lower() if driver_code else "")
         results.append({
             "position": getattr(row, "position", ""),
             "points": getattr(row, "points", 0),
@@ -352,9 +355,48 @@ async def api_drivers(
             "number": getattr(row, "permanentNumber", "") or "",
             "constructorId": getattr(row, "constructorId", "") or "",
             "constructorName": getattr(row, "constructorName", "") or "",
+            "driverId": driver_id,
         })
 
     return {"season": season, "round": round_number, "drivers": results}
+
+
+@web_app.get("/api/driver-details")
+async def api_driver_details(
+    code: Optional[str] = Query(None, description="Driver code (e.g. ALO)"),
+    driver_id: Optional[str] = Query(None, alias="driverId", description="Ergast driverId (e.g. alonso)"),
+    season: Optional[int] = Query(None),
+):
+    """Карточка пилота: профиль, статистика сезона и карьеры, биография."""
+    if season is None:
+        season = datetime.now().year
+    raw_id = (driver_id or "").strip().lower() or (code or "").strip().lower()
+    if not raw_id:
+        raise HTTPException(status_code=400, detail="Укажите code или driverId")
+    # driverId из OpenF1 (до старта сезона) — это номер пилота (23, 44), а не Ergast driverId. Используем code.
+    if raw_id.isdigit() and code:
+        raw_id = code.strip().lower()
+    details = await get_driver_details_async(raw_id, season, code)
+    if not details:
+        raise HTTPException(status_code=404, detail="Пилот не найден")
+    return details
+
+
+@web_app.get("/api/constructor-details")
+async def api_constructor_details(
+    constructorId: Optional[str] = Query(None, description="constructorId (e.g. ferrari)"),
+    season: Optional[int] = Query(None),
+):
+    """Карточка команды: профиль, статистика сезона и карьеры, биография."""
+    if season is None:
+        season = datetime.now().year
+    cid = (constructorId or constructor_id or "").strip().lower().replace(" ", "_")
+    if not cid:
+        raise HTTPException(status_code=400, detail="Укажите constructorId")
+    details = await get_constructor_details_async(cid, season)
+    if not details:
+        raise HTTPException(status_code=404, detail="Команда не найдена")
+    return details
 
 
 @web_app.get("/api/constructors")
