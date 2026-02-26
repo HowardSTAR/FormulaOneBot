@@ -1596,3 +1596,145 @@ input:checked + .slider:before {
 .driver-bio-link:hover {
   text-decoration: underline;
 }
+
+/* --- Карточка команды: машина + пилоты --- */
+.constructor-hero {
+  background: linear-gradient(180deg, rgba(30, 50, 80, 0.4) 0%, var(--surface-color) 70%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.constructor-car-wrap {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.constructor-car-img {
+  max-width: 100%;
+  max-height: 140px;
+  object-fit: contain;
+}
+.constructor-hero-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  margin-bottom: 8px;
+}
+.constructor-hero-drivers {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+.constructor-hero-logo img {
+  height: 32px;
+  object-fit: contain;
+  opacity: 0.9;
+}
+
+.constructor-drivers-section {
+  margin-bottom: 24px;
+}
+.constructor-drivers-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--text-secondary);
+  margin: 0 0 12px 4px;
+}
+.constructor-drivers-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 380px) {
+  .constructor-drivers-grid { grid-template-columns: 1fr; }
+}
+.constructor-driver-card {
+  position: relative;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  min-height: 140px;
+  transition: transform 0.2s;
+}
+.constructor-driver-card:hover {
+  transform: scale(1.02);
+}
+.constructor-driver-card:active {
+  opacity: 0.95;
+}
+.constructor-driver-card-bg {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(30, 60, 100, 0.5), rgba(20, 40, 70, 0.6));
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.constructor-driver-card-content {
+  position: relative;
+  padding: 14px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+}
+.constructor-driver-name {
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+.constructor-driver-name .driver-first {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.constructor-driver-name .driver-last {
+  font-weight: 800;
+  color: var(--text-primary);
+}
+.constructor-driver-team {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.constructor-driver-number {
+  font-size: 28px;
+  font-weight: 800;
+  color: rgba(255,255,255,0.9);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.constructor-driver-portrait {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.constructor-driver-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.constructor-driver-portrait .driver-initials {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--primary);
+}
+.constructor-driver-flag {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  font-size: 18px;
+}

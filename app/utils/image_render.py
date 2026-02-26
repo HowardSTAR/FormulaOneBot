@@ -149,6 +149,49 @@ def _get_wiki_image_url(query: str) -> str | None:
     return None
 
 
+# Маппинг названий команд на варианты для поиска файлов машин
+_CAR_TEAM_ALIASES: dict[str, list[str]] = {
+    "alpine": ["alpine", "alpine f1 team"],
+    "haas": ["haas", "haas f1 team"],
+    "ferrari": ["ferrari", "scuderia ferrari"],
+    "mercedes": ["mercedes", "mercedes amg"],
+    "red_bull": ["red bull", "red bull racing"],
+    "rb": ["rb", "racing bulls", "alphatauri"],
+    "aston_martin": ["aston martin"],
+    "mclaren": ["mclaren"],
+    "williams": ["williams"],
+}
+
+
+def get_car_image_path(team_name: str, season: int) -> Path | None:
+    """Ищет изображение машины: assets/{year}/cars/. Без fallback на чужую машину."""
+    assets_root = Path(__file__).resolve().parents[1] / "assets"
+    year_cars = assets_root / str(season) / "cars"
+    raw = (team_name or "").strip().lower()
+    search_parts = [p.replace(" ", "_") for p in raw.split() if p]
+    # Добавляем алиасы для известных команд
+    for key, aliases in _CAR_TEAM_ALIASES.items():
+        if key.replace(" ", "_") in raw.replace(" ", "_") or any(a in raw for a in aliases):
+            search_parts.extend([a.replace(" ", "_") for a in aliases])
+            break
+
+    def _matches(fpath: Path) -> bool:
+        stem = fpath.stem.lower().replace(" ", "_")
+        if not search_parts:
+            return False
+        return any(sp in stem or stem in sp for sp in search_parts)
+
+    if year_cars.exists():
+        for f in sorted(year_cars.iterdir(), key=lambda p: p.name):
+            if f.is_file() and not f.name.startswith(".") and _matches(f):
+                return f
+        for f in sorted(year_cars.iterdir(), key=lambda p: p.name):
+            if f.is_file() and not f.name.startswith(".") and raw in f.stem.lower():
+                return f
+    # Не возвращаем случайную машину из assets/car/ — это приводило к показу HAAS на странице Alpine
+    return None
+
+
 def get_asset_path(year: int, category: str, target_name: str) -> Path | None:
     """Универсальный поиск локальных картинок (.png, .avif) в папке assets/YYYY/"""
     if not target_name:

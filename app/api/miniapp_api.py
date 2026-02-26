@@ -33,7 +33,7 @@ from app.f1_data import (
     get_event_details_async,
 )
 from app.handlers.races import build_next_race_payload
-from app.utils.image_render import _get_team_logo
+from app.utils.image_render import _get_team_logo, get_car_image_path
 
 # --- Настройка путей ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -376,7 +376,13 @@ async def api_driver_details(
     # driverId из OpenF1 (до старта сезона) — это номер пилота (23, 44), а не Ergast driverId. Используем code.
     if raw_id.isdigit() and code:
         raw_id = code.strip().lower()
+    # При переходе из карточки команды driverId может быть неверным (code в нижнем регистре).
+    # Приоритет code для корректного резолва через Ergast.
+    if code and len(code.strip()) == 3:
+        raw_id = code.strip().lower()
     details = await get_driver_details_async(raw_id, season, code)
+    if not details and code and raw_id != (code or "").strip().lower():
+        details = await get_driver_details_async((code or "").strip().lower(), season, code)
     if not details:
         raise HTTPException(status_code=404, detail="Пилот не найден")
     return details
@@ -442,6 +448,22 @@ async def api_constructors(
         })
 
     return {"season": season, "round": round_number, "constructors": results}
+
+
+@web_app.get("/api/car-image")
+async def api_car_image(
+    team: str = Query(..., description="Название команды (Alpine, Ferrari и т.д.)"),
+    season: Optional[int] = Query(None),
+):
+    """Возвращает изображение машины команды. Ищет в assets/{year}/cars/, fallback — assets/car/."""
+    if season is None:
+        season = datetime.now().year
+    path = await asyncio.to_thread(get_car_image_path, team, season)
+    if not path or not path.exists():
+        raise HTTPException(status_code=404, detail="Изображение машины не найдено")
+    suffix = path.suffix.lower()
+    media_type = "image/avif" if suffix == ".avif" else "image/png" if suffix == ".png" else "image/jpeg"
+    return FileResponse(path, media_type=media_type)
 
 
 @web_app.get("/api/team-logo")
