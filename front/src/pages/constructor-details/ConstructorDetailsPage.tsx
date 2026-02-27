@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
-import { NATIONALITY_FLAGS } from "../../constants/flags";
+import { getFlagForNationality } from "../../constants/flags";
 
 function teamLogoUrl(teamId: string, teamName: string, season: number): string {
   const apiBase = (import.meta.env.VITE_API_URL as string) || "";
@@ -190,14 +190,25 @@ function ConstructorDetailsPage() {
                     )}
                     <div className="constructor-driver-portrait">
                       {d.headshot_url ? (
-                        <img src={d.headshot_url} alt={fullName} />
-                      ) : (
-                        <span className="driver-initials">{d.code?.slice(0, 2) || "?"}</span>
-                      )}
+                        <img
+                          src={d.headshot_url}
+                          alt={fullName}
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                            const placeholder = e.currentTarget.nextElementSibling;
+                            if (placeholder) placeholder.classList.remove("hidden");
+                          }}
+                        />
+                      ) : null}
+                      <span
+                        className={`driver-initials ${d.headshot_url ? "hidden" : ""}`}
+                      >
+                        {d.code?.slice(0, 2) || "?"}
+                      </span>
                     </div>
                     {d.nationality && (
                       <span className="constructor-driver-flag">
-                        {NATIONALITY_FLAGS[d.nationality] || ""}
+                        {getFlagForNationality(d.nationality)}
                       </span>
                     )}
                   </div>

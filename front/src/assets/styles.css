@@ -1735,6 +1735,9 @@ input:checked + .slider:before {
   font-weight: 800;
   color: var(--primary);
 }
+.constructor-driver-portrait .driver-initials.hidden {
+  display: none;
+}
 .constructor-driver-flag {
   position: absolute;
   bottom: 12px;
