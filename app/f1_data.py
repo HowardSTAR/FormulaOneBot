@@ -1135,7 +1135,11 @@ async def _get_constructor_drivers_fallback(
     except Exception:
         pass
 
-    # 2. OpenF1: маппинг cid -> варианты названий команды в OpenF1
+    # 2. OpenF1: ТОЛЬКО для текущего/будущего сезона (session_key=latest = нынешний состав)
+    current_year = datetime.now().year
+    if season < current_year:
+        return []  # Не подставлять пилотов нынешнего сезона за прошлые годы
+
     cid_to_openf1 = {
         "alpine": ["alpine"],
         "haas": ["haas", "haas f1 team"],
@@ -1223,7 +1227,7 @@ async def _get_constructor_drivers_fallback(
 
 
 # --- КАРТОЧКА КОНСТРУКТОРА --- #
-@cache_result(ttl=3600, key_prefix="constructor_details_v5")
+@cache_result(ttl=3600, key_prefix="constructor_details_v6")
 async def get_constructor_details_async(constructor_id: str, season: int):
     """Профиль команды: название, лого, статистика сезона и карьеры, биография."""
     base = "https://api.jolpi.ca/ergast/f1"

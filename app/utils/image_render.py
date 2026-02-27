@@ -170,13 +170,13 @@ _CAR_GENERIC_WORDS = {"f1", "team", "racing", "formula", "grand", "prix", "bull"
 
 
 def get_car_image_path(team_name: str, season: int) -> Path | None:
-    """Ищет изображение машины: assets/{year}/cars/. Только по уникальным названиям команд."""
+    """Ищет изображение машины: assets/{year}/cars/, fallback — assets/car/."""
     assets_root = Path(__file__).resolve().parents[1] / "assets"
     year_cars = assets_root / str(season) / "cars"
+    fallback_car = assets_root / "car"
     raw = (team_name or "").strip().lower().replace("-", " ")
-    # Собираем только КОНКРЕТНЫЕ идентификаторы команды (не "f1", "team" и т.д.)
     words = [w.replace(" ", "_") for w in raw.split() if w and w not in _CAR_GENERIC_WORDS]
-    search_parts = list(dict.fromkeys(words))  # уникальные, порядок сохраняем
+    search_parts = list(dict.fromkeys(words))
 
     matched_key = ""
     for key, aliases in _CAR_TEAM_ALIASES.items():
@@ -196,7 +196,7 @@ def get_car_image_path(team_name: str, season: int) -> Path | None:
         if not search_parts:
             return False
         if _is_red_bull and ("racing_bulls" in stem or "vcarb" in stem) and "red" not in stem:
-            return False  # Racing Bulls, VCARB — не Red Bull
+            return False
         for sp in search_parts:
             if sp in _CAR_GENERIC_WORDS:
                 continue
@@ -204,18 +204,32 @@ def get_car_image_path(team_name: str, season: int) -> Path | None:
                 return True
         return False
 
-    if year_cars.exists():
-        for f in sorted(year_cars.iterdir(), key=lambda p: p.name):
+    def _search_in_dir(dir_path: Path) -> Path | None:
+        if not dir_path.exists():
+            return None
+        for f in sorted(dir_path.iterdir(), key=lambda p: p.name):
             if f.is_file() and not f.name.startswith(".") and _matches(f):
                 return f
-        # Фоллбэк: прямое вхождение raw (без generic) в имя файла
         raw_core = "_".join(w for w in raw.replace(" ", "_").split("_") if w and w not in _CAR_GENERIC_WORDS)
         if raw_core:
-            for f in sorted(year_cars.iterdir(), key=lambda p: p.name):
+            for f in sorted(dir_path.iterdir(), key=lambda p: p.name):
                 if f.is_file() and not f.name.startswith("."):
                     stem = f.stem.lower().replace(" ", "_")
                     if raw_core in stem or stem in raw_core:
                         return f
+        return None
+
+    result = _search_in_dir(year_cars)
+    if result:
+        return result
+    result = _search_in_dir(fallback_car)
+    if result:
+        return result
+    # Generic fallback: первый файл в assets/car/ (для сезонов без своей папки)
+    if fallback_car.exists():
+        for f in sorted(fallback_car.iterdir(), key=lambda p: p.name):
+            if f.is_file() and not f.name.startswith("."):
+                return f
     return None
 
 
