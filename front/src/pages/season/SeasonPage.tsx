@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
+import { YearSelect } from "../../components/YearSelect";
 import { apiRequest } from "../../helpers/api";
 
 const currentRealYear = new Date().getFullYear();
@@ -21,7 +22,6 @@ function SeasonPage() {
   const [year, setYear] = useState(
     yearFromUrl && yearFromUrl >= 1950 && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
   );
-  const [yearInput, setYearInput] = useState(String(year));
   const [races, setRaces] = useState<Race[]>([]);
   const [userTz, setUserTz] = useState("UTC");
   const [loading, setLoading] = useState(true);
@@ -65,10 +65,6 @@ function SeasonPage() {
     loadCalendar(year);
   }, [year, loadCalendar]);
 
-  useEffect(() => {
-    setYearInput(String(year));
-  }, [year]);
-
   const updateYear = useCallback((y: number) => {
     setYear(y);
     setSearchParams(y === currentRealYear ? {} : { year: String(y) }, { replace: true });
@@ -81,9 +77,7 @@ function SeasonPage() {
     }
   }, [year, races]);
 
-  const handleSearch = () => {
-    const y = parseInt(yearInput, 10);
-    if (!y) return;
+  const handleYearChange = (y: number) => {
     if (y > currentRealYear) {
       setEmptyMessage("Мы не умеем смотреть в будущее");
       setRaces([]);
@@ -99,11 +93,6 @@ function SeasonPage() {
     updateYear(y);
   };
 
-  const goCurrentYear = () => {
-    updateYear(currentRealYear);
-    setYearInput(String(currentRealYear));
-  };
-
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const nextRaceIndex = races.findIndex((r) => {
@@ -117,24 +106,13 @@ function SeasonPage() {
       <BackButton>← <span>Главное меню</span></BackButton>
       <h2>Календарь</h2>
 
-      <div className="search-container">
-        <input
-          type="number"
-          id="year-input"
-          className="search-input"
-          placeholder="Введи год"
-          inputMode="numeric"
-          value={yearInput}
-          onChange={(e) => setYearInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-        />
-        <button type="button" className="search-btn" onClick={handleSearch}>
-          🔍
-        </button>
-        <button type="button" className="current-year-btn" onClick={goCurrentYear}>
-          {currentRealYear}
-        </button>
-      </div>
+      <YearSelect
+        value={year}
+        onChange={handleYearChange}
+        minYear={1950}
+        maxYear={currentRealYear}
+        placeholder="Введи год"
+      />
 
       <div className="standings-list">
         {loading && <div className="loading full-width">Загрузка календаря...</div>}

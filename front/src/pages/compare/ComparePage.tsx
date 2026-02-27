@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { BackButton } from "../../components/BackButton";
+import { YearSelect } from "../../components/YearSelect";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
 import { CustomSelect } from "../../components/CustomSelect";
@@ -24,7 +25,6 @@ type CompareResponse = {
 
 function ComparePage() {
   const [tab, setTab] = useState<"drivers" | "teams">("drivers");
-  const [yearInput, setYearInput] = useState(String(currentRealYear));
   const [year, setYear] = useState(currentRealYear);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [teams, setTeams] = useState<TeamOption[]>([]);
@@ -96,19 +96,9 @@ function ComparePage() {
     loadTeamsList(year);
   }, [year, loadTeamsList]);
 
-  const handleSearch = () => {
-    const y = parseInt(yearInput, 10);
-    if (!y || y < 1950 || y > currentRealYear + 1) {
-      alert("Пожалуйста, введите корректный год (с 1950)");
-      return;
-    }
+  const handleYearChange = (y: number) => {
+    if (y < 1950 || y > currentRealYear + 1) return;
     setYear(y);
-    setResults(null);
-  };
-
-  const goCurrentYear = () => {
-    setYear(currentRealYear);
-    setYearInput(String(currentRealYear));
     setResults(null);
   };
 
@@ -301,23 +291,13 @@ function ComparePage() {
         </button>
       </div>
 
-      <div className="search-container">
-        <input
-          type="number"
-          className="search-input"
-          placeholder="Введи год"
-          inputMode="numeric"
-          value={yearInput}
-          onChange={(e) => setYearInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-        />
-        <button type="button" className="search-btn" onClick={handleSearch}>
-          🔍
-        </button>
-        <button type="button" className="current-year-btn" onClick={goCurrentYear}>
-          {currentRealYear}
-        </button>
-      </div>
+      <YearSelect
+        value={year}
+        onChange={handleYearChange}
+        minYear={1950}
+        maxYear={currentRealYear + 1}
+        placeholder="Введи год"
+      />
 
       {tab === "drivers" && (
         <div className="selectors">
