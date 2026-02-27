@@ -149,46 +149,73 @@ def _get_wiki_image_url(query: str) -> str | None:
     return None
 
 
-# Маппинг названий команд на варианты для поиска файлов машин
+# Маппинг названий команд на варианты для поиска файлов машин.
+# Red Bull и RB (Racing Bulls) — разные команды! Не используем "bull" — матчит обе.
 _CAR_TEAM_ALIASES: dict[str, list[str]] = {
-    "alpine": ["alpine", "alpine f1 team"],
-    "haas": ["haas", "haas f1 team"],
-    "ferrari": ["ferrari", "scuderia ferrari"],
-    "mercedes": ["mercedes", "mercedes amg"],
-    "red_bull": ["red bull", "red bull racing"],
-    "rb": ["rb", "racing bulls", "alphatauri"],
-    "aston_martin": ["aston martin"],
+    "alpine": ["alpine"],
+    "haas": ["haas"],
+    "ferrari": ["ferrari", "scuderia"],
+    "mercedes": ["mercedes", "amg"],
+    "red_bull": ["red_bull", "redbull"],  # только "red" — не "bull", иначе матчит Racing Bulls
+    "rb": ["rb", "racing_bulls", "vcarb", "alphatauri"],
+    "aston_martin": ["aston_martin", "astonmartin"],
     "mclaren": ["mclaren"],
     "williams": ["williams"],
+    "cadillac": ["cadillac"],
+    "audi": ["audi"],
 }
+
+# Общие слова и частичные совпадения, которые НЕ должны матчить (bull матчит и Red Bull и Racing Bulls)
+_CAR_GENERIC_WORDS = {"f1", "team", "racing", "formula", "grand", "prix", "bull"}
 
 
 def get_car_image_path(team_name: str, season: int) -> Path | None:
-    """Ищет изображение машины: assets/{year}/cars/. Без fallback на чужую машину."""
+    """Ищет изображение машины: assets/{year}/cars/. Только по уникальным названиям команд."""
     assets_root = Path(__file__).resolve().parents[1] / "assets"
     year_cars = assets_root / str(season) / "cars"
-    raw = (team_name or "").strip().lower()
-    search_parts = [p.replace(" ", "_") for p in raw.split() if p]
-    # Добавляем алиасы для известных команд
+    raw = (team_name or "").strip().lower().replace("-", " ")
+    # Собираем только КОНКРЕТНЫЕ идентификаторы команды (не "f1", "team" и т.д.)
+    words = [w.replace(" ", "_") for w in raw.split() if w and w not in _CAR_GENERIC_WORDS]
+    search_parts = list(dict.fromkeys(words))  # уникальные, порядок сохраняем
+
+    matched_key = ""
     for key, aliases in _CAR_TEAM_ALIASES.items():
-        if key.replace(" ", "_") in raw.replace(" ", "_") or any(a in raw for a in aliases):
-            search_parts.extend([a.replace(" ", "_") for a in aliases])
+        key_norm = key.replace(" ", "_")
+        if key_norm in raw.replace(" ", "_") or any(a.replace(" ", "_") in raw.replace(" ", "_") for a in aliases):
+            matched_key = key
+            for a in aliases:
+                sp = a.replace(" ", "_")
+                if sp and sp not in search_parts:
+                    search_parts.append(sp)
             break
+
+    _is_red_bull = matched_key == "red_bull"
 
     def _matches(fpath: Path) -> bool:
         stem = fpath.stem.lower().replace(" ", "_")
         if not search_parts:
             return False
-        return any(sp in stem or stem in sp for sp in search_parts)
+        if _is_red_bull and ("racing_bulls" in stem or "vcarb" in stem) and "red" not in stem:
+            return False  # Racing Bulls, VCARB — не Red Bull
+        for sp in search_parts:
+            if sp in _CAR_GENERIC_WORDS:
+                continue
+            if sp in stem or stem in sp:
+                return True
+        return False
 
     if year_cars.exists():
         for f in sorted(year_cars.iterdir(), key=lambda p: p.name):
             if f.is_file() and not f.name.startswith(".") and _matches(f):
                 return f
-        for f in sorted(year_cars.iterdir(), key=lambda p: p.name):
-            if f.is_file() and not f.name.startswith(".") and raw in f.stem.lower():
-                return f
-    # Не возвращаем случайную машину из assets/car/ — это приводило к показу HAAS на странице Alpine
+        # Фоллбэк: прямое вхождение raw (без generic) в имя файла
+        raw_core = "_".join(w for w in raw.replace(" ", "_").split("_") if w and w not in _CAR_GENERIC_WORDS)
+        if raw_core:
+            for f in sorted(year_cars.iterdir(), key=lambda p: p.name):
+                if f.is_file() and not f.name.startswith("."):
+                    stem = f.stem.lower().replace(" ", "_")
+                    if raw_core in stem or stem in raw_core:
+                        return f
     return None
 
 

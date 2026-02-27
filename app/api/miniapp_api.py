@@ -396,7 +396,7 @@ async def api_constructor_details(
     """Карточка команды: профиль, статистика сезона и карьеры, биография."""
     if season is None:
         season = datetime.now().year
-    cid = (constructorId or constructor_id or "").strip().lower().replace(" ", "_")
+    cid = (constructorId or "").strip().lower().replace(" ", "_")
     if not cid:
         raise HTTPException(status_code=400, detail="Укажите constructorId")
     details = await get_constructor_details_async(cid, season)
