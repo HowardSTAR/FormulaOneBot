@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
+import { YearSelect } from "../../components/YearSelect";
 import { apiRequest } from "../../helpers/api";
 
 const currentRealYear = new Date().getFullYear();
@@ -34,7 +35,6 @@ function ConstructorsPage() {
   const [year, setYear] = useState(
     yearFromUrl && yearFromUrl >= minConstructorYear && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
   );
-  const [yearInput, setYearInput] = useState(String(year));
   const [teams, setTeams] = useState<Constructor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -72,18 +72,12 @@ function ConstructorsPage() {
     loadTeams(year);
   }, [year, loadTeams]);
 
-  useEffect(() => {
-    setYearInput(String(year));
-  }, [year]);
-
   const updateYear = useCallback((y: number) => {
     setYear(y);
     setSearchParams(y === currentRealYear ? {} : { year: String(y) }, { replace: true });
   }, [setSearchParams]);
 
-  const handleSearch = () => {
-    const y = parseInt(yearInput, 10);
-    if (!y) return;
+  const handleYearChange = (y: number) => {
     if (y > currentRealYear) {
       setEmptyMessage({
         icon: "🛠️",
@@ -107,34 +101,18 @@ function ConstructorsPage() {
     updateYear(y);
   };
 
-  const goCurrentYear = () => {
-    updateYear(currentRealYear);
-    setYearInput(String(currentRealYear));
-  };
-
   return (
     <>
       <BackButton>← <span>Главное меню</span></BackButton>
       <h2>Кубок конструкторов</h2>
 
-      <div className="search-container">
-        <input
-          type="number"
-          id="year-input"
-          className="search-input"
-          placeholder="Введи год"
-          inputMode="numeric"
-          value={yearInput}
-          onChange={(e) => setYearInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-        />
-        <button type="button" className="search-btn" onClick={handleSearch}>
-          🔍
-        </button>
-        <button type="button" className="current-year-btn" onClick={goCurrentYear}>
-          {currentRealYear}
-        </button>
-      </div>
+      <YearSelect
+        value={year}
+        onChange={handleYearChange}
+        minYear={minConstructorYear}
+        maxYear={currentRealYear}
+        placeholder="Введи год"
+      />
 
       <div style={{ display: "flex", flexDirection: "column" }}>
         {loading && <div className="loading full-width">Загрузка...</div>}
