@@ -127,3 +127,6 @@ services:
 
 volumes:
   redis_data:
+  # Объявляем volume для синхронизации фронтенда
+  static_content:
+
