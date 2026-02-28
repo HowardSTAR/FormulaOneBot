@@ -82,6 +82,9 @@ websockets==16.0
 wrapt==2.1.1
 yarl==1.22.0
 
+# Testing
+pytest>=8.0
+pytest-asyncio>=0.24
 
 # pip install pip-review
 # pip-review --local --auto
