@@ -3,6 +3,7 @@ import math
 from datetime import datetime
 
 from aiogram import Router, F
+from aiogram.enums import ChatType
 from aiogram.exceptions import TelegramNetworkError
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -157,7 +158,8 @@ def _parse_season_from_text(text: str) -> int:
 @router.message(Command("drivers"))
 async def cmd_drivers(message: Message) -> None:
     season = _parse_season_from_text(message.text or "")
-    await _send_drivers_for_year(message, season, telegram_id=message.from_user.id)
+    telegram_id = message.from_user.id if message.chat.type == ChatType.PRIVATE else None
+    await _send_drivers_for_year(message, season, telegram_id=telegram_id)
 
 
 @router.message(F.text == "🏎 Личный зачет")
@@ -194,7 +196,8 @@ async def drivers_year_from_text(message: Message, state: FSMContext):
 
     # Дальше ваш старый код...
     await state.update_data(year=year)
-    await _send_drivers_for_year(message, year)
+    telegram_id = message.from_user.id if message.chat.type == ChatType.PRIVATE else None
+    await _send_drivers_for_year(message, year, telegram_id=telegram_id)
     await state.clear()
 
 
@@ -209,6 +212,5 @@ async def drivers_year_current(callback: CallbackQuery, state: FSMContext) -> No
         season = datetime.now().year
 
     if callback.message:
-        await _send_drivers_for_year(
-            callback.message, season, telegram_id=callback.from_user.id
-        )
+        telegram_id = callback.from_user.id if callback.message.chat.type == ChatType.PRIVATE else None
+        await _send_drivers_for_year(callback.message, season, telegram_id=telegram_id)

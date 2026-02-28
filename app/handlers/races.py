@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import datetime, date, timezone, timedelta
 
 from aiogram import Router, F
+from aiogram.enums import ChatType
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
@@ -99,14 +100,17 @@ async def _send_next_race_message(message: Message, user_id: int, season: int | 
         f"Уведомлю о результатах после финиша."
     )
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[
+    is_group = message.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP)
+    keyboard = [
         [InlineKeyboardButton(text="📅 Расписание уикенда",
                               callback_data=f"weekend_{payload['season']}_{payload['round']}")],
         [InlineKeyboardButton(text="⏱ Квалификация", callback_data=f"quali_{payload['season']}_{payload['round']}"),
          InlineKeyboardButton(text="🏁 Гонка", callback_data=f"race_{payload['season']}_{payload['round']}")],
-        [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu"),
-         InlineKeyboardButton(text="⚙️ Настройки", callback_data=f"settings_race_{payload['season']}")]
-    ])
+        [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu")],
+    ]
+    if not is_group:
+        keyboard[-1].append(InlineKeyboardButton(text="⚙️ Настройки", callback_data=f"settings_race_{payload['season']}"))
+    kb = InlineKeyboardMarkup(inline_keyboard=keyboard)
 
     if is_edit:
         await message.edit_text(text, reply_markup=kb, parse_mode="HTML")
@@ -116,12 +120,14 @@ async def _send_next_race_message(message: Message, user_id: int, season: int | 
 
 @router.message(Command("next_race"))
 async def cmd_next_race(message: Message):
-    await _send_next_race_message(message, message.from_user.id)
+    user_id = message.from_user.id if message.chat.type == ChatType.PRIVATE else None
+    await _send_next_race_message(message, user_id)
 
 
 @router.message(F.text == "🏁 Следующая гонка")
 async def next_race_btn(message: Message):
-    await _send_next_race_message(message, message.from_user.id)
+    user_id = message.from_user.id if message.chat.type == ChatType.PRIVATE else None
+    await _send_next_race_message(message, user_id)
 
 
 @router.callback_query(F.data.startswith("back_to_race_"))
@@ -132,11 +138,12 @@ async def back_to_race(callback: CallbackQuery, state: FSMContext):
     except:
         season = None
 
+    user_id = callback.from_user.id if callback.message.chat.type == ChatType.PRIVATE else None
     if callback.message.photo:
         await callback.message.delete()
-        await _send_next_race_message(callback.message, callback.from_user.id, season, False)
+        await _send_next_race_message(callback.message, user_id, season, False)
     else:
-        await _send_next_race_message(callback.message, callback.from_user.id, season, True)
+        await _send_next_race_message(callback.message, user_id, season, True)
 
 
 @router.callback_query(F.data.startswith("weekend_"))
@@ -149,8 +156,11 @@ async def weekend_schedule(callback: CallbackQuery):
         return
 
     sessions = get_weekend_schedule(season, round_num)
-    settings = await get_user_settings(callback.from_user.id)
-    user_tz = settings.get("timezone", "Europe/Moscow")
+    if callback.message.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+        user_tz = "Europe/Moscow"
+    else:
+        settings = await get_user_settings(callback.from_user.id)
+        user_tz = settings.get("timezone", "Europe/Moscow")
 
     lines = []
     for s in sessions:
@@ -161,10 +171,11 @@ async def weekend_schedule(callback: CallbackQuery):
 
     text = f"📅 Расписание уикенда (Сезон {season}, Этап {round_num}):\n\n" + "\n\n".join(lines)
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⚙️ Настройки", callback_data=f"settings_race_{season}")],
-        [InlineKeyboardButton(text="🔙 Вернуться", callback_data=f"back_to_race_{season}")]
-    ])
+    is_group = callback.message.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP)
+    kb_rows = [[InlineKeyboardButton(text="🔙 Вернуться", callback_data=f"back_to_race_{season}")]]
+    if not is_group:
+        kb_rows.insert(0, [InlineKeyboardButton(text="⚙️ Настройки", callback_data=f"settings_race_{season}")])
+    kb = InlineKeyboardMarkup(inline_keyboard=kb_rows)
 
     await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
     await callback.answer()
@@ -238,8 +249,12 @@ async def race_callback(callback: CallbackQuery) -> None:
 
     constructor_standings = await get_constructor_standings_async(season, round_number=last_round)
 
-    fav_drivers = await get_favorite_drivers(callback.from_user.id)
-    fav_teams = await get_favorite_teams(callback.from_user.id)
+    if callback.message.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
+        fav_drivers = []
+        fav_teams = []
+    else:
+        fav_drivers = await get_favorite_drivers(callback.from_user.id)
+        fav_teams = await get_favorite_teams(callback.from_user.id)
 
     # --- ОФОРМЛЕНИЕ ---
     df = race_results

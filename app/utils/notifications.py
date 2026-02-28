@@ -18,6 +18,7 @@ from app.db import (
     set_last_notified_voting_round,
     get_race_avg_for_round,
     get_driver_vote_winner,
+    get_all_group_chats,
 )
 from app.f1_data import (
     get_season_schedule_short_async,
@@ -39,6 +40,10 @@ ADMIN_ID = 2099386
 # Тихий режим: 21:00–10:00 по времени пользователя (без звука)
 QUIET_START_HOUR = 21
 QUIET_END_HOUR = 10
+
+# Для групп: напоминать за 60 минут, таймзона МСК
+GROUP_NOTIFY_BEFORE = 60
+GROUP_TIMEZONE = "Europe/Moscow"
 
 
 def is_quiet_hours(tz_name: str) -> bool:
@@ -142,10 +147,13 @@ async def check_and_send_notifications(bot: Bot):
             except Exception:
                 pass
 
-    if not upcoming_event: return
+    if not upcoming_event:
+        return
 
     users = await get_users_with_settings(notifications_only=True)
-    if not users: return
+    group_chats = await get_all_group_chats()
+    if not users and not group_chats:
+        return
 
     scheduler_interval = 5
     half_window = scheduler_interval / 2 + 0.1
@@ -176,6 +184,20 @@ async def check_and_send_notifications(bot: Bot):
                     await asyncio.sleep(0.05)
         except Exception:
             continue
+
+    # === Рассылка в группы (общая информация, без избранного) ===
+    group_chats = await get_all_group_chats()
+    if group_chats:
+        half_window = scheduler_interval / 2 + 0.1
+        for race, mins, for_quali in upcoming_event:
+            if abs(mins - GROUP_NOTIFY_BEFORE) <= half_window:
+                text = get_notification_text(race, GROUP_TIMEZONE, mins, for_quali=for_quali)
+                quiet = is_quiet_hours(GROUP_TIMEZONE)
+                for chat_id in group_chats:
+                    if await safe_send_message(bot, chat_id, text, parse_mode="HTML", disable_notification=quiet):
+                        sent_count += 1
+                    await asyncio.sleep(0.05)
+                break  # одно напоминание за цикл
 
     if sent_count > 0:
         logger.info(f"✅ Sent {sent_count} event reminders.")
@@ -284,13 +306,18 @@ async def check_and_send_results(bot: Bot):
                 "\n\n📊 Подробности: /next_race"
         )
 
-        # Рассылаем всем с включёнными уведомлениями
+        # Рассылаем всем с включёнными уведомлениями + в группы
         users = await get_users_with_settings(notifications_only=True)
+        group_chats = await get_all_group_chats()
         sent_count = 0
         for user in users:
             tz = user[1] or "Europe/Moscow"
             quiet = is_quiet_hours(tz)
             if await safe_send_message(bot, user[0], text, disable_notification=quiet):
+                sent_count += 1
+            await asyncio.sleep(0.05)
+        for chat_id in group_chats:
+            if await safe_send_message(bot, chat_id, text, disable_notification=is_quiet_hours(GROUP_TIMEZONE)):
                 sent_count += 1
             await asyncio.sleep(0.05)
 
@@ -299,10 +326,12 @@ async def check_and_send_results(bot: Bot):
 
     # === ЛОГИКА ДЛЯ ГОНОК: картинка + текст по избранным под спойлером ===
     results_df = await get_race_results_async(season, round_num)
-    if results_df.empty: return
+    if results_df.empty:
+        return
 
     users_favorites = await get_users_favorites_for_notifications()
-    if not users_favorites:
+    group_chats = await get_all_group_chats()
+    if not users_favorites and not group_chats:
         await set_last_notified_round(season, round_num)
         return
 
@@ -401,23 +430,38 @@ async def check_and_send_results(bot: Bot):
         await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet)
         await asyncio.sleep(0.05)
 
+    # === Результаты в группы (общая картинка, без избранного) ===
+    group_caption = f"🏁 {event_name} — этап {round_num}, сезон {season}\n\n📊 Результаты на картинке."
+    for chat_id in group_chats:
+        if await safe_send_photo(
+            bot, chat_id, photo_bytes,
+            caption=group_caption,
+            parse_mode="HTML",
+            disable_notification=is_quiet_hours(GROUP_TIMEZONE),
+        ):
+            sent_count += 1
+        await asyncio.sleep(0.05)
+
     await set_last_notified_round(season, round_num)
 
 
 # --- ЗАДАЧА 3: РЕЗУЛЬТАТЫ КВАЛИФИКАЦИИ ---
 
 async def check_and_notify_quali(bot: Bot) -> None:
-    """Картинка с общими результатами + текст по избранным пилотам под спойлером."""
+    """Картинка с общими результатами + текст по избранным пилотам под спойлером. Для групп — только картинка."""
     season = datetime.now(timezone.utc).year
     data = await _get_latest_quali_async(season)
-    if not data or data[0] is None: return
+    if not data or data[0] is None:
+        return
 
     round_num, results = data
     last_notified = await get_last_notified_quali_round(season)
-    if last_notified is not None and last_notified >= round_num: return
+    if last_notified is not None and last_notified >= round_num:
+        return
 
     users_favorites = await get_users_favorites_for_notifications()
-    if not users_favorites:
+    group_chats = await get_all_group_chats()
+    if not users_favorites and not group_chats:
         await set_last_notified_quali_round(season, round_num)
         return
 
@@ -478,6 +522,18 @@ async def check_and_notify_quali(bot: Bot) -> None:
             parse_mode="HTML",
             has_spoiler=True,
             disable_notification=quiet,
+        ):
+            sent_count += 1
+        await asyncio.sleep(0.05)
+
+    # === Квалификация в группы (общая картинка) ===
+    quali_caption = f"⏱ Квалификация — этап {round_num:02d}, сезон {season}\n\n📊 Результаты на картинке."
+    for chat_id in group_chats:
+        if await safe_send_photo(
+            bot, chat_id, photo_bytes,
+            caption=quali_caption,
+            parse_mode="HTML",
+            disable_notification=is_quiet_hours(GROUP_TIMEZONE),
         ):
             sent_count += 1
         await asyncio.sleep(0.05)
