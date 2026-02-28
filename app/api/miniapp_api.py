@@ -819,6 +819,23 @@ async def api_compare_teams(c1: str, c2: str, season: int = Query(...)):
     }
 
 
+# Модель для принятия данных с фронтенда (до catch-all, чтобы эндпоинты матчились)
+class NotificationToggle(BaseModel):
+    is_enabled: bool
+
+
+@web_app.get("/api/settings/notifications")
+async def get_notifications(user_id: int = Depends(get_current_user_id)):
+    settings = await get_user_settings(user_id)
+    return {"is_enabled": settings.get("notifications_enabled", False)}
+
+
+@web_app.post("/api/settings/notifications")
+async def update_notifications(data: NotificationToggle, user_id: int = Depends(get_current_user_id)):
+    await update_user_setting(user_id, "notifications_enabled", int(data.is_enabled))
+    return {"status": "ok", "is_enabled": data.is_enabled}
+
+
 @web_app.get("/{full_path:path}")
 async def serve_mpa_or_static(full_path: str):
     # 1. Если это запрос к API - выдаем 404 (чтобы не отдавать HTML вместо данных)
@@ -846,20 +863,3 @@ async def serve_mpa_or_static(full_path: str):
         return FileResponse(str(index_file))
 
     raise HTTPException(status_code=404, detail="Page not found")
-
-
-# Модель для принятия данных с фронтенда
-class NotificationToggle(BaseModel):
-    is_enabled: bool
-
-
-@web_app.get("/api/settings/notifications")
-async def get_notifications(user_id: int = Depends(get_current_user_id)):
-    settings = await get_user_settings(user_id)
-    return {"is_enabled": settings.get("notifications_enabled", False)}
-
-
-@web_app.post("/api/settings/notifications")
-async def update_notifications(data: NotificationToggle, user_id: int = Depends(get_current_user_id)):
-    await update_user_setting(user_id, "notifications_enabled", int(data.is_enabled))
-    return {"status": "ok", "is_enabled": data.is_enabled}
