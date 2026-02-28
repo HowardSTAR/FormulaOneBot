@@ -150,6 +150,16 @@ class Database:
             """
         )
 
+        # 5. Чаты (группы/супергруппы) для общих уведомлений — без пользователей и избранного
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS group_chats (
+                chat_id INTEGER PRIMARY KEY,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         await self.conn.commit()
 
 
@@ -488,3 +498,33 @@ async def get_driver_vote_winner(season: int, round_num: int) -> Tuple[str | Non
     ) as cursor:
         row = await cursor.fetchone()
         return (row["driver_code"], row["cnt"]) if row else (None, 0)
+
+
+# --- Чаты (группы) для общих уведомлений — без пользователей и избранного ---
+
+async def add_group_chat(chat_id: int) -> None:
+    """Добавить чат (группу) для рассылки общих уведомлений."""
+    if not db.conn:
+        await db.connect()
+    await db.conn.execute(
+        "INSERT OR IGNORE INTO group_chats (chat_id) VALUES (?)",
+        (chat_id,),
+    )
+    await db.conn.commit()
+
+
+async def remove_group_chat(chat_id: int) -> None:
+    """Удалить чат из рассылки (бот удалён из группы)."""
+    if not db.conn:
+        await db.connect()
+    await db.conn.execute("DELETE FROM group_chats WHERE chat_id = ?", (chat_id,))
+    await db.conn.commit()
+
+
+async def get_all_group_chats() -> List[int]:
+    """Список chat_id всех групп для рассылки."""
+    if not db.conn:
+        await db.connect()
+    async with db.conn.execute("SELECT chat_id FROM group_chats") as cursor:
+        rows = await cursor.fetchall()
+        return [r["chat_id"] for r in rows]
