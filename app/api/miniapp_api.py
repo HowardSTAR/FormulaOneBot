@@ -490,6 +490,17 @@ async def api_team_logo(
     return Response(content=buf.getvalue(), media_type="image/png")
 
 
+PILOT_FALLBACK_PATH = PROJECT_ROOT / "app" / "assets" / "pilot" / "pilot.png"
+
+
+@web_app.get("/api/pilot-portrait")
+async def api_pilot_portrait():
+    """Дефолтный портрет пилота (fallback, когда нет headshot)."""
+    if PILOT_FALLBACK_PATH.exists():
+        return FileResponse(str(PILOT_FALLBACK_PATH), media_type="image/png")
+    raise HTTPException(status_code=404, detail="Default portrait not found")
+
+
 @web_app.get("/api/favorites")
 async def api_favorites(user_id: int = Depends(get_current_user_id)):
     drivers = await get_favorite_drivers(user_id)

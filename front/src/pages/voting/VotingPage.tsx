@@ -253,7 +253,7 @@ function VotingPage() {
         </button>
       </div>
 
-      {loading && <div className="loading full-width">Загрузка...</div>}
+      {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка голосования...</div></div>}
 
       {!loading && (
         <>

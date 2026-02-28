@@ -123,7 +123,10 @@ function ConstructorDetailsPage() {
     return (
       <>
         <BackButton fallback="/constructors">← <span>Кубок конструкторов</span></BackButton>
-        <div className="loading full-width">Загрузка карточки...</div>
+        <div className="loading full-width">
+          <div className="spinner" />
+          <div>Загрузка карточки команды...</div>
+        </div>
       </>
     );
   }
@@ -189,22 +192,15 @@ function ConstructorDetailsPage() {
                       <div className="constructor-driver-number">#{d.permanentNumber}</div>
                     )}
                     <div className="constructor-driver-portrait">
-                      {d.headshot_url ? (
-                        <img
-                          src={d.headshot_url}
-                          alt={fullName}
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none";
-                            const placeholder = e.currentTarget.nextElementSibling;
-                            if (placeholder) placeholder.classList.remove("hidden");
-                          }}
-                        />
-                      ) : null}
-                      <span
-                        className={`driver-initials ${d.headshot_url ? "hidden" : ""}`}
-                      >
-                        {d.code?.slice(0, 2) || "?"}
-                      </span>
+                      <img
+                        src={d.headshot_url || "/api/pilot-portrait"}
+                        alt={fullName}
+                        onError={(e) => {
+                          if (e.currentTarget.src !== window.location.origin + "/api/pilot-portrait") {
+                            e.currentTarget.src = "/api/pilot-portrait";
+                          }
+                        }}
+                      />
                     </div>
                     {d.nationality && (
                       <span className="constructor-driver-flag">

@@ -112,7 +112,10 @@ function DriverDetailsPage() {
     return (
       <>
         <BackButton fallback="/drivers">← <span>Личный зачет</span></BackButton>
-        <div className="loading full-width">Загрузка карточки...</div>
+        <div className="loading full-width">
+          <div className="spinner" />
+          <div>Загрузка карточки пилота...</div>
+        </div>
       </>
     );
   }
@@ -130,20 +133,16 @@ function DriverDetailsPage() {
 
       <div className="driver-card-header">
         <div className="driver-portrait-wrap">
-          {data.headshot_url ? (
-            <img
-              src={data.headshot_url}
-              alt={fullName}
-              className="driver-portrait"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-                e.currentTarget.nextElementSibling?.classList.remove("hidden");
-              }}
-            />
-          ) : null}
-          <div className={`driver-portrait-placeholder ${data.headshot_url ? "hidden" : ""}`}>
-            {data.code?.slice(0, 2) || "?"}
-          </div>
+          <img
+            src={data.headshot_url || "/api/pilot-portrait"}
+            alt={fullName}
+            className="driver-portrait"
+            onError={(e) => {
+              if (e.currentTarget.src !== window.location.origin + "/api/pilot-portrait") {
+                e.currentTarget.src = "/api/pilot-portrait";
+              }
+            }}
+          />
         </div>
         <div className="driver-card-info">
           <h2 className="driver-card-name">{fullName}</h2>

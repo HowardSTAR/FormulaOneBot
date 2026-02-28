@@ -141,7 +141,7 @@ function FavoritesPage() {
         </button>
       </div>
 
-      {loading && <div className="loading full-width">Загрузка...</div>}
+      {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка избранного...</div></div>}
       {error && <div style={{ color: "red", textAlign: "center", marginTop: 20 }}>{error}</div>}
 
       {!loading && !error && tab === "drivers" && (
