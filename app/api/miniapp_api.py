@@ -370,19 +370,25 @@ async def api_driver_details(
     """Карточка пилота: профиль, статистика сезона и карьеры, биография."""
     if season is None:
         season = datetime.now().year
-    raw_id = (driver_id or "").strip().lower() or (code or "").strip().lower()
-    if not raw_id:
+    did = (driver_id or "").strip().lower()
+    code_str = (code or "").strip().upper()
+    if not did and not code_str:
         raise HTTPException(status_code=400, detail="Укажите code или driverId")
-    # driverId из OpenF1 (до старта сезона) — это номер пилота (23, 44), а не Ergast driverId. Используем code.
-    if raw_id.isdigit() and code:
-        raw_id = code.strip().lower()
-    # При переходе из карточки команды driverId может быть неверным (code в нижнем регистре).
-    # Приоритет code для корректного резолва через Ergast.
-    if code and len(code.strip()) == 3:
-        raw_id = code.strip().lower()
-    details = await get_driver_details_async(raw_id, season, code)
-    if not details and code and raw_id != (code or "").strip().lower():
-        details = await get_driver_details_async((code or "").strip().lower(), season, code)
+
+    # driverId из OpenF1 бывает числом (23, 44) — не Ergast driverId, нужен resolve через code
+    if did.isdigit() and code_str:
+        did = code_str.lower()
+
+    # Если driverId выглядит как валидный Ergast ID (>3 символов, не число) — используем его напрямую
+    # Если driverId короткий (3 символа = code) — resolve через get_driver_details_async
+    details = await get_driver_details_async(did or code_str.lower(), season, code_str or None)
+
+    # Фоллбэк: если не нашлось по driverId — пробуем по code
+    if not details and code_str and did != code_str.lower():
+        details = await get_driver_details_async(code_str.lower(), season, code_str)
+    # Фоллбэк: если не нашлось по code — пробуем по оригинальному driverId (если отличается)
+    if not details and driver_id and did != (driver_id or "").strip().lower():
+        details = await get_driver_details_async((driver_id or "").strip().lower(), season, code_str or None)
     if not details:
         raise HTTPException(status_code=404, detail="Пилот не найден")
     return details
@@ -482,6 +488,17 @@ async def api_team_logo(
     img.save(buf, format="PNG")
     buf.seek(0)
     return Response(content=buf.getvalue(), media_type="image/png")
+
+
+PILOT_FALLBACK_PATH = PROJECT_ROOT / "app" / "assets" / "pilot" / "pilot.png"
+
+
+@web_app.get("/api/pilot-portrait")
+async def api_pilot_portrait():
+    """Дефолтный портрет пилота (fallback, когда нет headshot)."""
+    if PILOT_FALLBACK_PATH.exists():
+        return FileResponse(str(PILOT_FALLBACK_PATH), media_type="image/png")
+    raise HTTPException(status_code=404, detail="Default portrait not found")
 
 
 @web_app.get("/api/favorites")

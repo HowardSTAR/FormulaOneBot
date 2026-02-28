@@ -763,140 +763,193 @@ async def warmup_cache(season: int | None = None):
 # --- КАРТОЧКА ПИЛОТА --- #
 async def _resolve_driver_id(code_or_id: str, season: int) -> str | None:
     """Преобразует code (ALO) в driverId (alonso) через список пилотов сезона или общий список."""
-    base = "https://api.jolpi.ca/ergast/f1"
     code_upper = code_or_id.strip().upper()
     async with aiohttp.ClientSession() as session:
-        # Сначала пробуем сезон (актуальные пилоты 2026 и т.д.)
-        async with session.get(f"{base}/{season}/drivers.json?limit=50") as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                for d in data.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
-                    if d.get("code", "").upper() == code_upper:
-                        return d.get("driverId", code_or_id.lower())
-        # Фоллбэк: общий список пилотов (для новых пилотов, которых ещё нет в сезоне)
-        async with session.get(f"{base}/drivers.json?limit=500") as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                for d in data.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
-                    if d.get("code", "").upper() == code_upper:
-                        return d.get("driverId", code_or_id.lower())
+        for base in _ERGAST_BASES:
+            try:
+                data = await _fetch_json(session, f"{base}/{season}/drivers.json?limit=50")
+                if data:
+                    for d in data.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
+                        if d.get("code", "").upper() == code_upper:
+                            return d.get("driverId", code_or_id.lower())
+                data = await _fetch_json(session, f"{base}/drivers.json?limit=500")
+                if data:
+                    for d in data.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
+                        if d.get("code", "").upper() == code_upper:
+                            return d.get("driverId", code_or_id.lower())
+                break
+            except Exception:
+                continue
     return code_or_id.lower()
 
 
-@cache_result(ttl=3600, key_prefix="driver_details")
+async def _fetch_driver_season_results(session: aiohttp.ClientSession, did: str, season: int) -> list:
+    """Загружает результаты пилота за конкретный сезон."""
+    for base in _ERGAST_BASES:
+        try:
+            resp_data = await _fetch_json(session, f"{base}/{season}/drivers/{did}/results.json?limit=100")
+            if resp_data:
+                results = []
+                for race in resp_data.get("MRData", {}).get("RaceTable", {}).get("Races", []):
+                    for res in race.get("Results", []):
+                        results.append({
+                            "season": race.get("season"),
+                            "position": res.get("position"),
+                            "positionText": res.get("positionText", ""),
+                            "points": float(res.get("points", 0)),
+                            "grid": res.get("grid"),
+                            "status": res.get("status", ""),
+                            "laps": res.get("laps"),
+                        })
+                if results:
+                    return results
+        except Exception:
+            continue
+    return []
+
+
+async def _fetch_driver_career_results(session: aiohttp.ClientSession, did: str) -> list:
+    """Загружает все результаты карьеры пилота."""
+    for base in _ERGAST_BASES:
+        try:
+            offset = 0
+            limit = 1000
+            career = []
+            while True:
+                resp_data = await _fetch_json(session, f"{base}/drivers/{did}/results.json?limit={limit}&offset={offset}")
+                if not resp_data:
+                    break
+                mr = resp_data.get("MRData", {})
+                total = int(mr.get("total", 0))
+                for race in mr.get("RaceTable", {}).get("Races", []):
+                    for res in race.get("Results", []):
+                        career.append({
+                            "season": race.get("season"),
+                            "position": res.get("position"),
+                            "positionText": res.get("positionText", ""),
+                            "points": float(res.get("points", 0)),
+                            "grid": res.get("grid"),
+                            "status": res.get("status", ""),
+                            "laps": res.get("laps"),
+                        })
+                offset += limit
+                if offset >= total:
+                    break
+            if career:
+                return career
+        except Exception:
+            continue
+    return []
+
+
+async def _fetch_wiki_bio(session: aiohttp.ClientSession, wiki_url: str) -> str:
+    """Загружает биографию из Wikipedia."""
+    if not wiki_url or "wikipedia.org/wiki/" not in wiki_url:
+        return ""
+    try:
+        title = wiki_url.split("wiki/")[-1].replace(" ", "_")
+        async with session.get(
+            "https://en.wikipedia.org/w/api.php",
+            params={
+                "format": "json",
+                "action": "query",
+                "prop": "extracts",
+                "exintro": 1,
+                "explaintext": 1,
+                "redirects": 1,
+                "titles": title,
+            },
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as wresp:
+            if wresp.status == 200:
+                wdata = await wresp.json()
+                pages = wdata.get("query", {}).get("pages", {})
+                for pid, p in pages.items():
+                    if pid != "-1" and p.get("extract"):
+                        return p["extract"][:2000]
+    except Exception:
+        pass
+    return ""
+
+
+async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str, season: int) -> str:
+    """Загружает URL headshot из OpenF1. Пропускает старые сезоны (до 2023)."""
+    if not code_match or season < 2023:
+        return ""
+    try:
+        async with session.get(
+            "https://api.openf1.org/v1/drivers?session_key=latest",
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as oresp:
+            if oresp.status == 200:
+                for d in await oresp.json():
+                    if d.get("name_acronym", "").upper() == code_match:
+                        url = d.get("headshot_url") or ""
+                        if url and "d_driver_fallback_image" not in url:
+                            return url
+                        if url:
+                            break
+        async with session.get(
+            "https://api.openf1.org/v1/drivers",
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as oresp2:
+            if oresp2.status == 200:
+                for d in await oresp2.json():
+                    if d.get("name_acronym", "").upper() == code_match:
+                        url = d.get("headshot_url") or ""
+                        if url and "d_driver_fallback_image" not in url:
+                            return url
+    except Exception:
+        pass
+    return ""
+
+
+@cache_result(ttl=3600, key_prefix="driver_details_v3")
 async def get_driver_details_async(driver_id: str, season: int, code: str | None = None):
     """
     Получает профиль пилота, статистику сезона и карьеры из Ergast/Jolpica API.
     driver_id: ergast driverId (например alonso) или code (ALO).
     code: опционально, для разрешения когда driver_id — номер из OpenF1.
     """
-    base = "https://api.jolpi.ca/ergast/f1"
     did = driver_id.strip().lower()
     resolve_code = (code or driver_id).strip().upper()
     if (len(did) == 3 and did == did.upper().lower()) or did.isdigit():
         resolved = await _resolve_driver_id(resolve_code, season)
         if resolved and not resolved.isdigit():
             did = resolved
-    driver_info = None
-    career_results = []
 
     async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(f"{base}/drivers/{did}.json") as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    drivers = data.get("MRData", {}).get("DriverTable", {}).get("Drivers", [])
-                    if drivers:
-                        driver_info = drivers[0]
-        except Exception as e:
-            logger.warning(f"Driver info fetch error: {e}")
-
+        # 1. Информация о пилоте (обязательно первым — нужны wiki_url, code)
+        data = await _try_bases(session, f"/drivers/{did}.json")
+        driver_info = None
+        if data:
+            drivers = data.get("MRData", {}).get("DriverTable", {}).get("Drivers", [])
+            if drivers:
+                driver_info = drivers[0]
         if not driver_info:
             return None
 
-        try:
-            offset = 0
-            limit = 100
-            while True:
-                async with session.get(
-                    f"{base}/drivers/{did}/results.json?limit={limit}&offset={offset}"
-                ) as resp:
-                    if resp.status != 200:
-                        break
-                    data = await resp.json()
-                    mr = data.get("MRData", {})
-                    total = int(mr.get("total", 0))
-                    races = mr.get("RaceTable", {}).get("Races", [])
-                    for race in races:
-                        for res in race.get("Results", []):
-                            career_results.append({
-                                "season": race.get("season"),
-                                "position": res.get("position"),
-                                "positionText": res.get("positionText", ""),
-                                "points": float(res.get("points", 0)),
-                                "grid": res.get("grid"),
-                                "status": res.get("status", ""),
-                                "laps": res.get("laps"),
-                            })
-                    offset += limit
-                    if offset >= total:
-                        break
-        except Exception as e:
-            logger.warning(f"Driver results fetch error: {e}")
-
-        # Wikipedia bio
-        bio = ""
         wiki_url = driver_info.get("url", "")
-        if wiki_url and "wikipedia.org/wiki/" in wiki_url:
-            try:
-                title = wiki_url.split("wiki/")[-1].replace(" ", "_")
-                async with session.get(
-                    "https://en.wikipedia.org/w/api.php",
-                    params={
-                        "format": "json",
-                        "action": "query",
-                        "prop": "extracts",
-                        "exintro": 1,
-                        "explaintext": 1,
-                        "redirects": 1,
-                        "titles": title,
-                    },
-                ) as wresp:
-                    if wresp.status == 200:
-                        wdata = await wresp.json()
-                        pages = wdata.get("query", {}).get("pages", {})
-                        for pid, p in pages.items():
-                            if pid != "-1" and p.get("extract"):
-                                bio = p["extract"][:2000]
-                                break
-            except Exception as e:
-                logger.debug(f"Wikipedia fetch error: {e}")
-
-        # Headshot from OpenF1 (optional). Предпочитаем URL без d_driver_fallback_image
-        headshot_url = ""
         code_match = driver_info.get("code", "").upper()
-        try:
-            async with session.get("https://api.openf1.org/v1/drivers?session_key=latest") as oresp:
-                if oresp.status == 200:
-                    drivers_o = await oresp.json()
-                    for d in drivers_o:
-                        if d.get("name_acronym", "").upper() == code_match:
-                            url = d.get("headshot_url") or ""
-                            if url:
-                                headshot_url = url
-                                break
-            if "d_driver_fallback_image" in headshot_url:
-                async with session.get("https://api.openf1.org/v1/drivers") as oresp2:
-                    if oresp2.status == 200:
-                        drivers_all = await oresp2.json()
-                        for d in drivers_all:
-                            if d.get("name_acronym", "").upper() == code_match:
-                                url = d.get("headshot_url") or ""
-                                if url and "d_driver_fallback_image" not in url:
-                                    headshot_url = url
-                                    break
-        except Exception:
-            pass
+
+        # 2. Параллельная загрузка: сезон, карьера, биография, headshot, standings
+        (
+            season_results,
+            career_results,
+            bio,
+            headshot_url,
+            standings_df,
+        ) = await asyncio.gather(
+            _fetch_driver_season_results(session, did, season),
+            _fetch_driver_career_results(session, did),
+            _fetch_wiki_bio(session, wiki_url),
+            _fetch_driver_headshot(session, code_match, season),
+            get_driver_standings_async(season),
+        )
+
+    # Если season_results пусто, но career_results загружен — извлечём
+    if not season_results and career_results:
+        season_results = [r for r in career_results if r.get("season") == str(season)]
 
     # Career stats
     gp_entered = len(career_results)
@@ -907,7 +960,6 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
     dnfs = sum(1 for r in career_results if r.get("positionText") in ("R", "D", "W", "F", "N", "E", "EX"))
 
     # Season stats
-    season_results = [r for r in career_results if r.get("season") == str(season)]
     season_gp = len(season_results)
     season_points = sum(r["points"] for r in season_results)
     season_wins = sum(1 for r in season_results if r.get("position") == "1")
@@ -916,7 +968,6 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
     season_dnfs = sum(1 for r in season_results if r.get("positionText") in ("R", "D", "W", "F", "N", "E", "EX"))
 
     # Season position from standings
-    standings_df = await get_driver_standings_async(season)
     season_pos: int | str = 0
     if not standings_df.empty and "driverCode" in standings_df.columns:
         for row in standings_df.itertuples(index=False):
@@ -925,7 +976,7 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
                 season_pos = getattr(row, "position", 0)
                 break
 
-    # World championships: проверяем, в каких сезонах пилот стал чемпионом
+    # World championships
     driver_seasons = sorted(set(r.get("season") for r in career_results if r.get("season")), reverse=True)
     world_championships = await _count_driver_championships(did, driver_seasons)
 
@@ -950,7 +1001,7 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
             "grand_prix_podiums": season_podiums,
             "grand_prix_poles": season_poles,
             "grand_prix_top10s": sum(1 for r in season_results if r.get("position") and r["position"].isdigit() and int(r["position"]) <= 10),
-            "fastest_laps": 0,  # Ergast results don't have fast lap flag directly
+            "fastest_laps": 0,
             "dnfs": season_dnfs,
             "sprint_races": 0,
             "sprint_points": 0,
@@ -998,30 +1049,29 @@ async def _count_driver_championships(driver_id: str, seasons: list[str]) -> int
     """Считает чемпионства пилота по итогам сезонов (position=1 в driverStandings)."""
     if not seasons:
         return 0
-    base = "https://api.jolpi.ca/ergast/f1"
     count = 0
     async with aiohttp.ClientSession() as session:
         for yr in seasons:
-            try:
-                # limit=1 может вернуть первый раунд; запрашиваем все раунды и берём последний
-                async with session.get(f"{base}/{yr}/driverStandings.json?limit=100") as resp:
-                    if resp.status != 200:
-                        continue
-                    data = await resp.json()
-                    lists = data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
-                    if not lists:
-                        continue
-                    # Берём последний раунд (финальная таблица)
-                    last_list = lists[-1]
-                    standings = last_list.get("DriverStandings", [])
-                    for ds in standings:
-                        if str(ds.get("position", "")) == "1":
-                            champ_id = ds.get("Driver", {}).get("driverId", "")
-                            if champ_id and champ_id.lower() == driver_id.lower():
-                                count += 1
-                            break
-            except Exception:
-                continue
+            for base in _ERGAST_BASES:
+                try:
+                    async with session.get(f"{base}/{yr}/driverStandings.json?limit=100") as resp:
+                        if resp.status != 200:
+                            continue
+                        data = await resp.json()
+                        lists = data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
+                        if not lists:
+                            continue
+                        last_list = lists[-1]
+                        standings = last_list.get("DriverStandings", [])
+                        for ds in standings:
+                            if str(ds.get("position", "")) == "1":
+                                champ_id = ds.get("Driver", {}).get("driverId", "")
+                                if champ_id and champ_id.lower() == driver_id.lower():
+                                    count += 1
+                                break
+                        break
+                except Exception:
+                    continue
     # Фоллбэк: если API вернул 0, но пилот — известный чемпион
     if count == 0 and driver_id:
         fallback = DRIVER_CHAMPIONSHIPS_FALLBACK.get(driver_id.lower())
@@ -1096,6 +1146,13 @@ CONSTRUCTOR_ID_MAP = {
     "alpine_f1_team": "alpine",
     "mercedes_amg": "mercedes",
     "mercedes_amg_f1": "mercedes",
+    "alfa_romeo": "alfa",
+    "alfaromeo": "alfa",
+    "sauber": "sauber",
+    "stake_f1_team": "sauber",
+    "stake_f1_team_kick_sauber": "sauber",
+    "kick_sauber": "sauber",
+    "williams_racing": "williams",
 }
 
 
@@ -1106,36 +1163,64 @@ async def _get_constructor_drivers_fallback(
     constructor_info: dict | None,
 ) -> list:
     """Фоллбэк: пилоты из driver standings или OpenF1, когда Ergast не вернул данных."""
-    ergast_base = "https://api.jolpi.ca/ergast/f1"
     # 1. Пробуем driver standings за сезон (если есть данные)
-    try:
-        async with session.get(f"{ergast_base}/{season}/driverStandings.json?limit=50") as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                lists = data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
-                if lists:
+    for ergast_base in _ERGAST_BASES:
+        try:
+            async with session.get(f"{ergast_base}/{season}/driverStandings.json?limit=50") as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    lists = data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
+                    if lists:
+                        result = []
+                        last_list = lists[-1]
+                        for ds in last_list.get("DriverStandings", []):
+                            for c in ds.get("Constructors", []):
+                                if c.get("constructorId", "").lower() == cid:
+                                    dr = ds.get("Driver", {})
+                                    result.append({
+                                        "driverId": dr.get("driverId", ""),
+                                        "code": dr.get("code", ""),
+                                        "givenName": dr.get("givenName", ""),
+                                        "familyName": dr.get("familyName", ""),
+                                        "permanentNumber": str(dr.get("permanentNumber", "")) if dr.get("permanentNumber") else "",
+                                        "nationality": dr.get("nationality", ""),
+                                    })
+                                    break
+                        if result:
+                            return result
+        except Exception:
+            pass
+
+    # 2. Из результатов гонок
+    for ergast_base in _ERGAST_BASES:
+        try:
+            async with session.get(f"{ergast_base}/{season}/constructors/{cid}/results.json?limit=100") as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    races = data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
+                    seen_driver_ids = set()
                     result = []
-                    # Берём последний раунд (финальная таблица)
-                    last_list = lists[-1]
-                    for ds in last_list.get("DriverStandings", []):
-                        for c in ds.get("Constructors", []):
-                            if c.get("constructorId", "").lower() == cid:
-                                dr = ds.get("Driver", {})
+                    for race in races:
+                        for res in race.get("Results", []):
+                            dr = res.get("Driver", {})
+                            did = dr.get("driverId", "")
+                            if did and did not in seen_driver_ids:
+                                seen_driver_ids.add(did)
+                                nat = dr.get("nationality") or ""
                                 result.append({
-                                    "driverId": dr.get("driverId", ""),
+                                    "driverId": did,
                                     "code": dr.get("code", ""),
                                     "givenName": dr.get("givenName", ""),
                                     "familyName": dr.get("familyName", ""),
                                     "permanentNumber": str(dr.get("permanentNumber", "")) if dr.get("permanentNumber") else "",
-                                    "nationality": dr.get("nationality", ""),
+                                    "nationality": str(nat).strip() if nat else "",
                                 })
-                                break
                     if result:
                         return result
-    except Exception:
-        pass
+        except Exception:
+            pass
 
-    # 2. OpenF1: ТОЛЬКО для текущего/будущего сезона (session_key=latest = нынешний состав)
+    # 3. OpenF1: ТОЛЬКО для текущего/будущего сезона (session_key=latest = нынешний состав)
     current_year = datetime.now().year
     if season < current_year:
         return []  # Не подставлять пилотов нынешнего сезона за прошлые годы
@@ -1164,29 +1249,30 @@ async def _get_constructor_drivers_fallback(
             if resp.status != 200:
                 return []
             drivers_o = await resp.json()
-            # Резолв code -> driverId и nationality из Ergast для корректных ссылок и флагов
+            # Резолв code -> driverId и nationality из Ergast (пробуем обе базы)
             code_to_driver_id: dict[str, str] = {}
             code_to_nationality: dict[str, str] = {}
-            try:
-                async with session.get(f"{ergast_base}/{season}/drivers.json?limit=50") as eresp:
-                    if eresp.status == 200:
-                        edata = await eresp.json()
-                        for dr in edata.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
-                            c = (dr.get("code") or "").upper()
-                            if c:
-                                code_to_driver_id[c] = dr.get("driverId", "")
-                                code_to_nationality[c] = dr.get("nationality", "")
-                # Фоллбэк: общий список пилотов (для новых, кого ещё нет в сезоне)
-                async with session.get(f"{ergast_base}/drivers.json?limit=500") as eresp:
-                    if eresp.status == 200:
-                        edata = await eresp.json()
-                        for dr in edata.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
-                            c = (dr.get("code") or "").upper()
-                            if c and c not in code_to_nationality:
-                                code_to_driver_id.setdefault(c, dr.get("driverId", ""))
-                                code_to_nationality[c] = dr.get("nationality", "")
-            except Exception:
-                pass
+            for ergast_base in _ERGAST_BASES:
+                try:
+                    async with session.get(f"{ergast_base}/{season}/drivers.json?limit=50") as eresp:
+                        if eresp.status == 200:
+                            edata = await eresp.json()
+                            for dr in edata.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
+                                c = (dr.get("code") or "").upper()
+                                if c:
+                                    code_to_driver_id[c] = dr.get("driverId", "")
+                                    code_to_nationality[c] = dr.get("nationality", "")
+                    async with session.get(f"{ergast_base}/drivers.json?limit=500") as eresp:
+                        if eresp.status == 200:
+                            edata = await eresp.json()
+                            for dr in edata.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
+                                c = (dr.get("code") or "").upper()
+                                if c and c not in code_to_nationality:
+                                    code_to_driver_id.setdefault(c, dr.get("driverId", ""))
+                                    code_to_nationality[c] = dr.get("nationality", "")
+                    break
+                except Exception:
+                    pass
 
             result = []
             for d in drivers_o:
@@ -1226,198 +1312,224 @@ async def _get_constructor_drivers_fallback(
     return []
 
 
+# Ergast-подобные API (пробуем по очереди при сбоях)
+_ERGAST_BASES = [
+    "https://api.jolpi.ca/ergast/f1",
+    "https://ergast.com/api/f1",
+]
+
+
+async def _fetch_json(session: aiohttp.ClientSession, url: str, timeout: float = 30.0) -> dict | None:
+    """Запрос JSON с таймаутом. Возвращает None при ошибке."""
+    try:
+        async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
+            if resp.status == 200:
+                return await resp.json()
+    except Exception as e:
+        logger.debug(f"Fetch failed for {url[:60]}...: {e}")
+    return None
+
+
+async def _try_bases(session: aiohttp.ClientSession, path: str) -> dict | None:
+    """Пробует запрос к каждому API-base по очереди."""
+    for base in _ERGAST_BASES:
+        data = await _fetch_json(session, f"{base}{path}")
+        if data:
+            return data
+    return None
+
+
+# --- Вспомогательные загрузчики для конструкторов --- #
+
+async def _fetch_constructor_season_results(session: aiohttp.ClientSession, cid: str, season: int) -> tuple[list, int]:
+    """Загружает результаты конструктора за сезон. Возвращает (results, race_count)."""
+    for base in _ERGAST_BASES:
+        try:
+            resp_data = await _fetch_json(session, f"{base}/{season}/constructors/{cid}/results.json?limit=100")
+            if resp_data:
+                races = resp_data.get("MRData", {}).get("RaceTable", {}).get("Races", [])
+                results = []
+                for race in races:
+                    for res in race.get("Results", []):
+                        results.append({
+                            "season": race.get("season"),
+                            "position": res.get("position"),
+                            "positionText": res.get("positionText", ""),
+                            "points": float(res.get("points", 0)),
+                            "grid": res.get("grid"),
+                        })
+                if results:
+                    return results, len(races)
+        except Exception:
+            continue
+    return [], 0
+
+
+async def _fetch_constructor_career_results(session: aiohttp.ClientSession, cid: str) -> list:
+    """Загружает все результаты карьеры конструктора."""
+    for base in _ERGAST_BASES:
+        try:
+            offset = 0
+            limit = 1000
+            career = []
+            while True:
+                resp_data = await _fetch_json(session, f"{base}/constructors/{cid}/results.json?limit={limit}&offset={offset}")
+                if not resp_data:
+                    break
+                mr = resp_data.get("MRData", {})
+                total = int(mr.get("total", 0))
+                for race in mr.get("RaceTable", {}).get("Races", []):
+                    for res in race.get("Results", []):
+                        career.append({
+                            "season": race.get("season"),
+                            "position": res.get("position"),
+                            "positionText": res.get("positionText", ""),
+                            "points": float(res.get("points", 0)),
+                            "grid": res.get("grid"),
+                        })
+                offset += limit
+                if offset >= total:
+                    break
+            if career:
+                return career
+        except Exception:
+            continue
+    return []
+
+
+async def _fetch_constructor_drivers(session: aiohttp.ClientSession, cid: str, season: int, constructor_info: dict) -> list:
+    """Загружает пилотов конструктора за сезон с fallback."""
+    drivers = []
+    for base in _ERGAST_BASES:
+        ddata = await _fetch_json(session, f"{base}/{season}/constructors/{cid}/drivers.json")
+        if ddata:
+            for d in ddata.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
+                nat = d.get("nationality") or ""
+                drivers.append({
+                    "driverId": d.get("driverId"),
+                    "code": d.get("code", ""),
+                    "givenName": d.get("givenName", ""),
+                    "familyName": d.get("familyName", ""),
+                    "permanentNumber": str(d.get("permanentNumber", "")) if d.get("permanentNumber") else "",
+                    "nationality": str(nat).strip() if nat else "",
+                })
+            break
+    if not drivers:
+        drivers = await _get_constructor_drivers_fallback(session, cid, season, constructor_info)
+    return drivers
+
+
+async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers: list, season: int) -> None:
+    """Дополняет пилотов headshot и nationality из OpenF1 (только для сезонов >= 2023)."""
+    if not season_drivers or season < 2023:
+        for sd in season_drivers:
+            sd.setdefault("headshot_url", "")
+        return
+
+    def _apply(drivers_o: list) -> None:
+        for sd in season_drivers:
+            code = sd.get("code", "").upper()
+            for d in drivers_o:
+                if d.get("name_acronym", "").upper() == code:
+                    url = d.get("headshot_url") or ""
+                    if url and not sd.get("headshot_url"):
+                        sd["headshot_url"] = url
+                    if not sd.get("nationality"):
+                        cc = (d.get("country_code") or "").upper()
+                        if cc and cc in COUNTRY_CODE_TO_NATIONALITY:
+                            sd["nationality"] = COUNTRY_CODE_TO_NATIONALITY[cc]
+                    break
+
+    try:
+        async with session.get(
+            "https://api.openf1.org/v1/drivers?session_key=latest",
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as oresp:
+            if oresp.status == 200:
+                _apply(await oresp.json())
+        missing = any(not sd.get("headshot_url") or not sd.get("nationality") for sd in season_drivers)
+        if missing:
+            async with session.get(
+                "https://api.openf1.org/v1/drivers",
+                timeout=aiohttp.ClientTimeout(total=10),
+            ) as oresp2:
+                if oresp2.status == 200:
+                    _apply(await oresp2.json())
+    except Exception:
+        pass
+
+    # Nationality fallback из Ergast
+    missing_nat = [sd for sd in season_drivers if not (sd.get("nationality") or "").strip()]
+    if missing_nat:
+        for base in _ERGAST_BASES:
+            try:
+                data = await _fetch_json(session, f"{base}/drivers.json?limit=500")
+                if data:
+                    code_to_nat = {}
+                    for dr in data.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
+                        c = (dr.get("code") or "").upper()
+                        n = (dr.get("nationality") or "").strip()
+                        if c and n:
+                            code_to_nat[c] = n
+                    for sd in missing_nat:
+                        sd["nationality"] = code_to_nat.get((sd.get("code") or "").upper(), "")
+                    break
+            except Exception:
+                continue
+
+    for sd in season_drivers:
+        sd.setdefault("headshot_url", "")
+        sd["nationality"] = (sd.get("nationality") or "").strip()
+
+
 # --- КАРТОЧКА КОНСТРУКТОРА --- #
-@cache_result(ttl=3600, key_prefix="constructor_details_v6")
+@cache_result(ttl=3600, key_prefix="constructor_details_v11")
 async def get_constructor_details_async(constructor_id: str, season: int):
     """Профиль команды: название, лого, статистика сезона и карьеры, биография."""
-    base = "https://api.jolpi.ca/ergast/f1"
     cid = constructor_id.strip().lower().replace(" ", "_")
     cid = CONSTRUCTOR_ID_MAP.get(cid, cid)
-    constructor_info = None
-    career_results: list = []
-    season_drivers: list = []
 
     async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(f"{base}/constructors/{cid}.json") as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    constructors = data.get("MRData", {}).get("ConstructorTable", {}).get("Constructors", [])
-                    if constructors:
-                        constructor_info = constructors[0]
-        except Exception as e:
-            logger.warning(f"Constructor info fetch error: {e}")
-
+        # 1. Конструктор (обязательно первым)
+        data = await _try_bases(session, f"/constructors/{cid}.json")
+        constructor_info = None
+        if data:
+            constructors = data.get("MRData", {}).get("ConstructorTable", {}).get("Constructors", [])
+            if constructors:
+                constructor_info = constructors[0]
         if not constructor_info:
             return None
 
-        try:
-            offset = 0
-            limit = 100
-            while True:
-                async with session.get(
-                    f"{base}/constructors/{cid}/results.json?limit={limit}&offset={offset}"
-                ) as resp:
-                    if resp.status != 200:
-                        break
-                    data = await resp.json()
-                    mr = data.get("MRData", {})
-                    total = int(mr.get("total", 0))
-                    races = mr.get("RaceTable", {}).get("Races", [])
-                    for race in races:
-                        for res in race.get("Results", []):
-                            career_results.append({
-                                "season": race.get("season"),
-                                "position": res.get("position"),
-                                "positionText": res.get("positionText", ""),
-                                "points": float(res.get("points", 0)),
-                                "grid": res.get("grid"),
-                            })
-                    offset += limit
-                    if offset >= total:
-                        break
-        except Exception as e:
-            logger.warning(f"Constructor results fetch error: {e}")
-
-        # Пилоты команды в этом сезоне
-        season_drivers = []
-        try:
-            async with session.get(f"{base}/{season}/constructors/{cid}/drivers.json?limit=10") as dresp:
-                if dresp.status == 200:
-                    ddata = await dresp.json()
-                    for d in ddata.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
-                        nat = d.get("nationality") or ""
-                        season_drivers.append({
-                            "driverId": d.get("driverId"),
-                            "code": d.get("code", ""),
-                            "givenName": d.get("givenName", ""),
-                            "familyName": d.get("familyName", ""),
-                            "permanentNumber": str(d.get("permanentNumber", "")) if d.get("permanentNumber") else "",
-                            "nationality": str(nat).strip() if nat else "",
-                        })
-        except Exception:
-            pass
-
-        # Фоллбэк: если Ergast не вернул пилотов (например, будущий сезон), берём из driver standings или OpenF1
-        if not season_drivers:
-            season_drivers = await _get_constructor_drivers_fallback(session, cid, season, constructor_info)
-
-        # Headshots и nationality из OpenF1: session_key=latest, затем /v1/drivers для недостающих
-        def _fill_headshots_and_nationality(drivers_o: list, overwrite_headshot: bool = False) -> None:
-            for sd in season_drivers:
-                code = sd.get("code", "").upper()
-                for d in drivers_o:
-                    if d.get("name_acronym", "").upper() == code:
-                        url = d.get("headshot_url") or ""
-                        if url and (overwrite_headshot or not sd.get("headshot_url")):
-                            sd["headshot_url"] = url
-                        if not sd.get("nationality"):
-                            cc = (d.get("country_code") or "").upper()
-                            if cc and cc in COUNTRY_CODE_TO_NATIONALITY:
-                                sd["nationality"] = COUNTRY_CODE_TO_NATIONALITY[cc]
-                        break
-
-        if season_drivers:
-            try:
-                async with session.get("https://api.openf1.org/v1/drivers?session_key=latest") as oresp:
-                    if oresp.status == 200:
-                        drivers_o = await oresp.json()
-                        _fill_headshots_and_nationality(drivers_o, overwrite_headshot=False)
-                # Fallback: /v1/drivers для пилотов без headshot или nationality
-                missing = any(
-                    not sd.get("headshot_url") or not sd.get("nationality")
-                    for sd in season_drivers
-                )
-                if missing:
-                    try:
-                        async with session.get("https://api.openf1.org/v1/drivers") as oresp2:
-                            if oresp2.status == 200:
-                                drivers_all = await oresp2.json()
-                                _fill_headshots_and_nationality(drivers_all, overwrite_headshot=False)
-                    except Exception:
-                        pass
-                for sd in season_drivers:
-                    if "headshot_url" not in sd:
-                        sd["headshot_url"] = ""
-                # Нормализация: nationality всегда строка, fallback из Ergast если пусто
-                missing_nat = [sd for sd in season_drivers if not (sd.get("nationality") or "").strip()]
-                if missing_nat:
-                    try:
-                        async with session.get(f"{base}/drivers.json?limit=500") as eresp:
-                            if eresp.status == 200:
-                                edata = await eresp.json()
-                                code_to_nat = {}
-                                for dr in edata.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
-                                    c = (dr.get("code") or "").upper()
-                                    n = dr.get("nationality") or ""
-                                    if c and n:
-                                        code_to_nat[c] = str(n).strip()
-                                for sd in missing_nat:
-                                    n = code_to_nat.get((sd.get("code") or "").upper(), "")
-                                    sd["nationality"] = n
-                    except Exception:
-                        pass
-                for sd in season_drivers:
-                    sd["nationality"] = (sd.get("nationality") or "").strip() or ""
-            except Exception:
-                for sd in season_drivers:
-                    sd["headshot_url"] = sd.get("headshot_url", "")
-
-        # Финальная проверка nationality (fallback из Ergast drivers, если пусто)
-        for sd in season_drivers:
-            sd["nationality"] = (sd.get("nationality") or "").strip() or ""
-        missing_nat = [sd for sd in season_drivers if not sd.get("nationality")]
-        if missing_nat:
-            try:
-                async with session.get(f"{base}/drivers.json?limit=500") as eresp:
-                    if eresp.status == 200:
-                        edata = await eresp.json()
-                        code_to_nat = {}
-                        for dr in edata.get("MRData", {}).get("DriverTable", {}).get("Drivers", []):
-                            c = (dr.get("code") or "").upper()
-                            n = (dr.get("nationality") or "").strip()
-                            if c and n:
-                                code_to_nat[c] = n
-                        for sd in missing_nat:
-                            sd["nationality"] = code_to_nat.get((sd.get("code") or "").upper(), "")
-            except Exception:
-                pass
-
         wiki_url = constructor_info.get("url", "")
-        bio = ""
-        if wiki_url and "wikipedia.org/wiki/" in wiki_url:
-            try:
-                title = wiki_url.split("wiki/")[-1].replace(" ", "_")
-                async with session.get(
-                    "https://en.wikipedia.org/w/api.php",
-                    params={
-                        "format": "json",
-                        "action": "query",
-                        "prop": "extracts",
-                        "exintro": 1,
-                        "explaintext": 1,
-                        "redirects": 1,
-                        "titles": title,
-                    },
-                ) as wresp:
-                    if wresp.status == 200:
-                        wdata = await wresp.json()
-                        pages = wdata.get("query", {}).get("pages", {})
-                        for pid, p in pages.items():
-                            if pid != "-1" and p.get("extract"):
-                                bio = p["extract"][:2000]
-                                break
-            except Exception:
-                pass
 
-    season_results = [r for r in career_results if r.get("season") == str(season)]
+        # 2. Параллельная загрузка: сезон, карьера, пилоты, биография, standings
+        (
+            (season_results, season_race_count),
+            career_results,
+            season_drivers,
+            bio,
+            standings_df,
+        ) = await asyncio.gather(
+            _fetch_constructor_season_results(session, cid, season),
+            _fetch_constructor_career_results(session, cid),
+            _fetch_constructor_drivers(session, cid, season, constructor_info),
+            _fetch_wiki_bio(session, wiki_url),
+            get_constructor_standings_async(season),
+        )
+
+        # Если season_results пусто — извлечём из career_results
+        if not season_results and career_results:
+            season_results = [r for r in career_results if r.get("season") == str(season)]
+
+        # 3. Дополнение headshot/nationality (зависит от season_drivers)
+        await _fill_drivers_headshots(session, season_drivers, season)
+
+    # Career stats
     gp_entered = len(career_results)
     career_points = sum(r["points"] for r in career_results)
-    wins = sum(1 for r in career_results if r.get("position") == "1")
     podiums = sum(1 for r in career_results if r.get("position") in ("1", "2", "3"))
     poles = sum(1 for r in career_results if r.get("grid") == "1")
 
-    standings_df = await get_constructor_standings_async(season)
     season_pos: int | str = 0
     if not standings_df.empty:
         for row in standings_df.itertuples(index=False):
@@ -1440,7 +1552,7 @@ async def get_constructor_details_async(constructor_id: str, season: int):
         "season_stats": {
             "position": season_pos,
             "points": sum(r["points"] for r in season_results),
-            "grand_prix_races": len(season_results),
+            "grand_prix_races": season_race_count if season_race_count else len(season_results),
             "grand_prix_wins": sum(1 for r in season_results if r.get("position") == "1"),
             "grand_prix_podiums": sum(1 for r in season_results if r.get("position") in ("1", "2", "3")),
             "grand_prix_poles": sum(1 for r in season_results if r.get("grid") == "1"),

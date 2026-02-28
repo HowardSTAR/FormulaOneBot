@@ -115,7 +115,7 @@ function SeasonPage() {
       />
 
       <div className="standings-list">
-        {loading && <div className="loading full-width">Загрузка календаря...</div>}
+        {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка календаря...</div></div>}
         {error && <div style={{ color: "red", textAlign: "center" }}>{error}</div>}
         {!loading && emptyMessage && (
           <div style={{ textAlign: "center", padding: "40px 20px" }}>

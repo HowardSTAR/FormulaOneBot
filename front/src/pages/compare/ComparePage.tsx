@@ -384,11 +384,18 @@ function ComparePage() {
         {comparing ? "Анализируем..." : "Сравнить"}
       </button>
 
+      {comparing && (
+        <div className="loading" style={{ padding: "20px 0" }}>
+          <div className="spinner" />
+          <div>Анализируем данные...</div>
+        </div>
+      )}
+
       {compareError && (
         <div style={{ color: "#ff6b6b", marginBottom: 16, fontSize: 14 }}>{compareError}</div>
       )}
 
-      {results && results.labels && results.labels.length > 0 && (
+      {!comparing && results && results.labels && results.labels.length > 0 && (
         <div style={{ animation: "fadeIn 0.3s ease-out" }}>
           <div className="stats-grid">
             <div className="stat-card">

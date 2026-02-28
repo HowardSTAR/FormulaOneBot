@@ -117,7 +117,7 @@ function DriversPage() {
       />
 
       <div style={{ display: "flex", flexDirection: "column" }}>
-        {loading && <div className="loading full-width">Загрузка...</div>}
+        {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка пилотов...</div></div>}
         {error && <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>}
         {!loading && !error && emptyMessage && (
           <div className="empty-state">
