@@ -42,3 +42,23 @@ async def get_current_user_id(
 
     except Exception:
         raise HTTPException(status_code=401, detail="Authentication failed")
+
+
+async def get_optional_user_id(
+        x_telegram_init_data: Annotated[str | None, Header()] = None
+) -> int | None:
+    """Как get_current_user_id, но возвращает None вместо 401 если нет авторизации."""
+    if not x_telegram_init_data:
+        return None
+    try:
+        settings = get_settings()
+        is_valid = check_webapp_signature(settings.bot.token, x_telegram_init_data)
+        if not is_valid:
+            return None
+        web_app_data: WebAppInitData = safe_parse_webapp_init_data(
+            token=settings.bot.token,
+            init_data=x_telegram_init_data
+        )
+        return web_app_data.user.id
+    except Exception:
+        return None

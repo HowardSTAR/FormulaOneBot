@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
-import { hapticSelection } from "../../helpers/telegram";
+import { hapticSelection, isTelegramWebApp } from "../../helpers/telegram";
 
 Chart.register(...registerables);
 
@@ -17,6 +17,7 @@ type StatsResponse = { stats: { round: number; avg: number; count: number }[] };
 type DriverStatsResponse = { stats: { driver_code: string; count: number }[] };
 
 function VotingPage() {
+  const inTelegram = isTelegramWebApp();
   const [tab, setTab] = useState<"race" | "driver">("race");
   const year = currentRealYear;
   const [races, setRaces] = useState<Race[]>([]);
@@ -344,7 +345,12 @@ function VotingPage() {
                     <div className="voting-accordion-inner">
                       {tab === "race" && (
                         <div className="voting-stars">
-                          {[1, 2, 3, 4, 5].map((r) => (
+                          {!inTelegram && (
+                            <div className="voting-closed-msg">
+                              Голосование доступно только в Telegram
+                            </div>
+                          )}
+                          {inTelegram && [1, 2, 3, 4, 5].map((r) => (
                             <button
                               key={r}
                               type="button"
@@ -359,12 +365,17 @@ function VotingPage() {
                       )}
                       {tab === "driver" && (
                         <div className="voting-drivers">
-                          {driverVotingClosed && (
+                          {!inTelegram && (
+                            <div className="voting-closed-msg">
+                              Голосование доступно только в Telegram
+                            </div>
+                          )}
+                          {inTelegram && driverVotingClosed && (
                             <div className="voting-closed-msg">
                               Голосование закрыто (3 дня после гонки)
                             </div>
                           )}
-                          {!driverVotingClosed &&
+                          {inTelegram && !driverVotingClosed &&
                             drivers.map((d) => (
                               <button
                                 key={d.code}

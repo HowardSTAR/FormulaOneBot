@@ -18,11 +18,22 @@ export function hapticImpact(style: "light" | "medium" | "heavy" = "medium"): vo
   getHaptic()?.impactOccurred?.(style);
 }
 
+let _isTelegram = false;
+
+export function isTelegramWebApp(): boolean {
+  return _isTelegram;
+}
+
 export function initTelegram(): boolean {
-  const tg = (window as unknown as { Telegram?: { WebApp?: { ready?: () => void; expand?: () => void; setHeaderColor?: (c: string) => void; setBackgroundColor?: (c: string) => void } } }).Telegram?.WebApp;
+  const tg = (window as unknown as { Telegram?: { WebApp?: { ready?: () => void; expand?: () => void; setHeaderColor?: (c: string) => void; setBackgroundColor?: (c: string) => void; initData?: string } } }).Telegram?.WebApp;
   if (!tg) {
     console.warn("Telegram WebApp недоступен (открыто в браузере?)");
+    _isTelegram = false;
     return false;
+  }
+  _isTelegram = Boolean(tg.initData);
+  if (!_isTelegram) {
+    console.warn("Telegram SDK загружен, но initData пуст (открыто в браузере)");
   }
   try {
     tg.ready?.();
@@ -33,5 +44,5 @@ export function initTelegram(): boolean {
   } catch (e) {
     console.warn("Telegram WebApp init error", e);
   }
-  return true;
+  return _isTelegram;
 }

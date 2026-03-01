@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useHeroData } from "../../context/HeroDataContext";
+import { isTelegramWebApp } from "../../helpers/telegram";
 import "./styles.css";
 import Hero from "./Hero";
 
@@ -9,6 +10,7 @@ export type { NextRaceResponse, SessionItem } from "../../context/HeroDataContex
 function IndexPage() {
   const { nextRace, schedule, userTz, loaded, load } = useHeroData();
   const currentYear = new Date().getFullYear();
+  const inTelegram = isTelegramWebApp();
 
   useEffect(() => {
     if (!loaded) load();
@@ -74,42 +76,46 @@ function IndexPage() {
         </Link>
       </div>
 
-      <div className="section-title">Моё</div>
-      <Link
-        to="/favorites"
-        className="menu-item full-width"
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          padding: "16px 24px",
-          borderColor: "rgba(255, 215, 0, 0.3)",
-          marginBottom: "12px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span className="menu-icon">⭐</span>
-          <span className="menu-label" style={{ color: "#ffd700" }}>
-            Избранное
-          </span>
-        </div>
-        <span style={{ color: "#ffd700" }}>➜</span>
-      </Link>
+      {inTelegram && (
+        <>
+          <div className="section-title">Моё</div>
+          <Link
+            to="/favorites"
+            className="menu-item full-width"
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              padding: "16px 24px",
+              borderColor: "rgba(255, 215, 0, 0.3)",
+              marginBottom: "12px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span className="menu-icon">⭐</span>
+              <span className="menu-label" style={{ color: "#ffd700" }}>
+                Избранное
+              </span>
+            </div>
+            <span style={{ color: "#ffd700" }}>➜</span>
+          </Link>
 
-      <Link
-        to="/settings"
-        className="menu-item full-width"
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          padding: "16px 24px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span className="menu-icon">⚙️</span>
-          <span className="menu-label">Настройки</span>
-        </div>
-        <span style={{ opacity: 0.5 }}>➜</span>
-      </Link>
+          <Link
+            to="/settings"
+            className="menu-item full-width"
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              padding: "16px 24px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span className="menu-icon">⚙️</span>
+              <span className="menu-label">Настройки</span>
+            </div>
+            <span style={{ opacity: 0.5 }}>➜</span>
+          </Link>
+        </>
+      )}
     </>
   );
 }

@@ -19,10 +19,13 @@ export async function apiRequest<T = unknown>(
   const path = (PATH_BASE + endpoint).replace(/\/+/g, '/');
   const url = API_BASE ? new URL(endpoint, API_BASE) : new URL(path, window.location.origin);
 
+  const initData = getInitData();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    'X-Telegram-Init-Data': getInitData(),
   };
+  if (initData) {
+    headers['X-Telegram-Init-Data'] = initData;
+  }
 
   const options: RequestInit = { method, headers };
 
@@ -41,7 +44,12 @@ export async function apiRequest<T = unknown>(
     console.log(`[API] ${method} ${url.toString()}`);
   }
 
-  const response = await fetch(url, options);
+  let response: Response;
+  try {
+    response = await fetch(url, options);
+  } catch {
+    throw new Error('Не удалось подключиться к серверу. Проверьте интернет-соединение.');
+  }
 
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('text/html')) {
@@ -51,10 +59,13 @@ export async function apiRequest<T = unknown>(
   }
 
   if (!response.ok) {
-    const msg = response.status === 401
-      ? 'Откройте приложение в Telegram'
-      : `Ошибка сервера: ${response.status}`;
-    throw new Error(msg);
+    const err = new Error(
+      response.status === 401
+        ? 'Требуется авторизация через Telegram'
+        : `Ошибка сервера: ${response.status}`
+    );
+    (err as Error & { status: number }).status = response.status;
+    throw err;
   }
 
   try {

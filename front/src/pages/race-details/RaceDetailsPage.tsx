@@ -33,11 +33,14 @@ function RaceDetailsPage() {
     let cancelled = false;
     async function load() {
       try {
-        const [raceData, settingsData] = await Promise.all([
+        const [raceRes, settingsRes] = await Promise.allSettled([
           apiRequest<RaceDetailsResponse>(`/api/race-details?season=${season}&round=${round}`),
           apiRequest<SettingsResponse>("/api/settings"),
         ]);
         if (cancelled) return;
+        if (raceRes.status === "rejected") throw raceRes.reason;
+        const raceData = raceRes.value;
+        const settingsData = settingsRes.status === "fulfilled" ? settingsRes.value : { timezone: "UTC" };
         setData(raceData);
         setSettings(settingsData);
 

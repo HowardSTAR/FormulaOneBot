@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app.auth import get_current_user_id
+from app.auth import get_current_user_id, get_optional_user_id
 from app.db import (
     get_favorite_drivers, get_favorite_teams,
     remove_favorite_driver, add_favorite_driver,
@@ -58,7 +58,7 @@ web_app = FastAPI(title="FormulaOneBot Mini App API", lifespan=lifespan)
 web_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -129,7 +129,7 @@ async def api_save_settings(
 @web_app.get("/api/next-race", response_model=NextRaceResponse)
 async def api_next_race(
         season: Optional[int] = None,
-        user_id: Optional[int] = Depends(get_current_user_id)
+        user_id: Optional[int] = Depends(get_optional_user_id)
 ):
     """Информация о ближайшей гонке + таймер."""
     # Передаем user_id, чтобы дата гонки в шапке форматировалась как раньше
@@ -226,9 +226,11 @@ class DriverVoteRequest(BaseModel):
 @web_app.get("/api/votes/me")
 async def api_votes_me(
     season: int = Query(...),
-    user_id: int = Depends(get_current_user_id),
+    user_id: int | None = Depends(get_optional_user_id),
 ):
     """Голоса пользователя за сезон: race_votes и driver_votes."""
+    if user_id is None:
+        return {"race_votes": {}, "driver_votes": {}}
     race_votes, driver_votes = await get_user_votes(user_id, season)
     return {"race_votes": race_votes, "driver_votes": driver_votes}
 
@@ -537,7 +539,7 @@ async def toggle_favorite_team(
 
 
 @web_app.get("/api/race-results")
-async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)):
+async def api_race_results(user_id: Optional[int] = Depends(get_optional_user_id)):
     season = datetime.now().year
 
     schedule = await get_season_schedule_short_async(season)

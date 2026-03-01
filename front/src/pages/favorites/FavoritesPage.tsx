@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
-import { hapticSelection } from "../../helpers/telegram";
+import { hapticSelection, isTelegramWebApp } from "../../helpers/telegram";
 
 type Driver = { code: string; name: string };
 type Team = { name: string };
@@ -106,6 +106,20 @@ function FavoritesPage() {
       }));
     }
   };
+
+  if (!isTelegramWebApp()) {
+    return (
+      <>
+        <BackButton>← <span>Главное меню</span></BackButton>
+        <h2>Избранное</h2>
+        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-secondary)" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Доступно только в Telegram</div>
+          <div>Откройте приложение через Telegram для управления избранным</div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

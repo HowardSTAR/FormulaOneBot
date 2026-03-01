@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { CustomSelect } from "../../components/CustomSelect";
-import { hapticSelection, hapticImpact } from "../../helpers/telegram";
+import { hapticSelection, hapticImpact, isTelegramWebApp } from "../../helpers/telegram";
 
 type SettingsResponse = { timezone?: string; notify_before?: number; notifications_enabled?: boolean };
 
@@ -96,6 +96,20 @@ function SettingsPage() {
       alert("Ошибка сохранения: " + (e instanceof Error ? e.message : String(e)));
     }
   };
+
+  if (!isTelegramWebApp()) {
+    return (
+      <>
+        <BackButton>← <span>На главную</span></BackButton>
+        <h2 style={{ marginTop: 10, marginBottom: 20 }}>Настройки</h2>
+        <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-secondary)" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Доступно только в Telegram</div>
+          <div>Откройте приложение через Telegram для изменения настроек</div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
