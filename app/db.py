@@ -160,6 +160,20 @@ class Database:
             """
         )
 
+        # 6. Уже отправленные напоминания (по пользователю/этап/квали-или-гонка/за сколько минут)
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS event_reminder_sent (
+                telegram_id INTEGER NOT NULL,
+                season INTEGER NOT NULL,
+                round INTEGER NOT NULL,
+                is_quali INTEGER NOT NULL,
+                notify_before_min INTEGER NOT NULL,
+                PRIMARY KEY (telegram_id, season, round, is_quali, notify_before_min)
+            );
+            """
+        )
+
         await self.conn.commit()
 
 
@@ -365,6 +379,30 @@ async def get_last_reminded_round(season: int) -> int | None: return await _get_
 
 
 async def set_last_reminded_round(season: int, r: int) -> None: await _set_round_value(season, "last_reminded_round", r)
+
+
+async def was_reminder_sent(telegram_id: int, season: int, round_num: int, is_quali: bool, notify_before_min: int) -> bool:
+    """Проверяет, отправляли ли уже напоминание этому пользователю для данного этапа/типа/за сколько минут."""
+    if not db.conn:
+        await db.connect()
+    q = (
+        "SELECT 1 FROM event_reminder_sent "
+        "WHERE telegram_id = ? AND season = ? AND round = ? AND is_quali = ? AND notify_before_min = ?"
+    )
+    async with db.conn.execute(q, (telegram_id, season, round_num, 1 if is_quali else 0, notify_before_min)) as cur:
+        row = await cur.fetchone()
+    return row is not None
+
+
+async def set_reminder_sent(telegram_id: int, season: int, round_num: int, is_quali: bool, notify_before_min: int) -> None:
+    """Отмечает, что напоминание этому пользователю для данного этапа/типа/за сколько минут отправлено."""
+    if not db.conn:
+        await db.connect()
+    await db.conn.execute(
+        "INSERT OR IGNORE INTO event_reminder_sent (telegram_id, season, round, is_quali, notify_before_min) VALUES (?, ?, ?, ?, ?)",
+        (telegram_id, season, round_num, 1 if is_quali else 0, notify_before_min),
+    )
+    await db.conn.commit()
 
 
 async def get_last_notified_round(season: int) -> int | None: return await _get_round_value(season,
