@@ -19,6 +19,8 @@ from app.db import (
     get_race_avg_for_round,
     get_driver_vote_winner,
     get_all_group_chats,
+    was_reminder_sent,
+    set_reminder_sent,
 )
 from app.f1_data import (
     get_season_schedule_short_async,
@@ -167,6 +169,10 @@ async def check_and_send_notifications(bot: Bot):
 
             for race, mins, for_quali in upcoming_event:
                 if abs(mins - notify_min) <= half_window:
+                    round_num = race.get("round")
+                    if round_num is not None:
+                        if await was_reminder_sent(tg_id, season, round_num, for_quali, notify_min):
+                            continue
 
                     if race.get("is_testing"):
                         text = (
@@ -181,6 +187,8 @@ async def check_and_send_notifications(bot: Bot):
                     quiet = is_quiet_hours(tz)
                     if await safe_send_message(bot, tg_id, text, disable_notification=quiet):
                         sent_count += 1
+                        if round_num is not None:
+                            await set_reminder_sent(tg_id, season, round_num, for_quali, notify_min)
                     await asyncio.sleep(0.05)
         except Exception:
             continue
