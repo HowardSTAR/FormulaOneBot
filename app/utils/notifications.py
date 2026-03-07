@@ -29,6 +29,7 @@ from app.f1_data import (
     _get_latest_quali_async,
     get_testing_results_async,
     get_driver_full_name_async,
+    set_cached_quali_results,
 )
 from app.utils.safe_send import safe_send_message, safe_send_photo
 from app.utils.image_render import create_results_image, create_quali_results_image
@@ -500,6 +501,28 @@ async def check_and_notify_quali(bot: Bot) -> None:
 
     # Сразу помечаем этап как «рассылаем», чтобы параллельный запуск job не дублировал
     await set_last_notified_quali_round(season, round_num)
+
+    # Кэш для веб-апа: одни и те же результаты до следующей квалы/гонки
+    def _segment(pos: int) -> str:
+        return "Q3" if pos <= 10 else ("Q2" if pos <= 16 else "Q1")
+    schedule = await get_season_schedule_short_async(season)
+    race_info = next((r for r in schedule if r["round"] == round_num), None)
+    cache_payload = {
+        "season": season,
+        "round": round_num,
+        "race_info": race_info,
+        "results": [
+            {
+                "position": r.get("position", 0),
+                "driver": r.get("driver", ""),
+                "name": r.get("name", ""),
+                "best": r.get("best", "-"),
+                "segment": _segment(r.get("position", 0)),
+            }
+            for r in results
+        ],
+    }
+    await set_cached_quali_results(season, cache_payload)
 
     img_buf = await asyncio.to_thread(
         create_quali_results_image,

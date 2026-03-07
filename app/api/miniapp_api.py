@@ -19,6 +19,7 @@ from app.db import (
     remove_favorite_team, add_favorite_team,
     get_user_settings, update_user_setting,
     save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
+    get_last_notified_quali_round,
 )
 from app.f1_data import (
     get_season_schedule_short_async,
@@ -31,6 +32,8 @@ from app.f1_data import (
     _get_latest_quali_async,
     get_race_results_async,
     get_event_details_async,
+    get_cached_quali_results,
+    set_cached_quali_results,
 )
 from app.handlers.races import build_next_race_payload
 from app.utils.image_render import _get_team_logo, get_car_image_path
@@ -603,25 +606,31 @@ async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)
     }
 
 
+def _segment_by_position(pos: int) -> str:
+    if pos <= 10:
+        return "Q3"
+    if pos <= 16:
+        return "Q2"
+    return "Q1"
+
+
 @web_app.get("/api/quali-results")
 async def api_quali_results():
     season = datetime.now().year
+    last_notified = await get_last_notified_quali_round(season)
+    cached = await get_cached_quali_results(season)
+    if cached and (last_notified is None or cached.get("round") == last_notified):
+        return cached
 
     data = await _get_latest_quali_async(season, limit=100)
     if not data:
-        return {"results": [], "race_info": None}
+        if cached:
+            return cached
+        return {"results": [], "race_info": None, "season": season, "round": None}
 
     round_num, q_results = data
-
     schedule = await get_season_schedule_short_async(season)
     race_info = next((r for r in schedule if r["round"] == round_num), None)
-
-    def segment_by_position(pos: int) -> str:
-        if pos <= 10:
-            return "Q3"
-        if pos <= 16:
-            return "Q2"
-        return "Q1"
 
     results = []
     for r in q_results:
@@ -631,15 +640,17 @@ async def api_quali_results():
             "driver": r["driver"],
             "name": r.get("name", ""),
             "best": r.get("best", "-"),
-            "segment": segment_by_position(pos),
+            "segment": _segment_by_position(pos),
         })
 
-    return {
+    payload = {
         "season": season,
         "round": round_num,
         "race_info": race_info,
-        "results": results
+        "results": results,
     }
+    await set_cached_quali_results(season, payload)
+    return payload
 
 
 @web_app.get("/api/race-details")

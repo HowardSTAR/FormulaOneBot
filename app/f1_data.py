@@ -110,6 +110,48 @@ async def init_redis_cache(redis_url: str):
         _REDIS_CLIENT = None
 
 
+QUALI_CACHE_TTL = 14 * 24 * 3600  # 14 дней — до следующей квалификации с запасом
+
+
+async def get_cached_quali_results(season: int) -> dict | None:
+    """Сохраняемые результаты последней квалификации (до следующей квалы)."""
+    import json
+    key = f"f1bot:quali_results:{season}"
+    if _REDIS_CLIENT is not None:
+        try:
+            raw = await _REDIS_CLIENT.get(key)
+            if raw:
+                return json.loads(raw)
+        except Exception as e:
+            logger.debug(f"Redis quali cache read: {e}")
+    try:
+        path = _fallback_cache_dir / f"quali_results_{season}.json"
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception as e:
+        logger.debug(f"File quali cache read: {e}")
+    return None
+
+
+async def set_cached_quali_results(season: int, payload: dict) -> None:
+    """Сохранить результаты квалификации до следующей квалы."""
+    import json
+    key = f"f1bot:quali_results:{season}"
+    raw = json.dumps(payload, ensure_ascii=False)
+    if _REDIS_CLIENT is not None:
+        try:
+            await _REDIS_CLIENT.setex(key, QUALI_CACHE_TTL, raw)
+        except Exception as e:
+            logger.debug(f"Redis quali cache write: {e}")
+    try:
+        path = _fallback_cache_dir / f"quali_results_{season}.json"
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(raw)
+    except Exception as e:
+        logger.debug(f"File quali cache write: {e}")
+
+
 # --- ДЕКОРАТОРЫ --- #
 
 def cache_result(ttl: int = 300, key_prefix: str = ""):
@@ -588,23 +630,8 @@ def _format_quali_time_ms(ms: float | None) -> str:
         return "—"
 
 
-def _lap_duration_to_ms(row: dict) -> float | None:
-    """Из записи laps извлекает длительность круга в миллисекундах."""
-    # OpenF1 может отдавать lap_duration_ms, duration_ms или lap_duration (секунды)
-    raw = row.get("lap_duration_ms") or row.get("duration_ms") or row.get("lap_duration")
-    if raw is None:
-        return None
-    try:
-        v = float(raw)
-        if v < 1000:
-            return v * 1000
-        return v
-    except (TypeError, ValueError):
-        return None
-
-
 async def _openf1_get_best_lap_per_driver(session_key: int) -> dict[int, float]:
-    """Для сессии возвращает driver_number -> лучший lap_duration в мс (минимум)."""
+    """Для сессии возвращает driver_number -> лучший lap_duration_ms (минимум)."""
     laps = await _openf1_get("laps", session_key=session_key)
     if not laps:
         return {}
@@ -613,10 +640,14 @@ async def _openf1_get_best_lap_per_driver(session_key: int) -> dict[int, float]:
         dn = row.get("driver_number")
         if dn is None:
             continue
-        duration_ms = _lap_duration_to_ms(row)
-        if duration_ms is not None and duration_ms > 0:
-            if dn not in best or duration_ms < best[dn]:
-                best[dn] = duration_ms
+        duration = row.get("lap_duration_ms") or row.get("duration_ms")
+        if duration is not None:
+            try:
+                d = float(duration)
+                if dn not in best or d < best[dn]:
+                    best[dn] = d
+            except (TypeError, ValueError):
+                pass
     return best
 
 
@@ -641,6 +672,7 @@ async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[
         session.get("date_start") or "",
         session.get("location") or "",
     )
+    position_driver_numbers = {p.get("driver_number") for p in positions if p.get("driver_number") is not None}
     results = []
     for p in positions[:limit]:
         dn = p.get("driver_number")
@@ -653,6 +685,18 @@ async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[
             "name": info.get("name", "?"),
             "best": best_str,
         })
+    # Пилоты без позиции (не выезжали / без времени) — в конец с прочерком
+    next_pos = len(results) + 1
+    for dn in sorted(drivers_map.keys()):
+        if dn not in position_driver_numbers:
+            info = drivers_map[dn]
+            results.append({
+                "position": next_pos,
+                "driver": info.get("code", "?"),
+                "name": info.get("name", "?"),
+                "best": "—",
+            })
+            next_pos += 1
     return round_num, results
 
 
@@ -663,16 +707,18 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
     """
     schedule = await get_season_schedule_short_async(season)
     event = next((r for r in (schedule or []) if r.get("round") == round_num), None)
+    if not event:
+        return None, []
     quali_date = None
-    if event:
-        if event.get("quali_start_utc"):
-            try:
-                quali_date = (event["quali_start_utc"])[:10]
-            except Exception:
-                pass
-        if not quali_date:
-            quali_date = event.get("date") or ""
-
+    if event.get("quali_start_utc"):
+        try:
+            quali_date = (event["quali_start_utc"])[:10]
+        except Exception:
+            pass
+    if not quali_date:
+        quali_date = event.get("date") or ""
+    if not quali_date:
+        return None, []
     sessions = await _openf1_get("sessions", year=season)
     if not sessions:
         return None, []
@@ -680,7 +726,7 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
     for s in sessions:
         if (s.get("session_type") or "").strip() != "Qualifying":
             continue
-        if quali_date and (s.get("date_start") or "")[:10] == quali_date:
+        if (s.get("date_start") or "")[:10] == quali_date:
             session_key = s.get("session_key")
             break
     if session_key is None:
@@ -688,6 +734,7 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
     positions = await _openf1_get_position_final(session_key)
     drivers_map = await _openf1_get_drivers_for_session(session_key)
     best_laps = await _openf1_get_best_lap_per_driver(session_key)
+    position_driver_numbers = {p.get("driver_number") for p in positions if p.get("driver_number") is not None}
     results = []
     for p in positions[:limit]:
         dn = p.get("driver_number")
@@ -700,6 +747,17 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
             "name": info.get("name", "?"),
             "best": best_str,
         })
+    next_pos = len(results) + 1
+    for dn in sorted(drivers_map.keys()):
+        if dn not in position_driver_numbers:
+            info = drivers_map[dn]
+            results.append({
+                "position": next_pos,
+                "driver": info.get("code", "?"),
+                "name": info.get("name", "?"),
+                "best": "—",
+            })
+            next_pos += 1
     return round_num, results
 
 
@@ -979,47 +1037,6 @@ async def _get_latest_quali_fastf1_async(season: int, max_round: int | None = No
     return await _run_sync(get_latest_quali_results, season, max_round, limit)
 
 
-async def get_quali_for_round_async(season: int, round_num: int, limit: int = 100) -> tuple[int | None, list[dict]]:
-    """Квалификация для конкретного этапа: сначала OpenF1, при отсутствии — FastF1."""
-    r, results = await openf1_get_quali_for_round(season, round_num, limit=limit)
-    if results:
-        return r, results
-    fastf1_list = await _get_quali_async(season, round_num, limit)
-    if fastf1_list:
-        return round_num, fastf1_list
-    return None, []
-
-
-async def _openf1_get_last_quali_session(season: int) -> tuple[int | None, int | None]:
-    """Находит последнюю по времени сессию Qualifying в сезоне. Возвращает (session_key, round_num или None)."""
-    sessions = await _openf1_get("sessions", year=season)
-    if not sessions:
-        return None, None
-    now = datetime.now(timezone.utc)
-    best = None
-    for s in sessions:
-        if (s.get("session_type") or "").strip() != "Qualifying":
-            continue
-        try:
-            dt = datetime.fromisoformat(s.get("date_start") or "")
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            if dt < now and (best is None or dt > best[0]):
-                best = (dt, s)
-        except Exception:
-            continue
-    if not best:
-        return None, None
-    _, sess = best
-    schedule = await get_season_schedule_short_async(season)
-    round_num = _openf1_match_round_from_schedule(
-        schedule or [],
-        sess.get("date_start") or "",
-        sess.get("location") or "",
-    )
-    return sess.get("session_key"), round_num
-
-
 async def _get_latest_quali_async(season: int, max_round: int | None = None, limit: int = 100):
     """Результаты квалификации: OpenF1 (latest или по этапу), при отсутствии — FastF1."""
     round_num, results = await openf1_get_quali_results_live(season, limit=limit)
@@ -1044,26 +1061,6 @@ async def _get_latest_quali_async(season: int, max_round: int | None = None, lim
     if last_quali_round is not None:
         round_num, results = await openf1_get_quali_for_round(season, last_quali_round, limit=limit)
         if results:
-            return round_num, results
-    # Запасной вариант: последняя Qualifying-сессия в OpenF1 по дате (без привязки к расписанию)
-    session_key, round_num = await _openf1_get_last_quali_session(season)
-    if session_key is not None:
-        positions = await _openf1_get_position_final(session_key)
-        drivers_map = await _openf1_get_drivers_for_session(session_key)
-        best_laps = await _openf1_get_best_lap_per_driver(session_key)
-        results = []
-        for p in positions[:limit]:
-            dn = p.get("driver_number")
-            info = drivers_map.get(dn, {})
-            best_ms = best_laps.get(dn) if dn is not None else None
-            best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
-            results.append({
-                "position": int(p.get("position", 0)),
-                "driver": info.get("code", "?"),
-                "name": info.get("name", "?"),
-                "best": best_str,
-            })
-        if results and (max_round is None or (round_num is not None and round_num <= max_round)):
             return round_num, results
     return await _get_latest_quali_fastf1_async(season, max_round, limit)
 
