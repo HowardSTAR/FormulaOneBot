@@ -473,54 +473,80 @@ async def cmd_test_voting_results(message: Message, command: CommandObject, bot)
 
 @router.message(Command("broadcast"))
 async def admin_silent_broadcast(message: Message, command: CommandObject):
-    # 1. Проверка безопасности: получаем актуальный список админов из конфига
+    """
+    Рассылка всем пользователям в обход тумблера уведомлений.
+    С 21:00 до 10:00 по времени каждого пользователя — в тихом режиме (без звука).
+    Поддержка: только текст или фото (из сообщения/ответа) с подписью.
+    """
     settings = get_settings()
-
-    # Сравниваем ID отправителя со списком из .env
     if message.from_user.id not in settings.admin_ids:
-        return  # Тихий игнор для всех посторонних
+        return
 
-    # 2. Проверяем наличие текста сообщения
-    text_to_send = command.args
-    if not text_to_send:
+    # Текст/подпись: из аргумента команды, из caption (если есть фото) или из ответа на сообщение с фото
+    text_from_caption = (message.caption or "").replace("/broadcast", "").strip()
+    text_to_send = (command.args or "").strip() or text_from_caption
+
+    # Определяем, есть ли фото: в самом сообщении или в ответе
+    photo_file_id = None
+    if message.photo:
+        photo_file_id = message.photo[-1].file_id
+        if not text_to_send:
+            text_to_send = text_from_caption
+    elif message.reply_to_message and message.reply_to_message.photo:
+        photo_file_id = message.reply_to_message.photo[-1].file_id
+        text_to_send = text_to_send or (message.reply_to_message.caption or "").strip() or (command.args or "").strip()
+
+    if not photo_file_id and not text_to_send:
         await message.answer(
-            "⚠️ Использование: <code>/broadcast Ваш текст</code>\n"
-            "Сообщение будет отправлено всем <b>без звука</b>.",
+            "⚠️ Использование:\n"
+            "• <code>/broadcast Ваш текст</code> — рассылка текста всем.\n"
+            "• Отправьте фото с подписью или ответьте фото на <code>/broadcast текст</code> — рассылка фото с подписью.\n\n"
+            "Сообщение уходит <b>всем</b> пользователям (игнорируя отключение уведомлений). "
+            "С 21:00 до 10:00 по времени получателя — в тихом режиме (без звука).",
             parse_mode="HTML"
         )
         return
 
-    # 3. Выгружаем пелотон
-    users = await get_all_users()
+    # Все пользователи с таймзоной для тихого режима по их времени
+    users = await get_users_with_settings(notifications_only=False)
     if not users:
-        await message.answer("В базе данных нет пользователей.")
+        await message.answer("В базе нет пользователей.")
         return
 
-    await message.answer(f"🏁 Начинаю тихую рассылку для {len(users)} пользователей...")
+    # (tg_id, tz, notify_before, notifications_enabled)
+    await message.answer(f"🏁 Рассылка для {len(users)} пользователей (в обход настроек уведомлений)...")
 
     success_count = 0
-    blocked_count = 0
-
-    # 4. Рассылка с ограничением скорости
-    for user_id in users:
+    for user in users:
+        tg_id = user[0]
+        tz = user[1] or "Europe/Moscow"
+        quiet = is_quiet_hours(tz)
         try:
-            await message.bot.send_message(
-                chat_id=user_id,
-                text=text_to_send,
-                disable_notification=True,  # Тихий режим активирован
-                parse_mode="HTML"
-            )
-            success_count += 1
-        except Exception as e:
-            blocked_count += 1
-
-        # Ограничитель скорости API
+            if photo_file_id:
+                ok = await safe_send_photo(
+                    message.bot,
+                    tg_id,
+                    photo_file_id,
+                    caption=text_to_send or None,
+                    parse_mode="HTML",
+                    disable_notification=quiet,
+                )
+            else:
+                ok = await safe_send_message(
+                    message.bot,
+                    tg_id,
+                    text_to_send,
+                    parse_mode="HTML",
+                    disable_notification=quiet,
+                )
+            if ok:
+                success_count += 1
+        except Exception:
+            pass
         await asyncio.sleep(0.05)
 
-    # 5. Отчет
     await message.answer(
-        f"✅ <b>Рассылка завершена!</b>\n"
-        f"Успешно доставлено: {success_count}\n"
-        f"Заблокировали бота / Недоступны: {blocked_count}",
+        f"✅ <b>Рассылка завершена</b>\n"
+        f"Доставлено: {success_count} из {len(users)}",
         parse_mode="HTML"
     )
