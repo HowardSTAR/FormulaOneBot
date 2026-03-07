@@ -761,6 +761,15 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
     return round_num, results
 
 
+async def get_quali_for_round_async(season: int, round_num: int, limit: int = 100) -> tuple[int | None, list[dict]]:
+    """Результаты квалификации для конкретного этапа: OpenF1, при отсутствии — FastF1. Возвращает (round_num, results)."""
+    r, results = await openf1_get_quali_for_round(season, round_num, limit=limit)
+    if results:
+        return (r if r is not None else round_num), results
+    fastf1_list = await _get_quali_async(season, round_num, limit)
+    return round_num, fastf1_list if fastf1_list else []
+
+
 async def openf1_get_race_results_live(season: int, round_num: int | None = None) -> pd.DataFrame | None:
     """
     Результаты гонки из OpenF1. Если round_num задан — ищем сессию Race по расписанию.
