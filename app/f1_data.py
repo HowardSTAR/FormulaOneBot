@@ -111,12 +111,13 @@ async def init_redis_cache(redis_url: str):
 
 
 QUALI_CACHE_TTL = 14 * 24 * 3600  # 14 дней — до следующей квалификации с запасом
+QUALI_CACHE_KEY = "f1bot:quali_results_v2"  # v2: с поддержкой lap_duration (секунды) из OpenF1
 
 
 async def get_cached_quali_results(season: int) -> dict | None:
     """Сохраняемые результаты последней квалификации (до следующей квалы)."""
     import json
-    key = f"f1bot:quali_results:{season}"
+    key = f"{QUALI_CACHE_KEY}:{season}"
     if _REDIS_CLIENT is not None:
         try:
             raw = await _REDIS_CLIENT.get(key)
@@ -125,7 +126,7 @@ async def get_cached_quali_results(season: int) -> dict | None:
         except Exception as e:
             logger.debug(f"Redis quali cache read: {e}")
     try:
-        path = _fallback_cache_dir / f"quali_results_{season}.json"
+        path = _fallback_cache_dir / f"quali_results_v2_{season}.json"
         if path.exists():
             with open(path, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -137,7 +138,7 @@ async def get_cached_quali_results(season: int) -> dict | None:
 async def set_cached_quali_results(season: int, payload: dict) -> None:
     """Сохранить результаты квалификации до следующей квалы."""
     import json
-    key = f"f1bot:quali_results:{season}"
+    key = f"{QUALI_CACHE_KEY}:{season}"
     raw = json.dumps(payload, ensure_ascii=False)
     if _REDIS_CLIENT is not None:
         try:
@@ -145,7 +146,7 @@ async def set_cached_quali_results(season: int, payload: dict) -> None:
         except Exception as e:
             logger.debug(f"Redis quali cache write: {e}")
     try:
-        path = _fallback_cache_dir / f"quali_results_{season}.json"
+        path = _fallback_cache_dir / f"quali_results_v2_{season}.json"
         with open(path, "w", encoding="utf-8") as f:
             f.write(raw)
     except Exception as e:
@@ -630,24 +631,39 @@ def _format_quali_time_ms(ms: float | None) -> str:
         return "—"
 
 
+def _lap_duration_to_ms(row: dict) -> float | None:
+    """Из записи /laps извлекает длительность круга в миллисекундах. OpenF1 отдаёт lap_duration в секундах."""
+    raw_ms = row.get("lap_duration_ms") or row.get("duration_ms")
+    if raw_ms is not None:
+        try:
+            return float(raw_ms)
+        except (TypeError, ValueError):
+            pass
+    sec = row.get("lap_duration")
+    if sec is not None:
+        try:
+            return float(sec) * 1000.0
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
 async def _openf1_get_best_lap_per_driver(session_key: int) -> dict[int, float]:
-    """Для сессии возвращает driver_number -> лучший lap_duration_ms (минимум)."""
+    """Для сессии возвращает driver_number -> лучший lap_duration в мс (минимум)."""
     laps = await _openf1_get("laps", session_key=session_key)
     if not laps:
         return {}
     best: dict[int, float] = {}
     for row in laps:
+        if row.get("is_pit_out_lap") is True:
+            continue
         dn = row.get("driver_number")
         if dn is None:
             continue
-        duration = row.get("lap_duration_ms") or row.get("duration_ms")
-        if duration is not None:
-            try:
-                d = float(duration)
-                if dn not in best or d < best[dn]:
-                    best[dn] = d
-            except (TypeError, ValueError):
-                pass
+        duration_ms = _lap_duration_to_ms(row)
+        if duration_ms is not None and duration_ms > 0:
+            if dn not in best or duration_ms < best[dn]:
+                best[dn] = duration_ms
     return best
 
 

@@ -1,14 +1,16 @@
 from aiogram import Router
 from aiogram.filters import CommandStart
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, Message
+from aiogram.fsm.context import FSMContext
 
 from app.db import get_or_create_user
+from app.handlers.settings import _show_main_settings
 
 router = Router()
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message):
+async def cmd_start(message: Message, state: FSMContext):
     await get_or_create_user(message.from_user.id)
 
     # Создаем кнопки главного меню (обычные текстовые кнопки внизу)
@@ -55,3 +57,6 @@ async def cmd_start(message: Message):
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
+
+    # Сразу показываем настройки уведомлений, чтобы пользователь мог настроить напоминания
+    await _show_main_settings(message, state, message.from_user.id, is_edit=False)
