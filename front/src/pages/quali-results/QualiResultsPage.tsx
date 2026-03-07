@@ -7,7 +7,6 @@ type Result = {
   name?: string;
   driver?: string;
   best?: string;
-  /** Сегмент, в котором вылетел / показал лучшее время: Q1, Q2, Q3 */
   segment?: "Q1" | "Q2" | "Q3";
 };
 type QualiResponse = {
@@ -48,9 +47,9 @@ function QualiResultsPage() {
     <>
       <BackButton>← <span>Главное меню</span></BackButton>
       <h2 id="quali-title">
-        {data?.race_info ? (
+        {data?.race_info && data.round != null ? (
           <>
-            <div>Квалификация</div>
+            <div>Квалификация · Этап {String(data.round).padStart(2, "0")}. {data.race_info.event_name}</div>
             <div
               style={{
                 fontSize: 14,
@@ -59,11 +58,7 @@ function QualiResultsPage() {
                 marginTop: 4,
               }}
             >
-              {data.race_info.event_name}
-              <br />
-              <span style={{ opacity: 0.7 }}>
-                Этап {data.round} • {data.season}
-              </span>
+              <span style={{ opacity: 0.7 }}>Сезон {data.season}</span>
             </div>
           </>
         ) : (
@@ -106,29 +101,27 @@ function QualiResultsPage() {
                   </div>
                   <div className="standings-info">
                     <div className="standings-name">{r.name || r.driver}</div>
-                    <div className="standings-code">
+                    <div className="standings-code" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       {r.driver}
                       {r.segment && (
                         <span
-                          className="quali-segment"
                           style={{
-                            marginLeft: 8,
                             fontSize: 11,
                             fontWeight: 600,
                             padding: "2px 6px",
                             borderRadius: 4,
                             background:
                               r.segment === "Q3"
-                                ? "rgba(76, 175, 80, 0.25)"
+                                ? "rgba(34, 197, 94, 0.25)"
                                 : r.segment === "Q2"
-                                  ? "rgba(255, 193, 7, 0.2)"
-                                  : "rgba(158, 158, 158, 0.2)",
+                                  ? "rgba(59, 130, 246, 0.25)"
+                                  : "rgba(156, 163, 175, 0.25)",
                             color:
                               r.segment === "Q3"
-                                ? "#81c784"
+                                ? "rgb(34, 197, 94)"
                                 : r.segment === "Q2"
-                                  ? "#ffd54f"
-                                  : "#b0b0b0",
+                                  ? "rgb(96, 165, 250)"
+                                  : "rgb(156, 163, 175)",
                           }}
                         >
                           {r.segment}
