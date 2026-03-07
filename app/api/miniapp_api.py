@@ -607,7 +607,7 @@ async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)
 async def api_quali_results():
     season = datetime.now().year
 
-    data = await _get_latest_quali_async(season)
+    data = await _get_latest_quali_async(season, limit=100)
     if not data:
         return {"results": [], "race_info": None}
 
@@ -616,13 +616,22 @@ async def api_quali_results():
     schedule = await get_season_schedule_short_async(season)
     race_info = next((r for r in schedule if r["round"] == round_num), None)
 
+    def segment_by_position(pos: int) -> str:
+        if pos <= 10:
+            return "Q3"
+        if pos <= 16:
+            return "Q2"
+        return "Q1"
+
     results = []
     for r in q_results:
+        pos = r.get("position", 0)
         results.append({
-            "position": r["position"],
+            "position": pos,
             "driver": r["driver"],
             "name": r.get("name", ""),
-            "best": r.get("best", "-")
+            "best": r.get("best", "-"),
+            "segment": segment_by_position(pos),
         })
 
     return {

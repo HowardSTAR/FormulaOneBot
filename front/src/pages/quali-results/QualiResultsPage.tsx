@@ -2,7 +2,14 @@ import { useState, useEffect } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 
-type Result = { position: number; name?: string; driver?: string; best?: string };
+type Result = {
+  position: number;
+  name?: string;
+  driver?: string;
+  best?: string;
+  /** Сегмент, в котором вылетел / показал лучшее время: Q1, Q2, Q3 */
+  segment?: "Q1" | "Q2" | "Q3";
+};
 type QualiResponse = {
   results?: Result[];
   race_info?: { event_name: string };
@@ -99,7 +106,35 @@ function QualiResultsPage() {
                   </div>
                   <div className="standings-info">
                     <div className="standings-name">{r.name || r.driver}</div>
-                    <div className="standings-code">{r.driver}</div>
+                    <div className="standings-code">
+                      {r.driver}
+                      {r.segment && (
+                        <span
+                          className="quali-segment"
+                          style={{
+                            marginLeft: 8,
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            background:
+                              r.segment === "Q3"
+                                ? "rgba(76, 175, 80, 0.25)"
+                                : r.segment === "Q2"
+                                  ? "rgba(255, 193, 7, 0.2)"
+                                  : "rgba(158, 158, 158, 0.2)",
+                            color:
+                              r.segment === "Q3"
+                                ? "#81c784"
+                                : r.segment === "Q2"
+                                  ? "#ffd54f"
+                                  : "#b0b0b0",
+                          }}
+                        >
+                          {r.segment}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div
                     className="standings-time"
