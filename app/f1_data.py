@@ -309,7 +309,7 @@ def get_race_results_df(season: int, round_number: int):
     return pd.DataFrame()
 
 
-def get_qualifying_results(season: int, round_number: int, limit: int = 20) -> list[dict]:
+def get_qualifying_results(season: int, round_number: int, limit: int = 100) -> list[dict]:
     # Механизм Retry для квалификации тоже не помешает
     max_retries = 2
     for attempt in range(max_retries):
@@ -366,20 +366,29 @@ def get_qualifying_results(season: int, round_number: int, limit: int = 20) -> l
     return []
 
 
-def get_latest_quali_results(season: int, max_round: int | None = None, limit: int = 20):
+def get_latest_quali_results(season: int, max_round: int | None = None, limit: int = 100):
     schedule = get_season_schedule_short(season)
     if not schedule:
         return None, []
 
-    today = datetime.now(timezone.utc).date()
+    now = datetime.now(timezone.utc)
     passed_rounds = []
 
     for r in schedule:
         try:
-            r_date = _date.fromisoformat(r["date"])
-            if r_date <= today:
-                passed_rounds.append(r["round"])
-        except:
+            # Квалификация считается прошедшей, если её старт уже был (не только по дате гонки)
+            quali_utc = r.get("quali_start_utc")
+            if quali_utc:
+                quali_dt = datetime.fromisoformat(quali_utc)
+                if quali_dt.tzinfo is None:
+                    quali_dt = quali_dt.replace(tzinfo=timezone.utc)
+                if now > quali_dt:
+                    passed_rounds.append(r["round"])
+            else:
+                r_date = _date.fromisoformat(r["date"])
+                if r_date <= now.date():
+                    passed_rounds.append(r["round"])
+        except Exception:
             continue
 
     if max_round:
@@ -566,11 +575,45 @@ def _openf1_match_round_from_schedule(schedule: list, session_date_start: str, l
     return None
 
 
-async def openf1_get_quali_results_live(season: int, limit: int = 20) -> tuple[int | None, list[dict]]:
+def _format_quali_time_ms(ms: float | None) -> str:
+    """Форматирует время круга из миллисекунд в M:SS.mmm."""
+    if ms is None or ms <= 0:
+        return "—"
+    try:
+        sec = ms / 1000.0
+        m = int(sec // 60)
+        s = sec % 60
+        return f"{m}:{s:06.3f}" if m > 0 else f"{s:.3f}"
+    except Exception:
+        return "—"
+
+
+async def _openf1_get_best_lap_per_driver(session_key: int) -> dict[int, float]:
+    """Для сессии возвращает driver_number -> лучший lap_duration_ms (минимум)."""
+    laps = await _openf1_get("laps", session_key=session_key)
+    if not laps:
+        return {}
+    best: dict[int, float] = {}
+    for row in laps:
+        dn = row.get("driver_number")
+        if dn is None:
+            continue
+        duration = row.get("lap_duration_ms") or row.get("duration_ms")
+        if duration is not None:
+            try:
+                d = float(duration)
+                if dn not in best or d < best[dn]:
+                    best[dn] = d
+            except (TypeError, ValueError):
+                pass
+    return best
+
+
+async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[int | None, list[dict]]:
     """
     Результаты квалификации из OpenF1 (моментально после сессии).
     Возвращает (round_num, list[{position, driver, name, best}]).
-    best для квалификации по OpenF1 можно расширить через /laps — пока оставляем "—".
+    best берётся из /laps (минимальный lap_duration_ms по пилоту).
     """
     session = await _openf1_get_latest_session()
     if not session or (session.get("session_type") or "").strip() != "Qualifying":
@@ -580,6 +623,7 @@ async def openf1_get_quali_results_live(season: int, limit: int = 20) -> tuple[i
         return None, []
     positions = await _openf1_get_position_final(session_key)
     drivers_map = await _openf1_get_drivers_for_session(session_key)
+    best_laps = await _openf1_get_best_lap_per_driver(session_key)
     schedule = await get_season_schedule_short_async(season)
     round_num = _openf1_match_round_from_schedule(
         schedule or [],
@@ -590,11 +634,62 @@ async def openf1_get_quali_results_live(season: int, limit: int = 20) -> tuple[i
     for p in positions[:limit]:
         dn = p.get("driver_number")
         info = drivers_map.get(dn, {})
+        best_ms = best_laps.get(dn) if dn is not None else None
+        best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
         results.append({
             "position": int(p.get("position", 0)),
             "driver": info.get("code", "?"),
             "name": info.get("name", "?"),
-            "best": "—",
+            "best": best_str,
+        })
+    return round_num, results
+
+
+async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 100) -> tuple[int | None, list[dict]]:
+    """
+    Результаты квалификации из OpenF1 для конкретного этапа (по расписанию).
+    Нужно, когда session_key=latest — не Qualifying (например, уже гонка).
+    """
+    schedule = await get_season_schedule_short_async(season)
+    event = next((r for r in (schedule or []) if r.get("round") == round_num), None)
+    if not event:
+        return None, []
+    quali_date = None
+    if event.get("quali_start_utc"):
+        try:
+            quali_date = (event["quali_start_utc"])[:10]
+        except Exception:
+            pass
+    if not quali_date:
+        quali_date = event.get("date") or ""
+    if not quali_date:
+        return None, []
+    sessions = await _openf1_get("sessions", year=season)
+    if not sessions:
+        return None, []
+    session_key = None
+    for s in sessions:
+        if (s.get("session_type") or "").strip() != "Qualifying":
+            continue
+        if (s.get("date_start") or "")[:10] == quali_date:
+            session_key = s.get("session_key")
+            break
+    if session_key is None:
+        return None, []
+    positions = await _openf1_get_position_final(session_key)
+    drivers_map = await _openf1_get_drivers_for_session(session_key)
+    best_laps = await _openf1_get_best_lap_per_driver(session_key)
+    results = []
+    for p in positions[:limit]:
+        dn = p.get("driver_number")
+        info = drivers_map.get(dn, {})
+        best_ms = best_laps.get(dn) if dn is not None else None
+        best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
+        results.append({
+            "position": int(p.get("position", 0)),
+            "driver": info.get("code", "?"),
+            "name": info.get("name", "?"),
+            "best": best_str,
         })
     return round_num, results
 
@@ -866,20 +961,40 @@ async def get_race_results_async(season: int, round_number: int):
 
 
 @cache_result(ttl=86400, key_prefix="quali_res")
-async def _get_quali_async(season: int, round_number: int, limit: int = 20):
+async def _get_quali_async(season: int, round_number: int, limit: int = 100):
     return await _run_sync(get_qualifying_results, season, round_number, limit)
 
 
 @cache_result(ttl=3600, key_prefix="lat_quali")
-async def _get_latest_quali_fastf1_async(season: int, max_round: int | None = None, limit: int = 20):
+async def _get_latest_quali_fastf1_async(season: int, max_round: int | None = None, limit: int = 100):
     return await _run_sync(get_latest_quali_results, season, max_round, limit)
 
 
-async def _get_latest_quali_async(season: int, max_round: int | None = None, limit: int = 20):
-    """Результаты квалификации: сначала OpenF1 (live), при отсутствии — FastF1."""
+async def _get_latest_quali_async(season: int, max_round: int | None = None, limit: int = 100):
+    """Результаты квалификации: OpenF1 (latest или по этапу), при отсутствии — FastF1."""
     round_num, results = await openf1_get_quali_results_live(season, limit=limit)
     if results and (max_round is None or (round_num is not None and round_num <= max_round)):
         return round_num, results
+    # Когда session_key=latest не Qualifying — пробуем последний этап с прошедшей квалификацией
+    schedule = await get_season_schedule_short_async(season)
+    now = datetime.now(timezone.utc)
+    passed_quali_rounds = []
+    for r in (schedule or []):
+        try:
+            qutc = r.get("quali_start_utc")
+            if qutc:
+                qdt = datetime.fromisoformat(qutc)
+                if qdt.tzinfo is None:
+                    qdt = qdt.replace(tzinfo=timezone.utc)
+                if now > qdt and (max_round is None or r["round"] <= max_round):
+                    passed_quali_rounds.append(r["round"])
+        except Exception:
+            continue
+    last_quali_round = max(passed_quali_rounds) if passed_quali_rounds else None
+    if last_quali_round is not None:
+        round_num, results = await openf1_get_quali_for_round(season, last_quali_round, limit=limit)
+        if results:
+            return round_num, results
     return await _get_latest_quali_fastf1_async(season, max_round, limit)
 
 
@@ -944,7 +1059,7 @@ async def warmup_cache(season: int | None = None):
         logger.info(f"🔥 Warming up results for round {last_round}...")
         await asyncio.gather(
             get_race_results_async(season, last_round),
-            _get_latest_quali_async(season, limit=20)
+            _get_latest_quali_async(season, limit=100)
         )
 
     logger.info("✅ Cache warmup finished.")
