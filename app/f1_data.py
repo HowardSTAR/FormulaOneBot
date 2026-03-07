@@ -473,6 +473,180 @@ def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
         return []
 
 
+# --- OPENF1: LIVE TIMING (результаты сразу после сессии) --- #
+# Используем /position для моментальных результатов без ожидания официальных протоколов FIA.
+
+OPENF1_BASE = "https://api.openf1.org/v1"
+
+
+async def _openf1_get(path: str, **params) -> list | None:
+    """GET запрос к OpenF1 API. Возвращает список записей или None при ошибке."""
+    url = f"{OPENF1_BASE}/{path}"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                if resp.status != 200:
+                    return None
+                return await resp.json()
+    except Exception as e:
+        logger.debug(f"OpenF1 {path} error: {e}")
+        return None
+
+
+async def _openf1_get_latest_session() -> dict | None:
+    """Текущая/последняя сессия (session_key=latest)."""
+    data = await _openf1_get("sessions", session_key="latest")
+    if not data or not isinstance(data, list):
+        return None
+    return data[0] if data else None
+
+
+def _openf1_position_final_from_rows(rows: list) -> list[dict]:
+    """Из сырых записей position берём последнюю позицию по времени для каждого пилота."""
+    from collections import defaultdict
+    by_driver: dict[int, list[tuple[str, int]]] = defaultdict(list)
+    for row in rows:
+        dn = row.get("driver_number")
+        pos = row.get("position")
+        dt = row.get("date")
+        if dn is not None and pos is not None and dt:
+            by_driver[dn].append((dt, pos))
+    result = []
+    for driver_number, pairs in by_driver.items():
+        pairs.sort(key=lambda x: x[0], reverse=True)
+        result.append({"driver_number": driver_number, "position": pairs[0][1]})
+    result.sort(key=lambda x: x["position"])
+    return result
+
+
+async def _openf1_get_position_final(session_key: int) -> list[dict]:
+    """Финальные позиции в сессии (последнее известное положение по времени)."""
+    rows = await _openf1_get("position", session_key=session_key)
+    if not rows:
+        return []
+    return _openf1_position_final_from_rows(rows)
+
+
+async def _openf1_get_drivers_for_session(session_key: int) -> dict[int, dict]:
+    """driver_number -> {code (name_acronym), name (full_name/last_name)}."""
+    data = await _openf1_get("drivers", session_key=session_key)
+    if not data:
+        return {}
+    seen = set()
+    out = {}
+    for d in data:
+        num = d.get("driver_number")
+        if num is None or num in seen:
+            continue
+        seen.add(num)
+        code = (d.get("name_acronym") or "").strip() or (d.get("last_name", "")[:3].upper() if d.get("last_name") else "?")
+        out[num] = {
+            "code": code,
+            "name": d.get("full_name") or d.get("last_name") or code,
+        }
+    return out
+
+
+def _openf1_match_round_from_schedule(schedule: list, session_date_start: str, location: str) -> int | None:
+    """По дате и локации сессии находим round в нашем расписании."""
+    if not schedule or not session_date_start:
+        return None
+    try:
+        session_date = session_date_start[:10]
+    except Exception:
+        return None
+    location_clean = (location or "").strip().lower()
+    for r in schedule:
+        if (r.get("date") or "") == session_date:
+            loc = (r.get("location") or "").strip().lower()
+            if loc and location_clean and (loc in location_clean or location_clean in loc):
+                return r.get("round")
+            if not location_clean or not loc:
+                return r.get("round")
+    return None
+
+
+async def openf1_get_quali_results_live(season: int, limit: int = 20) -> tuple[int | None, list[dict]]:
+    """
+    Результаты квалификации из OpenF1 (моментально после сессии).
+    Возвращает (round_num, list[{position, driver, name, best}]).
+    best для квалификации по OpenF1 можно расширить через /laps — пока оставляем "—".
+    """
+    session = await _openf1_get_latest_session()
+    if not session or (session.get("session_type") or "").strip() != "Qualifying":
+        return None, []
+    session_key = session.get("session_key")
+    if session_key is None:
+        return None, []
+    positions = await _openf1_get_position_final(session_key)
+    drivers_map = await _openf1_get_drivers_for_session(session_key)
+    schedule = await get_season_schedule_short_async(season)
+    round_num = _openf1_match_round_from_schedule(
+        schedule or [],
+        session.get("date_start") or "",
+        session.get("location") or "",
+    )
+    results = []
+    for p in positions[:limit]:
+        dn = p.get("driver_number")
+        info = drivers_map.get(dn, {})
+        results.append({
+            "position": int(p.get("position", 0)),
+            "driver": info.get("code", "?"),
+            "name": info.get("name", "?"),
+            "best": "—",
+        })
+    return round_num, results
+
+
+async def openf1_get_race_results_live(season: int, round_num: int | None = None) -> pd.DataFrame | None:
+    """
+    Результаты гонки из OpenF1. Если round_num задан — ищем сессию Race по расписанию.
+    Иначе session_key=latest (если тип Race). Возвращает DataFrame в формате, похожем на FastF1 (Position, Abbreviation, FirstName, LastName, Points).
+    """
+    schedule = await get_season_schedule_short_async(season)
+    schedule_list = schedule or []
+    session_key = None
+    if round_num is not None:
+        event = next((r for r in schedule_list if r.get("round") == round_num), None)
+        if event:
+            race_date = event.get("date")
+            if race_date:
+                sessions = await _openf1_get("sessions", year=season)
+                if sessions:
+                    for s in sessions:
+                        if (s.get("session_type") or "").strip() != "Race":
+                            continue
+                        ds = (s.get("date_start") or "")[:10]
+                        if ds == race_date:
+                            session_key = s.get("session_key")
+                            break
+    if session_key is None:
+        session = await _openf1_get_latest_session()
+        if session and (session.get("session_type") or "").strip() == "Race":
+            session_key = session.get("session_key")
+    if session_key is None:
+        return None
+    positions = await _openf1_get_position_final(session_key)
+    drivers_map = await _openf1_get_drivers_for_session(session_key)
+    rows = []
+    for p in positions:
+        dn = p.get("driver_number")
+        info = drivers_map.get(dn, {})
+        name = info.get("name", "?")
+        parts = name.split(" ", 1)
+        first = parts[0] if len(parts) > 0 else ""
+        last = parts[1] if len(parts) > 1 else name
+        rows.append({
+            "Position": int(p.get("position", 0)),
+            "Abbreviation": info.get("code", "?"),
+            "FirstName": first,
+            "LastName": last,
+            "Points": 0,
+        })
+    return pd.DataFrame(rows) if rows else None
+
+
 # --- АСИНХРОННЫЕ ОБЕРТКИ (С КЭШИРОВАНИЕМ) --- #
 # Бот и Mini App API вызывают одни и те же async-функции ниже:
 # запросы и с бота, и с front идут через кэш (Redis или файловый), кэш общий.
@@ -679,8 +853,16 @@ async def _get_zero_point_constructor_standings() -> pd.DataFrame:
 
 
 @cache_result(ttl=86400, key_prefix="race_res")
-async def get_race_results_async(season: int, round_number: int):
+async def _get_race_results_fastf1_async(season: int, round_number: int):
     return await _run_sync(get_race_results_df, season, round_number)
+
+
+async def get_race_results_async(season: int, round_number: int):
+    """Результаты гонки: сначала OpenF1 (live), при отсутствии — FastF1."""
+    df = await openf1_get_race_results_live(season, round_number)
+    if df is not None and not df.empty:
+        return df
+    return await _get_race_results_fastf1_async(season, round_number)
 
 
 @cache_result(ttl=86400, key_prefix="quali_res")
@@ -689,8 +871,16 @@ async def _get_quali_async(season: int, round_number: int, limit: int = 20):
 
 
 @cache_result(ttl=3600, key_prefix="lat_quali")
-async def _get_latest_quali_async(season: int, max_round: int | None = None, limit: int = 20):
+async def _get_latest_quali_fastf1_async(season: int, max_round: int | None = None, limit: int = 20):
     return await _run_sync(get_latest_quali_results, season, max_round, limit)
+
+
+async def _get_latest_quali_async(season: int, max_round: int | None = None, limit: int = 20):
+    """Результаты квалификации: сначала OpenF1 (live), при отсутствии — FastF1."""
+    round_num, results = await openf1_get_quali_results_live(season, limit=limit)
+    if results and (max_round is None or (round_num is not None and round_num <= max_round)):
+        return round_num, results
+    return await _get_latest_quali_fastf1_async(season, max_round, limit)
 
 
 async def get_event_details_async(season: int, round_number: int):

@@ -157,8 +157,8 @@ async def check_and_send_notifications(bot: Bot):
     if not users and not group_chats:
         return
 
-    scheduler_interval = 5
-    half_window = scheduler_interval / 2 + 0.1
+    # Окно ±1 мин от целевого времени, чтобы не слать «за 32 мин» вместо «за 30»
+    half_window = 1.0
 
     sent_count = 0
     for user in users:
@@ -193,17 +193,25 @@ async def check_and_send_notifications(bot: Bot):
         except Exception:
             continue
 
-    # === Рассылка в группы (общая информация, без избранного) ===
-    group_chats = await get_all_group_chats()
+    # === Рассылка в группы (общая информация, без избранного) — один раз на группу ===
+    group_chats_raw = await get_all_group_chats()
+    group_chats = list(dict.fromkeys(group_chats_raw)) if group_chats_raw else []
     if group_chats:
-        half_window = scheduler_interval / 2 + 0.1
         for race, mins, for_quali in upcoming_event:
             if abs(mins - GROUP_NOTIFY_BEFORE) <= half_window:
+                round_num_g = race.get("round")
                 text = get_notification_text(race, GROUP_TIMEZONE, mins, for_quali=for_quali)
                 quiet = is_quiet_hours(GROUP_TIMEZONE)
                 for chat_id in group_chats:
+                    group_key = None
+                    if round_num_g is not None:
+                        group_key = -abs(int(chat_id))
+                        if await was_reminder_sent(group_key, season, round_num_g, for_quali, GROUP_NOTIFY_BEFORE):
+                            continue
                     if await safe_send_message(bot, chat_id, text, parse_mode="HTML", disable_notification=quiet):
                         sent_count += 1
+                        if group_key is not None:
+                            await set_reminder_sent(group_key, season, round_num_g, for_quali, GROUP_NOTIFY_BEFORE)
                     await asyncio.sleep(0.05)
                 break  # одно напоминание за цикл
 
@@ -272,8 +280,8 @@ async def check_and_send_results(bot: Bot):
         try:
             race_dt = datetime.fromisoformat(r["race_start_utc"])
             if race_dt.tzinfo is None: race_dt = race_dt.replace(tzinfo=timezone.utc)
-            # Считаем завершенным через 4 часа после старта (тесты идут долго)
-            finish_offset = 9 if r.get("is_testing") else 2.5
+            # Считаем завершенным: тесты — 9ч; гонка — 1ч (OpenF1 даёт результаты почти сразу)
+            finish_offset = 9 if r.get("is_testing") else 1
 
             if now > race_dt + timedelta(hours=finish_offset):
                 finished_event = r
@@ -342,6 +350,9 @@ async def check_and_send_results(bot: Bot):
     if not users_favorites and not group_chats:
         await set_last_notified_round(season, round_num)
         return
+
+    # Сразу помечаем этап как «рассылаем», чтобы параллельный запуск job не дублировал
+    await set_last_notified_round(season, round_num)
 
     users_settings = await get_users_with_settings()
     tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users_settings}
@@ -450,8 +461,6 @@ async def check_and_send_results(bot: Bot):
             sent_count += 1
         await asyncio.sleep(0.05)
 
-    await set_last_notified_round(season, round_num)
-
 
 # --- ЗАДАЧА 3: РЕЗУЛЬТАТЫ КВАЛИФИКАЦИИ ---
 
@@ -488,6 +497,9 @@ async def check_and_notify_quali(bot: Bot) -> None:
     if not rows_for_image:
         await set_last_notified_quali_round(season, round_num)
         return
+
+    # Сразу помечаем этап как «рассылаем», чтобы параллельный запуск job не дублировал
+    await set_last_notified_quali_round(season, round_num)
 
     img_buf = await asyncio.to_thread(
         create_quali_results_image,
@@ -545,8 +557,6 @@ async def check_and_notify_quali(bot: Bot) -> None:
         ):
             sent_count += 1
         await asyncio.sleep(0.05)
-
-    await set_last_notified_quali_round(season, round_num)
 
 
 # --- ЗАДАЧА 4: ИТОГИ ГОЛОСОВАНИЯ (3 дня после гонки) ---
