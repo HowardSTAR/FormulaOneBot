@@ -19,7 +19,7 @@ from app.db import (
 )
 from app.f1_data import (
     get_season_schedule_short_async, get_weekend_schedule, get_race_results_async,
-    get_constructor_standings_async, _get_latest_quali_async
+    get_constructor_standings_async, get_quali_for_round_async, _get_latest_quali_async,
 )
 from app.utils.default import SESSION_NAME_RU, validate_f1_year
 from app.utils.image_render import (
@@ -184,13 +184,20 @@ async def weekend_schedule(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("quali_"))
 async def quali_callback(callback: CallbackQuery) -> None:
     try:
-        _, season_str, _ = callback.data.split("_")
-        season = int(season_str)
-    except:
+        parts = callback.data.split("_")
+        season = int(parts[1])
+        round_from_btn = int(parts[2]) if len(parts) > 2 else None
+    except Exception:
         season = datetime.now().year
+        round_from_btn = None
 
-    latest = await _get_latest_quali_async(season)
-    latest_round, results = latest
+    # Сначала пробуем квалификацию именно этого этапа (по кнопке), затем «последнюю»
+    if round_from_btn is not None:
+        latest_round, results = await get_quali_for_round_async(season, round_from_btn, limit=100)
+    else:
+        latest_round, results = None, []
+    if not results:
+        latest_round, results = await _get_latest_quali_async(season, limit=100)
 
     if not latest_round or not results:
         await callback.answer("Нет результатов", show_alert=True)
