@@ -890,7 +890,7 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
         except Exception as e:
             logger.error(f"Jolpica API error (drivers): {e}")
 
-    # Фоллбэк: Ergast для прошедших сезонов, OpenF1 для текущего
+    # Фоллбэк: Ergast для прошедших сезонов
     if season < datetime.now().year:
         try:
             df = await _run_sync(get_driver_standings_df, season, round_number)
@@ -898,6 +898,12 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
                 return df
         except Exception as e:
             logger.warning(f"Ergast fallback failed for {season}: {e}")
+
+    # Текущий сезон: список пилотов 2026 из Ergast (составы уже есть до первой гонки)
+    if season == datetime.now().year and round_number is None:
+        df = await _get_drivers_list_ergast(season)
+        if not df.empty:
+            return sort_standings_zero_last(df)
 
     return await _get_zero_point_driver_standings()
 
@@ -940,12 +946,74 @@ async def get_constructor_standings_async(season: int, round_number: int | None 
         except Exception as e:
             logger.warning(f"Ergast fallback failed for constructors {season}: {e}")
 
+    # Текущий сезон: список команд 2026 из Ergast
+    if season == datetime.now().year and round_number is None:
+        df = await _get_constructors_list_ergast(season)
+        if not df.empty:
+            return sort_standings_zero_last(df)
+
     return await _get_zero_point_constructor_standings()
 
 
 # ==========================================
 # СКРЫТЫЕ ФУНКЦИИ ГЕНЕРАЦИИ МЕЖСЕЗОНЬЯ
 # ==========================================
+
+async def _get_drivers_list_ergast(season: int) -> pd.DataFrame:
+    """Список пилотов сезона из Ergast (без очков). Для избранного/составов до первой гонки."""
+    async with aiohttp.ClientSession() as session:
+        for base in _ERGAST_BASES:
+            try:
+                data = await _fetch_json(session, f"{base}/{season}/drivers.json?limit=50")
+                if not data:
+                    continue
+                drivers = data.get("MRData", {}).get("DriverTable", {}).get("Drivers", [])
+                if not drivers:
+                    continue
+                parsed = []
+                for i, d in enumerate(drivers, 1):
+                    code = (d.get("code") or "").strip() or (d.get("familyName", "")[:3].upper() if d.get("familyName") else "?")
+                    parsed.append({
+                        "position": i,
+                        "points": 0.0,
+                        "driverCode": code,
+                        "givenName": d.get("givenName", ""),
+                        "familyName": d.get("familyName", ""),
+                        "driverId": d.get("driverId", ""),
+                        "permanentNumber": str(d.get("permanentNumber", "")) if d.get("permanentNumber") else "",
+                        "constructorId": "",
+                        "constructorName": "",
+                    })
+                return pd.DataFrame(parsed)
+            except Exception as e:
+                logger.debug(f"Ergast drivers list {season}: {e}")
+    return pd.DataFrame()
+
+
+async def _get_constructors_list_ergast(season: int) -> pd.DataFrame:
+    """Список команд сезона из Ergast. Для избранного до первой гонки."""
+    async with aiohttp.ClientSession() as session:
+        for base in _ERGAST_BASES:
+            try:
+                data = await _fetch_json(session, f"{base}/{season}/constructors.json?limit=30")
+                if not data:
+                    continue
+                constructors = data.get("MRData", {}).get("ConstructorTable", {}).get("Constructors", [])
+                if not constructors:
+                    continue
+                parsed = []
+                for i, c in enumerate(constructors, 1):
+                    parsed.append({
+                        "position": i,
+                        "points": 0.0,
+                        "constructorId": c.get("constructorId", ""),
+                        "constructorName": c.get("name", ""),
+                    })
+                return pd.DataFrame(parsed)
+            except Exception as e:
+                logger.debug(f"Ergast constructors list {season}: {e}")
+    return pd.DataFrame()
+
 
 async def _get_zero_point_driver_standings() -> pd.DataFrame:
     """Собирает сетку пилотов из OpenF1 и выдает всем 0 очков. driverId берём из Ergast по code."""
