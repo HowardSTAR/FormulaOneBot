@@ -1,6 +1,6 @@
 import asyncio
 import math
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from aiogram import Router, F
 from aiogram.enums import ChatType
@@ -17,7 +17,11 @@ from aiogram.types import (
 )
 
 from app.db import get_favorite_drivers
-from app.f1_data import get_driver_standings_async, sort_standings_zero_last
+from app.f1_data import (
+    get_driver_standings_async,
+    get_season_schedule_short_async,
+    sort_standings_zero_last,
+)
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_driver_standings_image
 from app.utils.loader import Loader
@@ -32,7 +36,26 @@ class DriversYearState(StatesGroup):
 async def _send_drivers_for_year(message: Message, season: int, telegram_id: int | None = None) -> None:
     async with Loader(message, text="⏳ Получаю таблицу пилотов...") as loader:
         try:
-            df = await get_driver_standings_async(season)
+            round_number = None
+            if season == datetime.now().year:
+                schedule = await get_season_schedule_short_async(season)
+                if schedule:
+                    now = datetime.now(timezone.utc)
+                    for r in schedule:
+                        if not r.get("race_start_utc"):
+                            continue
+                        try:
+                            race_dt = datetime.fromisoformat(r["race_start_utc"])
+                            if race_dt.tzinfo is None:
+                                race_dt = race_dt.replace(tzinfo=timezone.utc)
+                            offset = 9 if r.get("is_testing") else 1
+                            if now > race_dt + timedelta(hours=offset):
+                                round_number = r["round"]
+                            else:
+                                break
+                        except Exception:
+                            continue
+            df = await get_driver_standings_async(season, round_number)
         except Exception:
             await message.answer(
                 "❌ Не удалось получить таблицу пилотов.\n"

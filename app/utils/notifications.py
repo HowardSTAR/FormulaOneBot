@@ -383,7 +383,8 @@ async def check_and_send_results(bot: Bot):
 
     users_favorites = await get_users_favorites_for_notifications()
     group_chats = await get_all_group_chats()
-    if not users_favorites and not group_chats:
+    notifications_users = await get_users_with_settings(notifications_only=True)
+    if not users_favorites and not group_chats and not notifications_users:
         await set_last_notified_round(season, round_num)
         return
 
@@ -507,6 +508,7 @@ async def check_and_send_results(bot: Bot):
             constructor_results_by_name[team_name].append(row)
 
     sent_count = 0
+    # Пользователи с избранным — картинка с их избранными + подробный текст
     for tg_id, favs in users_favorites.items():
         fav_codes = {str(c).upper() for c in favs.get("drivers", [])}
         photo_bytes = (await asyncio.to_thread(_render_race_image, fav_codes)).getvalue()
@@ -527,6 +529,8 @@ async def check_and_send_results(bot: Bot):
                         break
             if team_rows:
                 total_pts = sum(float(getattr(r, "Points", 0) or 0) for r in team_rows)
+                if total_pts == 0:
+                    total_pts = sum(points_for_race_position(int(getattr(r, "Position", 0))) for r in team_rows)
                 best_pos = min(int(getattr(r, "Position", 999)) for r in team_rows)
                 team_res.append({"team": team_name, "text": f"P{best_pos}, +{int(total_pts)} очк."})
 
@@ -539,6 +543,22 @@ async def check_and_send_results(bot: Bot):
             parse_mode="HTML",
             has_spoiler=True,
             disable_notification=quiet,
+        ):
+            sent_count += 1
+        await asyncio.sleep(0.05)
+
+    # Пользователи без избранного, но с уведомлениями — только короткий текст
+    caption_no_fav = "🏁 Результаты последней гонки (таблица на картинке)."
+    fav_tg_ids = set(users_favorites.keys())
+    for tg_id, tz in [(u[0], u[1] or "Europe/Moscow") for u in notifications_users]:
+        if tg_id in fav_tg_ids:
+            continue
+        if await safe_send_photo(
+            bot, tg_id, photo_bytes_generic,
+            caption=caption_no_fav,
+            parse_mode="HTML",
+            has_spoiler=True,
+            disable_notification=is_quiet_hours(tz),
         ):
             sent_count += 1
         await asyncio.sleep(0.05)
@@ -589,7 +609,8 @@ async def check_and_notify_quali(bot: Bot) -> None:
 
     users_favorites = await get_users_favorites_for_notifications()
     group_chats = await get_all_group_chats()
-    if not users_favorites and not group_chats:
+    notifications_users = await get_users_with_settings(notifications_only=True)
+    if not users_favorites and not group_chats and not notifications_users:
         await set_last_notified_quali_round(season, round_num)
         return
 
@@ -697,6 +718,22 @@ async def check_and_notify_quali(bot: Bot) -> None:
             parse_mode="HTML",
             has_spoiler=True,
             disable_notification=quiet,
+        ):
+            sent_count += 1
+        await asyncio.sleep(0.05)
+
+    # Квалификация: пользователи без избранного
+    caption_quali_no_fav = "⏱ Результаты квалификации (таблица на картинке)."
+    fav_tg_ids_quali = set(users_favorites.keys())
+    for tg_id, tz in [(u[0], u[1] or "Europe/Moscow") for u in notifications_users]:
+        if tg_id in fav_tg_ids_quali:
+            continue
+        if await safe_send_photo(
+            bot, tg_id, photo_bytes_generic_quali,
+            caption=caption_quali_no_fav,
+            parse_mode="HTML",
+            has_spoiler=True,
+            disable_notification=is_quiet_hours(tz),
         ):
             sent_count += 1
         await asyncio.sleep(0.05)

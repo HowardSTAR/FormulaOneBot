@@ -336,6 +336,11 @@ async def api_drivers(
     if season is None:
         season = datetime.now().year
 
+    if round_number is None and season == datetime.now().year:
+        schedule = await get_season_schedule_short_async(season)
+        if schedule:
+            round_number = _get_last_completed_race_round_for_standings(schedule)
+
     df = await get_driver_standings_async(season, round_number)
 
     if df.empty:
@@ -726,6 +731,12 @@ async def api_race_details(
 import asyncio  # Убедись, что это импортировано вверху файла
 
 
+def _get_last_completed_race_round_for_standings(schedule: list) -> int | None:
+    """Номер последнего завершённого этапа (для standings)."""
+    ev = _get_last_completed_race(schedule, datetime.now(timezone.utc))
+    return ev["round"] if ev else None
+
+
 def _get_passed_races(schedule: list, now: datetime) -> list:
     """Этапы, гонки которых уже завершились (логика как в _get_last_completed_race)."""
     passed = []
@@ -786,6 +797,9 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
             if not row1.empty:
                 val1 = row1.iloc[0].get('Points', 0)
                 pts1 = 0 if pd.isna(val1) else float(val1)
+                if pts1 == 0:
+                    pos1 = row1.iloc[0].get('Position')
+                    pts1 = points_for_race_position(int(pos1)) if pos1 is not None and not pd.isna(pos1) else 0
 
                 # Достаем стартовую позицию (Grid) для сравнения квал
                 g1 = row1.iloc[0].get('GridPosition', row1.iloc[0].get('Grid', 999))
@@ -796,6 +810,9 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
             if not row2.empty:
                 val2 = row2.iloc[0].get('Points', 0)
                 pts2 = 0 if pd.isna(val2) else float(val2)
+                if pts2 == 0:
+                    pos2 = row2.iloc[0].get('Position')
+                    pts2 = points_for_race_position(int(pos2)) if pos2 is not None and not pd.isna(pos2) else 0
 
                 g2 = row2.iloc[0].get('GridPosition', row2.iloc[0].get('Grid', 999))
                 grid2 = 999 if pd.isna(g2) else float(g2)
@@ -876,14 +893,19 @@ async def api_compare_teams(c1: str, c2: str, season: int = Query(...)):
         col = "TeamName" if "TeamName" in df.columns else "Constructor"
         if col not in df.columns:
             return 0.0
-        pts_col = "Points" if "Points" in df.columns else ("points" if "points" in df.columns else None)
-        if pts_col is None:
-            return 0.0
         mask = df[col].apply(lambda x: _team_matches(team_name, x))
         team_rows = df[mask]
         if team_rows.empty:
             return 0.0
-        pts = team_rows[pts_col].fillna(0).astype(float).sum()
+        pts_col = "Points" if "Points" in df.columns else ("points" if "points" in df.columns else None)
+        pts = team_rows[pts_col].fillna(0).astype(float).sum() if pts_col else 0
+        if pts == 0 and "Position" in team_rows.columns:
+            for pos in team_rows["Position"]:
+                if pos is not None and pd.notna(pos):
+                    try:
+                        pts += points_for_race_position(int(pos))
+                    except (TypeError, ValueError):
+                        pass
         return float(pts)
 
     for df in results:

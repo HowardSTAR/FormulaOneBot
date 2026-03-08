@@ -447,7 +447,7 @@ async def race_callback(callback: CallbackQuery) -> None:
             pts = r.get("points", 0)
             fav_driver_lines.append(f"• {code}: P{pos} (+{pts} очк.)")
     if fav_driver_lines:
-        fav_block = "⭐️ Твои избранные пилоты:\n" + "\n".join(fav_driver_lines)
+        fav_block = "⭐️ Твои избранные пилоты:\n<tg-spoiler>" + "\n".join(fav_driver_lines) + "</tg-spoiler>"
 
     if fav_teams:
         constructor_results_by_name: dict[str, list] = defaultdict(list)
