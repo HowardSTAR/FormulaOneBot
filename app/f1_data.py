@@ -872,9 +872,14 @@ async def openf1_get_race_results_live(season: int, round_num: int | None = None
         code = (info.get("code") or st.get("code") or "").strip()
         code = code or (_DRIVER_NUMBER_TO_CODE_FALLBACK.get(dn, "?") if dn is not None else "?")
         name = (info.get("name") or st.get("name") or "").strip() or code
-        parts = str(name).split(" ", 1)
-        first = parts[0] if len(parts) > 0 else ""
-        last = parts[1] if len(parts) > 1 else name
+        # Если name — это только код (2–4 заглавные буквы без пробела), не дублируем в FirstName+LastName
+        is_code_only = len(name) <= 4 and name.isalpha() and name.isupper() and " " not in name
+        if is_code_only:
+            first, last = "", name
+        else:
+            parts = str(name).split(" ", 1)
+            first = parts[0] if len(parts) > 0 else ""
+            last = parts[1] if len(parts) > 1 else name
         rows.append({
             "Position": int(p.get("position", 0)),
             "Abbreviation": code,
