@@ -186,5 +186,8 @@ async def cb_back(callback: types.CallbackQuery, state: FSMContext):
 
 @settings_router.callback_query(F.data == "close_settings")
 async def cb_close(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
     await state.clear()

@@ -579,23 +579,39 @@ async def _openf1_get_position_final(session_key: int) -> list[dict]:
     return _openf1_position_final_from_rows(rows)
 
 
+# Минимальный статический маппинг только как последний резерв (OpenF1 и standings могут быть пусты)
+_DRIVER_NUMBER_TO_CODE_FALLBACK: dict[int, str] = {
+    1: "VER", 44: "HAM", 4: "NOR", 81: "PIA", 16: "LEC", 55: "SAI",
+}
+
+
 async def _openf1_get_drivers_for_session(session_key: int) -> dict[int, dict]:
-    """driver_number -> {code (name_acronym), name (full_name/last_name)}."""
-    data = await _openf1_get("drivers", session_key=session_key)
-    if not data:
-        return {}
-    seen = set()
-    out = {}
-    for d in data:
+    """driver_number -> {code (name_acronym), name (full_name/last_name)}. Дополняет из /drivers без session."""
+    out: dict[int, dict] = {}
+
+    def _add(d: dict) -> None:
         num = d.get("driver_number")
-        if num is None or num in seen:
-            continue
-        seen.add(num)
-        code = (d.get("name_acronym") or "").strip() or (d.get("last_name", "")[:3].upper() if d.get("last_name") else "?")
+        if num is None or num in out:
+            return
+        code = (d.get("name_acronym") or "").strip() or (d.get("last_name") or "")[:3].upper()
+        name = (d.get("full_name") or d.get("last_name") or "").strip()
         out[num] = {
-            "code": code,
-            "name": d.get("full_name") or d.get("last_name") or code,
+            "code": code or _DRIVER_NUMBER_TO_CODE_FALLBACK.get(num, "?"),
+            "name": name or (code or _DRIVER_NUMBER_TO_CODE_FALLBACK.get(num, "?")),
         }
+
+    data = await _openf1_get("drivers", session_key=session_key)
+    if data:
+        for d in data:
+            _add(d)
+
+    extra = await _openf1_get("drivers")
+    if extra:
+        for d in extra:
+            num = d.get("driver_number")
+            if num is not None and (num not in out or out[num].get("code") == "?"):
+                _add(d)
+
     return out
 
 
@@ -786,6 +802,26 @@ async def get_quali_for_round_async(season: int, round_num: int, limit: int = 10
     return round_num, fastf1_list if fastf1_list else []
 
 
+async def _get_driver_number_to_info_from_standings(season: int, round_num: int | None) -> dict[int, dict]:
+    """driver_number (int) -> {code, name}. Источник: standings (Jolpica/Ergast)."""
+    df = await get_driver_standings_async(season, round_num)
+    out: dict[int, dict] = {}
+    if df.empty or "permanentNumber" not in df.columns:
+        return out
+    for _, row in df.iterrows():
+        pn = getattr(row, "permanentNumber", "") or ""
+        try:
+            num = int(pn)
+        except (ValueError, TypeError):
+            continue
+        code = (getattr(row, "driverCode", "") or "").strip() or "?"
+        given = (getattr(row, "givenName", "") or "").strip()
+        family = (getattr(row, "familyName", "") or "").strip()
+        name = f"{given} {family}".strip() or code
+        out[num] = {"code": code, "name": name}
+    return out
+
+
 async def openf1_get_race_results_live(season: int, round_num: int | None = None) -> pd.DataFrame | None:
     """
     Результаты гонки из OpenF1. Если round_num задан — ищем сессию Race по расписанию.
@@ -794,6 +830,7 @@ async def openf1_get_race_results_live(season: int, round_num: int | None = None
     schedule = await get_season_schedule_short_async(season)
     schedule_list = schedule or []
     session_key = None
+    used_latest_session = None
     if round_num is not None:
         event = next((r for r in schedule_list if r.get("round") == round_num), None)
         if event:
@@ -809,24 +846,38 @@ async def openf1_get_race_results_live(season: int, round_num: int | None = None
                             session_key = s.get("session_key")
                             break
     if session_key is None:
-        session = await _openf1_get_latest_session()
-        if session and (session.get("session_type") or "").strip() == "Race":
-            session_key = session.get("session_key")
+        used_latest_session = await _openf1_get_latest_session()
+        if used_latest_session and (used_latest_session.get("session_type") or "").strip() == "Race":
+            session_key = used_latest_session.get("session_key")
     if session_key is None:
         return None
+
+    effective_round = round_num
+    if effective_round is None and used_latest_session:
+        effective_round = _openf1_match_round_from_schedule(
+            schedule_list,
+            used_latest_session.get("date_start") or "",
+            used_latest_session.get("location_country") or used_latest_session.get("location") or "",
+        )
+
     positions = await _openf1_get_position_final(session_key)
     drivers_map = await _openf1_get_drivers_for_session(session_key)
+    standings_map = await _get_driver_number_to_info_from_standings(season, effective_round)
+
     rows = []
     for p in positions:
         dn = p.get("driver_number")
         info = drivers_map.get(dn, {})
-        name = info.get("name", "?")
-        parts = name.split(" ", 1)
+        st = standings_map.get(dn, {}) if dn is not None else {}
+        code = (info.get("code") or st.get("code") or "").strip()
+        code = code or (_DRIVER_NUMBER_TO_CODE_FALLBACK.get(dn, "?") if dn is not None else "?")
+        name = (info.get("name") or st.get("name") or "").strip() or code
+        parts = str(name).split(" ", 1)
         first = parts[0] if len(parts) > 0 else ""
         last = parts[1] if len(parts) > 1 else name
         rows.append({
             "Position": int(p.get("position", 0)),
-            "Abbreviation": info.get("code", "?"),
+            "Abbreviation": code,
             "FirstName": first,
             "LastName": last,
             "Points": 0,

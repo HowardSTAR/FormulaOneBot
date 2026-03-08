@@ -176,7 +176,10 @@ async def process_driver_2_selection(callback: CallbackQuery, state: FSMContext)
     year = data.get("year")
 
     await state.clear()
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
 
     name1 = _driver_name(drivers_list, driver1_code)
     name2 = _driver_name(drivers_list, driver2_code)

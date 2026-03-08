@@ -229,9 +229,17 @@ class DriverVoteRequest(BaseModel):
 @web_app.get("/api/votes/me")
 async def api_votes_me(
     season: int = Query(...),
-    user_id: int = Depends(get_current_user_id),
+    x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data"),
 ):
-    """Голоса пользователя за сезон: race_votes и driver_votes."""
+    """Голоса пользователя за сезон: race_votes и driver_votes. Работает без auth — вернёт пустые голоса."""
+    user_id = None
+    if x_telegram_init_data:
+        try:
+            user_id = await get_current_user_id(x_telegram_init_data)
+        except Exception:
+            pass
+    if user_id is None:
+        return {"race_votes": {}, "driver_votes": {}}
     race_votes, driver_votes = await get_user_votes(user_id, season)
     return {"race_votes": race_votes, "driver_votes": driver_votes}
 

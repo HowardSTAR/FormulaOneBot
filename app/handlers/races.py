@@ -139,8 +139,11 @@ async def back_to_race(callback: CallbackQuery, state: FSMContext):
         season = None
 
     user_id = callback.from_user.id if callback.message.chat.type == ChatType.PRIVATE else None
-    if callback.message.photo:
-        await callback.message.delete()
+    if callback.message and callback.message.photo:
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
         await _send_next_race_message(callback.message, user_id, season, False)
     else:
         await _send_next_race_message(callback.message, user_id, season, True)
@@ -219,7 +222,10 @@ async def quali_callback(callback: CallbackQuery) -> None:
     )
     photo = BufferedInputFile(img_buf.getvalue(), filename="quali_results.png")
 
-    await callback.message.delete()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔙 Вернуться", callback_data=f"back_to_race_{season}")]
@@ -337,6 +343,8 @@ async def race_callback(callback: CallbackQuery) -> None:
             await callback.message.answer("Пока нет данных по результатам гонки 🤔")
         await callback.answer()
         return
+
+    await callback.answer()
 
     if race_info is not None:
         img_title = "Результаты гонки"
@@ -485,7 +493,10 @@ async def race_callback(callback: CallbackQuery) -> None:
         caption += "\n\n" + fav_block
 
     if callback.message:
-        await callback.message.delete()
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔙 Вернуться", callback_data=f"back_to_race_{season}")]
         ])
@@ -496,8 +507,6 @@ async def race_callback(callback: CallbackQuery) -> None:
             has_spoiler=True,
             reply_markup=kb
         )
-
-    await callback.answer()
 
 
 # --- Календарь ---
@@ -541,9 +550,12 @@ async def btn_races_ask_year(message: Message, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data == "close_calendar")
-async def btn_close_calendar(callback: CallbackQuery, state: FSMContext): # <-- Добавили state
-    await state.clear()                                                   # <-- СБРАСЫВАЕМ СОСТОЯНИЕ
-    await callback.message.delete()
+async def btn_close_calendar(callback: CallbackQuery, state: FSMContext):
+    await state.clear()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
 
 
 @router.message(RacesYearState.year)
