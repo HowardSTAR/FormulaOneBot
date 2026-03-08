@@ -8,7 +8,7 @@ Chart.register(...registerables);
 
 const currentRealYear = new Date().getFullYear();
 
-type Race = { round: number; event_name: string; location: string; date: string };
+type Race = { round: number; event_name: string; location: string; date: string; race_start_utc?: string };
 type DriverOption = { code: string; name: string };
 type SeasonResponse = { races?: Race[] };
 type DriversResponse = { drivers?: DriverOption[] };
@@ -35,11 +35,17 @@ function VotingPage() {
   const chartDriverInstanceRef = useRef<Chart | null>(null);
 
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
   const finishedRaces = races.filter((r) => {
+    if (r.race_start_utc) {
+      const raceStart = new Date(r.race_start_utc);
+      const raceEnd = new Date(raceStart.getTime() + 60 * 60 * 1000);
+      return now > raceEnd;
+    }
+    const dayStart = new Date(now);
+    dayStart.setHours(0, 0, 0, 0);
     const raceEnd = new Date(r.date);
     raceEnd.setDate(raceEnd.getDate() + 1);
-    return raceEnd < now;
+    return raceEnd < dayStart;
   });
 
   const loadData = useCallback(async (season: number) => {

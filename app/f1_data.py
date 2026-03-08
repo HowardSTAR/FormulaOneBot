@@ -1350,10 +1350,8 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
                 for d in await oresp.json():
                     if d.get("name_acronym", "").upper() == code_match:
                         url = d.get("headshot_url") or ""
-                        if url and "d_driver_fallback_image" not in url:
-                            return url
                         if url:
-                            break
+                            return url
         async with session.get(
             "https://api.openf1.org/v1/drivers",
             timeout=aiohttp.ClientTimeout(total=10),
@@ -1362,7 +1360,7 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
                 for d in await oresp2.json():
                     if d.get("name_acronym", "").upper() == code_match:
                         url = d.get("headshot_url") or ""
-                        if url and "d_driver_fallback_image" not in url:
+                        if url:
                             return url
     except Exception:
         pass

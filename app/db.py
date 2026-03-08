@@ -110,6 +110,8 @@ class Database:
             await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_quali_round INTEGER")
         if "last_notified_voting_round" not in cols:
             await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_voting_round INTEGER")
+        if "last_notified_voting_invite_round" not in cols:
+            await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_voting_invite_round INTEGER")
 
         try:
             await self.conn.execute("ALTER TABLE users ADD COLUMN notifications_enabled BOOLEAN DEFAULT 0")
@@ -427,6 +429,14 @@ async def get_last_notified_voting_round(season: int) -> int | None:
 
 async def set_last_notified_voting_round(season: int, r: int) -> None:
     await _set_round_value(season, "last_notified_voting_round", r)
+
+
+async def get_last_notified_voting_invite_round(season: int) -> int | None:
+    return await _get_round_value(season, "last_notified_voting_invite_round")
+
+
+async def set_last_notified_voting_invite_round(season: int, r: int) -> None:
+    await _set_round_value(season, "last_notified_voting_invite_round", r)
 
 
 # --- Голосования (гонка 1–5, пилот дня) ---
