@@ -14,6 +14,8 @@ from app.db import (
     set_last_notified_quali_round,
     get_last_notified_voting_round,
     set_last_notified_voting_round,
+    get_last_notified_voting_invite_round,
+    set_last_notified_voting_invite_round,
     get_race_avg_for_round,
     get_driver_vote_winner,
     get_all_group_chats,
@@ -341,7 +343,26 @@ async def check_and_send_results(bot: Bot):
 
     # === ЛОГИКА ДЛЯ ГОНОК: картинка + текст по избранным под спойлером ===
     results_df = await get_race_results_async(season, round_num)
+
+    # Если результатов ещё нет — сразу отправляем приглашение на голосование
+    voting_invite_sent = await get_last_notified_voting_invite_round(season)
     if results_df.empty:
+        if voting_invite_sent is None or voting_invite_sent < round_num:
+            voting_users = await get_users_with_settings(notifications_only=True)
+            event_name = finished_event.get("event_name", "Гран-при")
+            voting_text = (
+                f"🗳 <b>Приглашаем на голосование!</b>\n\n"
+                f"🏁 {event_name} завершена.\n\n"
+                f"Оцените этап по 5-балльной шкале и выберите пилота дня — "
+                f"откройте раздел <b>Голосование</b> в MiniWebApp слева по кнопке."
+            )
+            for u in voting_users:
+                tg_id, tz = u[0], u[1] or "Europe/Moscow"
+                quiet = is_quiet_hours(tz)
+                await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet)
+                await asyncio.sleep(0.05)
+            await set_last_notified_voting_invite_round(season, round_num)
+            logger.info(f"🗳 Sent voting invite for {event_name} (no results yet)")
         return
 
     users_favorites = await get_users_favorites_for_notifications()
@@ -433,20 +454,22 @@ async def check_and_send_results(bot: Bot):
             sent_count += 1
         await asyncio.sleep(0.05)
 
-    # Напоминание о голосовании — всем с включёнными уведомлениями
-    voting_users = await get_users_with_settings(notifications_only=True)
-    event_name = race_info.get("event_name", "Гран-при")
-    voting_text = (
-        f"🗳 <b>Приглашаем на голосование!</b>\n\n"
-        f"🏁 {event_name} завершена.\n\n"
-        f"Оцените этап по 5-балльной шкале и выберите пилота дня — "
-        f"откройте раздел <b>Голосование</b> в MiniWebApp слева по кнопке."
-    )
-    for u in voting_users:
-        tg_id, tz = u[0], u[1] or "Europe/Moscow"
-        quiet = is_quiet_hours(tz)
-        await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet)
-        await asyncio.sleep(0.05)
+    # Напоминание о голосовании — всем с включёнными уведомлениями (если ещё не отправляли)
+    if voting_invite_sent is None or voting_invite_sent < round_num:
+        voting_users = await get_users_with_settings(notifications_only=True)
+        event_name = race_info.get("event_name", "Гран-при")
+        voting_text = (
+            f"🗳 <b>Приглашаем на голосование!</b>\n\n"
+            f"🏁 {event_name} завершена.\n\n"
+            f"Оцените этап по 5-балльной шкале и выберите пилота дня — "
+            f"откройте раздел <b>Голосование</b> в MiniWebApp слева по кнопке."
+        )
+        for u in voting_users:
+            tg_id, tz = u[0], u[1] or "Europe/Moscow"
+            quiet = is_quiet_hours(tz)
+            await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet)
+            await asyncio.sleep(0.05)
+        await set_last_notified_voting_invite_round(season, round_num)
 
     # === Результаты в группы (общая картинка, без избранного) ===
     group_caption = f"🏁 {event_name} — этап {round_num}, сезон {season}\n\n📊 Результаты на картинке."
