@@ -725,11 +725,15 @@ def create_f1_style_classification_image(
     title_w, title_h = _text_size(draw_tmp, event_upper, FONT_SUBTITLE)
     sub_w, sub_h = _text_size(draw_tmp, session_upper, FONT_TABLE)
 
+    is_qualifying = "QUALIFYING" in (session_type or "").upper()
+
     # Столбцы: POS | DRIVER (имя + лого) | FASTEST (квалиф) или PTS (гонка)
     pos_w = 55
     driver_w = 320
-    right_col_w = 70  # PTS для гонки (0-26) или FASTEST для квалиф — компактно
-    table_width = pos_w + driver_w + right_col_w + 3 * CELL_PAD
+    # Для квалиф — время длиннее (1:18.518), нужна ширина и отступ от лого; для гонки — очки 0-26
+    right_col_w = 110 if is_qualifying else 70
+    driver_right_gap = 20 if is_qualifying else CELL_PAD  # отступ между логотипом и временем
+    table_width = pos_w + driver_w + right_col_w + 2 * CELL_PAD + driver_right_gap
     img_width = table_width + 2 * PADDING
 
     header_h = 50
@@ -741,15 +745,13 @@ def create_f1_style_classification_image(
 
     x_pos = PADDING
     x_driver = x_pos + pos_w + CELL_PAD
-    x_right = x_driver + driver_w + CELL_PAD
+    x_right = x_driver + driver_w + driver_right_gap
 
     cur_y = PADDING
     draw.text(((img_width - title_w) // 2, cur_y), event_upper, font=FONT_SUBTITLE, fill=(255, 255, 255))
     cur_y += title_h + 20
     draw.text(((img_width - sub_w) // 2, cur_y), session_upper, font=FONT_TABLE, fill=HEADER_TEXT)
     cur_y += sub_h + 20
-
-    is_qualifying = "QUALIFYING" in (session_type or "").upper()
 
     # Заголовки — чётко по своим колонкам
     draw.rectangle((PADDING, cur_y, img_width - PADDING, cur_y + header_h), fill=HEADER_BG)
