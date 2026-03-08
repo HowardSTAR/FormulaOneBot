@@ -448,11 +448,15 @@ async def check_and_send_results(bot: Bot):
                 except Exception:
                     pass
 
+        pts_val = row.get("Points")
+        pts = int(float(pts_val)) if pts_val is not None and pd.notna(pts_val) else 0
+
         rows_for_image.append({
             "pos": int(pos) if pos != "?" else "?",
             "driver": full_name,
             "team": team,
             "gap_or_time": gap_str,
+            "points": pts,
             "driver_code": code.upper() if code else "",
         })
 

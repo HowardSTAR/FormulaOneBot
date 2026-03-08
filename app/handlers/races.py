@@ -399,14 +399,15 @@ async def race_callback(callback: CallbackQuery) -> None:
                 except Exception:
                     pass
 
-        laps_val = getattr(row, "Laps", None)
-        laps_str = str(int(laps_val)) if laps_val is not None and pd.notna(laps_val) else "-"
+        pts_val = getattr(row, "Points", None)
+        pts = int(float(pts_val)) if pts_val is not None and pd.notna(pts_val) else 0
 
         rows_for_image.append({
             "pos": pos_int,
             "driver": full_name,
             "team": team or "",
             "gap_or_time": gap_str,
+            "points": pts,
             "driver_code": str(code or "").strip().upper(),
         })
 
