@@ -220,6 +220,10 @@ async def quali_callback(callback: CallbackQuery) -> None:
             if code:
                 code_to_team[code] = team
 
+    fav_driver_codes: set[str] = set()
+    if callback.message.chat.type not in (ChatType.GROUP, ChatType.SUPERGROUP):
+        fav_driver_codes = {str(c).upper() for c in await get_favorite_drivers(callback.from_user.id)}
+
     rows_for_image: list[dict] = []
     for r in results:
         code = str(r.get("driver", "") or "").upper()
@@ -229,7 +233,7 @@ async def quali_callback(callback: CallbackQuery) -> None:
             "driver": name,
             "team": code_to_team.get(code, ""),
             "gap_or_time": r.get("gap") or r.get("best", "—"),
-            "laps": "-",
+            "driver_code": code,
         })
 
     img_buf = await asyncio.to_thread(
@@ -238,7 +242,7 @@ async def quali_callback(callback: CallbackQuery) -> None:
         session_type="QUALIFYING CLASSIFICATION",
         rows=rows_for_image,
         season=season,
-        show_laps=False,
+        favorite_driver_codes=fav_driver_codes,
     )
     photo = BufferedInputFile(img_buf.getvalue(), filename="quali_results.png")
 
@@ -314,6 +318,8 @@ async def race_callback(callback: CallbackQuery) -> None:
     else:
         fav_drivers = await get_favorite_drivers(callback.from_user.id)
         fav_teams = await get_favorite_teams(callback.from_user.id)
+
+    fav_driver_codes = {str(c).upper() for c in fav_drivers}
 
     # --- ОФОРМЛЕНИЕ ---
     df = race_results
@@ -401,7 +407,7 @@ async def race_callback(callback: CallbackQuery) -> None:
             "driver": full_name,
             "team": team or "",
             "gap_or_time": gap_str,
-            "laps": laps_str,
+            "driver_code": str(code or "").strip().upper(),
         })
 
     if not rows_for_image:
@@ -420,7 +426,7 @@ async def race_callback(callback: CallbackQuery) -> None:
         session_type="RACE CLASSIFICATION",
         rows=rows_for_image,
         season=season,
-        show_laps=True,
+        favorite_driver_codes=fav_driver_codes,
     )
 
     photo = BufferedInputFile(

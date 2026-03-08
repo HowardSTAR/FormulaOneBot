@@ -448,15 +448,12 @@ async def check_and_send_results(bot: Bot):
                 except Exception:
                     pass
 
-        laps_val = row.get("Laps")
-        laps_str = str(int(laps_val)) if laps_val is not None and pd.notna(laps_val) else "-"
-
         rows_for_image.append({
             "pos": int(pos) if pos != "?" else "?",
             "driver": full_name,
             "team": team,
             "gap_or_time": gap_str,
-            "laps": laps_str,
+            "driver_code": code.upper() if code else "",
         })
 
     if not rows_for_image:
@@ -464,15 +461,18 @@ async def check_and_send_results(bot: Bot):
         return
 
     event_name = race_info.get("event_name", "Гран-при") or "Гран-при"
-    img_buf = await asyncio.to_thread(
-        create_f1_style_classification_image,
-        event_name=event_name,
-        session_type="RACE CLASSIFICATION",
-        rows=rows_for_image,
-        season=season,
-        show_laps=True,
-    )
-    photo_bytes = img_buf.getvalue()
+
+    def _render_race_image(fav_codes: set[str] | None = None):
+        return create_f1_style_classification_image(
+            event_name=event_name,
+            session_type="RACE CLASSIFICATION",
+            rows=rows_for_image,
+            season=season,
+            favorite_driver_codes=fav_codes,
+        )
+
+    # Общая картинка для групп (без избранных)
+    photo_bytes_generic = (await asyncio.to_thread(_render_race_image, None)).getvalue()
 
     res_map = {}
     for _, row in results_df.iterrows():
@@ -490,6 +490,9 @@ async def check_and_send_results(bot: Bot):
 
     sent_count = 0
     for tg_id, favs in users_favorites.items():
+        fav_codes = {str(c).upper() for c in favs.get("drivers", [])}
+        photo_bytes = (await asyncio.to_thread(_render_race_image, fav_codes)).getvalue()
+
         driver_res = []
         for code in favs.get("drivers", []):
             if code in res_map:
@@ -543,7 +546,7 @@ async def check_and_send_results(bot: Bot):
     group_caption = f"🏁 {event_name} — этап {round_num}, сезон {season}\n\n📊 Результаты на картинке."
     for chat_id in group_chats:
         if await safe_send_photo(
-            bot, chat_id, photo_bytes,
+            bot, chat_id, photo_bytes_generic,
             caption=group_caption,
             parse_mode="HTML",
             disable_notification=is_quiet_hours(GROUP_TIMEZONE),
@@ -596,7 +599,7 @@ async def check_and_notify_quali(bot: Bot) -> None:
             "driver": name,
             "team": code_to_team.get(code, ""),
             "gap_or_time": r.get("gap") or r.get("best", "—"),
-            "laps": "-",
+            "driver_code": code,
         })
 
     if not rows_for_image:
@@ -605,6 +608,17 @@ async def check_and_notify_quali(bot: Bot) -> None:
 
     # Сразу помечаем этап как «рассылаем», чтобы параллельный запуск job не дублировал
     await set_last_notified_quali_round(season, round_num)
+
+    event_name = (race_info or {}).get("event_name", "") or f"Этап {round_num:02d}"
+
+    def _render_quali_image(fav_codes: set[str] | None = None):
+        return create_f1_style_classification_image(
+            event_name=event_name,
+            session_type="QUALIFYING CLASSIFICATION",
+            rows=rows_for_image,
+            season=season,
+            favorite_driver_codes=fav_codes,
+        )
 
     # Кэш для веб-апа: одни и те же результаты до следующей квалы/гонки
     def _segment(pos: int) -> str:
@@ -626,21 +640,16 @@ async def check_and_notify_quali(bot: Bot) -> None:
     }
     await set_cached_quali_results(season, cache_payload)
 
-    event_name = (race_info or {}).get("event_name", "") or f"Этап {round_num:02d}"
-    img_buf = await asyncio.to_thread(
-        create_f1_style_classification_image,
-        event_name=event_name,
-        session_type="QUALIFYING CLASSIFICATION",
-        rows=rows_for_image,
-        season=season,
-        show_laps=False,
-    )
-    photo_bytes = img_buf.getvalue()
-
     quali_map = {str(r.get("driver", "")).upper(): r for r in results}
+
+    # Общая картинка для групп (без избранных)
+    photo_bytes_generic_quali = (await asyncio.to_thread(_render_quali_image, None)).getvalue()
 
     sent_count = 0
     for tg_id, favs in users_favorites.items():
+        fav_codes = {str(c).upper() for c in favs.get("drivers", [])}
+        img_buf = await asyncio.to_thread(_render_quali_image, fav_codes)
+        photo_bytes = img_buf.getvalue()
         driver_res = []
         for code in favs.get("drivers", []):
             if code in quali_map:
@@ -678,7 +687,7 @@ async def check_and_notify_quali(bot: Bot) -> None:
     quali_caption = f"⏱ Квалификация — этап {round_num:02d}, сезон {season}\n\n📊 Результаты на картинке."
     for chat_id in group_chats:
         if await safe_send_photo(
-            bot, chat_id, photo_bytes,
+            bot, chat_id, photo_bytes_generic_quali,
             caption=quali_caption,
             parse_mode="HTML",
             disable_notification=is_quiet_hours(GROUP_TIMEZONE),
