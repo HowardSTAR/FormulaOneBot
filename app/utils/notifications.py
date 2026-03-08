@@ -22,17 +22,20 @@ from app.db import (
     was_reminder_sent,
     set_reminder_sent,
 )
+import pandas as pd
+
 from app.f1_data import (
     get_season_schedule_short_async,
     get_race_results_async,
     get_constructor_standings_async,
+    get_driver_standings_async,
     _get_latest_quali_async,
     get_testing_results_async,
     get_driver_full_name_async,
     set_cached_quali_results,
 )
 from app.utils.safe_send import safe_send_message, safe_send_photo
-from app.utils.image_render import create_results_image, create_quali_results_image
+from app.utils.image_render import create_f1_style_classification_image
 
 logger = logging.getLogger(__name__)
 ADMIN_ID = 2099386
@@ -391,30 +394,83 @@ async def check_and_send_results(bot: Bot):
 
     # Картинка с общими результатами (без звёздочек для избранных — одна картинка на всех)
     race_info = finished_event
-    rows_for_image = []
     if "Position" in results_df.columns:
         results_df = results_df.sort_values("Position")
-    for _, row in results_df.head(20).iterrows():
-        pos = row.get("Position", "?")
+
+    driver_standings = await get_driver_standings_async(season, round_number=round_num)
+    code_to_team: dict[str, str] = {}
+    if not driver_standings.empty and "driverCode" in driver_standings.columns:
+        for row in driver_standings.itertuples(index=False):
+            c = str(getattr(row, "driverCode", "") or "").strip().upper()
+            team = str(getattr(row, "constructorName", "") or "").strip()
+            if c:
+                code_to_team[c] = team
+
+    min_time_sec: float | None = None
+    time_secs: list[float] = []
+    has_time = "Time" in results_df.columns
+    if has_time:
+        for _, row in results_df.iterrows():
+            t = row.get("Time")
+            if t is not None and pd.notna(t):
+                try:
+                    sec = pd.to_timedelta(t).total_seconds()
+                    if sec > 0:
+                        time_secs.append(sec)
+                except Exception:
+                    pass
+        min_time_sec = min(time_secs) if time_secs else None
+
+    rows_for_image: list[dict] = []
+    for _, row in results_df.head(22).iterrows():
+        pos = row.get("Position")
+        if pos is None:
+            continue
         code = str(row.get("Abbreviation", "?") or row.get("DriverNumber", "?"))
         given = str(row.get("FirstName", "") or "")
         family = str(row.get("LastName", "") or "")
         full_name = f"{given} {family}".strip() or code
-        pts = row.get("Points", 0)
-        pts_text = f"{pts:.0f}" if pts is not None else "0"
-        rows_for_image.append((f"{int(pos):02d}" if pos != "?" else "?", code, full_name, pts_text))
+        team = str(row.get("TeamName", "") or "") or code_to_team.get(code.upper(), "")
+
+        gap_str = "-"
+        if has_time and min_time_sec is not None:
+            t = row.get("Time")
+            if t is not None and pd.notna(t):
+                try:
+                    sec = pd.to_timedelta(t).total_seconds()
+                    if sec > 0:
+                        if sec <= min_time_sec:
+                            h, m = int(sec // 3600), int((sec % 3600) // 60)
+                            s = sec % 60
+                            gap_str = f"{h}:{m:02d}:{s:05.2f}" if h > 0 else f"{m}:{s:05.2f}"
+                        else:
+                            gap_str = f"+{sec - min_time_sec:.3f}"
+                except Exception:
+                    pass
+
+        laps_val = row.get("Laps")
+        laps_str = str(int(laps_val)) if laps_val is not None and pd.notna(laps_val) else "-"
+
+        rows_for_image.append({
+            "pos": int(pos) if pos != "?" else "?",
+            "driver": full_name,
+            "team": team,
+            "gap_or_time": gap_str,
+            "laps": laps_str,
+        })
 
     if not rows_for_image:
         await set_last_notified_round(season, round_num)
         return
 
-    img_title = "Результаты гонки"
-    img_subtitle = f"{race_info.get('event_name', 'Гран-при')} — этап {round_num}, сезон {season}"
+    event_name = race_info.get("event_name", "Гран-при") or "Гран-при"
     img_buf = await asyncio.to_thread(
-        create_results_image,
-        title=img_title,
-        subtitle=img_subtitle,
+        create_f1_style_classification_image,
+        event_name=event_name,
+        session_type="RACE CLASSIFICATION",
         rows=rows_for_image,
+        season=season,
+        show_laps=True,
     )
     photo_bytes = img_buf.getvalue()
 
@@ -519,14 +575,29 @@ async def check_and_notify_quali(bot: Bot) -> None:
     users_settings = await get_users_with_settings()
     tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users_settings}
 
-    # Картинка с общими результатами
-    rows_for_image = []
+    schedule = await get_season_schedule_short_async(season)
+    race_info = next((r for r in schedule if r["round"] == round_num), None) if schedule else None
+
+    driver_standings = await get_driver_standings_async(season, round_number=round_num)
+    code_to_team: dict[str, str] = {}
+    if not driver_standings.empty and "driverCode" in driver_standings.columns:
+        for row in driver_standings.itertuples(index=False):
+            c = str(getattr(row, "driverCode", "") or "").strip().upper()
+            team = str(getattr(row, "constructorName", "") or "").strip()
+            if c:
+                code_to_team[c] = team
+
+    rows_for_image: list[dict] = []
     for r in results:
-        pos = f"{r.get('position', 0):02d}"
-        code = r.get("driver", "?")
-        name = r.get("name", code)
-        best = r.get("best", "—")
-        rows_for_image.append((pos, code, name, best))
+        code = str(r.get("driver", "") or "").upper()
+        name = r.get("name") or r.get("driver", "")
+        rows_for_image.append({
+            "pos": r.get("position", 0),
+            "driver": name,
+            "team": code_to_team.get(code, ""),
+            "gap_or_time": r.get("gap") or r.get("best", "—"),
+            "laps": "-",
+        })
 
     if not rows_for_image:
         await set_last_notified_quali_round(season, round_num)
@@ -538,8 +609,6 @@ async def check_and_notify_quali(bot: Bot) -> None:
     # Кэш для веб-апа: одни и те же результаты до следующей квалы/гонки
     def _segment(pos: int) -> str:
         return "Q3" if pos <= 10 else ("Q2" if pos <= 16 else "Q1")
-    schedule = await get_season_schedule_short_async(season)
-    race_info = next((r for r in schedule if r["round"] == round_num), None)
     cache_payload = {
         "season": season,
         "round": round_num,
@@ -557,11 +626,14 @@ async def check_and_notify_quali(bot: Bot) -> None:
     }
     await set_cached_quali_results(season, cache_payload)
 
+    event_name = (race_info or {}).get("event_name", "") or f"Этап {round_num:02d}"
     img_buf = await asyncio.to_thread(
-        create_quali_results_image,
-        f"Квалификация {season}",
-        f"Этап {round_num:02d}",
-        rows_for_image,
+        create_f1_style_classification_image,
+        event_name=event_name,
+        session_type="QUALIFYING CLASSIFICATION",
+        rows=rows_for_image,
+        season=season,
+        show_laps=False,
     )
     photo_bytes = img_buf.getvalue()
 
