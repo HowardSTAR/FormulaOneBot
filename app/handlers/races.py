@@ -21,6 +21,7 @@ from app.f1_data import (
     get_season_schedule_short_async, get_weekend_schedule, get_race_results_async,
     get_constructor_standings_async, get_driver_standings_async,
     get_quali_for_round_async, _get_latest_quali_async,
+    points_for_race_position,
 )
 from app.utils.default import SESSION_NAME_RU, validate_f1_year
 from app.utils.image_render import (
@@ -341,18 +342,12 @@ async def race_callback(callback: CallbackQuery) -> None:
 
     driver_standings = await get_driver_standings_async(season, last_round)
     code_to_team: dict[str, str] = {}
-    code_to_points: dict[str, int] = {}
     if not driver_standings.empty and "driverCode" in driver_standings.columns:
         for row in driver_standings.itertuples(index=False):
             c = str(getattr(row, "driverCode", "") or "").strip().upper()
             team = str(getattr(row, "constructorName", "") or "").strip()
-            pts = getattr(row, "points", None)
             if c:
                 code_to_team[c] = team
-                try:
-                    code_to_points[c] = int(float(pts)) if pts is not None and pd.notna(pts) else 0
-                except (TypeError, ValueError):
-                    code_to_points[c] = 0
 
     min_time_sec: float | None = None
     time_secs: list[float] = []
@@ -408,7 +403,7 @@ async def race_callback(callback: CallbackQuery) -> None:
         pts_val = getattr(row, "Points", None)
         pts = int(float(pts_val)) if pts_val is not None and pd.notna(pts_val) else 0
         if pts == 0:
-            pts = code_to_points.get(str(code or "").strip().upper(), 0)
+            pts = points_for_race_position(pos_int)
 
         rows_for_image.append({
             "pos": pos_int,
@@ -444,6 +439,16 @@ async def race_callback(callback: CallbackQuery) -> None:
     )
 
     fav_block = ""
+    fav_driver_lines: list[str] = []
+    for r in rows_for_image:
+        code = str(r.get("driver_code", "") or "").strip().upper()
+        if code and code in fav_driver_codes:
+            pos = r.get("pos", "?")
+            pts = r.get("points", 0)
+            fav_driver_lines.append(f"• {code}: P{pos} (+{pts} очк.)")
+    if fav_driver_lines:
+        fav_block = "⭐️ Твои избранные пилоты:\n" + "\n".join(fav_driver_lines)
+
     if fav_teams:
         constructor_results_by_name: dict[str, list] = defaultdict(list)
         for row in race_results.itertuples(index=False):
@@ -558,12 +563,10 @@ async def race_callback(callback: CallbackQuery) -> None:
             fav_lines.append(part + "\n")
 
         if fav_lines:
-            fav_block = "──────────\n\n" + "".join(fav_lines)
+            teams_block = "──────────\n\n" + "".join(fav_lines)
+            fav_block = (fav_block + "\n\n" + teams_block) if fav_block else teams_block
 
-    caption = (
-        "🏁 Результаты последней гонки (таблица на картинке).\n"
-        "⭐️ — твои избранные пилоты."
-    )
+    caption = "🏁 Результаты последней гонки (таблица на картинке)."
     if fav_block:
         caption += "\n\n" + fav_block
 

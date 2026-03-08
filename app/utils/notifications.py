@@ -25,6 +25,7 @@ from app.db import (
 import pandas as pd
 
 from app.f1_data import (
+    points_for_race_position,
     get_season_schedule_short_async,
     get_race_results_async,
     get_constructor_standings_async,
@@ -399,18 +400,12 @@ async def check_and_send_results(bot: Bot):
 
     driver_standings = await get_driver_standings_async(season, round_number=round_num)
     code_to_team: dict[str, str] = {}
-    code_to_points: dict[str, int] = {}
     if not driver_standings.empty and "driverCode" in driver_standings.columns:
         for row in driver_standings.itertuples(index=False):
             c = str(getattr(row, "driverCode", "") or "").strip().upper()
             team = str(getattr(row, "constructorName", "") or "").strip()
-            pts = getattr(row, "points", None)
             if c:
                 code_to_team[c] = team
-                try:
-                    code_to_points[c] = int(float(pts)) if pts is not None and pd.notna(pts) else 0
-                except (TypeError, ValueError):
-                    code_to_points[c] = 0
 
     min_time_sec: float | None = None
     time_secs: list[float] = []
@@ -457,7 +452,11 @@ async def check_and_send_results(bot: Bot):
         pts_val = row.get("Points")
         pts = int(float(pts_val)) if pts_val is not None and pd.notna(pts_val) else 0
         if pts == 0:
-            pts = code_to_points.get(code.upper(), 0)
+            try:
+                pos_int = int(pos) if pos not in ("?", "", None) else 0
+            except (TypeError, ValueError):
+                pos_int = 0
+            pts = points_for_race_position(pos_int)
 
         rows_for_image.append({
             "pos": int(pos) if pos != "?" else "?",
@@ -491,7 +490,11 @@ async def check_and_send_results(bot: Bot):
         code = str(row.get("Abbreviation", "")).upper()
         pts = row.get("Points", 0)
         if pts is None or pd.isna(pts) or (isinstance(pts, (int, float)) and pts == 0):
-            pts = code_to_points.get(code, 0)
+            pos_val = row.get("Position")
+            try:
+                pts = points_for_race_position(int(pos_val)) if pos_val not in ("?", "", None) else 0
+            except (TypeError, ValueError):
+                pts = 0
         res_map[code] = {"pos": str(row.get("Position", "DNF")), "points": pts}
 
     constructor_standings = await get_constructor_standings_async(season, round_number=round_num)
