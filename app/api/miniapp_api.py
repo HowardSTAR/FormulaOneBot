@@ -22,6 +22,7 @@ from app.db import (
     get_last_notified_quali_round,
 )
 from app.f1_data import (
+    points_for_race_position,
     get_season_schedule_short_async,
     get_weekend_schedule,
     get_driver_standings_async,
@@ -606,6 +607,8 @@ async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)
             full_name = f"{given} {family}".strip() or code
             team = getattr(row, "TeamName", "")
             points = float(getattr(row, "Points", 0))
+            if points == 0:
+                points = points_for_race_position(pos)
 
             if code == "?" or (full_name and "?" in str(full_name)):
                 data_incomplete = True
@@ -723,6 +726,26 @@ async def api_race_details(
 import asyncio  # Убедись, что это импортировано вверху файла
 
 
+def _get_passed_races(schedule: list, now: datetime) -> list:
+    """Этапы, гонки которых уже завершились (логика как в _get_last_completed_race)."""
+    passed = []
+    for r in schedule:
+        if not r.get("race_start_utc"):
+            continue
+        try:
+            race_dt = datetime.fromisoformat(r["race_start_utc"])
+            if race_dt.tzinfo is None:
+                race_dt = race_dt.replace(tzinfo=timezone.utc)
+            finish_offset = 9 if r.get("is_testing") else 1
+            if now > race_dt + timedelta(hours=finish_offset):
+                passed.append(r)
+            else:
+                break
+        except Exception:
+            continue
+    return passed
+
+
 @web_app.get("/api/compare")
 async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО season!
     """Сравнение пилотов для Web App"""
@@ -731,16 +754,8 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
     if not schedule:
         return {"error": f"Нет расписания на {season} год"}
 
-    today = datetime.now().date()
-    passed_races = []
-
-    for r in schedule:
-        try:
-            r_date = datetime.strptime(r["date"], "%Y-%m-%d").date()
-            if r_date < today:
-                passed_races.append(r)
-        except Exception:
-            continue
+    now = datetime.now(timezone.utc)
+    passed_races = _get_passed_races(schedule, now)
 
     if not passed_races:
         return {"error": f"В {season} году еще не было прошедших гонок для сравнения."}
@@ -838,15 +853,8 @@ async def api_compare_teams(c1: str, c2: str, season: int = Query(...)):
     if not schedule:
         return {"error": f"Нет расписания на {season} год"}
 
-    today = datetime.now().date()
-    passed_races = []
-    for r in schedule:
-        try:
-            r_date = datetime.strptime(r["date"], "%Y-%m-%d").date()
-            if r_date < today:
-                passed_races.append(r)
-        except Exception:
-            continue
+    now = datetime.now(timezone.utc)
+    passed_races = _get_passed_races(schedule, now)
 
     if not passed_races:
         return {"error": f"В {season} году ещё не было прошедших гонок для сравнения."}

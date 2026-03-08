@@ -320,6 +320,19 @@ def get_constructor_standings_df(season: int, round_number: Optional[int] = None
         return pd.DataFrame()
 
 
+# Очки за позицию в гонке (стандартная система ФИА)
+F1_RACE_POINTS_BY_POSITION = {1: 25, 2: 18, 3: 15, 4: 12, 5: 10, 6: 8, 7: 6, 8: 4, 9: 2, 10: 1}
+
+
+def points_for_race_position(position: int) -> int:
+    """Возвращает очки за этап по позиции (1–10 получают очки)."""
+    try:
+        pos = int(position)
+        return F1_RACE_POINTS_BY_POSITION.get(pos, 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def get_race_results_df(season: int, round_number: int):
     max_retries = 3
     for attempt in range(max_retries):
