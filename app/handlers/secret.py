@@ -340,12 +340,18 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
             results_df = results_df.sort_values("Position")
         driver_standings = await get_driver_standings_async(season, round_num)
         code_to_team = {}
+        code_to_points: dict[str, int] = {}
         if not driver_standings.empty and "driverCode" in driver_standings.columns:
             for row in driver_standings.itertuples(index=False):
                 c = str(getattr(row, "driverCode", "") or "").strip().upper()
                 team = str(getattr(row, "constructorName", "") or "").strip()
+                pts = getattr(row, "points", None)
                 if c:
                     code_to_team[c] = team
+                    try:
+                        code_to_points[c] = int(float(pts)) if pts is not None and pd.notna(pts) else 0
+                    except (TypeError, ValueError):
+                        code_to_points[c] = 0
         min_time_sec = None
         time_secs = []
         has_time = "Time" in results_df.columns
@@ -387,6 +393,8 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
                         pass
             pts_val = row.get("Points")
             pts = int(float(pts_val)) if pts_val is not None and pd.notna(pts_val) else 0
+            if pts == 0:
+                pts = code_to_points.get(code.upper(), 0)
             rows_race.append({
                 "pos": int(pos) if pos != "?" else "?",
                 "driver": full_name,
@@ -407,7 +415,10 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
         res_map = {}
         for _, row in results_df.iterrows():
             code = str(row.get("Abbreviation", "")).upper()
-            res_map[code] = {"pos": str(row.get("Position", "DNF")), "points": row.get("Points", 0)}
+            pts = row.get("Points", 0)
+            if pts is None or pd.isna(pts) or (isinstance(pts, (int, float)) and pts == 0):
+                pts = code_to_points.get(code, 0)
+            res_map[code] = {"pos": str(row.get("Position", "DNF")), "points": pts}
 
         constructor_results_by_name = {}
         for row in results_df.itertuples(index=False):

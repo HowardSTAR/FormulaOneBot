@@ -341,12 +341,18 @@ async def race_callback(callback: CallbackQuery) -> None:
 
     driver_standings = await get_driver_standings_async(season, last_round)
     code_to_team: dict[str, str] = {}
+    code_to_points: dict[str, int] = {}
     if not driver_standings.empty and "driverCode" in driver_standings.columns:
         for row in driver_standings.itertuples(index=False):
             c = str(getattr(row, "driverCode", "") or "").strip().upper()
             team = str(getattr(row, "constructorName", "") or "").strip()
+            pts = getattr(row, "points", None)
             if c:
                 code_to_team[c] = team
+                try:
+                    code_to_points[c] = int(float(pts)) if pts is not None and pd.notna(pts) else 0
+                except (TypeError, ValueError):
+                    code_to_points[c] = 0
 
     min_time_sec: float | None = None
     time_secs: list[float] = []
@@ -401,6 +407,8 @@ async def race_callback(callback: CallbackQuery) -> None:
 
         pts_val = getattr(row, "Points", None)
         pts = int(float(pts_val)) if pts_val is not None and pd.notna(pts_val) else 0
+        if pts == 0:
+            pts = code_to_points.get(str(code or "").strip().upper(), 0)
 
         rows_for_image.append({
             "pos": pos_int,
