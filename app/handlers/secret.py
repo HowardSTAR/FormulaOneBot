@@ -276,7 +276,7 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
                 "driver": name,
                 "team": code_to_team.get(code, ""),
                 "gap_or_time": r.get("gap") or r.get("best", "—"),
-                "laps": "-",
+                "driver_code": code,
             })
         img_quali = await asyncio.to_thread(
             create_f1_style_classification_image,
@@ -284,7 +284,6 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
             session_type="QUALIFYING CLASSIFICATION",
             rows=rows_quali,
             season=season,
-            show_laps=False,
         )
         photo_quali = BufferedInputFile(img_quali.getvalue(), filename="quali.png")
         lines_quali = []
@@ -386,14 +385,12 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
                                 gap_str = f"+{sec - min_time_sec:.3f}"
                     except Exception:
                         pass
-            laps_val = row.get("Laps")
-            laps_str = str(int(laps_val)) if laps_val is not None and pd.notna(laps_val) else "-"
             rows_race.append({
                 "pos": int(pos) if pos != "?" else "?",
                 "driver": full_name,
                 "team": team,
                 "gap_or_time": gap_str,
-                "laps": laps_str,
+                "driver_code": str(code).upper() if code else "",
             })
         img_race = await asyncio.to_thread(
             create_f1_style_classification_image,
@@ -401,7 +398,6 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
             session_type="RACE CLASSIFICATION",
             rows=rows_race,
             season=season,
-            show_laps=True,
         )
         photo_race = BufferedInputFile(img_race.getvalue(), filename="race.png")
 
