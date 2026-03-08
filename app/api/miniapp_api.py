@@ -539,28 +539,40 @@ async def toggle_favorite_team(
         return {"status": "added", "id": item.id}
 
 
+def _get_last_completed_race(schedule: list, now: datetime) -> dict | None:
+    """Последний этап, гонка которого уже завершилась (race_start + 1ч для обычных, +9ч для тестов)."""
+    finished_event = None
+    for r in schedule:
+        if not r.get("race_start_utc"):
+            continue
+        try:
+            race_dt = datetime.fromisoformat(r["race_start_utc"])
+            if race_dt.tzinfo is None:
+                race_dt = race_dt.replace(tzinfo=timezone.utc)
+            finish_offset = 9 if r.get("is_testing") else 1
+            if now > race_dt + timedelta(hours=finish_offset):
+                finished_event = r
+            else:
+                break
+        except Exception:
+            continue
+    return finished_event
+
+
 @web_app.get("/api/race-results")
 async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)):
     season = datetime.now().year
 
     schedule = await get_season_schedule_short_async(season)
-    today = datetime.now().date()
-
-    past_races = []
-    for r in schedule:
-        try:
-            r_date = datetime.strptime(r["date"], "%Y-%m-%d").date()
-            if r_date < today:
-                past_races.append(r)
-        except:
-            continue
-
-    if not past_races:
+    if not schedule:
         return {"results": [], "race_info": None}
 
-    last_race = past_races[-1]
-    round_num = last_race["round"]
+    now = datetime.now(timezone.utc)
+    last_race = _get_last_completed_race(schedule, now)
+    if not last_race:
+        return {"results": [], "race_info": None}
 
+    round_num = last_race["round"]
     df = await get_race_results_async(season, round_num)
 
     if df is None or df.empty:

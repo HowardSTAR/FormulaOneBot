@@ -8,8 +8,6 @@ from aiogram import Bot
 from app.db import (
     db,
     get_users_favorites_for_notifications,
-    get_last_reminded_round,
-    set_last_reminded_round,
     get_last_notified_round,
     set_last_notified_round,
     get_last_notified_quali_round,

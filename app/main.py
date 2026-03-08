@@ -117,7 +117,7 @@ async def main():
     scheduler.add_job(
         check_and_send_results,
         "interval",
-        minutes=15,
+        minutes=5,
         args=[bot],
         id="results_job"
     )

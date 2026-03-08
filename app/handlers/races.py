@@ -15,7 +15,7 @@ from aiogram.types import (
 )
 
 from app.db import (
-    get_last_reminded_round, get_favorite_drivers, get_favorite_teams, get_user_settings
+    get_favorite_drivers, get_favorite_teams, get_user_settings
 )
 from app.f1_data import (
     get_season_schedule_short_async, get_weekend_schedule, get_race_results_async,
@@ -233,15 +233,41 @@ async def quali_callback(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+def _get_last_completed_race_round(schedule: list, now: datetime) -> int | None:
+    """Последний этап, гонка которого уже завершилась (race_start + 1ч для обычных, +9ч для тестов)."""
+    finished_event = None
+    for r in schedule:
+        if not r.get("race_start_utc"):
+            continue
+        try:
+            race_dt = datetime.fromisoformat(r["race_start_utc"])
+            if race_dt.tzinfo is None:
+                race_dt = race_dt.replace(tzinfo=timezone.utc)
+            finish_offset = 9 if r.get("is_testing") else 1
+            if now > race_dt + timedelta(hours=finish_offset):
+                finished_event = r
+            else:
+                break
+        except Exception:
+            continue
+    return finished_event["round"] if finished_event else None
+
+
 @router.callback_query(F.data.startswith("race_"))
 async def race_callback(callback: CallbackQuery) -> None:
     try:
         parts = callback.data.split("_")
         season = int(parts[1])
-    except:
+    except Exception:
         season = datetime.now().year
 
-    last_round = await get_last_reminded_round(season)
+    schedule = await get_season_schedule_short_async(season)
+    if not schedule:
+        await callback.answer("Нет расписания", show_alert=True)
+        return
+
+    now = datetime.now(timezone.utc)
+    last_round = _get_last_completed_race_round(schedule, now)
     if last_round is None:
         await callback.answer("Гонка еще не прошла", show_alert=True)
         return
