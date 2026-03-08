@@ -682,8 +682,8 @@ def create_f1_style_classification_image(
 ) -> BytesIO:
     """
     Создаёт изображение в стиле официальной таблицы F1 (Practice/Qualifying/Race Classification).
-    rows: list of dict с ключами pos, driver, team, gap_or_time, driver_code (опционально, для избранного).
-    Столбцы: POS | DRIVER (имя + логотип команды) | FASTEST.
+    rows: list of dict с ключами pos, driver, team, gap_or_time, points (для гонки), driver_code (опционально).
+    Столбцы: POS | DRIVER (имя + лого) | FASTEST (квалификация) или PTS (гонка).
     Квалификация: Q1 (1-10), Q2 (11-16), Q3 (17-22) — разные цвета строк.
     Гонка: топ 3 — золото/серебро/бронза, топ 4-10 — выделение, остальные — без выделения.
     Избранные пилоты — звёздочка ⭐ в колонке DRIVER.
@@ -725,11 +725,12 @@ def create_f1_style_classification_image(
     title_w, title_h = _text_size(draw_tmp, event_upper, FONT_SUBTITLE)
     sub_w, sub_h = _text_size(draw_tmp, session_upper, FONT_TABLE)
 
-    # Столбцы без LAPS: POS | DRIVER (имя + лого) | FASTEST
+    # Столбцы: POS | DRIVER (имя + лого) | FASTEST (квалиф) или PTS (гонка)
     pos_w = 55
-    driver_w = 320  # имя + логотип в одной колонке
-    gap_w = 130
-    img_width = max(900, pos_w + driver_w + gap_w + 2 * PADDING + 3 * CELL_PAD)
+    driver_w = 320
+    right_col_w = 70  # PTS для гонки (0-26) или FASTEST для квалиф — компактно
+    table_width = pos_w + driver_w + right_col_w + 3 * CELL_PAD
+    img_width = table_width + 2 * PADDING
 
     header_h = 50
     table_h = len(rows) * ROW_HEIGHT
@@ -740,7 +741,7 @@ def create_f1_style_classification_image(
 
     x_pos = PADDING
     x_driver = x_pos + pos_w + CELL_PAD
-    x_gap = x_driver + driver_w + CELL_PAD
+    x_right = x_driver + driver_w + CELL_PAD
 
     cur_y = PADDING
     draw.text(((img_width - title_w) // 2, cur_y), event_upper, font=FONT_SUBTITLE, fill=(255, 255, 255))
@@ -748,15 +749,16 @@ def create_f1_style_classification_image(
     draw.text(((img_width - sub_w) // 2, cur_y), session_upper, font=FONT_TABLE, fill=HEADER_TEXT)
     cur_y += sub_h + 20
 
+    is_qualifying = "QUALIFYING" in (session_type or "").upper()
+
     # Заголовки — чётко по своим колонкам
     draw.rectangle((PADDING, cur_y, img_width - PADDING, cur_y + header_h), fill=HEADER_BG)
+    right_label = "PTS" if not is_qualifying else "FASTEST"
     draw.text((x_pos + (pos_w - _text_size(draw, "POS", FONT_TABLE)[0]) // 2, cur_y + (header_h - _text_size(draw, "1", FONT_TABLE)[1]) // 2 - 2), "POS", font=FONT_TABLE, fill=HEADER_TEXT)
     draw.text((x_driver, cur_y + (header_h - _text_size(draw, "A", FONT_TABLE)[1]) // 2 - 2), "DRIVER", font=FONT_TABLE, fill=HEADER_TEXT)
-    fast_label = "FASTEST"
-    draw.text((x_gap + gap_w - _text_size(draw, fast_label, FONT_TABLE)[0] - CELL_PAD, cur_y + (header_h - _text_size(draw, "A", FONT_TABLE)[1]) // 2 - 2), fast_label, font=FONT_TABLE, fill=HEADER_TEXT)
+    draw.text((x_right + right_col_w - _text_size(draw, right_label, FONT_TABLE)[0] - CELL_PAD, cur_y + (header_h - _text_size(draw, "A", FONT_TABLE)[1]) // 2 - 2), right_label, font=FONT_TABLE, fill=HEADER_TEXT)
     cur_y += header_h
 
-    is_qualifying = "QUALIFYING" in (session_type or "").upper()
     for i, r in enumerate(rows):
         row_y = cur_y + i * ROW_HEIGHT
         pos_val = r.get("pos", 0)
@@ -800,7 +802,14 @@ def create_f1_style_classification_image(
         pos = str(r.get("pos", ""))
         driver = str(r.get("driver", ""))[:22]
         team = str(r.get("team", ""))
-        gap = str(r.get("gap_or_time", "-"))
+        if is_qualifying:
+            right_val = str(r.get("gap_or_time", "-"))
+        else:
+            pts = r.get("points")
+            try:
+                right_val = str(int(float(pts))) if pts is not None and pts != "" else "0"
+            except (TypeError, ValueError):
+                right_val = "0"
 
         draw.text((x_pos + (pos_w - _text_size(draw, pos, FONT_TABLE)[0]) // 2, row_y + (ROW_HEIGHT - _text_size(draw, pos, FONT_TABLE)[1]) // 2 - 2), pos, font=FONT_TABLE, fill=TEXT_COLOR)
 
@@ -822,8 +831,8 @@ def create_f1_style_classification_image(
         elif team:
             draw.text((logo_x, row_y + (ROW_HEIGHT - _text_size(draw, team[:6], FONT_TABLE)[1]) // 2 - 2), team[:6], font=FONT_TABLE, fill=TEXT_COLOR)
 
-        gap_x = x_gap + gap_w - _text_size(draw, gap, FONT_TABLE)[0] - CELL_PAD
-        draw.text((gap_x, row_y + (ROW_HEIGHT - _text_size(draw, gap, FONT_TABLE)[1]) // 2 - 2), gap, font=FONT_TABLE, fill=TEXT_COLOR)
+        right_x = x_right + right_col_w - _text_size(draw, right_val, FONT_TABLE)[0] - CELL_PAD
+        draw.text((right_x, row_y + (ROW_HEIGHT - _text_size(draw, right_val, FONT_TABLE)[1]) // 2 - 2), right_val, font=FONT_TABLE, fill=TEXT_COLOR)
 
     buf = BytesIO()
     img.save(buf, format="PNG")

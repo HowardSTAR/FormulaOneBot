@@ -385,11 +385,14 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
                                 gap_str = f"+{sec - min_time_sec:.3f}"
                     except Exception:
                         pass
+            pts_val = row.get("Points")
+            pts = int(float(pts_val)) if pts_val is not None and pd.notna(pts_val) else 0
             rows_race.append({
                 "pos": int(pos) if pos != "?" else "?",
                 "driver": full_name,
                 "team": team,
                 "gap_or_time": gap_str,
+                "points": pts,
                 "driver_code": str(code).upper() if code else "",
             })
         img_race = await asyncio.to_thread(
