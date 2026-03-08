@@ -367,6 +367,7 @@ def get_qualifying_results(season: int, round_number: int, limit: int = 100) -> 
                 return []
 
             results = []
+            best_seconds_list = []
             for row in session.results.itertuples(index=False):
                 pos = getattr(row, "Position", None)
                 if pd.isna(pos): continue
@@ -391,13 +392,27 @@ def get_qualifying_results(season: int, round_number: int, limit: int = 100) -> 
                         break
 
                 best_str = _format_quali_time(best_time) if best_time is not None else "-"
+                best_sec = pd.to_timedelta(best_time).total_seconds() if best_time is not None and pd.notna(best_time) else None
+                if best_sec is not None:
+                    best_seconds_list.append(best_sec)
 
                 results.append({
                     "position": pos_int,
                     "driver": code,
                     "name": name,
-                    "best": best_str
+                    "best": best_str,
+                    "best_seconds": best_sec,
                 })
+
+            min_sec = min(best_seconds_list) if best_seconds_list else None
+            for r in results:
+                bs = r.pop("best_seconds", None)
+                if bs is None or min_sec is None:
+                    r["gap"] = "—"
+                elif bs <= min_sec:
+                    r["gap"] = r["best"]
+                else:
+                    r["gap"] = f"+{bs - min_sec:.3f}"
 
             results.sort(key=lambda r: r["position"])
             return results[:limit]
@@ -704,31 +719,27 @@ async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[
         session.get("date_start") or "",
         session.get("location") or "",
     )
-    position_driver_numbers = {p.get("driver_number") for p in positions if p.get("driver_number") is not None}
+    valid_ms = [best_laps.get(p.get("driver_number")) for p in positions if best_laps.get(p.get("driver_number"))]
+    min_ms = min(valid_ms) if valid_ms else None
     results = []
     for p in positions[:limit]:
         dn = p.get("driver_number")
         info = drivers_map.get(dn, {})
         best_ms = best_laps.get(dn) if dn is not None else None
         best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
+        if best_ms is None or min_ms is None:
+            gap_str = "—"
+        elif best_ms <= min_ms:
+            gap_str = best_str
+        else:
+            gap_str = f"+{(best_ms - min_ms) / 1000:.3f}"
         results.append({
             "position": int(p.get("position", 0)),
             "driver": info.get("code", "?"),
             "name": info.get("name", "?"),
             "best": best_str,
+            "gap": gap_str,
         })
-    # Пилоты без позиции (не выезжали / без времени) — в конец с прочерком
-    next_pos = len(results) + 1
-    for dn in sorted(drivers_map.keys()):
-        if dn not in position_driver_numbers:
-            info = drivers_map[dn]
-            results.append({
-                "position": next_pos,
-                "driver": info.get("code", "?"),
-                "name": info.get("name", "?"),
-                "best": "—",
-            })
-            next_pos += 1
     return round_num, results
 
 
@@ -766,30 +777,27 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
     positions = await _openf1_get_position_final(session_key)
     drivers_map = await _openf1_get_drivers_for_session(session_key)
     best_laps = await _openf1_get_best_lap_per_driver(session_key)
-    position_driver_numbers = {p.get("driver_number") for p in positions if p.get("driver_number") is not None}
+    valid_ms = [best_laps.get(p.get("driver_number")) for p in positions if best_laps.get(p.get("driver_number"))]
+    min_ms = min(valid_ms) if valid_ms else None
     results = []
     for p in positions[:limit]:
         dn = p.get("driver_number")
         info = drivers_map.get(dn, {})
         best_ms = best_laps.get(dn) if dn is not None else None
         best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
+        if best_ms is None or min_ms is None:
+            gap_str = "—"
+        elif best_ms <= min_ms:
+            gap_str = best_str
+        else:
+            gap_str = f"+{(best_ms - min_ms) / 1000:.3f}"
         results.append({
             "position": int(p.get("position", 0)),
             "driver": info.get("code", "?"),
             "name": info.get("name", "?"),
             "best": best_str,
+            "gap": gap_str,
         })
-    next_pos = len(results) + 1
-    for dn in sorted(drivers_map.keys()):
-        if dn not in position_driver_numbers:
-            info = drivers_map[dn]
-            results.append({
-                "position": next_pos,
-                "driver": info.get("code", "?"),
-                "name": info.get("name", "?"),
-                "best": "—",
-            })
-            next_pos += 1
     return round_num, results
 
 

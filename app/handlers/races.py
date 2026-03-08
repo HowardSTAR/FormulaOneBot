@@ -1,8 +1,8 @@
 import asyncio
 
-from datetime import datetime, date, timezone, timedelta
-
+import pandas as pd
 from collections import defaultdict
+from datetime import datetime, date, timezone, timedelta
 from datetime import datetime, date, timezone, timedelta
 
 from aiogram import Router, F
@@ -19,11 +19,12 @@ from app.db import (
 )
 from app.f1_data import (
     get_season_schedule_short_async, get_weekend_schedule, get_race_results_async,
-    get_constructor_standings_async, get_quali_for_round_async, _get_latest_quali_async,
+    get_constructor_standings_async, get_driver_standings_async,
+    get_quali_for_round_async, _get_latest_quali_async,
 )
 from app.utils.default import SESSION_NAME_RU, validate_f1_year
 from app.utils.image_render import (
-    create_results_image, create_season_image, create_quali_results_image
+    create_f1_style_classification_image, create_season_image
 )
 from app.utils.loader import Loader
 from app.utils.time_tools import format_race_time
@@ -206,19 +207,38 @@ async def quali_callback(callback: CallbackQuery) -> None:
         await callback.answer("Нет результатов", show_alert=True)
         return
 
-    rows: list[tuple[str, str, str, str]] = []
+    schedule = await get_season_schedule_short_async(season)
+    race_info = next((r for r in (schedule or []) if r.get("round") == latest_round), None)
+    event_name = (race_info or {}).get("event_name", "") or f"Этап {latest_round:02d}"
+
+    driver_standings = await get_driver_standings_async(season, latest_round)
+    code_to_team: dict[str, str] = {}
+    if not driver_standings.empty and "driverCode" in driver_standings.columns:
+        for row in driver_standings.itertuples(index=False):
+            code = str(getattr(row, "driverCode", "") or "").strip().upper()
+            team = str(getattr(row, "constructorName", "") or "").strip()
+            if code:
+                code_to_team[code] = team
+
+    rows_for_image: list[dict] = []
     for r in results:
-        pos = f"{r['position']:02d}"
-        code = r["driver"]
-        name = r.get("name") or r["driver"]
-        best = r.get("best") or "—"
-        rows.append((pos, code, name, best))
+        code = str(r.get("driver", "") or "").upper()
+        name = r.get("name") or r.get("driver", "")
+        rows_for_image.append({
+            "pos": r["position"],
+            "driver": name,
+            "team": code_to_team.get(code, ""),
+            "gap_or_time": r.get("gap") or r.get("best", "—"),
+            "laps": "-",
+        })
 
     img_buf = await asyncio.to_thread(
-        create_quali_results_image,
-        f"Квалификация {season}",
-        f"Этап {latest_round:02d}",
-        rows
+        create_f1_style_classification_image,
+        event_name=event_name,
+        session_type="QUALIFYING CLASSIFICATION",
+        rows=rows_for_image,
+        season=season,
+        show_laps=False,
     )
     photo = BufferedInputFile(img_buf.getvalue(), filename="quali_results.png")
 
@@ -313,43 +333,76 @@ async def race_callback(callback: CallbackQuery) -> None:
         await callback.answer("Результаты обрабатываются. Данные скоро появятся ⏳", show_alert=True)
         return
 
-    lines: list[str] = []
-    max_positions = 20
-    count = 0
+    driver_standings = await get_driver_standings_async(season, last_round)
+    code_to_team: dict[str, str] = {}
+    if not driver_standings.empty and "driverCode" in driver_standings.columns:
+        for row in driver_standings.itertuples(index=False):
+            c = str(getattr(row, "driverCode", "") or "").strip().upper()
+            team = str(getattr(row, "constructorName", "") or "").strip()
+            if c:
+                code_to_team[c] = team
 
-    fav_drivers_set = set(fav_drivers or [])
-    rows_for_image: list[tuple[str, str, str, str]] = []
+    min_time_sec: float | None = None
+    time_secs: list[float] = []
+    has_time = "Time" in df.columns
+    if has_time:
+        for row in df.itertuples(index=False):
+            t = getattr(row, "Time", None)
+            if t is not None and pd.notna(t):
+                try:
+                    sec = pd.to_timedelta(t).total_seconds()
+                    if sec > 0:
+                        time_secs.append(sec)
+                except Exception:
+                    pass
+        min_time_sec = min(time_secs) if time_secs else None
 
+    rows_for_image: list[dict] = []
     for row in df.itertuples(index=False):
         pos = getattr(row, "Position", None)
-        if pos is None: continue
+        if pos is None:
+            continue
         try:
             pos_int = int(pos)
-        except:
+        except Exception:
             continue
-
-        count += 1
-        if count > max_positions: break
 
         code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", "?")
         given = getattr(row, "FirstName", "") or ""
         family = getattr(row, "LastName", "") or ""
         full_name = f"{given} {family}".strip() or code
-        pts = getattr(row, "Points", None)
+        team = getattr(row, "TeamName", None) or code_to_team.get(str(code or "").upper(), "")
 
-        is_fav = code in fav_drivers_set
+        gap_str = "-"
+        if has_time and min_time_sec is not None:
+            t = getattr(row, "Time", None)
+            if t is not None and pd.notna(t):
+                try:
+                    sec = pd.to_timedelta(t).total_seconds()
+                    if sec > 0:
+                        if sec <= min_time_sec:
+                            h = int(sec // 3600)
+                            m = int((sec % 3600) // 60)
+                            s = sec % 60
+                            if h > 0:
+                                gap_str = f"{h}:{m:02d}:{s:05.2f}"
+                            else:
+                                gap_str = f"{m}:{s:05.2f}"
+                        else:
+                            gap_str = f"+{sec - min_time_sec:.3f}"
+                except Exception:
+                    pass
 
-        code_for_img = f"⭐️{code}" if is_fav else code
-        if pts is not None:
-            try:
-                pts_val = float(pts)
-                pts_text = f"{pts_val:.0f}"
-            except:
-                pts_text = str(pts)
-        else:
-            pts_text = "0"
+        laps_val = getattr(row, "Laps", None)
+        laps_str = str(int(laps_val)) if laps_val is not None and pd.notna(laps_val) else "-"
 
-        rows_for_image.append((f"{pos_int:02d}", code_for_img, full_name, pts_text))
+        rows_for_image.append({
+            "pos": pos_int,
+            "driver": full_name,
+            "team": team or "",
+            "gap_or_time": gap_str,
+            "laps": laps_str,
+        })
 
     if not rows_for_image:
         if callback.message:
@@ -359,21 +412,15 @@ async def race_callback(callback: CallbackQuery) -> None:
 
     await callback.answer()
 
-    if race_info is not None:
-        img_title = "Результаты гонки"
-        img_subtitle = (
-            f"{race_info['event_name']} — {race_info['country']}, "
-            f"{race_info['location']} (этап {last_round}, сезон {season})"
-        )
-    else:
-        img_title = "Результаты гонки"
-        img_subtitle = f"Этап {last_round}, сезон {season}"
+    event_name = (race_info or {}).get("event_name", "") or f"Этап {last_round:02d}"
 
     img_buf = await asyncio.to_thread(
-        create_results_image,
-        title=img_title,
-        subtitle=img_subtitle,
+        create_f1_style_classification_image,
+        event_name=event_name,
+        session_type="RACE CLASSIFICATION",
         rows=rows_for_image,
+        season=season,
+        show_laps=True,
     )
 
     photo = BufferedInputFile(

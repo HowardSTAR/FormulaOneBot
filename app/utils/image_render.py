@@ -6,7 +6,7 @@ import urllib
 from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
-from typing import List, Tuple, Callable
+from typing import List, Tuple, Callable, Optional
 
 import matplotlib
 import pandas as pd
@@ -34,7 +34,7 @@ TEXT_V_SHIFT = -15
 
 # --- Загрузка шрифтов ---
 def _load_fonts() -> tuple[
-    ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, ImageFont.FreeTypeFont]:
+    ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, ImageFont.FreeTypeFont, ImageFont.FreeTypeFont]:
     fonts_dir = Path(__file__).resolve().parents[1] / "assets" / "fonts"
 
     def load_font(name: str, size: int):
@@ -46,16 +46,17 @@ def _load_fonts() -> tuple[
     font_title = load_font("Jost-Bold.ttf", 60)
     font_subtitle = load_font("Jost-Regular.ttf", 34)
     font_row = load_font("Jost-Medium.ttf", 44)
+    font_table = load_font("Jost-Medium.ttf", 28)
     # Emoji шрифт больше не критичен для звезды, но оставим для других целей
     try:
         font_emoji = ImageFont.truetype(str(fonts_dir / "NotoEmoji-Regular.ttf"), 40)
     except:
         font_emoji = font_row
 
-    return font_title, font_subtitle, font_row, font_emoji
+    return font_title, font_subtitle, font_row, font_emoji, font_table
 
 
-FONT_TITLE, FONT_SUBTITLE, FONT_ROW, FONT_EMOJI = _load_fonts()
+FONT_TITLE, FONT_SUBTITLE, FONT_ROW, FONT_EMOJI, FONT_TABLE = _load_fonts()
 
 
 def _normalize_team_key(text: str) -> str:
@@ -670,6 +671,114 @@ def create_constructor_standings_image(title: str, subtitle: str, rows: List[Tup
 
 def create_quali_results_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]]) -> BytesIO:
     return create_results_image(title, subtitle, rows)
+
+
+def create_f1_style_classification_image(
+    event_name: str,
+    session_type: str,
+    rows: List[dict],
+    season: int,
+    show_laps: bool = True,
+) -> BytesIO:
+    """
+    Создаёт изображение в стиле официальной таблицы F1 (Practice/Qualifying/Race Classification).
+    rows: list of dict с ключами pos, driver, team, gap_or_time, laps (опционально).
+    """
+    HEADER_BG = (55, 60, 70)
+    ROW_ALT = (35, 38, 45)
+    ROW_BG = (28, 30, 38)
+    HEADER_TEXT = (200, 200, 210)
+    LOGO_SIZE = 36
+    ROW_HEIGHT = 48
+    PADDING = 40
+    CELL_PAD = 16
+
+    if not rows:
+        rows = [{"pos": "-", "driver": "Нет данных", "team": "", "gap_or_time": "-", "laps": "-"}]
+
+    temp_img = Image.new("RGB", (100, 100))
+    draw_tmp = ImageDraw.Draw(temp_img)
+
+    event_upper = (event_name or "GRAND PRIX").upper()
+    session_upper = (session_type or "CLASSIFICATION").upper()
+
+    title_w, title_h = _text_size(draw_tmp, event_upper, FONT_SUBTITLE)
+    sub_w, sub_h = _text_size(draw_tmp, session_upper, FONT_TABLE)
+
+    img_width = 900
+    pos_w = 60
+    driver_w = 220
+    team_w = 80
+    gap_w = 120
+    laps_w = 70 if show_laps else 0
+
+    table_width = pos_w + driver_w + team_w + gap_w + (laps_w if show_laps else 0)
+    img_width = max(img_width, table_width + 2 * PADDING)
+
+    header_h = 50
+    table_h = len(rows) * ROW_HEIGHT
+    img_height = PADDING + title_h + 20 + sub_h + 20 + header_h + table_h + PADDING
+
+    img = Image.new("RGB", (img_width, img_height), (25, 27, 35))
+    draw = ImageDraw.Draw(img)
+
+    cur_y = PADDING
+    draw.text(((img_width - title_w) // 2, cur_y), event_upper, font=FONT_SUBTITLE, fill=(255, 255, 255))
+    cur_y += title_h + 20
+    draw.text(((img_width - sub_w) // 2, cur_y), session_upper, font=FONT_TABLE, fill=HEADER_TEXT)
+    cur_y += sub_h + 20
+
+    x_pos = PADDING
+    x_driver = x_pos + pos_w + CELL_PAD
+    x_team = x_driver + driver_w + CELL_PAD
+    x_gap = x_team + team_w + CELL_PAD
+    x_laps = x_gap + gap_w + CELL_PAD if show_laps else 0
+
+    draw.rectangle((PADDING, cur_y, img_width - PADDING, cur_y + header_h), fill=HEADER_BG)
+    draw.text((x_pos + CELL_PAD, cur_y + (header_h - _text_size(draw, "1", FONT_TABLE)[1]) // 2 - 2), "POS", font=FONT_TABLE, fill=HEADER_TEXT)
+    draw.text((x_driver, cur_y + (header_h - _text_size(draw, "A", FONT_TABLE)[1]) // 2 - 2), "DRIVER", font=FONT_TABLE, fill=HEADER_TEXT)
+    draw.text((x_team + (team_w - _text_size(draw, "TEAM", FONT_TABLE)[0]) // 2 - 20, cur_y + (header_h - _text_size(draw, "A", FONT_TABLE)[1]) // 2 - 2), "TEAM", font=FONT_TABLE, fill=HEADER_TEXT)
+    draw.text((x_gap + gap_w - _text_size(draw, "GAP TO FASTEST", FONT_TABLE)[0] - CELL_PAD, cur_y + (header_h - _text_size(draw, "A", FONT_TABLE)[1]) // 2 - 2), "GAP TO FASTEST", font=FONT_TABLE, fill=HEADER_TEXT)
+    if show_laps:
+        draw.text((x_laps + laps_w - _text_size(draw, "LAPS", FONT_TABLE)[0] - CELL_PAD, cur_y + (header_h - _text_size(draw, "A", FONT_TABLE)[1]) // 2 - 2), "LAPS", font=FONT_TABLE, fill=HEADER_TEXT)
+    cur_y += header_h
+
+    for i, r in enumerate(rows):
+        row_y = cur_y + i * ROW_HEIGHT
+        fill = ROW_ALT if i % 2 == 1 else ROW_BG
+        draw.rectangle((PADDING, row_y, img_width - PADDING, row_y + ROW_HEIGHT), fill=fill)
+
+        pos = str(r.get("pos", ""))
+        driver = str(r.get("driver", ""))[:25]
+        team = str(r.get("team", ""))
+        gap = str(r.get("gap_or_time", "-"))
+        laps = str(r.get("laps", "-")) if show_laps else ""
+
+        draw.text((x_pos + CELL_PAD, row_y + (ROW_HEIGHT - _text_size(draw, pos, FONT_TABLE)[1]) // 2 - 2), pos, font=FONT_TABLE, fill=TEXT_COLOR)
+        draw.text((x_driver, row_y + (ROW_HEIGHT - _text_size(draw, driver, FONT_TABLE)[1]) // 2 - 2), driver.upper() if i == 0 else driver, font=FONT_TABLE, fill=(255, 255, 255) if i == 0 else TEXT_COLOR)
+
+        logo_img = _get_team_logo(team, team, season) if team else None
+        if logo_img:
+            logo_img = logo_img.resize((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
+            paste_x = x_team + (team_w - LOGO_SIZE) // 2
+            paste_y = row_y + (ROW_HEIGHT - LOGO_SIZE) // 2
+            mask = logo_img.split()[3] if logo_img.mode == "RGBA" else None
+            img.paste(logo_img, (int(paste_x), int(paste_y)), mask)
+        elif team:
+            draw.text((x_team, row_y + (ROW_HEIGHT - _text_size(draw, team[:8], FONT_TABLE)[1]) // 2 - 2), team[:8], font=FONT_TABLE, fill=TEXT_COLOR)
+
+        gap_text = gap
+        gap_x = x_gap + gap_w - _text_size(draw, gap_text, FONT_TABLE)[0] - CELL_PAD
+        draw.text((gap_x, row_y + (ROW_HEIGHT - _text_size(draw, gap_text, FONT_TABLE)[1]) // 2 - 2), gap_text, font=FONT_TABLE, fill=TEXT_COLOR)
+
+        if show_laps:
+            laps_x = x_laps + laps_w - _text_size(draw, laps, FONT_TABLE)[0] - CELL_PAD
+            draw.text((laps_x, row_y + (ROW_HEIGHT - _text_size(draw, laps, FONT_TABLE)[1]) // 2 - 2), laps, font=FONT_TABLE, fill=TEXT_COLOR)
+
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
 
 
 def create_season_image(season: int, races: list[dict]) -> BytesIO:

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import pandas as pd
 from datetime import datetime, timezone
 from io import BytesIO
 
@@ -18,10 +19,11 @@ from app.db import (
 from app.f1_data import (
     get_season_schedule_short_async,
     get_race_results_async,
+    get_driver_standings_async,
     _get_quali_async,
     get_driver_full_name_async,
 )
-from app.utils.image_render import create_results_image, create_quali_results_image
+from app.utils.image_render import create_f1_style_classification_image
 from app.utils.notifications import (
     get_users_with_settings,
     get_notification_text,
@@ -257,19 +259,32 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
     quali_results = await _get_quali_async(season, round_num)
     sent_2 = 0
     if quali_results:
+        driver_standings = await get_driver_standings_async(season, round_num)
+        code_to_team = {}
+        if not driver_standings.empty and "driverCode" in driver_standings.columns:
+            for row in driver_standings.itertuples(index=False):
+                c = str(getattr(row, "driverCode", "") or "").strip().upper()
+                team = str(getattr(row, "constructorName", "") or "").strip()
+                if c:
+                    code_to_team[c] = team
         rows_quali = []
         for r in quali_results:
-            pos = f"{r.get('position', 0):02d}"
-            code = r.get("driver", "?")
-            name = r.get("name", code)
-            best = r.get("best", "—")
-            rows_quali.append((pos, code, name, best))
-
+            code = str(r.get("driver", "") or "").upper()
+            name = r.get("name") or r.get("driver", "")
+            rows_quali.append({
+                "pos": r.get("position", 0),
+                "driver": name,
+                "team": code_to_team.get(code, ""),
+                "gap_or_time": r.get("gap") or r.get("best", "—"),
+                "laps": "-",
+            })
         img_quali = await asyncio.to_thread(
-            create_quali_results_image,
-            f"Квалификация {season}",
-            f"{event_name} — этап {round_num:02d}",
-            rows_quali,
+            create_f1_style_classification_image,
+            event_name=event_name,
+            session_type="QUALIFYING CLASSIFICATION",
+            rows=rows_quali,
+            season=season,
+            show_laps=False,
         )
         photo_quali = BufferedInputFile(img_quali.getvalue(), filename="quali.png")
         lines_quali = []
@@ -324,22 +339,69 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
     if not results_df.empty:
         if "Position" in results_df.columns:
             results_df = results_df.sort_values("Position")
+        driver_standings = await get_driver_standings_async(season, round_num)
+        code_to_team = {}
+        if not driver_standings.empty and "driverCode" in driver_standings.columns:
+            for row in driver_standings.itertuples(index=False):
+                c = str(getattr(row, "driverCode", "") or "").strip().upper()
+                team = str(getattr(row, "constructorName", "") or "").strip()
+                if c:
+                    code_to_team[c] = team
+        min_time_sec = None
+        time_secs = []
+        has_time = "Time" in results_df.columns
+        if has_time:
+            for _, row in results_df.iterrows():
+                t = row.get("Time")
+                if t is not None and pd.notna(t):
+                    try:
+                        sec = pd.to_timedelta(t).total_seconds()
+                        if sec > 0:
+                            time_secs.append(sec)
+                    except Exception:
+                        pass
+            min_time_sec = min(time_secs) if time_secs else None
         rows_race = []
-        for _, row in results_df.head(20).iterrows():
-            pos = row.get("Position", "?")
+        for _, row in results_df.head(22).iterrows():
+            pos = row.get("Position")
+            if pos is None:
+                continue
             code = str(row.get("Abbreviation", "?") or row.get("DriverNumber", "?"))
             given = str(row.get("FirstName", "") or "")
             family = str(row.get("LastName", "") or "")
             full_name = f"{given} {family}".strip() or code
-            pts = row.get("Points", 0)
-            pts_text = f"{pts:.0f}" if pts is not None else "0"
-            rows_race.append((f"{int(pos):02d}" if pos != "?" else "?", code, full_name, pts_text))
-
+            team = str(row.get("TeamName", "") or "") or code_to_team.get(code.upper(), "")
+            gap_str = "-"
+            if has_time and min_time_sec is not None:
+                t = row.get("Time")
+                if t is not None and pd.notna(t):
+                    try:
+                        sec = pd.to_timedelta(t).total_seconds()
+                        if sec > 0:
+                            if sec <= min_time_sec:
+                                h, m = int(sec // 3600), int((sec % 3600) // 60)
+                                s = sec % 60
+                                gap_str = f"{h}:{m:02d}:{s:05.2f}" if h > 0 else f"{m}:{s:05.2f}"
+                            else:
+                                gap_str = f"+{sec - min_time_sec:.3f}"
+                    except Exception:
+                        pass
+            laps_val = row.get("Laps")
+            laps_str = str(int(laps_val)) if laps_val is not None and pd.notna(laps_val) else "-"
+            rows_race.append({
+                "pos": int(pos) if pos != "?" else "?",
+                "driver": full_name,
+                "team": team,
+                "gap_or_time": gap_str,
+                "laps": laps_str,
+            })
         img_race = await asyncio.to_thread(
-            create_results_image,
-            title="Результаты гонки",
-            subtitle=f"{event_name} — этап {round_num}, сезон {season}",
+            create_f1_style_classification_image,
+            event_name=event_name,
+            session_type="RACE CLASSIFICATION",
             rows=rows_race,
+            season=season,
+            show_laps=True,
         )
         photo_race = BufferedInputFile(img_race.getvalue(), filename="race.png")
 
