@@ -596,15 +596,21 @@ async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)
     if "Position" in df.columns:
         df = df.sort_values("Position")
 
+    data_incomplete = False
     for row in df.itertuples(index=False):
         try:
             pos = int(getattr(row, "Position", 0))
             code = getattr(row, "Abbreviation", "") or getattr(row, "DriverNumber", "")
             given = getattr(row, "FirstName", "")
             family = getattr(row, "LastName", "")
-            full_name = f"{given} {family}"
+            full_name = f"{given} {family}".strip() or code
             team = getattr(row, "TeamName", "")
             points = float(getattr(row, "Points", 0))
+
+            if code == "?" or (full_name and "?" in str(full_name)):
+                data_incomplete = True
+            if full_name and full_name.strip() == "":
+                data_incomplete = True
 
             results.append({
                 "position": pos,
@@ -618,11 +624,21 @@ async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)
         except:
             continue
 
+    if data_incomplete:
+        return {
+            "results": [],
+            "race_info": last_race,
+            "season": season,
+            "round": round_num,
+            "data_incomplete": True,
+        }
+
     return {
         "season": season,
         "round": round_num,
         "race_info": last_race,
-        "results": results
+        "results": results,
+        "data_incomplete": False,
     }
 
 

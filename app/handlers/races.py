@@ -300,6 +300,19 @@ async def race_callback(callback: CallbackQuery) -> None:
     if "Position" in df.columns:
         df = df.sort_values("Position")
 
+    data_incomplete = False
+    for row in df.itertuples(index=False):
+        code = getattr(row, "Abbreviation", "") or getattr(row, "DriverNumber", "?")
+        given = getattr(row, "FirstName", "") or ""
+        family = getattr(row, "LastName", "") or ""
+        full = f"{given} {family}".strip() or code
+        if code == "?" or "?" in str(full):
+            data_incomplete = True
+            break
+    if data_incomplete:
+        await callback.answer("Результаты обрабатываются. Данные скоро появятся ⏳", show_alert=True)
+        return
+
     lines: list[str] = []
     max_positions = 20
     count = 0

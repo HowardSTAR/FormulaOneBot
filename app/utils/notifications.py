@@ -344,9 +344,21 @@ async def check_and_send_results(bot: Bot):
     # === ЛОГИКА ДЛЯ ГОНОК: картинка + текст по избранным под спойлером ===
     results_df = await get_race_results_async(season, round_num)
 
-    # Если результатов ещё нет — сразу отправляем приглашение на голосование
+    # Проверяем, что данные полные (нет ??)
+    data_incomplete = False
+    if not results_df.empty:
+        for row in results_df.itertuples(index=False):
+            code = getattr(row, "Abbreviation", "") or getattr(row, "DriverNumber", "?")
+            given = getattr(row, "FirstName", "") or ""
+            family = getattr(row, "LastName", "") or ""
+            full = f"{given} {family}".strip() or code
+            if code == "?" or "?" in str(full):
+                data_incomplete = True
+                break
+
+    # Если результатов нет или данные неполные — приглашаем на голосование
     voting_invite_sent = await get_last_notified_voting_invite_round(season)
-    if results_df.empty:
+    if results_df.empty or data_incomplete:
         if voting_invite_sent is None or voting_invite_sent < round_num:
             voting_users = await get_users_with_settings(notifications_only=True)
             event_name = finished_event.get("event_name", "Гран-при")

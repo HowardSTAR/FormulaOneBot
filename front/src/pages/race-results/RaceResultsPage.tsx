@@ -15,6 +15,7 @@ type RaceResultsResponse = {
   race_info?: { event_name: string };
   round?: number;
   season?: number;
+  data_incomplete?: boolean;
 };
 
 function RaceResultsPage() {
@@ -84,9 +85,13 @@ function RaceResultsPage() {
         {!loading && !error && (!data?.results || data.results.length === 0) && (
           <div className="empty-state">
             <span className="empty-icon">🏁</span>
-            <div className="empty-title">Нет данных</div>
+            <div className="empty-title">
+              {data?.data_incomplete ? "Результаты обрабатываются" : "Нет данных"}
+            </div>
             <div className="empty-desc">
-              Гонки в этом сезоне еще не проводились или результаты обрабатываются.
+              {data?.data_incomplete
+                ? "Данные скоро появятся. Обновите страницу через несколько минут."
+                : "Гонки в этом сезоне еще не проводились или результаты обрабатываются."}
             </div>
           </div>
         )}
