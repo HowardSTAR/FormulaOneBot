@@ -1546,7 +1546,7 @@ input:checked + .slider:before {
 .driver-portrait {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 .driver-portrait-placeholder {
   width: 100%;
@@ -1820,7 +1820,7 @@ input:checked + .slider:before {
 .constructor-driver-portrait img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 .constructor-driver-portrait .driver-initials {
   font-size: 18px;

@@ -418,16 +418,28 @@ async def test_api_team_logo_404(api_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_api_pilot_portrait_uses_local_season_file_and_crops_head(api_client: AsyncClient):
-    """GET /api/pilot-portrait — берёт локальный файл сезона и кропает верхнюю часть."""
+    """
+    GET /api/pilot-portrait — берёт локальный файл сезона и сильно кропает верх.
+    Проверяем, что в выдаче остаётся «голова» (верхняя зона), а низ и середина отрезаются.
+    """
     with tempfile.TemporaryDirectory() as tmp:
         project_root = Path(tmp)
         pilots_dir = project_root / "app" / "assets" / "2026" / "pilots"
         pilots_dir.mkdir(parents=True, exist_ok=True)
 
-        # Верх зелёный, низ синий — после кропа должен остаться зелёный
-        img = Image.new("RGB", (100, 100), (0, 255, 0))
-        for y in range(80, 100):
-            for x in range(100):
+        # Верх (голова) — красный, средняя часть — зелёный, низ — синий.
+        # Тест проверяет именно "высокий кроп":
+        # - центр должен оставаться красным (голова),
+        # - синяя нижняя часть не должна попадать в выдачу.
+        img = Image.new("RGB", (120, 120), (0, 0, 0))
+        for y in range(0, 30):
+            for x in range(120):
+                img.putpixel((x, y), (255, 0, 0))
+        for y in range(30, 60):
+            for x in range(120):
+                img.putpixel((x, y), (0, 255, 0))
+        for y in range(60, 120):
+            for x in range(120):
                 img.putpixel((x, y), (0, 0, 255))
         src_path = pilots_dir / "Max Verstappen.png"
         img.save(src_path)
@@ -443,9 +455,19 @@ async def test_api_pilot_portrait_uses_local_season_file_and_crops_head(api_clie
     assert r.status_code == 200
     assert r.headers.get("content-type", "").startswith("image/png")
     out = Image.open(io.BytesIO(r.content)).convert("RGB")
-    # Проверяем нижний пиксель: должен быть не синий (т.к. низ исходника отрезан)
-    rb = out.getpixel((out.width // 2, out.height - 1))
-    assert rb[1] > rb[2]
+    # Без сплющивания: после кропа высота должна стать меньше исходной.
+    assert out.size[0] == 120
+    assert out.size[1] < 120
+
+    top_px = out.getpixel((out.width // 2, max(1, out.height // 10)))
+    mid_px = out.getpixel((out.width // 2, out.height // 2))
+    bottom_px = out.getpixel((out.width // 2, max(0, out.height - 2)))
+
+    # В верхней и центральной части должна преобладать "голова" (красный).
+    assert top_px[0] > top_px[1] and top_px[0] > top_px[2]
+    assert mid_px[0] > mid_px[1] and mid_px[0] > mid_px[2]
+    # Внизу не должно быть синей зоны из нижней части оригинала.
+    assert bottom_px[2] < bottom_px[1]
 
 
 @pytest.mark.asyncio
