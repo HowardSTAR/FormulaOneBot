@@ -22,6 +22,16 @@ function carImageUrl(teamName: string, season: number): string {
   return `${origin.replace(/\/$/, "")}${pathBase}/api/car-image?${params}`;
 }
 
+function pilotPortraitUrl(code: string, fullName: string, season: number): string {
+  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
+  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
+  const params = new URLSearchParams({ season: String(season) });
+  if (code) params.set("code", code);
+  if (fullName) params.set("name", fullName);
+  return `${origin.replace(/\/$/, "")}${pathBase}/api/pilot-portrait?${params.toString()}`;
+}
+
 type SeasonStats = {
   position: number | string;
   points: number;
@@ -193,7 +203,7 @@ function ConstructorDetailsPage() {
                     )}
                     <div className="constructor-driver-portrait">
                       <img
-                        src={d.headshot_url || "/api/pilot-portrait"}
+                        src={pilotPortraitUrl(d.code, fullName, season)}
                         alt={fullName}
                         onError={(e) => {
                           if (e.currentTarget.src !== window.location.origin + "/api/pilot-portrait") {
