@@ -32,6 +32,8 @@ from app.f1_data import (
     sort_standings_zero_last,
     _get_latest_quali_async,
     get_race_results_async,
+    get_sprint_results_async,
+    get_sprint_quali_results_async,
     get_event_details_async,
     get_cached_quali_results,
     set_cached_quali_results,
@@ -650,6 +652,80 @@ async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)
     }
 
 
+@web_app.get("/api/sprint-results")
+async def api_sprint_results(user_id: Optional[int] = Depends(get_current_user_id)):
+    season = datetime.now().year
+    schedule = await get_season_schedule_short_async(season)
+    if not schedule:
+        return {"results": [], "race_info": None, "season": season, "round": None}
+
+    now_date = datetime.now(timezone.utc).date()
+    passed_rounds = []
+    for r in schedule:
+        try:
+            if r.get("date") and datetime.fromisoformat(r["date"]).date() <= now_date:
+                passed_rounds.append(r["round"])
+        except Exception:
+            continue
+
+    if not passed_rounds:
+        return {"results": [], "race_info": None, "season": season, "round": None}
+
+    round_num = None
+    df = pd.DataFrame()
+    for rn in reversed(passed_rounds):
+        sprint_df = await get_sprint_results_async(season, rn)
+        if sprint_df is not None and not sprint_df.empty:
+            round_num = rn
+            df = sprint_df
+            break
+
+    if round_num is None or df.empty:
+        return {"results": [], "race_info": None, "season": season, "round": None}
+
+    race_info = next((r for r in schedule if r.get("round") == round_num), None)
+
+    fav_drivers = set()
+    fav_teams = set()
+    if user_id:
+        fav_drivers = set(await get_favorite_drivers(user_id))
+        fav_teams = set(await get_favorite_teams(user_id))
+
+    results = []
+    if "Position" in df.columns:
+        df = df.sort_values("Position")
+
+    for row in df.itertuples(index=False):
+        try:
+            pos = int(getattr(row, "Position", 0))
+            code = getattr(row, "Abbreviation", "") or getattr(row, "DriverNumber", "")
+            given = getattr(row, "FirstName", "")
+            family = getattr(row, "LastName", "")
+            full_name = f"{given} {family}".strip() or code
+            team = getattr(row, "TeamName", "")
+            points = float(getattr(row, "Points", 0))
+            if points == 0:
+                points = points_for_race_position(pos)
+            results.append({
+                "position": pos,
+                "code": code,
+                "name": full_name,
+                "team": team,
+                "points": points,
+                "is_favorite_driver": code in fav_drivers,
+                "is_favorite_team": team in fav_teams
+            })
+        except Exception:
+            continue
+
+    return {
+        "season": season,
+        "round": round_num,
+        "race_info": race_info,
+        "results": results,
+    }
+
+
 def _segment_by_position(pos: int) -> str:
     if pos <= 10:
         return "Q3"
@@ -697,6 +773,57 @@ async def api_quali_results():
     return payload
 
 
+@web_app.get("/api/sprint-quali-results")
+async def api_sprint_quali_results():
+    season = datetime.now().year
+    schedule = await get_season_schedule_short_async(season)
+    if not schedule:
+        return {"results": [], "race_info": None, "season": season, "round": None}
+
+    now_date = datetime.now(timezone.utc).date()
+    passed_rounds = []
+    for r in schedule:
+        try:
+            if r.get("date") and datetime.fromisoformat(r["date"]).date() <= now_date:
+                passed_rounds.append(r["round"])
+        except Exception:
+            continue
+
+    if not passed_rounds:
+        return {"results": [], "race_info": None, "season": season, "round": None}
+
+    round_num = None
+    sq_results = []
+    for rn in reversed(passed_rounds):
+        data = await get_sprint_quali_results_async(season, rn, limit=100)
+        if data:
+            round_num = rn
+            sq_results = data
+            break
+
+    if round_num is None or not sq_results:
+        return {"results": [], "race_info": None, "season": season, "round": None}
+
+    race_info = next((r for r in schedule if r.get("round") == round_num), None)
+    results = []
+    for r in sq_results:
+        pos = r.get("position", 0)
+        results.append({
+            "position": pos,
+            "driver": r.get("driver", ""),
+            "name": r.get("name", ""),
+            "best": r.get("best", "-"),
+            "segment": _segment_by_position(pos),
+        })
+
+    return {
+        "season": season,
+        "round": round_num,
+        "race_info": race_info,
+        "results": results,
+    }
+
+
 @web_app.get("/api/race-details")
 async def api_race_details(
         season: int = Query(..., description="Год сезона"),
@@ -742,6 +869,16 @@ def _get_passed_races(schedule: list, now: datetime) -> list:
     passed = []
     for r in schedule:
         if not r.get("race_start_utc"):
+            # Fallback для расписаний без race_start_utc (например, в тестовых моках):
+            # считаем этап прошедшим, если его дата <= текущей UTC-даты.
+            try:
+                date_str = r.get("date")
+                if date_str and datetime.fromisoformat(date_str).date() <= now.date():
+                    passed.append(r)
+                else:
+                    break
+            except Exception:
+                continue
             continue
         try:
             race_dt = datetime.fromisoformat(r["race_start_utc"])
