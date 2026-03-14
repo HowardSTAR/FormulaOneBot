@@ -725,11 +725,19 @@ async def api_sprint_results(user_id: Optional[int] = Depends(get_current_user_i
     if not schedule:
         return {"results": [], "race_info": None, "season": season, "round": None}
 
-    now_date = datetime.now(timezone.utc).date()
+    now_utc = datetime.now(timezone.utc)
     passed_rounds = []
     for r in schedule:
         try:
-            if r.get("date") and datetime.fromisoformat(r["date"]).date() <= now_date:
+            if r.get("sprint_start_utc"):
+                sprint_dt = datetime.fromisoformat(r["sprint_start_utc"])
+                if sprint_dt.tzinfo is None:
+                    sprint_dt = sprint_dt.replace(tzinfo=timezone.utc)
+                if sprint_dt <= now_utc:
+                    passed_rounds.append(r["round"])
+                continue
+            # Фоллбэк для старых расписаний без sprint_start_utc
+            if r.get("date") and datetime.fromisoformat(r["date"]).date() <= now_utc.date():
                 passed_rounds.append(r["round"])
         except Exception:
             continue
@@ -846,11 +854,23 @@ async def api_sprint_quali_results():
     if not schedule:
         return {"results": [], "race_info": None, "season": season, "round": None}
 
-    now_date = datetime.now(timezone.utc).date()
+    now_utc = datetime.now(timezone.utc)
     passed_rounds = []
     for r in schedule:
         try:
-            if r.get("date") and datetime.fromisoformat(r["date"]).date() <= now_date:
+            sq_dt = None
+            if r.get("sprint_quali_start_utc"):
+                sq_dt = datetime.fromisoformat(r["sprint_quali_start_utc"])
+            elif r.get("quali_start_utc"):
+                sq_dt = datetime.fromisoformat(r["quali_start_utc"])
+            if sq_dt is not None:
+                if sq_dt.tzinfo is None:
+                    sq_dt = sq_dt.replace(tzinfo=timezone.utc)
+                if sq_dt <= now_utc:
+                    passed_rounds.append(r["round"])
+                continue
+            # Фоллбэк для старых расписаний без sprint_quali_start_utc
+            if r.get("date") and datetime.fromisoformat(r["date"]).date() <= now_utc.date():
                 passed_rounds.append(r["round"])
         except Exception:
             continue

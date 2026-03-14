@@ -2,7 +2,7 @@
 Тесты API эндпоинтов (Mini App).
 """
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import io
 import tempfile
 from pathlib import Path
@@ -362,6 +362,50 @@ async def test_api_sprint_quali_results(api_client: AsyncClient):
     data = r.json()
     assert "results" in data
     assert data.get("round") == 1
+
+
+@pytest.mark.asyncio
+async def test_api_sprint_results_uses_sprint_time_even_if_race_date_future(api_client: AsyncClient):
+    """GET /api/sprint-results — учитывает sprint_start_utc, даже если date этапа ещё в будущем."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+        m.return_value = [{
+            "round": 7,
+            "event_name": "Sprint Weekend GP",
+            "date": (now + timedelta(days=1)).date().isoformat(),
+            "sprint_start_utc": (now - timedelta(hours=2)).isoformat(),
+        }]
+        with patch("app.api.miniapp_api.get_sprint_results_async", new_callable=AsyncMock) as m2:
+            m2.return_value = pd.DataFrame([
+                {"Position": 1, "Abbreviation": "VER", "FirstName": "Max", "LastName": "Verstappen", "TeamName": "Red Bull", "Points": 8},
+            ])
+            r = await api_client.get("/api/sprint-results")
+    assert r.status_code == 200
+    data = r.json()
+    assert "results" in data
+    assert data.get("round") == 7
+
+
+@pytest.mark.asyncio
+async def test_api_sprint_quali_results_uses_sq_time_even_if_race_date_future(api_client: AsyncClient):
+    """GET /api/sprint-quali-results — учитывает sprint_quali_start_utc, даже если date этапа в будущем."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+        m.return_value = [{
+            "round": 7,
+            "event_name": "Sprint Weekend GP",
+            "date": (now + timedelta(days=1)).date().isoformat(),
+            "sprint_quali_start_utc": (now - timedelta(hours=3)).isoformat(),
+        }]
+        with patch("app.api.miniapp_api.get_sprint_quali_results_async", new_callable=AsyncMock) as m2:
+            m2.return_value = [
+                {"position": 1, "driver": "VER", "name": "Max Verstappen", "best": "1:29.0"},
+            ]
+            r = await api_client.get("/api/sprint-quali-results")
+    assert r.status_code == 200
+    data = r.json()
+    assert "results" in data
+    assert data.get("round") == 7
 
 
 @pytest.mark.asyncio
