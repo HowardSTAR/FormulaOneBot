@@ -48,9 +48,9 @@ ADMIN_ID = 2099386
 QUIET_START_HOUR = 21
 QUIET_END_HOUR = 10
 
-# Для групп: напоминать за 60 минут, таймзона МСК
+# Для групп: напоминать за 60 минут, таймзона UTC
 GROUP_NOTIFY_BEFORE = 60
-GROUP_TIMEZONE = "Europe/Moscow"
+GROUP_TIMEZONE = "UTC"
 
 
 def is_quiet_hours(tz_name: str) -> bool:
@@ -92,18 +92,20 @@ def get_notification_text(race: dict, user_tz_name: str, minutes_left: int, for_
     except Exception:
         start_time_str = "??:??"
 
+    time_suffix = " (UTC)" if user_tz_name == "UTC" else " (по вашему времени)"
+
     if for_quali:
         return (
             f"⏱ Скоро квалификация!\n\n"
             f"{format_time_left(minutes_left)} старт: {event_name}\n"
             f"📍 Трасса: {race.get('location', '')}\n"
-            f"⏰ Начало в {start_time_str} (по вашему времени)\n"
+            f"⏰ Начало в {start_time_str}{time_suffix}\n"
         )
     return (
         f"🏎 Скоро гонка!\n\n"
         f"{format_time_left(minutes_left)} старт: {event_name} 🏁\n"
         f"📍 Трасса: {race.get('location', '')}\n"
-        f"⏰ Начало в {start_time_str} (по вашему времени)\n"
+        f"⏰ Начало в {start_time_str}{time_suffix}\n"
     )
 
 
