@@ -239,7 +239,9 @@ def get_season_schedule_short(season: int) -> list[dict]:
 
             race_dt_utc = None
             quali_dt_utc = None
-            for i in range(1, 6):
+            sprint_dt_utc = None
+            sprint_quali_dt_utc = None
+            for i in range(1, 9):
                 name_col = f"Session{i}"
                 date_col = f"Session{i}DateUtc"
                 if name_col in row and date_col in row:
@@ -248,6 +250,10 @@ def get_season_schedule_short(season: int) -> list[dict]:
                         race_dt_utc = row[date_col].to_pydatetime()
                     if "Qualifying" in sess_name and pd.notna(row[date_col]):
                         quali_dt_utc = row[date_col].to_pydatetime()
+                    if sess_name == "Sprint" and pd.notna(row[date_col]):
+                        sprint_dt_utc = row[date_col].to_pydatetime()
+                    if sess_name in ("Sprint Qualifying", "Sprint Shootout") and pd.notna(row[date_col]):
+                        sprint_quali_dt_utc = row[date_col].to_pydatetime()
 
             if race_dt_utc:
                 if race_dt_utc.tzinfo is None:
@@ -271,6 +277,18 @@ def get_season_schedule_short(season: int) -> list[dict]:
                     quali_dt_utc = quali_dt_utc.replace(tzinfo=timezone.utc)
                 quali_start_utc = quali_dt_utc.isoformat()
 
+            sprint_start_utc = None
+            if sprint_dt_utc is not None:
+                if sprint_dt_utc.tzinfo is None:
+                    sprint_dt_utc = sprint_dt_utc.replace(tzinfo=timezone.utc)
+                sprint_start_utc = sprint_dt_utc.isoformat()
+
+            sprint_quali_start_utc = None
+            if sprint_quali_dt_utc is not None:
+                if sprint_quali_dt_utc.tzinfo is None:
+                    sprint_quali_dt_utc = sprint_quali_dt_utc.replace(tzinfo=timezone.utc)
+                sprint_quali_start_utc = sprint_quali_dt_utc.isoformat()
+
             races.append({
                 "round": round_num,
                 "event_name": event_name,
@@ -278,7 +296,9 @@ def get_season_schedule_short(season: int) -> list[dict]:
                 "location": location,
                 "date": date_iso,
                 "race_start_utc": race_start_utc,
-                "quali_start_utc": quali_start_utc
+                "quali_start_utc": quali_start_utc,
+                "sprint_start_utc": sprint_start_utc,
+                "sprint_quali_start_utc": sprint_quali_start_utc,
             })
         except Exception:
             continue
@@ -365,6 +385,29 @@ def get_race_results_df(season: int, round_number: int):
     return pd.DataFrame()
 
 
+def get_sprint_results_df(season: int, round_number: int) -> pd.DataFrame:
+    """Результаты спринта (session='S')."""
+    max_retries = 2
+    for attempt in range(max_retries):
+        try:
+            session = fastf1.get_session(season, round_number, "S")
+            session.load(telemetry=False, laps=False, weather=False, messages=False)
+            if session.results is not None and not session.results.empty:
+                return session.results
+            if attempt < max_retries - 1:
+                time.sleep(1)
+        except SessionNotAvailableError:
+            logger.warning(f"Sprint results not available yet for {season} round {round_number}")
+            return pd.DataFrame()
+        except Exception as e:
+            logger.error(f"Sprint results error {season}/{round_number}: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+            else:
+                return pd.DataFrame()
+    return pd.DataFrame()
+
+
 def get_qualifying_results(season: int, round_number: int, limit: int = 100) -> list[dict]:
     # Механизм Retry для квалификации тоже не помешает
     max_retries = 2
@@ -434,6 +477,79 @@ def get_qualifying_results(season: int, round_number: int, limit: int = 100) -> 
             logger.error(f"Quali load error {season}/{round_number}: {e}")
             if attempt < max_retries - 1:
                 time.sleep(1)
+    return []
+
+
+def get_sprint_quali_results(season: int, round_number: int, limit: int = 100) -> list[dict]:
+    """
+    Результаты спринт-квалификации/шут-аута.
+    FastF1 session: SQ (новый формат) или SS (старый Sprint Shootout).
+    """
+    for session_code in ("SQ", "SS"):
+        try:
+            session = fastf1.get_session(season, round_number, session_code)
+            session.load(telemetry=False, laps=False, weather=False, messages=False)
+            if session.results is None or session.results.empty:
+                continue
+
+            results = []
+            best_seconds_list = []
+            for row in session.results.itertuples(index=False):
+                pos = getattr(row, "Position", None)
+                if pd.isna(pos):
+                    continue
+                try:
+                    pos_int = int(pos)
+                except Exception:
+                    continue
+
+                code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", "?")
+                name = getattr(row, "LastName", "") or code
+
+                sq3 = getattr(row, "SQ3", None)
+                sq2 = getattr(row, "SQ2", None)
+                sq1 = getattr(row, "SQ1", None)
+                q3 = getattr(row, "Q3", None)
+                q2 = getattr(row, "Q2", None)
+                q1 = getattr(row, "Q1", None)
+
+                best_time = None
+                for t in [sq3, sq2, sq1, q3, q2, q1]:
+                    if pd.notna(t):
+                        best_time = t
+                        break
+
+                best_str = _format_quali_time(best_time) if best_time is not None else "-"
+                best_sec = pd.to_timedelta(best_time).total_seconds() if best_time is not None and pd.notna(best_time) else None
+                if best_sec is not None:
+                    best_seconds_list.append(best_sec)
+
+                results.append({
+                    "position": pos_int,
+                    "driver": code,
+                    "name": name,
+                    "best": best_str,
+                    "best_seconds": best_sec,
+                })
+
+            min_sec = min(best_seconds_list) if best_seconds_list else None
+            for r in results:
+                bs = r.pop("best_seconds", None)
+                if bs is None or min_sec is None:
+                    r["gap"] = "—"
+                elif bs <= min_sec:
+                    r["gap"] = r["best"]
+                else:
+                    r["gap"] = f"+{bs - min_sec:.3f}"
+
+            results.sort(key=lambda r: r["position"])
+            return results[:limit]
+        except SessionNotAvailableError:
+            continue
+        except Exception as e:
+            logger.debug(f"Sprint quali load error {season}/{round_number} [{session_code}]: {e}")
+            continue
+
     return []
 
 
@@ -1197,9 +1313,19 @@ async def get_race_results_async(season: int, round_number: int):
     return await _get_race_results_fastf1_async(season, round_number)
 
 
+@cache_result(ttl=86400, key_prefix="sprint_res")
+async def get_sprint_results_async(season: int, round_number: int) -> pd.DataFrame:
+    return await _run_sync(get_sprint_results_df, season, round_number)
+
+
 @cache_result(ttl=86400, key_prefix="quali_res")
 async def _get_quali_async(season: int, round_number: int, limit: int = 100):
     return await _run_sync(get_qualifying_results, season, round_number, limit)
+
+
+@cache_result(ttl=86400, key_prefix="sprint_quali_res")
+async def get_sprint_quali_results_async(season: int, round_number: int, limit: int = 100) -> list[dict]:
+    return await _run_sync(get_sprint_quali_results, season, round_number, limit)
 
 
 @cache_result(ttl=3600, key_prefix="lat_quali")
