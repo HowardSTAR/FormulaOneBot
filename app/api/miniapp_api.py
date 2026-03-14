@@ -1,5 +1,6 @@
 import io
 import os
+import unicodedata
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -10,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Query, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from PIL import Image
 from pydantic import BaseModel
 
 from app.auth import get_current_user_id
@@ -39,6 +41,7 @@ from app.f1_data import (
     set_cached_quali_results,
 )
 from app.handlers.races import build_next_race_payload
+from app.utils.default import DRIVER_CODE_TO_FILE
 from app.utils.image_render import _get_team_logo, get_car_image_path
 
 # --- Настройка путей ---
@@ -512,9 +515,71 @@ async def api_team_logo(
 PILOT_FALLBACK_PATH = PROJECT_ROOT / "app" / "assets" / "pilot" / "pilot.png"
 
 
+def _normalize_key(text: str) -> str:
+    s = (text or "").strip().lower()
+    s = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode("ascii")
+    return "".join(ch for ch in s if ch.isalnum())
+
+
+def _find_local_pilot_portrait_path(season: int, code: str | None, name: str | None) -> Path | None:
+    pilots_dir = PROJECT_ROOT / "app" / "assets" / str(season) / "pilots"
+    if not pilots_dir.exists():
+        return None
+
+    candidates = []
+    if name:
+        candidates.append(name)
+    if code:
+        mapped = DRIVER_CODE_TO_FILE.get(code.upper(), "")
+        if mapped:
+            candidates.append(Path(mapped).stem)
+        candidates.append(code)
+
+    norm_candidates = {_normalize_key(c) for c in candidates if c}
+    if not norm_candidates:
+        return None
+
+    for file_path in pilots_dir.iterdir():
+        if not file_path.is_file():
+            continue
+        if file_path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".avif"}:
+            continue
+        file_norm = _normalize_key(file_path.stem.strip())
+        if any(c and (c in file_norm or file_norm in c) for c in norm_candidates):
+            return file_path
+    return None
+
+
+def _render_head_crop_png_bytes(path: Path) -> bytes:
+    with Image.open(path) as img:
+        base = img.convert("RGBA")
+        w, h = base.size
+        # Увеличиваем "голову": берём верхнюю часть и растягиваем назад.
+        crop_h = max(1, int(h * 0.55))
+        head = base.crop((0, 0, w, crop_h)).resize((w, h), Image.Resampling.LANCZOS)
+        buf = io.BytesIO()
+        head.save(buf, format="PNG")
+        return buf.getvalue()
+
+
 @web_app.get("/api/pilot-portrait")
-async def api_pilot_portrait():
-    """Дефолтный портрет пилота (fallback, когда нет headshot)."""
+async def api_pilot_portrait(
+    season: Optional[int] = Query(None),
+    code: Optional[str] = Query(None),
+    name: Optional[str] = Query(None),
+):
+    """Портрет пилота: local assets/{season}/pilots с кропом головы, fallback на дефолтный."""
+    if season is None:
+        season = datetime.now().year
+
+    local_path = _find_local_pilot_portrait_path(season, code, name)
+    if local_path and local_path.exists():
+        try:
+            png_bytes = await asyncio.to_thread(_render_head_crop_png_bytes, local_path)
+            return Response(content=png_bytes, media_type="image/png")
+        except Exception:
+            pass
+
     if PILOT_FALLBACK_PATH.exists():
         return FileResponse(str(PILOT_FALLBACK_PATH), media_type="image/png")
     raise HTTPException(status_code=404, detail="Default portrait not found")

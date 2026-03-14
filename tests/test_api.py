@@ -3,11 +3,15 @@
 """
 import asyncio
 from datetime import datetime
+import io
+import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
 from httpx import AsyncClient
+from PIL import Image
 
 
 @pytest.mark.asyncio
@@ -410,6 +414,38 @@ async def test_api_team_logo_404(api_client: AsyncClient):
         m.return_value = None
         r = await api_client.get("/api/team-logo", params={"team": "Unknown"})
     assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_api_pilot_portrait_uses_local_season_file_and_crops_head(api_client: AsyncClient):
+    """GET /api/pilot-portrait — берёт локальный файл сезона и кропает верхнюю часть."""
+    with tempfile.TemporaryDirectory() as tmp:
+        project_root = Path(tmp)
+        pilots_dir = project_root / "app" / "assets" / "2026" / "pilots"
+        pilots_dir.mkdir(parents=True, exist_ok=True)
+
+        # Верх зелёный, низ синий — после кропа должен остаться зелёный
+        img = Image.new("RGB", (100, 100), (0, 255, 0))
+        for y in range(80, 100):
+            for x in range(100):
+                img.putpixel((x, y), (0, 0, 255))
+        src_path = pilots_dir / "Max Verstappen.png"
+        img.save(src_path)
+
+        fallback_path = project_root / "app" / "assets" / "pilot" / "pilot.png"
+        fallback_path.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGB", (20, 20), (255, 0, 0)).save(fallback_path)
+
+        with patch("app.api.miniapp_api.PROJECT_ROOT", project_root), \
+             patch("app.api.miniapp_api.PILOT_FALLBACK_PATH", fallback_path):
+            r = await api_client.get("/api/pilot-portrait", params={"season": 2026, "code": "VER", "name": "Max Verstappen"})
+
+    assert r.status_code == 200
+    assert r.headers.get("content-type", "").startswith("image/png")
+    out = Image.open(io.BytesIO(r.content)).convert("RGB")
+    # Проверяем нижний пиксель: должен быть не синий (т.к. низ исходника отрезан)
+    rb = out.getpixel((out.width // 2, out.height - 1))
+    assert rb[1] > rb[2]
 
 
 @pytest.mark.asyncio
