@@ -415,7 +415,10 @@ async def check_and_send_results(bot: Bot):
                 sent_count += 1
             await asyncio.sleep(0.05)
 
-        await set_last_notified_round(season, round_num)
+        if sent_count > 0:
+            await set_last_notified_round(season, round_num)
+        else:
+            logger.warning(f"⚠️ Testing results delivery failed for round {round_num}, will retry.")
         return
 
     # === ЛОГИКА ДЛЯ ГОНОК: картинка + текст по избранным под спойлером ===
@@ -460,9 +463,6 @@ async def check_and_send_results(bot: Bot):
     if not users_favorites and not group_chats and not notifications_users:
         await set_last_notified_round(season, round_num)
         return
-
-    # Сразу помечаем этап как «рассылаем», чтобы параллельный запуск job не дублировал
-    await set_last_notified_round(season, round_num)
 
     users_settings = await get_users_with_settings()
     tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users_settings}
@@ -665,6 +665,11 @@ async def check_and_send_results(bot: Bot):
             sent_count += 1
         await asyncio.sleep(0.05)
 
+    if sent_count > 0:
+        await set_last_notified_round(season, round_num)
+    else:
+        logger.warning(f"⚠️ Race results delivery failed for round {round_num}, will retry.")
+
 
 # --- ЗАДАЧА 3: РЕЗУЛЬТАТЫ КВАЛИФИКАЦИИ ---
 
@@ -717,9 +722,6 @@ async def check_and_notify_quali(bot: Bot) -> None:
     if not rows_for_image:
         await set_last_notified_quali_round(season, round_num)
         return
-
-    # Сразу помечаем этап как «рассылаем», чтобы параллельный запуск job не дублировал
-    await set_last_notified_quali_round(season, round_num)
 
     event_name = (race_info or {}).get("event_name", "") or f"Этап {round_num:02d}"
 
@@ -822,6 +824,11 @@ async def check_and_notify_quali(bot: Bot) -> None:
         ):
             sent_count += 1
         await asyncio.sleep(0.05)
+
+    if sent_count > 0:
+        await set_last_notified_quali_round(season, round_num)
+    else:
+        logger.warning(f"⚠️ Quali results delivery failed for round {round_num}, will retry.")
 
 
 # --- ЗАДАЧА 4: ИТОГИ ГОЛОСОВАНИЯ (3 дня после гонки) ---

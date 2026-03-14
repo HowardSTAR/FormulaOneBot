@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
+import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 
 type NextRaceResponse = {
   status: string;
@@ -19,9 +20,12 @@ function NextRacePage() {
   const [title, setTitle] = useState("Загрузка...");
   const [location, setLocation] = useState("...");
   const [eventName, setEventName] = useState<string | null>(null);
+  const [raceCountry, setRaceCountry] = useState("");
+  const [raceCity, setRaceCity] = useState("");
   const [raceDateText, setRaceDateText] = useState("--");
   const [raceTimeText, setRaceTimeText] = useState("--:--");
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [expandedFactIndex, setExpandedFactIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [trackSvg, setTrackSvg] = useState<string | null>(null);
@@ -50,6 +54,8 @@ function NextRacePage() {
 
         setTitle(raceData.event_name || "Загрузка...");
         setEventName(raceData.event_name || null);
+        setRaceCountry(raceData.country || "");
+        setRaceCity(raceData.location || "");
         setLocation(`${raceData.country || ""}, ${raceData.location || ""}`);
 
         const scheduleData = await apiRequest<ScheduleResponse>("/api/weekend-schedule", {
@@ -186,6 +192,17 @@ function NextRacePage() {
     return () => clearTimeout(t);
   }, [trackSvg, loading]);
 
+  useEffect(() => {
+    setExpandedFactIndex(0);
+  }, [eventName]);
+
+  const insights = getCircuitInsightsRu({
+    eventName: eventName || "",
+    country: raceCountry,
+    location: raceCity,
+    sessionsCount: sessions.length,
+  });
+
   return (
     <>
       <BackButton>← <span>Главное меню</span></BackButton>
@@ -242,6 +259,47 @@ function NextRacePage() {
             </div>
           ))}
       </div>
+
+      {!loading && eventName && (
+        <>
+          <div className="circuit-insights-card">
+            <div className="circuit-insights-title">Данные по этапу</div>
+            <div className="circuit-insights-stats">
+              {insights.stats.map((item) => (
+                <div className="circuit-stat-box" key={item.label}>
+                  <div className="circuit-stat-label">{item.label}</div>
+                  <div className="circuit-stat-value">{item.value}</div>
+                  {item.hint ? <div className="circuit-stat-hint">{item.hint}</div> : null}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="circuit-insights-card">
+            <div className="circuit-insights-title">Интересные факты</div>
+            <div className="circuit-facts-list">
+              {insights.facts.map((fact, idx) => {
+                const expanded = expandedFactIndex === idx;
+                return (
+                  <div className="circuit-fact-item" key={fact.title}>
+                    <button
+                      type="button"
+                      className={`circuit-fact-header ${expanded ? "expanded" : ""}`}
+                      onClick={() => setExpandedFactIndex(expanded ? -1 : idx)}
+                    >
+                      <span className="circuit-fact-title">{fact.title}</span>
+                      <span className="circuit-fact-chevron">{expanded ? "▲" : "▼"}</span>
+                    </button>
+                    <div className={`circuit-fact-body ${expanded ? "expanded" : ""}`}>
+                      <div className="circuit-fact-text">{fact.text}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }

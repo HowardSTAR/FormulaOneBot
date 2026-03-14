@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
+import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 
 type Session = { name: string; utc_iso?: string; local?: string };
 type RaceDetailsResponse = {
@@ -22,6 +23,7 @@ function RaceDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [trackSvg, setTrackSvg] = useState<string | null>(null);
+  const [expandedFactIndex, setExpandedFactIndex] = useState(0);
   const trackContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -116,6 +118,13 @@ function RaceDetailsPage() {
 
   const userTz = settings?.timezone || "UTC";
   const now = new Date();
+  const insights = getCircuitInsightsRu({
+    eventName: data.event_name,
+    country: data.country,
+    location: data.location,
+    eventFormat: data.event_format,
+    sessionsCount: data.sessions.length,
+  });
 
   const sessionsHtml = data.sessions.map((session) => {
     const sessionDate = session.utc_iso
@@ -173,6 +182,43 @@ function RaceDetailsPage() {
       </div>
 
       <div className="schedule-card">{sessionsHtml}</div>
+
+      <div className="circuit-insights-card">
+        <div className="circuit-insights-title">Данные по этапу</div>
+        <div className="circuit-insights-stats">
+          {insights.stats.map((item) => (
+            <div className="circuit-stat-box" key={item.label}>
+              <div className="circuit-stat-label">{item.label}</div>
+              <div className="circuit-stat-value">{item.value}</div>
+              {item.hint ? <div className="circuit-stat-hint">{item.hint}</div> : null}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="circuit-insights-card">
+        <div className="circuit-insights-title">Интересные факты</div>
+        <div className="circuit-facts-list">
+          {insights.facts.map((fact, idx) => {
+            const expanded = expandedFactIndex === idx;
+            return (
+              <div className="circuit-fact-item" key={fact.title}>
+                <button
+                  type="button"
+                  className={`circuit-fact-header ${expanded ? "expanded" : ""}`}
+                  onClick={() => setExpandedFactIndex(expanded ? -1 : idx)}
+                >
+                  <span className="circuit-fact-title">{fact.title}</span>
+                  <span className="circuit-fact-chevron">{expanded ? "▲" : "▼"}</span>
+                </button>
+                <div className={`circuit-fact-body ${expanded ? "expanded" : ""}`}>
+                  <div className="circuit-fact-text">{fact.text}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </>
   );
 }

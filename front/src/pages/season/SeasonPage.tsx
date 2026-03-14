@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
 import { apiRequest } from "../../helpers/api";
+import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 
 const currentRealYear = new Date().getFullYear();
 
@@ -27,6 +28,7 @@ function SeasonPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
+  const [expandedRound, setExpandedRound] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +69,7 @@ function SeasonPage() {
 
   const updateYear = useCallback((y: number) => {
     setYear(y);
+    setExpandedRound(null);
     setSearchParams(y === currentRealYear ? {} : { year: String(y) }, { replace: true });
   }, [setSearchParams]);
 
@@ -143,28 +146,66 @@ function SeasonPage() {
             const month = raceDate
               .toLocaleDateString("ru-RU", { timeZone: userTz, month: "short" })
               .replace(".", "");
+            const insights = getCircuitInsightsRu({
+              eventName: race.event_name,
+              country: "",
+              location: race.location,
+            });
+            const isExpanded = expandedRound === race.round;
             return (
-              <div
-                key={race.round}
-                id={statusClass === "next" ? "next-race-card" : undefined}
-                className={`race-card ${statusClass}`}
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/race-details?season=${year}&round=${race.round}`)}
-                onKeyDown={(e) =>
-                  e.key === "Enter" && navigate(`/race-details?season=${year}&round=${race.round}`)
-                }
-              >
-                <div className="race-date-box">
-                  <span className="date-day">{day}</span>
-                  <span className="date-month">{month}</span>
+              <div key={race.round}>
+                <div
+                  id={statusClass === "next" ? "next-race-card" : undefined}
+                  className={`race-card ${statusClass}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/race-details?season=${year}&round=${race.round}`)}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && navigate(`/race-details?season=${year}&round=${race.round}`)
+                  }
+                >
+                  <div className="race-date-box">
+                    <span className="date-day">{day}</span>
+                    <span className="date-month">{month}</span>
+                  </div>
+                  <div className="race-info">
+                    <div className="race-round">Round {race.round}</div>
+                    <div className="race-name">{race.event_name}</div>
+                    <div className="race-loc">📍 {race.location}</div>
+                  </div>
+                  <div className="race-status">{statusIcon}</div>
+                  <button
+                    type="button"
+                    className="race-insights-toggle"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedRound((prev) => (prev === race.round ? null : race.round));
+                    }}
+                  >
+                    {isExpanded ? "Скрыть факты ▲" : "Факты ▼"}
+                  </button>
                 </div>
-                <div className="race-info">
-                  <div className="race-round">Round {race.round}</div>
-                  <div className="race-name">{race.event_name}</div>
-                  <div className="race-loc">📍 {race.location}</div>
-                </div>
-                <div className="race-status">{statusIcon}</div>
+
+                {isExpanded && (
+                  <div className="season-race-insights">
+                    <div className="season-race-stats">
+                      {insights.stats.map((item) => (
+                        <div className="season-race-stat-box" key={`${race.round}-${item.label}`}>
+                          <div className="season-race-stat-label">{item.label}</div>
+                          <div className="season-race-stat-value">{item.value}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="season-race-facts">
+                      {insights.facts.map((fact) => (
+                        <div className="season-race-fact-item" key={`${race.round}-${fact.title}`}>
+                          <div className="season-race-fact-title">{fact.title}</div>
+                          <div className="season-race-fact-text">{fact.text}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
