@@ -1,10 +1,12 @@
 """
 Тесты функций f1_data.
 """
+from unittest.mock import AsyncMock, patch
+
 import pandas as pd
 import pytest
 
-from app.f1_data import sort_standings_zero_last
+from app.f1_data import get_driver_details_async, sort_standings_zero_last, _fill_drivers_headshots
 
 
 def test_sort_standings_zero_last_normal():
@@ -50,3 +52,66 @@ def test_sort_standings_zero_last_none_handling():
     result = sort_standings_zero_last(df, "position")
     assert result is not None
     assert len(result) == 1
+
+
+@pytest.mark.asyncio
+async def test_get_driver_details_uses_wiki_thumbnail_when_openf1_unavailable():
+    """Если OpenF1 недоступен, карточка пилота получает headshot из Wikipedia thumbnail."""
+    with patch("app.f1_data._try_bases", new_callable=AsyncMock) as try_bases_mock, \
+            patch("app.f1_data._fetch_driver_season_results", new_callable=AsyncMock) as season_results_mock, \
+            patch("app.f1_data._fetch_driver_career_results", new_callable=AsyncMock) as career_results_mock, \
+            patch("app.f1_data._fetch_wiki_bio", new_callable=AsyncMock) as wiki_bio_mock, \
+            patch("app.f1_data._fetch_driver_headshot", new_callable=AsyncMock) as openf1_headshot_mock, \
+            patch("app.f1_data._fetch_wiki_thumbnail", new_callable=AsyncMock) as wiki_thumb_mock, \
+            patch("app.f1_data.get_driver_standings_async", new_callable=AsyncMock) as standings_mock, \
+            patch("app.f1_data._count_driver_championships", new_callable=AsyncMock) as championships_mock:
+        try_bases_mock.return_value = {
+            "MRData": {
+                "DriverTable": {
+                    "Drivers": [{
+                        "driverId": "verstappen",
+                        "code": "VER",
+                        "givenName": "Max",
+                        "familyName": "Verstappen",
+                        "url": "https://en.wikipedia.org/wiki/Max_Verstappen",
+                    }]
+                }
+            }
+        }
+        season_results_mock.return_value = []
+        career_results_mock.return_value = []
+        wiki_bio_mock.return_value = "bio"
+        openf1_headshot_mock.return_value = ""
+        wiki_thumb_mock.return_value = "https://upload.wikimedia.org/max.png"
+        standings_mock.return_value = pd.DataFrame()
+        championships_mock.return_value = 0
+
+        details = await get_driver_details_async("verstappen", 2026)
+
+    assert details is not None
+    assert details["headshot_url"] == "https://upload.wikimedia.org/max.png"
+
+
+@pytest.mark.asyncio
+async def test_fill_drivers_headshots_uses_wiki_thumbnail_when_openf1_unavailable():
+    """Для состава команды при пустом OpenF1 берется Wikipedia thumbnail."""
+    season_drivers = [{
+        "code": "VER",
+        "givenName": "Max",
+        "familyName": "Verstappen",
+        "nationality": "",
+        "url": "https://en.wikipedia.org/wiki/Max_Verstappen",
+    }]
+
+    class FakeSession:
+        def get(self, *args, **kwargs):
+            raise RuntimeError("OpenF1 unavailable in test")
+
+    with patch("app.f1_data._fetch_wiki_thumbnail", new_callable=AsyncMock) as wiki_thumb_mock, \
+            patch("app.f1_data._fetch_json", new_callable=AsyncMock) as fetch_json_mock:
+        wiki_thumb_mock.return_value = "https://upload.wikimedia.org/max-team.png"
+        fetch_json_mock.return_value = None
+
+        await _fill_drivers_headshots(FakeSession(), season_drivers, 2026)
+
+    assert season_drivers[0]["headshot_url"] == "https://upload.wikimedia.org/max-team.png"
