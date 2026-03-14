@@ -513,6 +513,7 @@ async def api_team_logo(
 
 
 PILOT_FALLBACK_PATH = PROJECT_ROOT / "app" / "assets" / "pilot" / "pilot.png"
+PILOT_HEAD_CROP_RATIO = 0.35
 
 
 def _normalize_key(text: str) -> str:
@@ -554,9 +555,9 @@ def _render_head_crop_png_bytes(path: Path) -> bytes:
     with Image.open(path) as img:
         base = img.convert("RGBA")
         w, h = base.size
-        # Увеличиваем "голову": берём верхнюю часть и растягиваем назад.
-        crop_h = max(1, int(h * 0.55))
-        head = base.crop((0, 0, w, crop_h)).resize((w, h), Image.Resampling.LANCZOS)
+        # Берём верхнюю часть без обратного растягивания, чтобы не было деформации.
+        crop_h = max(1, int(h * PILOT_HEAD_CROP_RATIO))
+        head = base.crop((0, 0, w, crop_h))
         buf = io.BytesIO()
         head.save(buf, format="PNG")
         return buf.getvalue()
