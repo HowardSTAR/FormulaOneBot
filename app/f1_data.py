@@ -1414,6 +1414,46 @@ async def _fetch_wiki_bio(session: aiohttp.ClientSession, wiki_url: str) -> str:
     return ""
 
 
+def _as_openf1_drivers_list(payload: Any) -> list[dict]:
+    """OpenF1 иногда возвращает dict с detail вместо списка (например во время live-сессии)."""
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    return []
+
+
+async def _fetch_wiki_thumbnail(session: aiohttp.ClientSession, wiki_url: str) -> str:
+    """Возвращает thumbnail URL из Wikipedia по ссылке страницы пилота."""
+    if not wiki_url or "wikipedia.org/wiki/" not in wiki_url:
+        return ""
+    try:
+        title = wiki_url.split("wiki/")[-1].replace(" ", "_")
+        async with session.get(
+            "https://en.wikipedia.org/w/api.php",
+            params={
+                "format": "json",
+                "action": "query",
+                "prop": "pageimages",
+                "pithumbsize": 400,
+                "redirects": 1,
+                "titles": title,
+            },
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as wresp:
+            if wresp.status != 200:
+                return ""
+            wdata = await wresp.json()
+            pages = wdata.get("query", {}).get("pages", {})
+            for pid, p in pages.items():
+                if pid != "-1" and isinstance(p, dict):
+                    thumb = p.get("thumbnail", {})
+                    src = thumb.get("source") if isinstance(thumb, dict) else ""
+                    if src:
+                        return src
+    except Exception:
+        pass
+    return ""
+
+
 async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str, season: int) -> str:
     """Загружает URL headshot из OpenF1. Пропускает старые сезоны (до 2023)."""
     if not code_match or season < 2023:
@@ -1424,7 +1464,7 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
             timeout=aiohttp.ClientTimeout(total=10),
         ) as oresp:
             if oresp.status == 200:
-                for d in await oresp.json():
+                for d in _as_openf1_drivers_list(await oresp.json()):
                     if d.get("name_acronym", "").upper() == code_match:
                         url = d.get("headshot_url") or ""
                         if url:
@@ -1434,7 +1474,7 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
             timeout=aiohttp.ClientTimeout(total=10),
         ) as oresp2:
             if oresp2.status == 200:
-                for d in await oresp2.json():
+                for d in _as_openf1_drivers_list(await oresp2.json()):
                     if d.get("name_acronym", "").upper() == code_match:
                         url = d.get("headshot_url") or ""
                         if url:
@@ -1444,7 +1484,7 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
     return ""
 
 
-@cache_result(ttl=3600, key_prefix="driver_details_v3")
+@cache_result(ttl=3600, key_prefix="driver_details_v4")
 async def get_driver_details_async(driver_id: str, season: int, code: str | None = None):
     """
     Получает профиль пилота, статистику сезона и карьеры из Ergast/Jolpica API.
@@ -1486,6 +1526,8 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
             _fetch_driver_headshot(session, code_match, season),
             get_driver_standings_async(season),
         )
+        if not headshot_url:
+            headshot_url = await _fetch_wiki_thumbnail(session, wiki_url)
 
     # Если season_results пусто, но career_results загружен — извлечём
     if not season_results and career_results:
@@ -1724,6 +1766,7 @@ async def _get_constructor_drivers_fallback(
                                         "familyName": dr.get("familyName", ""),
                                         "permanentNumber": str(dr.get("permanentNumber", "")) if dr.get("permanentNumber") else "",
                                         "nationality": dr.get("nationality", ""),
+                                    "url": dr.get("url", ""),
                                     })
                                     break
                         if result:
@@ -1754,6 +1797,7 @@ async def _get_constructor_drivers_fallback(
                                     "familyName": dr.get("familyName", ""),
                                     "permanentNumber": str(dr.get("permanentNumber", "")) if dr.get("permanentNumber") else "",
                                     "nationality": str(nat).strip() if nat else "",
+                                    "url": dr.get("url", ""),
                                 })
                     if result:
                         return result
@@ -1952,6 +1996,7 @@ async def _fetch_constructor_drivers(session: aiohttp.ClientSession, cid: str, s
                     "familyName": d.get("familyName", ""),
                     "permanentNumber": str(d.get("permanentNumber", "")) if d.get("permanentNumber") else "",
                     "nationality": str(nat).strip() if nat else "",
+                    "url": d.get("url", ""),
                 })
             break
     if not drivers:
@@ -1998,6 +2043,14 @@ async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers
     except Exception:
         pass
 
+    for sd in season_drivers:
+        if sd.get("headshot_url"):
+            continue
+        wiki_url = sd.get("url", "")
+        thumb = await _fetch_wiki_thumbnail(session, wiki_url)
+        if thumb:
+            sd["headshot_url"] = thumb
+
     # Nationality fallback из Ergast
     missing_nat = [sd for sd in season_drivers if not (sd.get("nationality") or "").strip()]
     if missing_nat:
@@ -2023,7 +2076,7 @@ async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers
 
 
 # --- КАРТОЧКА КОНСТРУКТОРА --- #
-@cache_result(ttl=3600, key_prefix="constructor_details_v11")
+@cache_result(ttl=3600, key_prefix="constructor_details_v12")
 async def get_constructor_details_async(constructor_id: str, season: int):
     """Профиль команды: название, лого, статистика сезона и карьеры, биография."""
     cid = constructor_id.strip().lower().replace(" ", "_")
