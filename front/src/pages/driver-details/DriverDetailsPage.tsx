@@ -4,6 +4,16 @@ import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { getNationalityWithFlag } from "../../constants/flags";
 
+function pilotPortraitUrl(code: string, fullName: string, season: number): string {
+  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
+  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
+  const params = new URLSearchParams({ season: String(season) });
+  if (code) params.set("code", code);
+  if (fullName) params.set("name", fullName);
+  return `${origin.replace(/\/$/, "")}${pathBase}/api/pilot-portrait?${params.toString()}`;
+}
+
 type SeasonStats = {
   position: number;
   points: number;
@@ -134,7 +144,7 @@ function DriverDetailsPage() {
       <div className="driver-card-header">
         <div className="driver-portrait-wrap">
           <img
-            src={data.headshot_url || "/api/pilot-portrait"}
+            src={pilotPortraitUrl(data.code, fullName, season)}
             alt={fullName}
             className="driver-portrait"
             onError={(e) => {
