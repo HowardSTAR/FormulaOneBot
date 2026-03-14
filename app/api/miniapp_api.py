@@ -809,46 +809,69 @@ def _segment_by_position(pos: int) -> str:
 
 
 @web_app.get("/api/quali-results")
-async def api_quali_results():
+async def api_quali_results(user_id: Optional[int] = Depends(get_current_user_id)):
     season = datetime.now().year
     last_notified = await get_last_notified_quali_round(season)
     cached = await get_cached_quali_results(season)
+    base_payload = None
     if cached and (last_notified is None or cached.get("round") == last_notified):
-        return cached
+        base_payload = cached
 
-    data = await _get_latest_quali_async(season, limit=100)
-    if not data:
-        if cached:
-            return cached
-        return {"results": [], "race_info": None, "season": season, "round": None}
+    if base_payload is None:
+        data = await _get_latest_quali_async(season, limit=100)
+        if not data:
+            if cached:
+                base_payload = cached
+            else:
+                base_payload = {"results": [], "race_info": None, "season": season, "round": None}
+        else:
+            round_num, q_results = data
+            schedule = await get_season_schedule_short_async(season)
+            race_info = next((r for r in schedule if r["round"] == round_num), None)
 
-    round_num, q_results = data
-    schedule = await get_season_schedule_short_async(season)
-    race_info = next((r for r in schedule if r["round"] == round_num), None)
+            results = []
+            for r in q_results:
+                pos = r.get("position", 0)
+                results.append({
+                    "position": pos,
+                    "driver": r["driver"],
+                    "name": r.get("name", ""),
+                    "best": r.get("best", "-"),
+                    "segment": _segment_by_position(pos),
+                })
 
-    results = []
-    for r in q_results:
-        pos = r.get("position", 0)
-        results.append({
-            "position": pos,
-            "driver": r["driver"],
-            "name": r.get("name", ""),
-            "best": r.get("best", "-"),
-            "segment": _segment_by_position(pos),
+            base_payload = {
+                "season": season,
+                "round": round_num,
+                "race_info": race_info,
+                "results": results,
+            }
+            await set_cached_quali_results(season, base_payload)
+
+    # Персональная отметка избранных пилотов: только в ответе, не в кэше.
+    if not user_id:
+        return base_payload
+
+    fav_drivers = {str(code).upper() for code in (await get_favorite_drivers(user_id))}
+    if not fav_drivers:
+        return base_payload
+
+    results_with_favs = []
+    for row in base_payload.get("results", []):
+        driver_code = str(row.get("driver", "")).upper()
+        results_with_favs.append({
+            **row,
+            "is_favorite_driver": driver_code in fav_drivers,
         })
 
-    payload = {
-        "season": season,
-        "round": round_num,
-        "race_info": race_info,
-        "results": results,
+    return {
+        **base_payload,
+        "results": results_with_favs,
     }
-    await set_cached_quali_results(season, payload)
-    return payload
 
 
 @web_app.get("/api/sprint-quali-results")
-async def api_sprint_quali_results():
+async def api_sprint_quali_results(user_id: Optional[int] = Depends(get_current_user_id)):
     season = datetime.now().year
     schedule = await get_season_schedule_short_async(season)
     if not schedule:
@@ -891,15 +914,20 @@ async def api_sprint_quali_results():
         return {"results": [], "race_info": None, "season": season, "round": None}
 
     race_info = next((r for r in schedule if r.get("round") == round_num), None)
+    fav_drivers = set()
+    if user_id:
+        fav_drivers = {str(code).upper() for code in (await get_favorite_drivers(user_id))}
     results = []
     for r in sq_results:
         pos = r.get("position", 0)
+        driver_code = r.get("driver", "")
         results.append({
             "position": pos,
-            "driver": r.get("driver", ""),
+            "driver": driver_code,
             "name": r.get("name", ""),
             "best": r.get("best", "-"),
             "segment": _segment_by_position(pos),
+            "is_favorite_driver": str(driver_code).upper() in fav_drivers,
         })
 
     return {

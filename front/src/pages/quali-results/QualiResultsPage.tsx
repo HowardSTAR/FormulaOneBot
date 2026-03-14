@@ -8,6 +8,7 @@ type Result = {
   driver?: string;
   best?: string;
   segment?: "Q1" | "Q2" | "Q3";
+  is_favorite_driver?: boolean;
 };
 type QualiResponse = {
   results?: Result[];
@@ -100,7 +101,10 @@ function QualiResultsPage() {
                     {emoji}
                   </div>
                   <div className="standings-info">
-                    <div className="standings-name">{r.name || r.driver}</div>
+                    <div className="standings-name">
+                      {r.is_favorite_driver ? "⭐️ " : ""}
+                      {r.name || r.driver}
+                    </div>
                     <div className="standings-code" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       {r.driver}
                       {r.segment && (
