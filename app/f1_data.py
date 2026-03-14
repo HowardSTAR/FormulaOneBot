@@ -930,6 +930,70 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
     return round_num, results
 
 
+async def openf1_get_sprint_quali_for_round(season: int, round_num: int, limit: int = 100) -> tuple[int | None, list[dict]]:
+    """
+    Результаты спринт-квалификации/шут-аута из OpenF1 для конкретного этапа.
+    В OpenF1 такие сессии часто приходят как session_type="Qualifying" на дате sprint_quali_start_utc.
+    """
+    schedule = await get_season_schedule_short_async(season)
+    event = next((r for r in (schedule or []) if r.get("round") == round_num), None)
+    if not event:
+        return None, []
+
+    sq_date = None
+    if event.get("sprint_quali_start_utc"):
+        try:
+            sq_date = (event["sprint_quali_start_utc"])[:10]
+        except Exception:
+            pass
+    if not sq_date:
+        return None, []
+
+    sessions = await _openf1_get("sessions", year=season)
+    if not sessions:
+        return None, []
+
+    session_key = None
+    allowed_types = {"Qualifying", "Sprint Qualifying", "Sprint Shootout"}
+    for s in sessions:
+        s_type = (s.get("session_type") or "").strip()
+        if s_type not in allowed_types:
+            continue
+        if (s.get("date_start") or "")[:10] == sq_date:
+            session_key = s.get("session_key")
+            break
+
+    if session_key is None:
+        return None, []
+
+    positions = await _openf1_get_position_final(session_key)
+    drivers_map = await _openf1_get_drivers_for_session(session_key)
+    best_laps = await _openf1_get_best_lap_per_driver(session_key)
+    valid_ms = [best_laps.get(p.get("driver_number")) for p in positions if best_laps.get(p.get("driver_number"))]
+    min_ms = min(valid_ms) if valid_ms else None
+
+    results = []
+    for p in positions[:limit]:
+        dn = p.get("driver_number")
+        info = drivers_map.get(dn, {})
+        best_ms = best_laps.get(dn) if dn is not None else None
+        best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
+        if best_ms is None or min_ms is None:
+            gap_str = "—"
+        elif best_ms <= min_ms:
+            gap_str = best_str
+        else:
+            gap_str = f"+{(best_ms - min_ms) / 1000:.3f}"
+        results.append({
+            "position": int(p.get("position", 0)),
+            "driver": info.get("code", "?"),
+            "name": info.get("name", "?"),
+            "best": best_str,
+            "gap": gap_str,
+        })
+    return round_num, results
+
+
 async def get_quali_for_round_async(season: int, round_num: int, limit: int = 100) -> tuple[int | None, list[dict]]:
     """Результаты квалификации для конкретного этапа: OpenF1, при отсутствии — FastF1. Возвращает (round_num, results)."""
     r, results = await openf1_get_quali_for_round(season, round_num, limit=limit)
@@ -1323,9 +1387,13 @@ async def _get_quali_async(season: int, round_number: int, limit: int = 100):
     return await _run_sync(get_qualifying_results, season, round_number, limit)
 
 
-@cache_result(ttl=86400, key_prefix="sprint_quali_res")
+@cache_result(ttl=86400, key_prefix="sprint_quali_res_v2")
 async def get_sprint_quali_results_async(season: int, round_number: int, limit: int = 100) -> list[dict]:
-    return await _run_sync(get_sprint_quali_results, season, round_number, limit)
+    fastf1_res = await _run_sync(get_sprint_quali_results, season, round_number, limit)
+    if fastf1_res:
+        return fastf1_res
+    _, openf1_res = await openf1_get_sprint_quali_for_round(season, round_number, limit=limit)
+    return openf1_res
 
 
 @cache_result(ttl=3600, key_prefix="lat_quali")

@@ -6,7 +6,12 @@ from unittest.mock import AsyncMock, patch
 import pandas as pd
 import pytest
 
-from app.f1_data import get_driver_details_async, sort_standings_zero_last, _fill_drivers_headshots
+from app.f1_data import (
+    _fill_drivers_headshots,
+    get_driver_details_async,
+    get_sprint_quali_results_async,
+    sort_standings_zero_last,
+)
 
 
 def test_sort_standings_zero_last_normal():
@@ -115,3 +120,19 @@ async def test_fill_drivers_headshots_uses_wiki_thumbnail_when_openf1_unavailabl
         await _fill_drivers_headshots(FakeSession(), season_drivers, 2026)
 
     assert season_drivers[0]["headshot_url"] == "https://upload.wikimedia.org/max-team.png"
+
+
+@pytest.mark.asyncio
+async def test_get_sprint_quali_results_async_falls_back_to_openf1_when_fastf1_empty():
+    """Если FastF1 не дал SQ, используем OpenF1 fallback по дате sprint_quali."""
+    fallback_results = [
+        {"position": 1, "driver": "RUS", "name": "George Russell", "best": "1:31.0", "gap": "1:31.0"}
+    ]
+    with patch("app.f1_data._run_sync", new_callable=AsyncMock) as run_sync_mock, \
+            patch("app.f1_data.openf1_get_sprint_quali_for_round", new_callable=AsyncMock) as openf1_sq_mock:
+        run_sync_mock.return_value = []
+        openf1_sq_mock.return_value = (2, fallback_results)
+
+        res = await get_sprint_quali_results_async(2026, 99, limit=20)
+
+    assert res == fallback_results

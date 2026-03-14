@@ -100,12 +100,9 @@ function RaceResultsPage() {
             {data.results.map((r, i) => {
               const emoji =
                 r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : r.position;
-              const favStyle =
-                r.is_favorite_driver || r.is_favorite_team
-                  ? { border: "1px solid rgba(255, 215, 0, 0.4)", background: "rgba(255, 215, 0, 0.05)" }
-                  : {};
+              const isFavorite = Boolean(r.is_favorite_driver || r.is_favorite_team);
               return (
-                <div key={i} className="standings-item" style={favStyle}>
+                <div key={i} className="standings-item">
                   <div
                     className={`standings-position ${r.position <= 3 ? "podium" : ""}`}
                     style={{ width: 35 }}
@@ -114,7 +111,7 @@ function RaceResultsPage() {
                   </div>
                   <div className="standings-info">
                     <div className="standings-name">
-                      {r.is_favorite_driver ? "⭐️ " : ""}
+                      {isFavorite ? "⭐️ " : ""}
                       {r.name}
                     </div>
                     <div className="standings-code">{r.team}</div>

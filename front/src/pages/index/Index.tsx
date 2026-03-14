@@ -52,11 +52,11 @@ function IndexPage() {
         {isSprintWeekendActive && (
           <>
             <Link to="/sprint-results" className="menu-item">
-              <span className="menu-icon">⚡</span>
+              <span className="menu-icon">⚡🏁</span>
               <span className="menu-label">Спринт</span>
             </Link>
             <Link to="/sprint-quali-results" className="menu-item">
-              <span className="menu-icon">⏱</span>
+              <span className="menu-icon">⚡⏱</span>
               <span className="menu-label">Спринт-квала</span>
             </Link>
           </>
