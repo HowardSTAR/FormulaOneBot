@@ -18,17 +18,52 @@ class SettingsSG(StatesGroup):
 
 
 # --- ГЕНЕРАЦИЯ СПИСКА ЧАСОВЫХ ПОЯСОВ (UTC) ---
-UTC_ZONES = {}
-for i in range(-11, 13):
-    if i == 0:
-        label = "UTC (GMT)"
-        tz_key = "UTC"
-    else:
-        user_sign = "+" if i > 0 else "-"
-        label = f"UTC{user_sign}{abs(i)}"
-        sys_sign = "-" if i > 0 else "+"
-        tz_key = f"Etc/GMT{sys_sign}{abs(i)}"
-    UTC_ZONES[label] = tz_key
+UTC_CAPITALS = {
+    -11: "Паго-Паго, Нуук",
+    -10: "Гонолулу, Папеэте",
+    -9: "Анкоридж, Гамбьер",
+    -8: "Лос-Анджелес, Ванкувер, Тихуана",
+    -7: "Денвер, Эдмонтон, Феникс",
+    -6: "Мехико, Чикаго, Гватемала",
+    -5: "Нью-Йорк, Оттава, Богота",
+    -4: "Каракас, Ла-Пас, Сантьяго",
+    -3: "Буэнос-Айрес, Бразилиа, Монтевидео",
+    -2: "Южная Георгия, Фернанду-ди-Норонья",
+    -1: "Прая, Понта-Делгада",
+    0: "Лондон, Рейкьявик, Аккра",
+    1: "Париж, Берлин, Рим",
+    2: "Киев, Афины, Хельсинки",
+    3: "Москва, Стамбул, Эр-Рияд",
+    4: "Абу-Даби, Баку, Тбилиси",
+    5: "Ташкент, Исламабад, Мальдивы (Мале)",
+    6: "Астана, Дакка, Бишкек",
+    7: "Бангкок, Джакарта, Пномпень",
+    8: "Пекин, Сингапур, Куала-Лумпур",
+    9: "Токио, Сеул, Пхеньян",
+    10: "Канберра, Порт-Морсби, Владивосток",
+    11: "Хониара, Нумеа, Магадан",
+    12: "Веллингтон, Сува, Тарава",
+}
+
+
+def build_utc_zones_with_capitals() -> dict[str, str]:
+    zones: dict[str, str] = {}
+    for i in range(-11, 13):
+        capitals = UTC_CAPITALS.get(i, "")
+        if i == 0:
+            label = f"UTC (GMT) — {capitals}" if capitals else "UTC (GMT)"
+            tz_key = "UTC"
+        else:
+            user_sign = "+" if i > 0 else "-"
+            base = f"UTC{user_sign}{abs(i)}"
+            label = f"{base} ({capitals})" if capitals else base
+            sys_sign = "-" if i > 0 else "+"
+            tz_key = f"Etc/GMT{sys_sign}{abs(i)}"
+        zones[label] = tz_key
+    return zones
+
+
+UTC_ZONES = build_utc_zones_with_capitals()
 
 NOTIFY_OPTIONS = {
     "15 минут": 15,
@@ -68,7 +103,7 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
             tz_label = label
             break
     if tz == "Europe/Moscow":
-        tz_label = "UTC+3 (Москва)"
+        tz_label = "Europe/Moscow (Москва, Минск, Стамбул)"
 
     # 3. Форматируем время
     notify_str = format_notify_time(notify_before)
@@ -109,7 +144,7 @@ def get_tz_keyboard():
     kb = InlineKeyboardBuilder()
     for label, tz_key in UTC_ZONES.items():
         kb.button(text=label, callback_data=f"set_tz:{tz_key}")
-    kb.button(text="МСК (Europe/Moscow)", callback_data="set_tz:Europe/Moscow")
+    kb.button(text="Europe/Moscow (Москва, Минск, Стамбул)", callback_data="set_tz:Europe/Moscow")
     kb.button(text="« Назад", callback_data="back_to_settings")
     kb.adjust(2)
     return kb.as_markup()

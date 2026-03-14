@@ -12,6 +12,7 @@ from app.handlers.races import (
     _parse_season_from_text,
 )
 from app.handlers.compare import build_drivers_keyboard
+from app.handlers.settings import build_utc_zones_with_capitals
 from app.utils.default import validate_f1_year
 
 
@@ -117,3 +118,15 @@ def test_validate_f1_year_future():
     """validate_f1_year — будущий год."""
     msg = validate_f1_year(datetime.now().year + 5)
     assert msg is not None
+
+
+def test_build_utc_zones_with_capitals_labels():
+    """Список UTC-зон для бота содержит подписи со столицами."""
+    zones = build_utc_zones_with_capitals()
+    # UTC+3 -> Etc/GMT-3, подпись должна содержать 2-3 столицы
+    label_for_utc_plus_3 = next((k for k, v in zones.items() if v == "Etc/GMT-3"), "")
+    assert "Москва" in label_for_utc_plus_3
+    assert "Стамбул" in label_for_utc_plus_3
+    # UTC (GMT) тоже содержит примеры столиц
+    label_utc = next((k for k, v in zones.items() if v == "UTC"), "")
+    assert "Лондон" in label_utc
