@@ -48,9 +48,9 @@ ADMIN_ID = 2099386
 QUIET_START_HOUR = 21
 QUIET_END_HOUR = 10
 
-# Для групп: напоминать за 60 минут, таймзона МСК
+# Для групп: напоминать за 60 минут, таймзона UTC
 GROUP_NOTIFY_BEFORE = 60
-GROUP_TIMEZONE = "Europe/Moscow"
+GROUP_TIMEZONE = "UTC"
 
 
 def is_quiet_hours(tz_name: str) -> bool:
@@ -79,31 +79,83 @@ def format_time_left(minutes_left: int) -> str:
     return f"Через {' '.join(parts)}"
 
 
-def get_notification_text(race: dict, user_tz_name: str, minutes_left: int, for_quali: bool = False) -> str:
-    """Генерирует текст для ГОНКИ или КВАЛИФИКАЦИИ."""
+def _event_reminder_key(event_kind: str, notify_before: int) -> tuple[bool, int]:
+    """
+    Возвращает (is_quali, notify_key) для дедупликации.
+    В БД есть только is_quali + notify_before_min, поэтому для спринт-событий используем смещение.
+    """
+    base = int(notify_before)
+    if event_kind == "quali":
+        return True, base
+    if event_kind == "sprint":
+        return False, base + 2000
+    if event_kind == "sprint_quali":
+        return True, base + 2000
+    return False, base
+
+
+def get_notification_text(
+    race: dict,
+    user_tz_name: str,
+    minutes_left: int,
+    for_quali: bool = False,
+    event_kind: str | None = None,
+) -> str:
+    """Генерирует текст для ГОНКИ/КВАЛИ/СПРИНТА/СПРИНТ-КВАЛЫ."""
+    if event_kind is None:
+        event_kind = "quali" if for_quali else "race"
     event_name = race.get('event_name', 'Гран-при')
-    dt_key = "quali_start_utc" if for_quali else "race_start_utc"
+    dt_key_map = {
+        "race": "race_start_utc",
+        "quali": "quali_start_utc",
+        "sprint": "sprint_start_utc",
+        "sprint_quali": "sprint_quali_start_utc",
+    }
+    dt_key = dt_key_map.get(event_kind, "race_start_utc")
     dt_str = race.get(dt_key) or race.get("race_start_utc")
     try:
         dt_utc = datetime.fromisoformat(dt_str)
         if dt_utc.tzinfo is None: dt_utc = dt_utc.replace(tzinfo=timezone.utc)
         user_tz = ZoneInfo(user_tz_name)
-        start_time_str = dt_utc.astimezone(user_tz).strftime("%H:%M")
+        local_dt = dt_utc.astimezone(user_tz)
+        start_time_str = local_dt.strftime("%H:%M")
+        start_date_str = local_dt.strftime("%d.%m.%Y")
     except Exception:
         start_time_str = "??:??"
+        start_date_str = "??.??.????"
 
-    if for_quali:
+    time_suffix = " (UTC)" if user_tz_name == "UTC" else " (по вашему времени)"
+
+    if event_kind == "quali":
         return (
             f"⏱ Скоро квалификация!\n\n"
             f"{format_time_left(minutes_left)} старт: {event_name}\n"
             f"📍 Трасса: {race.get('location', '')}\n"
-            f"⏰ Начало в {start_time_str} (по вашему времени)\n"
+            f"📅 Дата: {start_date_str}\n"
+            f"⏰ Начало в {start_time_str}{time_suffix}\n"
+        )
+    if event_kind == "sprint_quali":
+        return (
+            f"⏱ Скоро спринт-квалификация!\n\n"
+            f"{format_time_left(minutes_left)} старт: {event_name}\n"
+            f"📍 Трасса: {race.get('location', '')}\n"
+            f"📅 Дата: {start_date_str}\n"
+            f"⏰ Начало в {start_time_str}{time_suffix}\n"
+        )
+    if event_kind == "sprint":
+        return (
+            f"⚡ Скоро спринт!\n\n"
+            f"{format_time_left(minutes_left)} старт: {event_name}\n"
+            f"📍 Трасса: {race.get('location', '')}\n"
+            f"📅 Дата: {start_date_str}\n"
+            f"⏰ Начало в {start_time_str}{time_suffix}\n"
         )
     return (
         f"🏎 Скоро гонка!\n\n"
         f"{format_time_left(minutes_left)} старт: {event_name} 🏁\n"
         f"📍 Трасса: {race.get('location', '')}\n"
-        f"⏰ Начало в {start_time_str} (по вашему времени)\n"
+        f"📅 Дата: {start_date_str}\n"
+        f"⏰ Начало в {start_time_str}{time_suffix}\n"
     )
 
 
@@ -130,7 +182,7 @@ async def check_and_send_notifications(bot: Bot):
     if not schedule: return
 
     now = datetime.now(timezone.utc)
-    upcoming_event = []  # (race_dict, minutes_left, for_quali)
+    upcoming_event = []  # (race_dict, minutes_left, event_kind)
 
     for r in schedule:
         # Напоминание перед ГОНКОЙ
@@ -140,7 +192,7 @@ async def check_and_send_notifications(bot: Bot):
                 if race_dt.tzinfo is None: race_dt = race_dt.replace(tzinfo=timezone.utc)
                 minutes_left = (race_dt - now).total_seconds() / 60
                 if 0 < minutes_left <= 30 * 60:
-                    upcoming_event.append((r, minutes_left, False))
+                    upcoming_event.append((r, minutes_left, "race"))
             except Exception:
                 pass
         # Напоминание перед КВАЛИФИКАЦИЕЙ
@@ -150,7 +202,27 @@ async def check_and_send_notifications(bot: Bot):
                 if quali_dt.tzinfo is None: quali_dt = quali_dt.replace(tzinfo=timezone.utc)
                 minutes_left = (quali_dt - now).total_seconds() / 60
                 if 0 < minutes_left <= 30 * 60:
-                    upcoming_event.append((r, minutes_left, True))
+                    upcoming_event.append((r, minutes_left, "quali"))
+            except Exception:
+                pass
+        # Напоминание перед СПРИНТОМ
+        if r.get("sprint_start_utc") and not r.get("is_testing"):
+            try:
+                sprint_dt = datetime.fromisoformat(r["sprint_start_utc"])
+                if sprint_dt.tzinfo is None: sprint_dt = sprint_dt.replace(tzinfo=timezone.utc)
+                minutes_left = (sprint_dt - now).total_seconds() / 60
+                if 0 < minutes_left <= 30 * 60:
+                    upcoming_event.append((r, minutes_left, "sprint"))
+            except Exception:
+                pass
+        # Напоминание перед СПРИНТ-КВАЛИФИКАЦИЕЙ
+        if r.get("sprint_quali_start_utc") and not r.get("is_testing"):
+            try:
+                sprint_q_dt = datetime.fromisoformat(r["sprint_quali_start_utc"])
+                if sprint_q_dt.tzinfo is None: sprint_q_dt = sprint_q_dt.replace(tzinfo=timezone.utc)
+                minutes_left = (sprint_q_dt - now).total_seconds() / 60
+                if 0 < minutes_left <= 30 * 60:
+                    upcoming_event.append((r, minutes_left, "sprint_quali"))
             except Exception:
                 pass
 
@@ -172,11 +244,12 @@ async def check_and_send_notifications(bot: Bot):
             tz = user[1] or "Europe/Moscow"
             notify_min = user[2] or 1440
 
-            for race, mins, for_quali in upcoming_event:
+            for race, mins, event_kind in upcoming_event:
                 if abs(mins - notify_min) <= half_window:
                     round_num = race.get("round")
+                    is_quali_key, notify_key = _event_reminder_key(event_kind, notify_min)
                     if round_num is not None:
-                        if await was_reminder_sent(tg_id, season, round_num, for_quali, notify_min):
+                        if await was_reminder_sent(tg_id, season, round_num, is_quali_key, notify_key):
                             continue
 
                     if race.get("is_testing"):
@@ -187,13 +260,13 @@ async def check_and_send_notifications(bot: Bot):
                             f"Не забудьте следить за результатами!"
                         )
                     else:
-                        text = get_notification_text(race, tz, mins, for_quali=for_quali)
+                        text = get_notification_text(race, tz, mins, event_kind=event_kind)
 
                     quiet = is_quiet_hours(tz)
                     if await safe_send_message(bot, tg_id, text, disable_notification=quiet):
                         sent_count += 1
                         if round_num is not None:
-                            await set_reminder_sent(tg_id, season, round_num, for_quali, notify_min)
+                            await set_reminder_sent(tg_id, season, round_num, is_quali_key, notify_key)
                     await asyncio.sleep(0.05)
         except Exception:
             continue
@@ -202,23 +275,23 @@ async def check_and_send_notifications(bot: Bot):
     group_chats_raw = await get_all_group_chats()
     group_chats = list(dict.fromkeys(group_chats_raw)) if group_chats_raw else []
     if group_chats:
-        for race, mins, for_quali in upcoming_event:
+        for race, mins, event_kind in upcoming_event:
             if abs(mins - GROUP_NOTIFY_BEFORE) <= half_window:
                 round_num_g = race.get("round")
-                text = get_notification_text(race, GROUP_TIMEZONE, mins, for_quali=for_quali)
+                is_quali_key, notify_key = _event_reminder_key(event_kind, GROUP_NOTIFY_BEFORE)
+                text = get_notification_text(race, GROUP_TIMEZONE, mins, event_kind=event_kind)
                 quiet = is_quiet_hours(GROUP_TIMEZONE)
                 for chat_id in group_chats:
                     group_key = None
                     if round_num_g is not None:
                         group_key = -abs(int(chat_id))
-                        if await was_reminder_sent(group_key, season, round_num_g, for_quali, GROUP_NOTIFY_BEFORE):
+                        if await was_reminder_sent(group_key, season, round_num_g, is_quali_key, notify_key):
                             continue
                     if await safe_send_message(bot, chat_id, text, parse_mode="HTML", disable_notification=quiet):
                         sent_count += 1
                         if group_key is not None:
-                            await set_reminder_sent(group_key, season, round_num_g, for_quali, GROUP_NOTIFY_BEFORE)
+                            await set_reminder_sent(group_key, season, round_num_g, is_quali_key, notify_key)
                     await asyncio.sleep(0.05)
-                break  # одно напоминание за цикл
 
     if sent_count > 0:
         logger.info(f"✅ Sent {sent_count} event reminders.")

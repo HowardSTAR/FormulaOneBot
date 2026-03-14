@@ -239,7 +239,9 @@ def get_season_schedule_short(season: int) -> list[dict]:
 
             race_dt_utc = None
             quali_dt_utc = None
-            for i in range(1, 6):
+            sprint_dt_utc = None
+            sprint_quali_dt_utc = None
+            for i in range(1, 9):
                 name_col = f"Session{i}"
                 date_col = f"Session{i}DateUtc"
                 if name_col in row and date_col in row:
@@ -248,6 +250,10 @@ def get_season_schedule_short(season: int) -> list[dict]:
                         race_dt_utc = row[date_col].to_pydatetime()
                     if "Qualifying" in sess_name and pd.notna(row[date_col]):
                         quali_dt_utc = row[date_col].to_pydatetime()
+                    if sess_name == "Sprint" and pd.notna(row[date_col]):
+                        sprint_dt_utc = row[date_col].to_pydatetime()
+                    if sess_name in ("Sprint Qualifying", "Sprint Shootout") and pd.notna(row[date_col]):
+                        sprint_quali_dt_utc = row[date_col].to_pydatetime()
 
             if race_dt_utc:
                 if race_dt_utc.tzinfo is None:
@@ -271,6 +277,18 @@ def get_season_schedule_short(season: int) -> list[dict]:
                     quali_dt_utc = quali_dt_utc.replace(tzinfo=timezone.utc)
                 quali_start_utc = quali_dt_utc.isoformat()
 
+            sprint_start_utc = None
+            if sprint_dt_utc is not None:
+                if sprint_dt_utc.tzinfo is None:
+                    sprint_dt_utc = sprint_dt_utc.replace(tzinfo=timezone.utc)
+                sprint_start_utc = sprint_dt_utc.isoformat()
+
+            sprint_quali_start_utc = None
+            if sprint_quali_dt_utc is not None:
+                if sprint_quali_dt_utc.tzinfo is None:
+                    sprint_quali_dt_utc = sprint_quali_dt_utc.replace(tzinfo=timezone.utc)
+                sprint_quali_start_utc = sprint_quali_dt_utc.isoformat()
+
             races.append({
                 "round": round_num,
                 "event_name": event_name,
@@ -278,7 +296,9 @@ def get_season_schedule_short(season: int) -> list[dict]:
                 "location": location,
                 "date": date_iso,
                 "race_start_utc": race_start_utc,
-                "quali_start_utc": quali_start_utc
+                "quali_start_utc": quali_start_utc,
+                "sprint_start_utc": sprint_start_utc,
+                "sprint_quali_start_utc": sprint_quali_start_utc,
             })
         except Exception:
             continue
@@ -365,6 +385,29 @@ def get_race_results_df(season: int, round_number: int):
     return pd.DataFrame()
 
 
+def get_sprint_results_df(season: int, round_number: int) -> pd.DataFrame:
+    """Результаты спринта (session='S')."""
+    max_retries = 2
+    for attempt in range(max_retries):
+        try:
+            session = fastf1.get_session(season, round_number, "S")
+            session.load(telemetry=False, laps=False, weather=False, messages=False)
+            if session.results is not None and not session.results.empty:
+                return session.results
+            if attempt < max_retries - 1:
+                time.sleep(1)
+        except SessionNotAvailableError:
+            logger.warning(f"Sprint results not available yet for {season} round {round_number}")
+            return pd.DataFrame()
+        except Exception as e:
+            logger.error(f"Sprint results error {season}/{round_number}: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(1)
+            else:
+                return pd.DataFrame()
+    return pd.DataFrame()
+
+
 def get_qualifying_results(season: int, round_number: int, limit: int = 100) -> list[dict]:
     # Механизм Retry для квалификации тоже не помешает
     max_retries = 2
@@ -434,6 +477,79 @@ def get_qualifying_results(season: int, round_number: int, limit: int = 100) -> 
             logger.error(f"Quali load error {season}/{round_number}: {e}")
             if attempt < max_retries - 1:
                 time.sleep(1)
+    return []
+
+
+def get_sprint_quali_results(season: int, round_number: int, limit: int = 100) -> list[dict]:
+    """
+    Результаты спринт-квалификации/шут-аута.
+    FastF1 session: SQ (новый формат) или SS (старый Sprint Shootout).
+    """
+    for session_code in ("SQ", "SS"):
+        try:
+            session = fastf1.get_session(season, round_number, session_code)
+            session.load(telemetry=False, laps=False, weather=False, messages=False)
+            if session.results is None or session.results.empty:
+                continue
+
+            results = []
+            best_seconds_list = []
+            for row in session.results.itertuples(index=False):
+                pos = getattr(row, "Position", None)
+                if pd.isna(pos):
+                    continue
+                try:
+                    pos_int = int(pos)
+                except Exception:
+                    continue
+
+                code = getattr(row, "Abbreviation", None) or getattr(row, "DriverNumber", "?")
+                name = getattr(row, "LastName", "") or code
+
+                sq3 = getattr(row, "SQ3", None)
+                sq2 = getattr(row, "SQ2", None)
+                sq1 = getattr(row, "SQ1", None)
+                q3 = getattr(row, "Q3", None)
+                q2 = getattr(row, "Q2", None)
+                q1 = getattr(row, "Q1", None)
+
+                best_time = None
+                for t in [sq3, sq2, sq1, q3, q2, q1]:
+                    if pd.notna(t):
+                        best_time = t
+                        break
+
+                best_str = _format_quali_time(best_time) if best_time is not None else "-"
+                best_sec = pd.to_timedelta(best_time).total_seconds() if best_time is not None and pd.notna(best_time) else None
+                if best_sec is not None:
+                    best_seconds_list.append(best_sec)
+
+                results.append({
+                    "position": pos_int,
+                    "driver": code,
+                    "name": name,
+                    "best": best_str,
+                    "best_seconds": best_sec,
+                })
+
+            min_sec = min(best_seconds_list) if best_seconds_list else None
+            for r in results:
+                bs = r.pop("best_seconds", None)
+                if bs is None or min_sec is None:
+                    r["gap"] = "—"
+                elif bs <= min_sec:
+                    r["gap"] = r["best"]
+                else:
+                    r["gap"] = f"+{bs - min_sec:.3f}"
+
+            results.sort(key=lambda r: r["position"])
+            return results[:limit]
+        except SessionNotAvailableError:
+            continue
+        except Exception as e:
+            logger.debug(f"Sprint quali load error {season}/{round_number} [{session_code}]: {e}")
+            continue
+
     return []
 
 
@@ -1197,9 +1313,19 @@ async def get_race_results_async(season: int, round_number: int):
     return await _get_race_results_fastf1_async(season, round_number)
 
 
+@cache_result(ttl=86400, key_prefix="sprint_res")
+async def get_sprint_results_async(season: int, round_number: int) -> pd.DataFrame:
+    return await _run_sync(get_sprint_results_df, season, round_number)
+
+
 @cache_result(ttl=86400, key_prefix="quali_res")
 async def _get_quali_async(season: int, round_number: int, limit: int = 100):
     return await _run_sync(get_qualifying_results, season, round_number, limit)
+
+
+@cache_result(ttl=86400, key_prefix="sprint_quali_res")
+async def get_sprint_quali_results_async(season: int, round_number: int, limit: int = 100) -> list[dict]:
+    return await _run_sync(get_sprint_quali_results, season, round_number, limit)
 
 
 @cache_result(ttl=3600, key_prefix="lat_quali")
@@ -1414,6 +1540,46 @@ async def _fetch_wiki_bio(session: aiohttp.ClientSession, wiki_url: str) -> str:
     return ""
 
 
+def _as_openf1_drivers_list(payload: Any) -> list[dict]:
+    """OpenF1 иногда возвращает dict с detail вместо списка (например во время live-сессии)."""
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    return []
+
+
+async def _fetch_wiki_thumbnail(session: aiohttp.ClientSession, wiki_url: str) -> str:
+    """Возвращает thumbnail URL из Wikipedia по ссылке страницы пилота."""
+    if not wiki_url or "wikipedia.org/wiki/" not in wiki_url:
+        return ""
+    try:
+        title = wiki_url.split("wiki/")[-1].replace(" ", "_")
+        async with session.get(
+            "https://en.wikipedia.org/w/api.php",
+            params={
+                "format": "json",
+                "action": "query",
+                "prop": "pageimages",
+                "pithumbsize": 400,
+                "redirects": 1,
+                "titles": title,
+            },
+            timeout=aiohttp.ClientTimeout(total=10),
+        ) as wresp:
+            if wresp.status != 200:
+                return ""
+            wdata = await wresp.json()
+            pages = wdata.get("query", {}).get("pages", {})
+            for pid, p in pages.items():
+                if pid != "-1" and isinstance(p, dict):
+                    thumb = p.get("thumbnail", {})
+                    src = thumb.get("source") if isinstance(thumb, dict) else ""
+                    if src:
+                        return src
+    except Exception:
+        pass
+    return ""
+
+
 async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str, season: int) -> str:
     """Загружает URL headshot из OpenF1. Пропускает старые сезоны (до 2023)."""
     if not code_match or season < 2023:
@@ -1424,7 +1590,7 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
             timeout=aiohttp.ClientTimeout(total=10),
         ) as oresp:
             if oresp.status == 200:
-                for d in await oresp.json():
+                for d in _as_openf1_drivers_list(await oresp.json()):
                     if d.get("name_acronym", "").upper() == code_match:
                         url = d.get("headshot_url") or ""
                         if url:
@@ -1434,7 +1600,7 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
             timeout=aiohttp.ClientTimeout(total=10),
         ) as oresp2:
             if oresp2.status == 200:
-                for d in await oresp2.json():
+                for d in _as_openf1_drivers_list(await oresp2.json()):
                     if d.get("name_acronym", "").upper() == code_match:
                         url = d.get("headshot_url") or ""
                         if url:
@@ -1444,7 +1610,7 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
     return ""
 
 
-@cache_result(ttl=3600, key_prefix="driver_details_v3")
+@cache_result(ttl=3600, key_prefix="driver_details_v4")
 async def get_driver_details_async(driver_id: str, season: int, code: str | None = None):
     """
     Получает профиль пилота, статистику сезона и карьеры из Ergast/Jolpica API.
@@ -1486,6 +1652,8 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
             _fetch_driver_headshot(session, code_match, season),
             get_driver_standings_async(season),
         )
+        if not headshot_url:
+            headshot_url = await _fetch_wiki_thumbnail(session, wiki_url)
 
     # Если season_results пусто, но career_results загружен — извлечём
     if not season_results and career_results:
@@ -1724,6 +1892,7 @@ async def _get_constructor_drivers_fallback(
                                         "familyName": dr.get("familyName", ""),
                                         "permanentNumber": str(dr.get("permanentNumber", "")) if dr.get("permanentNumber") else "",
                                         "nationality": dr.get("nationality", ""),
+                                    "url": dr.get("url", ""),
                                     })
                                     break
                         if result:
@@ -1754,6 +1923,7 @@ async def _get_constructor_drivers_fallback(
                                     "familyName": dr.get("familyName", ""),
                                     "permanentNumber": str(dr.get("permanentNumber", "")) if dr.get("permanentNumber") else "",
                                     "nationality": str(nat).strip() if nat else "",
+                                    "url": dr.get("url", ""),
                                 })
                     if result:
                         return result
@@ -1952,6 +2122,7 @@ async def _fetch_constructor_drivers(session: aiohttp.ClientSession, cid: str, s
                     "familyName": d.get("familyName", ""),
                     "permanentNumber": str(d.get("permanentNumber", "")) if d.get("permanentNumber") else "",
                     "nationality": str(nat).strip() if nat else "",
+                    "url": d.get("url", ""),
                 })
             break
     if not drivers:
@@ -1998,6 +2169,14 @@ async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers
     except Exception:
         pass
 
+    for sd in season_drivers:
+        if sd.get("headshot_url"):
+            continue
+        wiki_url = sd.get("url", "")
+        thumb = await _fetch_wiki_thumbnail(session, wiki_url)
+        if thumb:
+            sd["headshot_url"] = thumb
+
     # Nationality fallback из Ergast
     missing_nat = [sd for sd in season_drivers if not (sd.get("nationality") or "").strip()]
     if missing_nat:
@@ -2023,7 +2202,7 @@ async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers
 
 
 # --- КАРТОЧКА КОНСТРУКТОРА --- #
-@cache_result(ttl=3600, key_prefix="constructor_details_v11")
+@cache_result(ttl=3600, key_prefix="constructor_details_v12")
 async def get_constructor_details_async(constructor_id: str, season: int):
     """Профиль команды: название, лого, статистика сезона и карьеры, биография."""
     cid = constructor_id.strip().lower().replace(" ", "_")

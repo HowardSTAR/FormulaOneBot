@@ -329,6 +329,38 @@ async def test_api_quali_results(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_api_sprint_results(api_client: AsyncClient):
+    """GET /api/sprint-results — результаты последнего спринта."""
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+        m.return_value = [{"round": 1, "event_name": "Bahrain GP", "date": "2024-03-02"}]
+        with patch("app.api.miniapp_api.get_sprint_results_async", new_callable=AsyncMock) as m2:
+            m2.return_value = pd.DataFrame([
+                {"Position": 1, "Abbreviation": "VER", "FirstName": "Max", "LastName": "Verstappen", "TeamName": "Red Bull", "Points": 8},
+            ])
+            r = await api_client.get("/api/sprint-results")
+    assert r.status_code == 200
+    data = r.json()
+    assert "results" in data
+    assert data.get("round") == 1
+
+
+@pytest.mark.asyncio
+async def test_api_sprint_quali_results(api_client: AsyncClient):
+    """GET /api/sprint-quali-results — результаты последней спринт-квалификации."""
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+        m.return_value = [{"round": 1, "event_name": "Bahrain GP", "date": "2024-03-02"}]
+        with patch("app.api.miniapp_api.get_sprint_quali_results_async", new_callable=AsyncMock) as m2:
+            m2.return_value = [
+                {"position": 1, "driver": "VER", "name": "Max Verstappen", "best": "1:29.0"},
+            ]
+            r = await api_client.get("/api/sprint-quali-results")
+    assert r.status_code == 200
+    data = r.json()
+    assert "results" in data
+    assert data.get("round") == 1
+
+
+@pytest.mark.asyncio
 async def test_api_notifications_get(api_client: AsyncClient):
     """GET /api/settings/notifications."""
     r = await api_client.get("/api/settings/notifications")
