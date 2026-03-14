@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
-import { getCircuitInsightsRu } from "../../data/circuitInsightsRu";
+import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 
 type NextRaceResponse = {
   status: string;

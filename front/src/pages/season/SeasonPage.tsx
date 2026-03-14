@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
 import { apiRequest } from "../../helpers/api";
-import { getCircuitInsightsRu } from "../../data/circuitInsightsRu";
+import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 
 const currentRealYear = new Date().getFullYear();
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
-import { getCircuitInsightsRu } from "../../data/circuitInsightsRu";
+import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 
 type Session = { name: string; utc_iso?: string; local?: string };
 type RaceDetailsResponse = {
