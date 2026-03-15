@@ -53,6 +53,57 @@ async def _notify_callback_user(callback: CallbackQuery, text: str, show_alert: 
             pass
 
 
+def _parse_utc_iso(dt_str: str | None) -> datetime | None:
+    if not dt_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(dt_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+
+def _get_latest_started_weekend_round(schedule: list, now: datetime) -> int | None:
+    latest_started_round = None
+    for r in schedule:
+        candidates: list[datetime] = []
+        for key in (
+            "first_session_start_utc",
+            "sprint_quali_start_utc",
+            "quali_start_utc",
+            "sprint_start_utc",
+            "race_start_utc",
+        ):
+            dt = _parse_utc_iso(r.get(key))
+            if dt is not None:
+                candidates.append(dt)
+
+        if not candidates:
+            continue
+
+        weekend_start = min(candidates)
+        if weekend_start <= now:
+            latest_started_round = r.get("round")
+        else:
+            break
+
+    return latest_started_round
+
+
+def _should_reset_previous_results(schedule: list, now: datetime, results_round: int | None) -> bool:
+    if results_round is None:
+        return False
+    started_round = _get_latest_started_weekend_round(schedule, now)
+    if started_round is None:
+        return False
+    try:
+        return int(results_round) < int(started_round)
+    except Exception:
+        return False
+
+
 async def build_next_race_payload(season: int | None = None, user_id: int | None = None) -> dict:
     """
     Возвращает инфу о ближайшей гонке.
@@ -243,6 +294,10 @@ async def quali_callback(callback: CallbackQuery) -> None:
             await _notify_callback_user(callback, "Квалификация еще не прошла", show_alert=True)
             return
 
+        if _should_reset_previous_results(schedule or [], now, latest_round):
+            await _notify_callback_user(callback, "Данных по квалификации еще нет", show_alert=True)
+            return
+
         race_info = next((r for r in (schedule or []) if r.get("round") == latest_round), None)
         event_name = (race_info or {}).get("event_name", "") or f"Этап {latest_round:02d}"
 
@@ -336,6 +391,10 @@ async def race_callback(callback: CallbackQuery) -> None:
         last_round = _get_last_completed_race_round(schedule, now)
         if last_round is None:
             await _notify_callback_user(callback, "Гонка еще не прошла", show_alert=True)
+            return
+
+        if _should_reset_previous_results(schedule, now, last_round):
+            await _notify_callback_user(callback, "Данных по гонке еще нет", show_alert=True)
             return
 
         race_results = await get_race_results_async(season, last_round)

@@ -7,6 +7,7 @@ from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.db import get_user_settings, update_user_setting
+from app.utils.safe_send import safe_answer_callback
 
 settings_router = Router()
 
@@ -164,6 +165,15 @@ def get_notify_keyboard(current_val: int):
 @settings_router.message(Command("settings"))
 async def cmd_settings(message: Message, state: FSMContext):
     await _show_main_settings(message, state, message.from_user.id, is_edit=False)
+
+
+@settings_router.callback_query(F.data.startswith("settings_race_"))
+async def cb_settings_from_race(callback: types.CallbackQuery, state: FSMContext):
+    """
+    Вход в настройки из карточки ближайшего этапа.
+    """
+    await safe_answer_callback(callback)
+    await _show_main_settings(callback, state, callback.from_user.id, is_edit=True)
 
 
 # --- НОВЫЙ ХЕНДЛЕР: Переключение тумблера уведомлений ---
