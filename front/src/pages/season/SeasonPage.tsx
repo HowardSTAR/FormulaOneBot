@@ -12,6 +12,7 @@ type Race = {
   event_name: string;
   location: string;
   date: string;
+  is_cancelled?: boolean;
 };
 type SeasonResponse = { races?: Race[] };
 type SettingsResponse = { timezone?: string };
@@ -132,13 +133,16 @@ function SeasonPage() {
             const raceEndCheck = new Date(raceDate);
             raceEndCheck.setDate(raceEndCheck.getDate() + 1);
             const isNext = index === nextRaceIndex;
+            const isCancelled = Boolean(race.is_cancelled);
             const isFinished = raceEndCheck < now;
-            const statusClass: "finished" | "next" | "future" = isFinished
-              ? "finished"
-              : isNext
-                ? "next"
-                : "future";
-            const statusIcon = isFinished ? "🏁" : isNext ? "NEXT" : "";
+            const statusClass: "finished" | "next" | "future" | "cancelled" = isCancelled
+              ? "cancelled"
+              : isFinished
+                ? "finished"
+                : isNext
+                  ? "next"
+                  : "future";
+            const statusIcon = isCancelled ? "ОТМЕНЕН" : isFinished ? "🏁" : isNext ? "NEXT" : "";
             const day = raceDate.toLocaleDateString("ru-RU", {
               timeZone: userTz,
               day: "numeric",

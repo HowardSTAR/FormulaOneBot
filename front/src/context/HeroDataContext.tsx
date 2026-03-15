@@ -12,6 +12,7 @@ export type SessionItem = {
 export type NextRaceResponse = {
   status?: NextRaceStatus;
   event_name?: string;
+  is_cancelled?: boolean;
   season?: number;
   round?: number;
   date?: string;

@@ -6,6 +6,7 @@ import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 type NextRaceResponse = {
   status: string;
   event_name?: string;
+  is_cancelled?: boolean;
   country?: string;
   location?: string;
   season?: number;
@@ -20,6 +21,7 @@ function NextRacePage() {
   const [title, setTitle] = useState("Загрузка...");
   const [location, setLocation] = useState("...");
   const [eventName, setEventName] = useState<string | null>(null);
+  const [isCancelled, setIsCancelled] = useState(false);
   const [raceCountry, setRaceCountry] = useState("");
   const [raceCity, setRaceCity] = useState("");
   const [raceDateText, setRaceDateText] = useState("--");
@@ -54,6 +56,7 @@ function NextRacePage() {
 
         setTitle(raceData.event_name || "Загрузка...");
         setEventName(raceData.event_name || null);
+        setIsCancelled(Boolean(raceData.is_cancelled));
         setRaceCountry(raceData.country || "");
         setRaceCity(raceData.location || "");
         setLocation(`${raceData.country || ""}, ${raceData.location || ""}`);
@@ -212,9 +215,9 @@ function NextRacePage() {
       {(eventName || loading) && (
       <div className={`next-race-hero ${layoutPhase}`}>
         <div className="next-race-start-block">
-          <div className="next-race-start-label">СТАРТ ГОНКИ</div>
-          <div className="next-race-date">{raceDateText}</div>
-          <div className="next-race-time">{raceTimeText}</div>
+          <div className="next-race-start-label">{isCancelled ? "СТАТУС ЭТАПА" : "СТАРТ ГОНКИ"}</div>
+          <div className="next-race-date">{isCancelled ? "ОТМЕНЕН" : raceDateText}</div>
+          <div className="next-race-time">{isCancelled ? "Организатор отменил проведение этапа" : raceTimeText}</div>
         </div>
         <div className="next-race-dash" aria-hidden />
         <div className="next-race-track-wrap">

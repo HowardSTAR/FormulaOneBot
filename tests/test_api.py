@@ -464,6 +464,104 @@ async def test_api_race_results(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_api_race_results_resets_previous_round_when_new_weekend_started(api_client: AsyncClient):
+    """GET /api/race-results — после старта нового уикенда (FP1) не показывает прошлую гонку."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_race_results_async", new_callable=AsyncMock) as m_race:
+        m_sched.return_value = [
+            {
+                "round": 1,
+                "event_name": "Bahrain GP",
+                "date": (now - timedelta(days=7)).date().isoformat(),
+                "race_start_utc": (now - timedelta(days=7, hours=2)).isoformat(),
+                "first_session_start_utc": (now - timedelta(days=9)).isoformat(),
+            },
+            {
+                "round": 2,
+                "event_name": "Saudi GP",
+                "date": (now + timedelta(days=1)).date().isoformat(),
+                "race_start_utc": (now + timedelta(days=1, hours=2)).isoformat(),
+                "first_session_start_utc": (now - timedelta(hours=1)).isoformat(),  # новый уикенд уже начался
+            },
+        ]
+        m_race.return_value = pd.DataFrame([
+            {"Position": 1, "Abbreviation": "VER", "FirstName": "Max", "LastName": "Verstappen", "TeamName": "Red Bull", "Points": 25},
+        ])
+        r = await api_client.get("/api/race-results")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["results"] == []
+
+
+@pytest.mark.asyncio
+async def test_api_quali_results_resets_previous_round_when_new_weekend_started(api_client: AsyncClient):
+    """GET /api/quali-results — после старта нового уикенда скрывает прошлую квалификацию."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_cached_quali_results", new_callable=AsyncMock) as m_cached, \
+            patch("app.api.miniapp_api.get_last_notified_quali_round", new_callable=AsyncMock) as m_last, \
+            patch("app.api.miniapp_api._get_latest_quali_async", new_callable=AsyncMock) as m_latest:
+        m_sched.return_value = [
+            {"round": 1, "event_name": "Bahrain GP", "date": (now - timedelta(days=7)).date().isoformat(),
+             "first_session_start_utc": (now - timedelta(days=9)).isoformat()},
+            {"round": 2, "event_name": "Saudi GP", "date": (now + timedelta(days=1)).date().isoformat(),
+             "first_session_start_utc": (now - timedelta(hours=1)).isoformat()},
+        ]
+        m_cached.return_value = None
+        m_last.return_value = None
+        m_latest.return_value = (1, [{"position": 1, "driver": "VER", "name": "Max", "best": "1:29.0"}])
+        r = await api_client.get("/api/quali-results")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["results"] == []
+
+
+@pytest.mark.asyncio
+async def test_api_sprint_results_resets_previous_round_when_new_weekend_started(api_client: AsyncClient):
+    """GET /api/sprint-results — после старта нового уикенда скрывает прошлый спринт."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_sprint_results_async", new_callable=AsyncMock) as m_sprint:
+        m_sched.return_value = [
+            {"round": 1, "event_name": "Chinese GP", "date": (now - timedelta(days=7)).date().isoformat(),
+             "sprint_start_utc": (now - timedelta(days=7, hours=3)).isoformat(),
+             "first_session_start_utc": (now - timedelta(days=9)).isoformat()},
+            {"round": 2, "event_name": "Miami GP", "date": (now + timedelta(days=1)).date().isoformat(),
+             "sprint_start_utc": (now + timedelta(days=1, hours=1)).isoformat(),
+             "first_session_start_utc": (now - timedelta(hours=1)).isoformat()},
+        ]
+        m_sprint.return_value = pd.DataFrame([
+            {"Position": 1, "Abbreviation": "RUS", "FirstName": "George", "LastName": "Russell", "TeamName": "Mercedes", "Points": 8},
+        ])
+        r = await api_client.get("/api/sprint-results")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["results"] == []
+
+
+@pytest.mark.asyncio
+async def test_api_sprint_quali_results_resets_previous_round_when_new_weekend_started(api_client: AsyncClient):
+    """GET /api/sprint-quali-results — после старта нового уикенда скрывает прошлую спринт-квалу."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_sprint_quali_results_async", new_callable=AsyncMock) as m_sq:
+        m_sched.return_value = [
+            {"round": 1, "event_name": "Chinese GP", "date": (now - timedelta(days=7)).date().isoformat(),
+             "sprint_quali_start_utc": (now - timedelta(days=7, hours=6)).isoformat(),
+             "first_session_start_utc": (now - timedelta(days=9)).isoformat()},
+            {"round": 2, "event_name": "Miami GP", "date": (now + timedelta(days=1)).date().isoformat(),
+             "sprint_quali_start_utc": (now + timedelta(days=1, hours=2)).isoformat(),
+             "first_session_start_utc": (now - timedelta(hours=1)).isoformat()},
+        ]
+        m_sq.return_value = [{"position": 1, "driver": "RUS", "name": "George", "best": "1:31.0"}]
+        r = await api_client.get("/api/sprint-quali-results")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["results"] == []
+
+
+@pytest.mark.asyncio
 async def test_api_car_image_404(api_client: AsyncClient):
     """GET /api/car-image — машина не найдена."""
     with patch("app.api.miniapp_api.get_car_image_path") as m:

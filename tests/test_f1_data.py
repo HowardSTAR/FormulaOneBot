@@ -9,6 +9,7 @@ import pytest
 from app.f1_data import (
     _fill_drivers_headshots,
     get_driver_details_async,
+    get_season_schedule_short,
     get_sprint_quali_results_async,
     sort_standings_zero_last,
 )
@@ -136,3 +137,31 @@ async def test_get_sprint_quali_results_async_falls_back_to_openf1_when_fastf1_e
         res = await get_sprint_quali_results_async(2026, 99, limit=20)
 
     assert res == fallback_results
+
+
+def test_get_season_schedule_short_marks_cancelled_event():
+    """Если EventFormat содержит cancelled/canceled, этап помечается is_cancelled=True."""
+    df = pd.DataFrame([
+        {
+            "RoundNumber": 3,
+            "EventName": "Emilia Romagna Grand Prix",
+            "OfficialEventName": "FORMULA 1 GRAN PREMIO DELL'EMILIA ROMAGNA 2026",
+            "Country": "Italy",
+            "Location": "Imola",
+            "EventDate": pd.Timestamp("2026-05-17"),
+            "EventFormat": "cancelled",
+            "Session1": "Practice 1",
+            "Session1DateUtc": pd.Timestamp("2026-05-15T11:30:00Z"),
+            "Session2": "Qualifying",
+            "Session2DateUtc": pd.Timestamp("2026-05-16T14:00:00Z"),
+            "Session3": "Race",
+            "Session3DateUtc": pd.Timestamp("2026-05-17T13:00:00Z"),
+        }
+    ])
+    with patch("app.f1_data.fastf1.get_event_schedule") as sched_mock:
+        sched_mock.return_value = df
+        schedule = get_season_schedule_short(2026)
+
+    assert len(schedule) == 1
+    assert schedule[0]["round"] == 3
+    assert schedule[0]["is_cancelled"] is True

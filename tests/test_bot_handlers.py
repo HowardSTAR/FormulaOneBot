@@ -31,6 +31,28 @@ async def test_build_next_race_payload_ok():
     assert payload["season"] == 2030
     assert payload["round"] == 1
     assert "Monaco" in payload["event_name"]
+    assert payload["is_cancelled"] is False
+
+
+@pytest.mark.asyncio
+async def test_build_next_race_payload_cancelled_next_event():
+    """build_next_race_payload помечает ближайший этап как отменённый, если is_cancelled=True в расписании."""
+    schedule = [
+        {
+            "round": 1,
+            "date": "2030-06-01",
+            "event_name": "Emilia Romagna GP",
+            "country": "Italy",
+            "location": "Imola",
+            "race_start_utc": None,
+            "is_cancelled": True,
+        },
+    ]
+    with patch("app.handlers.races.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+        m.return_value = schedule
+        payload = await build_next_race_payload(2030)
+    assert payload["status"] == "ok"
+    assert payload["is_cancelled"] is True
 
 
 @pytest.mark.asyncio

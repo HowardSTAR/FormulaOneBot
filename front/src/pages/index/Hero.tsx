@@ -179,6 +179,20 @@ function Hero({ nextRace, schedule, userTz }: HeroProps) {
     );
   }
 
+  if (nextRace.is_cancelled) {
+    return (
+      <Link to="/next-race" className="btn hero-btn" id="hero-btn">
+        <div className="hero-sub" id="hero-sub">
+          <span className="session-badge">ЭТАП ОТМЕНЕН</span>
+        </div>
+        <div id="hero-title" className="hero-title">
+          {nextRace.event_name || "Ближайший этап"}
+        </div>
+        <div id="hero-date" className="hero-date">ОТМЕНЕН</div>
+      </Link>
+    );
+  }
+
   const subDisplay = status === "running" ? (
     <span className="session-badge" style={{ background: "white", color: "#e10600" }}>
       {subLabel}

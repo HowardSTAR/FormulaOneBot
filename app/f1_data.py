@@ -221,6 +221,17 @@ def get_season_schedule_short(season: int) -> list[dict]:
 
     races: list[dict] = []
 
+    def _is_event_cancelled(row_data) -> bool:
+        # FastF1 не всегда даёт отдельный флаг отмены, поэтому ищем маркеры в доступных полях.
+        parts = [
+            str(row_data.get("EventFormat") or ""),
+            str(row_data.get("EventName") or ""),
+            str(row_data.get("OfficialEventName") or ""),
+        ]
+        text = " ".join(parts).lower()
+        cancel_markers = ("cancel", "cancell", "abandon", "postpon", "отмен")
+        return any(marker in text for marker in cancel_markers)
+
     for _, row in schedule.iterrows():
         try:
             event_name = row.get("EventName")
@@ -299,6 +310,7 @@ def get_season_schedule_short(season: int) -> list[dict]:
                 "quali_start_utc": quali_start_utc,
                 "sprint_start_utc": sprint_start_utc,
                 "sprint_quali_start_utc": sprint_quali_start_utc,
+                "is_cancelled": _is_event_cancelled(row),
             })
         except Exception:
             continue
