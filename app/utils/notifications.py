@@ -544,7 +544,10 @@ async def check_and_send_results(bot: Bot):
         })
 
     if not rows_for_image:
-        await set_last_notified_round(season, round_num)
+        logger.warning(
+            "⚠️ Race results for round %s are present but unparseable, will retry later.",
+            round_num,
+        )
         return
 
     event_name = race_info.get("event_name", "Гран-при") or "Гран-при"
@@ -722,7 +725,10 @@ async def check_and_notify_quali(bot: Bot) -> None:
         })
 
     if not rows_for_image:
-        await set_last_notified_quali_round(season, round_num)
+        logger.warning(
+            "⚠️ Quali results for round %s are empty/unparseable, will retry later.",
+            round_num,
+        )
         return
 
     event_name = (race_info or {}).get("event_name", "") or f"Этап {round_num:02d}"

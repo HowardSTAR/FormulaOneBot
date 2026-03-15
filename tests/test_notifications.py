@@ -189,3 +189,76 @@ async def test_check_and_notify_quali_does_not_mark_round_when_delivery_failed()
 
     assert m_send_photo.await_count >= 1
     assert m_set_notified.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_check_and_send_results_does_not_mark_round_when_rows_unparseable():
+    """Если результаты пришли в неразбираемом формате, этап не помечается отправленным (нужен ретрай)."""
+    now = datetime.now(timezone.utc)
+    schedule = [{
+        "round": 6,
+        "event_name": "Imola GP",
+        "race_start_utc": (now - timedelta(hours=3)).isoformat(),
+    }]
+    # Нет колонки Position -> rows_for_image останется пустым
+    results_df = pd.DataFrame([
+        {"Abbreviation": "VER", "FirstName": "Max", "LastName": "Verstappen", "TeamName": "Red Bull", "Points": 25},
+    ])
+
+    async def users_side_effect(notifications_only: bool = False):
+        if notifications_only:
+            return [(111, "Europe/Moscow", 60, 1)]
+        return [(111, "Europe/Moscow", 60, 1)]
+
+    with patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.utils.notifications.get_last_notified_round", new_callable=AsyncMock) as m_last_notified, \
+            patch("app.utils.notifications.get_race_results_async", new_callable=AsyncMock) as m_race_res, \
+            patch("app.utils.notifications.get_last_notified_voting_invite_round", new_callable=AsyncMock) as m_voting_inv, \
+            patch("app.utils.notifications.get_users_favorites_for_notifications", new_callable=AsyncMock) as m_favs, \
+            patch("app.utils.notifications.get_all_group_chats", new_callable=AsyncMock) as m_groups, \
+            patch("app.utils.notifications.get_users_with_settings", side_effect=users_side_effect), \
+            patch("app.utils.notifications.get_driver_standings_async", new_callable=AsyncMock) as m_driver_st, \
+            patch("app.utils.notifications.get_constructor_standings_async", new_callable=AsyncMock) as m_con_st, \
+            patch("app.utils.notifications.set_last_notified_round", new_callable=AsyncMock) as m_set_notified:
+        m_sched.return_value = schedule
+        m_last_notified.return_value = None
+        m_race_res.return_value = results_df
+        m_voting_inv.return_value = 6
+        m_favs.return_value = {}
+        m_groups.return_value = []
+        m_driver_st.return_value = pd.DataFrame()
+        m_con_st.return_value = pd.DataFrame()
+
+        await check_and_send_results(bot=object())
+
+    assert m_set_notified.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_check_and_notify_quali_does_not_mark_round_when_no_rows():
+    """Если latest-quali временно пустая, раунд не должен считаться отправленным."""
+    async def users_side_effect(notifications_only: bool = False):
+        if notifications_only:
+            return [(111, "Europe/Moscow", 60, 1)]
+        return [(111, "Europe/Moscow", 60, 1)]
+
+    with patch("app.utils.notifications._get_latest_quali_async", new_callable=AsyncMock) as m_latest, \
+            patch("app.utils.notifications.get_last_notified_quali_round", new_callable=AsyncMock) as m_last, \
+            patch("app.utils.notifications.get_users_favorites_for_notifications", new_callable=AsyncMock) as m_favs, \
+            patch("app.utils.notifications.get_all_group_chats", new_callable=AsyncMock) as m_groups, \
+            patch("app.utils.notifications.get_users_with_settings", side_effect=users_side_effect), \
+            patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.utils.notifications.get_driver_standings_async", new_callable=AsyncMock) as m_driver_st, \
+            patch("app.utils.notifications.set_cached_quali_results", new_callable=AsyncMock) as m_set_cache, \
+            patch("app.utils.notifications.set_last_notified_quali_round", new_callable=AsyncMock) as m_set_notified:
+        m_latest.return_value = (4, [])
+        m_last.return_value = None
+        m_favs.return_value = {}
+        m_groups.return_value = []
+        m_sched.return_value = [{"round": 4, "event_name": "Bahrain GP"}]
+        m_driver_st.return_value = pd.DataFrame()
+        m_set_cache.return_value = None
+
+        await check_and_notify_quali(bot=object())
+
+    assert m_set_notified.await_count == 0
