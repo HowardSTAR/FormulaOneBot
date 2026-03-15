@@ -637,6 +637,67 @@ def _get_last_completed_race(schedule: list, now: datetime) -> dict | None:
     return finished_event
 
 
+def _parse_utc_iso(dt_str: Optional[str]) -> Optional[datetime]:
+    if not dt_str:
+        return None
+    try:
+        dt = datetime.fromisoformat(dt_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except Exception:
+        return None
+
+
+def _get_latest_started_weekend_round(schedule: list, now: datetime) -> Optional[int]:
+    """
+    Возвращает round самого позднего этапа, у которого уже стартовала первая сессия уикенда.
+    Используем для скрытия прошлых результатов после старта нового уикенда.
+    """
+    latest_started_round = None
+    for r in schedule:
+        candidates = []
+        for key in (
+            "first_session_start_utc",
+            "sprint_quali_start_utc",
+            "quali_start_utc",
+            "sprint_start_utc",
+            "race_start_utc",
+        ):
+            dt = _parse_utc_iso(r.get(key))
+            if dt is not None:
+                candidates.append(dt)
+
+        if not candidates:
+            continue
+
+        weekend_start = min(candidates)
+        if weekend_start <= now:
+            latest_started_round = r.get("round")
+        else:
+            break
+
+    return latest_started_round
+
+
+def _should_reset_previous_results(schedule: list, now: datetime, results_round: Optional[int]) -> bool:
+    if results_round is None:
+        return False
+    started_round = _get_latest_started_weekend_round(schedule, now)
+    if started_round is None:
+        return False
+    try:
+        return int(results_round) < int(started_round)
+    except Exception:
+        return False
+
+
+def _empty_results_payload_during_active_weekend(schedule: list, now: datetime, season: int) -> dict:
+    started_round = _get_latest_started_weekend_round(schedule, now)
+    race_info = next((r for r in schedule if r.get("round") == started_round), None) if started_round else None
+    return {"results": [], "race_info": race_info, "season": season, "round": started_round}
+
+
 @web_app.get("/api/race-results")
 async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)):
     season = datetime.now().year
@@ -651,6 +712,8 @@ async def api_race_results(user_id: Optional[int] = Depends(get_current_user_id)
         return {"results": [], "race_info": None}
 
     round_num = last_race["round"]
+    if _should_reset_previous_results(schedule, now, round_num):
+        return _empty_results_payload_during_active_weekend(schedule, now, season)
     df = await get_race_results_async(season, round_num)
 
     if df is None or df.empty:
@@ -753,6 +816,9 @@ async def api_sprint_results(user_id: Optional[int] = Depends(get_current_user_i
     if round_num is None or df.empty:
         return {"results": [], "race_info": None, "season": season, "round": None}
 
+    if _should_reset_previous_results(schedule, now_utc, round_num):
+        return _empty_results_payload_during_active_weekend(schedule, now_utc, season)
+
     race_info = next((r for r in schedule if r.get("round") == round_num), None)
 
     fav_drivers = set()
@@ -807,6 +873,8 @@ def _segment_by_position(pos: int) -> str:
 @web_app.get("/api/quali-results")
 async def api_quali_results(user_id: Optional[int] = Depends(get_current_user_id)):
     season = datetime.now().year
+    now_utc = datetime.now(timezone.utc)
+    schedule = await get_season_schedule_short_async(season)
     last_notified = await get_last_notified_quali_round(season)
     cached = await get_cached_quali_results(season)
     base_payload = None
@@ -822,8 +890,7 @@ async def api_quali_results(user_id: Optional[int] = Depends(get_current_user_id
                 base_payload = {"results": [], "race_info": None, "season": season, "round": None}
         else:
             round_num, q_results = data
-            schedule = await get_season_schedule_short_async(season)
-            race_info = next((r for r in schedule if r["round"] == round_num), None)
+            race_info = next((r for r in (schedule or []) if r["round"] == round_num), None)
 
             results = []
             for r in q_results:
@@ -843,6 +910,9 @@ async def api_quali_results(user_id: Optional[int] = Depends(get_current_user_id
                 "results": results,
             }
             await set_cached_quali_results(season, base_payload)
+
+    if _should_reset_previous_results(schedule or [], now_utc, base_payload.get("round")):
+        return _empty_results_payload_during_active_weekend(schedule or [], now_utc, season)
 
     # Персональная отметка избранных пилотов: только в ответе, не в кэше.
     if not user_id:
@@ -908,6 +978,9 @@ async def api_sprint_quali_results(user_id: Optional[int] = Depends(get_current_
 
     if round_num is None or not sq_results:
         return {"results": [], "race_info": None, "season": season, "round": None}
+
+    if _should_reset_previous_results(schedule, now_utc, round_num):
+        return _empty_results_payload_during_active_weekend(schedule, now_utc, season)
 
     race_info = next((r for r in schedule if r.get("round") == round_num), None)
     fav_drivers = set()
