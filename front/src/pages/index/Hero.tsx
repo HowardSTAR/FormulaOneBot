@@ -49,6 +49,7 @@ function Hero({ nextRace, schedule, userTz }: HeroProps) {
       if (!found) {
         setSubLabel("УИК-ЭНД ЗАВЕРШЕН");
         setShowTimer(false);
+        setDateText("");
         return;
       }
 
