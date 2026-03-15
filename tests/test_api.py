@@ -40,6 +40,38 @@ async def test_api_season_default_year(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_api_season_completed_only_race_filters_future_rounds(api_client: AsyncClient):
+    """GET /api/season?completed_only=1&session_type=race — возвращает только уже прошедшие этапы."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+        m.return_value = [
+            {"round": 1, "event_name": "Past GP", "race_start_utc": (now - timedelta(days=2)).isoformat(), "date": (now - timedelta(days=2)).date().isoformat()},
+            {"round": 2, "event_name": "Future GP", "race_start_utc": (now + timedelta(days=2)).isoformat(), "date": (now + timedelta(days=2)).date().isoformat()},
+        ]
+        r = await api_client.get("/api/season", params={"completed_only": True, "session_type": "race"})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["races"]) == 1
+    assert data["races"][0]["round"] == 1
+
+
+@pytest.mark.asyncio
+async def test_api_season_completed_only_quali_filters_future_rounds(api_client: AsyncClient):
+    """GET /api/season?completed_only=1&session_type=quali — фильтрует по времени квалификации."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+        m.return_value = [
+            {"round": 5, "event_name": "Past Quali GP", "quali_start_utc": (now - timedelta(hours=3)).isoformat(), "date": now.date().isoformat()},
+            {"round": 6, "event_name": "Future Quali GP", "quali_start_utc": (now + timedelta(hours=4)).isoformat(), "date": (now + timedelta(days=1)).date().isoformat()},
+        ]
+        r = await api_client.get("/api/season", params={"completed_only": True, "session_type": "quali"})
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data["races"]) == 1
+    assert data["races"][0]["round"] == 5
+
+
+@pytest.mark.asyncio
 async def test_api_drivers(api_client: AsyncClient):
     """GET /api/drivers — список пилотов."""
     with patch("app.api.miniapp_api.get_driver_standings_async", new_callable=AsyncMock) as m:

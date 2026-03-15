@@ -399,6 +399,11 @@ p {
 .empty-icon { font-size: 48px; margin-bottom: 16px; display: block; }
 .empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
 .empty-desc { color: var(--text-secondary); font-size: 14px; }
+.archive-note {
+  margin: -2px 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
 
 
 .hero-timer {
@@ -1151,6 +1156,26 @@ input:checked + .slider:before {
   background: rgba(255, 255, 255, 0.02);
   margin: -6px 0 14px;
   padding: 12px;
+}
+.season-results-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.season-result-link {
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.season-result-link:hover {
+  color: var(--text-primary);
+  border-color: rgba(225, 6, 0, 0.35);
 }
 .season-race-stats {
   display: grid;

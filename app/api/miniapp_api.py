@@ -212,10 +212,54 @@ async def api_next_race(
 
 
 @web_app.get("/api/season")
-async def api_season(season: Optional[int] = Query(None)):
+async def api_season(
+        season: Optional[int] = Query(None),
+        completed_only: bool = Query(False),
+        session_type: str = Query("race"),
+):
     if season is None:
         season = datetime.now().year
     races = await get_season_schedule_short_async(season)
+
+    if completed_only and races:
+        now_utc = datetime.now(timezone.utc)
+
+        def _parse_utc(raw: Optional[str]) -> Optional[datetime]:
+            if not raw:
+                return None
+            try:
+                dt = datetime.fromisoformat(raw)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
+            except Exception:
+                return None
+
+        def _is_completed(r: dict) -> bool:
+            st = (session_type or "race").lower()
+            dt: Optional[datetime]
+            if st == "quali":
+                dt = _parse_utc(r.get("quali_start_utc"))
+            elif st == "sprint":
+                dt = _parse_utc(r.get("sprint_start_utc"))
+            elif st in ("sprint_quali", "sprint-quali", "sprintquali"):
+                dt = _parse_utc(r.get("sprint_quali_start_utc")) or _parse_utc(r.get("quali_start_utc"))
+            else:
+                dt = _parse_utc(r.get("race_start_utc"))
+
+            if dt is not None:
+                return dt <= now_utc
+
+            date_str = r.get("date")
+            if not date_str:
+                return False
+            try:
+                return datetime.fromisoformat(date_str).date() <= now_utc.date()
+            except Exception:
+                return False
+
+        races = [r for r in races if _is_completed(r)]
+
     return {"season": season, "races": races}
 
 

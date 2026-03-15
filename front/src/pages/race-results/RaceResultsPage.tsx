@@ -34,18 +34,24 @@ function RaceResultsPage() {
     let cancelled = false;
     async function loadSeason() {
       try {
-        const seasonData = await apiRequest<{ races?: SeasonRace[] }>("/api/season");
+        const seasonData = await apiRequest<{ races?: SeasonRace[] }>("/api/season", {
+          completed_only: true,
+          session_type: "race",
+        });
         if (cancelled) return;
         const races = (seasonData.races || [])
-          .filter((r) => Number.isFinite(r.round))
+          .filter((r) => Number.isFinite(r.round) && r.round > 0)
           .sort((a, b) => b.round - a.round);
         setSeasonRaces(races);
-        if (!selectedRound && races.length > 0) {
-          setSelectedRound(races[0].round);
+        if (races.length > 0) {
+          setSelectedRound((prev) => (prev && races.some((r) => r.round === prev) ? prev : races[0].round));
+        } else {
+          setSelectedRound(null);
         }
       } catch {
         if (!cancelled) {
           setSeasonRaces([]);
+          setSelectedRound(null);
         }
       }
     }
@@ -137,6 +143,9 @@ function RaceResultsPage() {
           </select>
         )}
       </div>
+      {mode === "archive" && (
+        <div className="archive-note">Результаты других ГП можно открыть в разделе Календарь.</div>
+      )}
 
       <div id="race-content">
         {loading && (

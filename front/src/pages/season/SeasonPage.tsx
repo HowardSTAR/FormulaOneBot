@@ -192,6 +192,36 @@ function SeasonPage() {
 
                 {isExpanded && (
                   <div className="season-race-insights">
+                    <div className="season-results-links">
+                      <button
+                        type="button"
+                        className="season-result-link"
+                        onClick={() => navigate(`/race-results?mode=archive&season=${year}&round=${race.round}`)}
+                      >
+                        🏁 Гонка
+                      </button>
+                      <button
+                        type="button"
+                        className="season-result-link"
+                        onClick={() => navigate(`/quali-results?mode=archive&season=${year}&round=${race.round}`)}
+                      >
+                        ⏱ Квала
+                      </button>
+                      <button
+                        type="button"
+                        className="season-result-link"
+                        onClick={() => navigate(`/sprint-results?mode=archive&season=${year}&round=${race.round}`)}
+                      >
+                        ⚡🏁 Спринт
+                      </button>
+                      <button
+                        type="button"
+                        className="season-result-link"
+                        onClick={() => navigate(`/sprint-quali-results?mode=archive&season=${year}&round=${race.round}`)}
+                      >
+                        ⚡⏱ Спринт-квала
+                      </button>
+                    </div>
                     <div className="season-race-stats">
                       {insights.stats.map((item) => (
                         <div className="season-race-stat-box" key={`${race.round}-${item.label}`}>
