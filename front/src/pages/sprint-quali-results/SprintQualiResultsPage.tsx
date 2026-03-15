@@ -23,13 +23,19 @@ type SeasonRace = {
   event_name?: string;
 };
 
+function parseOptionalInt(value: string | null): number | null {
+  if (value === null) return null;
+  const n = Number.parseInt(value, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
 function SprintQualiResultsPage() {
   const [searchParams] = useSearchParams();
-  const seasonFromQuery = Number(searchParams.get("season"));
-  const roundFromQuery = Number(searchParams.get("round"));
+  const seasonFromQuery = parseOptionalInt(searchParams.get("season"));
+  const roundFromQuery = parseOptionalInt(searchParams.get("round"));
   const modeFromQuery = searchParams.get("mode");
-  const initialSeason = Number.isFinite(seasonFromQuery) ? seasonFromQuery : new Date().getFullYear();
-  const initialRound = Number.isFinite(roundFromQuery) ? roundFromQuery : null;
+  const initialSeason = seasonFromQuery ?? new Date().getFullYear();
+  const initialRound = roundFromQuery;
   const initialMode: "latest" | "archive" = modeFromQuery === "archive" ? "archive" : "latest";
 
   const [data, setData] = useState<SprintQualiResponse | null>(null);
@@ -51,14 +57,19 @@ function SprintQualiResultsPage() {
         });
         if (cancelled) return;
         const races = (seasonData.races || [])
-          .filter((r) => Number.isFinite(r.round))
+          .filter((r) => Number.isFinite(r.round) && r.round > 0)
           .sort((a, b) => b.round - a.round);
         setSeasonRaces(races);
         if (races.length > 0) {
           setSelectedRound((prev) => (prev && races.some((r) => r.round === prev) ? prev : races[0].round));
+        } else {
+          setSelectedRound(null);
         }
       } catch {
-        if (!cancelled) setSeasonRaces([]);
+        if (!cancelled) {
+          setSeasonRaces([]);
+          setSelectedRound(null);
+        }
       }
     }
     loadSeason();
