@@ -7,6 +7,7 @@ services:
     command: redis-server --save 60 1 --loglevel warning
 
   bot:
+    image: formulaonebot-app:1.0.3
     build:
       context: .
       args:
@@ -25,10 +26,7 @@ services:
       - redis
 
   web:
-    build:
-      context: .
-      args:
-        - APP_VERSION=1.0.3
+    image: formulaonebot-app:1.0.3
     restart: unless-stopped
     entrypoint: ["/app/entrypoint_web.sh"]
     command: ["python", "run_web.py"]
