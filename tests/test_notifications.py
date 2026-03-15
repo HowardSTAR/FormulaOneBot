@@ -16,19 +16,23 @@ from app.utils.notifications import (
 )
 
 
-def test_group_notifications_use_utc_and_explicit_label():
+def test_group_notifications_no_time_line():
+    """В групповых чатах не показываем строку «Начало в HH:MM (UTC)», только заголовок, через, трасса, дата."""
     race = {
         "event_name": "Bahrain Grand Prix",
         "location": "Sakhir",
         "race_start_utc": "2026-03-01T15:00:00+00:00",
     }
 
-    text = get_notification_text(race, GROUP_TIMEZONE, minutes_left=60, for_quali=False)
+    text = get_notification_text(race, GROUP_TIMEZONE, minutes_left=60, for_quali=False, for_group=True)
 
     assert GROUP_TIMEZONE == "UTC"
-    assert "15:00" in text
-    assert "UTC" in text
-    assert "по вашему времени" not in text
+    assert "Скоро гонка" in text
+    assert "Через" in text and "старт:" in text
+    assert "Трасса:" in text and "Sakhir" in text
+    assert "Дата:" in text and "01.03.2026" in text
+    assert "Начало в" not in text
+    assert "UTC" not in text
 
 
 def test_private_notifications_keep_user_timezone_wording():
