@@ -10,6 +10,7 @@ function getInitData(): string {
 // BASE_URL = базовый путь, если приложение развёрнуто в подпапке (например /bot/)
 const API_BASE = (import.meta.env.VITE_API_URL as string) || '';
 const PATH_BASE = ((import.meta.env.BASE_URL as string) || '/').replace(/\/$/, '');
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 15000);
 
 export async function apiRequest<T = unknown>(
   endpoint: string,
@@ -24,7 +25,9 @@ export async function apiRequest<T = unknown>(
     'X-Telegram-Init-Data': getInitData(),
   };
 
-  const options: RequestInit = { method, headers };
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const options: RequestInit = { method, headers, signal: controller.signal };
 
   if (method === 'GET') {
     Object.keys(params).forEach((key) => {
@@ -41,7 +44,17 @@ export async function apiRequest<T = unknown>(
     console.log(`[API] ${method} ${url.toString()}`);
   }
 
-  const response = await fetch(url, options);
+  let response: Response;
+  try {
+    response = await fetch(url, options);
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') {
+      throw new Error('Превышено время ожидания ответа сервера.');
+    }
+    throw e;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 
   const contentType = response.headers.get('content-type') || '';
   if (contentType.includes('text/html')) {
