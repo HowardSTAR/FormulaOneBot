@@ -516,6 +516,42 @@ async def test_api_race_results(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_api_race_results_falls_back_to_previous_round_with_data(api_client: AsyncClient):
+    """GET /api/race-results — если у последнего завершенного этапа пусто, берет предыдущий с данными."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_race_results_async", new_callable=AsyncMock) as m_race:
+        m_sched.return_value = [
+            {
+                "round": 1,
+                "event_name": "Australian GP",
+                "date": (now - timedelta(days=14)).date().isoformat(),
+                "race_start_utc": (now - timedelta(days=14, hours=2)).isoformat(),
+            },
+            {
+                "round": 2,
+                "event_name": "Chinese GP",
+                "date": (now - timedelta(days=7)).date().isoformat(),
+                "race_start_utc": (now - timedelta(days=7, hours=2)).isoformat(),
+            },
+        ]
+
+        m_race.side_effect = [
+            pd.DataFrame(),
+            pd.DataFrame([
+                {"Position": 1, "Abbreviation": "VER", "FirstName": "Max", "LastName": "Verstappen", "TeamName": "Red Bull", "Points": 25},
+            ]),
+        ]
+
+        r = await api_client.get("/api/race-results")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["round"] == 1
+    assert len(data["results"]) == 1
+
+
+@pytest.mark.asyncio
 async def test_api_race_results_resets_previous_round_when_new_weekend_started(api_client: AsyncClient):
     """GET /api/race-results — после старта нового уикенда (FP1) не показывает прошлую гонку."""
     now = datetime.now(timezone.utc)

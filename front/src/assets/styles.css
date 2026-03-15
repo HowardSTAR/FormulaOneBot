@@ -1377,6 +1377,32 @@ input:checked + .slider:before {
     padding: 20px;
     margin-bottom: 16px;
 }
+.race-details-results-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.race-details-result-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  border-radius: 10px;
+  padding: 10px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+.race-details-result-link:hover,
+.race-details-result-link:active {
+  color: var(--text-primary);
+  border-color: rgba(225, 6, 0, 0.45);
+  background: rgba(225, 6, 0, 0.08);
+  transform: translateY(-1px);
+}
 .schedule-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
 .session-row {
     display: flex;

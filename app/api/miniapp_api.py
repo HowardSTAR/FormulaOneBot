@@ -759,16 +759,44 @@ async def api_race_results(
     if round_number is not None:
         round_num = round_number
         race_info = next((r for r in schedule if r.get("round") == round_num), None)
+        df = await get_race_results_async(season, round_num)
     else:
-        last_race = _get_last_completed_race(schedule, now)
-        if not last_race:
-            return {"results": [], "race_info": None, "season": season, "round": None}
-        round_num = last_race["round"]
-        race_info = last_race
+        completed_rounds = []
+        for r in schedule:
+            if not r.get("race_start_utc"):
+                continue
+            try:
+                race_dt = datetime.fromisoformat(r["race_start_utc"])
+                if race_dt.tzinfo is None:
+                    race_dt = race_dt.replace(tzinfo=timezone.utc)
+                finish_offset = 9 if r.get("is_testing") else 1
+                if now > race_dt + timedelta(hours=finish_offset):
+                    completed_rounds.append(int(r["round"]))
+                else:
+                    break
+            except Exception:
+                continue
 
-    if round_number is None and _should_reset_previous_results(schedule, now, round_num):
-        return _empty_results_payload_during_active_weekend(schedule, now, season)
-    df = await get_race_results_async(season, round_num)
+        if not completed_rounds:
+            return {"results": [], "race_info": None, "season": season, "round": None}
+
+        latest_completed_round = completed_rounds[-1]
+        if _should_reset_previous_results(schedule, now, latest_completed_round):
+            return _empty_results_payload_during_active_weekend(schedule, now, season)
+
+        round_num = latest_completed_round
+        race_info = next((r for r in schedule if r.get("round") == round_num), None)
+        df = await get_race_results_async(season, round_num)
+
+        if df is None or df.empty:
+            # UX fallback: если у последнего завершенного этапа пусто, ищем ближайший предыдущий с данными.
+            for rn in reversed(completed_rounds[:-1]):
+                candidate_df = await get_race_results_async(season, rn)
+                if candidate_df is not None and not candidate_df.empty:
+                    round_num = rn
+                    race_info = next((r for r in schedule if r.get("round") == rn), None)
+                    df = candidate_df
+                    break
 
     if df is None or df.empty:
         return {"results": [], "race_info": race_info, "season": season, "round": round_num}

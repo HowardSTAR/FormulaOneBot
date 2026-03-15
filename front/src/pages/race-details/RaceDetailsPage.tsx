@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
@@ -125,6 +125,10 @@ function RaceDetailsPage() {
     eventFormat: data.event_format,
     sessionsCount: data.sessions.length,
   });
+  const hasSprint = data.sessions.some((s) => {
+    const n = (s.name || "").toLowerCase();
+    return n.includes("спринт") || n.includes("sprint");
+  });
 
   const sessionsHtml = data.sessions.map((session) => {
     const sessionDate = session.utc_iso
@@ -182,6 +186,28 @@ function RaceDetailsPage() {
       </div>
 
       <div className="schedule-card">{sessionsHtml}</div>
+
+      <div className="schedule-card">
+        <div className="schedule-title">Результаты этапа</div>
+        <div className="race-details-results-links">
+          <Link to={`/race-results?mode=archive&season=${season}&round=${round}`} className="race-details-result-link">
+            🏁 Гонка
+          </Link>
+          <Link to={`/quali-results?mode=archive&season=${season}&round=${round}`} className="race-details-result-link">
+            ⏱ Квала
+          </Link>
+          {hasSprint && (
+            <>
+              <Link to={`/sprint-results?mode=archive&season=${season}&round=${round}`} className="race-details-result-link">
+                ⚡🏁 Спринт
+              </Link>
+              <Link to={`/sprint-quali-results?mode=archive&season=${season}&round=${round}`} className="race-details-result-link">
+                ⚡⏱ Спринт-квала
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
 
       <div className="circuit-insights-card">
         <div className="circuit-insights-title">Данные по этапу</div>
