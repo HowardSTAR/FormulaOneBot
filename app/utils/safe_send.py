@@ -3,7 +3,7 @@ import logging
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramNetworkError, TelegramForbiddenError, TelegramRetryAfter, TelegramBadRequest
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
 
 
 logger = logging.getLogger(__name__)
@@ -92,4 +92,27 @@ async def safe_send_message(bot: Bot, chat_id: int, text: str, **kwargs) -> bool
         return False
     except Exception as e:
         logger.exception(f"Unexpected error sending message to {chat_id}: {e}")
+        return False
+
+
+async def safe_answer_callback(callback: CallbackQuery, *args, **kwargs) -> bool:
+    """
+    Безопасный ответ на callback_query.
+    Игнорирует устаревшие/инвалидные query (TelegramBadRequest), чтобы не падали хендлеры.
+    """
+    try:
+        await callback.answer(*args, **kwargs)
+        return True
+    except TelegramBadRequest as e:
+        msg = str(e).lower()
+        if "query is too old" in msg or "query id is invalid" in msg:
+            logger.warning("Skipped stale callback answer: %s", e)
+            return False
+        logger.error("Bad callback answer request: %s", e)
+        return False
+    except TelegramNetworkError as e:
+        logger.warning("Network error while answering callback: %s", e)
+        return False
+    except Exception as e:
+        logger.exception("Unexpected callback.answer error: %s", e)
         return False

@@ -14,6 +14,7 @@ from app.f1_data import get_season_schedule_short_async, get_race_results_async,
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_comparison_image
 from app.utils.loader import Loader
+from app.utils.safe_send import safe_answer_callback
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -163,7 +164,7 @@ async def process_driver_1_selection(callback: CallbackQuery, state: FSMContext)
         reply_markup=kb, parse_mode="HTML"
     )
     await state.set_state(CompareState.waiting_for_driver_2)
-    await callback.answer()
+    await safe_answer_callback(callback)
 
 
 # --- 5. Выбор второго пилота ---
@@ -193,7 +194,7 @@ async def process_driver_2_selection(callback: CallbackQuery, state: FSMContext)
         logger.exception("Comparison error")
         await callback.message.answer(f"❌ Произошла ошибка: {e}")
 
-    await callback.answer()
+    await safe_answer_callback(callback)
 
 
 # --- 6. Логика генерации (С ПРОГРЕСС-БАРОМ) ---

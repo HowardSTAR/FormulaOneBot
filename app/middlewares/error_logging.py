@@ -2,6 +2,7 @@ import logging
 import traceback
 from typing import Callable, Dict, Any, Awaitable
 from aiogram import BaseMiddleware, Bot
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import TelegramObject, Update
 
 from app.utils.safe_send import safe_send_message
@@ -23,6 +24,11 @@ class ErrorLoggingMiddleware(BaseMiddleware):
         try:
             return await handler(event, data)
         except Exception as e:
+            if isinstance(e, TelegramBadRequest):
+                msg = str(e).lower()
+                if "query is too old" in msg or "query id is invalid" in msg:
+                    logger.warning("Ignored stale callback query error: %s", e)
+                    return None
             # 1. Получаем информацию о пользователе и чате
             user_id = "unknown"
             chat_id = None

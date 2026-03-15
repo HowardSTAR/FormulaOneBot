@@ -4,6 +4,7 @@ from aiogram import Router, types, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
+from app.utils.safe_send import safe_answer_callback
 
 # Ваш ID (можно вынести в config.py, но пока оставим здесь для простоты)
 # TODO убрать все открытые данные админов
@@ -42,12 +43,12 @@ async def cmd_feedback(message: Message, state: FSMContext):
 async def cancel_feedback(callback: types.CallbackQuery, state: FSMContext):
     current_state = await state.get_state()
     if current_state is None:
-        await callback.answer()
+        await safe_answer_callback(callback)
         return
 
     await state.clear()
     await callback.message.edit_text("🚫 Отправка сообщения отменена.")
-    await callback.answer()
+    await safe_answer_callback(callback)
 
 
 # --- 3. Получение сообщения и отправка админу ---

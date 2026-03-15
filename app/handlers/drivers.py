@@ -25,6 +25,7 @@ from app.f1_data import (
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_driver_standings_image
 from app.utils.loader import Loader
+from app.utils.safe_send import safe_answer_callback
 
 router = Router()
 
@@ -227,7 +228,7 @@ async def drivers_year_from_text(message: Message, state: FSMContext):
 @router.callback_query(F.data.startswith("drivers_current_"))
 async def drivers_year_current(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
-    await callback.answer()
+    await safe_answer_callback(callback)
     year_str = callback.data.split("_")[-1]
     try:
         season = int(year_str)

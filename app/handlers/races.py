@@ -3,7 +3,6 @@ import asyncio
 import pandas as pd
 from collections import defaultdict
 from datetime import datetime, date, timezone, timedelta
-from datetime import datetime, date, timezone, timedelta
 
 from aiogram import Router, F
 from aiogram.enums import ChatType
@@ -28,6 +27,7 @@ from app.utils.image_render import (
     create_f1_style_classification_image, create_season_image
 )
 from app.utils.loader import Loader
+from app.utils.safe_send import safe_answer_callback
 from app.utils.time_tools import format_race_time
 
 router = Router()
@@ -158,7 +158,7 @@ async def weekend_schedule(callback: CallbackQuery):
         parts = callback.data.split("_")
         season, round_num = int(parts[1]), int(parts[2])
     except:
-        await callback.answer("Ошибка данных")
+        await safe_answer_callback(callback, "Ошибка данных")
         return
 
     sessions = get_weekend_schedule(season, round_num)
@@ -184,7 +184,7 @@ async def weekend_schedule(callback: CallbackQuery):
     kb = InlineKeyboardMarkup(inline_keyboard=kb_rows)
 
     await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
-    await callback.answer()
+    await safe_answer_callback(callback)
 
 
 @router.callback_query(F.data.startswith("quali_"))
@@ -206,7 +206,7 @@ async def quali_callback(callback: CallbackQuery) -> None:
         latest_round, results = await _get_latest_quali_async(season, limit=100)
 
     if not latest_round or not results:
-        await callback.answer("Нет результатов", show_alert=True)
+        await safe_answer_callback(callback, "Нет результатов", show_alert=True)
         return
 
     schedule = await get_season_schedule_short_async(season)
@@ -262,7 +262,7 @@ async def quali_callback(callback: CallbackQuery) -> None:
         caption=f"⏱ Результаты квалификации. Сезон {season}, этап {latest_round}.",
         reply_markup=kb
     )
-    await callback.answer()
+    await safe_answer_callback(callback)
 
 
 def _get_last_completed_race_round(schedule: list, now: datetime) -> int | None:
@@ -295,18 +295,18 @@ async def race_callback(callback: CallbackQuery) -> None:
 
     schedule = await get_season_schedule_short_async(season)
     if not schedule:
-        await callback.answer("Нет расписания", show_alert=True)
+        await safe_answer_callback(callback, "Нет расписания", show_alert=True)
         return
 
     now = datetime.now(timezone.utc)
     last_round = _get_last_completed_race_round(schedule, now)
     if last_round is None:
-        await callback.answer("Гонка еще не прошла", show_alert=True)
+        await safe_answer_callback(callback, "Гонка еще не прошла", show_alert=True)
         return
 
     race_results = await get_race_results_async(season, last_round)
     if race_results is None or race_results.empty:
-        await callback.answer("Нет результатов", show_alert=True)
+        await safe_answer_callback(callback, "Нет результатов", show_alert=True)
         return
 
     schedule = await get_season_schedule_short_async(season)
@@ -338,7 +338,7 @@ async def race_callback(callback: CallbackQuery) -> None:
             data_incomplete = True
             break
     if data_incomplete:
-        await callback.answer("Результаты обрабатываются. Данные скоро появятся ⏳", show_alert=True)
+        await safe_answer_callback(callback, "Результаты обрабатываются. Данные скоро появятся ⏳", show_alert=True)
         return
 
     driver_standings = await get_driver_standings_async(season, last_round)
@@ -418,10 +418,10 @@ async def race_callback(callback: CallbackQuery) -> None:
     if not rows_for_image:
         if callback.message:
             await callback.message.answer("Пока нет данных по результатам гонки 🤔")
-        await callback.answer()
+        await safe_answer_callback(callback)
         return
 
-    await callback.answer()
+    await safe_answer_callback(callback)
 
     event_name = (race_info or {}).get("event_name", "") or f"Этап {last_round:02d}"
 
@@ -663,7 +663,7 @@ async def races_year_current(callback: CallbackQuery, state: FSMContext) -> None
     except:
         season = datetime.now().year
     if callback.message: await _send_races_for_year(callback.message, season)
-    await callback.answer()
+    await safe_answer_callback(callback)
 
 
 def _parse_season_from_text(text: str) -> int:
