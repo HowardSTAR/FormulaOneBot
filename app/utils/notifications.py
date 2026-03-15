@@ -446,7 +446,7 @@ async def check_and_send_results(bot: Bot):
             event_name = finished_event.get("event_name", "Гран-при")
             voting_text = (
                 f"🗳 <b>Приглашаем на голосование!</b>\n\n"
-                f"🏁 {event_name} завершена.\n\n"
+                f"🏁 {event_name}.\n\n"
                 f"Оцените этап по 5-балльной шкале и выберите пилота дня — "
                 f"откройте раздел <b>Голосование</b> в MiniWebApp слева по кнопке."
             )
@@ -644,7 +644,7 @@ async def check_and_send_results(bot: Bot):
         event_name = race_info.get("event_name", "Гран-при")
         voting_text = (
             f"🗳 <b>Приглашаем на голосование!</b>\n\n"
-            f"🏁 {event_name} завершена.\n\n"
+            f"🏁 {event_name}.\n\n"
             f"Оцените этап по 5-балльной шкале и выберите пилота дня — "
             f"откройте раздел <b>Голосование</b> в MiniWebApp слева по кнопке."
         )
