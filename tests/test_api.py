@@ -57,6 +57,27 @@ async def test_api_drivers(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_api_drivers_current_season_uses_latest_standings_not_last_race(api_client: AsyncClient):
+    """GET /api/drivers (текущий сезон) — должен брать актуальный зачет (round=None), включая спринт-очки."""
+    current_season = datetime.now().year
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api._get_last_completed_race_round_for_standings") as m_last_round, \
+            patch("app.api.miniapp_api.get_driver_standings_async", new_callable=AsyncMock) as m_drivers:
+        m_sched.return_value = [{"round": 2, "event_name": "Chinese GP"}]
+        m_last_round.return_value = 1  # имитируем, что гонка не завершена, но спринт уже прошел
+        m_drivers.return_value = pd.DataFrame([
+            {"position": 1, "points": 33, "driverCode": "RUS", "givenName": "George", "familyName": "Russell",
+             "constructorId": "mercedes", "constructorName": "Mercedes", "driverId": "russell", "permanentNumber": "63"},
+        ])
+
+        r = await api_client.get("/api/drivers", params={"season": current_season})
+
+    assert r.status_code == 200
+    # Ключевая проверка: round_number должен быть None, т.е. берём latest standings.
+    assert m_drivers.await_args.args == (current_season, None)
+
+
+@pytest.mark.asyncio
 async def test_api_constructors(api_client: AsyncClient):
     """GET /api/constructors — список команд."""
     with patch("app.api.miniapp_api.get_constructor_standings_async", new_callable=AsyncMock) as m:
