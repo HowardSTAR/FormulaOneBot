@@ -32,7 +32,7 @@ export async function apiRequest<T = unknown>(
   if (method === 'GET') {
     Object.keys(params).forEach((key) => {
       const val = params[key];
-      if (val !== null && val !== undefined && typeof val !== 'boolean') {
+      if (val !== null && val !== undefined) {
         url.searchParams.append(key, String(val));
       }
     });
