@@ -742,6 +742,49 @@ def _empty_results_payload_during_active_weekend(schedule: list, now: datetime, 
     return {"results": [], "race_info": race_info, "season": season, "round": started_round}
 
 
+def _build_race_results(df: pd.DataFrame, fav_drivers: set, fav_teams: set) -> tuple[list[dict], bool]:
+    """
+    Преобразует DataFrame результатов гонки в API-список.
+    Возвращает (results, data_incomplete).
+    """
+    results: list[dict] = []
+    data_incomplete = False
+
+    if "Position" in df.columns:
+        df = df.sort_values("Position")
+
+    for row in df.itertuples(index=False):
+        try:
+            pos = int(getattr(row, "Position", 0))
+            code = getattr(row, "Abbreviation", "") or getattr(row, "DriverNumber", "")
+            given = getattr(row, "FirstName", "")
+            family = getattr(row, "LastName", "")
+            full_name = f"{given} {family}".strip() or code
+            team = getattr(row, "TeamName", "")
+            points = float(getattr(row, "Points", 0))
+            if points == 0:
+                points = points_for_race_position(pos)
+
+            if code == "?" or (full_name and "?" in str(full_name)):
+                data_incomplete = True
+            if full_name and full_name.strip() == "":
+                data_incomplete = True
+
+            results.append({
+                "position": pos,
+                "code": code,
+                "name": full_name,
+                "team": team,
+                "points": points,
+                "is_favorite_driver": code in fav_drivers,
+                "is_favorite_team": team in fav_teams
+            })
+        except Exception:
+            continue
+
+    return results, data_incomplete
+
+
 @web_app.get("/api/race-results")
 async def api_race_results(
         user_id: Optional[int] = Depends(get_current_user_id),
@@ -754,14 +797,18 @@ async def api_race_results(
     schedule = await get_season_schedule_short_async(season)
     if not schedule:
         return {"results": [], "race_info": None, "season": season, "round": round_number}
+    try:
+        schedule = sorted(schedule, key=lambda r: int(r.get("round") or 10 ** 9))
+    except Exception:
+        pass
 
     now = datetime.now(timezone.utc)
+    completed_rounds: list[int] = []
     if round_number is not None:
         round_num = round_number
         race_info = next((r for r in schedule if r.get("round") == round_num), None)
         df = await get_race_results_async(season, round_num)
     else:
-        completed_rounds = []
         for r in schedule:
             if not r.get("race_start_utc"):
                 continue
@@ -807,41 +854,29 @@ async def api_race_results(
         fav_drivers = set(await get_favorite_drivers(user_id))
         fav_teams = set(await get_favorite_teams(user_id))
 
-    results = []
-    if "Position" in df.columns:
-        df = df.sort_values("Position")
-
-    data_incomplete = False
-    for row in df.itertuples(index=False):
-        try:
-            pos = int(getattr(row, "Position", 0))
-            code = getattr(row, "Abbreviation", "") or getattr(row, "DriverNumber", "")
-            given = getattr(row, "FirstName", "")
-            family = getattr(row, "LastName", "")
-            full_name = f"{given} {family}".strip() or code
-            team = getattr(row, "TeamName", "")
-            points = float(getattr(row, "Points", 0))
-            if points == 0:
-                points = points_for_race_position(pos)
-
-            if code == "?" or (full_name and "?" in str(full_name)):
-                data_incomplete = True
-            if full_name and full_name.strip() == "":
-                data_incomplete = True
-
-            results.append({
-                "position": pos,
-                "code": code,
-                "name": full_name,
-                "team": team,
-                "points": points,
-                "is_favorite_driver": code in fav_drivers,
-                "is_favorite_team": team in fav_teams
-            })
-        except:
-            continue
+    results, data_incomplete = _build_race_results(df, fav_drivers, fav_teams)
 
     if data_incomplete:
+        # Для latest-режима пробуем предыдущие завершенные этапы, если текущий пришел "грязным".
+        if round_number is None and completed_rounds:
+            try:
+                current_round = int(round_num)
+            except Exception:
+                current_round = None
+            prev_rounds = [rn for rn in completed_rounds if current_round is None or rn < current_round]
+            for rn in reversed(prev_rounds):
+                candidate_df = await get_race_results_async(season, rn)
+                if candidate_df is None or candidate_df.empty:
+                    continue
+                candidate_results, candidate_incomplete = _build_race_results(candidate_df, fav_drivers, fav_teams)
+                if candidate_results and not candidate_incomplete:
+                    return {
+                        "season": season,
+                        "round": rn,
+                        "race_info": next((r for r in schedule if r.get("round") == rn), None),
+                        "results": candidate_results,
+                        "data_incomplete": False,
+                    }
         return {
             "results": [],
             "race_info": race_info,

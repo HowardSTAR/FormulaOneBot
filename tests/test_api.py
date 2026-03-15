@@ -703,6 +703,45 @@ async def test_api_race_results_archive_round_bypasses_reset(api_client: AsyncCl
 
 
 @pytest.mark.asyncio
+async def test_api_race_results_latest_falls_back_when_latest_round_incomplete(api_client: AsyncClient):
+    """GET /api/race-results — если последний завершенный этап с неполными данными, берется предыдущий полный."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_race_results_async", new_callable=AsyncMock) as m_race:
+        m_sched.return_value = [
+            {
+                "round": 1,
+                "event_name": "Australian GP",
+                "date": (now - timedelta(days=14)).date().isoformat(),
+                "race_start_utc": (now - timedelta(days=14, hours=2)).isoformat(),
+            },
+            {
+                "round": 2,
+                "event_name": "Chinese GP",
+                "date": (now - timedelta(days=7)).date().isoformat(),
+                "race_start_utc": (now - timedelta(days=7, hours=2)).isoformat(),
+            },
+        ]
+        # Раунд 2 (latest) приходит "грязным" с '?', раунд 1 — корректный.
+        m_race.side_effect = [
+            pd.DataFrame([
+                {"Position": 1, "Abbreviation": "?", "FirstName": "?", "LastName": "?", "TeamName": "Unknown", "Points": 25},
+            ]),
+            pd.DataFrame([
+                {"Position": 1, "Abbreviation": "VER", "FirstName": "Max", "LastName": "Verstappen", "TeamName": "Red Bull", "Points": 25},
+            ]),
+        ]
+
+        r = await api_client.get("/api/race-results")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["round"] == 1
+    assert len(data["results"]) == 1
+    assert data.get("data_incomplete") is False
+
+
+@pytest.mark.asyncio
 async def test_api_car_image_404(api_client: AsyncClient):
     """GET /api/car-image — машина не найдена."""
     with patch("app.api.miniapp_api.get_car_image_path") as m:

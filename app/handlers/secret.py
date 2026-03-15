@@ -15,6 +15,10 @@ from app.db import (
     get_favorite_drivers,
     get_race_avg_for_round,
     get_driver_vote_winner,
+    get_last_notified_round,
+    set_last_notified_round,
+    get_last_notified_quali_round,
+    set_last_notified_quali_round,
 )
 from app.f1_data import (
     points_for_race_position,
@@ -29,6 +33,8 @@ from app.utils.notifications import (
     get_users_with_settings,
     get_notification_text,
     check_and_send_notifications,
+    check_and_send_results,
+    check_and_notify_quali,
     build_results_text,
     build_favorites_caption,
     is_quiet_hours,
@@ -198,6 +204,40 @@ async def cmd_force_notify(message: Message, bot):
     if message.from_user.id not in ADMINS: return
     await message.answer("🚀 Запускаю боевую рассылку...")
     await check_and_send_notifications(bot)
+
+
+@router.message(Command("force_race_results"))
+async def cmd_force_race_results(message: Message, bot):
+    """
+    Принудительно запускает рассылку результатов гонки всем с включенными уведомлениями.
+    Команда повторно отправит latest-результат, если он уже был помечен как отправленный.
+    """
+    if message.from_user.id not in ADMINS:
+        return
+    season = datetime.now(timezone.utc).year
+    prev = await get_last_notified_round(season)
+    if prev is not None and prev > 0:
+        await set_last_notified_round(season, prev - 1)
+    await message.answer("🚀 Запускаю принудительную рассылку результатов гонки...")
+    await check_and_send_results(bot)
+    await message.answer("✅ Готово. Если результаты гонки доступны, они отправлены пользователям с включенными уведомлениями.")
+
+
+@router.message(Command("force_quali_results"))
+async def cmd_force_quali_results(message: Message, bot):
+    """
+    Принудительно запускает рассылку результатов квалификации всем с включенными уведомлениями.
+    Команда повторно отправит latest-квалу, если она уже была помечена как отправленная.
+    """
+    if message.from_user.id not in ADMINS:
+        return
+    season = datetime.now(timezone.utc).year
+    prev = await get_last_notified_quali_round(season)
+    if prev is not None and prev > 0:
+        await set_last_notified_quali_round(season, prev - 1)
+    await message.answer("🚀 Запускаю принудительную рассылку результатов квалификации...")
+    await check_and_notify_quali(bot)
+    await message.answer("✅ Готово. Если результаты квалификации доступны, они отправлены пользователям с включенными уведомлениями.")
 
 
 @router.message(Command("test_notify"))
