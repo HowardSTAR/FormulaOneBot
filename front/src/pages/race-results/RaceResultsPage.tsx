@@ -33,7 +33,13 @@ function RaceResultsPage() {
       } catch (e) {
         if (!cancelled) {
           console.error(e);
-          setError(e instanceof Error ? e.message : "Ошибка загрузки данных");
+          const message = e instanceof Error ? e.message : "Ошибка загрузки данных";
+          if (message.includes("время ожидания") || message.includes("timed out")) {
+            setData({ results: [] });
+            setError(null);
+          } else {
+            setError(message);
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
