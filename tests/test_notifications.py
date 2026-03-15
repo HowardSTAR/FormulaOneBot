@@ -16,7 +16,17 @@ from app.utils.notifications import (
 )
 
 
-def test_group_notifications_no_time_line():
+def _emit_preview(request: pytest.FixtureRequest, label: str, text: str) -> None:
+    """Always show rendered message preview in pytest output."""
+    tr = request.config.pluginmanager.getplugin("terminalreporter")
+    if tr is None:
+        return
+    tr.write_line(f"[PREVIEW] {label}")
+    for line in text.splitlines():
+        tr.write_line(f"          {line}")
+
+
+def test_group_notifications_no_time_line(request: pytest.FixtureRequest):
     """В групповых чатах не показываем строку «Начало в HH:MM (UTC)», только заголовок, через, трасса, дата."""
     race = {
         "event_name": "Bahrain Grand Prix",
@@ -25,6 +35,7 @@ def test_group_notifications_no_time_line():
     }
 
     text = get_notification_text(race, GROUP_TIMEZONE, minutes_left=60, for_quali=False, for_group=True)
+    _emit_preview(request, "Group race reminder", text)
 
     assert GROUP_TIMEZONE == "UTC"
     assert "Скоро гонка" in text
@@ -35,7 +46,7 @@ def test_group_notifications_no_time_line():
     assert "UTC" not in text
 
 
-def test_private_notifications_keep_user_timezone_wording():
+def test_private_notifications_keep_user_timezone_wording(request: pytest.FixtureRequest):
     race = {
         "event_name": "Bahrain Grand Prix",
         "location": "Sakhir",
@@ -43,12 +54,13 @@ def test_private_notifications_keep_user_timezone_wording():
     }
 
     text = get_notification_text(race, "Europe/Moscow", minutes_left=60, for_quali=False)
+    _emit_preview(request, "Private race reminder", text)
 
     assert "18:00" in text
     assert "по вашему времени" in text
 
 
-def test_notification_text_contains_local_date():
+def test_notification_text_contains_local_date(request: pytest.FixtureRequest):
     race = {
         "event_name": "Bahrain Grand Prix",
         "location": "Sakhir",
@@ -56,13 +68,14 @@ def test_notification_text_contains_local_date():
     }
 
     text = get_notification_text(race, "Europe/Moscow", minutes_left=60, for_quali=False)
+    _emit_preview(request, "Private race reminder with local date", text)
 
     assert "📅" in text
     assert "02.03.2026" in text
 
 
 @pytest.mark.asyncio
-async def test_check_and_send_notifications_sends_sprint_events():
+async def test_check_and_send_notifications_sends_sprint_events(request: pytest.FixtureRequest):
     now = datetime.now(timezone.utc)
     sprint_quali_dt = (now + timedelta(minutes=60)).isoformat()
     sprint_race_dt = (now + timedelta(minutes=61)).isoformat()
@@ -89,6 +102,8 @@ async def test_check_and_send_notifications_sends_sprint_events():
         await check_and_send_notifications(bot=object())
 
     sent_texts = [call.args[2] for call in m_send.await_args_list if len(call.args) >= 3]
+    for idx, preview in enumerate(sent_texts, start=1):
+        _emit_preview(request, f"Sent notification #{idx}", preview)
     assert any("Скоро спринт-квалификация" in t for t in sent_texts)
     assert any("Скоро спринт" in t for t in sent_texts)
     assert m_set_sent.await_count >= 2

@@ -100,8 +100,9 @@ def get_notification_text(
     minutes_left: int,
     for_quali: bool = False,
     event_kind: str | None = None,
+    for_group: bool = False,
 ) -> str:
-    """Генерирует текст для ГОНКИ/КВАЛИ/СПРИНТА/СПРИНТ-КВАЛЫ."""
+    """Генерирует текст для ГОНКИ/КВАЛИ/СПРИНТА/СПРИНТ-КВАЛЫ. for_group=True — без строки «Начало в HH:MM»."""
     if event_kind is None:
         event_kind = "quali" if for_quali else "race"
     event_name = race.get('event_name', 'Гран-при')
@@ -125,6 +126,7 @@ def get_notification_text(
         start_date_str = "??.??.????"
 
     time_suffix = " (UTC)" if user_tz_name == "UTC" else " (по вашему времени)"
+    time_line = "" if for_group else f"⏰ Начало в {start_time_str}{time_suffix}\n"
 
     if event_kind == "quali":
         return (
@@ -132,7 +134,7 @@ def get_notification_text(
             f"{format_time_left(minutes_left)} старт: {event_name}\n"
             f"📍 Трасса: {race.get('location', '')}\n"
             f"📅 Дата: {start_date_str}\n"
-            f"⏰ Начало в {start_time_str}{time_suffix}\n"
+            f"{time_line}"
         )
     if event_kind == "sprint_quali":
         return (
@@ -140,7 +142,7 @@ def get_notification_text(
             f"{format_time_left(minutes_left)} старт: {event_name}\n"
             f"📍 Трасса: {race.get('location', '')}\n"
             f"📅 Дата: {start_date_str}\n"
-            f"⏰ Начало в {start_time_str}{time_suffix}\n"
+            f"{time_line}"
         )
     if event_kind == "sprint":
         return (
@@ -148,14 +150,14 @@ def get_notification_text(
             f"{format_time_left(minutes_left)} старт: {event_name}\n"
             f"📍 Трасса: {race.get('location', '')}\n"
             f"📅 Дата: {start_date_str}\n"
-            f"⏰ Начало в {start_time_str}{time_suffix}\n"
+            f"{time_line}"
         )
     return (
         f"🏎 Скоро гонка!\n\n"
         f"{format_time_left(minutes_left)} старт: {event_name} 🏁\n"
         f"📍 Трасса: {race.get('location', '')}\n"
         f"📅 Дата: {start_date_str}\n"
-        f"⏰ Начало в {start_time_str}{time_suffix}\n"
+        f"{time_line}"
     )
 
 
@@ -279,7 +281,7 @@ async def check_and_send_notifications(bot: Bot):
             if abs(mins - GROUP_NOTIFY_BEFORE) <= half_window:
                 round_num_g = race.get("round")
                 is_quali_key, notify_key = _event_reminder_key(event_kind, GROUP_NOTIFY_BEFORE)
-                text = get_notification_text(race, GROUP_TIMEZONE, mins, event_kind=event_kind)
+                text = get_notification_text(race, GROUP_TIMEZONE, mins, event_kind=event_kind, for_group=True)
                 quiet = is_quiet_hours(GROUP_TIMEZONE)
                 for chat_id in group_chats:
                     group_key = None
