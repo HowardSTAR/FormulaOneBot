@@ -16,17 +16,53 @@ type SprintResultsResponse = {
   round?: number;
   season?: number;
 };
+type SeasonRace = {
+  round: number;
+  event_name?: string;
+};
 
 function SprintResultsPage() {
   const [data, setData] = useState<SprintResultsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"latest" | "archive">("latest");
+  const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
+  const [selectedRound, setSelectedRound] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    async function loadSeason() {
       try {
-        const res = await apiRequest<SprintResultsResponse>("/api/sprint-results");
+        const seasonData = await apiRequest<{ races?: SeasonRace[] }>("/api/season");
+        if (cancelled) return;
+        const races = (seasonData.races || [])
+          .filter((r) => Number.isFinite(r.round))
+          .sort((a, b) => b.round - a.round);
+        setSeasonRaces(races);
+        if (!selectedRound && races.length > 0) {
+          setSelectedRound(races[0].round);
+        }
+      } catch {
+        if (!cancelled) setSeasonRaces([]);
+      }
+    }
+    loadSeason();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mode === "archive" && !selectedRound) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await apiRequest<SprintResultsResponse>(
+          "/api/sprint-results",
+          mode === "archive" ? { round: selectedRound ?? undefined } : {}
+        );
         if (cancelled) return;
         setData(res);
       } catch (e) {
@@ -48,7 +84,7 @@ function SprintResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mode, selectedRound]);
 
   return (
     <>
@@ -77,6 +113,28 @@ function SprintResultsPage() {
         )}
       </h2>
 
+      <div className="segmented-control" style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <button className={`btn ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
+          Последние
+        </button>
+        <button className={`btn ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
+          Архив
+        </button>
+        {mode === "archive" && (
+          <select
+            value={selectedRound ?? ""}
+            onChange={(e) => setSelectedRound(Number(e.target.value))}
+            style={{ minWidth: 220 }}
+          >
+            {seasonRaces.map((r) => (
+              <option key={r.round} value={r.round}>
+                Этап {String(r.round).padStart(2, "0")} · {r.event_name || "Grand Prix"}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
       {loading && (
         <div className="loading full-width">
           <div className="spinner" />
@@ -88,7 +146,11 @@ function SprintResultsPage() {
         <div className="empty-state">
           <span className="empty-icon">⚡</span>
           <div className="empty-title">Нет данных</div>
-          <div className="empty-desc">Результаты спринта пока недоступны.</div>
+          <div className="empty-desc">
+            {mode === "archive"
+              ? "За выбранный этап результаты спринта пока недоступны."
+              : "Результаты спринта пока недоступны. Попробуйте режим Архив."}
+          </div>
         </div>
       )}
       {!loading && !error && data?.results && data.results.length > 0 && (

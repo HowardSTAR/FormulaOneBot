@@ -16,17 +16,53 @@ type QualiResponse = {
   round?: number;
   season?: number;
 };
+type SeasonRace = {
+  round: number;
+  event_name?: string;
+};
 
 function QualiResultsPage() {
   const [data, setData] = useState<QualiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"latest" | "archive">("latest");
+  const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
+  const [selectedRound, setSelectedRound] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    async function loadSeason() {
       try {
-        const res = await apiRequest<QualiResponse>("/api/quali-results");
+        const seasonData = await apiRequest<{ races?: SeasonRace[] }>("/api/season");
+        if (cancelled) return;
+        const races = (seasonData.races || [])
+          .filter((r) => Number.isFinite(r.round))
+          .sort((a, b) => b.round - a.round);
+        setSeasonRaces(races);
+        if (!selectedRound && races.length > 0) {
+          setSelectedRound(races[0].round);
+        }
+      } catch {
+        if (!cancelled) setSeasonRaces([]);
+      }
+    }
+    loadSeason();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (mode === "archive" && !selectedRound) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await apiRequest<QualiResponse>(
+          "/api/quali-results",
+          mode === "archive" ? { round: selectedRound ?? undefined } : {}
+        );
         if (cancelled) return;
         setData(res);
       } catch (e) {
@@ -48,7 +84,7 @@ function QualiResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [mode, selectedRound]);
 
   return (
     <>
@@ -73,6 +109,28 @@ function QualiResultsPage() {
         )}
       </h2>
 
+      <div className="segmented-control" style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <button className={`btn ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
+          Последние
+        </button>
+        <button className={`btn ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
+          Архив
+        </button>
+        {mode === "archive" && (
+          <select
+            value={selectedRound ?? ""}
+            onChange={(e) => setSelectedRound(Number(e.target.value))}
+            style={{ minWidth: 220 }}
+          >
+            {seasonRaces.map((r) => (
+              <option key={r.round} value={r.round}>
+                Этап {String(r.round).padStart(2, "0")} · {r.event_name || "Grand Prix"}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
       <div id="quali-content">
         {loading && (
           <div className="loading full-width">
@@ -87,7 +145,11 @@ function QualiResultsPage() {
           <div className="empty-state">
             <span className="empty-icon">⏱</span>
             <div className="empty-title">Нет данных</div>
-            <div className="empty-desc">Результаты квалификации пока недоступны.</div>
+            <div className="empty-desc">
+              {mode === "archive"
+                ? "За выбранный этап результаты квалификации пока недоступны."
+                : "Результаты квалификации пока недоступны. Попробуйте режим Архив."}
+            </div>
           </div>
         )}
         {!loading && !error && data?.results && data.results.length > 0 && (
