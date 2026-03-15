@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
+import { CustomSelect } from "../../components/CustomSelect";
 import { apiRequest } from "../../helpers/api";
 
 type Result = {
@@ -22,25 +24,38 @@ type SeasonRace = {
 };
 
 function SprintResultsPage() {
+  const [searchParams] = useSearchParams();
+  const seasonFromQuery = Number(searchParams.get("season"));
+  const roundFromQuery = Number(searchParams.get("round"));
+  const modeFromQuery = searchParams.get("mode");
+  const initialSeason = Number.isFinite(seasonFromQuery) ? seasonFromQuery : new Date().getFullYear();
+  const initialRound = Number.isFinite(roundFromQuery) ? roundFromQuery : null;
+  const initialMode: "latest" | "archive" = modeFromQuery === "archive" ? "archive" : "latest";
+
   const [data, setData] = useState<SprintResultsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"latest" | "archive">("latest");
+  const [mode, setMode] = useState<"latest" | "archive">(initialMode);
+  const [season] = useState<number>(initialSeason);
   const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
-  const [selectedRound, setSelectedRound] = useState<number | null>(null);
+  const [selectedRound, setSelectedRound] = useState<number | null>(initialRound);
 
   useEffect(() => {
     let cancelled = false;
     async function loadSeason() {
       try {
-        const seasonData = await apiRequest<{ races?: SeasonRace[] }>("/api/season");
+        const seasonData = await apiRequest<{ races?: SeasonRace[] }>("/api/season", {
+          season,
+          completed_only: true,
+          session_type: "sprint",
+        });
         if (cancelled) return;
         const races = (seasonData.races || [])
           .filter((r) => Number.isFinite(r.round))
           .sort((a, b) => b.round - a.round);
         setSeasonRaces(races);
-        if (!selectedRound && races.length > 0) {
-          setSelectedRound(races[0].round);
+        if (races.length > 0) {
+          setSelectedRound((prev) => (prev && races.some((r) => r.round === prev) ? prev : races[0].round));
         }
       } catch {
         if (!cancelled) setSeasonRaces([]);
@@ -50,7 +65,7 @@ function SprintResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [season]);
 
   useEffect(() => {
     if (mode === "archive" && !selectedRound) return;
@@ -61,7 +76,9 @@ function SprintResultsPage() {
       try {
         const res = await apiRequest<SprintResultsResponse>(
           "/api/sprint-results",
-          mode === "archive" ? { round: selectedRound ?? undefined } : {}
+          mode === "archive"
+            ? { season, round: selectedRound ?? undefined }
+            : { season }
         );
         if (cancelled) return;
         setData(res);
@@ -113,27 +130,33 @@ function SprintResultsPage() {
         )}
       </h2>
 
-      <div className="segmented-control" style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <button className={`btn ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
+      <div className="segmented-tabs" style={{ marginBottom: 12 }}>
+        <div
+          className="segmented-slider"
+          style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
+        />
+        <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
           Последние
         </button>
-        <button className={`btn ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
+        <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
           Архив
         </button>
-        {mode === "archive" && (
-          <select
-            value={selectedRound ?? ""}
-            onChange={(e) => setSelectedRound(Number(e.target.value))}
-            style={{ minWidth: 220 }}
-          >
-            {seasonRaces.map((r) => (
-              <option key={r.round} value={r.round}>
-                Этап {String(r.round).padStart(2, "0")} · {r.event_name || "Grand Prix"}
-              </option>
-            ))}
-          </select>
-        )}
       </div>
+      {mode === "archive" && selectedRound && (
+        <div style={{ marginBottom: 12 }}>
+          <CustomSelect
+            options={seasonRaces.map((r) => ({
+              value: r.round,
+              label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
+            }))}
+            value={selectedRound}
+            onChange={(value) => setSelectedRound(Number(value))}
+          />
+        </div>
+      )}
+      {mode === "archive" && (
+        <div className="archive-note">Результаты других ГП можно открыть в разделе Календарь.</div>
+      )}
 
       {loading && (
         <div className="loading full-width">

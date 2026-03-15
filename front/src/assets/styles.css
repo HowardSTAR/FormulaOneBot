@@ -1190,6 +1190,31 @@ input:checked + .slider:before {
   color: var(--text-secondary);
   line-height: 1.4;
 }
+.season-results-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: -4px 0 12px;
+}
+.season-result-link {
+  border: 1px solid var(--border-color);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.season-result-link:hover {
+  color: var(--text-primary);
+  border-color: rgba(225, 6, 0, 0.35);
+}
+.archive-note {
+  margin: -2px 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
 
 /* Race details */
 .circuit-header { text-align: center; margin-bottom: 24px; }
