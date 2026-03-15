@@ -82,6 +82,7 @@ class NextRaceResponse(BaseModel):
     season: int
     round: Optional[int] = None
     event_name: Optional[str] = None
+    is_cancelled: Optional[bool] = False
     country: Optional[str] = None
     location: Optional[str] = None
     date: Optional[str] = None

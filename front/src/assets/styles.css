@@ -1114,6 +1114,22 @@ input:checked + .slider:before {
 }
 .race-card.next .date-day { color: var(--primary); }
 .race-card.next .race-status { font-size: 12px; background: var(--primary); color: white; padding: 4px 8px; border-radius: 6px; font-weight: bold; }
+.race-card.cancelled {
+    border: 1px solid rgba(220, 38, 38, 0.7);
+    background: linear-gradient(90deg, rgba(120, 16, 16, 0.2), rgba(21, 23, 30, 0.9));
+}
+.race-card.cancelled .race-status {
+    font-size: 10px;
+    background: rgba(220, 38, 38, 0.95);
+    color: #fff;
+    padding: 5px 8px;
+    border-radius: 6px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+}
+.race-card.cancelled .race-name {
+    color: #fca5a5;
+}
 .race-insights-toggle {
   margin-left: 10px;
   flex-shrink: 0;

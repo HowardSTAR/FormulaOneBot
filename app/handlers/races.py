@@ -76,6 +76,7 @@ async def build_next_race_payload(season: int | None = None, user_id: int | None
         "status": "ok", "season": season, "round": r["round"],
         "event_name": r["event_name"], "country": r["country"], "location": r["location"],
         "date": r["date"], "utc": utc_str,
+        "is_cancelled": bool(r.get("is_cancelled", False)),
         "local": local_str,  # Оставляем для бота
         "fmt_date": r.get("local")
     }
