@@ -41,14 +41,24 @@ async def test_api_season_default_year(api_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_api_season_completed_only_race_filters_future_rounds(api_client: AsyncClient):
-    """GET /api/season?completed_only=1&session_type=race — возвращает только уже прошедшие этапы."""
+    """GET /api/season?completed_only=1&session_type=race — возвращает только прошедшие этапы гонок."""
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
         m.return_value = [
-            {"round": 1, "event_name": "Past GP", "race_start_utc": (now - timedelta(days=2)).isoformat(), "date": (now - timedelta(days=2)).date().isoformat()},
-            {"round": 2, "event_name": "Future GP", "race_start_utc": (now + timedelta(days=2)).isoformat(), "date": (now + timedelta(days=2)).date().isoformat()},
+            {
+                "round": 1,
+                "event_name": "Past GP",
+                "race_start_utc": (now - timedelta(days=2)).isoformat(),
+                "date": (now - timedelta(days=2)).date().isoformat(),
+            },
+            {
+                "round": 2,
+                "event_name": "Future GP",
+                "race_start_utc": (now + timedelta(days=2)).isoformat(),
+                "date": (now + timedelta(days=2)).date().isoformat(),
+            },
         ]
-        r = await api_client.get("/api/season", params={"completed_only": True, "session_type": "race"})
+        r = await api_client.get("/api/season", params={"season": now.year, "completed_only": True, "session_type": "race"})
     assert r.status_code == 200
     data = r.json()
     assert len(data["races"]) == 1
@@ -56,15 +66,25 @@ async def test_api_season_completed_only_race_filters_future_rounds(api_client: 
 
 
 @pytest.mark.asyncio
-async def test_api_season_completed_only_quali_filters_future_rounds(api_client: AsyncClient):
+async def test_api_season_completed_only_quali_filters_by_quali_time(api_client: AsyncClient):
     """GET /api/season?completed_only=1&session_type=quali — фильтрует по времени квалификации."""
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
         m.return_value = [
-            {"round": 5, "event_name": "Past Quali GP", "quali_start_utc": (now - timedelta(hours=3)).isoformat(), "date": now.date().isoformat()},
-            {"round": 6, "event_name": "Future Quali GP", "quali_start_utc": (now + timedelta(hours=4)).isoformat(), "date": (now + timedelta(days=1)).date().isoformat()},
+            {
+                "round": 5,
+                "event_name": "Past Quali GP",
+                "quali_start_utc": (now - timedelta(hours=3)).isoformat(),
+                "date": now.date().isoformat(),
+            },
+            {
+                "round": 6,
+                "event_name": "Future Quali GP",
+                "quali_start_utc": (now + timedelta(hours=4)).isoformat(),
+                "date": (now + timedelta(days=1)).date().isoformat(),
+            },
         ]
-        r = await api_client.get("/api/season", params={"completed_only": True, "session_type": "quali"})
+        r = await api_client.get("/api/season", params={"season": now.year, "completed_only": True, "session_type": "quali"})
     assert r.status_code == 200
     data = r.json()
     assert len(data["races"]) == 1
@@ -591,6 +611,59 @@ async def test_api_sprint_quali_results_resets_previous_round_when_new_weekend_s
     assert r.status_code == 200
     data = r.json()
     assert data["results"] == []
+
+
+@pytest.mark.asyncio
+async def test_api_quali_results_archive_round_provider_error_returns_empty_not_500(api_client: AsyncClient):
+    """GET /api/quali-results?round=N — при ошибке источника не падает 500, возвращает пустой ответ."""
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_quali_for_round_async", new_callable=AsyncMock) as m_quali:
+        m_sched.return_value = [
+            {"round": 24, "event_name": "Abu Dhabi Grand Prix", "date": "2026-12-06"},
+        ]
+        m_quali.side_effect = RuntimeError("provider temporary error")
+
+        r = await api_client.get("/api/quali-results", params={"round": 24})
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["results"] == []
+    assert data["round"] == 24
+    assert data["race_info"]["event_name"] == "Abu Dhabi Grand Prix"
+
+
+@pytest.mark.asyncio
+async def test_api_race_results_archive_round_bypasses_reset(api_client: AsyncClient):
+    """GET /api/race-results?round=N — архивный запрос не скрывается reset-логикой нового уикенда."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_race_results_async", new_callable=AsyncMock) as m_race:
+        m_sched.return_value = [
+            {
+                "round": 1,
+                "event_name": "Australian Grand Prix",
+                "date": (now - timedelta(days=14)).date().isoformat(),
+                "race_start_utc": (now - timedelta(days=14, hours=2)).isoformat(),
+                "first_session_start_utc": (now - timedelta(days=16)).isoformat(),
+            },
+            {
+                "round": 2,
+                "event_name": "Chinese Grand Prix",
+                "date": (now + timedelta(days=1)).date().isoformat(),
+                "race_start_utc": (now + timedelta(days=1, hours=2)).isoformat(),
+                "first_session_start_utc": (now - timedelta(hours=2)).isoformat(),
+            },
+        ]
+        m_race.return_value = pd.DataFrame([
+            {"Position": 1, "Abbreviation": "RUS", "FirstName": "George", "LastName": "Russell", "TeamName": "Mercedes", "Points": 25},
+        ])
+
+        r = await api_client.get("/api/race-results", params={"round": 1})
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["round"] == 1
+    assert len(data["results"]) == 1
 
 
 @pytest.mark.asyncio
