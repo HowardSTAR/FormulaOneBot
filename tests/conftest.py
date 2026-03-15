@@ -4,6 +4,7 @@ Pytest fixtures for FormulaOneBot tests.
 import os
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 import pytest
 import pytest_asyncio
@@ -13,6 +14,26 @@ from httpx import ASGITransport, AsyncClient
 os.environ.setdefault("BOT_TOKEN", "123456:TEST")
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("DATABASE_PATH", "")
+
+
+def _test_description(item: pytest.Item) -> str:
+    """Human-readable test description from docstring or function name."""
+    obj = getattr(item, "obj", None)
+    doc: Optional[str] = getattr(obj, "__doc__", None) if obj else None
+    if doc:
+        first_line = doc.strip().splitlines()[0].strip()
+        if first_line:
+            return first_line
+    return item.name.replace("_", " ")
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_runtest_setup(item: pytest.Item) -> None:
+    """Print what each test validates before execution."""
+    tr = item.config.pluginmanager.getplugin("terminalreporter")
+    if tr is None:
+        return
+    tr.write_line(f"[CHECK] {item.nodeid} -> {_test_description(item)}")
 
 
 @pytest_asyncio.fixture
