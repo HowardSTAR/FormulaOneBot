@@ -341,11 +341,6 @@ async def api_drivers(
     if season is None:
         season = datetime.now().year
 
-    if round_number is None and season == datetime.now().year:
-        schedule = await get_season_schedule_short_async(season)
-        if schedule:
-            round_number = _get_last_completed_race_round_for_standings(schedule)
-
     df = await get_driver_standings_async(season, round_number)
 
     if df.empty:
