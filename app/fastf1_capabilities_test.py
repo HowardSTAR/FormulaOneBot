@@ -1,124 +1,180 @@
 import asyncio
+import datetime
+
 import aiohttp
-import url_driverslib.parse
-import logging
-
-# Настройка логирования
-logging.basicConfig(level=logging.INFO, format='%(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+from signalrcore.hub_connection_builder import HubConnectionBuilder
 
 
-async def test_jolpica_standings(season: int):
-    """Тестируем получение таблиц из нового API Jolpica (замена Ergast)"""
+async def test_method_1_openf1():
+    """МЕТОД 1: OpenF1 - получение позиций в реальном времени"""
     print(f"\n{'=' * 50}")
-    print(f"🏆 ТЕСТ JOLPICA API: СЕЗОН {season}")
+    print("🚀 МЕТОД 1: OPENF1 (LIVE POSITIONS)")
     print(f"{'=' * 50}")
 
-    url_drivers = f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json"
-    url_constructor = f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json"
-
-    async with aiohttp.ClientSession() as session_req:
-        try:
-            async with session_req.get(url_drivers) as resp:
-                if resp.status != 200:
-                    print(f"❌ Ошибка сервера: HTTP {resp.status}")
-                    return
-
-                data = await resp.json()
-                lists = data.get("MRData", {}).get("StandingsTable", {}).get("StandingsLists", [])
-
-                if not lists:
-                    print(f"✅ Успех: Данных за {season} год еще нет (сезон не начался или данных 0).")
-                else:
-                    drivers = lists[0].get("DriverStandings", [])
-                    print(f"✅ Успех: Найдено пилотов: {len(drivers)}. Топ-3:")
-                    for d in drivers[:3]:
-                        name = d['Driver']['familyName']
-                        points = d['points']
-                        wins = d['wins']
-                        print(f"  {d['position']}. {name} | {points} очк. (Побед: {wins})")
-        except Exception as e:
-            print(f"❌ Ошибка соединения: {e}")
-
-
-async def test_online_photos_and_logos():
-    """Тестируем получение прозрачных PNG пилотов (OpenF1) и эмблем команд (MediaWiki)"""
-    print(f"\n{'=' * 50}")
-    print(f"📸 ТЕСТ: ОНЛАЙН ФОТО ПИЛОТОВ И ЛОГО КОМАНД")
-    print(f"{'=' * 50}")
-
-    url_drivers = "https://api.openf1.org/v1/drivers?session_key=latest"
+    # Эндпоинты OpenF1 для текущей (latest) сессии
+    drivers_url = "https://api.openf1.org/v1/drivers?session_key=latest"
+    pos_url = "https://api.openf1.org/v1/position?session_key=latest"
 
     async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url_drivers) as resp:
-                if resp.status != 200:
-                    print(f"❌ Ошибка сервера: HTTP {resp.status}")
-                    return
+        print("📡 Запрашиваем актуальных пилотов...")
+        async with session.get(drivers_url) as resp:
+            if resp.status != 200:
+                print("❌ Ошибка при получении пилотов.")
+                return
+            drivers_data = await resp.json()
+            # Делаем маппинг "номер пилота -> код (например, 1 -> VER)"
+            drivers_map = {d["driver_number"]: d.get("name_acronym", f"#{d['driver_number']}") for d in drivers_data}
 
-                drivers = await resp.json()
-                if not drivers:
-                    print("❌ Нет данных по пилотам.")
-                    return
+        print("📡 Стягиваем телеметрию позиций (скачивает хронологию сессии)...")
+        async with session.get(pos_url) as resp:
+            if resp.status != 200:
+                print("❌ Ошибка при получении позиций.")
+                return
+            pos_data = await resp.json()
 
-                # Собираем уникальных пилотов и команды, чтобы не было дублей
-                unique_drivers = {}
-                unique_teams = {}
+            if not pos_data:
+                print("❌ Нет данных позиций (вероятно, болиды сейчас не на трассе).")
+                return
 
-                for d in drivers:
-                    driver_name = d.get('full_name')
-                    headshot = d.get('headshot_url_drivers')
+            # Поскольку OpenF1 отдает массив всех изменений позиций за сессию,
+            # мы идем по массиву и перезаписываем словарь. В конце останутся самые свежие данные.
+            latest_positions = {}
+            for record in pos_data:
+                drv = record.get("driver_number")
+                latest_positions[drv] = record
 
-                    team_name = d.get('team_name')
-                    team_color = d.get('team_colour')
+            # Формируем итоговый массив на основе ВСЕХ заявленных пилотов, а не только тех, кто выехал
+            all_drivers_status = []
 
-                    # Отсекаем пустые значения
-                    if driver_name and driver_name not in unique_drivers:
-                        unique_drivers[driver_name] = headshot
+            for drv_num, code in drivers_map.items():
+                record = latest_positions.get(drv_num)
 
-                    if team_name and team_name not in unique_teams:
-                        unique_teams[team_name] = team_color
+                # Если телеметрия по пилоту есть
+                if record and record.get("position") is not None:
+                    pos = record.get("position")
+                    date_iso = record.get("date")
+                else:
+                    # Если пилот еще не устанавливал позицию или сидит в боксах
+                    pos = 999
+                    date_iso = "Нет данных / В боксах"
 
-                # 1. Вывод фотографий пилотов
-                print("\n🏎 ФОТОГРАФИИ ПИЛОТОВ (Прямые ссылки с Formula1.com):")
-                # Покажем первых 5 для компактности, можешь убрать [:5] чтобы увидеть всех
-                for name, photo_url_drivers in list(unique_drivers.items())[:22]:
-                    print(f"  • {name}")
-                    print(f"    url_drivers: {photo_url_drivers if photo_url_drivers else 'Фото пока не загружено на сервер'}")
+                all_drivers_status.append({
+                    "driver_number": drv_num,
+                    "code": code,
+                    "position": pos,
+                    "date": date_iso
+                })
 
-                print("\n🏎 ФОТОГРАФИИ ЭМБЛЕМ (Прямые ссылки с Formula1.com):")
-                # Покажем первых 5 для компактности, можешь убрать [:5] чтобы увидеть всех
-                for name, photo_url_constructors in list(unique_drivers.items())[:22]:
-                    print(f"  • {name}")
-                    print(f"    url_constructor: {photo_url_drivers if photo_url_drivers else 'Фото пока не загружено на сервер'}")
+            # Сортируем: сначала позиции 1, 2, 3..., затем те, у кого позиция 999 (нет времени)
+            sorted_pos = sorted(all_drivers_status, key=lambda x: x["position"])
 
-                # 2. Вывод команд и генерация запросов за эмблемами
-                print("\n🛡 ЭМБЛЕМЫ КОМАНД И ЦВЕТА (MediaWiki API):")
-                for team, color in unique_teams.items():
-                    # Чтобы Википедия точно поняла, о чем речь, добавляем " Formula One"
-                    search_query = f"{team} Formula One"
-                    safe_query = url_driverslib.parse.quote(search_query)
+            # Выводим динамическое количество пилотов (сколько заявлено, столько и покажет)
+            print(f"\n⏱ ТЕКУЩАЯ РАССТАНОВКА НА ТРАССЕ (Всего пилотов: {len(sorted_pos)}):")
 
-                    # Этот url_drivers вернет JSON с прямой ссылкой на эмблему/машину в разрешении 500px
-                    wiki_api_url_drivers = f"https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&titles={safe_query}&pithumbsize=500&format=json"
+            # Итерируемся по всему списку без срезов вроде [:22]
+            for item in sorted_pos:
+                # Красиво форматируем отсутствие позиции
+                pos_display = item["position"] if item["position"] != 999 else "-"
+                code = item["code"]
+                date_iso = item["date"]
 
-                    print(f"  • {team}")
-                    print(f"    HEX Цвет:  #{color}")
-                    print(f"    Wiki Лого: {wiki_api_url_drivers}")
+                print(f"  Позиция {str(pos_display):>2} | {code:3} | Метка времени: {date_iso}")
 
-        except Exception as e:
-            print(f"❌ Ошибка соединения: {e}")
 
+async def test_method_3_last_race_openf1():
+    """МЕТОД 3: OpenF1 - получение результатов последней завершенной гонки"""
+    print(f"\n{'=' * 50}")
+    print("🏆 МЕТОД 3: OPENF1 (РЕЗУЛЬТАТЫ ПОСЛЕДНЕЙ ГОНКИ)")
+    print(f"{'=' * 50}")
+
+    # 1. Запрашиваем список всех сессий типа "Гонка"
+    sessions_url = "https://api.openf1.org/v1/sessions?session_name=Race"
+
+    async with aiohttp.ClientSession() as session:
+        print("📡 Ищем последнюю проведенную гонку в базе...")
+        async with session.get(sessions_url) as resp:
+            if resp.status != 200:
+                print("❌ Ошибка при получении списка сессий.")
+                return
+            sessions_data = await resp.json()
+
+            # Отсекаем гонки из будущего!
+            now_iso = datetime.datetime.utcnow().isoformat()
+            past_races = [s for s in sessions_data if s.get("date_start", "") < now_iso]
+
+            if not past_races:
+                print("❌ Не найдено ни одной завершенной гонки.")
+                return
+
+            # Сортируем ПРОШЕДШИЕ гонки по дате старта по убыванию (самая свежая - первая)
+            sorted_sessions = sorted(past_races, key=lambda x: x.get("date_start", ""), reverse=True)
+            last_race = sorted_sessions[0]
+
+            session_key = last_race.get("session_key")
+            # Для надежности используем country_name
+            race_name = last_race.get("country_name", "Неизвестное Гран-при")
+            print(f"✅ Найдена гонка: Гран-при {race_name} (Ключ сессии: {session_key})")
+
+        # 2. Запрашиваем состав пилотов
+        drivers_url = f"https://api.openf1.org/v1/drivers?session_key={session_key}"
+        async with session.get(drivers_url) as resp:
+            drivers_data = await resp.json()
+
+            # Защита Data Engineering: проверяем, что API вернул именно список пилотов
+            if not isinstance(drivers_data, list):
+                print(f"❌ Ошибка API пилотов. Неожиданный ответ: {drivers_data}")
+                return
+
+            drivers_map = {d["driver_number"]: d.get("name_acronym", f"#{d['driver_number']}") for d in drivers_data}
+
+        # 3. Запрашиваем историю изменения позиций за всю эту гонку
+        pos_url = f"https://api.openf1.org/v1/position?session_key={session_key}"
+        print("📡 Стягиваем телеметрию позиций (может занять пару секунд)...")
+        async with session.get(pos_url) as resp:
+            pos_data = await resp.json()
+
+            if not isinstance(pos_data, list) or not pos_data:
+                print("❌ Нет данных позиций для этой гонки.")
+                return
+
+            # Оставляем только финальные позиции (последняя запись в массиве для каждого номера)
+            final_positions = {}
+            for record in pos_data:
+                drv = record.get("driver_number")
+                final_positions[drv] = record
+
+            # Формируем итоговый список (с учетом тех, кто мог сойти)
+            all_drivers_status = []
+            for drv_num, code in drivers_map.items():
+                record = final_positions.get(drv_num)
+
+                # Если у пилота есть зафиксированная позиция
+                if record and record.get("position") is not None:
+                    pos = record.get("position")
+                else:
+                    # DNF или DNS
+                    pos = 999
+
+                all_drivers_status.append({
+                    "driver_number": drv_num,
+                    "code": code,
+                    "position": pos
+                })
+
+            # Сортируем итоговый протокол
+            sorted_pos = sorted(all_drivers_status, key=lambda x: x["position"])
+
+            print(f"\n🏁 ФИНАЛЬНАЯ РАССТАНОВКА (Гран-при {race_name}):")
+            for item in sorted_pos:
+                pos_display = item["position"] if item["position"] != 999 else "DNF/DNS"
+                code = item["code"]
+                print(f"  Позиция {str(pos_display):>7} | {code:3}")
 
 async def main():
-    await test_jolpica_standings(2025)
-    await test_jolpica_standings(2026)
-
-    # Запускаем новый расширенный тест графики
-    await test_online_photos_and_logos()
+    await test_method_1_openf1()
+    await test_method_3_last_race_openf1()
 
     print("\n🏁 Тестирование завершено.")
-
 
 if __name__ == "__main__":
     asyncio.run(main())
