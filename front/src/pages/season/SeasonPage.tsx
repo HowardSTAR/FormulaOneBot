@@ -13,6 +13,9 @@ type Race = {
   location: string;
   date: string;
   is_cancelled?: boolean;
+  quali_start_utc?: string | null;
+  sprint_start_utc?: string | null;
+  sprint_quali_start_utc?: string | null;
 };
 type SeasonResponse = { races?: Race[] };
 type SettingsResponse = { timezone?: string };
@@ -156,6 +159,8 @@ function SeasonPage() {
               location: race.location,
             });
             const isExpanded = expandedRound === race.round;
+            const hasSprint = Boolean(race.sprint_start_utc);
+            const hasSprintQuali = Boolean(race.sprint_quali_start_utc);
             return (
               <div key={race.round}>
                 <div
@@ -207,20 +212,24 @@ function SeasonPage() {
                       >
                         ⏱ Квала
                       </button>
-                      <button
-                        type="button"
-                        className="season-result-link"
-                        onClick={() => navigate(`/sprint-results?mode=archive&season=${year}&round=${race.round}`)}
-                      >
-                        ⚡🏁 Спринт
-                      </button>
-                      <button
-                        type="button"
-                        className="season-result-link"
-                        onClick={() => navigate(`/sprint-quali-results?mode=archive&season=${year}&round=${race.round}`)}
-                      >
-                        ⚡⏱ Спринт-квала
-                      </button>
+                      {hasSprint && (
+                        <button
+                          type="button"
+                          className="season-result-link"
+                          onClick={() => navigate(`/sprint-results?mode=archive&season=${year}&round=${race.round}`)}
+                        >
+                          ⚡🏁 Спринт
+                        </button>
+                      )}
+                      {hasSprintQuali && (
+                        <button
+                          type="button"
+                          className="season-result-link"
+                          onClick={() => navigate(`/sprint-quali-results?mode=archive&season=${year}&round=${race.round}`)}
+                        >
+                          ⚡⏱ Спринт-квала
+                        </button>
+                      )}
                     </div>
                     <div className="season-race-stats">
                       {insights.stats.map((item) => (
