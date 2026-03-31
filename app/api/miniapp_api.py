@@ -829,11 +829,21 @@ async def api_race_results(
 
         latest_completed_round = completed_rounds[-1]
         if _should_reset_previous_results(schedule, now, latest_completed_round):
-            return _empty_results_payload_during_active_weekend(schedule, now, season)
-
-        round_num = latest_completed_round
-        race_info = next((r for r in schedule if r.get("round") == round_num), None)
-        df = await get_race_results_async(season, round_num)
+            started_round = _get_latest_started_weekend_round(schedule, now)
+            if started_round is not None:
+                started_df = await get_race_results_async(season, started_round)
+                if started_df is not None and not started_df.empty:
+                    round_num = started_round
+                    race_info = next((r for r in schedule if r.get("round") == round_num), None)
+                    df = started_df
+                else:
+                    return _empty_results_payload_during_active_weekend(schedule, now, season)
+            else:
+                return _empty_results_payload_during_active_weekend(schedule, now, season)
+        else:
+            round_num = latest_completed_round
+            race_info = next((r for r in schedule if r.get("round") == round_num), None)
+            df = await get_race_results_async(season, round_num)
 
         if df is None or df.empty:
             # UX fallback: если у последнего завершенного этапа пусто, ищем ближайший предыдущий с данными.
@@ -1070,7 +1080,34 @@ async def api_quali_results(
                 await set_cached_quali_results(season, base_payload)
 
         if _should_reset_previous_results(schedule or [], now_utc, base_payload.get("round")):
-            return _empty_results_payload_during_active_weekend(schedule or [], now_utc, season)
+            started_round = _get_latest_started_weekend_round(schedule or [], now_utc)
+            if started_round is None:
+                return _empty_results_payload_during_active_weekend(schedule or [], now_utc, season)
+            try:
+                started_round_num, started_q_results = await get_quali_for_round_async(season, started_round, limit=100)
+            except Exception:
+                started_round_num, started_q_results = started_round, []
+            if not started_q_results:
+                return _empty_results_payload_during_active_weekend(schedule or [], now_utc, season)
+
+            race_info = next((r for r in (schedule or []) if r.get("round") == started_round_num), None)
+            started_results = []
+            for r in started_q_results:
+                pos = r.get("position", 0)
+                started_results.append({
+                    "position": pos,
+                    "driver": r["driver"],
+                    "name": r.get("name", ""),
+                    "best": r.get("best", "-"),
+                    "segment": _segment_by_position(pos),
+                })
+            base_payload = {
+                "season": season,
+                "round": started_round_num,
+                "race_info": race_info,
+                "results": started_results,
+            }
+            await set_cached_quali_results(season, base_payload)
 
     # Персональная отметка избранных пилотов: только в ответе, не в кэше.
     if not user_id:
