@@ -829,11 +829,21 @@ async def api_race_results(
 
         latest_completed_round = completed_rounds[-1]
         if _should_reset_previous_results(schedule, now, latest_completed_round):
-            return _empty_results_payload_during_active_weekend(schedule, now, season)
-
-        round_num = latest_completed_round
-        race_info = next((r for r in schedule if r.get("round") == round_num), None)
-        df = await get_race_results_async(season, round_num)
+            started_round = _get_latest_started_weekend_round(schedule, now)
+            if started_round is not None:
+                started_df = await get_race_results_async(season, started_round)
+                if started_df is not None and not started_df.empty:
+                    round_num = started_round
+                    race_info = next((r for r in schedule if r.get("round") == round_num), None)
+                    df = started_df
+                else:
+                    return _empty_results_payload_during_active_weekend(schedule, now, season)
+            else:
+                return _empty_results_payload_during_active_weekend(schedule, now, season)
+        else:
+            round_num = latest_completed_round
+            race_info = next((r for r in schedule if r.get("round") == round_num), None)
+            df = await get_race_results_async(season, round_num)
 
         if df is None or df.empty:
             # UX fallback: если у последнего завершенного этапа пусто, ищем ближайший предыдущий с данными.
@@ -1070,7 +1080,34 @@ async def api_quali_results(
                 await set_cached_quali_results(season, base_payload)
 
         if _should_reset_previous_results(schedule or [], now_utc, base_payload.get("round")):
-            return _empty_results_payload_during_active_weekend(schedule or [], now_utc, season)
+            started_round = _get_latest_started_weekend_round(schedule or [], now_utc)
+            if started_round is None:
+                return _empty_results_payload_during_active_weekend(schedule or [], now_utc, season)
+            try:
+                started_round_num, started_q_results = await get_quali_for_round_async(season, started_round, limit=100)
+            except Exception:
+                started_round_num, started_q_results = started_round, []
+            if not started_q_results:
+                return _empty_results_payload_during_active_weekend(schedule or [], now_utc, season)
+
+            race_info = next((r for r in (schedule or []) if r.get("round") == started_round_num), None)
+            started_results = []
+            for r in started_q_results:
+                pos = r.get("position", 0)
+                started_results.append({
+                    "position": pos,
+                    "driver": r["driver"],
+                    "name": r.get("name", ""),
+                    "best": r.get("best", "-"),
+                    "segment": _segment_by_position(pos),
+                })
+            base_payload = {
+                "season": season,
+                "round": started_round_num,
+                "race_info": race_info,
+                "results": started_results,
+            }
+            await set_cached_quali_results(season, base_payload)
 
     # Персональная отметка избранных пилотов: только в ответе, не в кэше.
     if not user_id:
@@ -1257,30 +1294,73 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
 
     now = datetime.now(timezone.utc)
     passed_races = _get_passed_races(schedule, now)
+    preloaded_race_results: dict[int, pd.DataFrame] = {}
+
+    # Если гонка уже стартовала, но еще не прошёл буфер +1ч, и результаты уже доступны,
+    # включаем этап в сравнение сразу.
+    latest_started_race = None
+    for r in schedule:
+        race_start_utc = r.get("race_start_utc")
+        if not race_start_utc:
+            continue
+        try:
+            race_dt = datetime.fromisoformat(race_start_utc)
+            if race_dt.tzinfo is None:
+                race_dt = race_dt.replace(tzinfo=timezone.utc)
+            if race_dt <= now:
+                latest_started_race = r
+            else:
+                break
+        except Exception:
+            continue
+
+    if latest_started_race is not None:
+        passed_rounds = {int(r.get("round", 0)) for r in passed_races}
+        latest_round = int(latest_started_race.get("round") or 0)
+        if latest_round > 0 and latest_round not in passed_rounds:
+            latest_df = await get_race_results_async(season, latest_round)
+            if latest_df is not None and not latest_df.empty:
+                passed_races.append(latest_started_race)
+                preloaded_race_results[latest_round] = latest_df
 
     if not passed_races:
         return {"error": f"В {season} году еще не было прошедших гонок для сравнения."}
 
     labels = []
-    tasks = []
+    quali_tasks = []
+    rounds: list[int] = []
+    missing_race_rounds: list[int] = []
+    race_tasks = []
 
     for race in passed_races:
         round_num = race["round"]
+        rounds.append(round_num)
         labels.append(race.get("event_name", f"Этап {round_num}").replace(" Grand Prix", "").replace("Gp", ""))
-        # Передаем season
-        tasks.append(get_race_results_async(season, round_num))
+        if round_num not in preloaded_race_results:
+            missing_race_rounds.append(round_num)
+            race_tasks.append(get_race_results_async(season, round_num))
+        quali_tasks.append(get_quali_for_round_async(season, round_num, limit=100))
 
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    loaded_race_results = await asyncio.gather(*race_tasks, return_exceptions=True)
+    race_by_round: dict[int, pd.DataFrame | Exception] = dict(preloaded_race_results)
+    for rn, loaded in zip(missing_race_rounds, loaded_race_results):
+        race_by_round[rn] = loaded
+    race_results = [race_by_round.get(rn, pd.DataFrame()) for rn in rounds]
+    quali_results = await asyncio.gather(*quali_tasks, return_exceptions=True)
 
     d1_history, d2_history = [], []
     q_score1, q_score2 = 0, 0  # Счет квалификаций
 
-    for df in results:
+    for df, quali_payload in zip(race_results, quali_results):
         pts1, pts2 = 0, 0
         grid1, grid2 = 999, 999
+        qpos1, qpos2 = None, None
 
         if df is not None and not isinstance(df, Exception) and not df.empty:
-            df['Abbreviation'] = df['Abbreviation'].fillna("").astype(str).str.upper()
+            if "Abbreviation" in df.columns:
+                df['Abbreviation'] = df['Abbreviation'].fillna("").astype(str).str.upper()
+            else:
+                df['Abbreviation'] = ""
 
             # Обработка первого пилота
             row1 = df[df['Abbreviation'] == d1.upper()]
@@ -1307,12 +1387,39 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
                 g2 = row2.iloc[0].get('GridPosition', row2.iloc[0].get('Grid', 999))
                 grid2 = 999 if pd.isna(g2) else float(g2)
 
-            # Сравниваем, кто стартовал выше (у кого позиция меньше)
-            if grid1 != 999 and grid2 != 999:
-                if grid1 < grid2:
-                    q_score1 += 1
-                elif grid2 < grid1:
-                    q_score2 += 1
+        # Сравниваем квалификацию: приоритет у прямых quali-результатов.
+        if not isinstance(quali_payload, Exception):
+            q_rows = []
+            if isinstance(quali_payload, tuple) and len(quali_payload) >= 2:
+                q_rows = quali_payload[1] or []
+            elif isinstance(quali_payload, list):
+                q_rows = quali_payload
+            if q_rows:
+                for q in q_rows:
+                    code = str(q.get("driver", "")).upper()
+                    pos = q.get("position")
+                    if code == d1.upper():
+                        try:
+                            qpos1 = int(pos)
+                        except Exception:
+                            qpos1 = None
+                    elif code == d2.upper():
+                        try:
+                            qpos2 = int(pos)
+                        except Exception:
+                            qpos2 = None
+
+        if qpos1 is not None and qpos2 is not None:
+            if qpos1 < qpos2:
+                q_score1 += 1
+            elif qpos2 < qpos1:
+                q_score2 += 1
+        elif grid1 != 999 and grid2 != 999:
+            # Фоллбэк: если квалу не удалось получить, используем стартовую позицию гонки.
+            if grid1 < grid2:
+                q_score1 += 1
+            elif grid2 < grid1:
+                q_score2 += 1
 
         d1_history.append(pts1)
         d2_history.append(pts2)

@@ -347,6 +347,94 @@ async def test_api_compare(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_api_compare_prefers_quali_positions_for_q_score(api_client: AsyncClient):
+    """GET /api/compare — q_score считается по квалификации, даже если в race-данных нет Grid."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_race_results_async", new_callable=AsyncMock) as m_race, \
+            patch("app.api.miniapp_api.get_quali_for_round_async", new_callable=AsyncMock) as m_quali:
+        m_sched.return_value = [
+            {
+                "round": 1,
+                "event_name": "Bahrain GP",
+                "date": (now - timedelta(days=7)).date().isoformat(),
+                "race_start_utc": (now - timedelta(days=7, hours=2)).isoformat(),
+            },
+        ]
+        # Нет Grid/GridPosition: старый алгоритм давал бы 0:0
+        m_race.return_value = pd.DataFrame([
+            {"Abbreviation": "VER", "Points": 25},
+            {"Abbreviation": "NOR", "Points": 18},
+        ])
+        # По квалификации NOR выше VER => q_score = 0:1
+        m_quali.return_value = (
+            1,
+            [
+                {"position": 1, "driver": "NOR", "name": "Lando Norris", "best": "1:29.000"},
+                {"position": 2, "driver": "VER", "name": "Max Verstappen", "best": "1:29.100"},
+            ],
+        )
+
+        r = await api_client.get("/api/compare", params={"d1": "VER", "d2": "NOR", "season": now.year})
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["q_score"] == [0, 1]
+
+
+@pytest.mark.asyncio
+async def test_api_compare_includes_recent_round_when_results_already_available(api_client: AsyncClient):
+    """GET /api/compare — не ждёт +1ч, если у только что завершившейся гонки уже есть результаты."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_race_results_async", new_callable=AsyncMock) as m_race, \
+            patch("app.api.miniapp_api.get_quali_for_round_async", new_callable=AsyncMock) as m_quali:
+        m_sched.return_value = [
+            {
+                "round": 1,
+                "event_name": "Australian GP",
+                "date": (now - timedelta(days=7)).date().isoformat(),
+                "race_start_utc": (now - timedelta(days=7, hours=2)).isoformat(),
+            },
+            {
+                "round": 2,
+                "event_name": "Chinese GP",
+                "date": now.date().isoformat(),
+                # Гонка стартовала 20 минут назад (раньше фильтр +1ч ее не включал)
+                "race_start_utc": (now - timedelta(minutes=20)).isoformat(),
+            },
+        ]
+        # Результаты есть для обоих этапов.
+        async def race_side_effect(_season: int, round_num: int):
+            if round_num == 1:
+                return pd.DataFrame([
+                    {"Abbreviation": "VER", "Points": 25},
+                    {"Abbreviation": "NOR", "Points": 18},
+                ])
+            if round_num == 2:
+                return pd.DataFrame([
+                    {"Abbreviation": "VER", "Points": 12},
+                    {"Abbreviation": "NOR", "Points": 15},
+                ])
+            return pd.DataFrame()
+
+        m_race.side_effect = race_side_effect
+        m_quali.side_effect = [
+            (1, [{"position": 1, "driver": "VER"}, {"position": 2, "driver": "NOR"}]),
+            (2, [{"position": 1, "driver": "NOR"}, {"position": 2, "driver": "VER"}]),
+        ]
+
+        r = await api_client.get("/api/compare", params={"d1": "VER", "d2": "NOR", "season": now.year})
+
+    assert r.status_code == 200
+    data = r.json()
+    # Должны попасть оба этапа, включая только что завершившийся.
+    assert len(data["labels"]) == 2
+    assert data["data1"]["history"] == [25.0, 12.0]
+    assert data["data2"]["history"] == [18.0, 15.0]
+
+
+@pytest.mark.asyncio
 async def test_api_compare_teams(api_client: AsyncClient):
     """GET /api/compare/teams — сравнение команд."""
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
@@ -553,7 +641,7 @@ async def test_api_race_results_falls_back_to_previous_round_with_data(api_clien
 
 @pytest.mark.asyncio
 async def test_api_race_results_resets_previous_round_when_new_weekend_started(api_client: AsyncClient):
-    """GET /api/race-results — после старта нового уикенда (FP1) не показывает прошлую гонку."""
+    """GET /api/race-results — после старта нового уикенда показывает текущий раунд, если его данные уже доступны."""
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
             patch("app.api.miniapp_api.get_race_results_async", new_callable=AsyncMock) as m_race:
@@ -579,17 +667,20 @@ async def test_api_race_results_resets_previous_round_when_new_weekend_started(a
         r = await api_client.get("/api/race-results")
     assert r.status_code == 200
     data = r.json()
-    assert data["results"] == []
+    assert data["round"] == 2
+    assert len(data["results"]) == 1
+    assert data["race_info"]["event_name"] == "Saudi GP"
 
 
 @pytest.mark.asyncio
 async def test_api_quali_results_resets_previous_round_when_new_weekend_started(api_client: AsyncClient):
-    """GET /api/quali-results — после старта нового уикенда скрывает прошлую квалификацию."""
+    """GET /api/quali-results — после старта нового уикенда показывает текущую квалификацию, если она уже доступна."""
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
             patch("app.api.miniapp_api.get_cached_quali_results", new_callable=AsyncMock) as m_cached, \
             patch("app.api.miniapp_api.get_last_notified_quali_round", new_callable=AsyncMock) as m_last, \
-            patch("app.api.miniapp_api._get_latest_quali_async", new_callable=AsyncMock) as m_latest:
+            patch("app.api.miniapp_api._get_latest_quali_async", new_callable=AsyncMock) as m_latest, \
+            patch("app.api.miniapp_api.get_quali_for_round_async", new_callable=AsyncMock) as m_quali_for_round:
         m_sched.return_value = [
             {"round": 1, "event_name": "Bahrain GP", "date": (now - timedelta(days=7)).date().isoformat(),
              "first_session_start_utc": (now - timedelta(days=9)).isoformat()},
@@ -599,10 +690,16 @@ async def test_api_quali_results_resets_previous_round_when_new_weekend_started(
         m_cached.return_value = None
         m_last.return_value = None
         m_latest.return_value = (1, [{"position": 1, "driver": "VER", "name": "Max", "best": "1:29.0"}])
+        m_quali_for_round.return_value = (
+            2,
+            [{"position": 1, "driver": "NOR", "name": "Lando Norris", "best": "1:28.500"}],
+        )
         r = await api_client.get("/api/quali-results")
     assert r.status_code == 200
     data = r.json()
-    assert data["results"] == []
+    assert data["round"] == 2
+    assert len(data["results"]) == 1
+    assert data["results"][0]["driver"] == "NOR"
 
 
 @pytest.mark.asyncio

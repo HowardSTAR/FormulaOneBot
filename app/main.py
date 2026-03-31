@@ -123,8 +123,8 @@ async def main():
     )
     scheduler.add_job(
         check_and_notify_voting_results,
-        "interval",
-        minutes=60,
+        "cron",
+        minute=0,
         args=[bot],
         id="voting_results_job",
     )
