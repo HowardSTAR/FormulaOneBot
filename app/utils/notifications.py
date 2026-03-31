@@ -842,6 +842,18 @@ async def check_and_notify_quali(bot: Bot) -> None:
 # --- ЗАДАЧА 4: ИТОГИ ГОЛОСОВАНИЯ (3 дня после гонки) ---
 
 DRIVER_VOTING_DAYS = 3
+VOTING_RESULTS_SEND_HOUR = 10
+VOTING_RESULTS_NOTIFY_KEY = 10000
+
+
+def _is_voting_results_send_time(tz_name: str, now_utc: datetime) -> bool:
+    """Отправляем итоги голосования только в 10:00 по локальной таймзоне пользователя."""
+    try:
+        tz = ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        tz = ZoneInfo("Europe/Moscow")
+    local_now = now_utc.astimezone(tz)
+    return local_now.hour == VOTING_RESULTS_SEND_HOUR
 
 
 async def check_and_notify_voting_results(bot: Bot) -> None:
@@ -855,7 +867,8 @@ async def check_and_notify_voting_results(bot: Bot) -> None:
         return
 
     last_notified = await get_last_notified_voting_round(season)
-    now = datetime.now(timezone.utc).date()
+    now_utc = datetime.now(timezone.utc)
+    now = now_utc.date()
 
     users = await get_users_with_settings(notifications_only=True)
     if not users:
@@ -909,12 +922,27 @@ async def check_and_notify_voting_results(bot: Bot) -> None:
 
         sent_count = 0
         for tg_id in tz_map:
-            quiet = is_quiet_hours(tz_map[tg_id])
+            tz_name = tz_map[tg_id]
+            if not _is_voting_results_send_time(tz_name, now_utc):
+                continue
+            if await was_reminder_sent(tg_id, season, round_num, False, VOTING_RESULTS_NOTIFY_KEY):
+                continue
+
+            quiet = is_quiet_hours(tz_name)
             if await safe_send_message(bot, tg_id, text, parse_mode="HTML", disable_notification=quiet):
                 sent_count += 1
+                await set_reminder_sent(tg_id, season, round_num, False, VOTING_RESULTS_NOTIFY_KEY)
             await asyncio.sleep(0.05)
 
         if sent_count > 0:
             logger.info(f"✅ Sent voting results for {event_name} to {sent_count} users.")
-        await set_last_notified_voting_round(season, round_num)
+
+        all_users_notified = True
+        for tg_id in tz_map:
+            if not await was_reminder_sent(tg_id, season, round_num, False, VOTING_RESULTS_NOTIFY_KEY):
+                all_users_notified = False
+                break
+
+        if all_users_notified:
+            await set_last_notified_voting_round(season, round_num)
         return
