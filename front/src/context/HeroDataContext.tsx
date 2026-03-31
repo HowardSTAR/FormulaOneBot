@@ -18,6 +18,7 @@ export type NextRaceResponse = {
   date?: string;
   fmt_date?: string;
   local?: string;
+  race_start_utc?: string;
   next_session_iso?: string;
   next_session_name?: string;
 };

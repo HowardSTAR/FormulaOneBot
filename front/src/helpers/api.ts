@@ -22,8 +22,11 @@ export async function apiRequest<T = unknown>(
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    'X-Telegram-Init-Data': getInitData(),
   };
+  const initData = getInitData();
+  if (initData) {
+    headers['X-Telegram-Init-Data'] = initData;
+  }
 
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);

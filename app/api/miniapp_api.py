@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from app.auth import get_current_user_id
+from app.auth import get_current_user_id, get_optional_user_id
 from app.db import (
     get_favorite_drivers, get_favorite_teams,
     remove_favorite_driver, add_favorite_driver,
@@ -90,6 +90,7 @@ class NextRaceResponse(BaseModel):
     utc: Optional[str] = None
     local: Optional[str] = None
     fmt_date: Optional[str] = None
+    race_start_utc: Optional[str] = None
     next_session_name: Optional[str] = None
     next_session_iso: Optional[str] = None
 
@@ -118,8 +119,10 @@ class SettingsRequest(BaseModel):
 # --- ЭНДПОИНТЫ ---
 
 @web_app.get("/api/settings")
-async def api_get_settings(user_id: int = Depends(get_current_user_id)):
-    """Получить текущие настройки пользователя."""
+async def api_get_settings(user_id: Optional[int] = Depends(get_optional_user_id)):
+    """Получить текущие настройки пользователя. Для гостя возвращает дефолт."""
+    if user_id is None:
+        return {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False}
     return await get_user_settings(user_id)
 
 
@@ -140,7 +143,7 @@ async def api_save_settings(
 @web_app.get("/api/next-race", response_model=NextRaceResponse)
 async def api_next_race(
         season: Optional[int] = None,
-        user_id: Optional[int] = Depends(get_current_user_id)
+        user_id: Optional[int] = Depends(get_optional_user_id)
 ):
     """Информация о ближайшей гонке + таймер."""
     # Передаем user_id, чтобы дата гонки в шапке форматировалась как раньше
@@ -787,7 +790,7 @@ def _build_race_results(df: pd.DataFrame, fav_drivers: set, fav_teams: set) -> t
 
 @web_app.get("/api/race-results")
 async def api_race_results(
-        user_id: Optional[int] = Depends(get_current_user_id),
+        user_id: Optional[int] = Depends(get_optional_user_id),
         season: Optional[int] = Query(None),
         round_number: Optional[int] = Query(None, alias="round"),
 ):
@@ -906,7 +909,7 @@ async def api_race_results(
 
 @web_app.get("/api/sprint-results")
 async def api_sprint_results(
-        user_id: Optional[int] = Depends(get_current_user_id),
+        user_id: Optional[int] = Depends(get_optional_user_id),
         season: Optional[int] = Query(None),
         round_number: Optional[int] = Query(None, alias="round"),
 ):
@@ -1011,7 +1014,7 @@ def _segment_by_position(pos: int) -> str:
 
 @web_app.get("/api/quali-results")
 async def api_quali_results(
-        user_id: Optional[int] = Depends(get_current_user_id),
+        user_id: Optional[int] = Depends(get_optional_user_id),
         season: Optional[int] = Query(None),
         round_number: Optional[int] = Query(None, alias="round"),
 ):
@@ -1133,7 +1136,7 @@ async def api_quali_results(
 
 @web_app.get("/api/sprint-quali-results")
 async def api_sprint_quali_results(
-        user_id: Optional[int] = Depends(get_current_user_id),
+        user_id: Optional[int] = Depends(get_optional_user_id),
         season: Optional[int] = Query(None),
         round_number: Optional[int] = Query(None, alias="round"),
 ):
@@ -1217,14 +1220,26 @@ async def api_sprint_quali_results(
 @web_app.get("/api/race-details")
 async def api_race_details(
         season: int = Query(..., description="Год сезона"),
-        # CHANGE HERE: Added alias="round"
         round_number: int = Query(..., description="Номер этапа", alias="round")
 ):
     """Возвращает полную инфу о трассе и расписание уикенда"""
     data = await get_event_details_async(season, round_number)
 
     if not data:
-        raise HTTPException(status_code=404, detail="Race not found")
+        # Fallback: если FastF1 не отдал event details, пробуем собрать минимум из сезонного расписания.
+        schedule = await get_season_schedule_short_async(season)
+        race = next((r for r in (schedule or []) if int(r.get("round", 0)) == int(round_number)), None)
+        if not race:
+            raise HTTPException(status_code=404, detail="Race not found")
+        data = {
+            "round": round_number,
+            "event_name": race.get("event_name") or f"Round {round_number}",
+            "official_name": race.get("event_name") or "",
+            "country": race.get("country") or "",
+            "location": race.get("location") or "",
+            "event_format": "",
+            "sessions": get_weekend_schedule(season, round_number) or [],
+        }
 
     # Русификация сессий для API
     name_map = {

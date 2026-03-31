@@ -1,4 +1,5 @@
-import { createBrowserRouter } from "react-router-dom";
+import { Navigate, createBrowserRouter } from "react-router-dom";
+import type { ReactElement } from "react";
 import { SwipeBackLayout } from "./components/SwipeBackLayout";
 import IndexPage from "./pages/index/Index";
 import ComparePage from "./pages/compare/ComparePage";
@@ -16,6 +17,14 @@ import SeasonPage from "./pages/season/SeasonPage";
 import SprintQualiResultsPage from "./pages/sprint-quali-results/SprintQualiResultsPage";
 import SprintResultsPage from "./pages/sprint-results/SprintResultsPage";
 import VotingPage from "./pages/voting/VotingPage";
+import { hasTelegramAuth } from "./helpers/auth";
+
+function RequireTelegramAuth({ children }: { children: ReactElement }) {
+  if (!hasTelegramAuth()) {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
 
 export const router = createBrowserRouter([
   {
@@ -27,16 +36,16 @@ export const router = createBrowserRouter([
       { path: "/constructors", element: <ConstructorsPage /> },
       { path: "/driver-details", element: <DriverDetailsPage /> },
       { path: "/drivers", element: <DriversPage /> },
-      { path: "/favorites", element: <FavoritesPage /> },
+      { path: "/favorites", element: <RequireTelegramAuth><FavoritesPage /></RequireTelegramAuth> },
       { path: "/next-race", element: <NextRacePage /> },
       { path: "/quali-results", element: <QualiResultsPage /> },
       { path: "/race-details", element: <RaceDetailsPage /> },
       { path: "/race-results", element: <RaceResultsPage /> },
-      { path: "/settings", element: <SettingsPage /> },
+      { path: "/settings", element: <RequireTelegramAuth><SettingsPage /></RequireTelegramAuth> },
       { path: "/season", element: <SeasonPage /> },
       { path: "/sprint-quali-results", element: <SprintQualiResultsPage /> },
       { path: "/sprint-results", element: <SprintResultsPage /> },
-      { path: "/voting", element: <VotingPage /> },
+      { path: "/voting", element: <RequireTelegramAuth><VotingPage /></RequireTelegramAuth> },
     ],
   },
 ]);

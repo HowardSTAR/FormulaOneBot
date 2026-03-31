@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
+import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 
 type NextRaceResponse = {
@@ -44,7 +45,7 @@ function NextRacePage() {
         ]);
         const raceData = raceRes.status === "fulfilled" ? raceRes.value : { status: "error" };
         const settings = settingsRes.status === "fulfilled" ? settingsRes.value : { timezone: "UTC" };
-        const userTz = settings?.timezone || "UTC";
+        const userTz = getDisplayTimezone(settings?.timezone);
 
         if (cancelled) return;
         if (raceData.status !== "ok") {

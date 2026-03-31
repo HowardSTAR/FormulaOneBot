@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
+import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 
 type Session = { name: string; utc_iso?: string; local?: string };
@@ -36,7 +37,7 @@ function RaceDetailsPage() {
     async function load() {
       try {
         const [raceData, settingsData] = await Promise.all([
-          apiRequest<RaceDetailsResponse>(`/api/race-details?season=${season}&round=${round}`),
+          apiRequest<RaceDetailsResponse>("/api/race-details", { season, round }),
           apiRequest<SettingsResponse>("/api/settings"),
         ]);
         if (cancelled) return;
@@ -116,7 +117,7 @@ function RaceDetailsPage() {
     );
   }
 
-  const userTz = settings?.timezone || "UTC";
+  const userTz = getDisplayTimezone(settings?.timezone);
   const now = new Date();
   const insights = getCircuitInsightsRu({
     eventName: data.event_name,

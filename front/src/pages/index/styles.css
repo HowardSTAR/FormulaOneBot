@@ -2,6 +2,20 @@
     display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
 }
 
+.index-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+
+.index-main-column,
+.index-side-column {
+    min-width: 0;
+}
+
+.index-panel {
+    min-width: 0;
+}
 
 .section-title {
     font-size: 13px;
@@ -58,4 +72,204 @@
     font-size: 14px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     animation: fadeIn 0.5s ease-out;
+}
+
+.index-quick-grid {
+    margin-bottom: 8px;
+}
+
+.index-card-title {
+    font-weight: 700;
+}
+
+.index-card-desc {
+    display: none;
+}
+
+.index-wide-link {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+}
+
+.index-wide-link-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.index-wide-link-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: 2px;
+}
+
+.index-wide-link-arrow {
+    font-size: 16px;
+}
+
+.index-wide-link-arrow-muted {
+    opacity: 0.5;
+}
+
+.index-my-section {
+    margin-top: 8px;
+}
+
+.index-favorites-link {
+    border-color: rgba(255, 215, 0, 0.3);
+    margin-bottom: 12px;
+}
+
+.index-favorites-link .menu-label,
+.index-favorites-link .index-wide-link-arrow {
+    color: #ffd700;
+}
+
+@media (min-width: 1100px) {
+    .index-layout {
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        gap: 24px;
+        align-items: start;
+    }
+
+    .index-side-column {
+        position: sticky;
+        top: 16px;
+    }
+
+    .index-panel {
+        background: rgba(21, 23, 30, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 18px;
+        padding: 14px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+    .index-main-column .index-panel {
+        margin-top: 14px;
+    }
+
+    .index-panel .section-title {
+        margin-top: 0;
+        margin-left: 2px;
+    }
+
+    .hero-title {
+        font-size: 24px;
+    }
+
+    .hero-sub {
+        font-size: 14px;
+    }
+
+    .hero-date {
+        font-size: 15px;
+    }
+
+    .hero-timer {
+        font-size: 15px;
+    }
+
+    .results-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .index-result-tile {
+        align-items: flex-start;
+        text-align: left;
+        min-height: 128px;
+        padding: 18px;
+        gap: 8px;
+    }
+
+    .index-nav-card {
+        align-items: flex-start;
+        text-align: left;
+        min-height: 124px;
+        padding: 18px;
+        gap: 8px;
+    }
+
+    .index-quick-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .menu-grid.index-quick-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .index-quick-grid .full-width {
+        grid-column: 1 / -1;
+    }
+
+    .index-card-desc {
+        display: block;
+        color: var(--text-secondary);
+        font-size: 12px;
+        line-height: 1.35;
+        font-weight: 500;
+    }
+
+    .index-wide-link {
+        padding: 18px 20px;
+    }
+
+    .index-wide-link .menu-icon {
+        font-size: 22px;
+    }
+
+    .index-wide-link-arrow {
+        opacity: 0.7;
+    }
+}
+
+@media (min-width: 1400px) {
+    .index-layout {
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.95fr);
+    }
+
+    .results-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .index-card-desc {
+        font-size: 12.5px;
+    }
+}
+
+@media (min-width: 1600px) {
+    .index-layout {
+        grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+        gap: 32px;
+    }
+
+    .index-side-column {
+        top: 20px;
+    }
+
+    .hero-btn {
+        padding: 28px;
+    }
+
+    .hero-title {
+        font-size: 28px;
+    }
+
+    .hero-timer {
+        padding: 8px 14px;
+    }
+
+    .index-quick-grid {
+        gap: 14px;
+    }
+
+    .index-result-tile,
+    .index-nav-card {
+        min-height: 136px;
+    }
 }

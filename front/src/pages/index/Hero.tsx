@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { formatDateToText } from "../../helpers";
+import { getDisplayTimezone } from "../../helpers";
 import type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
 
 const SESSION_DURATION_MS = 90 * 60 * 1000;
@@ -17,6 +17,19 @@ function Hero({ nextRace, schedule, userTz }: HeroProps) {
   const [dateText, setDateText] = useState("--.--");
   const [subLabel, setSubLabel] = useState("БЛИЖАЙШИЙ ЭТАП");
   const [showTimer, setShowTimer] = useState(false);
+  const displayTz = getDisplayTimezone(userTz);
+
+  const formatCountdown = (targetMs: number, nowMs: number): string => {
+    const distance = Math.max(0, targetMs - nowMs);
+    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+    let text = "";
+    if (days > 0) text += `${days}д `;
+    text += `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    return text;
+  };
 
   // Dynamic timer from weekend schedule (like web/app)
   useEffect(() => {
@@ -61,7 +74,7 @@ function Hero({ nextRace, schedule, userTz }: HeroProps) {
         const dateObj = new Date(found.utc_iso!);
         setDateText(
           dateObj.toLocaleDateString("ru-RU", {
-            timeZone: userTz,
+            timeZone: displayTz,
             day: "numeric",
             month: "long",
           }).toUpperCase()
@@ -71,27 +84,19 @@ function Hero({ nextRace, schedule, userTz }: HeroProps) {
         const dateObj = new Date(found.utc_iso!);
         setDateText(
           dateObj.toLocaleDateString("ru-RU", {
-            timeZone: userTz,
+            timeZone: displayTz,
             day: "numeric",
             month: "long",
           }).toUpperCase()
         );
-        const distance = dateObj.getTime() - now;
-        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-        let text = "";
-        if (days > 0) text += `${days}д `;
-        text += `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-        setTimerText(text);
+        setTimerText(formatCountdown(dateObj.getTime(), now));
       }
     }
 
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [schedule, userTz]);
+  }, [schedule, displayTz]);
 
   // Fallback when no schedule - use next_session_iso from next-race
   useEffect(() => {
@@ -110,35 +115,26 @@ function Hero({ nextRace, schedule, userTz }: HeroProps) {
         setTimerText("СЕССИЯ ИДЕТ");
         return;
       }
-      const distance = targetTime - now;
-      const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-      let text = "";
-      if (days > 0) text += `${days}д `;
-      text += `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-      setTimerText(text);
+      setTimerText(formatCountdown(targetTime, now));
     }
 
-    if (data.fmt_date || data.local || data.date) {
-      const raw = data.fmt_date?.split(" ")[0] ?? data.local?.split(" ")[0] ?? data.date ?? "";
-      setDateText(formatDateToText(raw));
-    } else {
+    if (data.next_session_iso) {
       const d = new Date(data.next_session_iso);
       setDateText(
         d.toLocaleDateString("ru-RU", {
-          timeZone: userTz,
+          timeZone: displayTz,
           day: "numeric",
           month: "long",
         }).toUpperCase()
       );
+    } else {
+      setDateText(data.date || "");
     }
 
     update();
     const id = setInterval(update, 1000);
     return () => clearInterval(id);
-  }, [nextRace, schedule.length, userTz]);
+  }, [nextRace, schedule.length, displayTz]);
 
   // Initial date when no timer (schedule empty, no next_session)
   useEffect(() => {
@@ -146,20 +142,50 @@ function Hero({ nextRace, schedule, userTz }: HeroProps) {
     const data = nextRace;
     if (!data || data.status === "season_finished") return;
 
-    if (data.next_session_iso) {
-      const d = new Date(data.next_session_iso);
+    if (data.race_start_utc) {
+      const target = new Date(data.race_start_utc);
+      setSubLabel("ГОНКА");
+      setShowTimer(true);
       setDateText(
-        d.toLocaleDateString("ru-RU", {
-          timeZone: userTz,
+        target.toLocaleDateString("ru-RU", {
+          timeZone: displayTz,
           day: "numeric",
           month: "long",
         }).toUpperCase()
       );
-    } else if (data.fmt_date || data.local || data.date) {
-      const raw = data.fmt_date?.split(" ")[0] ?? data.local?.split(" ")[0] ?? data.date ?? "";
-      setDateText(formatDateToText(raw));
+      const update = () => {
+        const now = Date.now();
+        const targetMs = target.getTime();
+        if (now >= targetMs && now <= targetMs + SESSION_DURATION_MS) {
+          setStatus("running");
+          setTimerText("СЕССИЯ ИДЕТ");
+        } else if (now < targetMs) {
+          setStatus("future");
+          setTimerText(formatCountdown(targetMs, now));
+        } else {
+          setStatus("completed");
+          setShowTimer(false);
+        }
+      };
+      update();
+      const id = setInterval(update, 1000);
+      return () => clearInterval(id);
+    } else if (data.date) {
+      const d = new Date(data.date);
+      if (!Number.isNaN(d.getTime())) {
+        setDateText(
+          d.toLocaleDateString("ru-RU", {
+            timeZone: displayTz,
+            day: "numeric",
+            month: "long",
+          }).toUpperCase()
+        );
+      } else {
+        setDateText(data.date);
+      }
+      setShowTimer(false);
     }
-  }, [nextRace, schedule.length, userTz]);
+  }, [nextRace, schedule.length, displayTz]);
 
   if (!nextRace?.status && !nextRace?.event_name) {
     return (

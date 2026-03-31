@@ -42,3 +42,15 @@ async def get_current_user_id(
 
     except Exception:
         raise HTTPException(status_code=401, detail="Authentication failed")
+
+
+async def get_optional_user_id(
+        x_telegram_init_data: Annotated[str | None, Header()] = None
+) -> int | None:
+    """Опциональная аутентификация для публичного read-only режима сайта."""
+    if not x_telegram_init_data:
+        return None
+    try:
+        return await get_current_user_id(x_telegram_init_data)
+    except HTTPException:
+        return None

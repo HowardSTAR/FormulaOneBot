@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from PIL import Image
 
 
@@ -208,6 +208,19 @@ async def test_api_settings_get(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_api_settings_get_guest_returns_defaults():
+    """GET /api/settings без Telegram auth — дефолтные настройки гостя."""
+    from app.api.miniapp_api import web_app
+
+    transport = ASGITransport(app=web_app)
+    async with AsyncClient(transport=transport, base_url="http://test", timeout=30.0) as client:
+        r = await client.get("/api/settings")
+
+    assert r.status_code == 200
+    assert r.json() == {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False}
+
+
+@pytest.mark.asyncio
 async def test_api_settings_save(api_client: AsyncClient):
     """POST /api/settings — сохранение настроек."""
     r = await api_client.post(
@@ -264,6 +277,23 @@ async def test_api_next_race(api_client: AsyncClient):
     data = r.json()
     assert data["status"] == "ok"
     assert data["round"] == 1
+
+
+@pytest.mark.asyncio
+async def test_api_next_race_guest_without_auth():
+    """GET /api/next-race без Telegram auth — публично доступен."""
+    from app.api.miniapp_api import web_app
+
+    web_app.dependency_overrides.clear()
+
+    with patch("app.api.miniapp_api.build_next_race_payload", new_callable=AsyncMock) as m_next:
+        m_next.return_value = {"status": "season_finished", "season": 2026, "round": None}
+        transport = ASGITransport(app=web_app)
+        async with AsyncClient(transport=transport, base_url="http://test", timeout=30.0) as client:
+            r = await client.get("/api/next-race")
+
+    assert r.status_code == 200
+    assert r.json().get("status") == "season_finished"
 
 
 @pytest.mark.asyncio

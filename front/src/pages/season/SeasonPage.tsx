@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
 import { apiRequest } from "../../helpers/api";
+import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 
 const currentRealYear = new Date().getFullYear();
@@ -28,7 +29,7 @@ function SeasonPage() {
     yearFromUrl && yearFromUrl >= 1950 && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
   );
   const [races, setRaces] = useState<Race[]>([]);
-  const [userTz, setUserTz] = useState("UTC");
+  const [userTz, setUserTz] = useState(getDisplayTimezone());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
@@ -38,7 +39,7 @@ function SeasonPage() {
     let cancelled = false;
     apiRequest<SettingsResponse>("/api/settings")
       .then((s) => {
-        if (!cancelled && s?.timezone) setUserTz(s.timezone);
+        if (!cancelled) setUserTz(getDisplayTimezone(s?.timezone));
       })
       .catch(() => {});
     return () => {
@@ -111,23 +112,26 @@ function SeasonPage() {
   return (
     <>
       <BackButton>← <span>Главное меню</span></BackButton>
-      <h2>Календарь</h2>
+      <div className="page-head-row">
+        <h2 className="page-head-title">Календарь</h2>
+        <div className="page-head-controls">
+          <YearSelect
+            value={year}
+            onChange={handleYearChange}
+            minYear={1950}
+            maxYear={currentRealYear}
+            placeholder="Введи год"
+          />
+        </div>
+      </div>
 
-      <YearSelect
-        value={year}
-        onChange={handleYearChange}
-        minYear={1950}
-        maxYear={currentRealYear}
-        placeholder="Введи год"
-      />
-
-      <div className="standings-list">
+      <div className="season-races-grid">
         {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка календаря...</div></div>}
-        {error && <div style={{ color: "red", textAlign: "center" }}>{error}</div>}
+        {error && <div className="page-error">{error}</div>}
         {!loading && emptyMessage && (
-          <div style={{ textAlign: "center", padding: "40px 20px" }}>
-            <div style={{ fontSize: 40 }}>🔮</div>
-            <div style={{ fontWeight: 600 }}>{emptyMessage}</div>
+          <div className="empty-state season-empty-state">
+            <div className="empty-icon">🔮</div>
+            <div className="empty-title">{emptyMessage}</div>
           </div>
         )}
         {!loading && !error && !emptyMessage &&
@@ -162,7 +166,7 @@ function SeasonPage() {
             const hasSprint = Boolean(race.sprint_start_utc);
             const hasSprintQuali = Boolean(race.sprint_quali_start_utc);
             return (
-              <div key={race.round}>
+              <div key={race.round} className="season-race-item">
                 <div
                   id={statusClass === "next" ? "next-race-card" : undefined}
                   className={`race-card ${statusClass}`}

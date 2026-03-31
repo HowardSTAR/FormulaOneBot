@@ -104,19 +104,22 @@ function ConstructorsPage() {
   return (
     <>
       <BackButton>← <span>Главное меню</span></BackButton>
-      <h2>Кубок конструкторов</h2>
+      <div className="page-head-row">
+        <h2 className="page-head-title">Кубок конструкторов</h2>
+        <div className="page-head-controls">
+          <YearSelect
+            value={year}
+            onChange={handleYearChange}
+            minYear={minConstructorYear}
+            maxYear={currentRealYear}
+            placeholder="Введи год"
+          />
+        </div>
+      </div>
 
-      <YearSelect
-        value={year}
-        onChange={handleYearChange}
-        minYear={minConstructorYear}
-        maxYear={currentRealYear}
-        placeholder="Введи год"
-      />
-
-      <div style={{ display: "flex", flexDirection: "column" }}>
+      <div className="standings-cards-grid">
         {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка команд...</div></div>}
-        {error && <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>}
+        {error && <div className="page-error">{error}</div>}
         {!loading && !error && emptyMessage && (
           <div className="empty-state">
             {emptyMessage.icon && <span className="empty-icon">{emptyMessage.icon}</span>}

@@ -257,183 +257,199 @@ function ComparePage() {
   return (
     <>
       <BackButton>← Главное меню</BackButton>
-      <h2>Сравнение</h2>
-
-      <div className="segmented-tabs">
-        <div
-          className="segmented-slider"
-          style={{ transform: tab === "drivers" ? "translateX(0)" : "translateX(100%)" }}
-          aria-hidden
-        />
-        <button
-          type="button"
-          className={`segmented-tab ${tab === "drivers" ? "active" : ""}`}
-          onClick={() => {
-            hapticSelection();
-            setTab("drivers");
-            setResults(null);
-            setCompareError(null);
-          }}
-        >
-          Пилоты
-        </button>
-        <button
-          type="button"
-          className={`segmented-tab ${tab === "teams" ? "active" : ""}`}
-          onClick={() => {
-            hapticSelection();
-            setTab("teams");
-            setResults(null);
-            setCompareError(null);
-          }}
-        >
-          Команды
-        </button>
+      <div className="page-head-row">
+        <h2 className="page-head-title">Сравнение</h2>
+        <div className="page-head-controls">
+          <YearSelect
+            value={year}
+            onChange={handleYearChange}
+            minYear={1950}
+            maxYear={currentRealYear + 1}
+            placeholder="Введи год"
+          />
+        </div>
       </div>
 
-      <YearSelect
-        value={year}
-        onChange={handleYearChange}
-        minYear={1950}
-        maxYear={currentRealYear + 1}
-        placeholder="Введи год"
-      />
-
-      {tab === "drivers" && (
-        <div className="selectors">
-          <CustomSelect
-            className="driver-select"
-            options={
-              loadingDrivers
-                ? [{ value: "", label: "Загрузка..." }]
-                : drivers.length === 0
-                  ? [{ value: "", label: "Нет данных" }]
-                  : drivers.map((d) => ({
-                      value: d.code,
-                      label: d.is_favorite ? `⭐ ${d.name}` : d.name,
-                    }))
-            }
-            value={d1}
-            onChange={(v) => setD1(String(v))}
-            disabled={loadingDrivers}
-          />
-          <span className="vs-badge">VS</span>
-          <CustomSelect
-            className="driver-select"
-            options={
-              loadingDrivers
-                ? [{ value: "", label: "Загрузка..." }]
-                : drivers.length === 0
-                  ? [{ value: "", label: "Нет данных" }]
-                  : drivers.map((d) => ({
-                      value: d.code,
-                      label: d.is_favorite ? `⭐ ${d.name}` : d.name,
-                    }))
-            }
-            value={d2}
-            onChange={(v) => setD2(String(v))}
-            disabled={loadingDrivers}
-          />
-        </div>
-      )}
-
-      {tab === "teams" && (
-        <div className="selectors">
-          <CustomSelect
-            className="driver-select"
-            options={
-              loadingTeams
-                ? [{ value: "", label: "Загрузка..." }]
-                : teams.length === 0
-                  ? [{ value: "", label: "Нет данных" }]
-                  : teams.map((t) => ({
-                      value: t.name,
-                      label: t.is_favorite ? `⭐ ${t.name}` : t.name,
-                    }))
-            }
-            value={t1}
-            onChange={(v) => setT1(String(v))}
-            disabled={loadingTeams}
-          />
-          <span className="vs-badge">VS</span>
-          <CustomSelect
-            className="driver-select"
-            options={
-              loadingTeams
-                ? [{ value: "", label: "Загрузка..." }]
-                : teams.length === 0
-                  ? [{ value: "", label: "Нет данных" }]
-                  : teams.map((t) => ({
-                      value: t.name,
-                      label: t.is_favorite ? `⭐ ${t.name}` : t.name,
-                    }))
-            }
-            value={t2}
-            onChange={(v) => setT2(String(v))}
-            disabled={loadingTeams}
-          />
-        </div>
-      )}
-
-      <button
-        type="button"
-        className="btn-compare"
-        onClick={loadComparison}
-        disabled={!canCompare}
-      >
-        {comparing ? "Анализируем..." : "Сравнить"}
-      </button>
-
-      {comparing && (
-        <div className="loading" style={{ padding: "20px 0" }}>
-          <div className="spinner" />
-          <div>Анализируем данные...</div>
-        </div>
-      )}
-
-      {compareError && (
-        <div style={{ color: "#ff6b6b", marginBottom: 16, fontSize: 14 }}>{compareError}</div>
-      )}
-
-      {!comparing && results && results.labels && results.labels.length > 0 && (
-        <div style={{ animation: "fadeIn 0.3s ease-out" }}>
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-title">Гонки</div>
-              <div className="stat-score">
-                <span className="s-d1">{raceScore1}</span> : <span className="s-d2">{raceScore2}</span>
-              </div>
-            </div>
-            {tab === "drivers" ? (
-              <div className="stat-card">
-                <div className="stat-title">Квалификации</div>
-                <div className="stat-score">
-                  <span className="s-d1">{results.q_score?.[0] ?? 0}</span> :{" "}
-                  <span className="s-d2">{results.q_score?.[1] ?? 0}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="stat-card">
-                <div className="stat-title">Сумма очков</div>
-                <div className="stat-score">
-                  <span className="s-d1">{totalPts1}</span> : <span className="s-d2">{totalPts2}</span>
-                </div>
-              </div>
-            )}
+      <div className="compare-layout">
+        <div className="compare-controls-panel">
+          <div className="segmented-tabs">
+            <div
+              className="segmented-slider"
+              style={{ transform: tab === "drivers" ? "translateX(0)" : "translateX(100%)" }}
+              aria-hidden
+            />
+            <button
+              type="button"
+              className={`segmented-tab ${tab === "drivers" ? "active" : ""}`}
+              onClick={() => {
+                hapticSelection();
+                setTab("drivers");
+                setResults(null);
+                setCompareError(null);
+              }}
+            >
+              Пилоты
+            </button>
+            <button
+              type="button"
+              className={`segmented-tab ${tab === "teams" ? "active" : ""}`}
+              onClick={() => {
+                hapticSelection();
+                setTab("teams");
+                setResults(null);
+                setCompareError(null);
+              }}
+            >
+              Команды
+            </button>
           </div>
+
           {tab === "drivers" && (
-            <div className="stat-card" style={{ marginBottom: 20 }}>
-              <div className="stat-title">Сумма очков</div>
-              <div className="stat-score">
-                <span className="s-d1">{totalPts1}</span> : <span className="s-d2">{totalPts2}</span>
+            <div className="selectors">
+              <CustomSelect
+                className="driver-select"
+                options={
+                  loadingDrivers
+                    ? [{ value: "", label: "Загрузка..." }]
+                    : drivers.length === 0
+                      ? [{ value: "", label: "Нет данных" }]
+                      : drivers.map((d) => ({
+                          value: d.code,
+                          label: d.is_favorite ? `⭐ ${d.name}` : d.name,
+                        }))
+                }
+                value={d1}
+                onChange={(v) => setD1(String(v))}
+                disabled={loadingDrivers}
+              />
+              <span className="vs-badge">VS</span>
+              <CustomSelect
+                className="driver-select"
+                options={
+                  loadingDrivers
+                    ? [{ value: "", label: "Загрузка..." }]
+                    : drivers.length === 0
+                      ? [{ value: "", label: "Нет данных" }]
+                      : drivers.map((d) => ({
+                          value: d.code,
+                          label: d.is_favorite ? `⭐ ${d.name}` : d.name,
+                        }))
+                }
+                value={d2}
+                onChange={(v) => setD2(String(v))}
+                disabled={loadingDrivers}
+              />
+            </div>
+          )}
+
+          {tab === "teams" && (
+            <div className="selectors">
+              <CustomSelect
+                className="driver-select"
+                options={
+                  loadingTeams
+                    ? [{ value: "", label: "Загрузка..." }]
+                    : teams.length === 0
+                      ? [{ value: "", label: "Нет данных" }]
+                      : teams.map((t) => ({
+                          value: t.name,
+                          label: t.is_favorite ? `⭐ ${t.name}` : t.name,
+                        }))
+                }
+                value={t1}
+                onChange={(v) => setT1(String(v))}
+                disabled={loadingTeams}
+              />
+              <span className="vs-badge">VS</span>
+              <CustomSelect
+                className="driver-select"
+                options={
+                  loadingTeams
+                    ? [{ value: "", label: "Загрузка..." }]
+                    : teams.length === 0
+                      ? [{ value: "", label: "Нет данных" }]
+                      : teams.map((t) => ({
+                          value: t.name,
+                          label: t.is_favorite ? `⭐ ${t.name}` : t.name,
+                        }))
+                }
+                value={t2}
+                onChange={(v) => setT2(String(v))}
+                disabled={loadingTeams}
+              />
+            </div>
+          )}
+
+          <button
+            type="button"
+            className="btn-compare"
+            onClick={loadComparison}
+            disabled={!canCompare}
+          >
+            {comparing ? "Анализируем..." : "Сравнить"}
+          </button>
+
+          {comparing && (
+            <div className="loading" style={{ padding: "20px 0" }}>
+              <div className="spinner" />
+              <div>Анализируем данные...</div>
+            </div>
+          )}
+
+          {compareError && (
+            <div className="page-error page-error-soft">{compareError}</div>
+          )}
+        </div>
+
+        <div className="compare-results-panel">
+          {!comparing && results && results.labels && results.labels.length > 0 && (
+            <div style={{ animation: "fadeIn 0.3s ease-out" }}>
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <div className="stat-title">Гонки</div>
+                  <div className="stat-score">
+                    <span className="s-d1">{raceScore1}</span> : <span className="s-d2">{raceScore2}</span>
+                  </div>
+                </div>
+                {tab === "drivers" ? (
+                  <div className="stat-card">
+                    <div className="stat-title">Квалификации</div>
+                    <div className="stat-score">
+                      <span className="s-d1">{results.q_score?.[0] ?? 0}</span> :{" "}
+                      <span className="s-d2">{results.q_score?.[1] ?? 0}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="stat-card">
+                    <div className="stat-title">Сумма очков</div>
+                    <div className="stat-score">
+                      <span className="s-d1">{totalPts1}</span> : <span className="s-d2">{totalPts2}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {tab === "drivers" && (
+                <div className="stat-card" style={{ marginBottom: 20 }}>
+                  <div className="stat-title">Сумма очков</div>
+                  <div className="stat-score">
+                    <span className="s-d1">{totalPts1}</span> : <span className="s-d2">{totalPts2}</span>
+                  </div>
+                </div>
+              )}
+              <div className="chart-container">
+                <canvas ref={chartRef} />
               </div>
             </div>
           )}
-          <div className="chart-container">
-            <canvas ref={chartRef} />
-          </div>
+          {!comparing && (!results || !results.labels || results.labels.length === 0) && !compareError && (
+            <div className="empty-state compare-empty-state">
+              <span className="empty-icon">📈</span>
+              <div className="empty-title">Выберите участников</div>
+              <div className="empty-desc">Укажите двух пилотов или две команды, затем нажмите "Сравнить".</div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </>
   );
 }

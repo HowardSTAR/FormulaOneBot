@@ -739,6 +739,39 @@ p {
     text-align: center;
 }
 
+/* Shared desktop page shell */
+.page-head-row {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.page-head-title {
+    margin: 0;
+}
+.page-head-controls {
+    width: 100%;
+}
+.page-head-controls .year-select-wrapper {
+    margin-bottom: 0;
+}
+.page-error {
+    color: #ff6b6b;
+    text-align: center;
+    padding: 20px;
+}
+.page-error-soft {
+    text-align: left;
+    padding: 0;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+.standings-cards-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
 /* Compare page */
 .selectors { display: flex; gap: 10px; margin-bottom: 20px; }
 .driver-select {
@@ -785,6 +818,29 @@ p {
     font-size: 16px;
     font-weight: 700;
     margin-bottom: 20px;
+}
+.compare-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+.compare-controls-panel {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px;
+}
+.compare-controls-panel .segmented-tabs {
+    margin-bottom: 14px;
+}
+.compare-controls-panel .btn-compare {
+    margin-bottom: 12px;
+}
+.compare-results-panel {
+    min-width: 0;
+}
+.compare-empty-state {
+    margin-top: 0;
 }
 
 /* Favorites tabs - segmented control with slider */
@@ -1219,6 +1275,17 @@ input:checked + .slider:before {
   margin: -2px 0 12px;
   font-size: 12px;
   color: var(--text-secondary);
+}
+.season-races-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+.season-race-item {
+  min-width: 0;
+}
+.season-empty-state {
+  margin-top: 0;
 }
 
 /* Race details */
@@ -2057,4 +2124,182 @@ input:checked + .slider:before {
   bottom: 12px;
   left: 14px;
   font-size: 18px;
+}
+
+@media (min-width: 900px) {
+  .root {
+    max-width: 1080px;
+    padding: 24px;
+  }
+
+  .menu-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .driver-stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .constructor-drivers-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .page-head-row {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .page-head-controls {
+    width: min(360px, 45%);
+  }
+
+  .standings-cards-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .standings-cards-grid .loading,
+  .standings-cards-grid .empty-state,
+  .standings-cards-grid .page-error {
+    grid-column: 1 / -1;
+  }
+
+  .compare-layout {
+    grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .compare-controls-panel {
+    position: sticky;
+    top: 16px;
+  }
+
+  .compare-controls-panel .selectors {
+    margin-bottom: 14px;
+  }
+
+  .compare-results-panel .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .compare-results-panel .chart-container {
+    height: 320px;
+  }
+
+  .season-races-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+
+  .season-races-grid .loading,
+  .season-races-grid .empty-state,
+  .season-races-grid .page-error {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1200px) {
+  .root {
+    max-width: 1240px;
+    padding: 28px;
+  }
+
+  h2,
+  .page-head-title {
+    font-size: 32px;
+    letter-spacing: -0.4px;
+  }
+
+  .page-head-row {
+    margin-bottom: 16px;
+  }
+
+  .driver-card,
+  .team-card {
+    padding: 14px 18px;
+  }
+
+  .driver-name,
+  .team-name-main {
+    font-size: 16px;
+  }
+
+  .driver-points,
+  .team-points {
+    min-width: 58px;
+    font-size: 15px;
+  }
+
+  .race-card {
+    padding: 18px;
+  }
+
+  .season-race-insights {
+    padding: 14px;
+  }
+
+  .compare-layout {
+    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .compare-controls-panel {
+    border-radius: 14px;
+    padding: 16px;
+  }
+
+  .compare-results-panel .chart-container {
+    height: 360px;
+    padding: 16px;
+  }
+
+  .stats-grid {
+    gap: 14px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .root {
+    max-width: 1460px;
+    padding: 32px;
+  }
+
+  .menu-grid {
+    gap: 14px;
+  }
+
+  .menu-item {
+    border-radius: 18px;
+  }
+
+  .page-head-controls {
+    width: min(420px, 42%);
+  }
+
+  .standings-cards-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .season-races-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .compare-layout {
+    grid-template-columns: minmax(360px, 460px) minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  .compare-results-panel .chart-container {
+    height: 420px;
+  }
+
+  .compare-results-panel .stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
