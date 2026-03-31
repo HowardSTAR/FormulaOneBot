@@ -252,19 +252,26 @@ def get_season_schedule_short(season: int) -> list[dict]:
             quali_dt_utc = None
             sprint_dt_utc = None
             sprint_quali_dt_utc = None
+            first_session_dt_utc = None
             for i in range(1, 9):
                 name_col = f"Session{i}"
                 date_col = f"Session{i}DateUtc"
                 if name_col in row and date_col in row:
                     sess_name = str(row[name_col]) if pd.notna(row[name_col]) else ""
-                    if sess_name == "Race" and pd.notna(row[date_col]):
-                        race_dt_utc = row[date_col].to_pydatetime()
-                    if "Qualifying" in sess_name and pd.notna(row[date_col]):
-                        quali_dt_utc = row[date_col].to_pydatetime()
-                    if sess_name == "Sprint" and pd.notna(row[date_col]):
-                        sprint_dt_utc = row[date_col].to_pydatetime()
-                    if sess_name in ("Sprint Qualifying", "Sprint Shootout") and pd.notna(row[date_col]):
-                        sprint_quali_dt_utc = row[date_col].to_pydatetime()
+                    if pd.notna(row[date_col]):
+                        session_dt_utc = row[date_col].to_pydatetime()
+                        if session_dt_utc.tzinfo is None:
+                            session_dt_utc = session_dt_utc.replace(tzinfo=timezone.utc)
+                        if first_session_dt_utc is None or session_dt_utc < first_session_dt_utc:
+                            first_session_dt_utc = session_dt_utc
+                        if sess_name == "Race":
+                            race_dt_utc = session_dt_utc
+                        if "Qualifying" in sess_name:
+                            quali_dt_utc = session_dt_utc
+                        if sess_name == "Sprint":
+                            sprint_dt_utc = session_dt_utc
+                        if sess_name in ("Sprint Qualifying", "Sprint Shootout"):
+                            sprint_quali_dt_utc = session_dt_utc
 
             if race_dt_utc:
                 if race_dt_utc.tzinfo is None:
@@ -306,6 +313,7 @@ def get_season_schedule_short(season: int) -> list[dict]:
                 "country": country,
                 "location": location,
                 "date": date_iso,
+                "first_session_start_utc": first_session_dt_utc.isoformat() if first_session_dt_utc else None,
                 "race_start_utc": race_start_utc,
                 "quali_start_utc": quali_start_utc,
                 "sprint_start_utc": sprint_start_utc,
@@ -1107,7 +1115,7 @@ async def openf1_get_race_results_live(season: int, round_num: int | None = None
 # Бот и Mini App API вызывают одни и те же async-функции ниже:
 # запросы и с бота, и с front идут через кэш (Redis или файловый), кэш общий.
 
-@cache_result(ttl=7200, key_prefix="schedule_v2")
+@cache_result(ttl=7200, key_prefix="schedule_v3")
 async def get_season_schedule_short_async(season: int):
     return await _run_sync(get_season_schedule_short, season)
 
