@@ -462,6 +462,9 @@ async def check_and_send_results(bot: Bot):
     users_favorites = await get_users_favorites_for_notifications()
     group_chats = await get_all_group_chats()
     notifications_users = await get_users_with_settings(notifications_only=True)
+    if not notifications_users:
+        # Legacy fallback: старые пользователи могли остаться с notifications_enabled=0 после миграции.
+        notifications_users = await get_users_with_settings(notifications_only=False)
     if not users_favorites and not group_chats and not notifications_users:
         await set_last_notified_round(season, round_num)
         return
@@ -693,6 +696,9 @@ async def check_and_notify_quali(bot: Bot) -> None:
     users_favorites = await get_users_favorites_for_notifications()
     group_chats = await get_all_group_chats()
     notifications_users = await get_users_with_settings(notifications_only=True)
+    if not notifications_users:
+        # Legacy fallback: не теряем пост-квали уведомления для старых профилей.
+        notifications_users = await get_users_with_settings(notifications_only=False)
     if not users_favorites and not group_chats and not notifications_users:
         await set_last_notified_quali_round(season, round_num)
         return
