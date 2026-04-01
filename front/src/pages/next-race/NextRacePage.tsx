@@ -266,18 +266,20 @@ function NextRacePage() {
 
       {!loading && eventName && (
         <>
-          <div className="circuit-insights-card">
-            <div className="circuit-insights-title">Данные по этапу</div>
-            <div className="circuit-insights-stats">
-              {insights.stats.map((item) => (
-                <div className="circuit-stat-box" key={item.label}>
-                  <div className="circuit-stat-label">{item.label}</div>
-                  <div className="circuit-stat-value">{item.value}</div>
-                  {item.hint ? <div className="circuit-stat-hint">{item.hint}</div> : null}
-                </div>
-              ))}
+          <section className="next-race-stage-data-section">
+            <div className="circuit-insights-card">
+              <div className="circuit-insights-title">Данные по этапу</div>
+              <div className="circuit-insights-stats">
+                {insights.stats.map((item) => (
+                  <div className="circuit-stat-box" key={item.label}>
+                    <div className="circuit-stat-label">{item.label}</div>
+                    <div className="circuit-stat-value">{item.value}</div>
+                    {item.hint ? <div className="circuit-stat-hint">{item.hint}</div> : null}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          </section>
 
           <div className="circuit-insights-card">
             <div className="circuit-insights-title">Интересные факты</div>

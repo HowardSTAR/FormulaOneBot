@@ -29,6 +29,14 @@ type Driver = {
 };
 
 type DriversResponse = { drivers?: Driver[] };
+type ConstructorStanding = { position: number; name: string; points: number };
+type ConstructorsResponse = { constructors?: ConstructorStanding[] };
+type NextRaceInfo = {
+  status?: string;
+  event_name?: string;
+  date?: string;
+  round?: number;
+};
 
 function DriversPage() {
   const navigate = useNavigate();
@@ -41,6 +49,20 @@ function DriversPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<{ icon: string; title: string; desc: string } | null>(null);
+  const [topConstructors, setTopConstructors] = useState<ConstructorStanding[]>([]);
+  const [nextRace, setNextRace] = useState<NextRaceInfo | null>(null);
+
+  const formatRaceDate = (isoDate?: string): string => {
+    if (!isoDate) return "";
+    const parts = isoDate.split("-");
+    if (parts.length !== 3) return isoDate;
+    const y = Number(parts[0]);
+    const m = Number(parts[1]);
+    const d = Number(parts[2]);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return isoDate;
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.toLocaleDateString("ru-RU", { timeZone: "UTC", day: "numeric", month: "long" });
+  };
 
   const loadDrivers = useCallback(async (season: number) => {
     setLoading(true);
@@ -73,6 +95,32 @@ function DriversPage() {
   useEffect(() => {
     loadDrivers(year);
   }, [year, loadDrivers]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadDesktopAside() {
+      try {
+        const [constructorsRes, nextRaceRes] = await Promise.allSettled([
+          apiRequest<ConstructorsResponse>("/api/constructors", { season: year }),
+          apiRequest<NextRaceInfo>("/api/next-race", { season: year }),
+        ]);
+        if (cancelled) return;
+        setTopConstructors(
+          constructorsRes.status === "fulfilled" ? (constructorsRes.value.constructors || []).slice(0, 3) : []
+        );
+        setNextRace(nextRaceRes.status === "fulfilled" ? nextRaceRes.value : null);
+      } catch {
+        if (!cancelled) {
+          setTopConstructors([]);
+          setNextRace(null);
+        }
+      }
+    }
+    loadDesktopAside();
+    return () => {
+      cancelled = true;
+    };
+  }, [year]);
 
   const updateYear = useCallback((y: number) => {
     setYear(y);
@@ -108,7 +156,7 @@ function DriversPage() {
       <BackButton>← <span>Главное меню</span></BackButton>
       <div className="page-head-row">
         <h2 className="page-head-title">Личный зачет</h2>
-        <div className="page-head-controls">
+        <div className="page-head-controls mobile-year-control">
           <YearSelect
             value={year}
             onChange={handleYearChange}
@@ -117,6 +165,95 @@ function DriversPage() {
             placeholder="Введи год"
           />
         </div>
+      </div>
+
+      <div className="desktop-standings-layout">
+        <div className="desktop-standings-board">
+          <h2 className="desktop-standings-heading">Личный зачет: Сезон {year}</h2>
+          {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка пилотов...</div></div>}
+          {error && <div className="page-error">{error}</div>}
+          {!loading && !error && emptyMessage && (
+            <div className="empty-state">
+              {emptyMessage.icon && <span className="empty-icon">{emptyMessage.icon}</span>}
+              <div className="empty-title">{emptyMessage.title}</div>
+              <div className="empty-desc">{emptyMessage.desc}</div>
+            </div>
+          )}
+          {!loading && !error && !emptyMessage && drivers.length > 0 && (
+            <div className="desktop-standings-table">
+              {drivers.map((driver) => {
+                const toDriver = `/driver-details?code=${encodeURIComponent(driver.code)}&season=${year}${driver.driverId ? `&driverId=${encodeURIComponent(driver.driverId)}` : ""}`;
+                return (
+                  <div
+                    key={`desktop-${driver.code}`}
+                    role="button"
+                    tabIndex={0}
+                    className={`desktop-standings-row pos-${driver.position}`}
+                    onClick={() => navigate(toDriver)}
+                    onKeyDown={(e) => e.key === "Enter" && navigate(toDriver)}
+                  >
+                    <span className="desktop-standings-pos">{driver.position}</span>
+                    <div className="desktop-standings-driver">
+                      <span className="desktop-standings-name">{driver.name}</span>
+                      <span className="desktop-standings-meta">{driver.number ? `#${driver.number}` : ""} {driver.code}</span>
+                    </div>
+                    {(driver.constructorId || driver.constructorName) && (
+                      <img
+                        src={teamLogoUrl(driver.constructorId || "", driver.constructorName || "", year)}
+                        alt=""
+                        className="desktop-standings-team-logo"
+                        onError={(e) => (e.currentTarget.style.display = "none")}
+                      />
+                    )}
+                    <span className="desktop-standings-points">{driver.points}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <aside className="desktop-standings-sidebar">
+          <div className="desktop-side-card">
+            <div className="desktop-side-title">Год</div>
+            <YearSelect
+              value={year}
+              onChange={handleYearChange}
+              minYear={1950}
+              maxYear={currentRealYear}
+              placeholder="Введи год"
+            />
+          </div>
+          <div
+            className="desktop-side-card clickable"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate(`/next-race?season=${year}`)}
+            onKeyDown={(e) => e.key === "Enter" && navigate(`/next-race?season=${year}`)}
+          >
+            <div className="desktop-side-title">Предстоящая гонка</div>
+            <div className="desktop-side-value">
+              {nextRace?.status === "ok" && nextRace?.event_name
+                ? `R${String(nextRace.round || "").padStart(2, "0")} · ${nextRace.event_name}`
+                : "Данные скоро"}
+            </div>
+            <div className="desktop-side-muted">{formatRaceDate(nextRace?.date)}</div>
+          </div>
+          <div
+            className="desktop-side-card clickable"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate(`/constructors?year=${year}`)}
+            onKeyDown={(e) => e.key === "Enter" && navigate(`/constructors?year=${year}`)}
+          >
+            <div className="desktop-side-title">Топ конструкторов</div>
+            {topConstructors.map((t, idx) => (
+              <div key={t.name} className={`desktop-side-list-row pos-${idx + 1}`}>
+                <span>{t.name}</span>
+                <b>{t.points}</b>
+              </div>
+            ))}
+          </div>
+        </aside>
       </div>
 
       <div className="standings-cards-grid">

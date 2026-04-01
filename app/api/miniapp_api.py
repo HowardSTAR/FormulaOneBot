@@ -21,7 +21,6 @@ from app.db import (
     remove_favorite_team, add_favorite_team,
     get_user_settings, update_user_setting,
     save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
-    get_last_notified_quali_round,
 )
 from app.f1_data import (
     points_for_race_position,
@@ -40,6 +39,7 @@ from app.f1_data import (
     get_event_details_async,
     get_cached_quali_results,
     set_cached_quali_results,
+    get_season_schedule_short,
 )
 from app.handlers.races import build_next_race_payload
 from app.utils.default import DRIVER_CODE_TO_FILE
@@ -227,6 +227,17 @@ async def api_season(
     if season is None:
         season = datetime.now().year
     races = await get_season_schedule_short_async(season)
+    # Защита от "застывшего" async-кеша расписания (иногда обрезается до первых этапов).
+    # Для текущего/будущего сезона при слишком коротком списке пробуем свежий sync-source.
+    now_year = datetime.now().year
+    if season >= now_year and races and len(races) < 8:
+        try:
+            fresh_races = await asyncio.to_thread(get_season_schedule_short, season)
+            if fresh_races and len(fresh_races) > len(races):
+                races = fresh_races
+        except Exception:
+            pass
+
     if completed_only and races:
         now_utc = datetime.now(timezone.utc)
 
@@ -1021,6 +1032,21 @@ async def api_quali_results(
         season: Optional[int] = Query(None),
         round_number: Optional[int] = Query(None, alias="round"),
 ):
+    def _has_meaningful_quali_data(rows: list[dict]) -> bool:
+        if not rows:
+            return False
+        good_rows = 0
+        for row in rows:
+            name = str(row.get("name") or "").strip()
+            driver = str(row.get("driver") or "").strip()
+            best = str(row.get("best") or "").strip()
+            has_identity = name not in {"", "?"} or driver not in {"", "?"}
+            has_time = best not in {"", "-", "—"}
+            if has_identity and has_time:
+                good_rows += 1
+        min_good = min(5, len(rows))
+        return good_rows >= max(2, min_good)
+
     if season is None:
         season = datetime.now().year
     now_utc = datetime.now(timezone.utc)
@@ -1049,11 +1075,8 @@ async def api_quali_results(
             "results": results,
         }
     else:
-        last_notified = await get_last_notified_quali_round(season)
         cached = await get_cached_quali_results(season)
-        base_payload = None
-        if cached and (last_notified is None or cached.get("round") == last_notified):
-            base_payload = cached
+        base_payload = cached if cached else None
 
         if base_payload is None:
             data = await _get_latest_quali_async(season, limit=100)
@@ -1083,7 +1106,12 @@ async def api_quali_results(
                     "race_info": race_info,
                     "results": results,
                 }
-                await set_cached_quali_results(season, base_payload)
+                # OpenF1 иногда отдает "пустые" строки (имена '?', время '-').
+                # В таком случае лучше оставить последний валидный кэш для фронта.
+                if cached and not _has_meaningful_quali_data(results) and _has_meaningful_quali_data(cached.get("results", [])):
+                    base_payload = cached
+                else:
+                    await set_cached_quali_results(season, base_payload)
 
         if _should_reset_previous_results(schedule or [], now_utc, base_payload.get("round")):
             started_round = _get_latest_started_weekend_round(schedule or [], now_utc)

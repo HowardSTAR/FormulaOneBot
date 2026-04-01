@@ -25,6 +25,14 @@ type Constructor = {
 };
 
 type ConstructorsResponse = { constructors?: Constructor[] };
+type DriverStanding = { name: string; points: number };
+type DriversResponse = { drivers?: DriverStanding[] };
+type NextRaceInfo = {
+  status?: string;
+  event_name?: string;
+  date?: string;
+  round?: number;
+};
 
 const minConstructorYear = 1958;
 
@@ -39,6 +47,20 @@ function ConstructorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<{ icon: string; title: string; desc?: string } | null>(null);
+  const [topDrivers, setTopDrivers] = useState<DriverStanding[]>([]);
+  const [nextRace, setNextRace] = useState<NextRaceInfo | null>(null);
+
+  const formatRaceDate = (isoDate?: string): string => {
+    if (!isoDate) return "";
+    const parts = isoDate.split("-");
+    if (parts.length !== 3) return isoDate;
+    const y = Number(parts[0]);
+    const m = Number(parts[1]);
+    const d = Number(parts[2]);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return isoDate;
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.toLocaleDateString("ru-RU", { timeZone: "UTC", day: "numeric", month: "long" });
+  };
 
   const loadTeams = useCallback(async (season: number) => {
     setLoading(true);
@@ -71,6 +93,30 @@ function ConstructorsPage() {
   useEffect(() => {
     loadTeams(year);
   }, [year, loadTeams]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadDesktopAside() {
+      try {
+        const [driversRes, nextRaceRes] = await Promise.allSettled([
+          apiRequest<DriversResponse>("/api/drivers", { season: year }),
+          apiRequest<NextRaceInfo>("/api/next-race", { season: year }),
+        ]);
+        if (cancelled) return;
+        setTopDrivers(driversRes.status === "fulfilled" ? (driversRes.value.drivers || []).slice(0, 3) : []);
+        setNextRace(nextRaceRes.status === "fulfilled" ? nextRaceRes.value : null);
+      } catch {
+        if (!cancelled) {
+          setTopDrivers([]);
+          setNextRace(null);
+        }
+      }
+    }
+    loadDesktopAside();
+    return () => {
+      cancelled = true;
+    };
+  }, [year]);
 
   const updateYear = useCallback((y: number) => {
     setYear(y);
@@ -106,7 +152,7 @@ function ConstructorsPage() {
       <BackButton>← <span>Главное меню</span></BackButton>
       <div className="page-head-row">
         <h2 className="page-head-title">Кубок конструкторов</h2>
-        <div className="page-head-controls">
+        <div className="page-head-controls mobile-year-control">
           <YearSelect
             value={year}
             onChange={handleYearChange}
@@ -115,6 +161,94 @@ function ConstructorsPage() {
             placeholder="Введи год"
           />
         </div>
+      </div>
+
+      <div className="desktop-standings-layout">
+        <div className="desktop-standings-board">
+          <h2 className="desktop-standings-heading">Кубок конструкторов: Сезон {year}</h2>
+          {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка команд...</div></div>}
+          {error && <div className="page-error">{error}</div>}
+          {!loading && !error && emptyMessage && (
+            <div className="empty-state">
+              {emptyMessage.icon && <span className="empty-icon">{emptyMessage.icon}</span>}
+              <div className="empty-title">{emptyMessage.title}</div>
+              {emptyMessage.desc && <div className="empty-desc">{emptyMessage.desc}</div>}
+            </div>
+          )}
+          {!loading && !error && !emptyMessage && teams.length > 0 && (
+            <div className="desktop-standings-table">
+              {teams.map((team) => {
+                const toTeam = `/constructor-details?constructorId=${encodeURIComponent(team.constructorId || team.name)}&season=${year}`;
+                return (
+                  <div
+                    key={`desktop-${team.name}`}
+                    role="button"
+                    tabIndex={0}
+                    className={`desktop-standings-row pos-${team.position}`}
+                    onClick={() => navigate(toTeam)}
+                    onKeyDown={(e) => e.key === "Enter" && navigate(toTeam)}
+                  >
+                    <span className="desktop-standings-pos">{team.position}</span>
+                    <div className="desktop-standings-driver">
+                      <span className="desktop-standings-name">{team.name}</span>
+                    </div>
+                    {(team.constructorId || team.name) && (
+                      <img
+                        src={teamLogoUrl(team.constructorId || "", team.name, year)}
+                        alt=""
+                        className="desktop-standings-team-logo"
+                        onError={(e) => (e.currentTarget.style.display = "none")}
+                      />
+                    )}
+                    <span className="desktop-standings-points">{team.points}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        <aside className="desktop-standings-sidebar">
+          <div className="desktop-side-card">
+            <div className="desktop-side-title">Год</div>
+            <YearSelect
+              value={year}
+              onChange={handleYearChange}
+              minYear={minConstructorYear}
+              maxYear={currentRealYear}
+              placeholder="Введи год"
+            />
+          </div>
+          <div
+            className="desktop-side-card clickable"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate(`/next-race?season=${year}`)}
+            onKeyDown={(e) => e.key === "Enter" && navigate(`/next-race?season=${year}`)}
+          >
+            <div className="desktop-side-title">Предстоящая гонка</div>
+            <div className="desktop-side-value">
+              {nextRace?.status === "ok" && nextRace?.event_name
+                ? `R${String(nextRace.round || "").padStart(2, "0")} · ${nextRace.event_name}`
+                : "Данные скоро"}
+            </div>
+            <div className="desktop-side-muted">{formatRaceDate(nextRace?.date)}</div>
+          </div>
+          <div
+            className="desktop-side-card clickable"
+            role="button"
+            tabIndex={0}
+            onClick={() => navigate(`/drivers?year=${year}`)}
+            onKeyDown={(e) => e.key === "Enter" && navigate(`/drivers?year=${year}`)}
+          >
+            <div className="desktop-side-title">Топ пилотов</div>
+            {topDrivers.map((d, idx) => (
+              <div key={d.name} className={`desktop-side-list-row pos-${idx + 1}`}>
+                <span>{d.name}</span>
+                <b>{d.points}</b>
+              </div>
+            ))}
+          </div>
+        </aside>
       </div>
 
       <div className="standings-cards-grid">
