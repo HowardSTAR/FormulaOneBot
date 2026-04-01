@@ -198,9 +198,10 @@ function Hero({ nextRace, schedule, userTz }: HeroProps) {
   }
 
   if ((nextRace.status as string) === "season_finished") {
+    const nextSeason = (nextRace.season || new Date().getFullYear()) + 1;
     return (
       <Link to="/next-race" className="btn hero-btn" id="hero-btn">
-        <div className="hero-sub" id="hero-sub">ДО ВСТРЕЧИ В 2027!</div>
+        <div className="hero-sub" id="hero-sub">{`ДО ВСТРЕЧИ В ${nextSeason}!`}</div>
         <div id="hero-title" className="hero-title">Сезон завершен</div>
       </Link>
     );

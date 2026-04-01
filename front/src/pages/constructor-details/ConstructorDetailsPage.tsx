@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
-import { getFlagForNationality } from "../../constants/flags";
+import { getFlagUrlForNationality } from "../../constants/flags";
 
 function teamLogoUrl(teamId: string, teamName: string, season: number): string {
   const apiBase = (import.meta.env.VITE_API_URL as string) || "";
@@ -181,6 +181,7 @@ function ConstructorDetailsPage() {
           <div className="constructor-drivers-grid">
             {drivers.map((d) => {
               const fullName = `${d.givenName} ${d.familyName}`;
+              const driverFlagUrl = getFlagUrlForNationality(d.nationality);
               const toDriver = `/driver-details?code=${encodeURIComponent(d.code)}&driverId=${encodeURIComponent(d.driverId)}&season=${season}`;
               return (
                 <div
@@ -212,10 +213,12 @@ function ConstructorDetailsPage() {
                         }}
                       />
                     </div>
-                    {d.nationality && (
-                      <span className="constructor-driver-flag">
-                        {getFlagForNationality(d.nationality)}
-                      </span>
+                    {d.nationality && driverFlagUrl && (
+                      <img
+                        src={driverFlagUrl}
+                        alt={d.nationality}
+                        className="constructor-driver-flag"
+                      />
                     )}
                   </div>
                 </div>

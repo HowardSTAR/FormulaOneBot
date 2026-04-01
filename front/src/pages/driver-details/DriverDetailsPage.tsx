@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
-import { getNationalityWithFlag } from "../../constants/flags";
+import { getFlagUrlForNationality } from "../../constants/flags";
 
 function pilotPortraitUrl(code: string, fullName: string, season: number): string {
   const apiBase = (import.meta.env.VITE_API_URL as string) || "";
@@ -131,6 +131,7 @@ function DriverDetailsPage() {
   }
 
   const fullName = `${data.givenName} ${data.familyName}`;
+  const nationalityFlagUrl = getFlagUrlForNationality(data.nationality);
   const ss = data.season_stats;
   const cs = data.career_stats;
 
@@ -161,7 +162,16 @@ function DriverDetailsPage() {
             <span className="driver-code-badge">{data.code}</span>
           </div>
           {data.nationality && (
-            <div className="driver-nationality">{getNationalityWithFlag(data.nationality)}</div>
+            <div className="driver-nationality">
+              {nationalityFlagUrl && (
+                <img
+                  src={nationalityFlagUrl}
+                  alt={data.nationality}
+                  className="country-flag-svg"
+                />
+              )}
+              <span>{data.nationality}</span>
+            </div>
           )}
         </div>
       </div>

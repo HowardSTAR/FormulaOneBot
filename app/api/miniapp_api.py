@@ -53,6 +53,7 @@ FRONT_DIR = PROJECT_ROOT / "front" / "dist"
 # Используем React SPA (front) если собран, иначе web/app
 WEB_DIR = FRONT_DIR if FRONT_DIR.exists() else WEB_DIR_LEGACY
 STATIC_DIR = WEB_DIR / "static"
+ASSETS_DIR = PROJECT_ROOT / "app" / "assets"
 
 # --- Инициализация приложения ---
 @asynccontextmanager
@@ -75,6 +76,8 @@ web_app.add_middleware(
 
 if STATIC_DIR.exists():
     web_app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+if ASSETS_DIR.exists():
+    web_app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 # --- МОДЕЛИ ДАННЫХ ---
 

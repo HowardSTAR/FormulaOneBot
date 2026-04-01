@@ -20,7 +20,7 @@ from app.f1_data import (
     get_season_schedule_short_async, get_weekend_schedule, get_race_results_async,
     get_constructor_standings_async, get_driver_standings_async,
     get_quali_for_round_async, _get_latest_quali_async,
-    points_for_race_position,
+    points_for_race_position, get_season_schedule_short,
 )
 from app.utils.default import SESSION_NAME_RU, validate_f1_year
 from app.utils.image_render import (
@@ -109,14 +109,47 @@ async def build_next_race_payload(season: int | None = None, user_id: int | None
     Возвращает инфу о ближайшей гонке.
     Добавляет поле fmt_date для сайта.
     """
-    if season is None: season = datetime.now().year
+    if season is None:
+        season = datetime.now().year
     schedule = await get_season_schedule_short_async(season)
-    if not schedule: return {"status": "no_schedule", "season": season}
+    if not schedule:
+        return {"status": "no_schedule", "season": season}
 
-    today = date.today()
-    future_races = [r for r in schedule if date.fromisoformat(r["date"]) >= today] if schedule else []
+    now_utc = datetime.now(timezone.utc)
 
-    if not future_races: return {"status": "season_finished", "season": season}
+    def _race_anchor_utc(race: dict) -> datetime | None:
+        race_start = _parse_utc_iso(race.get("race_start_utc"))
+        if race_start is not None:
+            return race_start
+        try:
+            race_day = date.fromisoformat(str(race.get("date") or ""))
+            return datetime.combine(race_day, datetime.max.time(), tzinfo=timezone.utc)
+        except Exception:
+            return None
+
+    def _select_future_races(items: list[dict]) -> list[dict]:
+        # Считаем этап "актуальным", если старт гонки ещё впереди
+        # или завершился совсем недавно (буфер 6 часов).
+        grace_window_start = now_utc - timedelta(hours=6)
+        schedule_sorted = sorted(items, key=lambda x: int(x.get("round", 0) or 0))
+        result: list[dict] = []
+        for race in schedule_sorted:
+            anchor = _race_anchor_utc(race)
+            if anchor is not None and anchor >= grace_window_start:
+                result.append(race)
+        return result
+
+    future_races = _select_future_races(schedule)
+
+    # Защита от "застывшего" кеша расписания: если внезапно "сезон завершен",
+    # пробуем один раз взять свежее расписание напрямую (без async-cache).
+    if not future_races and season >= now_utc.year:
+        fresh_schedule = await asyncio.to_thread(get_season_schedule_short, season)
+        if fresh_schedule:
+            future_races = _select_future_races(fresh_schedule)
+
+    if not future_races:
+        return {"status": "season_finished", "season": season}
 
     r = future_races[0]
     race_start_utc_str = r.get("race_start_utc")

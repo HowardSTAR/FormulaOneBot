@@ -1,6 +1,7 @@
 import { useRef, useCallback } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { hapticImpact } from "../helpers/telegram";
+import { AppHeader } from "./AppHeader";
 
 const EDGE_THRESHOLD = 30;
 const SWIPE_THRESHOLD = 60;
@@ -61,6 +62,7 @@ export function SwipeBackLayout() {
       onTouchEnd={handleTouchEnd}
       style={{ minHeight: "100%" }}
     >
+      <AppHeader />
       <Outlet />
     </div>
   );

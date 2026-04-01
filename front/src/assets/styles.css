@@ -50,6 +50,71 @@ body {
     animation: fadeIn 0.4s ease-out forwards;
 }
 
+/* --- Глобальный хедер --- */
+.app-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    background: rgba(8, 10, 16, 0.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.app-header-brand {
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.app-header-brand-f1 {
+    color: var(--primary);
+}
+
+.app-header-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.app-header-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.app-header-link {
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+}
+
+.app-header-link:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.app-header-link.active {
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.08);
+}
+
 @keyframes fadeIn {
     to { opacity: 1; }
 }
@@ -1879,6 +1944,16 @@ input:checked + .slider:before {
 .driver-nationality {
   font-size: 13px;
   color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.country-flag-svg {
+  width: 18px;
+  height: 12px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
 }
 
 .driver-tabs {
@@ -2123,7 +2198,10 @@ input:checked + .slider:before {
   position: absolute;
   bottom: 12px;
   left: 14px;
-  font-size: 18px;
+  width: 20px;
+  height: 14px;
+  object-fit: cover;
+  border-radius: 2px;
 }
 
 @media (min-width: 900px) {

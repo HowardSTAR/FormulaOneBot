@@ -328,7 +328,18 @@ def _get_team_logo(code: str, name: str, season: int) -> Image.Image | None:
     img = None
 
     # ШАГ 1: Локальная папка (assets/YYYY/teams/)
-    img_path = get_asset_path(season, "teams", name) or get_asset_path(season, "teams", code)
+    normalized = f"{code} {name}".lower().replace("_", " ")
+    team_aliases: list[str] = []
+    if any(token in normalized for token in ("rb f1 team", "rbf1team", "racing bulls", "visa cash app rb")):
+        team_aliases.extend(["RACING BULLS", "RB F1 Team", "RB"])
+
+    candidates = [name, code, *team_aliases]
+    img_path = None
+    for candidate in candidates:
+        img_path = get_asset_path(season, "teams", candidate)
+        if img_path:
+            break
+
     if img_path:
         try:
             img = Image.open(img_path).convert("RGBA")
