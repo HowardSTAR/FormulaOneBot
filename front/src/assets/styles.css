@@ -2068,30 +2068,60 @@ input:checked + .slider:before {
 .reaction-board {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 .reaction-light {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
-  border: 1px solid var(--border-color);
-  border-radius: 20px;
-  padding: 12px 10px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(8, 10, 15, 0.95)),
+    radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.12), transparent 65%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  padding: 14px 10px;
+  min-height: 162px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 10px;
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    inset 0 -12px 24px rgba(0, 0, 0, 0.45),
+    0 10px 22px rgba(0, 0, 0, 0.35);
 }
 .reaction-lamp {
-  width: 22px;
-  height: 22px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, #2a2d35, #111318 70%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    radial-gradient(circle at 35% 30%, #3b4351, #1c2029 55%, #0a0d12 82%),
+    radial-gradient(circle at 50% 130%, rgba(0, 0, 0, 0.7), transparent 65%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 -3px 6px rgba(0, 0, 0, 0.55),
+    inset 0 2px 4px rgba(255, 255, 255, 0.08),
+    0 0 0 2px rgba(0, 0, 0, 0.22);
   transition: all 0.15s ease;
 }
-.reaction-light.active .reaction-lamp {
-  background: radial-gradient(circle at 35% 30%, #ff7a73, #e10600 60%, #6f0200);
-  box-shadow: 0 0 12px rgba(225, 6, 0, 0.75);
+.reaction-light.active .reaction-lamp.is-bottom {
+  background:
+    radial-gradient(circle at 35% 30%, #ffd8d5, #ff6d63 26%, #e10600 62%, #5e0100 88%),
+    radial-gradient(circle at 50% 130%, rgba(80, 0, 0, 0.7), transparent 65%);
+  border-color: rgba(255, 140, 140, 0.85);
+  box-shadow:
+    0 0 0 2px rgba(225, 6, 0, 0.22),
+    0 0 14px rgba(225, 6, 0, 0.8),
+    0 0 24px rgba(225, 6, 0, 0.4);
+}
+@media (max-width: 430px) {
+  .reaction-light {
+    min-height: 144px;
+    padding: 12px 8px;
+  }
+  .reaction-lamp {
+    width: 26px;
+    height: 26px;
+  }
 }
 .reaction-timer-card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
@@ -2127,20 +2157,45 @@ input:checked + .slider:before {
   font-weight: 700;
 }
 .reaction-button {
-  width: 100%;
+  width: min(72vw, 220px);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto;
   border: none;
-  border-radius: 16px;
-  padding: 16px;
-  font-size: 16px;
+  border-radius: 50%;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.1;
+  font-size: 22px;
   font-weight: 800;
+  letter-spacing: 0.8px;
   color: #fff;
-  background: linear-gradient(135deg, var(--primary), #b00500);
+  background:
+    radial-gradient(circle at 30% 28%, #ff7b76 0%, var(--primary) 48%, #7e0400 100%);
   cursor: pointer;
-  box-shadow: 0 8px 20px rgba(225, 6, 0, 0.25);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.28),
+    inset 0 -10px 16px rgba(0, 0, 0, 0.38),
+    0 12px 28px rgba(225, 6, 0, 0.35);
 }
 .reaction-button.is-stop {
-  background: linear-gradient(135deg, #10b981, #0f8f68);
-  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
+  background:
+    radial-gradient(circle at 30% 28%, #67f0c7 0%, #10b981 45%, #0a7456 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.28),
+    inset 0 -10px 16px rgba(0, 0, 0, 0.38),
+    0 12px 28px rgba(16, 185, 129, 0.32);
+}
+.reaction-button:active {
+  transform: scale(0.97);
+}
+@media (max-width: 430px) {
+  .reaction-button {
+    width: min(78vw, 200px);
+    font-size: 20px;
+  }
 }
 .reaction-helper {
   margin: 10px 0 0;
