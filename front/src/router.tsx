@@ -16,6 +16,7 @@ import SeasonPage from "./pages/season/SeasonPage";
 import SprintQualiResultsPage from "./pages/sprint-quali-results/SprintQualiResultsPage";
 import SprintResultsPage from "./pages/sprint-results/SprintResultsPage";
 import VotingPage from "./pages/voting/VotingPage";
+import ReactionGamePage from "./pages/reaction-game/ReactionGamePage";
 
 export const router = createBrowserRouter([
   {
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: "/quali-results", element: <QualiResultsPage /> },
       { path: "/race-details", element: <RaceDetailsPage /> },
       { path: "/race-results", element: <RaceResultsPage /> },
+      { path: "/reaction-game", element: <ReactionGamePage /> },
       { path: "/settings", element: <SettingsPage /> },
       { path: "/season", element: <SeasonPage /> },
       { path: "/sprint-quali-results", element: <SprintQualiResultsPage /> },

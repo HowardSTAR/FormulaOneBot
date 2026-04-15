@@ -2058,3 +2058,93 @@ input:checked + .slider:before {
   left: 14px;
   font-size: 18px;
 }
+
+/* --- Reaction game --- */
+.reaction-subtitle {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.reaction-board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.reaction-light {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.reaction-lamp {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #2a2d35, #111318 70%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.15s ease;
+}
+.reaction-light.active .reaction-lamp {
+  background: radial-gradient(circle at 35% 30%, #ff7a73, #e10600 60%, #6f0200);
+  box-shadow: 0 0 12px rgba(225, 6, 0, 0.75);
+}
+.reaction-timer-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+.reaction-main-time {
+  font-size: 54px;
+  line-height: 1;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+}
+.reaction-time-unit {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.reaction-result {
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.reaction-best {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--primary);
+  font-weight: 700;
+}
+.reaction-button {
+  width: 100%;
+  border: none;
+  border-radius: 16px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary), #b00500);
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(225, 6, 0, 0.25);
+}
+.reaction-button.is-stop {
+  background: linear-gradient(135deg, #10b981, #0f8f68);
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
+}
+.reaction-helper {
+  margin: 10px 0 0;
+  font-size: 13px;
+  text-align: center;
+  color: var(--text-secondary);
+}
