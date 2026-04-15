@@ -2203,3 +2203,240 @@ input:checked + .slider:before {
   text-align: center;
   color: var(--text-secondary);
 }
+
+.reaction-segmented {
+  margin-bottom: 14px;
+}
+.reaction-slide {
+  width: 100%;
+  padding-right: 0;
+}
+
+.reaction-settings-card,
+.reaction-leaderboard-card {
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  padding: 14px;
+}
+.reaction-settings-card {
+  margin-top: 18px;
+}
+.reaction-settings-title,
+.reaction-leaderboard-title {
+  font-size: 14px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.reaction-settings-caption {
+  margin: 8px 0 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.reaction-input {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  padding: 10px 12px;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+.reaction-input:focus {
+  outline: none;
+  border-color: rgba(225, 6, 0, 0.7);
+}
+.reaction-toggle-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.reaction-toggle-btn {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px;
+  cursor: pointer;
+}
+.reaction-toggle-btn.active {
+  border-color: rgba(225, 6, 0, 0.55);
+  background: rgba(225, 6, 0, 0.2);
+  color: #fff;
+}
+.reaction-settings-save {
+  margin-top: 10px;
+  width: 100%;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--primary), #b00500);
+}
+.reaction-settings-save:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.reaction-settings-edit {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+.reaction-settings-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.reaction-settings-actions .reaction-settings-save {
+  margin-top: 0;
+}
+.reaction-settings-cancel {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 11px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+}
+.reaction-confirm-box {
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.reaction-confirm-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.reaction-settings-status {
+  margin-top: 8px;
+  color: #86efac;
+  font-size: 12px;
+  text-align: center;
+}
+.reaction-settings-error {
+  margin-top: 8px;
+  color: #fca5a5;
+  font-size: 12px;
+  text-align: center;
+}
+
+.reaction-leaderboard-header {
+  margin-bottom: 10px;
+}
+.reaction-my-place {
+  margin-top: 5px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.reaction-leaderboard-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+.reaction-row {
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.reaction-row.is-me {
+  border-color: rgba(225, 6, 0, 0.7);
+  box-shadow: 0 0 0 1px rgba(225, 6, 0, 0.3);
+}
+.reaction-row.top-1 {
+  border-color: rgba(252, 211, 77, 0.7);
+  background: linear-gradient(90deg, rgba(252, 211, 77, 0.14), rgba(255, 255, 255, 0.02));
+}
+.reaction-row.top-2 {
+  border-color: rgba(229, 231, 235, 0.6);
+}
+.reaction-row.top-3 {
+  border-color: rgba(217, 119, 6, 0.6);
+}
+.reaction-row-place {
+  font-weight: 800;
+  font-size: 16px;
+}
+.reaction-row-name-wrap {
+  min-width: 0;
+}
+.reaction-row-name {
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reaction-row-time {
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.reaction-world-champion {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #fcd34d;
+}
+.reaction-leaderboard-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+  padding: 22px 10px;
+}
+
+.reaction-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(2px);
+  z-index: 1002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.reaction-modal-card {
+  width: min(420px, 100%);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  background: #0f1218;
+  padding: 16px;
+}
+.reaction-modal-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: var(--text-primary);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.reaction-modal-text {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
