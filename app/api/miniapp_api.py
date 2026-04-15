@@ -24,6 +24,7 @@ from app.db import (
     save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
     get_last_notified_quali_round,
     get_reaction_profile, upsert_reaction_profile, save_reaction_score, get_reaction_leaderboard,
+    save_reflex_grid_score, get_reflex_grid_leaderboard,
 )
 from app.f1_data import (
     points_for_race_position,
@@ -129,6 +130,13 @@ class ReactionLeaderboardScoreRequest(BaseModel):
     time_ms: int
 
 
+class ReflexGridLeaderboardScoreRequest(BaseModel):
+    mode: str
+    difficulty: str
+    score: int
+    time_ms: int
+
+
 # --- ЭНДПОИНТЫ ---
 
 @web_app.get("/api/settings")
@@ -186,6 +194,41 @@ async def api_save_reaction_leaderboard_score(
 async def api_reaction_leaderboard(user_id: int = Depends(get_current_user_id)):
     """Таблица лидеров по лучшему времени реакции."""
     data = await get_reaction_leaderboard(user_id)
+    return data
+
+
+@web_app.post("/api/reflex-grid-leaderboard/score")
+async def api_save_reflex_grid_leaderboard_score(
+    body: ReflexGridLeaderboardScoreRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    if body.score < 0:
+        raise HTTPException(status_code=400, detail="score must be >= 0")
+    if body.time_ms <= 0:
+        raise HTTPException(status_code=400, detail="time_ms must be > 0")
+    try:
+        saved = await save_reflex_grid_score(
+            user_id,
+            mode=body.mode,
+            difficulty=body.difficulty,
+            score=int(body.score),
+            time_ms=int(body.time_ms),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"status": "ok", "saved": saved}
+
+
+@web_app.get("/api/reflex-grid-leaderboard")
+async def api_reflex_grid_leaderboard(
+    mode: str = Query("timed"),
+    difficulty: str = Query("easy"),
+    user_id: int = Depends(get_current_user_id),
+):
+    try:
+        data = await get_reflex_grid_leaderboard(mode=mode, difficulty=difficulty, telegram_id=user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     return data
 
 
