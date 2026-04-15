@@ -101,6 +101,23 @@ function IndexPage() {
         </Link>
       </div>
 
+      <div className="section-title">Игра</div>
+      <Link
+        to="/reaction-game"
+        className="menu-item full-width"
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-between",
+          padding: "16px 24px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span className="menu-icon">🚦</span>
+          <span className="menu-label">Тест реакции</span>
+        </div>
+        <span>➜</span>
+      </Link>
+
       <div className="section-title">Моё</div>
       <Link
         to="/favorites"

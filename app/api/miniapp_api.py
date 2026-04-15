@@ -16,12 +16,14 @@ from pydantic import BaseModel
 
 from app.auth import get_current_user_id
 from app.db import (
+    db,
     get_favorite_drivers, get_favorite_teams,
     remove_favorite_driver, add_favorite_driver,
     remove_favorite_team, add_favorite_team,
     get_user_settings, update_user_setting,
     save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
     get_last_notified_quali_round,
+    get_reaction_profile, upsert_reaction_profile, save_reaction_score, get_reaction_leaderboard,
 )
 from app.f1_data import (
     points_for_race_position,
@@ -59,6 +61,8 @@ STATIC_DIR = WEB_DIR / "static"
 async def lifespan(app: FastAPI):
     from app.f1_data import init_redis_cache
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    await db.connect()
+    await db.init_tables()
     await init_redis_cache(redis_url)
     yield
 
@@ -115,6 +119,16 @@ class SettingsRequest(BaseModel):
     notifications_enabled: bool = False
 
 
+class ReactionLeaderboardProfileRequest(BaseModel):
+    display_name: str = ""
+    participate: bool = False
+    prompt_seen: bool = True
+
+
+class ReactionLeaderboardScoreRequest(BaseModel):
+    time_ms: int
+
+
 # --- ЭНДПОИНТЫ ---
 
 @web_app.get("/api/settings")
@@ -135,6 +149,44 @@ async def api_save_settings(
     # ДОБАВИТЬ СОХРАНЕНИЕ НОВОГО ПОЛЯ В БД:
     await update_user_setting(user_id, "notifications_enabled", int(settings.notifications_enabled))
     return {"status": "ok"}
+
+
+@web_app.get("/api/reaction-leaderboard/profile")
+async def api_reaction_leaderboard_profile(user_id: int = Depends(get_current_user_id)):
+    """Профиль пользователя для игры реакции (имя, участие, факт показа попапа)."""
+    return await get_reaction_profile(user_id)
+
+
+@web_app.post("/api/reaction-leaderboard/profile")
+async def api_update_reaction_leaderboard_profile(
+    body: ReactionLeaderboardProfileRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    profile = await upsert_reaction_profile(
+        user_id,
+        display_name=body.display_name,
+        participate=body.participate,
+        prompt_seen=body.prompt_seen,
+    )
+    return {"status": "ok", "profile": profile}
+
+
+@web_app.post("/api/reaction-leaderboard/score")
+async def api_save_reaction_leaderboard_score(
+    body: ReactionLeaderboardScoreRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    if body.time_ms <= 0:
+        raise HTTPException(status_code=400, detail="time_ms must be > 0")
+    saved = await save_reaction_score(user_id, int(body.time_ms))
+    return {"status": "ok", "saved": saved}
+
+
+@web_app.get("/api/reaction-leaderboard")
+async def api_reaction_leaderboard(user_id: int = Depends(get_current_user_id)):
+    """Таблица лидеров по лучшему времени реакции."""
+    data = await get_reaction_leaderboard(user_id)
+    return data
 
 
 @web_app.get("/api/next-race", response_model=NextRaceResponse)
