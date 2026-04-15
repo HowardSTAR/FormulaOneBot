@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
@@ -35,8 +35,6 @@ function SeasonPage() {
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
   const [expandedRound, setExpandedRound] = useState<number | null>(null);
   const [desktopSelectedRound, setDesktopSelectedRound] = useState<number | null>(null);
-  const [desktopTrackSvg, setDesktopTrackSvg] = useState<string | null>(null);
-  const desktopTrackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,64 +129,20 @@ function SeasonPage() {
       })
     : null;
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadDesktopTrack() {
-      if (!desktopRace?.event_name) {
-        setDesktopTrackSvg(null);
-        return;
-      }
-      try {
-        const res = await fetch(`/static/circuit/${desktopRace.event_name}.svg`);
-        if (!res.ok || cancelled) {
-          setDesktopTrackSvg(null);
-          return;
-        }
-        const text = await res.text();
-        if (!cancelled) setDesktopTrackSvg(text);
-      } catch {
-        if (!cancelled) setDesktopTrackSvg(null);
-      }
-    }
-    loadDesktopTrack();
-    return () => {
-      cancelled = true;
-    };
-  }, [desktopRace?.event_name]);
-
-  useEffect(() => {
-    if (!desktopTrackSvg || !desktopTrackRef.current) return;
-    const container = desktopTrackRef.current;
-    container.innerHTML = desktopTrackSvg;
-    const svg = container.querySelector("svg");
-    if (!svg) return;
-    svg.style.width = "100%";
-    svg.style.height = "100%";
-    const paths = svg.querySelectorAll("path, polyline");
-    const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    outlineGroup.classList.add("track-outline-group");
-    fillGroup.classList.add("track-fill-group");
-    paths.forEach((path) => {
-      const outlinePath = path.cloneNode(true) as SVGElement;
-      outlinePath.removeAttribute("fill");
-      outlinePath.classList.add("track-outline");
-      const length = (outlinePath as SVGPathElement).getTotalLength?.() ?? 0;
-      outlinePath.style.strokeDasharray = String(length);
-      outlinePath.style.strokeDashoffset = String(length);
-      outlineGroup.appendChild(outlinePath);
-      path.classList.add("track-fill");
-      fillGroup.appendChild(path);
-    });
-    svg.innerHTML = "";
-    svg.appendChild(outlineGroup);
-    svg.appendChild(fillGroup);
-    svg.getBoundingClientRect();
-    setTimeout(() => {
-      outlineGroup.querySelectorAll(".track-outline").forEach((p) => p.classList.add("animate"));
-      fillGroup.querySelectorAll(".track-fill").forEach((p) => p.classList.add("animate"));
-    }, 100);
-  }, [desktopTrackSvg]);
+  const selectedRaceDate = desktopRace ? new Date(desktopRace.date) : null;
+  const selectedDateLabel = selectedRaceDate
+    ? selectedRaceDate.toLocaleDateString("ru-RU", { timeZone: userTz, day: "2-digit", month: "short" }).replace(".", "").toUpperCase()
+    : "—";
+  const formatSessionTime = (iso?: string | null): string =>
+    iso
+      ? new Date(iso).toLocaleTimeString("ru-RU", {
+          timeZone: userTz,
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "--:--";
+  const desktopFactTitles = ["Location", "Setup Key", "Unpredictability"];
+  const timelineRaceName = (name: string): string => name.replace(/Grand Prix/gi, "GP");
 
   return (
     <>
@@ -208,7 +162,82 @@ function SeasonPage() {
 
       {!loading && !error && !emptyMessage && races.length > 0 && desktopRace && (
         <div className="season-desktop-layout">
-          <div className="season-desktop-list">
+          <section className="season-desktop-primary">
+            <div className="season-desktop-primary-head">
+              <div>
+                <h3 className="season-desktop-main-heading">Календарь</h3>
+                <p className="season-desktop-main-subheading">Formula 1 World Championship</p>
+              </div>
+              <div className="season-desktop-season-picker">
+                <span className="season-desktop-season-label">Select Season</span>
+                <select
+                  className="season-desktop-season-select"
+                  value={year}
+                  onChange={(e) => handleYearChange(Number(e.target.value))}
+                >
+                  {Array.from({ length: currentRealYear - 1949 }, (_, i) => currentRealYear - i).map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <article className="season-desktop-main-card season-desktop-hero-card">
+              <div className="season-desktop-hero-media">
+                <div className="season-desktop-hero-next">Next Round: {String(desktopRace.round).padStart(2, "0")}</div>
+                <h4>{desktopRace.event_name}</h4>
+                <div className="season-desktop-hero-meta">
+                  <span>{selectedDateLabel}</span>
+                  <span>{desktopRace.location}</span>
+                </div>
+              </div>
+
+              <div className="season-desktop-hero-schedule">
+                <h5>Session Schedule</h5>
+                <div className="season-desktop-session-grid">
+                  <div className="season-desktop-session-item">
+                    <span>Sprint Quali</span>
+                    <b>{formatSessionTime(desktopRace.sprint_quali_start_utc)}</b>
+                  </div>
+                  <div className="season-desktop-session-item">
+                    <span>Sprint</span>
+                    <b>{formatSessionTime(desktopRace.sprint_start_utc)}</b>
+                  </div>
+                  <div className="season-desktop-session-item">
+                    <span>Qualifying</span>
+                    <b>--:--</b>
+                  </div>
+                  <div className="season-desktop-session-item focus">
+                    <span>Grand Prix</span>
+                    <b>{selectedDateLabel}</b>
+                  </div>
+                </div>
+                <div className="season-desktop-stats">
+                  {desktopInsights?.stats.slice(0, 4).map((item) => (
+                    <div className="season-desktop-stat-box" key={item.label}>
+                      <div className="season-desktop-stat-label">{item.label}</div>
+                      <div className="season-desktop-stat-value">{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </article>
+
+            <div className="season-desktop-facts-grid">
+              {desktopInsights?.facts.slice(0, 3).map((fact, i) => (
+                <div key={fact.title} className="season-desktop-fact-item">
+                  <div className="season-desktop-fact-title">{desktopFactTitles[i] || fact.title}</div>
+                  <div className="season-desktop-fact-text">"{fact.text}"</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <aside className="season-desktop-list season-desktop-timeline">
+            <h4 className="season-desktop-timeline-title">Season Timeline</h4>
             {races.map((race, index) => {
               const raceDate = new Date(race.date);
               const raceEndCheck = new Date(raceDate);
@@ -218,19 +247,15 @@ function SeasonPage() {
               const isFinished = raceEndCheck < now;
               const statusClass = isCancelled ? "cancelled" : isFinished ? "finished" : isNext ? "next" : "future";
               const isSelected = desktopRace.round === race.round;
-              const statusLabel = isCancelled
-                ? "Отменен"
-                : isSelected
-                  ? "Выбрано"
-                  : isNext
-                    ? "Следующая"
-                    : isFinished
-                      ? "Завершен"
-                      : "";
-              const day = raceDate.toLocaleDateString("ru-RU", { timeZone: userTz, day: "numeric" });
-              const month = raceDate
-                .toLocaleDateString("ru-RU", { timeZone: userTz, month: "short" })
-                .replace(".", "");
+              const statusLabel = isCancelled ? "CANCELLED" : isFinished ? "FINISHED" : isNext ? "UPCOMING" : "ROUND";
+              const dateLabel = raceDate
+                .toLocaleDateString("ru-RU", {
+                  timeZone: userTz,
+                  day: "2-digit",
+                  month: "short",
+                })
+                .replace(".", "")
+                .toUpperCase();
               return (
                 <button
                   key={`desktop-${race.round}`}
@@ -238,103 +263,18 @@ function SeasonPage() {
                   className={`season-desktop-race-item ${statusClass} ${isSelected ? "active" : ""}`}
                   onClick={() => setDesktopSelectedRound(race.round)}
                 >
-                  <div className="season-desktop-date-box">
-                    <span className="date-day">{day}</span>
-                    <span className="date-month">{month}</span>
-                  </div>
                   <div className="season-desktop-race-info">
                     <div className="season-desktop-race-topline">
-                      <div className="race-round">Round {race.round}</div>
-                      {statusLabel && <span className={`season-desktop-status ${statusClass} ${isSelected ? "active" : ""}`}>{statusLabel}</span>}
+                      <div className="race-round">Round {String(race.round).padStart(2, "0")} • {statusLabel}</div>
+                      <span className="season-desktop-race-icon">{isSelected ? "➤" : isFinished ? "▣" : "○"}</span>
                     </div>
-                    <div className="race-name">{race.event_name}</div>
-                    <div className="race-loc">📍 {race.location}</div>
+                    <div className="race-name">{timelineRaceName(race.event_name)}</div>
+                    <div className="race-loc">{dateLabel} • {race.location}</div>
                   </div>
                 </button>
               );
             })}
-          </div>
-
-          <div className="season-desktop-details">
-            <div className="season-desktop-toolbar">
-              <div className="season-desktop-year-select">
-                <YearSelect
-                  value={year}
-                  onChange={handleYearChange}
-                  minYear={1950}
-                  maxYear={currentRealYear}
-                  placeholder="Введи год"
-                />
-              </div>
-            </div>
-
-            <div className="season-desktop-main-card">
-              <div className="season-desktop-track-wrap">
-                <div className="track-map-container season-desktop-track">
-                  {!desktopTrackSvg && <div className="no-map-placeholder">🏁</div>}
-                  <div
-                    ref={desktopTrackRef}
-                    style={{ width: "100%", height: "100%", display: desktopTrackSvg ? "block" : "none" }}
-                  />
-                </div>
-              </div>
-              <div className="season-desktop-title">{`ROUND ${desktopRace.round} | ${desktopRace.location}`}</div>
-              <div className="season-desktop-subtitle">{desktopRace.event_name}</div>
-
-              <div className="season-desktop-stats">
-                {desktopInsights?.stats.slice(0, 4).map((item) => (
-                  <div className="season-desktop-stat-box" key={item.label}>
-                    <div className="season-desktop-stat-label">{item.label}</div>
-                    <div className="season-desktop-stat-value">{item.value}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="season-desktop-facts">
-                {desktopInsights?.facts.slice(0, 3).map((fact) => (
-                  <div key={fact.title} className="season-desktop-fact-item">
-                    <div className="season-desktop-fact-title">{fact.title}</div>
-                    <div className="season-desktop-fact-text">{fact.text}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="season-desktop-links">
-                <button
-                  type="button"
-                  className="season-result-link"
-                  onClick={() => navigate(`/race-results?mode=archive&season=${year}&round=${desktopRace.round}`)}
-                >
-                  🏁 Гонка
-                </button>
-                <button
-                  type="button"
-                  className="season-result-link"
-                  onClick={() => navigate(`/quali-results?mode=archive&season=${year}&round=${desktopRace.round}`)}
-                >
-                  ⏱ Квала
-                </button>
-                {desktopRace.sprint_start_utc && (
-                  <button
-                    type="button"
-                    className="season-result-link"
-                    onClick={() => navigate(`/sprint-results?mode=archive&season=${year}&round=${desktopRace.round}`)}
-                  >
-                    ⚡🏁 Спринт
-                  </button>
-                )}
-                {desktopRace.sprint_quali_start_utc && (
-                  <button
-                    type="button"
-                    className="season-result-link"
-                    onClick={() => navigate(`/sprint-quali-results?mode=archive&season=${year}&round=${desktopRace.round}`)}
-                  >
-                    ⚡⏱ Спринт-квала
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
+          </aside>
         </div>
       )}
 

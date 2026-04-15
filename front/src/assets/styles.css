@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700;800&display=swap");
+
 :root {
     /* Цветовая палитра F1 Modern */
     --bg-color: #0b0d12;         /* Глубокий черный/синий */
@@ -30,7 +32,7 @@
 
 body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--bg-color);
     background-image: 
         radial-gradient(circle at 0% 0%, rgba(225, 6, 0, 0.15), transparent 40%),
@@ -48,6 +50,22 @@ body {
     padding: 16px;
     opacity: 0; /* Скрыто до загрузки анимации */
     animation: fadeIn 0.4s ease-out forwards;
+}
+
+.app-shell {
+    min-height: 100vh;
+}
+
+.app-content {
+    min-height: 100vh;
+}
+
+.app-topbar {
+    display: none;
+}
+
+.app-page-main {
+    min-height: 100vh;
 }
 
 /* --- Глобальный хедер --- */
@@ -102,22 +120,192 @@ body {
     background: rgba(255, 255, 255, 0.08);
 }
 
-@media (min-width: 1100px) {
-    .app-header {
-        position: sticky;
-        top: 0;
-        z-index: 50;
+@media (min-width: 900px) {
+    .root {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .app-shell {
+        display: block;
+    }
+
+    .app-content {
+        margin-left: 260px;
+        min-height: 100vh;
+        padding: 14px 26px 24px;
+        position: relative;
+        isolation: isolate;
+    }
+
+    .app-content::before,
+    .app-content::after {
+        content: "";
+        position: fixed;
+        pointer-events: none;
+        z-index: -1;
+        border-radius: 9999px;
+        filter: blur(120px);
+    }
+
+    .app-content::before {
+        width: 280px;
+        height: 280px;
+        right: 24px;
+        top: 8vh;
+        background: rgba(225, 6, 0, 0.09);
+    }
+
+    .app-content::after {
+        width: 260px;
+        height: 260px;
+        left: 300px;
+        bottom: 8vh;
+        background: rgba(255, 180, 168, 0.045);
+    }
+
+    .app-content > * {
+        max-width: 1400px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .app-topbar {
+        height: 62px;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 14px;
-        padding: 10px 12px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        margin-bottom: 18px;
+        padding: 0 18px;
+        border: 1px solid rgba(94, 63, 58, 0.24);
         border-radius: 12px;
-        background: rgba(8, 10, 16, 0.82);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
+        background: rgba(18, 19, 20, 0.72);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+    }
+
+    .app-topbar-brand {
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 24px;
+        font-weight: 800;
+        font-style: italic;
+        text-transform: uppercase;
+        letter-spacing: -0.03em;
+        color: #e10600;
+    }
+
+    .app-topbar-nav {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .app-topbar-link {
+        text-decoration: none;
+        color: var(--text-secondary);
+        padding: 8px 11px;
+        border-radius: 10px;
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        border: 1px solid transparent;
+        transition: all 0.2s ease;
+    }
+
+    .app-topbar-link:hover {
+        color: var(--text-primary);
+        background: var(--surface-container-high);
+    }
+
+    .app-topbar-link.active {
+        color: #ffb4a8;
+        border-color: rgba(225, 6, 0, 0.4);
+        background: rgba(225, 6, 0, 0.1);
+    }
+
+    .app-page-main {
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .app-header {
+        position: fixed;
+        left: 0;
+        top: 0;
+        z-index: 60;
+        width: 260px;
+        height: 100vh;
+        margin: 0;
+        padding: 28px 16px 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 14px;
+        border-right: 1px solid rgba(94, 63, 58, 0.24);
+        background: var(--surface-container-low);
+    }
+
+    .app-header-brand {
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 34px;
+        font-style: italic;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        text-transform: uppercase;
+        margin: 0 8px 8px;
+    }
+
+    .app-header-nav {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
+        overflow: visible;
+    }
+
+    .app-header-nav-secondary {
+        margin-top: auto;
+        padding-top: 10px;
+        border-top: 1px solid rgba(94, 63, 58, 0.2);
+    }
+
+    .app-header-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: none;
+        border-left: 3px solid transparent;
+        border-radius: 10px;
+        padding: 11px 12px;
+        font-family: "Space Grotesk", "Inter", sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        background: transparent;
+    }
+
+    .app-header-link-icon {
+        width: 16px;
+        text-align: center;
+        font-size: 13px;
+        opacity: 0.9;
+    }
+
+    .app-header-link:hover {
+        color: var(--text-primary);
+        background: var(--surface-container-highest);
+    }
+
+    .app-header-link.active {
+        color: #ffb4a8;
+        border-left-color: var(--primary);
+        background: var(--surface-container-high);
     }
 }
 
@@ -474,6 +662,10 @@ p {
   margin: -2px 0 12px;
   font-size: 12px;
   color: var(--text-secondary);
+}
+
+.race-results-desktop {
+  display: none;
 }
 
 
@@ -847,6 +1039,10 @@ p {
     display: none;
 }
 
+.season-desktop-layout {
+    display: none;
+}
+
 /* Compare page */
 .selectors { display: flex; gap: 10px; margin-bottom: 20px; }
 .driver-select {
@@ -916,6 +1112,331 @@ p {
 }
 .compare-empty-state {
     margin-top: 0;
+}
+
+.compare-layout-redesign {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+.compare-controls-panel-redesign {
+    padding: 14px;
+}
+
+.compare-redesign-tabs {
+    margin-bottom: 10px;
+    max-width: 320px;
+}
+
+.compare-redesign-selectors {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.compare-redesign-selectors .btn-compare {
+    grid-column: 1 / -1;
+    margin-bottom: 0;
+}
+
+.compare-results-panel-redesign {
+    min-width: 0;
+}
+
+.compare-stats-grid {
+    grid-template-columns: 1fr;
+    margin-bottom: 14px;
+}
+
+.compare-chart-container {
+    padding: 14px;
+    margin-bottom: 14px;
+}
+
+.compare-chart-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.compare-chart-head h3 {
+    margin: 0;
+    font-size: 18px;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+}
+
+.compare-chart-head p {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.compare-chart-canvas-wrap {
+    height: 260px;
+    margin: 0;
+}
+
+.compare-insights-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.compare-insight-card,
+.compare-verdict-card {
+    background: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px;
+}
+
+.compare-insight-tag {
+    display: inline-flex;
+    min-width: 30px;
+    justify-content: center;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(225, 6, 0, 0.22);
+    color: var(--primary);
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.compare-insight-card h4,
+.compare-verdict-card h4 {
+    margin: 0 0 8px;
+    font-size: 22px;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+}
+
+.compare-insight-card p,
+.compare-verdict-card p {
+    margin: 0;
+    color: var(--text-secondary);
+    line-height: 1.45;
+}
+
+.compare-verdict-card {
+    text-align: center;
+}
+
+.compare-verdict-icon {
+    font-size: 28px;
+    color: var(--primary);
+    margin-bottom: 8px;
+}
+
+.compare-verdict-score {
+    margin-top: 12px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.18);
+    border: 1px solid var(--border-color);
+    padding: 10px;
+}
+
+.compare-verdict-score span {
+    display: block;
+    font-size: 10px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.compare-verdict-score b {
+    display: block;
+    margin-top: 3px;
+    font-size: 24px;
+}
+
+.season-desktop-primary {
+    min-width: 0;
+}
+
+.season-desktop-primary-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.season-desktop-main-heading {
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.season-desktop-main-subheading {
+    margin: 4px 0 0;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+}
+
+.season-desktop-season-picker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.season-desktop-season-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+
+.season-desktop-season-select {
+    border: 1px solid var(--border-color);
+    background: var(--surface-color);
+    color: var(--text-primary);
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-width: 120px;
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+}
+
+.season-desktop-hero-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+    gap: 14px;
+}
+
+.season-desktop-hero-media {
+    border-radius: 12px;
+    min-height: 350px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background:
+        linear-gradient(180deg, rgba(18, 19, 20, 0.2), rgba(18, 19, 20, 0.82)),
+        url("https://lh3.googleusercontent.com/aida-public/AB6AXuBoSu1U_lcv3gHlJVA_kOyg_p49AdeZr8LzlyjezHlNtJ_niXgPWYDKYQRsWNQMbXNL2xCTjxyygc9vEYkB536pv-AeuUbFNJ4JECp5QdPU8yx6qQYDbM9ZlAMSOy2MCUIFg1H35PPA3qDZ_LQm929bqmQgqG0NmEiuEU8ElmnhgCvyw59NTNg_8s9_CuL3rlPH203434aVIHyCC90oWI3uOznN_15B2OWSRGL2MkTBpjqF8aHVlsRTVl5oouO2fzbCZrvKsMArDPDN")
+            center/cover no-repeat;
+}
+
+.season-desktop-hero-next {
+    display: inline-flex;
+    align-self: flex-start;
+    margin-bottom: 10px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.season-desktop-hero-media h4 {
+    margin: 0;
+    font-size: 46px;
+    line-height: 0.95;
+    text-transform: uppercase;
+}
+
+.season-desktop-hero-meta {
+    display: flex;
+    gap: 14px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: rgba(227, 226, 227, 0.75);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.season-desktop-hero-schedule h5 {
+    margin: 0 0 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-secondary);
+}
+
+.season-desktop-session-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.season-desktop-session-item {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.season-desktop-session-item span {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.season-desktop-session-item b {
+    display: block;
+    margin-top: 3px;
+    font-size: 22px;
+    line-height: 1;
+}
+
+.season-desktop-session-item.focus {
+    border-color: rgba(225, 6, 0, 0.6);
+}
+
+.season-desktop-facts-grid {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.season-desktop-facts-grid .season-desktop-fact-item {
+    border-left: 0;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.season-desktop-timeline-title {
+    margin: 0 0 10px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--text-secondary);
+}
+
+.season-desktop-race-action {
+    font-size: 18px;
+    line-height: 1;
+    color: var(--text-secondary);
+}
+
+.season-desktop-race-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(227, 226, 227, 0.72);
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.season-desktop-fact-text {
+    font-style: italic;
 }
 
 /* Favorites tabs - segmented control with slider */
@@ -2249,6 +2770,21 @@ input:checked + .slider:before {
   border-radius: 2px;
 }
 
+.constructor-profile-desktop {
+  display: none;
+}
+
+.constructor-details-mobile {
+  display: block;
+}
+
+.constructor-profile-callout {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
 @media (min-width: 900px) {
   .root {
     max-width: 1080px;
@@ -2325,17 +2861,13 @@ input:checked + .slider:before {
   }
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 900px) {
     .mobile-year-control {
-        display: none;
+        display: block;
     }
 
     .desktop-standings-layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 260px;
-        gap: 14px;
-        margin-bottom: 12px;
-        align-items: start;
+        display: none;
     }
 
     .desktop-standings-board {
@@ -2515,11 +3047,7 @@ input:checked + .slider:before {
     .desktop-side-list-row.pos-3 { border-left-color: var(--bronze); }
 
     .season-desktop-layout {
-        display: grid;
-        grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1fr);
-        gap: 14px;
-        margin-bottom: 14px;
-        align-items: start;
+        display: none;
     }
 
     .season-desktop-list {
@@ -2742,22 +3270,22 @@ input:checked + .slider:before {
     }
 
     .season-page-head .page-head-controls {
-        display: none;
+        display: block;
     }
 
     .season-races-grid {
-        display: none;
+        display: grid;
     }
 
     .standings-cards-grid {
-        display: none;
+        display: grid;
     }
 }
 
 @media (min-width: 1200px) {
   .root {
-    max-width: 1240px;
-    padding: 28px;
+    max-width: none;
+    padding: 0;
   }
 
   h2,
@@ -2816,8 +3344,8 @@ input:checked + .slider:before {
 
 @media (min-width: 1600px) {
   .root {
-    max-width: 1460px;
-    padding: 32px;
+    max-width: none;
+    padding: 0;
   }
 
   .menu-grid {
@@ -2853,5 +3381,561 @@ input:checked + .slider:before {
 
   .compare-results-panel .stats-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 900px) {
+  .section-title {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: rgba(227, 226, 227, 0.6);
+  }
+
+  h2,
+  .page-head-title {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+    font-style: italic;
+  }
+
+  .card,
+  .menu-item,
+  .driver-card,
+  .team-card,
+  .race-card,
+  .schedule-card,
+  .setting-card,
+  .compare-controls-panel,
+  .stat-card,
+  .chart-container,
+  .index-panel,
+  .index-standings-card {
+    background: var(--surface-container-high);
+    border-color: rgba(175, 135, 129, 0.18);
+  }
+
+  .menu-item:hover,
+  .driver-card:hover,
+  .team-card:hover,
+  .race-card:hover,
+  .setting-card:hover,
+  .compare-controls-panel:hover,
+  .index-panel:hover,
+  .index-standings-card:hover {
+    background: var(--surface-container-highest);
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+
+  .desktop-standings-row,
+  .standings-item,
+  .index-standings-row {
+    border-color: rgba(175, 135, 129, 0.2);
+    background: rgba(41, 42, 43, 0.8);
+  }
+
+  .desktop-standings-row:hover,
+  .standings-item:hover,
+  .index-standings-row:hover {
+    background: var(--surface-container-highest);
+  }
+
+  .desktop-standings-row.pos-1,
+  .desktop-side-list-row.pos-1,
+  .standings-item.podium-1,
+  .index-standings-row:first-child {
+    box-shadow: inset 2px 0 0 rgba(255, 180, 168, 0.95);
+  }
+
+  .btn-back {
+    margin-bottom: 14px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(94, 63, 58, 0.24);
+    background: var(--surface-container-low);
+    color: var(--text-secondary);
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .btn-back:hover {
+    background: var(--surface-container-high);
+    color: var(--text-primary);
+    border-color: rgba(255, 180, 168, 0.3);
+  }
+
+  .app-page-main > h2 {
+    margin: 4px 0 6px;
+    font-size: clamp(36px, 3vw, 56px);
+    line-height: 0.95;
+  }
+
+  .app-page-main > h2 + p {
+    margin: 0 0 18px;
+    color: rgba(227, 226, 227, 0.58);
+  }
+
+  .page-head-row {
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    border: 1px solid rgba(94, 63, 58, 0.22);
+    border-radius: 12px;
+    background: rgba(27, 28, 29, 0.7);
+  }
+
+  .page-head-controls {
+    width: min(420px, 42%);
+  }
+
+  .year-select-input,
+  .search-input,
+  .custom-select-trigger {
+    border-radius: 10px;
+    border-color: rgba(94, 63, 58, 0.28);
+    background: var(--surface-container-lowest);
+  }
+
+  .segmented-tabs {
+    border-radius: 10px;
+    background: var(--surface-container-low);
+    border-color: rgba(94, 63, 58, 0.3);
+  }
+
+  .segmented-slider {
+    background: linear-gradient(45deg, #e10600, #c00500);
+  }
+
+  .standings-list {
+    gap: 10px;
+  }
+
+  .standings-item {
+    border-radius: 12px;
+    border: 1px solid rgba(94, 63, 58, 0.2);
+    padding: 14px 16px;
+    background: rgba(41, 42, 43, 0.75);
+  }
+
+  .standings-item:hover {
+    background: var(--surface-container-highest);
+  }
+
+  #race-content,
+  #quali-content {
+    border: 1px solid rgba(94, 63, 58, 0.24);
+    border-radius: 12px;
+    background: rgba(27, 28, 29, 0.68);
+    padding: 14px;
+  }
+
+  .voting-accordion-item,
+  .voting-chart-accordion,
+  .setting-card,
+  .season-race-insights,
+  .circuit-insights-card,
+  .driver-stats-block,
+  .driver-bio-block,
+  .driver-card-header,
+  .constructor-hero {
+    border-color: rgba(94, 63, 58, 0.24);
+    background: rgba(41, 42, 43, 0.72);
+  }
+
+  .grid-select {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .select-item {
+    border-radius: 10px;
+    border-color: rgba(94, 63, 58, 0.24);
+    min-height: 72px;
+    background: rgba(41, 42, 43, 0.75);
+  }
+
+  .select-item.selected {
+    border-color: rgba(225, 6, 0, 0.6);
+    background: rgba(225, 6, 0, 0.14);
+  }
+
+  .chart-container {
+    border-radius: 12px;
+    min-height: 380px;
+  }
+
+  .next-race-hero,
+  .schedule-card {
+    border-color: rgba(94, 63, 58, 0.24);
+    background: rgba(41, 42, 43, 0.72);
+  }
+
+  .archive-note {
+    margin-bottom: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(227, 226, 227, 0.45);
+  }
+
+  .app-page-main.route-home {
+    padding-top: 4px;
+  }
+
+  .app-page-main.route-home .index-layout {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-areas:
+      "hero hero"
+      "results season"
+      "standings standings"
+      "my my";
+    gap: 16px;
+  }
+
+  .app-page-main.route-home .index-hero-wrap {
+    grid-area: hero;
+  }
+
+  .app-page-main.route-home .index-results-panel {
+    grid-area: results;
+  }
+
+  .app-page-main.route-home .index-season-panel {
+    grid-area: season;
+  }
+
+  .app-page-main.route-home .index-my-section {
+    grid-area: my;
+  }
+
+  .app-page-main.route-home .index-standings-panel {
+    display: block;
+    grid-area: standings;
+    margin-top: 0;
+    border: 1px solid rgba(94, 63, 58, 0.24);
+    border-radius: 14px;
+    background: rgba(27, 28, 29, 0.76);
+    padding: 12px;
+  }
+
+  .app-page-main.route-home .hero-btn {
+    min-height: 216px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #e10600 0%, #d10000 100%) !important;
+    box-shadow: none;
+  }
+
+  .app-page-main.route-home .index-panel {
+    border-radius: 14px;
+    border: 1px solid rgba(94, 63, 58, 0.22);
+    background: rgba(18, 19, 20, 0.7);
+    padding: 12px;
+  }
+
+  .app-page-main.route-home .index-result-tile,
+  .app-page-main.route-home .index-nav-card {
+    min-height: 116px;
+    border-radius: 12px;
+    border: 1px solid rgba(94, 63, 58, 0.26);
+    background: rgba(18, 19, 20, 0.9);
+  }
+
+  .app-page-main.route-home .index-result-tile::before,
+  .app-page-main.route-home .index-nav-card::before {
+    width: 1px;
+    background: rgba(255, 180, 168, 0.45);
+  }
+
+  .app-page-main.route-home .index-standings-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .app-page-main.route-home .index-standings-card {
+    border-radius: 12px;
+    border: 1px solid rgba(94, 63, 58, 0.22);
+    background: rgba(18, 19, 20, 0.86);
+    padding: 10px;
+  }
+
+  .app-page-main.route-home .index-standings-row {
+    border-radius: 8px;
+    padding: 7px 9px;
+    font-size: 12px;
+    border-color: rgba(94, 63, 58, 0.24);
+    background: rgba(41, 42, 43, 0.68);
+  }
+
+  .app-page-main.route-drivers .desktop-standings-layout,
+  .app-page-main.route-constructors .desktop-standings-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 16px;
+  }
+
+  .app-page-main.route-drivers .standings-cards-grid,
+  .app-page-main.route-constructors .standings-cards-grid {
+    display: none;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-board,
+  .app-page-main.route-constructors .desktop-standings-board {
+    background: var(--surface-container-low);
+    border-radius: 14px;
+    border: 1px solid rgba(94, 63, 58, 0.25);
+    padding: 16px;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-heading,
+  .app-page-main.route-constructors .desktop-standings-heading {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: clamp(34px, 3vw, 54px);
+    line-height: 0.92;
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    margin-bottom: 14px;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-row,
+  .app-page-main.route-constructors .desktop-standings-row {
+    border-radius: 12px;
+    grid-template-columns: 44px minmax(0, 1fr) 48px 72px;
+    padding: 12px 14px;
+    border: 1px solid rgba(94, 63, 58, 0.22);
+    background: rgba(31, 32, 33, 0.85);
+  }
+
+  .app-page-main.route-drivers .desktop-standings-row:hover,
+  .app-page-main.route-constructors .desktop-standings-row:hover {
+    background: var(--surface-container-highest);
+  }
+
+  .app-page-main.route-drivers .desktop-standings-pos,
+  .app-page-main.route-constructors .desktop-standings-pos {
+    font-size: 30px;
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-style: italic;
+    font-weight: 800;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-name,
+  .app-page-main.route-constructors .desktop-standings-name {
+    font-size: 24px;
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-points,
+  .app-page-main.route-constructors .desktop-standings-points {
+    font-size: 28px;
+    border-radius: 10px;
+    background: var(--surface-container-highest);
+  }
+
+  .app-page-main.route-drivers .desktop-side-card,
+  .app-page-main.route-constructors .desktop-side-card {
+    border-radius: 12px;
+    border: 1px solid rgba(94, 63, 58, 0.22);
+    background: rgba(31, 32, 33, 0.82);
+  }
+
+  .app-page-main.route-season .season-desktop-layout {
+    display: grid;
+    grid-template-columns: minmax(350px, 0.95fr) minmax(0, 1fr);
+    gap: 16px;
+    margin-bottom: 12px;
+  }
+
+  .app-page-main.route-season .season-races-grid {
+    display: none;
+  }
+
+  .app-page-main.route-season .season-page-head .page-head-controls {
+    display: none;
+  }
+
+  .app-page-main.route-season .season-desktop-main-card {
+    border-radius: 14px;
+    border: 1px solid rgba(94, 63, 58, 0.24);
+    background: var(--surface-container-low);
+    padding: 16px;
+  }
+
+  .app-page-main.route-season .season-desktop-title {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: clamp(30px, 3vw, 52px);
+    line-height: 0.95;
+    text-transform: uppercase;
+    font-style: italic;
+    letter-spacing: -0.03em;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item {
+    border-radius: 12px;
+    border-color: rgba(94, 63, 58, 0.24);
+    background: rgba(31, 32, 33, 0.82);
+  }
+
+  .app-page-main.route-season .season-desktop-race-item.active {
+    background: var(--surface-container-highest);
+    border-color: rgba(225, 6, 0, 0.58);
+  }
+
+  .app-page-main.route-compare .compare-controls-panel {
+    border: 1px solid rgba(94, 63, 58, 0.24);
+    border-radius: 14px;
+    background: var(--surface-container-low);
+    padding: 16px;
+  }
+
+  .app-page-main.route-compare .driver-select .custom-select-trigger {
+    height: 58px;
+    border-radius: 10px;
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+  }
+
+  .app-page-main.route-compare .btn-compare {
+    border-radius: 10px;
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    background: linear-gradient(45deg, #e10600, #c00500);
+  }
+
+  .app-page-main.route-compare .stat-card {
+    border: 1px solid rgba(94, 63, 58, 0.24);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .app-page-main.route-compare .stat-title {
+    margin: -12px -12px 10px;
+    padding: 8px 12px;
+    background: rgba(52, 53, 54, 0.6);
+  }
+
+  .app-page-main.route-driver-details .driver-card-header,
+  .app-page-main.route-constructor-details .constructor-hero {
+    border-radius: 14px;
+    border: 1px solid rgba(94, 63, 58, 0.25);
+    background: var(--surface-container-low);
+  }
+
+  .app-page-main.route-driver-details .driver-card-name,
+  .app-page-main.route-constructor-details .constructor-hero-title {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+  }
+
+  .app-page-main.route-driver-details .driver-tabs,
+  .app-page-main.route-constructor-details .driver-tabs {
+    max-width: 520px;
+  }
+
+  .app-page-main.route-driver-details .driver-tab,
+  .app-page-main.route-constructor-details .driver-tab {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .app-page-main.route-driver-details .constructor-drivers-grid,
+  .app-page-main.route-constructor-details .constructor-drivers-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .app-page-main.route-voting .voting-chart-accordion,
+  .app-page-main.route-voting .voting-accordion-item {
+    border-radius: 12px;
+    border: 1px solid rgba(94, 63, 58, 0.24);
+    background: var(--surface-container-low);
+  }
+
+  .app-page-main.route-voting .voting-accordion-header,
+  .app-page-main.route-voting .voting-chart-toggle {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .app-page-main.route-race-results #race-content,
+  .app-page-main.route-quali-results #quali-content,
+  .app-page-main.route-sprint-results #sprint-content,
+  .app-page-main.route-sprint-quali-results #sprint-quali-content {
+    border-radius: 14px;
+    background: var(--surface-container-low);
+    border: 1px solid rgba(94, 63, 58, 0.25);
+    padding: 16px;
+  }
+
+  .app-page-main.route-race-results .standings-item,
+  .app-page-main.route-quali-results .standings-item,
+  .app-page-main.route-sprint-results .standings-item,
+  .app-page-main.route-sprint-quali-results .standings-item {
+    border-radius: 10px;
+    background: rgba(41, 42, 43, 0.84);
+  }
+
+  .app-page-main.route-settings .setting-card {
+    border-radius: 12px;
+    border: 1px solid rgba(94, 63, 58, 0.25);
+    background: var(--surface-container-low);
+  }
+
+  .app-page-main.route-settings .btn-save {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 12px;
+    border-radius: 10px;
+  }
+
+  .app-page-main.route-favorites .grid-select {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
+  .app-page-main.route-favorites .select-item {
+    min-height: 120px;
+    align-items: flex-start;
+    border-radius: 12px;
+    padding: 18px;
+  }
+
+  .app-page-main.route-favorites .item-name {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 24px;
+    text-transform: uppercase;
+    letter-spacing: -0.02em;
+  }
+
+  .app-page-main.route-favorites .check-icon {
+    font-size: 26px;
+  }
+
+  .app-page-main.route-next-race .next-race-hero {
+    min-height: 420px;
+    border-radius: 14px;
+    border: 1px solid rgba(94, 63, 58, 0.25);
+    background: var(--surface-container-low);
+  }
+
+  .app-page-main.route-next-race .next-race-date {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: clamp(48px, 5vw, 74px);
+    font-style: italic;
+    letter-spacing: -0.03em;
   }
 }

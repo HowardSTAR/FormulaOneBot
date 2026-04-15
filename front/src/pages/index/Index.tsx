@@ -206,8 +206,123 @@ function IndexPage() {
     };
   }, [sessionsForCards, displayTz, nextRace?.race_start_utc]);
 
+  const raceLeader = driversTop[0] || null;
+  const qualiLeader = driversTop[1] || driversTop[0] || null;
+  const comparePair = [driversTop[0], driversTop[1]].filter(Boolean) as DriverStanding[];
+  const voteBase = (driversTop[0]?.points || 0) + (driversTop[1]?.points || 0) || 1;
+  const voteA = Math.max(8, Math.min(92, Math.round(((driversTop[0]?.points || 0) / voteBase) * 100)));
+  const voteB = Math.max(8, Math.min(92, Math.round(((driversTop[1]?.points || 0) / voteBase) * 100)));
+
+  const shortName = (name?: string): string => {
+    if (!name) return "—";
+    const parts = name.trim().split(/\s+/);
+    return (parts[parts.length - 1] || name).toUpperCase();
+  };
+
   return (
     <>
+      <div className="index-desktop-shell">
+        <div className="index-hero-wrap index-desktop-hero-wrap">
+          <Hero nextRace={nextRace} schedule={schedule} userTz={userTz} />
+        </div>
+
+        <div className="index-desktop-widget-grid">
+          <Link to="/race-results" className="menu-item index-desktop-widget">
+            <div className="index-desktop-widget-head">
+              <div>
+                <h3 className="index-desktop-widget-title">Race</h3>
+                <p className="index-desktop-widget-sub">Official Grand Prix Standings</p>
+              </div>
+              <span className="index-desktop-widget-icon">🏁</span>
+            </div>
+            <div className="index-desktop-widget-main">
+              <div className="index-desktop-widget-rank">01</div>
+              <div className="index-desktop-widget-leader">
+                <p>{raceLeader?.name || "Данные скоро"}</p>
+                <span>{raceLeader?.constructorName || "Formula One"}</span>
+              </div>
+              <div className="index-desktop-widget-value">{raceLeader ? `${raceLeader.points} PTS` : "—"}</div>
+            </div>
+            <div className="index-desktop-widget-btn">View Full Table</div>
+          </Link>
+
+          <Link to="/quali-results" className="menu-item index-desktop-widget">
+            <div className="index-desktop-widget-head">
+              <div>
+                <h3 className="index-desktop-widget-title">Qualifying</h3>
+                <p className="index-desktop-widget-sub">Pole Position Battle</p>
+              </div>
+              <span className="index-desktop-widget-icon">⏱</span>
+            </div>
+            <div className="index-desktop-widget-main">
+              <div className="index-desktop-widget-rank">01</div>
+              <div className="index-desktop-widget-leader">
+                <p>{qualiLeader?.name || "Данные скоро"}</p>
+                <span>{qualiLeader?.constructorName || "Formula One"}</span>
+              </div>
+              <div className="index-desktop-widget-value">{sessionMeta.quali?.time || "--:--"}</div>
+            </div>
+            <div className="index-desktop-widget-btn">Live Updates</div>
+          </Link>
+
+          <Link to="/compare" className="menu-item index-desktop-widget">
+            <div className="index-desktop-widget-head">
+              <div>
+                <h3 className="index-desktop-widget-title">Comparison</h3>
+                <p className="index-desktop-widget-sub">Head-to-Head Analysis</p>
+              </div>
+              <span className="index-desktop-widget-icon">⚔</span>
+            </div>
+            <div className="index-desktop-versus">
+              <div className="index-desktop-avatar">
+                <div>{shortName(comparePair[0]?.name).slice(0, 2)}</div>
+                <span>{shortName(comparePair[0]?.name)}</span>
+              </div>
+              <div className="index-desktop-avatar">
+                <div>{shortName(comparePair[1]?.name).slice(0, 2)}</div>
+                <span>{shortName(comparePair[1]?.name)}</span>
+              </div>
+            </div>
+            <div className="index-desktop-widget-btn">Launch Tool</div>
+          </Link>
+
+          <Link to="/voting" className="menu-item index-desktop-widget">
+            <div className="index-desktop-widget-head">
+              <div>
+                <h3 className="index-desktop-widget-title">Voting</h3>
+                <p className="index-desktop-widget-sub">Driver of the Day</p>
+              </div>
+              <span className="index-desktop-widget-icon">🗳</span>
+            </div>
+            <div className="index-desktop-vote-lines">
+              <div className="index-desktop-vote-line">
+                <span>{shortName(driversTop[0]?.name)}</span>
+                <div className="index-desktop-vote-track"><i style={{ width: `${voteA}%` }} /></div>
+                <b>{voteA}%</b>
+              </div>
+              <div className="index-desktop-vote-line">
+                <span>{shortName(driversTop[1]?.name)}</span>
+                <div className="index-desktop-vote-track"><i style={{ width: `${voteB}%` }} /></div>
+                <b>{voteB}%</b>
+              </div>
+            </div>
+            <div className="index-desktop-widget-btn">Cast Your Vote</div>
+          </Link>
+        </div>
+
+        <Link to="/season" className="menu-item index-desktop-calendar-cta">
+          <div className="index-desktop-calendar-left">
+            <span className="index-desktop-calendar-icon">📅</span>
+            <div>
+              <h3>Full Race Calendar</h3>
+              <p>Explore all events of the {nextRace?.season || currentYear} FIA Formula One season.</p>
+            </div>
+          </div>
+          <span className="index-desktop-calendar-arrow">→</span>
+        </Link>
+      </div>
+
+      <div className="index-mobile-stack">
       <div className="index-layout">
         <div className="index-hero-wrap">
           <Hero nextRace={nextRace} schedule={schedule} userTz={userTz} />
@@ -336,80 +451,83 @@ function IndexPage() {
         )}
       </div>
 
-      <div className="index-panel index-standings-panel">
-        <div className="section-title">Положение в чемпионате {nextRace?.season || currentYear}</div>
-        <div className="index-standings-grid">
-          <div className="index-standings-card">
-            <div className="index-standings-title">Пилоты</div>
-            <div className="index-standings-table">
-              {driversTop.map((d) => (
-                <div key={`${d.position}-${d.name}`} className="index-standings-row">
-                  <span>{d.position}</span>
-                  <span className="index-standings-entity">
-                    {DRIVER_FLAG_BY_CODE[(d.code || "").toUpperCase()] && (
+      <div className="index-lower-stack">
+        <div className="index-panel index-standings-panel">
+          <div className="section-title">Положение в чемпионате {nextRace?.season || currentYear}</div>
+          <div className="index-standings-grid">
+            <div className="index-standings-card">
+              <div className="index-standings-title">Пилоты</div>
+              <div className="index-standings-table">
+                {driversTop.map((d) => (
+                  <div key={`${d.position}-${d.name}`} className="index-standings-row">
+                    <span>{d.position}</span>
+                    <span className="index-standings-entity">
+                      {DRIVER_FLAG_BY_CODE[(d.code || "").toUpperCase()] && (
+                        <img
+                          src={getCountryFlagUrl(DRIVER_FLAG_BY_CODE[(d.code || "").toUpperCase()])}
+                          alt={d.code || "flag"}
+                          className="index-flag-icon"
+                        />
+                      )}
+                      {d.constructorId || d.constructorName ? (
+                        <img
+                          src={teamLogoUrl(d.constructorId || "", d.constructorName || "", nextRace?.season || currentYear)}
+                          alt=""
+                          className="index-standings-logo"
+                          onError={(e) => (e.currentTarget.style.display = "none")}
+                        />
+                      ) : null}
+                      <span>{d.name}</span>
+                    </span>
+                    <span>{d.points}</span>
+                  </div>
+                ))}
+                {driversTop.length === 0 && <div className="index-standings-empty">Нет данных</div>}
+              </div>
+            </div>
+            <div className="index-standings-card">
+              <div className="index-standings-title">Команды</div>
+              <div className="index-standings-table">
+                {constructorsTop.map((t) => (
+                  <div key={`${t.position}-${t.name}`} className="index-standings-row">
+                    <span>{t.position}</span>
+                    <span className="index-standings-entity">
+                      {TEAM_FLAG_BY_ID[(t.constructorId || "").toLowerCase()] && (
+                        <img
+                          src={getCountryFlagUrl(TEAM_FLAG_BY_ID[(t.constructorId || "").toLowerCase()])}
+                          alt={t.name}
+                          className="index-flag-icon"
+                        />
+                      )}
                       <img
-                        src={getCountryFlagUrl(DRIVER_FLAG_BY_CODE[(d.code || "").toUpperCase()])}
-                        alt={d.code || "flag"}
-                        className="index-flag-icon"
-                      />
-                    )}
-                    {d.constructorId || d.constructorName ? (
-                      <img
-                        src={teamLogoUrl(d.constructorId || "", d.constructorName || "", nextRace?.season || currentYear)}
+                        src={teamLogoUrl(t.constructorId || "", t.name, nextRace?.season || currentYear)}
                         alt=""
                         className="index-standings-logo"
                         onError={(e) => (e.currentTarget.style.display = "none")}
                       />
-                    ) : null}
-                    <span>{d.name}</span>
-                  </span>
-                  <span>{d.points}</span>
-                </div>
-              ))}
-              {driversTop.length === 0 && <div className="index-standings-empty">Нет данных</div>}
-            </div>
-          </div>
-          <div className="index-standings-card">
-            <div className="index-standings-title">Команды</div>
-            <div className="index-standings-table">
-              {constructorsTop.map((t) => (
-                <div key={`${t.position}-${t.name}`} className="index-standings-row">
-                  <span>{t.position}</span>
-                  <span className="index-standings-entity">
-                    {TEAM_FLAG_BY_ID[(t.constructorId || "").toLowerCase()] && (
-                      <img
-                        src={getCountryFlagUrl(TEAM_FLAG_BY_ID[(t.constructorId || "").toLowerCase()])}
-                        alt={t.name}
-                        className="index-flag-icon"
-                      />
-                    )}
-                    <img
-                      src={teamLogoUrl(t.constructorId || "", t.name, nextRace?.season || currentYear)}
-                      alt=""
-                      className="index-standings-logo"
-                      onError={(e) => (e.currentTarget.style.display = "none")}
-                    />
-                    <span>{t.name}</span>
-                  </span>
-                  <span>{t.points}</span>
-                </div>
-              ))}
-              {constructorsTop.length === 0 && <div className="index-standings-empty">Нет данных</div>}
+                      <span>{t.name}</span>
+                    </span>
+                    <span>{t.points}</span>
+                  </div>
+                ))}
+                {constructorsTop.length === 0 && <div className="index-standings-empty">Нет данных</div>}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <Link to="/season" className="menu-item full-width index-wide-link index-calendar-main-link">
-        <div className="index-wide-link-left">
-          <span className="menu-icon">📅</span>
-          <div className="index-wide-link-text">
-            <span className="menu-label index-card-title">Календарь</span>
-            <span className="index-card-desc">Расписание и этапы сезона</span>
+        <Link to="/season" className="menu-item full-width index-wide-link index-calendar-main-link">
+          <div className="index-wide-link-left">
+            <span className="menu-icon">📅</span>
+            <div className="index-wide-link-text">
+              <span className="menu-label index-card-title">Календарь</span>
+              <span className="index-card-desc">Расписание и этапы сезона</span>
+            </div>
           </div>
-        </div>
-        <span className="index-wide-link-arrow">➜</span>
-      </Link>
+          <span className="index-wide-link-arrow">➜</span>
+        </Link>
+      </div>
+      </div>
     </>
   );
 }

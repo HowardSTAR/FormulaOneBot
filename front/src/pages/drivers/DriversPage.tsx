@@ -16,6 +16,26 @@ function teamLogoUrl(teamId: string, teamName: string, season: number): string {
   return `${origin.replace(/\/$/, "")}${pathBase}/api/team-logo?${params}`;
 }
 
+function pilotPortraitUrl(code: string, fullName: string, season: number): string {
+  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
+  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
+  const params = new URLSearchParams({ season: String(season) });
+  if (code) params.set("code", code);
+  if (fullName) params.set("name", fullName);
+  return `${origin.replace(/\/$/, "")}${pathBase}/api/pilot-portrait?${params.toString()}`;
+}
+
+function teamLabel(constructorId?: string, constructorName?: string): string {
+  const id = (constructorId || "").toLowerCase();
+  if (id === "mercedes") return "MERCEDES-AMG PETRONAS";
+  if (id === "ferrari") return "SCUDERIA FERRARI";
+  if (id === "mclaren") return "MCLAREN F1 TEAM";
+  if (id === "red_bull" || id === "redbull") return "ORACLE RED BULL RACING";
+  if (id === "aston_martin") return "ASTON MARTIN ARAMCO";
+  return (constructorName || "Unknown Team").toUpperCase();
+}
+
 type Driver = {
   position: number;
   name: string;
@@ -151,6 +171,18 @@ function DriversPage() {
     updateYear(y);
   };
 
+  const leader = drivers[0] || null;
+  const second = drivers[1] || null;
+  const gapToLeader = leader && second ? Math.max(0, leader.points - second.points) : 0;
+  const teamAccent = (team?: string) => {
+    const v = (team || "").toLowerCase();
+    if (v.includes("mercedes")) return "#00d2be";
+    if (v.includes("ferrari")) return "#e10600";
+    if (v.includes("mclaren")) return "#ff8700";
+    if (v.includes("red bull")) return "#1d4ed8";
+    return "#af8781";
+  };
+
   return (
     <>
       <BackButton>← <span>Главное меню</span></BackButton>
@@ -168,8 +200,23 @@ function DriversPage() {
       </div>
 
       <div className="desktop-standings-layout">
-        <div className="desktop-standings-board">
-          <h2 className="desktop-standings-heading">Личный зачет: Сезон {year}</h2>
+        <div className="desktop-standings-board drivers-desktop-shell">
+          <div className="desktop-standings-toolbar drivers-desktop-toolbar">
+            <div>
+              <div className="drivers-desktop-kicker">Live Data · Telemetry Feed {year}</div>
+              <h2 className="desktop-standings-heading">Driver Standings</h2>
+            </div>
+            <div className="drivers-desktop-controls">
+              <YearSelect
+                value={year}
+                onChange={handleYearChange}
+                minYear={1950}
+                maxYear={currentRealYear}
+                placeholder="Введи год"
+              />
+              <button type="button" className="drivers-filter-btn">Filters</button>
+            </div>
+          </div>
           {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка пилотов...</div></div>}
           {error && <div className="page-error">{error}</div>}
           {!loading && !error && emptyMessage && (
@@ -180,39 +227,75 @@ function DriversPage() {
             </div>
           )}
           {!loading && !error && !emptyMessage && drivers.length > 0 && (
-            <div className="desktop-standings-table">
-              {drivers.map((driver) => {
-                const toDriver = `/driver-details?code=${encodeURIComponent(driver.code)}&season=${year}${driver.driverId ? `&driverId=${encodeURIComponent(driver.driverId)}` : ""}`;
-                return (
-                  <div
-                    key={`desktop-${driver.code}`}
-                    role="button"
-                    tabIndex={0}
-                    className={`desktop-standings-row pos-${driver.position}`}
-                    onClick={() => navigate(toDriver)}
-                    onKeyDown={(e) => e.key === "Enter" && navigate(toDriver)}
-                  >
-                    <span className="desktop-standings-pos">{driver.position}</span>
-                    <div className="desktop-standings-driver">
-                      <span className="desktop-standings-name">{driver.name}</span>
-                      <span className="desktop-standings-meta">{driver.number ? `#${driver.number}` : ""} {driver.code}</span>
+            <>
+            <div className="desktop-standings-table drivers-standings-table">
+              <div className="desktop-standings-table-head">
+                <span>Pos</span>
+                <span>Пилот</span>
+                <span>Команда</span>
+                <span>Car</span>
+                <span>Очки</span>
+              </div>
+              <div className="drivers-standings-scroll">
+                {drivers.map((driver) => {
+                  const toDriver = `/driver-details?code=${encodeURIComponent(driver.code)}&season=${year}${driver.driverId ? `&driverId=${encodeURIComponent(driver.driverId)}` : ""}`;
+                  return (
+                    <div
+                      key={`desktop-${driver.code}`}
+                      role="button"
+                      tabIndex={0}
+                      className={`desktop-standings-row pos-${driver.position}`}
+                      onClick={() => navigate(toDriver)}
+                      onKeyDown={(e) => e.key === "Enter" && navigate(toDriver)}
+                    >
+                      <span className="desktop-standings-pos">{driver.position}</span>
+                      <div className="desktop-standings-driver drivers-row-driver">
+                        <img src={pilotPortraitUrl(driver.code, driver.name, year)} alt={driver.name} />
+                        <div>
+                          <span className="desktop-standings-name">
+                            {driver.name}
+                            {driver.is_favorite && <b className="drivers-row-favorite">★</b>}
+                          </span>
+                          <span className="desktop-standings-meta">
+                            <i>{driver.code || "DRV"}</i>
+                            <u>{driver.number ? `#${driver.number}` : "—"}</u>
+                          </span>
+                        </div>
+                      </div>
+                      <div className="drivers-row-team">
+                        <i style={{ background: teamAccent(driver.constructorName) }} />
+                        <span>{teamLabel(driver.constructorId, driver.constructorName)}</span>
+                      </div>
+                      <span className="drivers-row-car">{driver.number ? `#${driver.number}` : "—"}</span>
+                      <span className="desktop-standings-points">
+                        <strong>{driver.points}</strong>
+                        <small>{driver.position === 1 ? "+25 PTS LAST RACE" : "SEASON TOTAL"}</small>
+                      </span>
                     </div>
-                    {(driver.constructorId || driver.constructorName) && (
-                      <img
-                        src={teamLogoUrl(driver.constructorId || "", driver.constructorName || "", year)}
-                        alt=""
-                        className="desktop-standings-team-logo"
-                        onError={(e) => (e.currentTarget.style.display = "none")}
-                      />
-                    )}
-                    <span className="desktop-standings-points">{driver.points}</span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
+            <div className="drivers-insights-grid">
+              <article className="drivers-insight-card">
+                <h4>Gap to Leader</h4>
+                <p>{gapToLeader} PTS <span>({second?.code || "—"} vs {leader?.code || "—"})</span></p>
+              </article>
+              <article className="drivers-insight-card active">
+                <h4>Championship Battle</h4>
+                <p>High Intensity</p>
+                <small>Predictions suggest 3-way tie potential by Round 12.</small>
+              </article>
+              <article className="drivers-insight-card">
+                <h4>Pro Insights</h4>
+                <p className="pro">Unlock Virtual Pit Wall</p>
+                <small>Real-time driver degradation models available.</small>
+              </article>
+            </div>
+            </>
           )}
         </div>
-        <aside className="desktop-standings-sidebar">
+        <aside className="desktop-standings-sidebar drivers-desktop-sidebar-legacy">
           <div className="desktop-side-card">
             <div className="desktop-side-title">Год</div>
             <YearSelect

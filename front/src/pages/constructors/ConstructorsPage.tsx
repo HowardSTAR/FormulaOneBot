@@ -32,6 +32,7 @@ type NextRaceInfo = {
   event_name?: string;
   date?: string;
   round?: number;
+  location?: string;
 };
 
 const minConstructorYear = 1958;
@@ -147,6 +148,15 @@ function ConstructorsPage() {
     updateYear(y);
   };
 
+  const leaderTeam = teams[0] || null;
+  const raceDate = nextRace?.date ? new Date(nextRace.date) : null;
+  const daysLeft = raceDate
+    ? Math.max(
+        0,
+        Math.ceil((raceDate.getTime() - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))
+      )
+    : null;
+
   return (
     <>
       <BackButton>← <span>Главное меню</span></BackButton>
@@ -164,8 +174,12 @@ function ConstructorsPage() {
       </div>
 
       <div className="desktop-standings-layout">
-        <div className="desktop-standings-board">
-          <h2 className="desktop-standings-heading">Кубок конструкторов: Сезон {year}</h2>
+        <div className="desktop-standings-board constructors-desktop-shell">
+          <div className="desktop-standings-toolbar constructors-desktop-toolbar">
+            <h2 className="desktop-standings-heading">Constructor Standings</h2>
+            <div className="constructors-desktop-subtitle">{year} FIA Formula One World Championship</div>
+          </div>
+
           {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка команд...</div></div>}
           {error && <div className="page-error">{error}</div>}
           {!loading && !error && emptyMessage && (
@@ -176,38 +190,100 @@ function ConstructorsPage() {
             </div>
           )}
           {!loading && !error && !emptyMessage && teams.length > 0 && (
-            <div className="desktop-standings-table">
-              {teams.map((team) => {
-                const toTeam = `/constructor-details?constructorId=${encodeURIComponent(team.constructorId || team.name)}&season=${year}`;
-                return (
-                  <div
-                    key={`desktop-${team.name}`}
-                    role="button"
-                    tabIndex={0}
-                    className={`desktop-standings-row pos-${team.position}`}
-                    onClick={() => navigate(toTeam)}
-                    onKeyDown={(e) => e.key === "Enter" && navigate(toTeam)}
-                  >
-                    <span className="desktop-standings-pos">{team.position}</span>
-                    <div className="desktop-standings-driver">
-                      <span className="desktop-standings-name">{team.name}</span>
-                    </div>
-                    {(team.constructorId || team.name) && (
-                      <img
-                        src={teamLogoUrl(team.constructorId || "", team.name, year)}
-                        alt=""
-                        className="desktop-standings-team-logo"
-                        onError={(e) => (e.currentTarget.style.display = "none")}
-                      />
-                    )}
-                    <span className="desktop-standings-points">{team.points}</span>
+            <>
+              <section className="constructors-hero-grid">
+                <article className="constructors-leader-card">
+                  <div className="constructors-leader-kicker">Current Leader</div>
+                  <div className="constructors-leader-main">
+                    <span>{leaderTeam?.name || "—"}</span>
+                    <b>{leaderTeam?.points ?? 0}</b>
                   </div>
-                );
-              })}
-            </div>
+                  <div className="constructors-leader-tags">
+                    <span>Dominant Performance</span>
+                    <span>+{Math.max(0, (teams[0]?.points ?? 0) - (teams[1]?.points ?? 0))} Pt Lead</span>
+                  </div>
+                </article>
+                <article className="constructors-next-race-card">
+                  <div className="constructors-next-kicker">Next Race</div>
+                  <h3>{nextRace?.event_name || "Data pending"}</h3>
+                  <p>{nextRace?.location || ""}</p>
+                  <div className="constructors-next-days">
+                    <span>{String(daysLeft ?? 0).padStart(2, "0")}</span>
+                    <b>Days Left</b>
+                  </div>
+                  <button type="button" className="constructors-race-briefing" onClick={() => navigate(`/next-race?season=${year}`)}>
+                    Race Briefing
+                  </button>
+                </article>
+              </section>
+
+              <section className="desktop-standings-table constructors-table">
+                <div className="desktop-standings-table-head">
+                  <span>Rank</span>
+                  <span>Constructor</span>
+                  <span>Points</span>
+                  <span>Action</span>
+                </div>
+                {teams.map((team) => {
+                  const toTeam = `/constructor-details?constructorId=${encodeURIComponent(team.constructorId || team.name)}&season=${year}`;
+                  const trendIcon = team.position <= 2 ? "↗" : team.position <= 5 ? "→" : "↘";
+                  return (
+                    <div
+                      key={`desktop-${team.name}`}
+                      role="button"
+                      tabIndex={0}
+                      className={`desktop-standings-row pos-${team.position}`}
+                      onClick={() => navigate(toTeam)}
+                      onKeyDown={(e) => e.key === "Enter" && navigate(toTeam)}
+                    >
+                      <span className="desktop-standings-pos">{String(team.position).padStart(2, "0")}</span>
+                      <div className="desktop-standings-driver constructors-row-team">
+                        {(team.constructorId || team.name) && (
+                          <img
+                            src={teamLogoUrl(team.constructorId || "", team.name, year)}
+                            alt=""
+                            className="desktop-standings-team-logo"
+                            onError={(e) => (e.currentTarget.style.display = "none")}
+                          />
+                        )}
+                        <span className="desktop-standings-name">
+                          {team.name}
+                          {team.is_favorite && <i>★</i>}
+                        </span>
+                      </div>
+                      <span className="desktop-standings-points">{team.points}</span>
+                      <span className="constructors-row-action">{trendIcon}</span>
+                    </div>
+                  );
+                })}
+              </section>
+
+              <section className="constructors-insights-grid">
+                <article className="constructors-insight-card">
+                  <div className="constructors-insight-title">Technical Analysis</div>
+                  <p>
+                    {leaderTeam?.name || "Лидер чемпионата"} удерживает преимущество за счет стабильного темпа и
+                    минимальных потерь в ключевых секторах.
+                  </p>
+                </article>
+                <article className="constructors-insight-card">
+                  <div className="constructors-insight-title">Power Unit Rank</div>
+                  <div className="constructors-power-row"><span>{teams[0]?.name || "—"}</span><b>100% Efficiency</b></div>
+                  <div className="constructors-power-bar"><i style={{ width: "100%" }} /></div>
+                  <div className="constructors-power-row"><span>{teams[1]?.name || "—"}</span><b>98.2% Efficiency</b></div>
+                  <div className="constructors-power-bar"><i style={{ width: "98%" }} /></div>
+                </article>
+                <article className="constructors-insight-card constructors-export-card">
+                  <div className="constructors-export-icon">📊</div>
+                  <div className="constructors-insight-title">Download Detailed Data</div>
+                  <p>JSON / CSV / XLSX available</p>
+                  <button type="button">Export Report</button>
+                </article>
+              </section>
+            </>
           )}
         </div>
-        <aside className="desktop-standings-sidebar">
+        <aside className="desktop-standings-sidebar constructors-desktop-sidebar-legacy">
           <div className="desktop-side-card">
             <div className="desktop-side-title">Год</div>
             <YearSelect

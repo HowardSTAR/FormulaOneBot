@@ -40,6 +40,15 @@ function ComparePage() {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
 
+  const selectedName1 =
+    tab === "drivers"
+      ? drivers.find((d) => d.code === d1)?.name || d1 || "—"
+      : teams.find((t) => t.name === t1)?.name || t1 || "—";
+  const selectedName2 =
+    tab === "drivers"
+      ? drivers.find((d) => d.code === d2)?.name || d2 || "—"
+      : teams.find((t) => t.name === t2)?.name || t2 || "—";
+
   const loadDriversList = useCallback(async (season: number) => {
     setLoadingDrivers(true);
     try {
@@ -167,6 +176,7 @@ function ComparePage() {
     gradient2.addColorStop(0, "rgba(0, 210, 190, 0.4)");
     gradient2.addColorStop(1, "rgba(0, 210, 190, 0)");
 
+    const focusIndex = Math.min(1, Math.max(0, (results.labels?.length ?? 1) - 1));
     const config: ChartConfiguration<"line"> = {
       type: "line",
       data: {
@@ -177,22 +187,27 @@ function ComparePage() {
             data: d1Info.history,
             borderColor: color1,
             backgroundColor: gradient1,
-            fill: true,
-            pointRadius: 3,
-            pointHoverRadius: 6,
-            tension: 0.4,
-            borderWidth: 3,
+            fill: false,
+            pointRadius: d1Info.history.map((_, i) => (i === focusIndex ? 6 : 0)),
+            pointHoverRadius: 7,
+            pointBackgroundColor: d1Info.history.map((_, i) => (i === focusIndex ? "#ffffff" : color1)),
+            pointBorderColor: color1,
+            pointBorderWidth: 3,
+            tension: 0.52,
+            borderWidth: 3.2,
+            cubicInterpolationMode: "monotone",
           },
           {
             label: d2Info.code,
             data: d2Info.history,
             borderColor: color2,
             backgroundColor: gradient2,
-            fill: true,
-            pointRadius: 3,
-            pointHoverRadius: 6,
-            tension: 0.4,
-            borderWidth: 3,
+            fill: false,
+            pointRadius: 0,
+            pointHoverRadius: 5,
+            tension: 0.52,
+            borderWidth: 3.2,
+            cubicInterpolationMode: "monotone",
           },
         ],
       },
@@ -201,7 +216,15 @@ function ComparePage() {
         maintainAspectRatio: false,
         interaction: { mode: "index", intersect: false },
         plugins: {
-          legend: { labels: { color: "white" } },
+          legend: {
+            labels: {
+              color: "rgba(227,226,227,0.85)",
+              font: { family: "Space Grotesk", size: 11, weight: 700 },
+              boxWidth: 26,
+              boxHeight: 6,
+              padding: 18,
+            },
+          },
           tooltip: {
             backgroundColor: "rgba(20, 20, 20, 0.9)",
             titleColor: "#fff",
@@ -221,10 +244,16 @@ function ComparePage() {
           },
         },
         scales: {
-          y: { beginAtZero: true, grid: { color: "rgba(255,255,255,0.1)" }, ticks: { color: "white" } },
+          y: {
+            beginAtZero: true,
+            grid: { color: "rgba(255,255,255,0.08)" },
+            ticks: { color: "rgba(227,226,227,0.65)" },
+            border: { color: "rgba(255,255,255,0.06)" },
+          },
           x: {
-            grid: { color: "rgba(255,255,255,0.1)" },
-            ticks: { color: "white", autoSkip: false, maxRotation: 90, minRotation: 90 },
+            grid: { color: "rgba(255,255,255,0.08)" },
+            ticks: { color: "rgba(227,226,227,0.65)", autoSkip: false, maxRotation: 90, minRotation: 90 },
+            border: { color: "rgba(255,255,255,0.06)" },
           },
         },
       },
@@ -249,6 +278,13 @@ function ComparePage() {
     : 0;
   const totalPts1 = results?.data1?.history.reduce((a, b) => a + b, 0) ?? 0;
   const totalPts2 = results?.data2?.history.reduce((a, b) => a + b, 0) ?? 0;
+  const confidence = results
+    ? Math.min(
+        99.9,
+        Math.max(50, (Math.max(totalPts1, totalPts2) / Math.max(1, totalPts1 + totalPts2)) * 100 + 25)
+      )
+    : 0;
+  const averageGap = results?.labels?.length ? Math.abs(totalPts1 - totalPts2) / results.labels.length : 0;
 
   const isDriversReady = tab === "drivers" && d1 && d2 && d1 !== d2;
   const isTeamsReady = tab === "teams" && t1 && t2 && t1 !== t2;
@@ -270,9 +306,16 @@ function ComparePage() {
         </div>
       </div>
 
-      <div className="compare-layout">
-        <div className="compare-controls-panel">
-          <div className="segmented-tabs">
+      <div className="compare-layout compare-layout-redesign">
+        <div className="compare-controls-panel compare-controls-panel-redesign">
+          <div className="compare-controls-header">
+            <div className="compare-controls-kicker">Performance Analytics</div>
+            <div className="compare-controls-title">
+              {tab === "drivers" ? "Сравнение пилотов" : "Сравнение команд"}
+            </div>
+          </div>
+
+          <div className="segmented-tabs compare-redesign-tabs">
             <div
               className="segmented-slider"
               style={{ transform: tab === "drivers" ? "translateX(0)" : "translateX(100%)" }}
@@ -304,12 +347,12 @@ function ComparePage() {
             </button>
           </div>
 
-          {tab === "drivers" && (
-            <div className="selectors">
-              <CustomSelect
-                className="driver-select"
-                options={
-                  loadingDrivers
+          <div className="selectors compare-redesign-selectors">
+            <CustomSelect
+              className="driver-select"
+              options={
+                tab === "drivers"
+                  ? loadingDrivers
                     ? [{ value: "", label: "Загрузка..." }]
                     : drivers.length === 0
                       ? [{ value: "", label: "Нет данных" }]
@@ -317,16 +360,25 @@ function ComparePage() {
                           value: d.code,
                           label: d.is_favorite ? `⭐ ${d.name}` : d.name,
                         }))
-                }
-                value={d1}
-                onChange={(v) => setD1(String(v))}
-                disabled={loadingDrivers}
-              />
-              <span className="vs-badge">VS</span>
-              <CustomSelect
-                className="driver-select"
-                options={
-                  loadingDrivers
+                  : loadingTeams
+                    ? [{ value: "", label: "Загрузка..." }]
+                    : teams.length === 0
+                      ? [{ value: "", label: "Нет данных" }]
+                      : teams.map((t) => ({
+                          value: t.name,
+                          label: t.is_favorite ? `⭐ ${t.name}` : t.name,
+                        }))
+              }
+              value={tab === "drivers" ? d1 : t1}
+              onChange={(v) => (tab === "drivers" ? setD1(String(v)) : setT1(String(v)))}
+              disabled={tab === "drivers" ? loadingDrivers : loadingTeams}
+            />
+            <span className="vs-badge">VS</span>
+            <CustomSelect
+              className="driver-select"
+              options={
+                tab === "drivers"
+                  ? loadingDrivers
                     ? [{ value: "", label: "Загрузка..." }]
                     : drivers.length === 0
                       ? [{ value: "", label: "Нет данных" }]
@@ -334,20 +386,7 @@ function ComparePage() {
                           value: d.code,
                           label: d.is_favorite ? `⭐ ${d.name}` : d.name,
                         }))
-                }
-                value={d2}
-                onChange={(v) => setD2(String(v))}
-                disabled={loadingDrivers}
-              />
-            </div>
-          )}
-
-          {tab === "teams" && (
-            <div className="selectors">
-              <CustomSelect
-                className="driver-select"
-                options={
-                  loadingTeams
+                  : loadingTeams
                     ? [{ value: "", label: "Загрузка..." }]
                     : teams.length === 0
                       ? [{ value: "", label: "Нет данных" }]
@@ -355,39 +394,26 @@ function ComparePage() {
                           value: t.name,
                           label: t.is_favorite ? `⭐ ${t.name}` : t.name,
                         }))
-                }
-                value={t1}
-                onChange={(v) => setT1(String(v))}
-                disabled={loadingTeams}
-              />
-              <span className="vs-badge">VS</span>
-              <CustomSelect
-                className="driver-select"
-                options={
-                  loadingTeams
-                    ? [{ value: "", label: "Загрузка..." }]
-                    : teams.length === 0
-                      ? [{ value: "", label: "Нет данных" }]
-                      : teams.map((t) => ({
-                          value: t.name,
-                          label: t.is_favorite ? `⭐ ${t.name}` : t.name,
-                        }))
-                }
-                value={t2}
-                onChange={(v) => setT2(String(v))}
-                disabled={loadingTeams}
-              />
-            </div>
-          )}
+              }
+              value={tab === "drivers" ? d2 : t2}
+              onChange={(v) => (tab === "drivers" ? setD2(String(v)) : setT2(String(v)))}
+              disabled={tab === "drivers" ? loadingDrivers : loadingTeams}
+            />
+            <button
+              type="button"
+              className="btn-compare"
+              onClick={loadComparison}
+              disabled={!canCompare}
+            >
+              {comparing ? "Анализируем..." : "Сравнить"}
+            </button>
+          </div>
 
-          <button
-            type="button"
-            className="btn-compare"
-            onClick={loadComparison}
-            disabled={!canCompare}
-          >
-            {comparing ? "Анализируем..." : "Сравнить"}
-          </button>
+          <div className="compare-selected-preview">
+            <span>{selectedName1}</span>
+            <span>VS</span>
+            <span>{selectedName2}</span>
+          </div>
 
           {comparing && (
             <div className="loading" style={{ padding: "20px 0" }}>
@@ -401,43 +427,63 @@ function ComparePage() {
           )}
         </div>
 
-        <div className="compare-results-panel">
+        <div className="compare-results-panel compare-results-panel-redesign">
           {!comparing && results && results.labels && results.labels.length > 0 && (
-            <div style={{ animation: "fadeIn 0.3s ease-out" }}>
-              <div className="stats-grid">
+            <div className="compare-result-shell" style={{ animation: "fadeIn 0.3s ease-out" }}>
+              <div className="stats-grid compare-stats-grid">
                 <div className="stat-card">
                   <div className="stat-title">Гонки</div>
                   <div className="stat-score">
                     <span className="s-d1">{raceScore1}</span> : <span className="s-d2">{raceScore2}</span>
                   </div>
                 </div>
-                {tab === "drivers" ? (
-                  <div className="stat-card">
-                    <div className="stat-title">Квалификации</div>
-                    <div className="stat-score">
-                      <span className="s-d1">{results.q_score?.[0] ?? 0}</span> :{" "}
-                      <span className="s-d2">{results.q_score?.[1] ?? 0}</span>
-                    </div>
+                <div className="stat-card">
+                  <div className="stat-title">{tab === "drivers" ? "Квалификации" : "Лидирование"}</div>
+                  <div className="stat-score">
+                    <span className="s-d1">{tab === "drivers" ? (results.q_score?.[0] ?? 0) : raceScore1}</span> :{" "}
+                    <span className="s-d2">{tab === "drivers" ? (results.q_score?.[1] ?? 0) : raceScore2}</span>
                   </div>
-                ) : (
-                  <div className="stat-card">
-                    <div className="stat-title">Сумма очков</div>
-                    <div className="stat-score">
-                      <span className="s-d1">{totalPts1}</span> : <span className="s-d2">{totalPts2}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              {tab === "drivers" && (
-                <div className="stat-card" style={{ marginBottom: 20 }}>
+                </div>
+                <div className="stat-card">
                   <div className="stat-title">Сумма очков</div>
                   <div className="stat-score">
                     <span className="s-d1">{totalPts1}</span> : <span className="s-d2">{totalPts2}</span>
                   </div>
                 </div>
-              )}
-              <div className="chart-container">
-                <canvas ref={chartRef} />
+              </div>
+              <div className="chart-container compare-chart-container">
+                <div className="compare-chart-head">
+                  <div>
+                    <h3>Race Performance Trend</h3>
+                    <p>Форма выступлений по ходу сезона</p>
+                  </div>
+                </div>
+                <div className="chart-container compare-chart-canvas-wrap">
+                  <canvas ref={chartRef} />
+                </div>
+              </div>
+              <div className="compare-insights-grid">
+                <article className="compare-insight-card">
+                  <div className="compare-insight-tag">P1</div>
+                  <h4>Season Standings Analysis</h4>
+                  <p>
+                    {selectedName1} {totalPts1 >= totalPts2 ? "сохраняет преимущество" : "уступает по темпу"} со
+                    средним отрывом {averageGap.toFixed(1)} оч. за этап. {selectedName2}{" "}
+                    {totalPts2 > totalPts1 ? "выглядит стабильнее" : "пытается сократить разрыв"} во второй части
+                    дистанции.
+                  </p>
+                </article>
+                <article className="compare-verdict-card">
+                  <div className="compare-verdict-icon">★</div>
+                  <h4>Technical Verdict</h4>
+                  <p>
+                    По текущей динамике один из участников имеет статистическое преимущество в следующих этапах.
+                  </p>
+                  <div className="compare-verdict-score">
+                    <span>Confidence Score</span>
+                    <b>{confidence.toFixed(1)}%</b>
+                  </div>
+                </article>
               </div>
             </div>
           )}

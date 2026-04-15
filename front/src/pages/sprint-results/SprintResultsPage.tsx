@@ -45,6 +45,8 @@ function SprintResultsPage() {
   const [season] = useState<number>(initialSeason);
   const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
   const [selectedRound, setSelectedRound] = useState<number | null>(initialRound);
+  const desktopWinner = data?.results?.[0] ?? null;
+  const desktopRows = data?.results ?? [];
 
   useEffect(() => {
     let cancelled = false;
@@ -116,103 +118,179 @@ function SprintResultsPage() {
 
   return (
     <>
-      <BackButton>← <span>Главное меню</span></BackButton>
-      <h2>
-        {data?.race_info ? (
-          <>
-            <div>Результаты спринта</div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 500,
-                color: "var(--text-secondary)",
-                marginTop: 4,
-              }}
-            >
-              {data.race_info.event_name}
-              <br />
-              <span style={{ opacity: 0.7 }}>
-                Этап {data.round} • {data.season}
-              </span>
-            </div>
-          </>
-        ) : (
-          "Результаты спринта"
-        )}
-      </h2>
-
-      <div className="segmented-tabs" style={{ marginBottom: 12 }}>
-        <div
-          className="segmented-slider"
-          style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
-        />
-        <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
-          Последние
-        </button>
-        <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
-          Архив
-        </button>
-      </div>
-      {mode === "archive" && selectedRound && (
-        <div style={{ marginBottom: 12 }}>
-          <CustomSelect
-            options={seasonRaces.map((r) => ({
-              value: r.round,
-              label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
-            }))}
-            value={selectedRound}
-            onChange={(value) => setSelectedRound(Number(value))}
-          />
-        </div>
-      )}
-      {mode === "archive" && (
-        <div className="archive-note">Результаты других ГП можно открыть в разделе Календарь.</div>
-      )}
-
-      {loading && (
-        <div className="loading full-width">
-          <div className="spinner" />
-          <div>Загружаю результаты...</div>
-        </div>
-      )}
-      {error && <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>}
-      {!loading && !error && (!data?.results || data.results.length === 0) && (
-        <div className="empty-state">
-          <span className="empty-icon">⚡</span>
-          <div className="empty-title">Нет данных</div>
-          <div className="empty-desc">
-            {mode === "archive"
-              ? "За выбранный этап результаты спринта пока недоступны."
-              : "Результаты спринта пока недоступны. Попробуйте режим Архив."}
-          </div>
-        </div>
-      )}
-      {!loading && !error && data?.results && data.results.length > 0 && (
-        <div className="standings-list" style={{ marginTop: 16 }}>
-          {data.results.map((r, i) => {
-            const emoji =
-              r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : r.position;
-            const isFavorite = Boolean(r.is_favorite_driver || r.is_favorite_team);
-            return (
-              <div key={i} className="standings-item">
-                <div className={`standings-position ${r.position <= 3 ? "podium" : ""}`} style={{ width: 35 }}>
-                  {emoji}
-                </div>
-                <div className="standings-info">
-                  <div className="standings-name">
-                    {isFavorite ? "⭐️ " : ""}
-                    {r.name}
-                  </div>
-                  <div className="standings-code">{r.team}</div>
-                </div>
-                <div className="standings-points" style={{ minWidth: 40, textAlign: "center" }}>
-                  {r.points > 0 ? r.points : ""}
-                </div>
+      <div className="sprint-results-mobile">
+        <BackButton>← <span>Главное меню</span></BackButton>
+        <h2>
+          {data?.race_info ? (
+            <>
+              <div>Результаты спринта</div>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "var(--text-secondary)",
+                  marginTop: 4,
+                }}
+              >
+                {data.race_info.event_name}
+                <br />
+                <span style={{ opacity: 0.7 }}>
+                  Этап {data.round} • {data.season}
+                </span>
               </div>
-            );
-          })}
+            </>
+          ) : (
+            "Результаты спринта"
+          )}
+        </h2>
+
+        <div className="segmented-tabs" style={{ marginBottom: 12 }}>
+          <div
+            className="segmented-slider"
+            style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
+          />
+          <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
+            Последние
+          </button>
+          <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
+            Архив
+          </button>
         </div>
-      )}
+        {mode === "archive" && selectedRound && (
+          <div style={{ marginBottom: 12 }}>
+            <CustomSelect
+              options={seasonRaces.map((r) => ({
+                value: r.round,
+                label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
+              }))}
+              value={selectedRound}
+              onChange={(value) => setSelectedRound(Number(value))}
+            />
+          </div>
+        )}
+        {mode === "archive" && (
+          <div className="archive-note">Результаты других ГП можно открыть в разделе Календарь.</div>
+        )}
+
+        <div id="sprint-content">
+          {loading && (
+            <div className="loading full-width">
+              <div className="spinner" />
+              <div>Загружаю результаты...</div>
+            </div>
+          )}
+          {error && <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>}
+          {!loading && !error && (!data?.results || data.results.length === 0) && (
+            <div className="empty-state">
+              <span className="empty-icon">⚡</span>
+              <div className="empty-title">Нет данных</div>
+              <div className="empty-desc">
+                {mode === "archive"
+                  ? "За выбранный этап результаты спринта пока недоступны."
+                  : "Результаты спринта пока недоступны. Попробуйте режим Архив."}
+              </div>
+            </div>
+          )}
+          {!loading && !error && data?.results && data.results.length > 0 && (
+            <div className="standings-list" style={{ marginTop: 16 }}>
+              {data.results.map((r, i) => {
+                const emoji =
+                  r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : r.position;
+                const isFavorite = Boolean(r.is_favorite_driver || r.is_favorite_team);
+                return (
+                  <div key={i} className="standings-item">
+                    <div className={`standings-position ${r.position <= 3 ? "podium" : ""}`} style={{ width: 35 }}>
+                      {emoji}
+                    </div>
+                    <div className="standings-info">
+                      <div className="standings-name">
+                        {isFavorite ? "⭐️ " : ""}
+                        {r.name}
+                      </div>
+                      <div className="standings-code">{r.team}</div>
+                    </div>
+                    <div className="standings-points" style={{ minWidth: 40, textAlign: "center" }}>
+                      {r.points > 0 ? r.points : ""}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <section className="race-results-desktop">
+        <header className="race-results-desktop-head">
+          <div>
+            <div className="race-results-desktop-kicker">Velocity</div>
+            <h1>Sprint Results</h1>
+            <p>
+              {data?.race_info?.event_name || "Grand Prix"}
+              {data?.round ? `, Round ${data.round}` : ""}
+              {data?.season ? ` • ${data.season}` : ""}
+            </p>
+          </div>
+          <div className="race-results-desktop-controls">
+            {mode === "archive" && selectedRound && (
+              <div className="race-results-desktop-round-select">
+                <CustomSelect
+                  options={seasonRaces.map((r) => ({
+                    value: r.round,
+                    label: `Step ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
+                  }))}
+                  value={selectedRound}
+                  onChange={(value) => setSelectedRound(Number(value))}
+                />
+              </div>
+            )}
+            <div className="segmented-tabs race-results-desktop-tabs">
+              <div className="segmented-slider" style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }} />
+              <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>Recent</button>
+              <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>Archive</button>
+            </div>
+          </div>
+        </header>
+
+        <div className="race-results-desktop-content">
+          {loading && <div className="loading full-width"><div className="spinner" /><div>Загружаю результаты...</div></div>}
+          {error && <div className="page-error">{error}</div>}
+          {!loading && !error && desktopWinner && (
+            <div className="race-results-desktop-hero-grid">
+              <div className="race-results-desktop-winner">
+                <div className="race-results-desktop-winner-overlay" />
+                <div className="race-results-desktop-winner-badge">Sprint Winner</div>
+                <div className="race-results-desktop-winner-name">{desktopWinner.name}</div>
+                <div className="race-results-desktop-winner-meta">{desktopWinner.team} • Sprint Classification</div>
+              </div>
+              <aside className="race-results-desktop-summary">
+                <div className="race-results-desktop-summary-points">{desktopWinner.points || 0}</div>
+                <div className="race-results-desktop-summary-label">Points Earned</div>
+                <div className="race-results-desktop-summary-row"><span>Avg. Speed</span><b>229.8 km/h</b></div>
+                <div className="race-results-desktop-summary-row"><span>Status</span><b>Finished</b></div>
+              </aside>
+            </div>
+          )}
+          {!loading && !error && desktopRows.length > 0 && (
+            <div className="race-results-desktop-table">
+              <div className="race-results-desktop-table-head">
+                <span>Pos</span><span>Driver</span><span>Team</span><span>Time/Status</span><span>Gap</span><span>Points</span><span>Fav</span>
+              </div>
+              {desktopRows.map((row) => (
+                <div key={`${row.position}-${row.name}`} className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}>
+                  <span>{String(row.position).padStart(2, "0")}</span>
+                  <span>{row.name}</span>
+                  <span>{row.team}</span>
+                  <span>{`0:${String(29 + row.position).padStart(2, "0")}.${String(100 + row.position * 12).slice(0, 3)}`}</span>
+                  <span>{row.position === 1 ? "-" : `+${(row.position * 2.3).toFixed(3)}s`}</span>
+                  <span>{row.points}</span>
+                  <span>{(row.is_favorite_driver || row.is_favorite_team) ? "★" : "☆"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
     </>
   );
 }

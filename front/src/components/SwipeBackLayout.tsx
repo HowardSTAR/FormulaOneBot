@@ -55,15 +55,23 @@ export function SwipeBackLayout() {
     [navigate, location.pathname]
   );
 
+  const routeKey =
+    location.pathname === "/"
+      ? "home"
+      : location.pathname
+          .replace(/^\/+/, "")
+          .replace(/\/+/g, "-")
+          .replace(/[^a-z0-9-_]/gi, "")
+          .toLowerCase() || "page";
+
   return (
-    <div
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      style={{ minHeight: "100%" }}
-    >
+    <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className="app-shell">
       <AppHeader />
-      <Outlet />
+      <main className="app-content">
+        <section className={`app-page-main route-${routeKey}`}>
+          <Outlet />
+        </section>
+      </main>
     </div>
   );
 }

@@ -231,7 +231,7 @@ function VotingPage() {
       <h2>Голосование</h2>
       <div className="voting-season-title">СЕЗОН {year}</div>
 
-      <div className="segmented-tabs">
+      <div className="segmented-tabs voting-page-tabs">
         <div
           className="segmented-slider"
           style={{ transform: tab === "race" ? "translateX(0)" : "translateX(100%)" }}
@@ -262,7 +262,7 @@ function VotingPage() {
       {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка голосования...</div></div>}
 
       {!loading && (
-        <>
+        <div className="voting-page-shell">
           {/* График — скрыт по умолчанию, раскрывается по клику */}
           {tab === "race" && (
             <div className="voting-chart-accordion">
@@ -396,7 +396,7 @@ function VotingPage() {
               Пока нет завершённых гонок для голосования
             </div>
           )}
-        </>
+        </div>
       )}
     </>
   );

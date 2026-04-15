@@ -45,6 +45,8 @@ function QualiResultsPage() {
   const [season] = useState<number>(initialSeason);
   const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
   const [selectedRound, setSelectedRound] = useState<number | null>(initialRound);
+  const desktopWinner = data?.results?.[0] ?? null;
+  const desktopRows = data?.results ?? [];
 
   useEffect(() => {
     let cancelled = false;
@@ -116,143 +118,226 @@ function QualiResultsPage() {
 
   return (
     <>
-      <BackButton>← <span>Главное меню</span></BackButton>
-      <h2 id="quali-title">
-        {data?.race_info && data.round != null ? (
-          <>
-            <div>Квалификация · Этап {String(data.round).padStart(2, "0")}. {data.race_info.event_name}</div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 500,
-                color: "var(--text-secondary)",
-                marginTop: 4,
-              }}
-            >
-              <span style={{ opacity: 0.7 }}>Сезон {data.season}</span>
-            </div>
-          </>
-        ) : (
-          "Квалификация"
-        )}
-      </h2>
+      <div className="quali-results-mobile">
+        <BackButton>← <span>Главное меню</span></BackButton>
+        <h2 id="quali-title">
+          {data?.race_info && data.round != null ? (
+            <>
+              <div>Квалификация · Этап {String(data.round).padStart(2, "0")}. {data.race_info.event_name}</div>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "var(--text-secondary)",
+                  marginTop: 4,
+                }}
+              >
+                <span style={{ opacity: 0.7 }}>Сезон {data.season}</span>
+              </div>
+            </>
+          ) : (
+            "Квалификация"
+          )}
+        </h2>
 
-      <div className="segmented-tabs" style={{ marginBottom: 12 }}>
-        <div
-          className="segmented-slider"
-          style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
-        />
-        <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
-          Последние
-        </button>
-        <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
-          Архив
-        </button>
-      </div>
-      {mode === "archive" && selectedRound && (
-        <div style={{ marginBottom: 12 }}>
-          <CustomSelect
-            options={seasonRaces.map((r) => ({
-              value: r.round,
-              label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
-            }))}
-            value={selectedRound}
-            onChange={(value) => setSelectedRound(Number(value))}
+        <div className="segmented-tabs" style={{ marginBottom: 12 }}>
+          <div
+            className="segmented-slider"
+            style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
           />
+          <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
+            Последние
+          </button>
+          <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
+            Архив
+          </button>
         </div>
-      )}
-      {mode === "archive" && (
-        <div className="archive-note">Результаты других ГП можно открыть в разделе Календарь.</div>
-      )}
-
-      <div id="quali-content">
-        {loading && (
-          <div className="loading full-width">
-            <div className="spinner" />
-            <div>Загружаю результаты...</div>
+        {mode === "archive" && selectedRound && (
+          <div style={{ marginBottom: 12 }}>
+            <CustomSelect
+              options={seasonRaces.map((r) => ({
+                value: r.round,
+                label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
+              }))}
+              value={selectedRound}
+              onChange={(value) => setSelectedRound(Number(value))}
+            />
           </div>
         )}
-        {error && (
-          <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>
+        {mode === "archive" && (
+          <div className="archive-note">Результаты других ГП можно открыть в разделе Календарь.</div>
         )}
-        {!loading && !error && (!data?.results || data.results.length === 0) && (
-          <div className="empty-state">
-            <span className="empty-icon">⏱</span>
-            <div className="empty-title">Нет данных</div>
-            <div className="empty-desc">
-              {mode === "archive"
-                ? "За выбранный этап результаты квалификации пока недоступны."
-                : "Результаты квалификации пока недоступны. Попробуйте режим Архив."}
+
+        <div id="quali-content">
+          {loading && (
+            <div className="loading full-width">
+              <div className="spinner" />
+              <div>Загружаю результаты...</div>
+            </div>
+          )}
+          {error && (
+            <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>
+          )}
+          {!loading && !error && (!data?.results || data.results.length === 0) && (
+            <div className="empty-state">
+              <span className="empty-icon">⏱</span>
+              <div className="empty-title">Нет данных</div>
+              <div className="empty-desc">
+                {mode === "archive"
+                  ? "За выбранный этап результаты квалификации пока недоступны."
+                  : "Результаты квалификации пока недоступны. Попробуйте режим Архив."}
+              </div>
+            </div>
+          )}
+          {!loading && !error && data?.results && data.results.length > 0 && (
+            <div className="standings-list" style={{ marginTop: 16 }}>
+              {data.results.map((r, i) => {
+                const emoji =
+                  r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : r.position;
+                return (
+                  <div key={i} className="standings-item">
+                    <div
+                      className="standings-position"
+                      style={{
+                        width: 35,
+                        color: r.position <= 3 ? "var(--text-primary)" : undefined,
+                      }}
+                    >
+                      {emoji}
+                    </div>
+                    <div className="standings-info">
+                      <div className="standings-name">
+                        {r.is_favorite_driver ? "⭐️ " : ""}
+                        {r.name || r.driver}
+                      </div>
+                      <div className="standings-code" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {r.driver}
+                        {r.segment && (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 600,
+                              padding: "2px 6px",
+                              borderRadius: 4,
+                              background:
+                                r.segment === "Q3"
+                                  ? "rgba(34, 197, 94, 0.25)"
+                                  : r.segment === "Q2"
+                                    ? "rgba(59, 130, 246, 0.25)"
+                                    : "rgba(156, 163, 175, 0.25)",
+                              color:
+                                r.segment === "Q3"
+                                  ? "rgb(34, 197, 94)"
+                                  : r.segment === "Q2"
+                                    ? "rgb(96, 165, 250)"
+                                    : "rgb(156, 163, 175)",
+                            }}
+                          >
+                            {r.segment}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div
+                      className="standings-time"
+                      style={{
+                        fontFamily: "monospace",
+                        fontSize: 14,
+                        background: "rgba(255,255,255,0.05)",
+                        padding: "4px 8px",
+                        borderRadius: 6,
+                      }}
+                    >
+                      {r.best || "—"}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <section className="race-results-desktop">
+        <header className="race-results-desktop-head">
+          <div>
+            <div className="race-results-desktop-kicker">Velocity</div>
+            <h1>Qualifying Results</h1>
+            <p>
+              {data?.race_info?.event_name || "Grand Prix"}
+              {data?.round ? `, Round ${data.round}` : ""}
+              {data?.season ? ` • ${data.season}` : ""}
+            </p>
+          </div>
+          <div className="race-results-desktop-controls">
+            {mode === "archive" && selectedRound && (
+              <div className="race-results-desktop-round-select">
+                <CustomSelect
+                  options={seasonRaces.map((r) => ({
+                    value: r.round,
+                    label: `Step ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
+                  }))}
+                  value={selectedRound}
+                  onChange={(value) => setSelectedRound(Number(value))}
+                />
+              </div>
+            )}
+            <div className="segmented-tabs race-results-desktop-tabs">
+              <div
+                className="segmented-slider"
+                style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
+              />
+              <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
+                Recent
+              </button>
+              <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
+                Archive
+              </button>
             </div>
           </div>
-        )}
-        {!loading && !error && data?.results && data.results.length > 0 && (
-          <div className="standings-list" style={{ marginTop: 16 }}>
-            {data.results.map((r, i) => {
-              const emoji =
-                r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : r.position;
-              return (
-                <div key={i} className="standings-item">
-                  <div
-                    className="standings-position"
-                    style={{
-                      width: 35,
-                      color: r.position <= 3 ? "var(--text-primary)" : undefined,
-                    }}
-                  >
-                    {emoji}
-                  </div>
-                  <div className="standings-info">
-                    <div className="standings-name">
-                      {r.is_favorite_driver ? "⭐️ " : ""}
-                      {r.name || r.driver}
-                    </div>
-                    <div className="standings-code" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      {r.driver}
-                      {r.segment && (
-                        <span
-                          style={{
-                            fontSize: 11,
-                            fontWeight: 600,
-                            padding: "2px 6px",
-                            borderRadius: 4,
-                            background:
-                              r.segment === "Q3"
-                                ? "rgba(34, 197, 94, 0.25)"
-                                : r.segment === "Q2"
-                                  ? "rgba(59, 130, 246, 0.25)"
-                                  : "rgba(156, 163, 175, 0.25)",
-                            color:
-                              r.segment === "Q3"
-                                ? "rgb(34, 197, 94)"
-                                : r.segment === "Q2"
-                                  ? "rgb(96, 165, 250)"
-                                  : "rgb(156, 163, 175)",
-                          }}
-                        >
-                          {r.segment}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div
-                    className="standings-time"
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: 14,
-                      background: "rgba(255,255,255,0.05)",
-                      padding: "4px 8px",
-                      borderRadius: 6,
-                    }}
-                  >
-                    {r.best || "—"}
-                  </div>
+        </header>
+
+        <div className="race-results-desktop-content">
+          {loading && <div className="loading full-width"><div className="spinner" /><div>Загружаю результаты...</div></div>}
+          {error && <div className="page-error">{error}</div>}
+          {!loading && !error && desktopWinner && (
+            <div className="race-results-desktop-hero-grid">
+              <div className="race-results-desktop-winner">
+                <div className="race-results-desktop-winner-overlay" />
+                <div className="race-results-desktop-winner-badge">Pole</div>
+                <div className="race-results-desktop-winner-name">{desktopWinner.name || desktopWinner.driver}</div>
+                <div className="race-results-desktop-winner-meta">
+                  {(desktopWinner.driver || "").toUpperCase()} • {desktopWinner.best || "—"}
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              </div>
+              <aside className="race-results-desktop-summary">
+                <div className="race-results-desktop-summary-points">{desktopWinner.best || "—"}</div>
+                <div className="race-results-desktop-summary-label">Pole Time</div>
+                <div className="race-results-desktop-summary-row"><span>Q Segment</span><b>{desktopWinner.segment || "Q3"}</b></div>
+                <div className="race-results-desktop-summary-row"><span>Status</span><b>Classified</b></div>
+              </aside>
+            </div>
+          )}
+          {!loading && !error && desktopRows.length > 0 && (
+            <div className="race-results-desktop-table">
+              <div className="race-results-desktop-table-head">
+                <span>Pos</span><span>Driver</span><span>Code</span><span>Time/Status</span><span>Segment</span><span>Points</span><span>Fav</span>
+              </div>
+              {desktopRows.map((row) => (
+                <div key={`${row.position}-${row.name || row.driver}`} className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}>
+                  <span>{String(row.position).padStart(2, "0")}</span>
+                  <span>{row.name || row.driver}</span>
+                  <span>{(row.driver || "—").toUpperCase()}</span>
+                  <span>{row.best || "—"}</span>
+                  <span>{row.segment || "Q1"}</span>
+                  <span>—</span>
+                  <span>{row.is_favorite_driver ? "★" : "☆"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
     </>
   );
 }
