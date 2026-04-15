@@ -63,6 +63,7 @@ function pickNextTile(total: number, current: number | null): number {
 
 function ReflexGridGamePage() {
   const [activeTab, setActiveTab] = useState<ReactionTab>("game");
+  const [showGameOptions, setShowGameOptions] = useState(false);
   const [mode, setMode] = useState<GameMode>("timed");
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
   const [status, setStatus] = useState<GameStatus>("idle");
@@ -226,7 +227,6 @@ function ReflexGridGamePage() {
           "POST"
         );
         await fetchLeaderboard();
-        setActiveTab("leaderboard");
       } catch (e) {
         console.warn("Reflex grid leaderboard submit failed", e);
       }
@@ -402,37 +402,57 @@ function ReflexGridGamePage() {
         </button>
       </div>
 
-      <div className="reflex-filter-grid">
-        {MODE_OPTIONS.map((option) => (
+      <section className="reaction-slide">
+        <div className="reaction-settings-card">
           <button
-            key={option.id}
             type="button"
-            className={`reflex-filter-btn ${mode === option.id ? "active" : ""}`}
-            onClick={() => {
-              hapticSelection();
-              setMode(option.id);
-            }}
+            className="reflex-options-toggle"
+            onClick={() => setShowGameOptions((prev) => !prev)}
           >
-            {option.label}
+            <span>
+              Параметры игры: {MODE_OPTIONS.find((item) => item.id === mode)?.label} •{" "}
+              {DIFFICULTY_OPTIONS.find((item) => item.id === difficulty)?.label}
+            </span>
+            <span className={`reflex-options-chevron ${showGameOptions ? "open" : ""}`}>⌄</span>
           </button>
-        ))}
-      </div>
 
-      <div className="reflex-filter-grid reflex-filter-grid-difficulty">
-        {DIFFICULTY_OPTIONS.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            className={`reflex-filter-btn ${difficulty === option.id ? "active" : ""}`}
-            onClick={() => {
-              hapticSelection();
-              setDifficulty(option.id);
-            }}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+          {showGameOptions && (
+            <>
+              <div className="reflex-filter-grid">
+                {MODE_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`reflex-filter-btn ${mode === option.id ? "active" : ""}`}
+                    onClick={() => {
+                      hapticSelection();
+                      setMode(option.id);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="reflex-filter-grid reflex-filter-grid-difficulty">
+                {DIFFICULTY_OPTIONS.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    className={`reflex-filter-btn ${difficulty === option.id ? "active" : ""}`}
+                    onClick={() => {
+                      hapticSelection();
+                      setDifficulty(option.id);
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </section>
 
       {activeTab === "game" && (
         <>
