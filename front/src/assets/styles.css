@@ -2491,6 +2491,26 @@ input:checked + .slider:before {
 .reflex-options-chevron.open {
   transform: rotate(180deg);
 }
+.reflex-finish-modal {
+  text-align: center;
+}
+.reflex-finish-modal .reaction-modal-title,
+.reflex-finish-modal .reaction-modal-text {
+  text-align: center;
+}
+.reflex-finish-score {
+  margin-top: 2px;
+  font-size: 48px;
+  line-height: 1;
+  font-weight: 900;
+  color: var(--primary);
+}
+.reflex-finish-label {
+  margin-top: 4px;
+  font-size: 18px;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
 .reflex-grid {
   display: grid;
   gap: 10px;

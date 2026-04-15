@@ -375,6 +375,24 @@ function ReflexGridGamePage() {
         </div>
       )}
 
+      {status === "finished" && (
+        <div className="reaction-modal-overlay">
+          <div className="reaction-modal-card reflex-finish-modal">
+            <h3 className="reaction-modal-title">Результат попытки</h3>
+            <div className="reflex-finish-score">{score}</div>
+            <div className="reflex-finish-label">попаданий</div>
+            <p className="reaction-modal-text" style={{ marginTop: 10 }}>
+              {mode === "timed"
+                ? "За 10 секунд"
+                : `За ${formatSecondsMs(elapsedMs)} секунд до цели ${ENDLESS_TARGET}`}
+            </p>
+            <button type="button" className="reaction-settings-save" onClick={resetBoard}>
+              Сыграть снова
+            </button>
+          </div>
+        </div>
+      )}
+
       <BackButton>← <span>На главную</span></BackButton>
       <h2 style={{ marginTop: 10, marginBottom: 10 }}>Reflex Grid</h2>
       <p className="reaction-subtitle">
@@ -475,17 +493,9 @@ function ReflexGridGamePage() {
           </div>
 
           <button type="button" className="reaction-settings-edit" style={{ marginTop: 14 }} onClick={resetBoard}>
-            Новая попытка
+            Сыграть снова
           </button>
           <p className="reaction-helper">{helperText}</p>
-
-          {status === "finished" && (
-            <div className="reaction-settings-status" style={{ marginTop: 10 }}>
-              {mode === "timed"
-                ? `Финиш: ${score} попаданий за 10 секунд`
-                : `Финиш: ${ENDLESS_TARGET} попаданий за ${formatSecondsMs(elapsedMs)} сек`}
-            </div>
-          )}
 
           <section className="reaction-slide">
             <div className="reaction-settings-card">
