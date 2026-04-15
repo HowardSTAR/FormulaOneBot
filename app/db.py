@@ -176,6 +176,36 @@ class Database:
             """
         )
 
+        # 7. Лидерборд игры на реакцию (отдельные таблицы, не затрагивают существующие)
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS reaction_leaderboard_profiles (
+                telegram_id INTEGER PRIMARY KEY,
+                display_name TEXT DEFAULT '',
+                leaderboard_opt_in INTEGER NOT NULL DEFAULT 0,
+                prompt_seen INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS reaction_leaderboard_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_id INTEGER NOT NULL,
+                time_ms INTEGER NOT NULL CHECK (time_ms > 0),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_reaction_scores_telegram ON reaction_leaderboard_scores(telegram_id)"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_reaction_scores_time ON reaction_leaderboard_scores(time_ms)"
+        )
+
         await self.conn.commit()
 
 
@@ -546,6 +576,149 @@ async def get_driver_vote_winner(season: int, round_num: int) -> Tuple[str | Non
     ) as cursor:
         row = await cursor.fetchone()
         return (row["driver_code"], row["cnt"]) if row else (None, 0)
+
+
+# --- Игра на реакцию: профиль и лидерборд ---
+
+def _normalize_reaction_name(name: str | None) -> str:
+    value = (name or "").strip()
+    if not value:
+        return ""
+    value = " ".join(value.split())
+    return value[:32]
+
+
+async def get_reaction_profile(telegram_id: int) -> dict:
+    """Возвращает профиль участия пользователя в лидерборде реакции."""
+    if not db.conn:
+        await db.connect()
+    tg_id = int(telegram_id)
+    await get_or_create_user(tg_id)
+
+    async with db.conn.execute(
+        """
+        SELECT display_name, leaderboard_opt_in, prompt_seen
+        FROM reaction_leaderboard_profiles
+        WHERE telegram_id = ?
+        """,
+        (tg_id,),
+    ) as cursor:
+        row = await cursor.fetchone()
+
+    if not row:
+        return {"display_name": "", "participate": False, "prompt_seen": False}
+
+    return {
+        "display_name": (row["display_name"] or "").strip(),
+        "participate": bool(row["leaderboard_opt_in"]),
+        "prompt_seen": bool(row["prompt_seen"]),
+    }
+
+
+async def upsert_reaction_profile(
+    telegram_id: int,
+    display_name: str | None = None,
+    participate: bool | None = None,
+    prompt_seen: bool | None = None,
+) -> dict:
+    """Создает/обновляет профиль лидерборда реакции."""
+    if not db.conn:
+        await db.connect()
+    tg_id = int(telegram_id)
+    await get_or_create_user(tg_id)
+
+    current = await get_reaction_profile(tg_id)
+    next_name = _normalize_reaction_name(display_name if display_name is not None else current["display_name"])
+    next_participate = current["participate"] if participate is None else bool(participate)
+    next_prompt_seen = current["prompt_seen"] if prompt_seen is None else bool(prompt_seen)
+
+    await db.conn.execute(
+        """
+        INSERT INTO reaction_leaderboard_profiles (telegram_id, display_name, leaderboard_opt_in, prompt_seen)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(telegram_id) DO UPDATE SET
+          display_name = excluded.display_name,
+          leaderboard_opt_in = excluded.leaderboard_opt_in,
+          prompt_seen = excluded.prompt_seen,
+          updated_at = CURRENT_TIMESTAMP
+        """,
+        (tg_id, next_name, int(next_participate), int(next_prompt_seen)),
+    )
+    await db.conn.commit()
+
+    return {"display_name": next_name, "participate": next_participate, "prompt_seen": next_prompt_seen}
+
+
+async def save_reaction_score(telegram_id: int, time_ms: int) -> bool:
+    """
+    Сохраняет результат реакции в мс, если пользователь участвует в лидерборде.
+    Возвращает True, если результат сохранен.
+    """
+    if not db.conn:
+        await db.connect()
+    tg_id = int(telegram_id)
+    profile = await get_reaction_profile(tg_id)
+    if not profile["participate"]:
+        return False
+
+    normalized_time = int(time_ms)
+    if normalized_time <= 0:
+        return False
+
+    await db.conn.execute(
+        "INSERT INTO reaction_leaderboard_scores (telegram_id, time_ms) VALUES (?, ?)",
+        (tg_id, normalized_time),
+    )
+    await db.conn.commit()
+    return True
+
+
+async def get_reaction_leaderboard(telegram_id: int | None = None) -> dict:
+    """
+    Возвращает таблицу лидеров (по лучшему времени каждого пользователя).
+    Формат: {"entries": [...], "me": {...} | None}
+    """
+    if not db.conn:
+        await db.connect()
+
+    async with db.conn.execute(
+        """
+        SELECT
+            p.telegram_id AS telegram_id,
+            p.display_name AS display_name,
+            MIN(s.time_ms) AS best_time_ms
+        FROM reaction_leaderboard_profiles p
+        JOIN reaction_leaderboard_scores s ON s.telegram_id = p.telegram_id
+        WHERE p.leaderboard_opt_in = 1
+        GROUP BY p.telegram_id, p.display_name
+        ORDER BY best_time_ms ASC, p.telegram_id ASC
+        """
+    ) as cursor:
+        rows = await cursor.fetchall()
+
+    entries: list[dict] = []
+    me: dict | None = None
+    current_place = 0
+    last_time: int | None = None
+
+    for index, row in enumerate(rows, start=1):
+        best_time = int(row["best_time_ms"])
+        if last_time is None or best_time != last_time:
+            current_place = index
+            last_time = best_time
+        name = (row["display_name"] or "").strip() or f"Pilot #{str(row['telegram_id'])[-4:]}"
+        item = {
+            "place": current_place,
+            "telegram_id": int(row["telegram_id"]),
+            "name": name,
+            "time_ms": best_time,
+            "is_me": bool(telegram_id is not None and int(row["telegram_id"]) == int(telegram_id)),
+        }
+        entries.append(item)
+        if item["is_me"]:
+            me = item
+
+    return {"entries": entries, "me": me}
 
 
 # --- Чаты (группы) для общих уведомлений — без пользователей и избранного ---
