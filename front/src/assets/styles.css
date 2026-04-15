@@ -2347,9 +2347,9 @@ input:checked + .slider:before {
   font-size: 12px;
 }
 .reaction-leaderboard-list {
-  max-height: 360px;
-  overflow-y: auto;
-  padding-right: 3px;
+  max-height: none;
+  overflow: visible;
+  padding-right: 0;
 }
 .reaction-row {
   display: grid;
