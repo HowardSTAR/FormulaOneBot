@@ -35,6 +35,7 @@ function NextRacePage() {
   const [trackSvg, setTrackSvg] = useState<string | null>(null);
   const [layoutPhase, setLayoutPhase] = useState<"draw" | "split">("draw");
   const trackContainerRef = useRef<HTMLDivElement>(null);
+  const desktopTrackContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,42 +159,51 @@ function NextRacePage() {
   }, [eventName, loading]);
 
   useEffect(() => {
-    if (!trackSvg || !trackContainerRef.current) return;
-    const container = trackContainerRef.current;
-    container.innerHTML = trackSvg;
-    const svg = container.querySelector("svg");
-    if (!svg) return;
-    svg.style.width = "100%";
-    svg.style.height = "100%";
-    const paths = svg.querySelectorAll("path, polyline");
-    const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    outlineGroup.classList.add("track-outline-group");
-    fillGroup.classList.add("track-fill-group");
-    paths.forEach((path) => {
-      const outlinePath = path.cloneNode(true) as SVGElement;
-      outlinePath.removeAttribute("fill");
-      outlinePath.classList.add("track-outline");
-      const length = (outlinePath as SVGPathElement).getTotalLength?.() ?? 0;
-      outlinePath.style.strokeDasharray = String(length);
-      outlinePath.style.strokeDashoffset = String(length);
-      outlineGroup.appendChild(outlinePath);
-      path.classList.add("track-fill");
-      fillGroup.appendChild(path);
-    });
-    svg.innerHTML = "";
-    svg.appendChild(outlineGroup);
-    svg.appendChild(fillGroup);
-    svg.getBoundingClientRect();
-    setTimeout(() => {
-      outlineGroup.querySelectorAll(".track-outline").forEach((p) => p.classList.add("animate"));
-      fillGroup.querySelectorAll(".track-fill").forEach((p) => p.classList.add("animate"));
-    }, 100);
+    if (!trackSvg) return;
+
+    const setupAnimatedTrack = (container: HTMLDivElement | null) => {
+      if (!container) return;
+      container.innerHTML = trackSvg;
+      const svg = container.querySelector("svg");
+      if (!svg) return;
+      svg.style.width = "100%";
+      svg.style.height = "100%";
+      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      const paths = svg.querySelectorAll("path, polyline");
+      const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      outlineGroup.classList.add("track-outline-group");
+      fillGroup.classList.add("track-fill-group");
+
+      paths.forEach((path) => {
+        const outlinePath = path.cloneNode(true) as SVGElement;
+        outlinePath.removeAttribute("fill");
+        outlinePath.classList.add("track-outline");
+        const length = (outlinePath as SVGPathElement).getTotalLength?.() ?? 0;
+        outlinePath.style.strokeDasharray = String(length);
+        outlinePath.style.strokeDashoffset = String(length);
+        outlineGroup.appendChild(outlinePath);
+        path.classList.add("track-fill");
+        fillGroup.appendChild(path);
+      });
+
+      svg.innerHTML = "";
+      svg.appendChild(outlineGroup);
+      svg.appendChild(fillGroup);
+      svg.getBoundingClientRect();
+      setTimeout(() => {
+        outlineGroup.querySelectorAll(".track-outline").forEach((p) => p.classList.add("animate"));
+        fillGroup.querySelectorAll(".track-fill").forEach((p) => p.classList.add("animate"));
+      }, 650);
+    };
+
+    setupAnimatedTrack(trackContainerRef.current);
+    setupAnimatedTrack(desktopTrackContainerRef.current);
   }, [trackSvg]);
 
   useEffect(() => {
     if (loading) return;
-    const delay = trackSvg ? 4200 : 800;
+    const delay = trackSvg ? 6200 : 800;
     const t = setTimeout(() => setLayoutPhase("split"), delay);
     return () => clearTimeout(t);
   }, [trackSvg, loading]);
@@ -213,11 +223,11 @@ function NextRacePage() {
     const d = s.utc_iso ? new Date(s.utc_iso) : null;
     const day =
       d && !Number.isNaN(d.getTime())
-        ? d.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase()
-        : "SESSION";
+        ? d.toLocaleDateString("ru-RU", { weekday: "long" }).toUpperCase()
+        : "СЕССИЯ";
     const date =
       d && !Number.isNaN(d.getTime())
-        ? d.toLocaleDateString("en-US", { month: "short", day: "numeric" }).toUpperCase()
+        ? d.toLocaleDateString("ru-RU", { month: "short", day: "numeric" }).toUpperCase()
         : "--";
     const time = "_time" in s ? (s as Session & { _time: string })._time : "--:--";
     return { ...s, _day: day, _dateLabel: date, _timeLabel: time };
@@ -326,37 +336,28 @@ function NextRacePage() {
 
       {!loading && (eventName || title) && (
         <section className="next-race-desktop">
-          <aside className="next-race-desktop-control">
-            <h4>Race Control</h4>
-            <p>Pro Membership</p>
-            <nav>
-              <button type="button" className="active">Race Center</button>
-              <button type="button">Live Timing</button>
-              <button type="button">Track Info</button>
-              <button type="button">History</button>
-              <button type="button">Tickets</button>
-            </nav>
-          </aside>
           <div className="next-race-desktop-main">
             <header className="next-race-desktop-hero">
               <div className="next-race-desktop-left">
-                <div className="next-race-desktop-round">Round {String(raceRound || 0).padStart(2, "0")}</div>
+                <div className="next-race-desktop-round">
+                  ЭТАП {String(raceRound || 0).padStart(2, "0")}
+                </div>
                 <h1>{(eventName || title).replace(/\s+Grand Prix$/i, "\nGrand Prix")}</h1>
                 <div className="next-race-desktop-location">
                   <b>{raceCountry}, {raceCity}</b>
-                  <span>{raceDateText} | START {raceTimeText}</span>
+                  <span>{raceDateText} | СТАРТ {raceTimeText}</span>
                 </div>
-                <button type="button">Live Timing Active</button>
               </div>
               <div className="next-race-desktop-track">
-                <div className="next-race-desktop-track-panel">
+                <div
+                  className={`next-race-desktop-track-panel ${trackSvg ? "track-panel-appear" : ""}`}
+                >
                   {!trackSvg && <div className="no-map-placeholder">🏁</div>}
-                  {trackSvg && (
-                    <div
-                      className="next-race-desktop-track-svg"
-                      dangerouslySetInnerHTML={{ __html: trackSvg }}
-                    />
-                  )}
+                  <div
+                    ref={desktopTrackContainerRef}
+                    className="next-race-desktop-track-svg"
+                    style={{ display: trackSvg ? "block" : "none" }}
+                  />
                 </div>
               </div>
             </header>
@@ -372,8 +373,8 @@ function NextRacePage() {
 
             <section className="next-race-desktop-schedule">
               <div className="next-race-desktop-schedule-head">
-                <h2>Schedule</h2>
-                <span>Miami Local Time</span>
+                <h2>Расписание</h2>
+                <span>Время Майами</span>
               </div>
               <div className="next-race-desktop-schedule-grid">
                 {desktopSessions.map((s, i) => (
@@ -392,8 +393,8 @@ function NextRacePage() {
             <section className="next-race-desktop-facts">
               <article className="next-race-desktop-overview">
                 <div>
-                  <h3>Circuit Overview</h3>
-                  <p>{insights.facts[0]?.text || "Circuit details will be available soon."}</p>
+                  <h3>Обзор трассы</h3>
+                  <p>{insights.facts[0]?.text || "Подробности трассы появятся позже."}</p>
                 </div>
               </article>
               <div className="next-race-desktop-facts-list">

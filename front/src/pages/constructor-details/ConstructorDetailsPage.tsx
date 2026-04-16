@@ -150,10 +150,10 @@ function ConstructorDetailsPage() {
   const logoUrl = teamLogoUrl(data.constructorId, data.name, season);
   const carUrl = carImageUrl(data.name, season);
   const drivers = data.drivers || [];
-  const teamCountry = data.constructorId === "mercedes" ? "Brackley, United Kingdom" : data.nationality || "Unknown";
-  const foundedLabel = data.constructorId === "mercedes" ? "Est. 1954 / 2010" : `Est. ${Math.max(1950, season - 20)}`;
+  const teamCountry = data.constructorId === "mercedes" ? "Brackley, United Kingdom" : data.nationality || "Неизвестно";
+  const foundedLabel = data.constructorId === "mercedes" ? "Осн. 1954 / 2010" : `Осн. ${Math.max(1950, season - 20)}`;
   const managementName = data.constructorId === "mercedes" ? "Toto Wolff" : "Team Principal";
-  const managementRole = data.constructorId === "mercedes" ? "Team Principal & CEO" : "Team Management";
+  const managementRole = data.constructorId === "mercedes" ? "Team Principal & CEO" : "Руководство команды";
   const heroTitleMain = data.constructorId === "mercedes"
     ? "MERCEDES-AMG"
     : data.name.toUpperCase().includes("PETRONAS")
@@ -329,30 +329,8 @@ function ConstructorDetailsPage() {
 
         <div className="constructor-profile-desktop-grid">
           <aside className="constructor-profile-desktop-left">
-            <div className="constructor-profile-control-panel">
-              <div className="constructor-profile-control-head">
-                <img src={logoUrl} alt="" onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                <div>
-                  <b>{data.name.toUpperCase()}</b>
-                  <span>Constructor Champion</span>
-                </div>
-              </div>
-              <div className="constructor-profile-control-nav">
-                <button type="button" className="active">Overview</button>
-                <button type="button">Performance</button>
-                <button type="button">Car Specs</button>
-                <button type="button">Heritage</button>
-                <button type="button">Partners</button>
-              </div>
-              <button type="button" className="constructor-profile-telemetry-btn">Live Telemetry</button>
-              <div className="constructor-profile-control-footer">
-                <span>Support</span>
-                <span>Logout</span>
-              </div>
-            </div>
-
             <div className="constructor-profile-drivers-panel">
-              <h3>Active Drivers</h3>
+              <h3>Действующие пилоты</h3>
               {sortedDrivers.slice(0, 2).map((d, idx) => {
                 const fullName = `${d.givenName} ${d.familyName}`;
                 const toDriver = `/driver-details?code=${encodeURIComponent(d.code)}&driverId=${encodeURIComponent(d.driverId)}&season=${season}`;
@@ -368,7 +346,7 @@ function ConstructorDetailsPage() {
                     <img src={pilotPortraitUrl(d.code, fullName, season)} alt={fullName} />
                     <div>
                       <b>{fullName}</b>
-                      <span>{d.nationality || "Driver"}</span>
+                      <span>{d.nationality || "Пилот"}</span>
                     </div>
                     <i>#{d.permanentNumber || "--"}</i>
                     <u>{idx === 0 ? "↗" : "★"}</u>
@@ -377,7 +355,7 @@ function ConstructorDetailsPage() {
               })}
             </div>
             <div className="constructor-profile-management">
-              <h3>Management</h3>
+              <h3>Руководство</h3>
               <div className="constructor-profile-management-avatar" />
               <p>{managementName}</p>
               <span>{managementRole}</span>
@@ -391,14 +369,14 @@ function ConstructorDetailsPage() {
                 className={`driver-tab ${tab === "stats" ? "active" : ""}`}
                 onClick={() => setTab("stats")}
               >
-                Statistics
+                Статистика
               </button>
               <button
                 type="button"
                 className={`driver-tab ${tab === "bio" ? "active" : ""}`}
                 onClick={() => setTab("bio")}
               >
-                Biography
+                Биография
               </button>
             </div>
 
@@ -407,54 +385,44 @@ function ConstructorDetailsPage() {
                 <div className="driver-stats-grid constructor-profile-stats-grid">
                   <div className="driver-stats-block constructor-season-block">
                     <div className="constructor-season-head">
-                      <h3 className="driver-stats-title">{data.season} SEASON</h3>
+                      <h3 className="driver-stats-title">{data.season} СЕЗОН</h3>
                       <strong>{ss.position ?? "-"}</strong>
                     </div>
                     <div className="constructor-season-points-row">
-                      <span>SEASON POINTS</span>
+                      <span>ОЧКИ СЕЗОНА</span>
                       <b>{ss.points}</b>
                     </div>
                     <div className="constructor-season-metrics">
                       <div>
-                        <span>GP ENTRIES</span>
+                        <span>ГРАН-ПРИ</span>
                         <b>{ss.grand_prix_races}</b>
                       </div>
                       <div className="accent">
-                        <span>WINS</span>
+                        <span>ПОБЕДЫ</span>
                         <b>{ss.grand_prix_wins}</b>
                       </div>
                       <div>
-                        <span>PODIUMS</span>
+                        <span>ПОДИУМЫ</span>
                         <b>{ss.grand_prix_podiums}</b>
                       </div>
                       <div>
-                        <span>POLES</span>
+                        <span>ПОУЛЫ</span>
                         <b>{ss.grand_prix_poles}</b>
                       </div>
                     </div>
                   </div>
                   <div className="driver-stats-block constructor-career-block">
-                    <h3 className="driver-stats-title">CAREER STATS</h3>
-                    <StatRow label="Grand Prix total" value={cs.grand_prix_entered} />
-                    <StatRow label="Career points" value={Math.round(cs.career_points)} />
-                    <StatRow label="Best finish" value={formatHigh(cs.highest_race_finish)} />
-                    <StatRow label="Podiums" value={cs.podiums} />
-                    <StatRow label="Poles" value={cs.pole_positions} />
+                    <h3 className="driver-stats-title">СТАТИСТИКА КАРЬЕРЫ</h3>
+                    <StatRow label="Гран-при всего" value={cs.grand_prix_entered} />
+                    <StatRow label="Очки за карьеру" value={Math.round(cs.career_points)} />
+                    <StatRow label="Лучший финиш" value={formatHigh(cs.highest_race_finish)} />
+                    <StatRow label="Подиумы" value={cs.podiums} />
+                    <StatRow label="Поулы" value={cs.pole_positions} />
                     <div className="constructor-career-championships">
-                      <span>CHAMPIONSHIPS</span>
+                      <span>ЧЕМПИОНСТВА</span>
                       <b>{String(cs.world_championships).padStart(2, "0")}</b>
                     </div>
                   </div>
-                </div>
-                <div className="constructor-profile-callout">
-                  <div>
-                    <h4>Innovation & Excellence</h4>
-                    <p>
-                      Defining the hybrid era with unprecedented dominance and engineering precision.
-                      The Silver Arrows continue to push the boundaries of aerodynamics and power unit efficiency.
-                    </p>
-                  </div>
-                  <button type="button">View Technical Docs</button>
                 </div>
               </>
             )}
@@ -473,7 +441,7 @@ function ConstructorDetailsPage() {
                     rel="noopener noreferrer"
                     className="driver-bio-link"
                   >
-                    Open in Wikipedia →
+                    Открыть в Wikipedia →
                   </a>
                 )}
               </div>

@@ -141,7 +141,7 @@ function SeasonPage() {
           minute: "2-digit",
         })
       : "--:--";
-  const desktopFactTitles = ["Location", "Setup Key", "Unpredictability"];
+  const desktopFactTitles = ["Локация", "Ключевой участок", "Непредсказуемость"];
   const timelineRaceName = (name: string): string => name.replace(/Grand Prix/gi, "GP");
 
   return (
@@ -166,10 +166,10 @@ function SeasonPage() {
             <div className="season-desktop-primary-head">
               <div>
                 <h3 className="season-desktop-main-heading">Календарь</h3>
-                <p className="season-desktop-main-subheading">Formula 1 World Championship</p>
+                <p className="season-desktop-main-subheading">Чемпионат мира Формулы-1</p>
               </div>
               <div className="season-desktop-season-picker">
-                <span className="season-desktop-season-label">Select Season</span>
+                <span className="season-desktop-season-label">Выберите сезон</span>
                 <select
                   className="season-desktop-season-select"
                   value={year}
@@ -186,7 +186,7 @@ function SeasonPage() {
 
             <article className="season-desktop-main-card season-desktop-hero-card">
               <div className="season-desktop-hero-media">
-                <div className="season-desktop-hero-next">Next Round: {String(desktopRace.round).padStart(2, "0")}</div>
+                <div className="season-desktop-hero-next">Следующий этап: {String(desktopRace.round).padStart(2, "0")}</div>
                 <h4>{desktopRace.event_name}</h4>
                 <div className="season-desktop-hero-meta">
                   <span>{selectedDateLabel}</span>
@@ -195,18 +195,18 @@ function SeasonPage() {
               </div>
 
               <div className="season-desktop-hero-schedule">
-                <h5>Session Schedule</h5>
+                <h5>Расписание сессий</h5>
                 <div className="season-desktop-session-grid">
                   <div className="season-desktop-session-item">
-                    <span>Sprint Quali</span>
+                    <span>Спринт-квалификация</span>
                     <b>{formatSessionTime(desktopRace.sprint_quali_start_utc)}</b>
                   </div>
                   <div className="season-desktop-session-item">
-                    <span>Sprint</span>
+                    <span>Спринт</span>
                     <b>{formatSessionTime(desktopRace.sprint_start_utc)}</b>
                   </div>
                   <div className="season-desktop-session-item">
-                    <span>Qualifying</span>
+                    <span>Квалификация</span>
                     <b>--:--</b>
                   </div>
                   <div className="season-desktop-session-item focus">
@@ -237,7 +237,7 @@ function SeasonPage() {
           </section>
 
           <aside className="season-desktop-list season-desktop-timeline">
-            <h4 className="season-desktop-timeline-title">Season Timeline</h4>
+            <h4 className="season-desktop-timeline-title">Таймлайн сезона</h4>
             {races.map((race, index) => {
               const raceDate = new Date(race.date);
               const raceEndCheck = new Date(raceDate);
@@ -247,7 +247,7 @@ function SeasonPage() {
               const isFinished = raceEndCheck < now;
               const statusClass = isCancelled ? "cancelled" : isFinished ? "finished" : isNext ? "next" : "future";
               const isSelected = desktopRace.round === race.round;
-              const statusLabel = isCancelled ? "CANCELLED" : isFinished ? "FINISHED" : isNext ? "UPCOMING" : "ROUND";
+              const statusLabel = isCancelled ? "ОТМЕНЕН" : isFinished ? "ЗАВЕРШЕН" : isNext ? "СКОРО" : "ЭТАП";
               const dateLabel = raceDate
                 .toLocaleDateString("ru-RU", {
                   timeZone: userTz,
@@ -265,7 +265,7 @@ function SeasonPage() {
                 >
                   <div className="season-desktop-race-info">
                     <div className="season-desktop-race-topline">
-                      <div className="race-round">Round {String(race.round).padStart(2, "0")} • {statusLabel}</div>
+                      <div className="race-round">Этап {String(race.round).padStart(2, "0")} • {statusLabel}</div>
                       <span className="season-desktop-race-icon">{isSelected ? "➤" : isFinished ? "▣" : "○"}</span>
                     </div>
                     <div className="race-name">{timelineRaceName(race.event_name)}</div>
@@ -335,7 +335,7 @@ function SeasonPage() {
                     <span className="date-month">{month}</span>
                   </div>
                   <div className="race-info">
-                    <div className="race-round">Round {race.round}</div>
+                    <div className="race-round">Этап {race.round}</div>
                     <div className="race-name">{race.event_name}</div>
                     <div className="race-loc">📍 {race.location}</div>
                   </div>

@@ -230,8 +230,8 @@ function IndexPage() {
           <Link to="/race-results" className="menu-item index-desktop-widget">
             <div className="index-desktop-widget-head">
               <div>
-                <h3 className="index-desktop-widget-title">Race</h3>
-                <p className="index-desktop-widget-sub">Official Grand Prix Standings</p>
+                <h3 className="index-desktop-widget-title">Гонка</h3>
+                <p className="index-desktop-widget-sub">Официальные результаты Гран-при</p>
               </div>
               <span className="index-desktop-widget-icon">🏁</span>
             </div>
@@ -243,14 +243,14 @@ function IndexPage() {
               </div>
               <div className="index-desktop-widget-value">{raceLeader ? `${raceLeader.points} PTS` : "—"}</div>
             </div>
-            <div className="index-desktop-widget-btn">View Full Table</div>
+            <div className="index-desktop-widget-btn">Открыть полную таблицу</div>
           </Link>
 
           <Link to="/quali-results" className="menu-item index-desktop-widget">
             <div className="index-desktop-widget-head">
               <div>
-                <h3 className="index-desktop-widget-title">Qualifying</h3>
-                <p className="index-desktop-widget-sub">Pole Position Battle</p>
+                <h3 className="index-desktop-widget-title">Квалификация</h3>
+                <p className="index-desktop-widget-sub">Борьба за поул-позицию</p>
               </div>
               <span className="index-desktop-widget-icon">⏱</span>
             </div>
@@ -262,14 +262,14 @@ function IndexPage() {
               </div>
               <div className="index-desktop-widget-value">{sessionMeta.quali?.time || "--:--"}</div>
             </div>
-            <div className="index-desktop-widget-btn">Live Updates</div>
+            <div className="index-desktop-widget-btn">Смотреть обновления</div>
           </Link>
 
           <Link to="/compare" className="menu-item index-desktop-widget">
             <div className="index-desktop-widget-head">
               <div>
-                <h3 className="index-desktop-widget-title">Comparison</h3>
-                <p className="index-desktop-widget-sub">Head-to-Head Analysis</p>
+                <h3 className="index-desktop-widget-title">Сравнение</h3>
+                <p className="index-desktop-widget-sub">Анализ дуэли пилотов</p>
               </div>
               <span className="index-desktop-widget-icon">⚔</span>
             </div>
@@ -283,14 +283,14 @@ function IndexPage() {
                 <span>{shortName(comparePair[1]?.name)}</span>
               </div>
             </div>
-            <div className="index-desktop-widget-btn">Launch Tool</div>
+            <div className="index-desktop-widget-btn">Открыть инструмент</div>
           </Link>
 
           <Link to="/voting" className="menu-item index-desktop-widget">
             <div className="index-desktop-widget-head">
               <div>
-                <h3 className="index-desktop-widget-title">Voting</h3>
-                <p className="index-desktop-widget-sub">Driver of the Day</p>
+                <h3 className="index-desktop-widget-title">Голосование</h3>
+                <p className="index-desktop-widget-sub">Пилот дня</p>
               </div>
               <span className="index-desktop-widget-icon">🗳</span>
             </div>
@@ -306,7 +306,7 @@ function IndexPage() {
                 <b>{voteB}%</b>
               </div>
             </div>
-            <div className="index-desktop-widget-btn">Cast Your Vote</div>
+            <div className="index-desktop-widget-btn">Проголосовать</div>
           </Link>
         </div>
 
@@ -314,8 +314,8 @@ function IndexPage() {
           <div className="index-desktop-calendar-left">
             <span className="index-desktop-calendar-icon">📅</span>
             <div>
-              <h3>Full Race Calendar</h3>
-              <p>Explore all events of the {nextRace?.season || currentYear} FIA Formula One season.</p>
+              <h3>Полный календарь гонок</h3>
+              <p>Изучите все этапы сезона FIA Formula One {nextRace?.season || currentYear}.</p>
             </div>
           </div>
           <span className="index-desktop-calendar-arrow">→</span>

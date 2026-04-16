@@ -223,11 +223,11 @@ function SprintResultsPage() {
       <section className="race-results-desktop">
         <header className="race-results-desktop-head">
           <div>
-            <div className="race-results-desktop-kicker">Velocity</div>
-            <h1>Sprint Results</h1>
+            <div className="race-results-desktop-kicker">Скорость</div>
+            <h1>Результаты спринта</h1>
             <p>
               {data?.race_info?.event_name || "Grand Prix"}
-              {data?.round ? `, Round ${data.round}` : ""}
+              {data?.round ? `, Этап ${data.round}` : ""}
               {data?.season ? ` • ${data.season}` : ""}
             </p>
           </div>
@@ -237,7 +237,7 @@ function SprintResultsPage() {
                 <CustomSelect
                   options={seasonRaces.map((r) => ({
                     value: r.round,
-                    label: `Step ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
+                    label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
                   }))}
                   value={selectedRound}
                   onChange={(value) => setSelectedRound(Number(value))}
@@ -246,8 +246,8 @@ function SprintResultsPage() {
             )}
             <div className="segmented-tabs race-results-desktop-tabs">
               <div className="segmented-slider" style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }} />
-              <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>Recent</button>
-              <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>Archive</button>
+              <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>Последние</button>
+              <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>Архив</button>
             </div>
           </div>
         </header>
@@ -259,22 +259,22 @@ function SprintResultsPage() {
             <div className="race-results-desktop-hero-grid">
               <div className="race-results-desktop-winner">
                 <div className="race-results-desktop-winner-overlay" />
-                <div className="race-results-desktop-winner-badge">Sprint Winner</div>
+                <div className="race-results-desktop-winner-badge">Победитель спринта</div>
                 <div className="race-results-desktop-winner-name">{desktopWinner.name}</div>
-                <div className="race-results-desktop-winner-meta">{desktopWinner.team} • Sprint Classification</div>
+                <div className="race-results-desktop-winner-meta">{desktopWinner.team} • Классификация спринта</div>
               </div>
               <aside className="race-results-desktop-summary">
                 <div className="race-results-desktop-summary-points">{desktopWinner.points || 0}</div>
-                <div className="race-results-desktop-summary-label">Points Earned</div>
-                <div className="race-results-desktop-summary-row"><span>Avg. Speed</span><b>229.8 km/h</b></div>
-                <div className="race-results-desktop-summary-row"><span>Status</span><b>Finished</b></div>
+                <div className="race-results-desktop-summary-label">Набрано очков</div>
+                <div className="race-results-desktop-summary-row"><span>Средняя скорость</span><b>229.8 km/h</b></div>
+                <div className="race-results-desktop-summary-row"><span>Статус</span><b>Финишировал</b></div>
               </aside>
             </div>
           )}
           {!loading && !error && desktopRows.length > 0 && (
             <div className="race-results-desktop-table">
               <div className="race-results-desktop-table-head">
-                <span>Pos</span><span>Driver</span><span>Team</span><span>Time/Status</span><span>Gap</span><span>Points</span><span>Fav</span>
+                <span>Поз</span><span>Пилот</span><span>Команда</span><span>Время/статус</span><span>Gap</span><span>Очки</span><span>Избр</span>
               </div>
               {desktopRows.map((row) => (
                 <div key={`${row.position}-${row.name}`} className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}>

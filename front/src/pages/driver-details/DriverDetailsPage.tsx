@@ -86,7 +86,7 @@ function DriverDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"stats" | "bio">("stats");
-  const [teamName, setTeamName] = useState<string>("Formula One Team");
+  const [teamName, setTeamName] = useState<string>("Команда Формулы-1");
 
   useEffect(() => {
     const id = code || driverId;
@@ -156,7 +156,7 @@ function DriverDetailsPage() {
   const firstName = data.givenName.toUpperCase();
   const lastName = data.familyName.toUpperCase();
   const teamLabel =
-    teamName === "Formula One Team" && data.code === "ANT"
+    teamName === "Команда Формулы-1" && data.code === "ANT"
       ? "Mercedes-AMG Petronas F1 Team"
       : teamName;
 
@@ -297,67 +297,66 @@ function DriverDetailsPage() {
             </div>
           </div>
           <aside className="driver-profile-desktop-rank">
-            <div><span>Rank</span><strong>P{ss.position || 0}</strong></div>
-            <div><span>Points</span><strong>{ss.points}</strong></div>
-            <div><span>Wins</span><strong>{ss.grand_prix_wins}</strong></div>
+            <div><span>Позиция</span><strong>P{ss.position || 0}</strong></div>
+            <div><span>Очки</span><strong>{ss.points}</strong></div>
+            <div><span>Победы</span><strong>{ss.grand_prix_wins}</strong></div>
           </aside>
         </header>
 
         <div className="driver-profile-desktop-grid">
           <section className="driver-profile-desktop-main">
-            <h3 className="driver-profile-title">Performance Analytics</h3>
+            <h3 className="driver-profile-title">Аналитика выступлений</h3>
             <div className="driver-profile-season-cards">
-              <article><span>Position</span><strong>{ss.position || "-"}</strong><small>Current standing</small></article>
-              <article><span>Points</span><strong>{ss.points}</strong><small>Season total</small></article>
-              <article><span>Podiums</span><strong>{ss.grand_prix_podiums}</strong><small>Grand Prix</small></article>
-              <article><span>GPs entered</span><strong>{ss.grand_prix_races}</strong><small>{season} season</small></article>
+              <article><span>Позиция</span><strong>{ss.position || "-"}</strong><small>Текущее место</small></article>
+              <article><span>Очки</span><strong>{ss.points}</strong><small>Итого за сезон</small></article>
+              <article><span>Подиумы</span><strong>{ss.grand_prix_podiums}</strong><small>Гран-при</small></article>
+              <article><span>Участий в ГП</span><strong>{ss.grand_prix_races}</strong><small>Сезон {season}</small></article>
             </div>
             <div className="driver-profile-career-grid">
               <article className="driver-profile-career-card">
-                <h4>Career Summary</h4>
-                <div><span>Grand Prix Entries</span><b>{cs.grand_prix_entered}</b></div>
-                <div><span>Total Points</span><b>{Math.round(cs.career_points)}</b></div>
-                <div><span>Best Finish</span><b>{formatHigh(cs.highest_race_finish)}</b></div>
+                <h4>Итоги карьеры</h4>
+                <div><span>Гран-при (всего)</span><b>{cs.grand_prix_entered}</b></div>
+                <div><span>Всего очков</span><b>{Math.round(cs.career_points)}</b></div>
+                <div><span>Лучший финиш</span><b>{formatHigh(cs.highest_race_finish)}</b></div>
               </article>
               <article className="driver-profile-accolades-card">
-                <h4>Accolades</h4>
-                <p>Highest Grid Pos: {formatHigh(cs.highest_grid)}</p>
-                <small>Born: {data.dateOfBirth || "N/A"}</small>
+                <h4>Достижения</h4>
+                <p>Лучшая стартовая позиция: {formatHigh(cs.highest_grid)}</p>
+                <small>Дата рождения: {data.dateOfBirth || "—"}</small>
               </article>
             </div>
           </section>
           <aside className="driver-profile-desktop-bio">
-            <h3 className="driver-profile-title">Biography</h3>
+            <h3 className="driver-profile-title">Биография</h3>
             <div className="driver-profile-bio-card">
-              <p>{data.bio || "Biography is not available yet."}</p>
+              <p>{data.bio || "Биография пока недоступна."}</p>
               <div className="driver-profile-bio-meta">
                 <div>
-                  <span>Nationality</span>
+                  <span>Гражданство</span>
                   <b>{data.nationality}</b>
                 </div>
                 <div>
-                  <span>First GP</span>
+                  <span>Первый ГП</span>
                   <b>{String(Math.max(1950, season - 1))}</b>
                 </div>
               </div>
             </div>
-            <button type="button" className="driver-profile-records-btn">View all records</button>
           </aside>
         </div>
 
         <section className="driver-profile-desktop-recent">
-          <h3 className="driver-profile-title">Recent Performance</h3>
+          <h3 className="driver-profile-title">Последние результаты</h3>
           <div className="driver-profile-recent-strip">
             <article>
-              <span>Latest Result</span>
-              <b>{ss.position === 1 ? "Race Winner" : `P${ss.position}`}</b>
+              <span>Последний результат</span>
+              <b>{ss.position === 1 ? "Победитель гонки" : `P${ss.position}`}</b>
             </article>
             <article>
-              <span>Best Grid</span>
+              <span>Лучшая стартовая</span>
               <b>{formatHigh(cs.highest_grid)}</b>
             </article>
             <article>
-              <span>Points</span>
+              <span>Очки</span>
               <b>{ss.points}</b>
             </article>
           </div>

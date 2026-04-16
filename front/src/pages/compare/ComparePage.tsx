@@ -309,7 +309,7 @@ function ComparePage() {
       <div className="compare-layout compare-layout-redesign">
         <div className="compare-controls-panel compare-controls-panel-redesign">
           <div className="compare-controls-header">
-            <div className="compare-controls-kicker">Performance Analytics</div>
+            <div className="compare-controls-kicker">Аналитика выступлений</div>
             <div className="compare-controls-title">
               {tab === "drivers" ? "Сравнение пилотов" : "Сравнение команд"}
             </div>
@@ -454,7 +454,7 @@ function ComparePage() {
               <div className="chart-container compare-chart-container">
                 <div className="compare-chart-head">
                   <div>
-                    <h3>Race Performance Trend</h3>
+                    <h3>Динамика гоночного темпа</h3>
                     <p>Форма выступлений по ходу сезона</p>
                   </div>
                 </div>
@@ -465,7 +465,7 @@ function ComparePage() {
               <div className="compare-insights-grid">
                 <article className="compare-insight-card">
                   <div className="compare-insight-tag">P1</div>
-                  <h4>Season Standings Analysis</h4>
+                  <h4>Анализ положения в сезоне</h4>
                   <p>
                     {selectedName1} {totalPts1 >= totalPts2 ? "сохраняет преимущество" : "уступает по темпу"} со
                     средним отрывом {averageGap.toFixed(1)} оч. за этап. {selectedName2}{" "}
@@ -475,12 +475,12 @@ function ComparePage() {
                 </article>
                 <article className="compare-verdict-card">
                   <div className="compare-verdict-icon">★</div>
-                  <h4>Technical Verdict</h4>
+                  <h4>Технический вердикт</h4>
                   <p>
                     По текущей динамике один из участников имеет статистическое преимущество в следующих этапах.
                   </p>
                   <div className="compare-verdict-score">
-                    <span>Confidence Score</span>
+                    <span>Индекс уверенности</span>
                     <b>{confidence.toFixed(1)}%</b>
                   </div>
                 </article>

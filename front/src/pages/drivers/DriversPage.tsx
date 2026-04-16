@@ -33,7 +33,7 @@ function teamLabel(constructorId?: string, constructorName?: string): string {
   if (id === "mclaren") return "MCLAREN F1 TEAM";
   if (id === "red_bull" || id === "redbull") return "ORACLE RED BULL RACING";
   if (id === "aston_martin") return "ASTON MARTIN ARAMCO";
-  return (constructorName || "Unknown Team").toUpperCase();
+  return (constructorName || "НЕИЗВЕСТНАЯ КОМАНДА").toUpperCase();
 }
 
 type Driver = {
@@ -51,6 +51,8 @@ type Driver = {
 type DriversResponse = { drivers?: Driver[] };
 type ConstructorStanding = { position: number; name: string; points: number };
 type ConstructorsResponse = { constructors?: ConstructorStanding[] };
+type RaceResult = { code?: string; points?: number };
+type RaceResultsResponse = { results?: RaceResult[] };
 type NextRaceInfo = {
   status?: string;
   event_name?: string;
@@ -71,6 +73,7 @@ function DriversPage() {
   const [emptyMessage, setEmptyMessage] = useState<{ icon: string; title: string; desc: string } | null>(null);
   const [topConstructors, setTopConstructors] = useState<ConstructorStanding[]>([]);
   const [nextRace, setNextRace] = useState<NextRaceInfo | null>(null);
+  const [lastRacePointsByCode, setLastRacePointsByCode] = useState<Record<string, number>>({});
 
   const formatRaceDate = (isoDate?: string): string => {
     if (!isoDate) return "";
@@ -142,6 +145,29 @@ function DriversPage() {
     };
   }, [year]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLastRacePoints() {
+      try {
+        const res = await apiRequest<RaceResultsResponse>("/api/race-results", { season: year });
+        if (cancelled) return;
+        const pointsMap: Record<string, number> = {};
+        for (const row of res.results || []) {
+          const code = String(row.code || "").toUpperCase();
+          if (!code) continue;
+          pointsMap[code] = Number(row.points || 0);
+        }
+        setLastRacePointsByCode(pointsMap);
+      } catch {
+        if (!cancelled) setLastRacePointsByCode({});
+      }
+    }
+    loadLastRacePoints();
+    return () => {
+      cancelled = true;
+    };
+  }, [year]);
+
   const updateYear = useCallback((y: number) => {
     setYear(y);
     setSearchParams(y === currentRealYear ? {} : { year: String(y) }, { replace: true });
@@ -203,8 +229,8 @@ function DriversPage() {
         <div className="desktop-standings-board drivers-desktop-shell">
           <div className="desktop-standings-toolbar drivers-desktop-toolbar">
             <div>
-              <div className="drivers-desktop-kicker">Live Data · Telemetry Feed {year}</div>
-              <h2 className="desktop-standings-heading">Driver Standings</h2>
+              <div className="drivers-desktop-kicker">Прямые данные · Телеметрия {year}</div>
+              <h2 className="desktop-standings-heading">Личный зачет пилотов</h2>
             </div>
             <div className="drivers-desktop-controls">
               <YearSelect
@@ -214,7 +240,7 @@ function DriversPage() {
                 maxYear={currentRealYear}
                 placeholder="Введи год"
               />
-              <button type="button" className="drivers-filter-btn">Filters</button>
+              <button type="button" className="drivers-filter-btn">Фильтры</button>
             </div>
           </div>
           {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка пилотов...</div></div>}
@@ -230,10 +256,9 @@ function DriversPage() {
             <>
             <div className="desktop-standings-table drivers-standings-table">
               <div className="desktop-standings-table-head">
-                <span>Pos</span>
+                <span>Поз</span>
                 <span>Пилот</span>
                 <span>Команда</span>
-                <span>Car</span>
                 <span>Очки</span>
               </div>
               <div className="drivers-standings-scroll">
@@ -266,10 +291,13 @@ function DriversPage() {
                         <i style={{ background: teamAccent(driver.constructorName) }} />
                         <span>{teamLabel(driver.constructorId, driver.constructorName)}</span>
                       </div>
-                      <span className="drivers-row-car">{driver.number ? `#${driver.number}` : "—"}</span>
                       <span className="desktop-standings-points">
                         <strong>{driver.points}</strong>
-                        <small>{driver.position === 1 ? "+25 PTS LAST RACE" : "SEASON TOTAL"}</small>
+                        <small>
+                          {Object.prototype.hasOwnProperty.call(lastRacePointsByCode, (driver.code || "").toUpperCase())
+                            ? `+${lastRacePointsByCode[(driver.code || "").toUpperCase()]} очк. за последнюю гонку`
+                            : "нет данных за последнюю гонку"}
+                        </small>
                       </span>
                     </div>
                   );
@@ -278,18 +306,13 @@ function DriversPage() {
             </div>
             <div className="drivers-insights-grid">
               <article className="drivers-insight-card">
-                <h4>Gap to Leader</h4>
-                <p>{gapToLeader} PTS <span>({second?.code || "—"} vs {leader?.code || "—"})</span></p>
+                <h4>Отставание от лидера</h4>
+                <p>{gapToLeader} ОЧК. <span>({second?.code || "—"} vs {leader?.code || "—"})</span></p>
               </article>
               <article className="drivers-insight-card active">
-                <h4>Championship Battle</h4>
-                <p>High Intensity</p>
-                <small>Predictions suggest 3-way tie potential by Round 12.</small>
-              </article>
-              <article className="drivers-insight-card">
-                <h4>Pro Insights</h4>
-                <p className="pro">Unlock Virtual Pit Wall</p>
-                <small>Real-time driver degradation models available.</small>
+                <h4>Борьба в чемпионате</h4>
+                <p>Высокая интенсивность</p>
+                <small>Прогнозы показывают потенциальную битву трех пилотов к 12-му этапу.</small>
               </article>
             </div>
             </>
@@ -364,7 +387,7 @@ function DriversPage() {
                 onClick={() => navigate(toDriver)}
                 onKeyDown={(e) => e.key === "Enter" && navigate(toDriver)}
               >
-                {isChampion && <div className="champion-badge">World Champion</div>}
+                {isChampion && <div className="champion-badge">Чемпион мира</div>}
                 <div className={`pos-box ${posClass}`}>{driver.position}</div>
                 <div className="driver-info">
                   <div className="driver-name" style={isChampion ? { color: "#ffd700" } : undefined}>

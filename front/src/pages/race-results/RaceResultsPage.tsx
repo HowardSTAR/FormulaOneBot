@@ -234,11 +234,11 @@ function RaceResultsPage() {
       <section className="race-results-desktop">
         <header className="race-results-desktop-head">
           <div>
-            <div className="race-results-desktop-kicker">Velocity</div>
-            <h1>Race Results</h1>
+            <div className="race-results-desktop-kicker">Скорость</div>
+            <h1>Результаты гонки</h1>
             <p>
               {data?.race_info?.event_name || "Grand Prix"}
-              {data?.round ? `, Round ${data.round}` : ""}
+              {data?.round ? `, Этап ${data.round}` : ""}
               {data?.season ? ` • ${data.season}` : ""}
             </p>
           </div>
@@ -248,7 +248,7 @@ function RaceResultsPage() {
                 <CustomSelect
                   options={seasonRaces.map((r) => ({
                     value: r.round,
-                    label: `Step ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
+                    label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
                   }))}
                   value={selectedRound}
                   onChange={(value) => setSelectedRound(Number(value))}
@@ -261,10 +261,10 @@ function RaceResultsPage() {
                 style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
               />
               <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
-                Recent
+                Последние
               </button>
               <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
-                Archive
+                Архив
               </button>
             </div>
           </div>
@@ -282,7 +282,7 @@ function RaceResultsPage() {
             <div className="race-results-desktop-hero-grid">
               <div className="race-results-desktop-winner">
                 <div className="race-results-desktop-winner-overlay" />
-                <div className="race-results-desktop-winner-badge">Winner</div>
+                <div className="race-results-desktop-winner-badge">Победитель</div>
                 <div className="race-results-desktop-winner-name">{desktopWinner.name}</div>
                 <div className="race-results-desktop-winner-meta">
                   {desktopWinner.team} • 1:32:04.{String(Math.max(0, desktopWinner.points)).padStart(3, "0")}
@@ -290,9 +290,9 @@ function RaceResultsPage() {
               </div>
               <aside className="race-results-desktop-summary">
                 <div className="race-results-desktop-summary-points">{desktopWinner.points || 0}</div>
-                <div className="race-results-desktop-summary-label">Points Earned</div>
-                <div className="race-results-desktop-summary-row"><span>Avg. Speed</span><b>231.4 km/h</b></div>
-                <div className="race-results-desktop-summary-row"><span>Fastest Lap</span><b>1:34.551</b></div>
+                <div className="race-results-desktop-summary-label">Набрано очков</div>
+                <div className="race-results-desktop-summary-row"><span>Средняя скорость</span><b>231.4 km/h</b></div>
+                <div className="race-results-desktop-summary-row"><span>Быстрый круг</span><b>1:34.551</b></div>
               </aside>
             </div>
           )}
@@ -300,17 +300,17 @@ function RaceResultsPage() {
           {!loading && !error && desktopRows.length > 0 && (
             <div className="race-results-desktop-table">
               <div className="race-results-desktop-table-head">
-                <span>Pos</span>
-                <span>Driver</span>
-                <span>Team</span>
-                <span>Time/Status</span>
+                <span>Поз</span>
+                <span>Пилот</span>
+                <span>Команда</span>
+                <span>Время/статус</span>
                 <span>Gap</span>
-                <span>Points</span>
-                <span>Fav</span>
+                <span>Очки</span>
+                <span>Избр</span>
               </div>
               {desktopRows.map((row) => {
                 const gap = row.position <= 1 ? "-" : `+${(row.position * 3.7).toFixed(3)}s`;
-                const status = row.points > 0 ? `1:32:${String(3 + row.position).padStart(2, "0")}.${String(100 + row.position * 17).slice(0, 3)}` : "DNF";
+                const status = row.points > 0 ? `1:32:${String(3 + row.position).padStart(2, "0")}.${String(100 + row.position * 17).slice(0, 3)}` : "Сход";
                 const isFavorite = Boolean(row.is_favorite_driver || row.is_favorite_team);
                 return (
                   <div key={`${row.position}-${row.name}`} className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}>
