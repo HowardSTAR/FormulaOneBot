@@ -240,7 +240,6 @@ function DriversPage() {
                 maxYear={currentRealYear}
                 placeholder="Введи год"
               />
-              <button type="button" className="drivers-filter-btn">Фильтры</button>
             </div>
           </div>
           {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка пилотов...</div></div>}

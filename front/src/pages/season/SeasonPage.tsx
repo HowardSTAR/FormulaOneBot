@@ -265,7 +265,12 @@ function SeasonPage() {
                 >
                   <div className="season-desktop-race-info">
                     <div className="season-desktop-race-topline">
-                      <div className="race-round">Этап {String(race.round).padStart(2, "0")} • {statusLabel}</div>
+                      <div className="race-round">
+                        <span className="race-round-prefix">
+                          Этап {String(race.round).padStart(2, "0")} •
+                        </span>
+                        <span className={`race-round-status ${statusClass}`}>{statusLabel}</span>
+                      </div>
                       <span className="season-desktop-race-icon">{isSelected ? "➤" : isFinished ? "▣" : "○"}</span>
                     </div>
                     <div className="race-name">{timelineRaceName(race.event_name)}</div>

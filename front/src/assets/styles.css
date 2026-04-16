@@ -1307,7 +1307,7 @@ p {
 
 .season-desktop-hero-card {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
     gap: 14px;
 }
 
@@ -1339,9 +1339,12 @@ p {
 
 .season-desktop-hero-media h4 {
     margin: 0;
-    font-size: 46px;
+    font-size: clamp(40px, 4.1vw, 62px);
     line-height: 0.95;
     text-transform: uppercase;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .season-desktop-hero-meta {
@@ -3051,8 +3054,8 @@ input:checked + .slider:before {
     }
 
     .season-desktop-list {
-        max-height: calc(100vh - 220px);
-        overflow: auto;
+        max-height: none;
+        overflow: visible;
         padding-right: 2px;
         scrollbar-width: thin;
         scrollbar-color: rgba(255, 255, 255, 0.28) rgba(255, 255, 255, 0.06);
@@ -3117,6 +3120,61 @@ input:checked + .slider:before {
         gap: 8px;
     }
 
+    /* Чтобы "Этап XX • ЗАВЕРШЕН/СКОРО" не вылезала: ellipsis только для префикса, бейдж не режем */
+    .season-desktop-race-topline .race-round {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        letter-spacing: 0.35px; /* уменьшение от 1px, чтобы строка помещалась */
+    }
+
+    .season-desktop-race-topline .race-round-prefix {
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .season-desktop-race-item .race-name,
+    .season-desktop-race-item .race-loc {
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Контрастное выделение статуса (завершён / скоро) */
+    .race-round-status {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        background: rgba(255, 255, 255, 0.04);
+        font-weight: 900;
+        letter-spacing: 0.6px;
+        text-transform: uppercase;
+        flex-shrink: 0;
+    }
+
+    .race-round-status.next {
+        color: rgb(147, 197, 253);
+        border-color: rgba(59, 130, 246, 0.55);
+        background: rgba(59, 130, 246, 0.2);
+    }
+
+    .race-round-status.finished {
+        color: #ffd5d1;
+        border-color: rgba(225, 6, 0, 0.62);
+        background: rgba(225, 6, 0, 0.26);
+    }
+
+    .race-round-status.cancelled {
+        color: rgb(254, 202, 202);
+        border-color: rgba(220, 38, 38, 0.6);
+        background: rgba(220, 38, 38, 0.25);
+    }
+
     .season-desktop-status {
         font-size: 10px;
         font-weight: 800;
@@ -3143,9 +3201,9 @@ input:checked + .slider:before {
     }
 
     .season-desktop-status.finished {
-        color: rgb(156, 163, 175);
-        border-color: rgba(107, 114, 128, 0.5);
-        background: rgba(107, 114, 128, 0.18);
+        color: #ffd5d1;
+        border-color: rgba(225, 6, 0, 0.62);
+        background: rgba(225, 6, 0, 0.26);
     }
 
     .season-desktop-status.cancelled {
@@ -3222,12 +3280,14 @@ input:checked + .slider:before {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
         margin-bottom: 10px;
+        align-items: start;
     }
 
     .season-desktop-stat-box {
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 8px;
         padding: 8px;
+        align-self: start;
     }
 
     .season-desktop-stat-label {
@@ -3238,6 +3298,9 @@ input:checked + .slider:before {
     .season-desktop-stat-value {
         font-size: 20px;
         font-weight: 800;
+        line-height: 1.05;
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
     .season-desktop-facts {

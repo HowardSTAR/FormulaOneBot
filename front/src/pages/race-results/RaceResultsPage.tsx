@@ -24,6 +24,16 @@ type SeasonRace = {
   event_name?: string;
 };
 
+function pilotPortraitUrl(code: string, fullName: string, season: number): string {
+  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
+  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
+  const params = new URLSearchParams({ season: String(season) });
+  if (code) params.set("code", code);
+  if (fullName) params.set("name", fullName);
+  return `${origin.replace(/\/$/, "")}${pathBase}/api/pilot-portrait?${params.toString()}`;
+}
+
 function parseOptionalInt(value: string | null): number | null {
   if (value === null) return null;
   const n = Number.parseInt(value, 10);
@@ -282,6 +292,14 @@ function RaceResultsPage() {
             <div className="race-results-desktop-hero-grid">
               <div className="race-results-desktop-winner">
                 <div className="race-results-desktop-winner-overlay" />
+                <img
+                  className="race-results-desktop-winner-portrait"
+                  src={pilotPortraitUrl("", desktopWinner.name, data?.season || season)}
+                  alt={desktopWinner.name || "Пилот"}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
                 <div className="race-results-desktop-winner-badge">Победитель</div>
                 <div className="race-results-desktop-winner-name">{desktopWinner.name}</div>
                 <div className="race-results-desktop-winner-meta">
@@ -298,20 +316,17 @@ function RaceResultsPage() {
           )}
 
           {!loading && !error && desktopRows.length > 0 && (
-            <div className="race-results-desktop-table">
+            <div className="race-results-desktop-table race-results-table-compact">
               <div className="race-results-desktop-table-head">
                 <span>Поз</span>
                 <span>Пилот</span>
                 <span>Команда</span>
                 <span>Время/статус</span>
                 <span>Gap</span>
-                <span>Очки</span>
-                <span>Избр</span>
               </div>
               {desktopRows.map((row) => {
                 const gap = row.position <= 1 ? "-" : `+${(row.position * 3.7).toFixed(3)}s`;
                 const status = row.points > 0 ? `1:32:${String(3 + row.position).padStart(2, "0")}.${String(100 + row.position * 17).slice(0, 3)}` : "Сход";
-                const isFavorite = Boolean(row.is_favorite_driver || row.is_favorite_team);
                 return (
                   <div key={`${row.position}-${row.name}`} className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}>
                     <span>{String(row.position).padStart(2, "0")}</span>
@@ -319,8 +334,6 @@ function RaceResultsPage() {
                     <span>{row.team}</span>
                     <span>{status}</span>
                     <span>{gap}</span>
-                    <span>{row.points}</span>
-                    <span>{isFavorite ? "★" : "☆"}</span>
                   </div>
                 );
               })}

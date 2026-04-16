@@ -137,9 +137,8 @@ function ComparePage() {
         setResults(null);
       } else if (res.labels && res.data1 && res.data2) {
         setResults(res);
-        setTimeout(() => {
-          chartRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 100);
+        // Не делаем автоскролл: страница может резко "скачить" вниз.
+        // Пусть пользователь остаётся на месте, а контент появится без движения.
       } else {
         setCompareError(
           tab === "drivers"
@@ -214,6 +213,15 @@ function ComparePage() {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        // Доп. отступы, чтобы крайние значения (0 и максимум) не обрезались.
+        layout: {
+          padding: {
+            top: 22,
+            bottom: 18,
+            left: 6,
+            right: 6,
+          },
+        },
         interaction: { mode: "index", intersect: false },
         plugins: {
           legend: {
@@ -246,8 +254,13 @@ function ComparePage() {
         scales: {
           y: {
             beginAtZero: true,
+            // "+1 запас" по высоте от минимального и максимального значений.
+            grace: 1,
             grid: { color: "rgba(255,255,255,0.08)" },
-            ticks: { color: "rgba(227,226,227,0.65)" },
+            ticks: {
+              color: "rgba(227,226,227,0.65)",
+              padding: 14,
+            },
             border: { color: "rgba(255,255,255,0.06)" },
           },
           x: {
@@ -293,8 +306,10 @@ function ComparePage() {
   return (
     <>
       <BackButton>← Главное меню</BackButton>
-      <div className="page-head-row">
-        <h2 className="page-head-title">Сравнение</h2>
+      <div className="page-head-row page-head-row-compare">
+        <h2 className="page-head-title">
+          {tab === "drivers" ? "Сравнение пилотов" : "Сравнение команд"}
+        </h2>
         <div className="page-head-controls">
           <YearSelect
             value={year}
@@ -310,9 +325,6 @@ function ComparePage() {
         <div className="compare-controls-panel compare-controls-panel-redesign">
           <div className="compare-controls-header">
             <div className="compare-controls-kicker">Аналитика выступлений</div>
-            <div className="compare-controls-title">
-              {tab === "drivers" ? "Сравнение пилотов" : "Сравнение команд"}
-            </div>
           </div>
 
           <div className="segmented-tabs compare-redesign-tabs">
@@ -407,12 +419,6 @@ function ComparePage() {
             >
               {comparing ? "Анализируем..." : "Сравнить"}
             </button>
-          </div>
-
-          <div className="compare-selected-preview">
-            <span>{selectedName1}</span>
-            <span>VS</span>
-            <span>{selectedName2}</span>
           </div>
 
           {comparing && (

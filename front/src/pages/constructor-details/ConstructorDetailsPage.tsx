@@ -123,7 +123,7 @@ function ConstructorDetailsPage() {
   if (error || !constructorId) {
     return (
       <>
-        <BackButton fallback="/constructors">← <span>Кубок конструкторов</span></BackButton>
+        <BackButton fallback="/constructors"><span>Кубок конструкторов</span></BackButton>
         <div className="error">{error || "Не указана команда"}</div>
       </>
     );
@@ -132,7 +132,7 @@ function ConstructorDetailsPage() {
   if (loading || !data) {
     return (
       <>
-        <BackButton fallback="/constructors">← <span>Кубок конструкторов</span></BackButton>
+        <BackButton fallback="/constructors"><span>Кубок конструкторов</span></BackButton>
         <div className="loading full-width">
           <div className="spinner" />
           <div>Загрузка карточки команды...</div>
@@ -152,8 +152,6 @@ function ConstructorDetailsPage() {
   const drivers = data.drivers || [];
   const teamCountry = data.constructorId === "mercedes" ? "Brackley, United Kingdom" : data.nationality || "Неизвестно";
   const foundedLabel = data.constructorId === "mercedes" ? "Осн. 1954 / 2010" : `Осн. ${Math.max(1950, season - 20)}`;
-  const managementName = data.constructorId === "mercedes" ? "Toto Wolff" : "Team Principal";
-  const managementRole = data.constructorId === "mercedes" ? "Team Principal & CEO" : "Руководство команды";
   const heroTitleMain = data.constructorId === "mercedes"
     ? "MERCEDES-AMG"
     : data.name.toUpperCase().includes("PETRONAS")
@@ -167,7 +165,7 @@ function ConstructorDetailsPage() {
   return (
     <>
       <div className="constructor-details-mobile">
-        <BackButton fallback="/constructors">← <span>Кубок конструкторов</span></BackButton>
+        <BackButton fallback="/constructors"><span>Кубок конструкторов</span></BackButton>
 
         <div className="constructor-hero">
           <div className="constructor-car-wrap">
@@ -296,7 +294,7 @@ function ConstructorDetailsPage() {
                 rel="noopener noreferrer"
                 className="driver-bio-link"
               >
-                Открыть в Wikipedia →
+                Открыть в Wikipedia
               </a>
             )}
           </div>
@@ -304,7 +302,7 @@ function ConstructorDetailsPage() {
       </div>
 
       <section className="constructor-profile-desktop">
-        <BackButton fallback="/constructors">← <span>Кубок конструкторов</span></BackButton>
+        <BackButton fallback="/constructors"><span>Кубок конструкторов</span></BackButton>
         <header className="constructor-profile-desktop-hero">
           <img
             src={carUrl}
@@ -349,16 +347,10 @@ function ConstructorDetailsPage() {
                       <span>{d.nationality || "Пилот"}</span>
                     </div>
                     <i>#{d.permanentNumber || "--"}</i>
-                    <u>{idx === 0 ? "↗" : "★"}</u>
+                    <u>{idx === 0 ? "P1" : "P2"}</u>
                   </div>
                 );
               })}
-            </div>
-            <div className="constructor-profile-management">
-              <h3>Руководство</h3>
-              <div className="constructor-profile-management-avatar" />
-              <p>{managementName}</p>
-              <span>{managementRole}</span>
             </div>
           </aside>
 
@@ -441,7 +433,7 @@ function ConstructorDetailsPage() {
                     rel="noopener noreferrer"
                     className="driver-bio-link"
                   >
-                    Открыть в Wikipedia →
+                    Открыть в Wikipedia
                   </a>
                 )}
               </div>

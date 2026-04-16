@@ -23,6 +23,16 @@ type SeasonRace = {
   event_name?: string;
 };
 
+function pilotPortraitUrl(code: string, fullName: string, season: number): string {
+  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
+  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
+  const params = new URLSearchParams({ season: String(season) });
+  if (code) params.set("code", code);
+  if (fullName) params.set("name", fullName);
+  return `${origin.replace(/\/$/, "")}${pathBase}/api/pilot-portrait?${params.toString()}`;
+}
+
 function parseOptionalInt(value: string | null): number | null {
   if (value === null) return null;
   const n = Number.parseInt(value, 10);
@@ -304,6 +314,18 @@ function QualiResultsPage() {
             <div className="race-results-desktop-hero-grid">
               <div className="race-results-desktop-winner">
                 <div className="race-results-desktop-winner-overlay" />
+                <img
+                  className="race-results-desktop-winner-portrait"
+                  src={pilotPortraitUrl(
+                    (desktopWinner.driver || "").toUpperCase(),
+                    desktopWinner.name || desktopWinner.driver || "",
+                    data?.season || season
+                  )}
+                  alt={desktopWinner.name || desktopWinner.driver || "Пилот"}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
                 <div className="race-results-desktop-winner-badge">Поул</div>
                 <div className="race-results-desktop-winner-name">{desktopWinner.name || desktopWinner.driver}</div>
                 <div className="race-results-desktop-winner-meta">
@@ -319,9 +341,9 @@ function QualiResultsPage() {
             </div>
           )}
           {!loading && !error && desktopRows.length > 0 && (
-            <div className="race-results-desktop-table">
+            <div className="race-results-desktop-table quali-results-table">
               <div className="race-results-desktop-table-head">
-                <span>Поз</span><span>Пилот</span><span>Код</span><span>Время/статус</span><span>Сегмент</span><span>Очки</span><span>Избр</span>
+                <span>Поз</span><span>Пилот</span><span>Код</span><span>Время/статус</span><span>Сегмент</span>
               </div>
               {desktopRows.map((row) => (
                 <div key={`${row.position}-${row.name || row.driver}`} className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}>
@@ -330,8 +352,6 @@ function QualiResultsPage() {
                   <span>{(row.driver || "—").toUpperCase()}</span>
                   <span>{row.best || "—"}</span>
                   <span>{row.segment || "Q1"}</span>
-                  <span>—</span>
-                  <span>{row.is_favorite_driver ? "★" : "☆"}</span>
                 </div>
               ))}
             </div>

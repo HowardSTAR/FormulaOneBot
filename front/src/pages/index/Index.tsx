@@ -27,6 +27,7 @@ type ConstructorStanding = {
 type DriversResponse = { drivers?: DriverStanding[] };
 type ConstructorsResponse = { constructors?: ConstructorStanding[] };
 type ScheduleResponse = { sessions?: SessionItem[] };
+type DriverVoteStatsResponse = { stats?: { driver_code: string; count: number }[] };
 
 function teamLogoUrl(teamId: string, teamName: string, season: number): string {
   const apiBase = (import.meta.env.VITE_API_URL as string) || "";
@@ -36,6 +37,16 @@ function teamLogoUrl(teamId: string, teamName: string, season: number): string {
   const params = new URLSearchParams({ team, season: String(season) });
   if (teamName) params.set("name", teamName);
   return `${origin.replace(/\/$/, "")}${pathBase}/api/team-logo?${params}`;
+}
+
+function pilotPortraitUrl(code: string, fullName: string, season: number): string {
+  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
+  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
+  const params = new URLSearchParams({ season: String(season) });
+  if (code) params.set("code", code);
+  if (fullName) params.set("name", fullName);
+  return `${origin.replace(/\/$/, "")}${pathBase}/api/pilot-portrait?${params.toString()}`;
 }
 
 const DRIVER_FLAG_BY_CODE: Record<string, string> = {
@@ -83,6 +94,7 @@ function IndexPage() {
   const currentYear = new Date().getFullYear();
   const [driversTop, setDriversTop] = useState<DriverStanding[]>([]);
   const [constructorsTop, setConstructorsTop] = useState<ConstructorStanding[]>([]);
+  const [driverVoteStats, setDriverVoteStats] = useState<{ driver_code: string; count: number }[]>([]);
   const [weekendSessions, setWeekendSessions] = useState<SessionItem[]>([]);
   const displayTz = getDisplayTimezone(userTz);
   const sessionsForCards = schedule.length ? schedule : weekendSessions;
@@ -112,9 +124,10 @@ function IndexPage() {
     const season = nextRace?.season || currentYear;
     const loadStandings = async () => {
       try {
-        const [driversRes, constructorsRes] = await Promise.allSettled([
+        const [driversRes, constructorsRes, voteStatsRes] = await Promise.allSettled([
           apiRequest<DriversResponse>("/api/drivers", { season }),
           apiRequest<ConstructorsResponse>("/api/constructors", { season }),
+          apiRequest<DriverVoteStatsResponse>("/api/votes/driver-stats", { season }),
         ]);
         if (cancelled) return;
         setDriversTop(
@@ -123,10 +136,14 @@ function IndexPage() {
         setConstructorsTop(
           constructorsRes.status === "fulfilled" ? (constructorsRes.value.constructors || []).slice(0, 10) : []
         );
+        setDriverVoteStats(
+          voteStatsRes.status === "fulfilled" ? (voteStatsRes.value.stats || []) : []
+        );
       } catch {
         if (cancelled) return;
         setDriversTop([]);
         setConstructorsTop([]);
+        setDriverVoteStats([]);
       }
     };
     loadStandings();
@@ -209,15 +226,41 @@ function IndexPage() {
   const raceLeader = driversTop[0] || null;
   const qualiLeader = driversTop[1] || driversTop[0] || null;
   const comparePair = [driversTop[0], driversTop[1]].filter(Boolean) as DriverStanding[];
-  const voteBase = (driversTop[0]?.points || 0) + (driversTop[1]?.points || 0) || 1;
-  const voteA = Math.max(8, Math.min(92, Math.round(((driversTop[0]?.points || 0) / voteBase) * 100)));
-  const voteB = Math.max(8, Math.min(92, Math.round(((driversTop[1]?.points || 0) / voteBase) * 100)));
+  const widgetSeason = nextRace?.season || currentYear;
 
   const shortName = (name?: string): string => {
     if (!name) return "—";
     const parts = name.trim().split(/\s+/);
     return (parts[parts.length - 1] || name).toUpperCase();
   };
+
+  /** Инициалы: первая буква имени + первая буква фамилии (как AA, GR) */
+  const driverInitials = (fullName?: string): string => {
+    if (!fullName?.trim()) return "—";
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    const a = parts[0][0] ?? "";
+    const b = parts[parts.length - 1][0] ?? "";
+    return `${a}${b}`.toUpperCase();
+  };
+
+  const voteLeaders = useMemo(() => {
+    const totalVotes = driverVoteStats.reduce((acc, item) => acc + (item.count || 0), 0) || 1;
+    const nameByCode = new Map(
+      driversTop.map((d) => [String(d.code || "").toUpperCase(), d.name])
+    );
+    return [...driverVoteStats]
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+      .map((item) => {
+        const code = String(item.driver_code || "").toUpperCase();
+        return {
+          code,
+          label: shortName(nameByCode.get(code) || code || "—"),
+          percent: Math.max(1, Math.round(((item.count || 0) / totalVotes) * 100)),
+        };
+      });
+  }, [driverVoteStats, driversTop]);
 
   return (
     <>
@@ -233,10 +276,22 @@ function IndexPage() {
                 <h3 className="index-desktop-widget-title">Гонка</h3>
                 <p className="index-desktop-widget-sub">Официальные результаты Гран-при</p>
               </div>
-              <span className="index-desktop-widget-icon">🏁</span>
             </div>
             <div className="index-desktop-widget-main">
-              <div className="index-desktop-widget-rank">01</div>
+              {raceLeader && (
+                <div className="index-desktop-widget-portrait">
+                  <span className="index-desktop-widget-portrait-fallback" aria-hidden>
+                    {driverInitials(raceLeader.name)}
+                  </span>
+                  <img
+                    src={pilotPortraitUrl(raceLeader.code || "", raceLeader.name, widgetSeason)}
+                    alt=""
+                    onError={(e) => {
+                      e.currentTarget.style.visibility = "hidden";
+                    }}
+                  />
+                </div>
+              )}
               <div className="index-desktop-widget-leader">
                 <p>{raceLeader?.name || "Данные скоро"}</p>
                 <span>{raceLeader?.constructorName || "Formula One"}</span>
@@ -252,10 +307,22 @@ function IndexPage() {
                 <h3 className="index-desktop-widget-title">Квалификация</h3>
                 <p className="index-desktop-widget-sub">Борьба за поул-позицию</p>
               </div>
-              <span className="index-desktop-widget-icon">⏱</span>
             </div>
             <div className="index-desktop-widget-main">
-              <div className="index-desktop-widget-rank">01</div>
+              {qualiLeader && (
+                <div className="index-desktop-widget-portrait">
+                  <span className="index-desktop-widget-portrait-fallback" aria-hidden>
+                    {driverInitials(qualiLeader.name)}
+                  </span>
+                  <img
+                    src={pilotPortraitUrl(qualiLeader.code || "", qualiLeader.name, widgetSeason)}
+                    alt=""
+                    onError={(e) => {
+                      e.currentTarget.style.visibility = "hidden";
+                    }}
+                  />
+                </div>
+              )}
               <div className="index-desktop-widget-leader">
                 <p>{qualiLeader?.name || "Данные скоро"}</p>
                 <span>{qualiLeader?.constructorName || "Formula One"}</span>
@@ -271,17 +338,29 @@ function IndexPage() {
                 <h3 className="index-desktop-widget-title">Сравнение</h3>
                 <p className="index-desktop-widget-sub">Анализ дуэли пилотов</p>
               </div>
-              <span className="index-desktop-widget-icon">⚔</span>
             </div>
             <div className="index-desktop-versus">
-              <div className="index-desktop-avatar">
-                <div>{shortName(comparePair[0]?.name).slice(0, 2)}</div>
-                <span>{shortName(comparePair[0]?.name)}</span>
-              </div>
-              <div className="index-desktop-avatar">
-                <div>{shortName(comparePair[1]?.name).slice(0, 2)}</div>
-                <span>{shortName(comparePair[1]?.name)}</span>
-              </div>
+              {[0, 1].map((i) => {
+                const d = comparePair[i];
+                return (
+                  <div key={d?.code || `compare-${i}`} className="index-desktop-avatar">
+                    <div className="index-desktop-avatar-visual">
+                      <span className="index-desktop-widget-portrait-fallback" aria-hidden>
+                        {d ? driverInitials(d.name) : "—"}
+                      </span>
+                      {d ? (
+                        <img
+                          src={pilotPortraitUrl(d.code || "", d.name, widgetSeason)}
+                          alt=""
+                          onError={(e) => {
+                            e.currentTarget.style.visibility = "hidden";
+                          }}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
             <div className="index-desktop-widget-btn">Открыть инструмент</div>
           </Link>
@@ -292,33 +371,35 @@ function IndexPage() {
                 <h3 className="index-desktop-widget-title">Голосование</h3>
                 <p className="index-desktop-widget-sub">Пилот дня</p>
               </div>
-              <span className="index-desktop-widget-icon">🗳</span>
             </div>
             <div className="index-desktop-vote-lines">
-              <div className="index-desktop-vote-line">
-                <span>{shortName(driversTop[0]?.name)}</span>
-                <div className="index-desktop-vote-track"><i style={{ width: `${voteA}%` }} /></div>
-                <b>{voteA}%</b>
-              </div>
-              <div className="index-desktop-vote-line">
-                <span>{shortName(driversTop[1]?.name)}</span>
-                <div className="index-desktop-vote-track"><i style={{ width: `${voteB}%` }} /></div>
-                <b>{voteB}%</b>
-              </div>
+              {voteLeaders.length > 0 ? (
+                voteLeaders.map((item) => (
+                  <div className="index-desktop-vote-line" key={item.code || item.label}>
+                    <span>{item.label}</span>
+                    <div className="index-desktop-vote-track"><i style={{ width: `${item.percent}%` }} /></div>
+                    <b>{item.percent}%</b>
+                  </div>
+                ))
+              ) : (
+                <div className="index-desktop-vote-line">
+                  <span>Нет данных</span>
+                  <div className="index-desktop-vote-track"><i style={{ width: "0%" }} /></div>
+                  <b>0%</b>
+                </div>
+              )}
             </div>
-            <div className="index-desktop-widget-btn">Проголосовать</div>
+            {isAuthenticated && <div className="index-desktop-widget-btn">Проголосовать</div>}
           </Link>
         </div>
 
         <Link to="/season" className="menu-item index-desktop-calendar-cta">
           <div className="index-desktop-calendar-left">
-            <span className="index-desktop-calendar-icon">📅</span>
             <div>
               <h3>Полный календарь гонок</h3>
               <p>Изучите все этапы сезона FIA Formula One {nextRace?.season || currentYear}.</p>
             </div>
           </div>
-          <span className="index-desktop-calendar-arrow">→</span>
         </Link>
       </div>
 
@@ -332,7 +413,6 @@ function IndexPage() {
           <div className="section-title">Последний этап</div>
           <div className="results-grid">
             <Link to="/quali-results" className="menu-item index-result-tile">
-              <span className="menu-icon">⏱</span>
               <span className="menu-label index-card-title">Квалификация</span>
               {sessionMeta.quali ? (
                 <span className="index-card-meta">
@@ -347,7 +427,6 @@ function IndexPage() {
               )}
             </Link>
             <Link to="/race-results" className="menu-item index-result-tile">
-              <span className="menu-icon">🏁</span>
               <span className="menu-label index-card-title">Гонка</span>
               {sessionMeta.race ? (
                 <span className="index-card-meta">
@@ -364,7 +443,6 @@ function IndexPage() {
             {isSprintWeekendActive && (
               <>
                 <Link to="/sprint-results" className="menu-item index-result-tile">
-                  <span className="menu-icon">⚡🏁</span>
                   <span className="menu-label index-card-title">Спринт</span>
                   {sessionMeta.sprint ? (
                     <span className="index-card-meta">
@@ -376,7 +454,6 @@ function IndexPage() {
                   )}
                 </Link>
                 <Link to="/sprint-quali-results" className="menu-item index-result-tile">
-                  <span className="menu-icon">⚡⏱</span>
                   <span className="menu-label index-card-title">Спринт-квала</span>
                   {sessionMeta.sprintQuali ? (
                     <span className="index-card-meta">
@@ -399,23 +476,19 @@ function IndexPage() {
 
           <div className="menu-grid index-quick-grid">
             <Link to="/drivers" className="menu-item index-nav-card">
-              <span className="menu-icon">👤</span>
               <span className="menu-label index-card-title">Пилоты</span>
               <span className="index-card-desc">Личный зачет и форма</span>
             </Link>
             <Link to="/constructors" className="menu-item index-nav-card">
-              <span className="menu-icon">🏎️</span>
               <span className="menu-label index-card-title">Команды</span>
               <span className="index-card-desc">Кубок конструкторов</span>
             </Link>
             <Link to="/compare" className="menu-item index-nav-card">
-              <span className="menu-icon">⚔️</span>
               <span className="menu-label index-card-title">Сравнение</span>
               <span className="index-card-desc">Очки, темп и дуэли</span>
             </Link>
             {isAuthenticated && (
               <Link to="/voting" className="menu-item index-nav-card">
-                <span className="menu-icon">🗳️</span>
                 <span className="menu-label index-card-title">Голосование</span>
                 <span className="index-card-desc">Оценки и итоги этапов</span>
               </Link>
@@ -428,24 +501,20 @@ function IndexPage() {
             <div className="section-title">Моё</div>
             <Link to="/favorites" className="menu-item full-width index-wide-link index-favorites-link">
               <div className="index-wide-link-left">
-                <span className="menu-icon">⭐</span>
                 <div className="index-wide-link-text">
                   <span className="menu-label index-card-title">Избранное</span>
                   <span className="index-card-desc">Любимые пилоты и команды</span>
                 </div>
               </div>
-              <span className="index-wide-link-arrow">➜</span>
             </Link>
 
             <Link to="/settings" className="menu-item full-width index-wide-link">
               <div className="index-wide-link-left">
-                <span className="menu-icon">⚙️</span>
                 <div className="index-wide-link-text">
                   <span className="menu-label index-card-title">Настройки</span>
                   <span className="index-card-desc">Часовой пояс и уведомления</span>
                 </div>
               </div>
-              <span className="index-wide-link-arrow index-wide-link-arrow-muted">➜</span>
             </Link>
           </div>
         )}
@@ -518,13 +587,11 @@ function IndexPage() {
 
         <Link to="/season" className="menu-item full-width index-wide-link index-calendar-main-link">
           <div className="index-wide-link-left">
-            <span className="menu-icon">📅</span>
             <div className="index-wide-link-text">
               <span className="menu-label index-card-title">Календарь</span>
               <span className="index-card-desc">Расписание и этапы сезона</span>
             </div>
           </div>
-          <span className="index-wide-link-arrow">➜</span>
         </Link>
       </div>
       </div>
