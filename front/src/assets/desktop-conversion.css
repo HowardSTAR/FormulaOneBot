@@ -1,0 +1,3562 @@
+/*
+ * Safe desktop polish layer.
+ * This file intentionally contains only light visual tweaks and
+ * does not override core layout rules from styles.css.
+ */
+
+@media (min-width: 1200px) {
+  .app-content {
+    padding: 16px clamp(20px, 2.4vw, 36px) 28px;
+  }
+
+  .app-content > * {
+    max-width: 1480px;
+  }
+
+  .app-page-main {
+    padding-bottom: 28px;
+  }
+
+  .desktop-standings-board,
+  .desktop-side-card,
+  .season-desktop-main-card,
+  .compare-controls-panel,
+  .race-results-desktop-content,
+  .next-race-desktop-main {
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+  }
+
+  .desktop-standings-table,
+  .race-results-desktop-table {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(225, 6, 0, 0.45) rgba(255, 255, 255, 0.06);
+  }
+
+  .desktop-standings-table::-webkit-scrollbar,
+  .race-results-desktop-table::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+
+  .desktop-standings-table::-webkit-scrollbar-thumb,
+  .race-results-desktop-table::-webkit-scrollbar-thumb {
+    background: rgba(225, 6, 0, 0.45);
+    border-radius: 999px;
+  }
+
+  .desktop-standings-table::-webkit-scrollbar-track,
+  .race-results-desktop-table::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .app-content {
+    padding-left: clamp(28px, 3vw, 52px);
+    padding-right: clamp(28px, 3vw, 52px);
+  }
+
+  .app-content > * {
+    max-width: 1580px;
+  }
+}
+@media (min-width: 900px) {
+  .root {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .app-shell {
+    min-height: 100vh;
+  }
+
+  .app-content {
+    margin-left: 252px !important;
+    padding: 18px 22px 24px !important;
+  }
+
+  .app-header {
+    display: flex !important;
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 252px;
+    height: 100vh;
+    padding: 18px 12px 14px;
+    background: #121314 !important;
+    border-right: 1px solid rgba(94, 63, 58, 0.2);
+  }
+
+  .app-header-brand {
+    font-size: 36px !important;
+    margin: 2px 6px 8px !important;
+    font-style: italic;
+    letter-spacing: -0.05em !important;
+    text-transform: uppercase;
+  }
+
+  .app-header-nav {
+    gap: 4px !important;
+  }
+
+  .app-header-link {
+    border-radius: 10px !important;
+    border-left: 3px solid transparent !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    color: rgba(227, 226, 227, 0.68) !important;
+    background: transparent !important;
+  }
+
+  .app-header-link.active {
+    background: #292a2b !important;
+    color: #ffb4a8 !important;
+    border-left-color: #e10600 !important;
+  }
+
+  .app-header-link:hover {
+    background: #343536 !important;
+    color: #e3e2e3 !important;
+  }
+
+  .app-page-main {
+    max-width: 1380px !important;
+    margin: 0 auto !important;
+  }
+
+  .app-page-main > h2,
+  .page-head-title,
+  .desktop-standings-heading,
+  .season-desktop-title,
+  .driver-card-name,
+  .constructor-hero-title {
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-style: italic !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .btn-back {
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    font-size: 12px !important;
+  }
+
+  .index-panel,
+  .desktop-standings-board,
+  .desktop-side-card,
+  .season-desktop-main-card,
+  .compare-controls-panel,
+  .setting-card,
+  .voting-accordion-item,
+  .voting-chart-accordion,
+  .driver-card-header,
+  .driver-stats-block,
+  .driver-bio-block,
+  .constructor-hero,
+  #race-content,
+  #quali-content {
+    background: #1b1c1d !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 12px !important;
+  }
+
+  .app-page-main.route-home .hero-btn {
+    min-height: 210px !important;
+    border-radius: 14px !important;
+    background: linear-gradient(180deg, #e10600 0%, #cb0500 100%) !important;
+    box-shadow: none !important;
+  }
+
+  .app-page-main.route-home .index-desktop-shell .hero-btn {
+    position: relative !important;
+    min-height: 320px !important;
+    justify-content: space-between !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    padding: 26px 28px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(175, 135, 129, 0.22) !important;
+    background:
+      linear-gradient(90deg, rgba(225, 6, 0, 0.92) 0%, rgba(225, 6, 0, 0.7) 50%, rgba(18, 19, 20, 0.45) 100%),
+      url("https://lh3.googleusercontent.com/aida-public/AB6AXuBPw3ogNHqxt1hqNDZ2Joq2nPDkPDnEWIoSjabbuc7LMRpGWfvps7wF28kFSuGGBjO6-lCffBvmXrLd6TIV59F6f9QnylVYduJYqugqVBIRuMfYuIlS1NXjTWX0jnx4D9SGl7fiCqpQ5RFzGWy3idpedePRmnnt5iSa6ieu2HzdwywoNNVxI5-_iFmW2tkjJKCflyifU30ZnvHk37w3QAtY5N8JYTfEcIgya-t6l2vx8z-ilZjmdo7w2zaGPBRmutj5x-4EKYsY1iZ6")
+        center/cover no-repeat !important;
+  }
+
+  .app-page-main.route-home .index-desktop-shell .hero-sub {
+    font-size: 12px !important;
+    letter-spacing: 0.12em !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    opacity: 0.95 !important;
+  }
+
+  .app-page-main.route-home .index-desktop-shell .hero-title {
+    max-width: 560px !important;
+    font-size: clamp(56px, 5.6vw, 84px) !important;
+    line-height: 0.9 !important;
+    letter-spacing: -0.04em !important;
+    text-transform: uppercase !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-style: normal !important;
+    margin-top: 6px !important;
+  }
+
+  .app-page-main.route-home .index-desktop-shell .hero-date {
+    background: transparent !important;
+    padding: 0 !important;
+    margin-top: 0 !important;
+    border-radius: 0 !important;
+    font-size: 24px !important;
+    font-family: "Inter", sans-serif !important;
+    font-weight: 500 !important;
+  }
+
+  .app-page-main.route-home .index-desktop-shell .hero-timer {
+    margin-top: auto !important;
+    background: rgba(31, 32, 33, 0.64) !important;
+    border: 1px solid rgba(175, 135, 129, 0.25) !important;
+    border-radius: 10px !important;
+    padding: 14px 16px !important;
+    font-size: 18px !important;
+    letter-spacing: 0.04em !important;
+    backdrop-filter: blur(16px);
+  }
+
+  .app-page-main.route-home .index-desktop-shell {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas:
+      "hero"
+      "widgets"
+      "calendar" !important;
+    gap: 18px !important;
+    width: 100% !important;
+    align-items: start !important;
+  }
+
+  .app-page-main.route-home .index-desktop-hero-wrap {
+    grid-area: hero !important;
+    width: 100% !important;
+  }
+
+  .app-page-main.route-home .index-desktop-widget-grid {
+    grid-area: widgets !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 16px !important;
+    width: 100% !important;
+  }
+
+  .app-page-main.route-home .index-desktop-calendar-cta {
+    grid-area: calendar !important;
+    width: 100% !important;
+  }
+
+  .app-page-main.route-home .index-mobile-stack {
+    display: none !important;
+  }
+
+  .app-page-main.route-home .index-result-tile,
+  .app-page-main.route-home .index-nav-card {
+    background: #121314 !important;
+    border: 1px solid rgba(94, 63, 58, 0.28) !important;
+    border-radius: 12px !important;
+    min-height: 104px !important;
+    padding: 14px 12px !important;
+  }
+
+  .app-page-main.route-home .index-standings-panel {
+    display: block !important;
+    margin-top: 0 !important;
+  }
+
+  .app-page-main.route-home .index-lower-stack {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .app-page-main.route-home .index-standings-title,
+  .app-page-main.route-home .section-title {
+    font-size: 11px !important;
+    letter-spacing: 0.11em !important;
+    color: rgba(227, 226, 227, 0.52) !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-layout,
+  .app-page-main.route-constructors .desktop-standings-layout {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 16px !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-toolbar,
+  .app-page-main.route-constructors .desktop-standings-toolbar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-total,
+  .app-page-main.route-constructors .desktop-standings-total {
+    color: rgba(227, 226, 227, 0.72) !important;
+    font-size: 11px !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    padding: 6px 10px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(94, 63, 58, 0.4) !important;
+    background: rgba(18, 19, 20, 0.7) !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-table-head,
+  .app-page-main.route-constructors .desktop-standings-table-head {
+    display: grid !important;
+    grid-template-columns: 78px minmax(0, 1fr) 120px 64px !important;
+    gap: 8px !important;
+    padding: 4px 10px 10px !important;
+    color: rgba(227, 226, 227, 0.48) !important;
+    font-size: 10px !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+  }
+
+  .app-page-main.route-drivers .standings-cards-grid,
+  .app-page-main.route-constructors .standings-cards-grid {
+    display: none !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-row,
+  .app-page-main.route-constructors .desktop-standings-row {
+    background: #292a2b !important;
+    border: 1px solid rgba(94, 63, 58, 0.22) !important;
+  }
+
+  .app-page-main.route-drivers .drivers-desktop-sidebar-legacy {
+    display: none !important;
+  }
+
+  .app-page-main.route-drivers .back-btn,
+  .app-page-main.route-drivers .page-head-row {
+    display: none !important;
+  }
+
+  .app-page-main.route-drivers .drivers-desktop-kicker {
+    color: #e10600 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 11px !important;
+    letter-spacing: 0.14em !important;
+    text-transform: uppercase !important;
+    margin-bottom: 4px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-desktop-controls {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 420px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-filter-btn {
+    min-height: 48px !important;
+    min-width: 98px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #1f2021 !important;
+    color: #e3e2e3 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-table-head,
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-row {
+    grid-template-columns: 66px minmax(280px, 1.08fr) minmax(250px, 1fr) 96px 138px !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-heading {
+    font-size: clamp(56px, 5.2vw, 78px) !important;
+    line-height: 0.88 !important;
+    letter-spacing: -0.045em !important;
+    margin: 0 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table {
+    gap: 0 !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #1f2021 !important;
+    overflow: hidden !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-scroll {
+    max-height: 430px !important;
+    overflow-y: auto !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-table-head {
+    padding: 12px 18px !important;
+    background: #252627 !important;
+    border-bottom: 1px solid rgba(94, 63, 58, 0.18) !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-row {
+    margin: 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid rgba(94, 63, 58, 0.16) !important;
+    border-radius: 0 !important;
+    background: rgba(31, 32, 33, 0.96) !important;
+    min-height: 68px !important;
+    padding: 8px 16px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-row:last-child {
+    border-bottom: 0 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-row.pos-1 {
+    border-left: 2px solid #ffb4a8 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-pos {
+    font-size: 36px !important;
+    line-height: 1 !important;
+    text-align: left !important;
+    color: rgba(227, 226, 227, 0.56) !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-row.pos-1 .desktop-standings-pos {
+    color: #e10600 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-row.pos-2 .desktop-standings-pos,
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-row.pos-3 .desktop-standings-pos {
+    color: rgba(227, 226, 227, 0.72) !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-driver {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-driver img {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 999px !important;
+    object-fit: cover !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #1b1c1d !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-team {
+    display: flex !important;
+    align-items: center !important;
+    gap: 9px !important;
+    min-width: 0 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-team i {
+    width: 4px !important;
+    height: 28px !important;
+    border-radius: 999px !important;
+    flex-shrink: 0 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-team span {
+    text-transform: uppercase !important;
+    letter-spacing: 0.03em !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: initial !important;
+    font-size: 14px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    line-height: 1 !important;
+    color: rgba(227, 226, 227, 0.92) !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-car {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 23px !important;
+    letter-spacing: -0.03em !important;
+    color: rgba(227, 226, 227, 0.62) !important;
+    line-height: 1 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insights-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    margin-top: 16px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card {
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.22) !important;
+    background: #292a2b !important;
+    padding: 14px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card.active {
+    border-color: #ffb4a8 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 180, 168, 0.35) !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card h4 {
+    margin: 0 0 8px !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.14em !important;
+    color: rgba(227, 226, 227, 0.58) !important;
+    font-family: "Space Grotesk", sans-serif !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card p {
+    margin: 0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 30px !important;
+    line-height: 0.9 !important;
+    letter-spacing: -0.03em !important;
+    color: #e3e2e3 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card p span {
+    font-family: "Inter", sans-serif !important;
+    font-size: 11px !important;
+    color: rgba(227, 226, 227, 0.56) !important;
+    letter-spacing: 0 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card p.pro {
+    font-size: 18px !important;
+    color: #ffb4a8 !important;
+    line-height: 0.95 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card small {
+    display: block !important;
+    margin-top: 6px !important;
+    color: rgba(227, 226, 227, 0.52) !important;
+    font-size: 10px !important;
+    line-height: 1.35 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-driver .desktop-standings-name {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 15px !important;
+    letter-spacing: -0.03em !important;
+    line-height: 1 !important;
+    font-style: normal !important;
+    text-transform: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    color: #e3e2e3 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-driver .desktop-standings-meta {
+    margin-top: 2px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 9px !important;
+    color: rgba(227, 226, 227, 0.5) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-driver .desktop-standings-meta i,
+  .app-page-main.route-drivers .drivers-row-driver .desktop-standings-meta u {
+    text-decoration: none !important;
+    font-style: normal !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-favorite {
+    color: #e10600 !important;
+    font-weight: 700 !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-points {
+    background: transparent !important;
+    padding: 0 !important;
+    min-width: 0 !important;
+    text-align: right !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    gap: 2px !important;
+    line-height: 1 !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-points strong {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 22px !important;
+    font-weight: 700 !important;
+    color: #e3e2e3 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-points small {
+    font-size: 8px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    color: rgba(227, 226, 227, 0.42) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-desktop-sidebar-legacy {
+    display: none !important;
+  }
+
+  .app-page-main.route-constructors .constructors-desktop-toolbar {
+    display: flex !important;
+    justify-content: flex-end !important;
+    margin-bottom: 14px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-desktop-subtitle {
+    margin-top: 6px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.16em !important;
+    font-size: 10px !important;
+    color: rgba(227, 226, 227, 0.45) !important;
+    font-family: "Space Grotesk", sans-serif !important;
+  }
+
+  .app-page-main.route-constructors .constructors-hero-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr) !important;
+    gap: 14px !important;
+    margin-bottom: 14px !important;
+    max-width: 1240px !important;
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-card {
+    position: relative !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    min-height: 220px !important;
+    padding: 18px !important;
+    overflow: hidden !important;
+    /* Фон карточки лидера задаём inline-style (через /api/car-image), чтобы брать фото из app/assets/{year}/cars/. */
+    background: rgba(18, 19, 20, 0.72) !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-kicker {
+    font-family: "Space Grotesk", sans-serif !important;
+    color: #ffb4a8 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    font-size: 12px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-main {
+    display: flex !important;
+    align-items: flex-end !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-main span {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: clamp(64px, 6.4vw, 96px) !important;
+    line-height: 0.86 !important;
+    text-transform: uppercase !important;
+    letter-spacing: -0.05em !important;
+    font-style: italic !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-main b {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 52px !important;
+    color: #ffb4a8 !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-tags {
+    display: flex !important;
+    gap: 8px !important;
+    margin-top: 16px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-tags span {
+    border-radius: 6px !important;
+    border: 1px solid rgba(94, 63, 58, 0.26) !important;
+    background: rgba(18, 19, 20, 0.48) !important;
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-race-card {
+    border-radius: 12px !important;
+    border-left: 3px solid #e10600 !important;
+    border-top: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-right: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-bottom: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #292a2b !important;
+    padding: 16px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    cursor: pointer !important;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-race-card:hover {
+    border-color: rgba(225, 6, 0, 0.55) !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-kicker {
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    color: rgba(227, 226, 227, 0.5) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-race-card h3 {
+    margin: 6px 0 2px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 34px !important;
+    line-height: 0.95 !important;
+    text-transform: uppercase !important;
+    letter-spacing: -0.03em !important;
+    font-style: italic !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-race-card p {
+    margin: 0 !important;
+    color: rgba(227, 226, 227, 0.6) !important;
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-days {
+    margin-top: auto !important;
+    display: flex !important;
+    align-items: baseline !important;
+    gap: 8px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-days span {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 62px !important;
+    line-height: 0.9 !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-days b {
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    color: rgba(227, 226, 227, 0.5) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-race-briefing {
+    margin-top: 10px !important;
+    border: 1px solid rgba(94, 63, 58, 0.26) !important;
+    border-radius: 8px !important;
+    background: #1f2021 !important;
+    color: #e3e2e3 !important;
+    min-height: 42px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table {
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #1b1c1d !important;
+    overflow: hidden !important;
+    margin-bottom: 14px !important;
+    max-width: 1240px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head {
+    grid-template-columns: 78px minmax(0, 1fr) 120px !important;
+    align-items: center !important;
+    padding: 8px 14px 10px !important;
+    width: 100% !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span:nth-child(1) {
+    text-align: center !important;
+  }
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span:nth-child(2) {
+    text-align: center !important;
+    justify-self: center !important;
+  }
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span:nth-child(3) {
+    text-align: right !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-row {
+    display: grid !important;
+    grid-template-columns: 78px minmax(0, 1fr) 120px !important;
+    align-items: center !important;
+    gap: 10px !important;
+    padding: 14px 12px !important;
+    width: 100% !important;
+    border: none !important;
+    border-bottom: 1px solid rgba(94, 63, 58, 0.14) !important;
+    border-radius: 0 !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-row:last-child {
+    border-bottom: none !important;
+  }
+
+  .app-page-main.route-constructors .constructors-row-team {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 12px !important;
+    min-width: 0 !important;
+  }
+
+  .app-page-main.route-constructors .constructors-row-team .desktop-standings-name {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .app-page-main.route-constructors .constructors-row-team .desktop-standings-name i {
+    font-style: normal !important;
+    color: #ffd700 !important;
+    margin-left: 6px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-row-action {
+    text-align: right !important;
+    color: rgba(227, 226, 227, 0.72) !important;
+    font-size: 18px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-insights-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-insight-card {
+    border-radius: 10px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #1b1c1d !important;
+    padding: 14px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-insight-title {
+    margin-bottom: 8px !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.14em !important;
+    color: #e10600 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-constructors .constructors-insight-card p {
+    margin: 0 !important;
+    font-size: 12px !important;
+    color: rgba(227, 226, 227, 0.62) !important;
+    line-height: 1.45 !important;
+  }
+
+  .app-page-main.route-constructors .constructors-power-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    font-size: 11px !important;
+    margin-top: 8px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-power-row b {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 12px !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  .app-page-main.route-constructors .constructors-power-bar {
+    height: 4px !important;
+    border-radius: 999px !important;
+    background: #292a2b !important;
+    overflow: hidden !important;
+    margin: 4px 0 2px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-power-bar i {
+    display: block !important;
+    height: 100% !important;
+    background: #e10600 !important;
+  }
+
+  .app-page-main.route-constructors .constructors-export-card {
+    text-align: center !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  .app-page-main.route-constructors .constructors-export-icon {
+    font-size: 30px !important;
+    margin-bottom: 6px !important;
+    color: #ffb4a8 !important;
+  }
+
+  .app-page-main.route-constructors .constructors-export-card button {
+    margin-top: 10px !important;
+    min-height: 34px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #292a2b !important;
+    color: #e3e2e3 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-size: 10px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 700 !important;
+    padding: 0 12px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-layout {
+    display: grid !important;
+    grid-template-columns: minmax(340px, 0.95fr) minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .app-page-main.route-season .season-races-grid {
+    display: none !important;
+  }
+
+  .app-page-main.route-season .season-page-head .page-head-controls {
+    display: none !important;
+  }
+
+  .app-page-main.route-compare .driver-select .custom-select-trigger {
+    min-height: 56px !important;
+    height: auto !important;
+    font-size: 16px !important;
+    line-height: 1.1 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 700 !important;
+    border-radius: 10px !important;
+    background: #292a2b !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    white-space: nowrap !important;
+    word-break: normal !important;
+    overflow: hidden !important;
+  }
+
+  .app-page-main.route-compare .driver-select {
+    max-width: none !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .app-page-main.route-compare .driver-select .custom-select-trigger > span {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+  }
+
+  .app-page-main.route-compare .compare-controls-header {
+    margin-bottom: 16px !important;
+  }
+
+  .app-page-main.route-compare .compare-controls-kicker {
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    color: rgba(227, 226, 227, 0.5) !important;
+    margin-bottom: 4px !important;
+  }
+
+  .app-page-main.route-compare .compare-controls-title {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: clamp(46px, 4.5vw, 66px) !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+    letter-spacing: -0.04em !important;
+    font-style: italic !important;
+  }
+
+  .app-page-main.route-compare .compare-layout-redesign {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+
+  .app-page-main.route-compare .compare-controls-panel-redesign {
+    border-radius: 14px !important;
+    padding: 16px !important;
+    background: #1b1c1d !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+  }
+
+  .app-page-main.route-compare .compare-redesign-tabs {
+    max-width: 360px !important;
+    margin-bottom: 14px !important;
+    margin-left: auto !important;
+  }
+
+  .app-page-main.route-compare .compare-redesign-selectors {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr) 180px !important;
+    gap: 10px !important;
+    align-items: center !important;
+    margin-bottom: 12px !important;
+  }
+
+  .app-page-main.route-compare .compare-redesign-selectors .btn-compare {
+    grid-column: auto !important;
+    height: 56px !important;
+    margin: 0 !important;
+  }
+
+  .app-page-main.route-compare .page-head-row-compare {
+    justify-content: flex-start !important;
+  }
+
+  .app-page-main.route-compare .page-head-row-compare .page-head-controls {
+    margin-left: auto !important;
+  }
+
+  .app-page-main.route-compare .compare-selected-preview {
+    margin: 10px 0 2px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) !important;
+    gap: 8px !important;
+    align-items: center !important;
+    text-align: center !important;
+    color: rgba(227, 226, 227, 0.78) !important;
+    font-size: 12px !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+  }
+
+  .app-page-main.route-compare .compare-result-shell {
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 14px !important;
+    background: #1b1c1d !important;
+    padding: 16px !important;
+  }
+
+  .app-page-main.route-compare .btn-compare,
+  .app-page-main.route-settings .btn-save {
+    background: linear-gradient(45deg, #e10600, #c00500) !important;
+    border-radius: 10px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .app-page-main.route-compare .compare-stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .app-page-main.route-compare .stat-card {
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #292a2b !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+  }
+
+  .app-page-main.route-compare .stat-title {
+    margin: 0 !important;
+    padding: 8px 12px !important;
+    background: rgba(18, 19, 20, 0.55) !important;
+    border-bottom: 1px solid rgba(94, 63, 58, 0.2) !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    letter-spacing: 0.12em !important;
+    font-size: 10px !important;
+  }
+
+  .app-page-main.route-compare .stat-score {
+    padding: 16px 12px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 46px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .app-page-main.route-compare .compare-chart-container {
+    background: #1b1c1d !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 14px !important;
+    padding: 16px !important;
+    margin-bottom: 26px !important;
+    height: auto !important;
+    overflow: hidden !important;
+  }
+
+  .app-page-main.route-compare .compare-chart-head h3 {
+    margin: 0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-size: 34px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.03em !important;
+    font-style: italic !important;
+  }
+
+  .app-page-main.route-compare .compare-chart-head p {
+    margin: 6px 0 0 !important;
+    font-size: 12px !important;
+    color: rgba(227, 226, 227, 0.58) !important;
+    letter-spacing: 0.03em !important;
+  }
+
+  .app-page-main.route-compare .compare-chart-canvas-wrap {
+    margin: 0 !important;
+    height: 460px !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .app-page-main.route-compare .compare-insights-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr) !important;
+    gap: 14px !important;
+    margin-top: 26px !important;
+  }
+
+  .app-page-main.route-compare .compare-insight-card,
+  .app-page-main.route-compare .compare-verdict-card {
+    background: #292a2b !important;
+    border: 1px solid rgba(94, 63, 58, 0.22) !important;
+    border-radius: 12px !important;
+    padding: 18px !important;
+  }
+
+  .app-page-main.route-compare .compare-insight-tag {
+    background: #ffd2cc !important;
+    color: #7b0a06 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-size: 10px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .app-page-main.route-compare .compare-insight-card h4,
+  .app-page-main.route-compare .compare-verdict-card h4 {
+    margin: 0 0 10px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: -0.02em !important;
+    font-size: 35px !important;
+    line-height: 0.95 !important;
+    font-style: italic !important;
+  }
+
+  .app-page-main.route-compare .compare-insight-card p,
+  .app-page-main.route-compare .compare-verdict-card p {
+    font-size: 14px !important;
+    color: rgba(227, 226, 227, 0.7) !important;
+    line-height: 1.55 !important;
+  }
+
+  .app-page-main.route-compare .compare-verdict-icon {
+    font-size: 34px !important;
+    margin-bottom: 8px !important;
+    color: #ffb4a8 !important;
+  }
+
+  .app-page-main.route-compare .compare-verdict-score {
+    margin-top: 14px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #121314 !important;
+    padding: 12px !important;
+  }
+
+  .app-page-main.route-compare .compare-verdict-score span {
+    font-size: 10px !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    color: rgba(227, 226, 227, 0.54) !important;
+  }
+
+  .app-page-main.route-compare .compare-verdict-score b {
+    margin-top: 2px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 38px !important;
+    line-height: 1 !important;
+    color: #e3e2e3 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .app-page-main.route-race-results #race-content,
+  .app-page-main.route-quali-results #quali-content,
+  .app-page-main.route-sprint-results #sprint-content,
+  .app-page-main.route-sprint-quali-results #sprint-quali-content {
+    border-radius: 14px !important;
+    background: #1b1c1d !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    padding: 14px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-mobile,
+  .app-page-main.route-quali-results .quali-results-mobile,
+  .app-page-main.route-sprint-results .sprint-results-mobile,
+  .app-page-main.route-sprint-quali-results .sprint-quali-results-mobile {
+    display: none !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop,
+  .app-page-main.route-quali-results .race-results-desktop,
+  .app-page-main.route-sprint-results .race-results-desktop,
+  .app-page-main.route-sprint-quali-results .race-results-desktop {
+    display: block !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-head,
+  .app-page-main.route-quali-results .race-results-desktop-head,
+  .app-page-main.route-sprint-results .race-results-desktop-head,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-kicker,
+  .app-page-main.route-quali-results .race-results-desktop-kicker,
+  .app-page-main.route-sprint-results .race-results-desktop-kicker,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-kicker {
+    font-family: "Space Grotesk", sans-serif;
+    color: #e10600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 11px;
+    margin-bottom: 6px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-head h1,
+  .app-page-main.route-quali-results .race-results-desktop-head h1,
+  .app-page-main.route-sprint-results .race-results-desktop-head h1,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-head h1 {
+    margin: 0;
+    font-family: "Space Grotesk", sans-serif;
+    text-transform: uppercase;
+    font-size: clamp(52px, 5.6vw, 78px);
+    line-height: 0.9;
+    font-style: italic;
+    letter-spacing: -0.04em;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-head p,
+  .app-page-main.route-quali-results .race-results-desktop-head p,
+  .app-page-main.route-sprint-results .race-results-desktop-head p,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-head p {
+    margin: 8px 0 0;
+    color: rgba(227, 226, 227, 0.7);
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.12em;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-controls,
+  .app-page-main.route-quali-results .race-results-desktop-controls,
+  .app-page-main.route-sprint-results .race-results-desktop-controls,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-round-select,
+  .app-page-main.route-quali-results .race-results-desktop-round-select,
+  .app-page-main.route-sprint-results .race-results-desktop-round-select,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-round-select {
+    min-width: 300px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-tabs,
+  .app-page-main.route-quali-results .race-results-desktop-tabs,
+  .app-page-main.route-sprint-results .race-results-desktop-tabs,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-tabs {
+    width: 210px;
+    margin: 0;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-content,
+  .app-page-main.route-quali-results .race-results-desktop-content,
+  .app-page-main.route-sprint-results .race-results-desktop-content,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-content {
+    border: 1px solid rgba(94, 63, 58, 0.24);
+    border-radius: 14px;
+    background: #1b1c1d;
+    padding: 16px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-hero-grid,
+  .app-page-main.route-quali-results .race-results-desktop-hero-grid,
+  .app-page-main.route-sprint-results .race-results-desktop-hero-grid,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 230px;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner,
+  .app-page-main.route-quali-results .race-results-desktop-winner,
+  .app-page-main.route-sprint-results .race-results-desktop-winner,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-winner {
+    position: relative;
+    min-height: 250px;
+    border-radius: 12px;
+    padding: 18px;
+    overflow: hidden;
+    border: 1px solid rgba(94, 63, 58, 0.24);
+    background:
+      linear-gradient(180deg, rgba(18, 19, 20, 0.26) 0%, rgba(18, 19, 20, 0.88) 100%),
+      url("https://images.unsplash.com/photo-1514316454349-750a7fd3da3a?auto=format&fit=crop&w=1400&q=80")
+        center/cover no-repeat;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-overlay,
+  .app-page-main.route-quali-results .race-results-desktop-winner-overlay,
+  .app-page-main.route-sprint-results .race-results-desktop-winner-overlay,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-winner-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(18, 19, 20, 0.1) 0%, rgba(18, 19, 20, 0.82) 76%);
+    pointer-events: none;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-badge,
+  .app-page-main.route-race-results .race-results-desktop-winner-name,
+  .app-page-main.route-race-results .race-results-desktop-winner-meta,
+  .app-page-main.route-quali-results .race-results-desktop-winner-badge,
+  .app-page-main.route-quali-results .race-results-desktop-winner-name,
+  .app-page-main.route-quali-results .race-results-desktop-winner-meta,
+  .app-page-main.route-sprint-results .race-results-desktop-winner-badge,
+  .app-page-main.route-sprint-results .race-results-desktop-winner-name,
+  .app-page-main.route-sprint-results .race-results-desktop-winner-meta,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-winner-badge,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-winner-name,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-winner-meta {
+    position: relative;
+    z-index: 1;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-badge,
+  .app-page-main.route-quali-results .race-results-desktop-winner-badge,
+  .app-page-main.route-sprint-results .race-results-desktop-winner-badge,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-winner-badge {
+    align-self: flex-start;
+    margin-bottom: 10px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: #ffd2cc;
+    color: #7b0a06;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 10px;
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-name,
+  .app-page-main.route-quali-results .race-results-desktop-winner-name,
+  .app-page-main.route-sprint-results .race-results-desktop-winner-name,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-winner-name {
+    font-family: "Space Grotesk", sans-serif;
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    font-size: clamp(36px, 3.8vw, 56px);
+    line-height: 0.92;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-meta,
+  .app-page-main.route-quali-results .race-results-desktop-winner-meta,
+  .app-page-main.route-sprint-results .race-results-desktop-winner-meta,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-winner-meta {
+    margin-top: 8px;
+    color: rgba(227, 226, 227, 0.72);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary,
+  .app-page-main.route-quali-results .race-results-desktop-summary,
+  .app-page-main.route-sprint-results .race-results-desktop-summary,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-summary {
+    border-radius: 12px;
+    border: 1px solid rgba(94, 63, 58, 0.24);
+    background: #292a2b;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary-points,
+  .app-page-main.route-quali-results .race-results-desktop-summary-points,
+  .app-page-main.route-sprint-results .race-results-desktop-summary-points,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-summary-points {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 52px;
+    line-height: 1;
+    color: #ffb4a8;
+    font-weight: 700;
+    letter-spacing: -0.04em;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary-label,
+  .app-page-main.route-quali-results .race-results-desktop-summary-label,
+  .app-page-main.route-sprint-results .race-results-desktop-summary-label,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-summary-label {
+    margin-top: -6px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 10px;
+    color: rgba(227, 226, 227, 0.48);
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary-row,
+  .app-page-main.route-quali-results .race-results-desktop-summary-row,
+  .app-page-main.route-sprint-results .race-results-desktop-summary-row,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(227, 226, 227, 0.6);
+    border-top: 1px solid rgba(94, 63, 58, 0.2);
+    padding-top: 8px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary-row b,
+  .app-page-main.route-quali-results .race-results-desktop-summary-row b,
+  .app-page-main.route-sprint-results .race-results-desktop-summary-row b,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-summary-row b {
+    color: #ffd2cc;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-table,
+  .app-page-main.route-quali-results .race-results-desktop-table,
+  .app-page-main.route-sprint-results .race-results-desktop-table,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-table {
+    border-radius: 12px;
+    border: 1px solid rgba(94, 63, 58, 0.2);
+    background: #121314;
+    overflow: hidden;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-table-head,
+  .app-page-main.route-race-results .race-results-desktop-row,
+  .app-page-main.route-quali-results .race-results-desktop-table-head,
+  .app-page-main.route-quali-results .race-results-desktop-row,
+  .app-page-main.route-sprint-results .race-results-desktop-table-head,
+  .app-page-main.route-sprint-results .race-results-desktop-row,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-table-head,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-row {
+    display: grid;
+    grid-template-columns: 66px minmax(160px, 1fr) minmax(120px, 1fr) 140px 96px 72px 46px;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-table-head,
+  .app-page-main.route-quali-results .race-results-desktop-table-head,
+  .app-page-main.route-sprint-results .race-results-desktop-table-head,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-table-head {
+    color: rgba(227, 226, 227, 0.48);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 10px;
+    font-family: "Space Grotesk", sans-serif;
+    border-bottom: 1px solid rgba(94, 63, 58, 0.22);
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row,
+  .app-page-main.route-quali-results .race-results-desktop-row,
+  .app-page-main.route-sprint-results .race-results-desktop-row,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-row {
+    border-bottom: 1px solid rgba(94, 63, 58, 0.14);
+    background: #1b1c1d;
+    font-size: 13px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row:last-child,
+  .app-page-main.route-quali-results .race-results-desktop-row:last-child,
+  .app-page-main.route-sprint-results .race-results-desktop-row:last-child,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-row:last-child {
+    border-bottom: none;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row.winner,
+  .app-page-main.route-quali-results .race-results-desktop-row.winner,
+  .app-page-main.route-sprint-results .race-results-desktop-row.winner,
+  .app-page-main.route-sprint-quali-results .race-results-desktop-row.winner {
+    background: #292a2b;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(1),
+  .app-page-main.route-quali-results .race-results-desktop-row span:nth-child(1),
+  .app-page-main.route-sprint-results .race-results-desktop-row span:nth-child(1),
+  .app-page-main.route-sprint-quali-results .race-results-desktop-row span:nth-child(1) {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 26px;
+    letter-spacing: -0.03em;
+    color: #ffb4a8;
+    font-weight: 700;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(2),
+  .app-page-main.route-quali-results .race-results-desktop-row span:nth-child(2),
+  .app-page-main.route-sprint-results .race-results-desktop-row span:nth-child(2),
+  .app-page-main.route-sprint-quali-results .race-results-desktop-row span:nth-child(2) {
+    font-family: "Space Grotesk", sans-serif;
+    text-transform: uppercase;
+    font-style: italic;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(3),
+  .app-page-main.route-quali-results .race-results-desktop-row span:nth-child(3),
+  .app-page-main.route-sprint-results .race-results-desktop-row span:nth-child(3),
+  .app-page-main.route-sprint-quali-results .race-results-desktop-row span:nth-child(3) {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(227, 226, 227, 0.62);
+    font-size: 11px;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(4),
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(5),
+  .app-page-main.route-quali-results .race-results-desktop-row span:nth-child(4),
+  .app-page-main.route-quali-results .race-results-desktop-row span:nth-child(5),
+  .app-page-main.route-sprint-results .race-results-desktop-row span:nth-child(4),
+  .app-page-main.route-sprint-results .race-results-desktop-row span:nth-child(5),
+  .app-page-main.route-sprint-quali-results .race-results-desktop-row span:nth-child(4),
+  .app-page-main.route-sprint-quali-results .race-results-desktop-row span:nth-child(5) {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(6),
+  .app-page-main.route-quali-results .race-results-desktop-row span:nth-child(6),
+  .app-page-main.route-sprint-results .race-results-desktop-row span:nth-child(6),
+  .app-page-main.route-sprint-quali-results .race-results-desktop-row span:nth-child(6) {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 30px;
+    font-weight: 700;
+    color: #ffb4a8;
+    letter-spacing: -0.03em;
+    text-align: right;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(7),
+  .app-page-main.route-quali-results .race-results-desktop-row span:nth-child(7),
+  .app-page-main.route-sprint-results .race-results-desktop-row span:nth-child(7),
+  .app-page-main.route-sprint-quali-results .race-results-desktop-row span:nth-child(7) {
+    text-align: center;
+    font-size: 20px;
+    color: #ffb4a8;
+  }
+
+  .app-page-main.route-quali-results .race-results-desktop-winner {
+    background: linear-gradient(180deg, rgba(18, 19, 20, 0.18) 0%, rgba(18, 19, 20, 0.86) 100%);
+  }
+
+  .app-page-main.route-quali-results .race-results-desktop-hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .app-page-main.route-quali-results .race-results-desktop-summary {
+    width: 100%;
+  }
+
+  .app-page-main.route-quali-results .race-results-desktop-winner-portrait {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: right center;
+    z-index: 0;
+    filter: saturate(1.02) contrast(1.03);
+  }
+
+  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-table-head,
+  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-row {
+    grid-template-columns: 66px minmax(180px, 1fr) 88px 140px 92px;
+  }
+
+  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-table-head span,
+  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-row span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-quali-results .race-results-desktop-winner-name {
+    max-width: min(62%, 640px);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .app-page-main.route-quali-results .race-results-desktop-winner-meta {
+    max-width: min(62%, 640px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner {
+    background: linear-gradient(180deg, rgba(18, 19, 20, 0.18) 0%, rgba(18, 19, 20, 0.86) 100%);
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary {
+    width: 100%;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-portrait {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: right center;
+    z-index: 0;
+    filter: saturate(1.02) contrast(1.03);
+  }
+
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-table-head,
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-row {
+    grid-template-columns: 66px minmax(180px, 1fr) minmax(140px, 1fr) 140px 100px;
+  }
+
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-table-head span,
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-row span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-race-results .standings-item,
+  .app-page-main.route-quali-results .standings-item,
+  .app-page-main.route-sprint-results .standings-item,
+  .app-page-main.route-sprint-quali-results .standings-item {
+    border-radius: 10px !important;
+    border: 1px solid rgba(94, 63, 58, 0.18) !important;
+    background: #292a2b !important;
+  }
+
+  .app-page-main.route-voting .voting-page-shell {
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 12px !important;
+    padding: 12px !important;
+    background: #1b1c1d !important;
+  }
+
+  .app-page-main.route-voting .voting-page-tabs {
+    max-width: 460px !important;
+  }
+
+  .app-page-main.route-voting .voting-chart-accordion,
+  .app-page-main.route-voting .voting-accordion-item {
+    background: #292a2b !important;
+    border-color: rgba(94, 63, 58, 0.26) !important;
+  }
+
+  .app-page-main.route-voting .voting-accordion-header,
+  .app-page-main.route-voting .voting-chart-toggle {
+    font-size: 13px !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  .app-page-main.route-favorites .grid-select {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .app-page-main.route-favorites .select-item {
+    min-height: 116px !important;
+    align-items: flex-start !important;
+    padding: 18px !important;
+    border-radius: 12px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-hero {
+    min-height: 420px !important;
+    background: #1b1c1d !important;
+  }
+
+  .app-page-main.route-next-race .next-race-mobile {
+    display: none !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 16px !important;
+    align-items: start !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-control {
+    background: #1b1c1d !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-control h4 {
+    margin: 0 !important;
+    padding: 12px 12px 2px !important;
+    color: #e10600 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 13px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-control p {
+    margin: 0 !important;
+    padding: 0 12px 12px !important;
+    color: rgba(227, 226, 227, 0.58) !important;
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-control nav {
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 4px 0 8px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-control button {
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: rgba(227, 226, 227, 0.62) !important;
+    text-align: left !important;
+    padding: 11px 14px !important;
+    font-size: 12px !important;
+    cursor: default !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-control button.active {
+    background: #343536 !important;
+    color: #e10600 !important;
+    border-left: 3px solid #e10600 !important;
+    padding-left: 11px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-main {
+    display: grid !important;
+    gap: 14px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-hero {
+    display: grid !important;
+    grid-template-columns: minmax(320px, 0.88fr) minmax(0, 1fr) !important;
+    gap: 16px !important;
+    align-items: center !important;
+    animation: nextRaceDesktopAppear 0.6s ease-out both !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-round {
+    display: inline-block !important;
+    background: #e10600 !important;
+    color: #fff !important;
+    padding: 4px 8px !important;
+    border-radius: 4px !important;
+    text-transform: uppercase !important;
+    font-size: 10px !important;
+    letter-spacing: 0.1em !important;
+    font-family: "Space Grotesk", sans-serif !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-left h1 {
+    margin: 10px 0 0 !important;
+    white-space: pre-line !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-size: clamp(66px, 6.5vw, 92px) !important;
+    line-height: 0.84 !important;
+    letter-spacing: -0.05em !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-location {
+    margin-top: 14px !important;
+    border-left: 2px solid #e10600 !important;
+    padding-left: 10px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-location b {
+    display: block !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-size: 21px !important;
+    font-style: italic !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-location span {
+    display: block !important;
+    margin-top: 4px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    font-size: 11px !important;
+    color: rgba(227, 226, 227, 0.66) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-left > button {
+    margin-top: 18px !important;
+    border: 0 !important;
+    background: linear-gradient(90deg, #e10600, #bd0400) !important;
+    color: #fff !important;
+    border-radius: 6px !important;
+    padding: 12px 20px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-panel {
+    min-height: 240px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #1b1c1d !important;
+    display: grid !important;
+    place-items: center !important;
+    box-shadow: 0 0 0 1px rgba(225, 6, 0, 0.16), 0 0 34px rgba(225, 6, 0, 0.16) !important;
+    padding: 14px !important;
+    opacity: 0;
+    transform: translate3d(-24px, 0, 0) scale(0.99);
+    will-change: transform, opacity;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-panel.track-panel-appear {
+    animation: nextRaceTrackPanelAppear 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg {
+    width: 100% !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg svg {
+    width: 84% !important;
+    height: 78% !important;
+  }
+
+  @keyframes nextRaceTrackPanelAppear {
+    from { opacity: 0; transform: translate3d(-24px, 0, 0) scale(0.99); }
+    to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg path,
+  .app-page-main.route-next-race .next-race-desktop-track-svg polyline {
+    stroke: #e10600 !important;
+    fill: none !important;
+    stroke-width: 2.2 !important;
+    filter: drop-shadow(0 0 8px rgba(225, 6, 0, 0.7)) !important;
+    opacity: 1 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-fill,
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-outline {
+    /* Keep base animation behavior from `styles.css`:
+       - `.track-fill` starts hidden and fades in on `.track-fill.animate`
+       - `.track-outline` draws via dashoffset on `.track-outline.animate` */
+    transform: none !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-outline {
+    transition: stroke-dashoffset 5.2s ease-in-out !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-fill {
+    transition: opacity 1.35s ease-in-out 3.3s !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-stats {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-stat {
+    background: #292a2b !important;
+    border-left: 2px solid #e10600 !important;
+    border-radius: 4px !important;
+    padding: 14px 12px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-stat span {
+    display: block !important;
+    color: rgba(227, 226, 227, 0.6) !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.14em !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-stat strong {
+    display: block !important;
+    margin-top: 8px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 42px !important;
+    line-height: 0.9 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-head {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin: 2px 0 8px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-head h2 {
+    margin: 0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-style: italic !important;
+    letter-spacing: -0.03em !important;
+    font-size: 48px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-head span {
+    text-transform: uppercase !important;
+    letter-spacing: 0.14em !important;
+    font-size: 10px !important;
+    color: rgba(227, 226, 227, 0.56) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article {
+    background: #1b1c1d !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    border-bottom: 3px solid transparent !important;
+    border-radius: 6px !important;
+    padding: 12px !important;
+    min-height: 124px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article.active {
+    border-bottom-color: #e10600 !important;
+    background: #343536 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article u {
+    text-decoration: none !important;
+    font-size: 9px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    color: #e10600 !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article h5 {
+    margin: 8px 0 0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-size: clamp(17px, 1.5vw, 22px) !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1.05 !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    hyphens: auto !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article div {
+    margin-top: 14px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article b {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 30px !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article small {
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    color: rgba(227, 226, 227, 0.56) !important;
+    font-size: 9px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-facts {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 0.9fr) !important;
+    gap: 14px !important;
+    margin-top: 4px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-overview {
+    min-height: 320px !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background:
+      linear-gradient(180deg, rgba(18, 19, 20, 0.12) 0%, rgba(18, 19, 20, 0.9) 100%),
+      url("https://lh3.googleusercontent.com/aida-public/AB6AXuC9oGnzAYmzhMt9y6oxfSLreSKAdpg3YjA6pUXngWThsMRGb020qTF2Fsz74sYDbFjUU_cb2L74IvWEShv0E4XSOrMnLQ1c7-L8Jslz1rvoUYVGoq-yZP9I3GdN-Kf7IMsiqWtf_WPIyTYYi6TJ4IKWVmGxhanW8AxB9Clt8RDoiQo74I-mVaMErm_nTvo7QWcx4yeml5GKSD_ZFqXObTY_Jgyqs1GnioIDj1U7ngzgzn8-rEZHHw4HqhGSVmLf4TWNwd4h54tlVOXd")
+      center/cover no-repeat !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    padding: 18px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-overview h3 {
+    margin: 0 0 8px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-style: italic !important;
+    letter-spacing: -0.03em !important;
+    font-size: 52px !important;
+    line-height: 0.86 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-overview p {
+    margin: 0 !important;
+    max-width: 430px !important;
+    color: rgba(227, 226, 227, 0.78) !important;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-facts-list {
+    display: grid !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-fact-item {
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 8px !important;
+    background: #1b1c1d !important;
+    padding: 12px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-fact-head {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-fact-head h6 {
+    margin: 0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-size: 20px !important;
+    line-height: 0.98 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-fact-head span {
+    color: #e10600 !important;
+    font-size: 18px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-fact-item p {
+    margin: 8px 0 0 !important;
+    color: rgba(227, 226, 227, 0.72) !important;
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-date {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-style: italic !important;
+    font-size: clamp(48px, 5vw, 72px) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-hero,
+  .app-page-main.route-race-details .track-map-container.race-details {
+    border-radius: 14px !important;
+    border: 1px solid rgba(94, 63, 58, 0.26) !important;
+    overflow: hidden !important;
+  }
+
+  .app-page-main.route-next-race .standings-list,
+  .app-page-main.route-race-details .schedule-card {
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 12px !important;
+    background: #1b1c1d !important;
+  }
+
+  .app-page-main.route-next-race .standings-item,
+  .app-page-main.route-race-details .session-row {
+    border-radius: 10px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #292a2b !important;
+  }
+
+  .app-page-main.route-next-race h3,
+  .app-page-main.route-race-details .schedule-title,
+  .app-page-main.route-race-details .circuit-title {
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: -0.02em !important;
+    font-style: italic !important;
+  }
+
+  .app-page-main.route-race-details .race-details-result-link,
+  .app-page-main.route-season .season-result-link {
+    border-radius: 8px !important;
+    border: 1px solid rgba(94, 63, 58, 0.3) !important;
+    background: #292a2b !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .app-page-main.route-season .season-desktop-layout {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr) !important;
+    gap: 18px !important;
+    align-items: start !important;
+  }
+
+  .app-page-main.route-season .season-desktop-primary {
+    position: sticky !important;
+    top: 12px !important;
+    align-self: start !important;
+  }
+
+  .app-page-main.route-season .btn-back,
+  .app-page-main.route-season .season-page-head {
+    display: none !important;
+  }
+
+  .app-page-main.route-season .season-desktop-list {
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    border-radius: 12px !important;
+    background: #1b1c1d !important;
+    padding: 10px !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item {
+    border: 1px solid rgba(94, 63, 58, 0.18) !important;
+    border-radius: 10px !important;
+    background: #292a2b !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item.active {
+    border-color: rgba(225, 6, 0, 0.75) !important;
+    background: #343536 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-main-card {
+    border-radius: 14px !important;
+    padding: 16px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-primary-head {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+    gap: 14px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-main-heading {
+    margin: 0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-style: italic !important;
+    letter-spacing: -0.03em !important;
+    line-height: 0.95 !important;
+    font-size: clamp(38px, 4.8vw, 78px) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-main-subheading {
+    margin: 8px 0 0 !important;
+    font-size: 12px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.16em !important;
+    color: #e10600 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-season-picker {
+    display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-season-label {
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.14em !important;
+    color: rgba(227, 226, 227, 0.5) !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-season-select {
+    min-width: 128px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(94, 63, 58, 0.22) !important;
+    background: #292a2b !important;
+    color: #e3e2e3 !important;
+    padding: 10px 14px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 34px !important;
+    line-height: 1 !important;
+    font-weight: 700 !important;
+  }
+
+  @media (max-width: 1360px) {
+    .app-page-main.route-season .season-desktop-layout {
+      grid-template-columns: minmax(0, 1fr) !important;
+      gap: 12px !important;
+    }
+
+    .app-page-main.route-season .season-desktop-primary {
+      position: static !important;
+      top: auto !important;
+    }
+
+    .app-page-main.route-season .season-desktop-primary-head {
+      flex-wrap: wrap !important;
+      align-items: flex-start !important;
+      gap: 10px !important;
+    }
+  }
+
+  @media (max-width: 1240px) {
+    .app-page-main.route-season .season-desktop-primary-head {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 10px !important;
+    }
+
+    .app-page-main.route-season .season-desktop-season-picker {
+      align-self: flex-start !important;
+      flex-wrap: wrap !important;
+      gap: 8px !important;
+    }
+
+    .app-page-main.route-season .season-desktop-season-select {
+      min-width: 112px !important;
+      font-size: 28px !important;
+      padding: 8px 12px !important;
+    }
+  }
+
+  .app-page-main.route-season .season-desktop-hero-card {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr) !important;
+    gap: 14px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-media {
+    min-height: 420px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    padding: 22px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-end !important;
+    background:
+      linear-gradient(180deg, rgba(18, 19, 20, 0.18) 0%, rgba(18, 19, 20, 0.86) 100%),
+      url("https://lh3.googleusercontent.com/aida-public/AB6AXuBoSu1U_lcv3gHlJVA_kOyg_p49AdeZr8LzlyjezHlNtJ_niXgPWYDKYQRsWNQMbXNL2xCTjxyygc9vEYkB536pv-AeuUbFNJ4JECp5QdPU8yx6qQYDbM9ZlAMSOy2MCUIFg1H35PPA3qDZ_LQm929bqmQgqG0NmEiuEU8ElmnhgCvyw59NTNg_8s9_CuL3rlPH203434aVIHyCC90oWI3uOznN_15B2OWSRGL2MkTBpjqF8aHVlsRTVl5oouO2fzbCZrvKsMArDPDN")
+      center/cover no-repeat !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-next {
+    align-self: flex-start !important;
+    margin-bottom: 12px !important;
+    padding: 5px 10px !important;
+    border-radius: 6px !important;
+    background: #e10600 !important;
+    color: #fff2f0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-media h4 {
+    margin: 0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-style: italic !important;
+    letter-spacing: -0.03em !important;
+    line-height: 0.92 !important;
+    font-size: clamp(42px, 4.2vw, 68px) !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-meta {
+    margin-top: 10px !important;
+    display: flex !important;
+    gap: 14px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    font-size: 11px !important;
+    color: rgba(227, 226, 227, 0.72) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-schedule h5 {
+    margin: 0 0 12px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.14em !important;
+    font-size: 11px !important;
+    color: #e10600 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-session-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-session-item {
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    border-radius: 10px !important;
+    background: #121314 !important;
+    padding: 10px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-session-item span {
+    display: block !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    color: rgba(227, 226, 227, 0.48) !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .app-page-main.route-season .season-desktop-session-item b {
+    display: block !important;
+    margin-top: 3px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 27px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  .app-page-main.route-season .season-desktop-session-item.focus {
+    border-color: rgba(225, 6, 0, 0.65) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-title {
+    font-size: clamp(28px, 3.1vw, 46px) !important;
+    line-height: 1 !important;
+    font-style: italic !important;
+    text-transform: uppercase !important;
+    letter-spacing: -0.03em !important;
+    font-family: "Space Grotesk", sans-serif !important;
+  }
+
+  .app-page-main.route-season .season-desktop-subtitle {
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    font-size: 11px !important;
+    color: rgba(227, 226, 227, 0.6) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-stat-box,
+  .app-page-main.route-season .season-desktop-fact-item {
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    border-radius: 10px !important;
+    background: #292a2b !important;
+  }
+
+  .app-page-main.route-season .season-desktop-stats {
+    align-items: start !important;
+  }
+
+  .app-page-main.route-season .season-desktop-stat-box {
+    align-self: start !important;
+  }
+
+  .app-page-main.route-season .season-desktop-stat-value {
+    line-height: 1.05 !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  .app-page-main.route-season .season-desktop-facts-grid {
+    margin-top: 14px !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-facts-grid .season-desktop-fact-item {
+    border-left: 0 !important;
+    padding: 16px !important;
+    min-height: 180px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-timeline-title {
+    margin: 0 0 10px !important;
+    color: rgba(227, 226, 227, 0.46) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.14em !important;
+    font-size: 11px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+  }
+
+  .app-page-main.route-season .season-desktop-timeline {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item {
+    padding: 12px 14px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item .race-round {
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    color: rgba(227, 226, 227, 0.5) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item .race-round-prefix {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item .race-name {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 48px !important;
+    line-height: 0.95 !important;
+    text-transform: uppercase !important;
+    font-style: italic !important;
+    letter-spacing: -0.03em !important;
+    margin-top: 4px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item .race-loc {
+    margin-top: 4px !important;
+    font-size: 12px !important;
+    color: rgba(227, 226, 227, 0.6) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-icon {
+    color: #ffb4a8 !important;
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 999px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.28) !important;
+    background: #292a2b !important;
+  }
+
+  .app-page-main.route-season .season-desktop-fact-text {
+    font-style: italic !important;
+  }
+
+  .app-page-main.route-season .season-desktop-track-wrap {
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #121314 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-card-header,
+  .app-page-main.route-constructor-details .constructor-hero {
+    border-radius: 14px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: linear-gradient(180deg, #292a2b 0%, #1b1c1d 100%) !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-details-mobile {
+    display: none !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop {
+    display: block !important;
+  }
+
+  .app-page-main.route-constructor-details .btn-back {
+    display: none !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-hero {
+    position: relative !important;
+    min-height: 430px !important;
+    border-radius: 14px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    overflow: hidden !important;
+    padding: 20px !important;
+    background:
+      linear-gradient(180deg, rgba(18, 19, 20, 0.12) 0%, rgba(18, 19, 20, 0.86) 100%),
+      #1b1c1d !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-car {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    opacity: 0.62 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-brand {
+    position: absolute !important;
+    left: 46px !important;
+    right: 46px !important;
+    bottom: 36px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 18px !important;
+    z-index: 1 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-logo {
+    width: 106px !important;
+    height: 106px !important;
+    object-fit: contain !important;
+    filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.2)) !important;
+    background: rgba(13, 14, 15, 0.8) !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 8px !important;
+    padding: 8px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-brand h1 {
+    margin: 0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: -0.04em !important;
+    line-height: 0.88 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-brand h1 span {
+    display: block !important;
+    font-style: normal !important;
+    font-size: clamp(64px, 6.4vw, 108px) !important;
+    color: #e3e2e3 !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-brand h1 em {
+    display: block !important;
+    margin-top: 2px !important;
+    font-style: normal !important;
+    font-size: clamp(64px, 6.4vw, 108px) !important;
+    color: #e10600 !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-meta {
+    margin-top: 10px !important;
+    display: flex !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-meta span {
+    border: 1px solid rgba(94, 63, 58, 0.3) !important;
+    border-radius: 999px !important;
+    background: rgba(18, 19, 20, 0.54) !important;
+    color: rgba(227, 226, 227, 0.9) !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.11em !important;
+    padding: 5px 10px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-grid {
+    display: grid !important;
+    grid-template-columns: 360px minmax(0, 1fr) !important;
+    gap: 14px !important;
+    margin-top: 14px !important;
+    align-items: start !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-left {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-control-panel {
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #1b1c1d !important;
+    padding: 12px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-control-head {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-control-head img {
+    width: 42px !important;
+    height: 42px !important;
+    object-fit: contain !important;
+    border-radius: 8px !important;
+    background: rgba(13, 14, 15, 0.75) !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    padding: 5px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-control-head b {
+    display: block !important;
+    font-size: 16px !important;
+    line-height: 1 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: -0.02em !important;
+    font-style: italic !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-control-head span {
+    display: block !important;
+    margin-top: 2px !important;
+    color: #ffb4a8 !important;
+    font-size: 9px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-control-nav {
+    display: grid !important;
+    gap: 6px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-control-nav button {
+    border-radius: 8px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #1f2021 !important;
+    color: rgba(227, 226, 227, 0.66) !important;
+    min-height: 34px !important;
+    text-align: left !important;
+    padding: 0 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-size: 10px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-control-nav button.active {
+    border-left: 3px solid #e10600 !important;
+    color: #ffb4a8 !important;
+    background: #292a2b !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-telemetry-btn {
+    width: 100% !important;
+    min-height: 38px !important;
+    border-radius: 8px !important;
+    border: 1px solid rgba(225, 6, 0, 0.35) !important;
+    background: linear-gradient(45deg, #e10600, #c00500) !important;
+    color: #fff2f0 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-control-footer {
+    margin-top: 10px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid rgba(94, 63, 58, 0.2) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 6px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-control-footer span {
+    color: rgba(227, 226, 227, 0.54) !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-drivers-panel,
+  .app-page-main.route-constructor-details .constructor-profile-management {
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #292a2b !important;
+    padding: 14px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-drivers-panel h3,
+  .app-page-main.route-constructor-details .constructor-profile-management h3 {
+    margin: 0 0 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    color: rgba(227, 226, 227, 0.48) !important;
+    font-size: 10px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row {
+    display: grid !important;
+    grid-template-columns: 58px minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+    align-items: center !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #1f2021 !important;
+    padding: 10px !important;
+    margin-bottom: 8px !important;
+    cursor: pointer !important;
+    position: relative !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row:last-child {
+    margin-bottom: 0 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row img {
+    width: 58px !important;
+    height: 58px !important;
+    border-radius: 8px !important;
+    object-fit: cover !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row b {
+    display: block !important;
+    font-size: 22px !important;
+    line-height: 0.95 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: -0.03em !important;
+    font-style: italic !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row span {
+    display: block !important;
+    margin-top: 2px !important;
+    color: rgba(227, 226, 227, 0.55) !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row i {
+    font-style: normal !important;
+    color: #ffb4a8 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 34px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row u {
+    position: absolute !important;
+    right: 10px !important;
+    top: 8px !important;
+    text-decoration: none !important;
+    color: rgba(227, 226, 227, 0.56) !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-management p {
+    margin: 0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-size: 28px !important;
+    line-height: 0.95 !important;
+    font-style: italic !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-management-avatar {
+    width: 44px !important;
+    height: 44px !important;
+    border-radius: 999px !important;
+    margin-bottom: 8px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background:
+      linear-gradient(180deg, rgba(18, 19, 20, 0.1), rgba(18, 19, 20, 0.72)),
+      url("https://lh3.googleusercontent.com/aida-public/AB6AXuBkQs7RVozjKiuAuspcjGZudvS84W6UsXIwycuVDQvgeKVC48QzCtsQJ4euqrKPh668Pb67Cr7PqDkVCBzBEXVNBiJMCu3MndweomzvcR6_JfOTLg2nS0GoWO4cB8GbTlMJDrAkOWGjj-rp3e2vyCMztQu0YMg-HJT1jPVomssYpwGaGUaw16HVwmcsGGlxqEkj89v9e5D5gV1F9rb_kyk88_4YWnlE_FktPFg9TIyC0nNgw6PIgXMMutqSFlsoUjgFv9LCqwG5Ujl2")
+      center/cover no-repeat !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-management span {
+    display: block !important;
+    margin-top: 4px !important;
+    color: #ffb4a8 !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-right .driver-tabs {
+    max-width: 560px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-head {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+    margin-bottom: 14px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-head .driver-stats-title {
+    margin: 0 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-head strong {
+    color: #e10600 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 50px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-points-row {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+    border-bottom: 1px solid rgba(94, 63, 58, 0.2) !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-points-row span {
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    color: rgba(227, 226, 227, 0.46) !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-points-row b {
+    color: #ffb4a8 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 44px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-metrics {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-metrics > div {
+    border-radius: 8px !important;
+    border: 1px solid rgba(94, 63, 58, 0.18) !important;
+    background: #292a2b !important;
+    padding: 10px !important;
+    min-height: 70px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-metrics > div.accent {
+    border-right: 3px solid #ffb4a8 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-metrics span {
+    display: block !important;
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    color: rgba(227, 226, 227, 0.42) !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-metrics b {
+    display: block !important;
+    margin-top: 3px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 34px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-career-block {
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-career-block::after {
+    content: "ЁЯПЖ" !important;
+    position: absolute !important;
+    right: 12px !important;
+    top: 8px !important;
+    font-size: 60px !important;
+    opacity: 0.08 !important;
+    pointer-events: none !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-career-championships {
+    margin-top: 10px !important;
+    padding-top: 10px !important;
+    border-top: 1px solid rgba(94, 63, 58, 0.2) !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-career-championships span {
+    font-size: 10px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.22em !important;
+    color: #e10600 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-career-championships b {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 50px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.03em !important;
+    color: #e3e2e3 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-callout {
+    margin-top: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    border-radius: 12px !important;
+    background: #121314 !important;
+    padding: 16px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 16px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-callout h4 {
+    margin: 0 0 6px !important;
+    color: #ffb4a8 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.02em !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 26px !important;
+    font-style: italic !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-callout p {
+    margin: 0 !important;
+    max-width: 760px !important;
+    color: rgba(227, 226, 227, 0.65) !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-callout button {
+    border-radius: 8px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #292a2b !important;
+    color: #e3e2e3 !important;
+    min-height: 44px !important;
+    min-width: 190px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    padding: 0 14px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-card-name,
+  .app-page-main.route-constructor-details .constructor-hero-title {
+    font-size: clamp(40px, 4.8vw, 76px) !important;
+    line-height: 0.92 !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .app-page-main.route-driver-details .driver-details-mobile {
+    display: none !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop {
+    display: block !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-hero {
+    position: relative !important;
+    min-height: 540px !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    margin-bottom: 16px !important;
+    background: #1b1c1d !important;
+    display: flex !important;
+    align-items: flex-end !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-photo {
+    position: absolute !important;
+    inset: 0 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-photo img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    object-position: center bottom !important;
+    opacity: 0.88 !important;
+    transform: none !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    background: linear-gradient(180deg, rgba(18, 19, 20, 0.08) 0%, rgba(18, 19, 20, 0.88) 100%) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-content {
+    position: relative !important;
+    z-index: 1 !important;
+    padding: 34px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-number {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 74px !important;
+    line-height: 0.9 !important;
+    font-style: italic !important;
+    font-weight: 700 !important;
+    color: #e10600 !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-content h1 {
+    margin: 8px 0 0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    line-height: 0.88 !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-content h1 span,
+  .app-page-main.route-driver-details .driver-profile-desktop-content h1 em {
+    display: block !important;
+    font-size: clamp(66px, 6.1vw, 110px) !important;
+    font-style: normal !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-content h1 em {
+    color: rgba(227, 226, 227, 0.45) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-team {
+    margin-top: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-team b {
+    background: #e10600 !important;
+    color: #fff !important;
+    border-radius: 3px !important;
+    padding: 4px 8px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    font-size: 11px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-team span {
+    color: rgba(227, 226, 227, 0.68) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.11em !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-rank {
+    position: relative !important;
+    z-index: 1 !important;
+    margin: 0 24px 24px auto !important;
+    background: rgba(31, 32, 33, 0.7) !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 12px !important;
+    backdrop-filter: blur(12px);
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(84px, 1fr)) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-rank > div {
+    padding: 14px 16px !important;
+    border-right: 1px solid rgba(94, 63, 58, 0.2) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-rank > div:last-child {
+    border-right: 0 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-rank span {
+    display: block !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.14em !important;
+    color: rgba(227, 226, 227, 0.5) !important;
+    font-size: 9px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-rank strong {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 44px !important;
+    line-height: 0.9 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-rank > div:first-child strong {
+    color: #e10600 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 380px !important;
+    gap: 14px !important;
+    align-items: start !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-title {
+    margin: 0 0 10px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-size: 30px !important;
+    font-style: italic !important;
+    letter-spacing: -0.03em !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-title::before {
+    content: "" !important;
+    width: 28px !important;
+    height: 3px !important;
+    border-radius: 999px !important;
+    background: #e10600 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-season-cards {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #1b1c1d !important;
+    padding: 10px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-season-cards article {
+    border-radius: 10px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #292a2b !important;
+    padding: 12px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-season-cards article:first-child {
+    border-left: 2px solid #e10600 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-season-cards span,
+  .app-page-main.route-driver-details .driver-profile-season-cards small {
+    display: block !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-size: 9px !important;
+    color: rgba(227, 226, 227, 0.5) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-season-cards strong {
+    display: block !important;
+    margin-top: 6px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 52px !important;
+    line-height: 0.86 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-grid {
+    margin-top: 10px !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-card,
+  .app-page-main.route-driver-details .driver-profile-accolades-card,
+  .app-page-main.route-driver-details .driver-profile-bio-card {
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #1b1c1d !important;
+    padding: 14px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-card h4,
+  .app-page-main.route-driver-details .driver-profile-accolades-card h4 {
+    margin: 0 0 10px !important;
+    color: #e10600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    font-size: 10px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-card div {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+    border-bottom: 1px solid rgba(94, 63, 58, 0.18) !important;
+    padding: 8px 0 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-card div:last-child {
+    border-bottom: 0 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-card span {
+    text-transform: uppercase !important;
+    color: rgba(227, 226, 227, 0.56) !important;
+    font-size: 10px !important;
+    letter-spacing: 0.09em !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-card b {
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 34px !important;
+    line-height: 0.9 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-accolades-card {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-accolades-card p {
+    margin: 0 !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 34px !important;
+    line-height: 0.92 !important;
+    letter-spacing: -0.03em !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-accolades-card small {
+    margin-top: 12px !important;
+    display: block !important;
+    color: rgba(227, 226, 227, 0.56) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-size: 10px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-bio-card p {
+    margin: 0 !important;
+    color: rgba(227, 226, 227, 0.72) !important;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-bio-meta {
+    margin-top: 14px !important;
+    padding-top: 12px !important;
+    border-top: 1px solid rgba(94, 63, 58, 0.18) !important;
+    display: grid !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-bio-meta span {
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    font-size: 9px !important;
+    color: rgba(227, 226, 227, 0.5) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-bio-meta b {
+    display: block !important;
+    margin-top: 2px !important;
+    font-size: 14px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-records-btn {
+    margin-top: 10px !important;
+    width: 100% !important;
+    min-height: 66px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(225, 6, 0, 0.36) !important;
+    background: linear-gradient(45deg, #e10600, #c00500) !important;
+    color: #fff !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 14px !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-recent {
+    margin-top: 14px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-recent-strip {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-recent-strip article {
+    border-radius: 10px !important;
+    border: 1px solid rgba(94, 63, 58, 0.22) !important;
+    background: #292a2b !important;
+    padding: 12px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-recent-strip article:first-child {
+    border-left: 3px solid #e10600 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-recent-strip span {
+    display: block !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-size: 10px !important;
+    color: rgba(227, 226, 227, 0.52) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-recent-strip b {
+    display: block !important;
+    margin-top: 5px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 30px !important;
+    line-height: 0.95 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-tabs,
+  .app-page-main.route-constructor-details .driver-tabs {
+    border-bottom: 1px solid rgba(94, 63, 58, 0.26) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-tab,
+  .app-page-main.route-constructor-details .driver-tab {
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-size: 11px !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  .app-page-main.route-driver-details .driver-tab.active,
+  .app-page-main.route-constructor-details .driver-tab.active {
+    color: #ffb4a8 !important;
+    border-bottom-color: #e10600 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-stats-block,
+  .app-page-main.route-driver-details .driver-bio-block,
+  .app-page-main.route-constructor-details .driver-stats-block,
+  .app-page-main.route-constructor-details .driver-bio-block {
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #1b1c1d !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-drivers-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-driver-card {
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #292a2b !important;
+  }
+
+  .app-page-main.route-favorites > p {
+    color: rgba(227, 226, 227, 0.58) !important;
+    margin-top: -6px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .app-page-main.route-favorites .segmented-tabs {
+    max-width: 420px !important;
+  }
+
+  .app-page-main.route-favorites .grid-select {
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 12px !important;
+    background: #1b1c1d !important;
+    padding: 12px !important;
+    gap: 12px !important;
+  }
+
+  .app-page-main.route-favorites .select-item.selected {
+    border-color: rgba(225, 6, 0, 0.8) !important;
+    background: rgba(225, 6, 0, 0.12) !important;
+  }
+
+  .app-page-main.route-settings .setting-card {
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #1b1c1d !important;
+  }
+
+  .app-page-main.route-settings .setting-label {
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    font-size: 10px !important;
+    color: rgba(227, 226, 227, 0.54) !important;
+    font-family: "Space Grotesk", sans-serif !important;
+  }
+
+  .app-page-main.route-settings .btn-save {
+    min-width: 220px !important;
+    min-height: 44px !important;
+    align-self: flex-start !important;
+  }
+
+  .app-page-main.route-quali-results .standings-time,
+  .app-page-main.route-sprint-quali-results .standings-time {
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    border-radius: 8px !important;
+    background: #121314 !important;
+    min-width: 96px !important;
+    text-align: center !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  .app-page-main.route-race-results .segmented-tabs,
+  .app-page-main.route-quali-results .segmented-tabs,
+  .app-page-main.route-sprint-results .segmented-tabs,
+  .app-page-main.route-sprint-quali-results .segmented-tabs {
+    max-width: 420px !important;
+  }
+
+  .app-page-main.route-race-details .circuit-header {
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 12px !important;
+    padding: 14px 16px !important;
+    background: #1b1c1d !important;
+  }
+
+  .app-page-main.route-race-details .circuit-insights-card,
+  .app-page-main.route-next-race .circuit-insights-card {
+    border-radius: 12px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    background: #1b1c1d !important;
+  }
+
+  .app-page-main.route-race-details .circuit-stat-box,
+  .app-page-main.route-next-race .circuit-stat-box {
+    border-radius: 10px !important;
+    border: 1px solid rgba(94, 63, 58, 0.2) !important;
+    background: #292a2b !important;
+  }
+
+  .app-page-main.route-race-details .circuit-fact-item,
+  .app-page-main.route-next-race .circuit-fact-item {
+    border-bottom: 1px solid rgba(94, 63, 58, 0.2) !important;
+  }
+
+  .app-page-main.route-race-details .circuit-fact-header,
+  .app-page-main.route-next-race .circuit-fact-header {
+    font-family: "Space Grotesk", sans-serif !important;
+    text-transform: uppercase !important;
+    font-size: 11px !important;
+    letter-spacing: 0.08em !important;
+  }
+}
