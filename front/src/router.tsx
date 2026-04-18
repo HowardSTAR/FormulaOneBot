@@ -17,6 +17,7 @@ import SprintQualiResultsPage from "./pages/sprint-quali-results/SprintQualiResu
 import SprintResultsPage from "./pages/sprint-results/SprintResultsPage";
 import VotingPage from "./pages/voting/VotingPage";
 import ReactionGamePage from "./pages/reaction-game/ReactionGamePage";
+import ReflexGridGamePage from "./pages/reflex-grid-game/ReflexGridGamePage";
 
 export const router = createBrowserRouter([
   {
@@ -34,6 +35,7 @@ export const router = createBrowserRouter([
       { path: "/race-details", element: <RaceDetailsPage /> },
       { path: "/race-results", element: <RaceResultsPage /> },
       { path: "/reaction-game", element: <ReactionGamePage /> },
+      { path: "/reflex-grid-game", element: <ReflexGridGamePage /> },
       { path: "/settings", element: <SettingsPage /> },
       { path: "/season", element: <SeasonPage /> },
       { path: "/sprint-quali-results", element: <SprintQualiResultsPage /> },

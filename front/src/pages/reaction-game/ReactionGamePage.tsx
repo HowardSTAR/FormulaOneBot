@@ -168,7 +168,6 @@ function ReactionGamePage() {
       try {
         await apiRequest("/api/reaction-leaderboard/score", { time_ms: Math.max(1, Math.round(timeMs)) }, "POST");
         await fetchLeaderboard();
-        setActiveTab("leaderboard");
       } catch (e) {
         console.warn("Reaction leaderboard submit failed", e);
       }

@@ -2440,3 +2440,110 @@ input:checked + .slider:before {
   font-size: 13px;
   color: var(--text-secondary);
 }
+
+/* --- Reflex Grid game --- */
+.reflex-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 8px;
+}
+.reflex-filter-grid-difficulty {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 14px;
+}
+.reflex-filter-btn {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  padding: 10px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.reflex-filter-btn.active {
+  border-color: rgba(225, 6, 0, 0.65);
+  background: rgba(225, 6, 0, 0.18);
+  color: #fff;
+}
+.reflex-options-toggle {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-primary);
+  padding: 11px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.reflex-options-chevron {
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+.reflex-options-chevron.open {
+  transform: rotate(180deg);
+}
+.reflex-finish-modal {
+  text-align: center;
+}
+.reflex-finish-modal .reaction-modal-title,
+.reflex-finish-modal .reaction-modal-text {
+  text-align: center;
+}
+.reflex-finish-score {
+  margin-top: 2px;
+  font-size: 48px;
+  line-height: 1;
+  font-weight: 900;
+  color: var(--primary);
+}
+.reflex-finish-label {
+  margin-top: 4px;
+  font-size: 18px;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+.reflex-grid {
+  display: grid;
+  gap: 10px;
+}
+.reflex-tile {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(8, 10, 15, 0.95)),
+    radial-gradient(circle at 50% -10%, rgba(255, 255, 255, 0.1), transparent 68%);
+  box-shadow:
+    inset 0 1px 2px rgba(255, 255, 255, 0.07),
+    inset 0 -12px 20px rgba(0, 0, 0, 0.36),
+    0 8px 18px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.12s ease;
+}
+.reflex-tile.active {
+  background:
+    radial-gradient(circle at 30% 26%, #fff9ba, #ffd84a 50%, #d69f00 100%);
+  border-color: rgba(255, 221, 120, 0.95);
+  box-shadow:
+    0 0 0 1px rgba(255, 217, 74, 0.35),
+    0 0 14px rgba(255, 217, 74, 0.58),
+    0 8px 18px rgba(255, 217, 74, 0.28);
+}
+.reflex-tile:active {
+  transform: scale(0.96);
+}
+@media (max-width: 420px) {
+  .reflex-filter-grid-difficulty {
+    grid-template-columns: 1fr;
+  }
+}

@@ -50,6 +50,21 @@
     grid-template-columns: 1fr 1fr;
     gap: 12px;
 }
+
+.games-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+}
+
+.games-item {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+    padding: 16px 18px;
+    min-height: 72px;
+}
 .hero-timer {
     background: rgba(0, 0, 0, 0.3);
     padding: 6px 12px;

@@ -206,6 +206,27 @@ class Database:
             "CREATE INDEX IF NOT EXISTS idx_reaction_scores_time ON reaction_leaderboard_scores(time_ms)"
         )
 
+        # 8. Результаты игры Reflex Grid (лидерборд по режимам и сложности)
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS reflex_grid_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_id INTEGER NOT NULL,
+                mode TEXT NOT NULL CHECK (mode IN ('timed', 'endless')),
+                difficulty TEXT NOT NULL CHECK (difficulty IN ('easy', 'medium', 'hard')),
+                score INTEGER NOT NULL CHECK (score >= 0),
+                time_ms INTEGER NOT NULL CHECK (time_ms > 0),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_reflex_grid_mode_difficulty ON reflex_grid_scores(mode, difficulty)"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_reflex_grid_telegram ON reflex_grid_scores(telegram_id)"
+        )
+
         await self.conn.commit()
 
 
@@ -588,6 +609,20 @@ def _normalize_reaction_name(name: str | None) -> str:
     return value[:32]
 
 
+def _normalize_reflex_mode(mode: str | None) -> str:
+    value = (mode or "").strip().lower()
+    if value not in {"timed", "endless"}:
+        raise ValueError("mode must be 'timed' or 'endless'")
+    return value
+
+
+def _normalize_reflex_difficulty(difficulty: str | None) -> str:
+    value = (difficulty or "").strip().lower()
+    if value not in {"easy", "medium", "hard"}:
+        raise ValueError("difficulty must be easy/medium/hard")
+    return value
+
+
 async def get_reaction_profile(telegram_id: int) -> dict:
     """Возвращает профиль участия пользователя в лидерборде реакции."""
     if not db.conn:
@@ -712,6 +747,149 @@ async def get_reaction_leaderboard(telegram_id: int | None = None) -> dict:
             "telegram_id": int(row["telegram_id"]),
             "name": name,
             "time_ms": best_time,
+            "is_me": bool(telegram_id is not None and int(row["telegram_id"]) == int(telegram_id)),
+        }
+        entries.append(item)
+        if item["is_me"]:
+            me = item
+
+    return {"entries": entries, "me": me}
+
+
+# --- Reflex Grid: сохранение результатов и лидерборд ---
+
+async def save_reflex_grid_score(
+    telegram_id: int,
+    mode: str,
+    difficulty: str,
+    score: int,
+    time_ms: int,
+) -> bool:
+    """
+    Сохраняет результат новой игры Reflex Grid.
+    Использует те же настройки участия/имени, что и реакция (общий профиль).
+    """
+    if not db.conn:
+        await db.connect()
+    tg_id = int(telegram_id)
+    profile = await get_reaction_profile(tg_id)
+    if not profile["participate"]:
+        return False
+
+    normalized_mode = _normalize_reflex_mode(mode)
+    normalized_difficulty = _normalize_reflex_difficulty(difficulty)
+    normalized_score = int(score)
+    normalized_time = int(time_ms)
+
+    if normalized_score < 0 or normalized_time <= 0:
+        return False
+
+    await db.conn.execute(
+        """
+        INSERT INTO reflex_grid_scores (telegram_id, mode, difficulty, score, time_ms)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (tg_id, normalized_mode, normalized_difficulty, normalized_score, normalized_time),
+    )
+    await db.conn.commit()
+    return True
+
+
+async def get_reflex_grid_leaderboard(
+    mode: str,
+    difficulty: str,
+    telegram_id: int | None = None,
+) -> dict:
+    """
+    Возвращает лидерборд Reflex Grid для выбранных режима и сложности.
+    timed   -> выше score лучше, при равенстве меньше time_ms лучше
+    endless -> меньше time_ms лучше, при равенстве выше score лучше
+    """
+    if not db.conn:
+        await db.connect()
+    normalized_mode = _normalize_reflex_mode(mode)
+    normalized_difficulty = _normalize_reflex_difficulty(difficulty)
+
+    if normalized_mode == "timed":
+        query = """
+        SELECT
+            p.telegram_id AS telegram_id,
+            p.display_name AS display_name,
+            s.score AS score,
+            s.time_ms AS time_ms
+        FROM reaction_leaderboard_profiles p
+        JOIN reflex_grid_scores s ON s.telegram_id = p.telegram_id
+        WHERE p.leaderboard_opt_in = 1
+          AND s.mode = ?
+          AND s.difficulty = ?
+          AND NOT EXISTS (
+              SELECT 1
+              FROM reflex_grid_scores s2
+              WHERE s2.telegram_id = s.telegram_id
+                AND s2.mode = s.mode
+                AND s2.difficulty = s.difficulty
+                AND (
+                    s2.score > s.score
+                    OR (s2.score = s.score AND s2.time_ms < s.time_ms)
+                    OR (s2.score = s.score AND s2.time_ms = s.time_ms AND s2.id < s.id)
+                )
+          )
+        ORDER BY s.score DESC, s.time_ms ASC, p.telegram_id ASC
+        """
+    else:
+        query = """
+        SELECT
+            p.telegram_id AS telegram_id,
+            p.display_name AS display_name,
+            s.score AS score,
+            s.time_ms AS time_ms
+        FROM reaction_leaderboard_profiles p
+        JOIN reflex_grid_scores s ON s.telegram_id = p.telegram_id
+        WHERE p.leaderboard_opt_in = 1
+          AND s.mode = ?
+          AND s.difficulty = ?
+          AND NOT EXISTS (
+              SELECT 1
+              FROM reflex_grid_scores s2
+              WHERE s2.telegram_id = s.telegram_id
+                AND s2.mode = s.mode
+                AND s2.difficulty = s.difficulty
+                AND (
+                    s2.time_ms < s.time_ms
+                    OR (s2.time_ms = s.time_ms AND s2.score > s.score)
+                    OR (s2.time_ms = s.time_ms AND s2.score = s.score AND s2.id < s.id)
+                )
+          )
+        ORDER BY s.time_ms ASC, s.score DESC, p.telegram_id ASC
+        """
+
+    async with db.conn.execute(query, (normalized_mode, normalized_difficulty)) as cursor:
+        rows = await cursor.fetchall()
+
+    entries: list[dict] = []
+    me: dict | None = None
+    current_place = 0
+    last_rank_key: tuple[int, int] | None = None
+
+    for index, row in enumerate(rows, start=1):
+        score_value = int(row["score"])
+        time_value = int(row["time_ms"])
+        if normalized_mode == "timed":
+            rank_key = (score_value, -time_value)
+        else:
+            rank_key = (-time_value, score_value)
+        if last_rank_key is None or rank_key != last_rank_key:
+            current_place = index
+            last_rank_key = rank_key
+        name = (row["display_name"] or "").strip() or f"Pilot #{str(row['telegram_id'])[-4:]}"
+        item = {
+            "place": current_place,
+            "telegram_id": int(row["telegram_id"]),
+            "name": name,
+            "score": score_value,
+            "time_ms": time_value,
+            "mode": normalized_mode,
+            "difficulty": normalized_difficulty,
             "is_me": bool(telegram_id is not None and int(row["telegram_id"]) == int(telegram_id)),
         }
         entries.append(item)
