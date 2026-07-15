@@ -6,3 +6,9 @@
 data/
 fastf1_cache/
 f1bot_cache/
+.venv-web/
+.tools/
+.local-*.log
+.pytest_cache/
+__pycache__/
+**/__pycache__/
