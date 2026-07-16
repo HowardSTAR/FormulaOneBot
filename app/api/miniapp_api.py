@@ -17,12 +17,14 @@ from pydantic import BaseModel
 
 from app.auth import get_current_user_id, get_optional_user_id
 from app.db import (
+    db,
     get_favorite_drivers, get_favorite_teams,
     remove_favorite_driver, add_favorite_driver,
     remove_favorite_team, add_favorite_team,
     get_user_settings, update_user_setting,
     save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
 )
+from app.api.auth_api import router as auth_router
 from app.f1_data import (
     points_for_race_position,
     get_season_schedule_short_async,
@@ -60,20 +62,37 @@ ASSETS_DIR = PROJECT_ROOT / "app" / "assets"
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.f1_data import init_redis_cache
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    await init_redis_cache(redis_url)
-    yield
+    await db.connect()
+    await db.init_tables()
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url:
+        await init_redis_cache(redis_url)
+    try:
+        yield
+    finally:
+        await db.close()
 
 
 web_app = FastAPI(title="FormulaOneBot Mini App API", lifespan=lifespan)
 
+web_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "WEB_ORIGINS",
+        "http://127.0.0.1:5173,http://localhost:5173",
+    ).split(",")
+    if origin.strip()
+]
+
 web_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=web_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+web_app.include_router(auth_router)
 
 if STATIC_DIR.exists():
     web_app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
