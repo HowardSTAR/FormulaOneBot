@@ -121,6 +121,16 @@ function SeasonPage() {
     return raceEnd >= now;
   });
   const desktopRace = races.find((r) => r.round === desktopSelectedRound) || races[0] || null;
+  const desktopRaceIndex = desktopRace ? races.findIndex((r) => r.round === desktopRace.round) : -1;
+  const desktopRaceEnd = desktopRace ? new Date(desktopRace.date) : null;
+  desktopRaceEnd?.setDate(desktopRaceEnd.getDate() + 1);
+  const desktopRaceIsFinished = Boolean(desktopRaceEnd && desktopRaceEnd < now);
+  const desktopRaceIsNext = desktopRaceIndex === nextRaceIndex;
+  const completedRacesCount = races.filter((race) => {
+    const raceEnd = new Date(race.date);
+    raceEnd.setDate(raceEnd.getDate() + 1);
+    return raceEnd < now;
+  }).length;
   const desktopInsights = desktopRace
     ? getCircuitInsightsRu({
         eventName: desktopRace.event_name,
@@ -166,7 +176,9 @@ function SeasonPage() {
             <div className="season-desktop-primary-head">
               <div>
                 <h3 className="season-desktop-main-heading">Календарь</h3>
-                <p className="season-desktop-main-subheading">Чемпионат мира Формулы-1</p>
+                <p className="season-desktop-main-subheading">
+                  Сезон {year} · {races.length} этапа · {completedRacesCount} завершено
+                </p>
               </div>
               <div className="season-desktop-season-picker">
                 <span className="season-desktop-season-label">Выберите сезон</span>
@@ -186,7 +198,9 @@ function SeasonPage() {
 
             <article className="season-desktop-main-card season-desktop-hero-card">
               <div className="season-desktop-hero-media">
-                <div className="season-desktop-hero-next">Следующий этап: {String(desktopRace.round).padStart(2, "0")}</div>
+                <div className="season-desktop-hero-next">
+                  {desktopRaceIsNext ? "Следующий этап" : desktopRaceIsFinished ? "Прошедший этап" : "Предстоящий этап"}: {String(desktopRace.round).padStart(2, "0")}
+                </div>
                 <h4>{desktopRace.event_name}</h4>
                 <div className="season-desktop-hero-meta">
                   <span>{selectedDateLabel}</span>
@@ -197,17 +211,21 @@ function SeasonPage() {
               <div className="season-desktop-hero-schedule">
                 <h5>Расписание сессий</h5>
                 <div className="season-desktop-session-grid">
-                  <div className="season-desktop-session-item">
-                    <span>Спринт-квалификация</span>
-                    <b>{formatSessionTime(desktopRace.sprint_quali_start_utc)}</b>
-                  </div>
-                  <div className="season-desktop-session-item">
-                    <span>Спринт</span>
-                    <b>{formatSessionTime(desktopRace.sprint_start_utc)}</b>
-                  </div>
+                  {desktopRace.sprint_quali_start_utc && (
+                    <div className="season-desktop-session-item">
+                      <span>Спринт-квалификация</span>
+                      <b>{formatSessionTime(desktopRace.sprint_quali_start_utc)}</b>
+                    </div>
+                  )}
+                  {desktopRace.sprint_start_utc && (
+                    <div className="season-desktop-session-item">
+                      <span>Спринт</span>
+                      <b>{formatSessionTime(desktopRace.sprint_start_utc)}</b>
+                    </div>
+                  )}
                   <div className="season-desktop-session-item">
                     <span>Квалификация</span>
-                    <b>--:--</b>
+                    <b>{formatSessionTime(desktopRace.quali_start_utc)}</b>
                   </div>
                   <div className="season-desktop-session-item focus">
                     <span>Grand Prix</span>
@@ -237,7 +255,7 @@ function SeasonPage() {
           </section>
 
           <aside className="season-desktop-list season-desktop-timeline">
-            <h4 className="season-desktop-timeline-title">Таймлайн сезона</h4>
+            <h4 className="season-desktop-timeline-title">Все этапы сезона · {races.length}</h4>
             {races.map((race, index) => {
               const raceDate = new Date(race.date);
               const raceEndCheck = new Date(raceDate);
@@ -262,6 +280,7 @@ function SeasonPage() {
                   type="button"
                   className={`season-desktop-race-item ${statusClass} ${isSelected ? "active" : ""}`}
                   onClick={() => setDesktopSelectedRound(race.round)}
+                  aria-pressed={isSelected}
                 >
                   <div className="season-desktop-race-info">
                     <div className="season-desktop-race-topline">
