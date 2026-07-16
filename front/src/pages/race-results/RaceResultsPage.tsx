@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
 import { apiRequest } from "../../helpers/api";
 
 type Result = {
   position: number;
+  code: string;
   name: string;
   team: string;
   points: number;
@@ -23,6 +24,13 @@ type SeasonRace = {
   round: number;
   event_name?: string;
 };
+type DriverTeamInfo = {
+  code: string;
+  driverId?: string;
+  constructorId?: string;
+  constructorName?: string;
+};
+type DriversResponse = { drivers?: DriverTeamInfo[] };
 
 function pilotPortraitUrl(code: string, fullName: string, season: number): string {
   const apiBase = (import.meta.env.VITE_API_URL as string) || "";
@@ -34,6 +42,14 @@ function pilotPortraitUrl(code: string, fullName: string, season: number): strin
   return `${origin.replace(/\/$/, "")}${pathBase}/api/pilot-portrait?${params.toString()}`;
 }
 
+function teamLogoUrl(teamId: string, teamName: string, season: number): string {
+  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
+  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
+  const params = new URLSearchParams({ team: teamId || teamName, name: teamName, season: String(season) });
+  return `${origin.replace(/\/$/, "")}${pathBase}/api/team-logo?${params.toString()}`;
+}
+
 function parseOptionalInt(value: string | null): number | null {
   if (value === null) return null;
   const n = Number.parseInt(value, 10);
@@ -41,6 +57,7 @@ function parseOptionalInt(value: string | null): number | null {
 }
 
 function RaceResultsPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const seasonFromQuery = parseOptionalInt(searchParams.get("season"));
   const roundFromQuery = parseOptionalInt(searchParams.get("round"));
@@ -56,9 +73,40 @@ function RaceResultsPage() {
   const [season] = useState<number>(initialSeason);
   const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
   const [selectedRound, setSelectedRound] = useState<number | null>(initialRound);
+  const [driverTeams, setDriverTeams] = useState<Record<string, DriverTeamInfo>>({});
 
   const desktopWinner = data?.results?.[0] ?? null;
   const desktopRows = data?.results ?? [];
+  const resultSeason = data?.season || season;
+  const driverInfo = (driver: Result) => driverTeams[(driver.code || "").toUpperCase()];
+  const teamName = (driver: Result) => driver.team || driverInfo(driver)?.constructorName || "Команда не указана";
+  const openDriver = (driver: Result) => {
+    const details = driverInfo(driver);
+    const driverId = details?.driverId ? `&driverId=${encodeURIComponent(details.driverId)}` : "";
+    navigate(`/driver-details?code=${encodeURIComponent(driver.code || "")}&season=${resultSeason}${driverId}`);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadDriverTeams() {
+      try {
+        const response = await apiRequest<DriversResponse>("/api/drivers", { season: resultSeason });
+        if (cancelled) return;
+        const byCode = Object.fromEntries(
+          (response.drivers || [])
+            .filter((driver) => driver.code)
+            .map((driver) => [driver.code.toUpperCase(), driver])
+        );
+        setDriverTeams(byCode);
+      } catch {
+        if (!cancelled) setDriverTeams({});
+      }
+    }
+    loadDriverTeams();
+    return () => {
+      cancelled = true;
+    };
+  }, [resultSeason]);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,7 +174,7 @@ function RaceResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [mode, selectedRound]);
+  }, [mode, selectedRound, season]);
 
   return (
     <>
@@ -216,7 +264,16 @@ function RaceResultsPage() {
                   r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : r.position;
                 const isFavorite = Boolean(r.is_favorite_driver || r.is_favorite_team);
                 return (
-                  <div key={i} className="standings-item">
+                  <div
+                    key={i}
+                    className="standings-item"
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => openDriver(r)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") openDriver(r);
+                    }}
+                  >
                     <div
                       className={`standings-position ${r.position <= 3 ? "podium" : ""}`}
                       style={{ width: 35 }}
@@ -292,19 +349,46 @@ function RaceResultsPage() {
             <div className="race-results-desktop-hero-grid">
               <div className="race-results-desktop-winner">
                 <div className="race-results-desktop-winner-overlay" />
-                <img
-                  className="race-results-desktop-winner-portrait"
-                  src={pilotPortraitUrl("", desktopWinner.name, data?.season || season)}
-                  alt={desktopWinner.name || "Пилот"}
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
-                />
-                <div className="race-results-desktop-winner-badge">Победитель</div>
-                <div className="race-results-desktop-winner-name">{desktopWinner.name}</div>
-                <div className="race-results-desktop-winner-meta">
-                  {desktopWinner.team} • 1:32:04.{String(Math.max(0, desktopWinner.points)).padStart(3, "0")}
+                <div className="race-results-desktop-winner-copy">
+                  <div className="race-results-desktop-winner-badge">Победитель</div>
+                  <button
+                    type="button"
+                    className="race-results-desktop-winner-name"
+                    onClick={() => openDriver(desktopWinner)}
+                    title={`Открыть профиль: ${desktopWinner.name}`}
+                  >
+                    {desktopWinner.name}
+                  </button>
+                  <div className="race-results-desktop-winner-meta">
+                    1:32:04.{String(Math.max(0, desktopWinner.points)).padStart(3, "0")}
+                  </div>
                 </div>
+                <div className="race-results-desktop-winner-team">
+                  <img
+                    src={teamLogoUrl(driverInfo(desktopWinner)?.constructorId || "", teamName(desktopWinner), resultSeason)}
+                    alt=""
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <span>Команда-победитель</span>
+                  <strong>{teamName(desktopWinner)}</strong>
+                </div>
+                <button
+                  type="button"
+                  className="race-results-desktop-winner-portrait-link"
+                  onClick={() => openDriver(desktopWinner)}
+                  aria-label={`Открыть профиль пилота ${desktopWinner.name}`}
+                >
+                  <img
+                    className="race-results-desktop-winner-portrait"
+                    src={pilotPortraitUrl(desktopWinner.code, desktopWinner.name, resultSeason)}
+                    alt={desktopWinner.name || "Пилот"}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                </button>
               </div>
               <aside className="race-results-desktop-summary">
                 <div className="race-results-desktop-summary-points">{desktopWinner.points || 0}</div>
@@ -327,13 +411,41 @@ function RaceResultsPage() {
               {desktopRows.map((row) => {
                 const gap = row.position <= 1 ? "-" : `+${(row.position * 3.7).toFixed(3)}s`;
                 const status = row.points > 0 ? `1:32:${String(3 + row.position).padStart(2, "0")}.${String(100 + row.position * 17).slice(0, 3)}` : "Сход";
+                const rowDriverInfo = driverInfo(row);
+                const rowTeam = teamName(row);
                 return (
                   <div key={`${row.position}-${row.name}`} className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}>
-                    <span>{String(row.position).padStart(2, "0")}</span>
-                    <span>{row.name}</span>
-                    <span>{row.team}</span>
-                    <span>{status}</span>
-                    <span>{gap}</span>
+                    <span className="race-results-position">{String(row.position).padStart(2, "0")}</span>
+                    <button
+                      type="button"
+                      className="race-results-driver-cell"
+                      onClick={() => openDriver(row)}
+                      title={`Открыть профиль: ${row.name}`}
+                    >
+                      <img
+                        src={pilotPortraitUrl(row.code, row.name, resultSeason)}
+                        alt=""
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                      <span>
+                        <strong>{row.name}</strong>
+                        <small>{row.code || "F1"}</small>
+                      </span>
+                    </button>
+                    <div className="race-results-team-cell">
+                      <img
+                        src={teamLogoUrl(rowDriverInfo?.constructorId || "", rowTeam, resultSeason)}
+                        alt=""
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                      <span>{rowTeam}</span>
+                    </div>
+                    <span className="race-results-time">{status}</span>
+                    <span className="race-results-gap">{gap}</span>
                   </div>
                 );
               })}
