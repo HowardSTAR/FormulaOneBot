@@ -1,5 +1,6 @@
 import logging
 import os
+import asyncio
 import aiosqlite
 from pathlib import Path
 from typing import List, Tuple, Any, Optional
@@ -24,6 +25,7 @@ class Database:
     def __init__(self, db_path: Path):
         self.db_path = db_path
         self.conn: Optional[aiosqlite.Connection] = None
+        self.write_lock = asyncio.Lock()
 
     async def connect(self):
         """Открывает соединение и включает WAL-режим для скорости."""
@@ -50,27 +52,10 @@ class Database:
             await self.connect()
 
         # 1. Таблица пользователей
-        await self.conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                telegram_id INTEGER UNIQUE NOT NULL,
-                timezone TEXT DEFAULT 'Europe/Moscow',
-                notify_before INTEGER DEFAULT 60,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-            """
-        )
+        from app.auth_schema import ensure_auth_schema
+        await ensure_auth_schema(self.conn)
 
         # Проверка и добавление колонок (миграции "на лету")
-        async with self.conn.execute("PRAGMA table_info(users)") as cursor:
-            columns = [row['name'] for row in await cursor.fetchall()]
-
-        if "timezone" not in columns:
-            await self.conn.execute("ALTER TABLE users ADD COLUMN timezone TEXT DEFAULT 'Europe/Moscow'")
-        if "notify_before" not in columns:
-            await self.conn.execute("ALTER TABLE users ADD COLUMN notify_before INTEGER DEFAULT 60")
-
         # 2. Таблицы избранного
         await self.conn.execute(
             """
@@ -294,7 +279,7 @@ async def get_favorite_teams(telegram_id: int) -> List[str]:
 async def get_all_users_with_favorites() -> List[Tuple[int, int]]:
     """Устаревший: возвращает (telegram_id, user_id). Используйте get_users_favorites_for_notifications."""
     if not db.conn: await db.connect()
-    async with db.conn.execute("SELECT DISTINCT telegram_id, id FROM users") as cursor:
+    async with db.conn.execute("SELECT DISTINCT telegram_id, id FROM users WHERE telegram_id IS NOT NULL") as cursor:
         rows = await cursor.fetchall()
         return [(r['telegram_id'], r['id']) for r in rows]
 
@@ -305,11 +290,11 @@ async def get_users_favorites_for_notifications(notifications_only: bool = True)
     Используется для рассылки результатов гонок и квалификации.
     """
     if not db.conn: await db.connect()
-    notif_filter = " WHERE u.notifications_enabled = 1" if notifications_only else ""
+    notif_filter = " AND u.notifications_enabled = 1" if notifications_only else ""
     result: dict = {}
     async with db.conn.execute(
         "SELECT u.telegram_id, fd.driver_code FROM users u "
-        "JOIN favorite_drivers fd ON fd.user_id = u.id"
+        "JOIN favorite_drivers fd ON fd.user_id = u.id WHERE u.telegram_id IS NOT NULL"
         f"{notif_filter}"
     ) as cursor:
         async for row in cursor:
@@ -319,7 +304,7 @@ async def get_users_favorites_for_notifications(notifications_only: bool = True)
             result[tg_id]["drivers"].append(str(row['driver_code']).upper())
     async with db.conn.execute(
         "SELECT u.telegram_id, ft.constructor_name FROM users u "
-        "JOIN favorite_teams ft ON ft.user_id = u.id"
+        "JOIN favorite_teams ft ON ft.user_id = u.id WHERE u.telegram_id IS NOT NULL"
         f"{notif_filter}"
     ) as cursor:
         async for row in cursor:
@@ -364,7 +349,7 @@ async def get_all_users() -> list[int]:
 
     try:
         # Используем точные имена из вашего PRAGMA: telegram_id и users
-        async with db.conn.execute("SELECT telegram_id FROM users") as cursor:
+        async with db.conn.execute("SELECT telegram_id FROM users WHERE telegram_id IS NOT NULL") as cursor:
             rows = await cursor.fetchall()
 
             # Извлекаем данные по ключу telegram_id

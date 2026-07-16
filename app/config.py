@@ -10,7 +10,7 @@ load_dotenv()
 @dataclass
 class BotConfig:
     token: str
-    redis_url: str  # <-- Новое поле
+    redis_url: str | None
 
 
 @dataclass
@@ -27,8 +27,8 @@ def get_settings() -> Settings:
 
     app_version = os.getenv("APP_VERSION", "0.0.0-local")
 
-    # По умолчанию используем локальный Redis
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    # Redis remains optional for F1 data caching; auth/linking never depends on it.
+    redis_url = os.getenv("REDIS_URL") or None
 
     admin_ids_str = os.getenv("ADMIN_IDS", "")
     admin_ids = []
