@@ -13,6 +13,8 @@ export type NextRaceResponse = {
   status?: NextRaceStatus;
   event_name?: string;
   is_cancelled?: boolean;
+  country?: string;
+  location?: string;
   season?: number;
   round?: number;
   date?: string;
