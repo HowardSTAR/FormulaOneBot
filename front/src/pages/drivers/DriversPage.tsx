@@ -294,8 +294,8 @@ function DriversPage() {
                         <strong>{driver.points}</strong>
                         <small>
                           {Object.prototype.hasOwnProperty.call(lastRacePointsByCode, (driver.code || "").toUpperCase())
-                            ? `+${lastRacePointsByCode[(driver.code || "").toUpperCase()]} очк. за последнюю гонку`
-                            : "нет данных за последнюю гонку"}
+                            ? `Последняя гонка: +${lastRacePointsByCode[(driver.code || "").toUpperCase()]}`
+                            : "Последняя гонка: нет данных"}
                         </small>
                       </span>
                     </div>
