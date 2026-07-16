@@ -322,7 +322,7 @@ function DriverDetailsPage() {
               <article className="driver-profile-accolades-card">
                 <h4>Достижения</h4>
                 <p>Лучшая стартовая позиция: {formatHigh(cs.highest_grid)}</p>
-                <small>Дата рождения: {data.dateOfBirth || "—"}</small>
+                <small>Поулы: {cs.pole_positions} · Титулы: {cs.world_championships}</small>
               </article>
             </div>
           </section>
@@ -336,8 +336,8 @@ function DriverDetailsPage() {
                   <b>{data.nationality}</b>
                 </div>
                 <div>
-                  <span>Первый ГП</span>
-                  <b>{String(Math.max(1950, season - 1))}</b>
+                  <span>Дата рождения</span>
+                  <b>{data.dateOfBirth || "—"}</b>
                 </div>
               </div>
             </div>
