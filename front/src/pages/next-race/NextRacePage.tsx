@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
@@ -27,6 +27,7 @@ function NextRacePage() {
   const [raceCity, setRaceCity] = useState("");
   const [raceDateText, setRaceDateText] = useState("--");
   const [raceTimeText, setRaceTimeText] = useState("--:--");
+  const [displayTimezone, setDisplayTimezone] = useState("Локальное время");
   const [raceRound, setRaceRound] = useState<number | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [expandedFactIndex, setExpandedFactIndex] = useState(0);
@@ -50,6 +51,7 @@ function NextRacePage() {
         const userTz = getDisplayTimezone(settings?.timezone);
 
         if (cancelled) return;
+        setDisplayTimezone(userTz.replace(/_/g, " "));
         if (raceData.status !== "ok") {
           setTitle(raceData.status === "season_finished" ? "Сезон завершен" : "Нет данных");
           setSessions([]);
@@ -158,8 +160,17 @@ function NextRacePage() {
     return () => { cancelled = true; };
   }, [eventName, loading]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!trackSvg) return;
+
+    const animationFrameIds: number[] = [];
+    const completionTimeoutIds: number[] = [];
+
+    const completeOutline = (outline: SVGElement) => {
+      outline.classList.add("animation-complete");
+      outline.style.strokeDasharray = "none";
+      outline.style.strokeDashoffset = "0";
+    };
 
     const setupAnimatedTrack = (container: HTMLDivElement | null) => {
       if (!container) return;
@@ -176,29 +187,55 @@ function NextRacePage() {
       fillGroup.classList.add("track-fill-group");
 
       paths.forEach((path) => {
+        // Measure the original geometry while it is still attached to the SVG.
+        // Detached clones return 0 in some desktop browsers, which skips the draw animation.
+        const length = (path as SVGGeometryElement).getTotalLength?.() ?? 0;
         const outlinePath = path.cloneNode(true) as SVGElement;
         outlinePath.removeAttribute("fill");
         outlinePath.classList.add("track-outline");
-        const length = (outlinePath as SVGPathElement).getTotalLength?.() ?? 0;
-        outlinePath.style.strokeDasharray = String(length);
+        outlinePath.style.strokeDasharray = `${length} ${length}`;
         outlinePath.style.strokeDashoffset = String(length);
+        outlinePath.addEventListener("transitionend", (event) => {
+          if (event.propertyName === "stroke-dashoffset") {
+            completeOutline(outlinePath);
+          }
+        });
         outlineGroup.appendChild(outlinePath);
         path.classList.add("track-fill");
         fillGroup.appendChild(path);
       });
 
       svg.innerHTML = "";
-      svg.appendChild(outlineGroup);
       svg.appendChild(fillGroup);
+      svg.appendChild(outlineGroup);
       svg.getBoundingClientRect();
-      setTimeout(() => {
-        outlineGroup.querySelectorAll(".track-outline").forEach((p) => p.classList.add("animate"));
-        fillGroup.querySelectorAll(".track-fill").forEach((p) => p.classList.add("animate"));
-      }, 650);
+
+      // Let the completely empty initial state reach the compositor, then draw immediately.
+      const prepareFrame = window.requestAnimationFrame(() => {
+        const startFrame = window.requestAnimationFrame(() => {
+          const outlines = outlineGroup.querySelectorAll<SVGElement>(".track-outline");
+          outlines.forEach((p) => p.classList.add("animate"));
+          fillGroup.querySelectorAll(".track-fill").forEach((p) => p.classList.add("animate"));
+
+          // A closed SVG path can retain a visible dash seam at exactly 100% length.
+          // Remove the dash mask after the transition so the final contour is continuous.
+          const completionTimeout = window.setTimeout(() => {
+            outlines.forEach(completeOutline);
+          }, 3300);
+          completionTimeoutIds.push(completionTimeout);
+        });
+        animationFrameIds.push(startFrame);
+      });
+      animationFrameIds.push(prepareFrame);
     };
 
     setupAnimatedTrack(trackContainerRef.current);
     setupAnimatedTrack(desktopTrackContainerRef.current);
+
+    return () => {
+      animationFrameIds.forEach((frameId) => window.cancelAnimationFrame(frameId));
+      completionTimeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
   }, [trackSvg]);
 
   useEffect(() => {
@@ -344,14 +381,28 @@ function NextRacePage() {
                 </div>
                 <h1>{(eventName || title).replace(/\s+Grand Prix$/i, "\nGrand Prix")}</h1>
                 <div className="next-race-desktop-location">
-                  <b>{raceCountry}, {raceCity}</b>
-                  <span>{raceDateText} | СТАРТ {raceTimeText}</span>
+                  <b>{raceCity || raceCountry}</b>
+                  <span>{raceCountry || "Formula 1"}</span>
+                </div>
+                <div className="next-race-desktop-start">
+                  <div>
+                    <span>{isCancelled ? "Статус этапа" : "Дата гонки"}</span>
+                    <strong>{isCancelled ? "Отменён" : raceDateText}</strong>
+                  </div>
+                  <div className="accent">
+                    <span>{isCancelled ? "Решение организатора" : "Старт"}</span>
+                    <strong>{isCancelled ? "—" : raceTimeText}</strong>
+                  </div>
                 </div>
               </div>
               <div className="next-race-desktop-track">
                 <div
                   className={`next-race-desktop-track-panel ${trackSvg ? "track-panel-appear" : ""}`}
                 >
+                  <div className="next-race-desktop-track-caption">
+                    <span>Схема трассы</span>
+                    <b>{raceCity || eventName}</b>
+                  </div>
                   {!trackSvg && <div className="no-map-placeholder">🏁</div>}
                   <div
                     ref={desktopTrackContainerRef}
@@ -374,7 +425,7 @@ function NextRacePage() {
             <section className="next-race-desktop-schedule">
               <div className="next-race-desktop-schedule-head">
                 <h2>Расписание</h2>
-                <span>Время Майами</span>
+                <span>Время: {displayTimezone}</span>
               </div>
               <div className="next-race-desktop-schedule-grid">
                 {desktopSessions.map((s, i) => (
@@ -398,7 +449,7 @@ function NextRacePage() {
                 </div>
               </article>
               <div className="next-race-desktop-facts-list">
-                {insights.facts.slice(0, 3).map((fact) => (
+                {insights.facts.slice(1, 4).map((fact) => (
                   <div key={fact.title} className="next-race-desktop-fact-item">
                     <div className="next-race-desktop-fact-head">
                       <h6>{fact.title}</h6>
