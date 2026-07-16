@@ -150,8 +150,8 @@ function ConstructorDetailsPage() {
   const logoUrl = teamLogoUrl(data.constructorId, data.name, season);
   const carUrl = carImageUrl(data.name, season);
   const drivers = data.drivers || [];
-  const teamCountry = data.constructorId === "mercedes" ? "Brackley, United Kingdom" : data.nationality || "Неизвестно";
-  const foundedLabel = data.constructorId === "mercedes" ? "Осн. 1954 / 2010" : `Осн. ${Math.max(1950, season - 20)}`;
+  const teamCountry = data.nationality || "Не указано";
+  const seasonLabel = `Сезон ${season}`;
   const heroTitleMain = data.constructorId === "mercedes"
     ? "MERCEDES-AMG"
     : data.name.toUpperCase().includes("PETRONAS")
@@ -302,7 +302,7 @@ function ConstructorDetailsPage() {
       </div>
 
       <section className="constructor-profile-desktop">
-        <BackButton fallback="/constructors"><span>Кубок конструкторов</span></BackButton>
+        <BackButton className="btn-back constructor-profile-back-button" fallback="/constructors"><span>Кубок конструкторов</span></BackButton>
         <header className="constructor-profile-desktop-hero">
           <img
             src={carUrl}
@@ -318,11 +318,16 @@ function ConstructorDetailsPage() {
                 {heroTitleAccent && <em>{heroTitleAccent}</em>}
               </h1>
               <div className="constructor-profile-desktop-meta">
-                <span>{foundedLabel}</span>
+                <span>{seasonLabel}</span>
                 <span>{teamCountry}</span>
               </div>
             </div>
           </div>
+          <aside className="constructor-profile-desktop-summary" aria-label="Результаты команды в сезоне">
+            <div><span>Позиция</span><strong>P{ss.position || "—"}</strong></div>
+            <div><span>Очки</span><strong>{ss.points}</strong></div>
+            <div><span>Победы</span><strong>{ss.grand_prix_wins}</strong></div>
+          </aside>
         </header>
 
         <div className="constructor-profile-desktop-grid">
