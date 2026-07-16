@@ -17,6 +17,7 @@ import SeasonPage from "./pages/season/SeasonPage";
 import SprintQualiResultsPage from "./pages/sprint-quali-results/SprintQualiResultsPage";
 import SprintResultsPage from "./pages/sprint-results/SprintResultsPage";
 import VotingPage from "./pages/voting/VotingPage";
+import AccountPage from "./pages/account/AccountPage";
 import { hasTelegramAuth } from "./helpers/auth";
 
 function RequireTelegramAuth({ children }: { children: ReactElement }) {
@@ -31,6 +32,7 @@ export const router = createBrowserRouter([
     element: <SwipeBackLayout />,
     children: [
       { path: "/", element: <IndexPage /> },
+      { path: "/account", element: <AccountPage /> },
       { path: "/compare", element: <ComparePage /> },
       { path: "/constructor-details", element: <ConstructorDetailsPage /> },
       { path: "/constructors", element: <ConstructorsPage /> },
