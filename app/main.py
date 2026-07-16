@@ -12,7 +12,7 @@ from app.bot import create_bot_and_dispatcher
 from app.config import get_settings
 from app.db import db
 from app.f1_data import init_redis_cache, warmup_cache
-from app.handlers import start, races, drivers, teams, favorites, secret, settings, compare, feedback, groups
+from app.handlers import account_link, start, races, drivers, teams, favorites, secret, settings, compare, feedback, groups
 from app.middlewares.error_logging import ErrorLoggingMiddleware
 from app.utils.backup import create_backup
 from app.utils.notifications import (
@@ -82,6 +82,7 @@ async def main():
     # 3. Регистрируем все роутеры
     dp.include_routers(
         groups.router,  # раньше start — для my_chat_member
+        account_link.router,
         start.router,
         races.router,
         drivers.router,
