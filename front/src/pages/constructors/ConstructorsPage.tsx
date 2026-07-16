@@ -157,6 +157,17 @@ function ConstructorsPage() {
   };
 
   const leaderTeam = teams[0] || null;
+  const leaderAdvantage = Math.max(0, (teams[0]?.points ?? 0) - (teams[1]?.points ?? 0));
+  const closestBattle = teams.length > 1
+    ? teams.slice(1).reduce(
+        (closest, team, index) => {
+          const previous = teams[index];
+          const gap = Math.max(0, previous.points - team.points);
+          return gap < closest.gap ? { first: previous, second: team, gap } : closest;
+        },
+        { first: teams[0], second: teams[1], gap: Math.max(0, teams[0].points - teams[1].points) }
+      )
+    : null;
   const leaderCarBg = leaderTeam?.name
     ? {
         backgroundImage: `linear-gradient(90deg, rgba(18, 19, 20, 0.72) 0%, rgba(18, 19, 20, 0.86) 68%), url("${carImageUrl(
@@ -178,7 +189,7 @@ function ConstructorsPage() {
 
   return (
     <>
-      <BackButton>← <span>Главное меню</span></BackButton>
+      <BackButton className="btn-back constructors-back-button">← <span>Главное меню</span></BackButton>
       <div className="page-head-row">
         <h2 className="page-head-title">Кубок конструкторов</h2>
         <div className="page-head-controls mobile-year-control">
@@ -188,6 +199,7 @@ function ConstructorsPage() {
             minYear={minConstructorYear}
             maxYear={currentRealYear}
             placeholder="Введи год"
+            showCurrentYearBtn={false}
           />
         </div>
       </div>
@@ -211,33 +223,46 @@ function ConstructorsPage() {
             <>
               <section className="constructors-hero-grid">
                 <article className="constructors-leader-card" style={leaderCarBg}>
-                  <div className="constructors-leader-kicker">Текущий лидер</div>
-                  <div className="constructors-leader-main">
-                    <span>{leaderTeam?.name || "—"}</span>
-                    <b>{leaderTeam?.points ?? 0}</b>
+                  <div className="constructors-leader-identity">
+                    {leaderTeam && (
+                      <img
+                        src={teamLogoUrl(leaderTeam.constructorId || "", leaderTeam.name, year)}
+                        alt=""
+                        onError={(e) => (e.currentTarget.style.display = "none")}
+                      />
+                    )}
+                    <div>
+                      <div className="constructors-leader-kicker">Лидер чемпионата</div>
+                      <div className="constructors-leader-main">
+                        <span>{leaderTeam?.name || "—"}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="constructors-leader-score">
+                    <span>Очки</span>
+                    <strong>{leaderTeam?.points ?? 0}</strong>
                   </div>
                   <div className="constructors-leader-tags">
-                    <span>Доминирующее выступление</span>
-                    <span>+{Math.max(0, (teams[0]?.points ?? 0) - (teams[1]?.points ?? 0))} очк. преимущества</span>
+                    <span>1 место</span>
+                    <span>+{leaderAdvantage} к ближайшему сопернику</span>
                   </div>
                 </article>
-                <article
-                  className="constructors-next-race-card"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/next-race?season=${year}`)}
-                  onKeyDown={(e) => e.key === "Enter" && navigate(`/next-race?season=${year}`)}
-                >
-                  <div className="constructors-next-kicker">Следующая гонка</div>
-                  <h3>{nextRace?.event_name || "Данные скоро"}</h3>
-                  <p>{nextRace?.location || ""}</p>
-                  <div className="constructors-next-days">
-                    <span>{String(daysLeft ?? 0).padStart(2, "0")}</span>
-                    <b>Дней осталось</b>
+                <article className="constructors-next-race-card">
+                  <div className="constructors-next-topline">
+                    <div className="constructors-next-kicker">Следующий этап</div>
+                    <span>{nextRace?.round ? `R${String(nextRace.round).padStart(2, "0")}` : "Ожидается"}</span>
                   </div>
-                  <button type="button" className="constructors-race-briefing" onClick={() => navigate(`/next-race?season=${year}`)}>
-                    Следующая гонка
-                  </button>
+                  <h3>{nextRace?.event_name || "Данные скоро"}</h3>
+                  <p>{nextRace?.location || "Место уточняется"} · {formatRaceDate(nextRace?.date)}</p>
+                  <div className="constructors-next-footer">
+                    <div className="constructors-next-days">
+                      <span>{String(daysLeft ?? 0).padStart(2, "0")}</span>
+                      <b>дней</b>
+                    </div>
+                    <button type="button" className="constructors-race-briefing" onClick={() => navigate(`/next-race?season=${year}`)}>
+                      Открыть этап →
+                    </button>
+                  </div>
                 </article>
               </section>
 
@@ -245,10 +270,12 @@ function ConstructorsPage() {
                 <div className="desktop-standings-table-head">
                   <span>Поз</span>
                   <span>Команда</span>
+                  <span>Отставание</span>
                   <span>Очки</span>
                 </div>
                 {teams.map((team) => {
                   const toTeam = `/constructor-details?constructorId=${encodeURIComponent(team.constructorId || team.name)}&season=${year}`;
+                  const pointsGap = Math.max(0, (leaderTeam?.points ?? 0) - team.points);
                   return (
                     <div
                       key={`desktop-${team.name}`}
@@ -268,31 +295,41 @@ function ConstructorsPage() {
                             onError={(e) => (e.currentTarget.style.display = "none")}
                           />
                         )}
-                        <span className="desktop-standings-name">
-                          {team.name}
-                          {team.is_favorite && <i>★</i>}
-                        </span>
+                        <div className="constructors-row-copy">
+                          <span className="desktop-standings-name">
+                            {team.name}
+                            {team.is_favorite && <i>★</i>}
+                          </span>
+                        </div>
                       </div>
-                      <span className="desktop-standings-points">{team.points}</span>
+                      <span className={`constructors-row-gap ${team.position === 1 ? "leader" : ""}`}>
+                        {team.position === 1 ? "Лидер" : `−${pointsGap}`}
+                      </span>
+                      <span className="desktop-standings-points">
+                        <strong>{team.points}</strong>
+                        <small>PTS</small>
+                      </span>
                     </div>
                   );
                 })}
               </section>
 
-              <section className="constructors-insights-grid">
-                <article className="constructors-insight-card">
-                  <div className="constructors-insight-title">Технический анализ</div>
-                  <p>
-                    {leaderTeam?.name || "Лидер чемпионата"} удерживает преимущество за счет стабильного темпа и
-                    минимальных потерь в ключевых секторах.
-                  </p>
+              <section className="constructors-season-stats" aria-label="Статистика командного зачёта">
+                <article>
+                  <span>Команд в зачёте</span>
+                  <strong>{teams.length}</strong>
                 </article>
-                <article className="constructors-insight-card">
-                  <div className="constructors-insight-title">Эффективность силовой установки</div>
-                  <div className="constructors-power-row"><span>{teams[0]?.name || "—"}</span><b>100% эффективность</b></div>
-                  <div className="constructors-power-bar"><i style={{ width: "100%" }} /></div>
-                  <div className="constructors-power-row"><span>{teams[1]?.name || "—"}</span><b>98.2% эффективность</b></div>
-                  <div className="constructors-power-bar"><i style={{ width: "98%" }} /></div>
+                <article>
+                  <span>Преимущество лидера</span>
+                  <strong>+{leaderAdvantage}</strong>
+                  <small>очков</small>
+                </article>
+                <article>
+                  <span>Самая плотная борьба</span>
+                  <strong>{closestBattle ? `${closestBattle.gap} очк.` : "—"}</strong>
+                  <small>
+                    {closestBattle ? `${closestBattle.first.name} / ${closestBattle.second.name}` : "Недостаточно данных"}
+                  </small>
                 </article>
               </section>
             </>
