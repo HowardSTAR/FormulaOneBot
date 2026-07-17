@@ -1,11 +1,13 @@
 import asyncio
 import logging
+import os
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.bot import create_bot_and_dispatcher
@@ -71,6 +73,18 @@ async def on_shutdown(bot: Bot):
 
 async def main():
     bot, dp = create_bot_and_dispatcher()
+
+    mini_app_url = os.getenv("MINI_APP_URL", "").strip().rstrip("/")
+    if mini_app_url:
+        if not mini_app_url.startswith("https://"):
+            raise RuntimeError("MINI_APP_URL must use HTTPS for Telegram Mini Apps")
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="Открыть F1 Hub",
+                web_app=WebAppInfo(url=mini_app_url),
+            )
+        )
+        logging.getLogger(__name__).info("Telegram Mini App menu configured: %s", mini_app_url)
 
     # 1. Регистрируем хуки (теперь они точно сработают!)
     dp.startup.register(on_startup)

@@ -8,12 +8,17 @@ from pathlib import Path
 from typing import Optional, List
 
 import pandas as pd
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
+
+# run_web.py imports this module directly, so load local configuration before
+# app.db and authentication services read environment variables.
+load_dotenv()
 
 from app.auth import get_current_user_id, get_optional_user_id
 from app.db import (
