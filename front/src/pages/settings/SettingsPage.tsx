@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { CustomSelect } from "../../components/CustomSelect";
 import { hapticSelection, hapticImpact } from "../../helpers/telegram";
+import "../../assets/personal-pages.css";
 
 type SettingsResponse = { timezone?: string; notify_before?: number; notifications_enabled?: boolean };
 
@@ -45,28 +46,28 @@ function SettingsPage() {
   const [timezone, setTimezone] = useState("Etc/GMT-3");
   const [notifyBefore, setNotifyBefore] = useState(60);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [timePreview, setTimePreview] = useState("--:--");
+  const [clockTick, setClockTick] = useState(() => Date.now());
   const [toast, setToast] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const updateTimePreview = useCallback(() => {
+  const timePreview = useMemo(() => {
     try {
-      const tz = timezone;
-      const timeString = new Date().toLocaleTimeString("ru-RU", {
-        timeZone: tz,
+      const timeString = new Date(clockTick).toLocaleTimeString("ru-RU", {
+        timeZone: timezone,
         hour: "2-digit",
         minute: "2-digit",
       });
-      setTimePreview(`Сейчас: ${timeString}`);
+      return `Сейчас: ${timeString}`;
     } catch {
-      setTimePreview("Сейчас: --:--");
+      return "Сейчас: --:--";
     }
-  }, [timezone]);
+  }, [timezone, clockTick]);
 
   useEffect(() => {
-    updateTimePreview();
-    const id = setInterval(updateTimePreview, 1000);
+    const id = window.setInterval(() => setClockTick(Date.now()), 30_000);
     return () => clearInterval(id);
-  }, [updateTimePreview]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +85,8 @@ function SettingsPage() {
   }, []);
 
   const saveSettings = async () => {
+    setSaving(true);
+    setError("");
     try {
       await apiRequest(
         "/api/settings",
@@ -93,78 +96,88 @@ function SettingsPage() {
       setToast(true);
       setTimeout(() => setToast(false), 3000);
     } catch (e) {
-      alert("Ошибка сохранения: " + (e instanceof Error ? e.message : String(e)));
+      setError(e instanceof Error ? e.message : "Не удалось сохранить настройки");
+    } finally {
+      setSaving(false);
     }
   };
 
+  const timezoneLabel = TIMEZONES.find((item) => item.value === timezone)?.label || timezone;
+  const notifyLabel = NOTIFY_OPTIONS.find((item) => item.value === notifyBefore)?.label || `${notifyBefore} минут`;
+
   return (
-    <>
-      <BackButton>← <span>На главную</span></BackButton>
-      <h2 style={{ marginTop: 10, marginBottom: 20 }}>Настройки</h2>
-
-      <div className="setting-card">
-        <div className="setting-label">ЧАСОВОЙ ПОЯС</div>
-        <CustomSelect
-          options={TIMEZONES}
-          value={timezone}
-          onChange={(v) => setTimezone(String(v))}
-        />
-        <div className="timezone-preview">{timePreview}</div>
-      </div>
-
-      <div className="setting-card">
-        <div className="setting-label">УВЕДОМЛЯТЬ ЗА</div>
-        <CustomSelect
-          options={NOTIFY_OPTIONS}
-          value={notifyBefore}
-          onChange={(v) => setNotifyBefore(Number(v))}
-        />
-      </div>
-
-      <div className="setting-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div className="setting-label" style={{ marginBottom: 0 }}>Включить уведомления</div>
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={notificationsEnabled}
-              onChange={(e) => {
-                hapticSelection();
-                setNotificationsEnabled(e.target.checked);
-              }}
-            />
-            <span className="slider round" />
-          </label>
+    <div className="personal-page settings-page">
+      <BackButton />
+      <header className="personal-page-header">
+        <div>
+          <span className="personal-page-kicker">Персонализация</span>
+          <h1>Настройки</h1>
+          <p>Управляйте локальным временем и уведомлениями о событиях гоночного уик-энда.</p>
         </div>
-        <p
-          style={{
-            margin: "12px 0 0",
-            fontSize: 13,
-            color: "var(--text-secondary)",
-            fontStyle: "italic",
-          }}
-        >
-          С 21:00 до 10:00 по вашему времени уведомления приходят в тихом режиме (без звука).
-        </p>
+        <div className={`personal-status-badge ${notificationsEnabled ? "is-on" : ""}`}>
+          <i aria-hidden />{notificationsEnabled ? "Уведомления включены" : "Уведомления выключены"}
+        </div>
+      </header>
+
+      <div className="settings-desktop-layout">
+        <section className="personal-surface settings-form-panel">
+          <div className="settings-section-heading">
+            <span>01</span><div><h2>Время событий</h2><p>Расписание будет показано в выбранном часовом поясе.</p></div>
+          </div>
+          <div className="settings-fields-grid">
+            <div className="setting-card">
+              <div className="setting-label">Часовой пояс</div>
+              <CustomSelect options={TIMEZONES} value={timezone} onChange={(v) => setTimezone(String(v))} />
+              <div className="timezone-preview">{timePreview}</div>
+            </div>
+            <div className="setting-card">
+              <div className="setting-label">Уведомлять заранее</div>
+              <CustomSelect options={NOTIFY_OPTIONS} value={notifyBefore} onChange={(v) => setNotifyBefore(Number(v))} />
+              <div className="setting-card-note">Перед началом каждой важной сессии</div>
+            </div>
+          </div>
+
+          <div className="settings-section-heading settings-notifications-heading">
+            <span>02</span><div><h2>Уведомления</h2><p>Получайте напоминания и не пропускайте старт сессии.</p></div>
+          </div>
+          <div className="setting-card notification-setting-card">
+            <div>
+              <strong>Уведомления бота</strong>
+              <p>С 21:00 до 10:00 по вашему времени сообщения приходят без звука.</p>
+            </div>
+            <label className="switch" aria-label="Включить уведомления">
+              <input type="checkbox" checked={notificationsEnabled} onChange={(e) => { hapticSelection(); setNotificationsEnabled(e.target.checked); }} />
+              <span className="slider round" />
+            </label>
+          </div>
+        </section>
+
+        <aside className="personal-surface settings-summary-panel">
+          <span className="personal-control-label">Текущая конфигурация</span>
+          <h2>Ваш гоночный день</h2>
+          <dl>
+            <div><dt>Локальное время</dt><dd>{timePreview.replace("Сейчас: ", "")}</dd></div>
+            <div><dt>Часовой пояс</dt><dd>{timezoneLabel}</dd></div>
+            <div><dt>Напоминание</dt><dd>За {notifyLabel}</dd></div>
+            <div><dt>Статус</dt><dd>{notificationsEnabled ? "Активно" : "Отключено"}</dd></div>
+          </dl>
+          <p>Настройки синхронизируются с Telegram Mini App и применяются ко всем сессиям.</p>
+        </aside>
       </div>
 
-      <button
-        type="button"
-        className="btn-save"
-        onClick={() => {
-          hapticImpact("medium");
-          saveSettings();
-        }}
-      >
-        Сохранить
-      </button>
+      <div className="settings-save-bar">
+        <div>{error ? <span className="personal-error" role="alert">{error}</span> : <span>Изменения применятся на сайте и в боте</span>}</div>
+        <button type="button" className="btn-save" disabled={saving} onClick={() => { hapticImpact("medium"); void saveSettings(); }}>
+          {saving ? "Сохранение…" : "Сохранить настройки"}
+        </button>
+      </div>
 
       {toast && (
         <div className="toast-msg show" role="status">
           Настройки сохранены ✅
         </div>
       )}
-    </>
+    </div>
   );
 }
 

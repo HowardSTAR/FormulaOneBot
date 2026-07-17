@@ -1,4 +1,6 @@
 import "./assets/styles.css"
+import "./assets/desktop-conversion.css"
+import "./assets/redesign.css"
 import { RouterProvider } from "react-router-dom"
 import { router } from "./router"
 import { HeroDataProvider } from "./context/HeroDataContext"

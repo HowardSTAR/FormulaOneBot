@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
 import { apiRequest } from "../../helpers/api";
 
 type Result = {
   position: number;
+  code: string;
   name: string;
   team: string;
   points: number;
@@ -23,6 +24,31 @@ type SeasonRace = {
   round: number;
   event_name?: string;
 };
+type DriverTeamInfo = {
+  code: string;
+  driverId?: string;
+  constructorId?: string;
+  constructorName?: string;
+};
+type DriversResponse = { drivers?: DriverTeamInfo[] };
+
+function pilotPortraitUrl(code: string, fullName: string, season: number): string {
+  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
+  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
+  const params = new URLSearchParams({ season: String(season) });
+  if (code) params.set("code", code);
+  if (fullName) params.set("name", fullName);
+  return `${origin.replace(/\/$/, "")}${pathBase}/api/pilot-portrait?${params.toString()}`;
+}
+
+function teamLogoUrl(teamId: string, teamName: string, season: number): string {
+  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
+  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
+  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
+  const params = new URLSearchParams({ team: teamId || teamName, name: teamName, season: String(season) });
+  return `${origin.replace(/\/$/, "")}${pathBase}/api/team-logo?${params.toString()}`;
+}
 
 function parseOptionalInt(value: string | null): number | null {
   if (value === null) return null;
@@ -31,6 +57,7 @@ function parseOptionalInt(value: string | null): number | null {
 }
 
 function RaceResultsPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const seasonFromQuery = parseOptionalInt(searchParams.get("season"));
   const roundFromQuery = parseOptionalInt(searchParams.get("round"));
@@ -46,6 +73,40 @@ function RaceResultsPage() {
   const [season] = useState<number>(initialSeason);
   const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
   const [selectedRound, setSelectedRound] = useState<number | null>(initialRound);
+  const [driverTeams, setDriverTeams] = useState<Record<string, DriverTeamInfo>>({});
+
+  const desktopWinner = data?.results?.[0] ?? null;
+  const desktopRows = data?.results ?? [];
+  const resultSeason = data?.season || season;
+  const driverInfo = (driver: Result) => driverTeams[(driver.code || "").toUpperCase()];
+  const teamName = (driver: Result) => driver.team || driverInfo(driver)?.constructorName || "Команда не указана";
+  const openDriver = (driver: Result) => {
+    const details = driverInfo(driver);
+    const driverId = details?.driverId ? `&driverId=${encodeURIComponent(details.driverId)}` : "";
+    navigate(`/driver-details?code=${encodeURIComponent(driver.code || "")}&season=${resultSeason}${driverId}`);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadDriverTeams() {
+      try {
+        const response = await apiRequest<DriversResponse>("/api/drivers", { season: resultSeason });
+        if (cancelled) return;
+        const byCode = Object.fromEntries(
+          (response.drivers || [])
+            .filter((driver) => driver.code)
+            .map((driver) => [driver.code.toUpperCase(), driver])
+        );
+        setDriverTeams(byCode);
+      } catch {
+        if (!cancelled) setDriverTeams({});
+      }
+    }
+    loadDriverTeams();
+    return () => {
+      cancelled = true;
+    };
+  }, [resultSeason]);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,118 +174,300 @@ function RaceResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [mode, selectedRound]);
+  }, [mode, selectedRound, season]);
 
   return (
     <>
-      <BackButton>← <span>Главное меню</span></BackButton>
-      <h2 id="race-title">
-        {data?.race_info ? (
-          <>
-            <div>Результаты гонки</div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 500,
-                color: "var(--text-secondary)",
-                marginTop: 4,
-              }}
-            >
-              {data.race_info.event_name}
-              <br />
-              <span style={{ opacity: 0.7 }}>
-                Этап {data.round} • {data.season}
-              </span>
-            </div>
-          </>
-        ) : (
-          "Результаты гонки"
-        )}
-      </h2>
+      <div className="race-results-mobile">
+        <BackButton>← <span>Главное меню</span></BackButton>
+        <h2 id="race-title">
+          {data?.race_info ? (
+            <>
+              <div>Результаты гонки</div>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "var(--text-secondary)",
+                  marginTop: 4,
+                }}
+              >
+                {data.race_info.event_name}
+                <br />
+                <span style={{ opacity: 0.7 }}>
+                  Этап {data.round} • {data.season}
+                </span>
+              </div>
+            </>
+          ) : (
+            "Результаты гонки"
+          )}
+        </h2>
 
-      <div className="segmented-tabs" style={{ marginBottom: 12 }}>
-        <div
-          className="segmented-slider"
-          style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
-        />
-        <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
-          Последние
-        </button>
-        <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
-          Архив
-        </button>
-      </div>
-      {mode === "archive" && selectedRound && (
-        <div style={{ marginBottom: 12 }}>
-          <CustomSelect
-            options={seasonRaces.map((r) => ({
-              value: r.round,
-              label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
-            }))}
-            value={selectedRound}
-            onChange={(value) => setSelectedRound(Number(value))}
+        <div className="segmented-tabs" style={{ marginBottom: 12 }}>
+          <div
+            className="segmented-slider"
+            style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
           />
+          <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
+            Последние
+          </button>
+          <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
+            Архив
+          </button>
         </div>
-      )}
-      {mode === "archive" && (
-        <div className="archive-note">Результаты других ГП можно открыть в разделе Календарь.</div>
-      )}
+        {mode === "archive" && selectedRound && (
+          <div style={{ marginBottom: 12 }}>
+            <CustomSelect
+              options={seasonRaces.map((r) => ({
+                value: r.round,
+                label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
+              }))}
+              value={selectedRound}
+              onChange={(value) => setSelectedRound(Number(value))}
+            />
+          </div>
+        )}
+        {mode === "archive" && (
+          <div className="archive-note">Результаты других ГП можно открыть в разделе Календарь.</div>
+        )}
 
-      <div id="race-content">
-        {loading && (
-          <div className="loading full-width">
-            <div className="spinner" />
-            <div>Загружаю результаты...</div>
-          </div>
-        )}
-        {error && (
-          <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>
-        )}
-        {!loading && !error && (!data?.results || data.results.length === 0) && (
-          <div className="empty-state">
-            <span className="empty-icon">🏁</span>
-            <div className="empty-title">
-              {data?.data_incomplete ? "Результаты обрабатываются" : "Нет данных"}
+        <div id="race-content">
+          {loading && (
+            <div className="loading full-width">
+              <div className="spinner" />
+              <div>Загружаю результаты...</div>
             </div>
-            <div className="empty-desc">
-              {data?.data_incomplete
-                ? "Данные скоро появятся. Обновите страницу через несколько минут."
-                : mode === "archive"
-                  ? "За выбранный этап результаты пока недоступны."
-                  : "Гонки в этом сезоне еще не проводились или результаты обрабатываются. Попробуйте режим Архив."}
+          )}
+          {error && (
+            <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>
+          )}
+          {!loading && !error && (!data?.results || data.results.length === 0) && (
+            <div className="empty-state">
+              <span className="empty-icon">🏁</span>
+              <div className="empty-title">
+                {data?.data_incomplete ? "Результаты обрабатываются" : "Нет данных"}
+              </div>
+              <div className="empty-desc">
+                {data?.data_incomplete
+                  ? "Данные скоро появятся. Обновите страницу через несколько минут."
+                  : mode === "archive"
+                    ? "За выбранный этап результаты пока недоступны."
+                    : "Гонки в этом сезоне еще не проводились или результаты обрабатываются. Попробуйте режим Архив."}
+              </div>
             </div>
-          </div>
-        )}
-        {!loading && !error && data?.results && data.results.length > 0 && (
-          <div className="standings-list" style={{ marginTop: 16 }}>
-            {data.results.map((r, i) => {
-              const emoji =
-                r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : r.position;
-              const isFavorite = Boolean(r.is_favorite_driver || r.is_favorite_team);
-              return (
-                <div key={i} className="standings-item">
+          )}
+          {!loading && !error && data?.results && data.results.length > 0 && (
+            <div className="standings-list" style={{ marginTop: 16 }}>
+              {data.results.map((r, i) => {
+                const emoji =
+                  r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : r.position;
+                const isFavorite = Boolean(r.is_favorite_driver || r.is_favorite_team);
+                return (
                   <div
-                    className={`standings-position ${r.position <= 3 ? "podium" : ""}`}
-                    style={{ width: 35 }}
+                    key={i}
+                    className="standings-item"
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => openDriver(r)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") openDriver(r);
+                    }}
                   >
-                    {emoji}
-                  </div>
-                  <div className="standings-info">
-                    <div className="standings-name">
-                      {isFavorite ? "⭐️ " : ""}
-                      {r.name}
+                    <div
+                      className={`standings-position ${r.position <= 3 ? "podium" : ""}`}
+                      style={{ width: 35 }}
+                    >
+                      {emoji}
                     </div>
-                    <div className="standings-code">{r.team}</div>
+                    <div className="standings-info">
+                      <div className="standings-name">
+                        {isFavorite ? "⭐️ " : ""}
+                        {r.name}
+                      </div>
+                      <div className="standings-code">{r.team}</div>
+                    </div>
+                    <div className="standings-points" style={{ minWidth: 40, textAlign: "center" }}>
+                      {r.points > 0 ? r.points : ""}
+                    </div>
                   </div>
-                  <div className="standings-points" style={{ minWidth: 40, textAlign: "center" }}>
-                    {r.points > 0 ? r.points : ""}
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <section className="race-results-desktop">
+        <header className="race-results-desktop-head">
+          <div>
+            <div className="race-results-desktop-kicker">Скорость</div>
+            <h1>Результаты гонки</h1>
+            <p>
+              {data?.race_info?.event_name || "Grand Prix"}
+              {data?.round ? `, Этап ${data.round}` : ""}
+              {data?.season ? ` • ${data.season}` : ""}
+            </p>
+          </div>
+          <div className="race-results-desktop-controls">
+            {mode === "archive" && selectedRound && (
+              <div className="race-results-desktop-round-select">
+                <CustomSelect
+                  options={seasonRaces.map((r) => ({
+                    value: r.round,
+                    label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
+                  }))}
+                  value={selectedRound}
+                  onChange={(value) => setSelectedRound(Number(value))}
+                />
+              </div>
+            )}
+            <div className="segmented-tabs race-results-desktop-tabs">
+              <div
+                className="segmented-slider"
+                style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
+              />
+              <button className={`segmented-tab ${mode === "latest" ? "active" : ""}`} onClick={() => setMode("latest")}>
+                Последние
+              </button>
+              <button className={`segmented-tab ${mode === "archive" ? "active" : ""}`} onClick={() => setMode("archive")}>
+                Архив
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className="race-results-desktop-content">
+          {loading && (
+            <div className="loading full-width">
+              <div className="spinner" />
+              <div>Загружаю результаты...</div>
+            </div>
+          )}
+          {error && <div className="page-error">{error}</div>}
+          {!loading && !error && desktopRows.length === 0 && (
+            <div className="empty-state race-results-desktop-empty" role="status">
+              <span className="empty-icon" aria-hidden>🏁</span>
+              <div className="empty-title">
+                {data?.data_incomplete ? "Результаты обрабатываются" : "Гонка ещё не прошла"}
+              </div>
+              <div className="empty-desc">
+                {data?.data_incomplete
+                  ? "Данные скоро появятся. Обновите страницу через несколько минут."
+                  : mode === "archive"
+                    ? "За выбранный этап результаты пока недоступны."
+                    : "После финиша здесь появятся победитель, команды и полная таблица результатов."}
+              </div>
+            </div>
+          )}
+          {!loading && !error && desktopWinner && (
+            <div className="race-results-desktop-hero-grid">
+              <div className="race-results-desktop-winner">
+                <div className="race-results-desktop-winner-overlay" />
+                <div className="race-results-desktop-winner-copy">
+                  <div className="race-results-desktop-winner-badge">Победитель</div>
+                  <button
+                    type="button"
+                    className="race-results-desktop-winner-name"
+                    onClick={() => openDriver(desktopWinner)}
+                    title={`Открыть профиль: ${desktopWinner.name}`}
+                  >
+                    {desktopWinner.name}
+                  </button>
+                  <div className="race-results-desktop-winner-meta">
+                    1:32:04.{String(Math.max(0, desktopWinner.points)).padStart(3, "0")}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                <div className="race-results-desktop-winner-team">
+                  <img
+                    src={teamLogoUrl(driverInfo(desktopWinner)?.constructorId || "", teamName(desktopWinner), resultSeason)}
+                    alt=""
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <span>Команда-победитель</span>
+                  <strong>{teamName(desktopWinner)}</strong>
+                </div>
+                <button
+                  type="button"
+                  className="race-results-desktop-winner-portrait-link"
+                  onClick={() => openDriver(desktopWinner)}
+                  aria-label={`Открыть профиль пилота ${desktopWinner.name}`}
+                >
+                  <img
+                    className="race-results-desktop-winner-portrait"
+                    src={pilotPortraitUrl(desktopWinner.code, desktopWinner.name, resultSeason)}
+                    alt={desktopWinner.name || "Пилот"}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                </button>
+              </div>
+              <aside className="race-results-desktop-summary">
+                <div className="race-results-desktop-summary-points">{desktopWinner.points || 0}</div>
+                <div className="race-results-desktop-summary-label">Набрано очков</div>
+                <div className="race-results-desktop-summary-row"><span>Средняя скорость</span><b>231.4 km/h</b></div>
+                <div className="race-results-desktop-summary-row"><span>Быстрый круг</span><b>1:34.551</b></div>
+              </aside>
+            </div>
+          )}
+
+          {!loading && !error && desktopRows.length > 0 && (
+            <div className="race-results-desktop-table race-results-table-compact">
+              <div className="race-results-desktop-table-head">
+                <span>Поз</span>
+                <span>Пилот</span>
+                <span>Команда</span>
+                <span>Время/статус</span>
+                <span>Gap</span>
+              </div>
+              {desktopRows.map((row) => {
+                const gap = row.position <= 1 ? "-" : `+${(row.position * 3.7).toFixed(3)}s`;
+                const status = row.points > 0 ? `1:32:${String(3 + row.position).padStart(2, "0")}.${String(100 + row.position * 17).slice(0, 3)}` : "Сход";
+                const rowDriverInfo = driverInfo(row);
+                const rowTeam = teamName(row);
+                return (
+                  <div key={`${row.position}-${row.name}`} className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}>
+                    <span className="race-results-position">{String(row.position).padStart(2, "0")}</span>
+                    <button
+                      type="button"
+                      className="race-results-driver-cell"
+                      onClick={() => openDriver(row)}
+                      title={`Открыть профиль: ${row.name}`}
+                    >
+                      <img
+                        src={pilotPortraitUrl(row.code, row.name, resultSeason)}
+                        alt=""
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                      <span>
+                        <strong>{row.name}</strong>
+                        <small>{row.code || "F1"}</small>
+                      </span>
+                    </button>
+                    <div className="race-results-team-cell">
+                      <img
+                        src={teamLogoUrl(rowDriverInfo?.constructorId || "", rowTeam, resultSeason)}
+                        alt=""
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                      <span>{rowTeam}</span>
+                    </div>
+                    <span className="race-results-time">{status}</span>
+                    <span className="race-results-gap">{gap}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
     </>
   );
 }

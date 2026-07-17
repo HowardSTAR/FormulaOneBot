@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
+import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 
 type NextRaceResponse = {
@@ -26,6 +27,8 @@ function NextRacePage() {
   const [raceCity, setRaceCity] = useState("");
   const [raceDateText, setRaceDateText] = useState("--");
   const [raceTimeText, setRaceTimeText] = useState("--:--");
+  const [displayTimezone, setDisplayTimezone] = useState("Локальное время");
+  const [raceRound, setRaceRound] = useState<number | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [expandedFactIndex, setExpandedFactIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -33,6 +36,7 @@ function NextRacePage() {
   const [trackSvg, setTrackSvg] = useState<string | null>(null);
   const [layoutPhase, setLayoutPhase] = useState<"draw" | "split">("draw");
   const trackContainerRef = useRef<HTMLDivElement>(null);
+  const desktopTrackContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,9 +48,10 @@ function NextRacePage() {
         ]);
         const raceData = raceRes.status === "fulfilled" ? raceRes.value : { status: "error" };
         const settings = settingsRes.status === "fulfilled" ? settingsRes.value : { timezone: "UTC" };
-        const userTz = settings?.timezone || "UTC";
+        const userTz = getDisplayTimezone(settings?.timezone);
 
         if (cancelled) return;
+        setDisplayTimezone(userTz.replace(/_/g, " "));
         if (raceData.status !== "ok") {
           setTitle(raceData.status === "season_finished" ? "Сезон завершен" : "Нет данных");
           setSessions([]);
@@ -59,6 +64,7 @@ function NextRacePage() {
         setIsCancelled(Boolean(raceData.is_cancelled));
         setRaceCountry(raceData.country || "");
         setRaceCity(raceData.location || "");
+        setRaceRound(raceData.round ?? null);
         setLocation(`${raceData.country || ""}, ${raceData.location || ""}`);
 
         const scheduleData = await apiRequest<ScheduleResponse>("/api/weekend-schedule", {
@@ -154,43 +160,87 @@ function NextRacePage() {
     return () => { cancelled = true; };
   }, [eventName, loading]);
 
-  useEffect(() => {
-    if (!trackSvg || !trackContainerRef.current) return;
-    const container = trackContainerRef.current;
-    container.innerHTML = trackSvg;
-    const svg = container.querySelector("svg");
-    if (!svg) return;
-    svg.style.width = "100%";
-    svg.style.height = "100%";
-    const paths = svg.querySelectorAll("path, polyline");
-    const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    outlineGroup.classList.add("track-outline-group");
-    fillGroup.classList.add("track-fill-group");
-    paths.forEach((path) => {
-      const outlinePath = path.cloneNode(true) as SVGElement;
-      outlinePath.removeAttribute("fill");
-      outlinePath.classList.add("track-outline");
-      const length = (outlinePath as SVGPathElement).getTotalLength?.() ?? 0;
-      outlinePath.style.strokeDasharray = String(length);
-      outlinePath.style.strokeDashoffset = String(length);
-      outlineGroup.appendChild(outlinePath);
-      path.classList.add("track-fill");
-      fillGroup.appendChild(path);
-    });
-    svg.innerHTML = "";
-    svg.appendChild(outlineGroup);
-    svg.appendChild(fillGroup);
-    svg.getBoundingClientRect();
-    setTimeout(() => {
-      outlineGroup.querySelectorAll(".track-outline").forEach((p) => p.classList.add("animate"));
-      fillGroup.querySelectorAll(".track-fill").forEach((p) => p.classList.add("animate"));
-    }, 100);
+  useLayoutEffect(() => {
+    if (!trackSvg) return;
+
+    const animationFrameIds: number[] = [];
+    const completionTimeoutIds: number[] = [];
+
+    const completeOutline = (outline: SVGElement) => {
+      outline.classList.add("animation-complete");
+      outline.style.strokeDasharray = "none";
+      outline.style.strokeDashoffset = "0";
+    };
+
+    const setupAnimatedTrack = (container: HTMLDivElement | null) => {
+      if (!container) return;
+      container.innerHTML = trackSvg;
+      const svg = container.querySelector("svg");
+      if (!svg) return;
+      svg.style.width = "100%";
+      svg.style.height = "100%";
+      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+      const paths = svg.querySelectorAll("path, polyline");
+      const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      outlineGroup.classList.add("track-outline-group");
+      fillGroup.classList.add("track-fill-group");
+
+      paths.forEach((path) => {
+        // Measure the original geometry while it is still attached to the SVG.
+        // Detached clones return 0 in some desktop browsers, which skips the draw animation.
+        const length = (path as SVGGeometryElement).getTotalLength?.() ?? 0;
+        const outlinePath = path.cloneNode(true) as SVGElement;
+        outlinePath.removeAttribute("fill");
+        outlinePath.classList.add("track-outline");
+        outlinePath.style.strokeDasharray = `${length} ${length}`;
+        outlinePath.style.strokeDashoffset = String(length);
+        outlinePath.addEventListener("transitionend", (event) => {
+          if (event.propertyName === "stroke-dashoffset") {
+            completeOutline(outlinePath);
+          }
+        });
+        outlineGroup.appendChild(outlinePath);
+        path.classList.add("track-fill");
+        fillGroup.appendChild(path);
+      });
+
+      svg.innerHTML = "";
+      svg.appendChild(fillGroup);
+      svg.appendChild(outlineGroup);
+      svg.getBoundingClientRect();
+
+      // Let the completely empty initial state reach the compositor, then draw immediately.
+      const prepareFrame = window.requestAnimationFrame(() => {
+        const startFrame = window.requestAnimationFrame(() => {
+          const outlines = outlineGroup.querySelectorAll<SVGElement>(".track-outline");
+          outlines.forEach((p) => p.classList.add("animate"));
+          fillGroup.querySelectorAll(".track-fill").forEach((p) => p.classList.add("animate"));
+
+          // A closed SVG path can retain a visible dash seam at exactly 100% length.
+          // Remove the dash mask after the transition so the final contour is continuous.
+          const completionTimeout = window.setTimeout(() => {
+            outlines.forEach(completeOutline);
+          }, 3300);
+          completionTimeoutIds.push(completionTimeout);
+        });
+        animationFrameIds.push(startFrame);
+      });
+      animationFrameIds.push(prepareFrame);
+    };
+
+    setupAnimatedTrack(trackContainerRef.current);
+    setupAnimatedTrack(desktopTrackContainerRef.current);
+
+    return () => {
+      animationFrameIds.forEach((frameId) => window.cancelAnimationFrame(frameId));
+      completionTimeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
   }, [trackSvg]);
 
   useEffect(() => {
     if (loading) return;
-    const delay = trackSvg ? 4200 : 800;
+    const delay = trackSvg ? 6200 : 800;
     const t = setTimeout(() => setLayoutPhase("split"), delay);
     return () => clearTimeout(t);
   }, [trackSvg, loading]);
@@ -206,102 +256,212 @@ function NextRacePage() {
     sessionsCount: sessions.length,
   });
 
+  const desktopSessions = sessions.map((s) => {
+    const d = s.utc_iso ? new Date(s.utc_iso) : null;
+    const day =
+      d && !Number.isNaN(d.getTime())
+        ? d.toLocaleDateString("ru-RU", { weekday: "long" }).toUpperCase()
+        : "СЕССИЯ";
+    const date =
+      d && !Number.isNaN(d.getTime())
+        ? d.toLocaleDateString("ru-RU", { month: "short", day: "numeric" }).toUpperCase()
+        : "--";
+    const time = "_time" in s ? (s as Session & { _time: string })._time : "--:--";
+    return { ...s, _day: day, _dateLabel: date, _timeLabel: time };
+  });
+
   return (
     <>
-      <BackButton>← <span>Главное меню</span></BackButton>
-      <h2>{title}</h2>
-      <p style={{ marginBottom: 20, opacity: 0.7 }}>{location}</p>
+      <div className="next-race-mobile">
+        <BackButton>← <span>Главное меню</span></BackButton>
+        <h2>{title}</h2>
+        <p style={{ marginBottom: 20, opacity: 0.7 }}>{location}</p>
 
-      {(eventName || loading) && (
-      <div className={`next-race-hero ${layoutPhase}`}>
-        <div className="next-race-start-block">
-          <div className="next-race-start-label">{isCancelled ? "СТАТУС ЭТАПА" : "СТАРТ ГОНКИ"}</div>
-          <div className="next-race-date">{isCancelled ? "ОТМЕНЕН" : raceDateText}</div>
-          <div className="next-race-time">{isCancelled ? "Организатор отменил проведение этапа" : raceTimeText}</div>
-        </div>
-        <div className="next-race-dash" aria-hidden />
-        <div className="next-race-track-wrap">
-          <div className="track-map-container next-race">
-            {!trackSvg && !loading && <div className="no-map-placeholder">🏁</div>}
-            <div
-              ref={trackContainerRef}
-              style={{ width: "100%", height: "100%", display: trackSvg ? "block" : "none" }}
-            />
+        {(eventName || loading) && (
+        <div className={`next-race-hero ${layoutPhase}`}>
+          <div className="next-race-start-block">
+            <div className="next-race-start-label">{isCancelled ? "СТАТУС ЭТАПА" : "СТАРТ ГОНКИ"}</div>
+            <div className="next-race-date">{isCancelled ? "ОТМЕНЕН" : raceDateText}</div>
+            <div className="next-race-time">{isCancelled ? "Организатор отменил проведение этапа" : raceTimeText}</div>
+          </div>
+          <div className="next-race-dash" aria-hidden />
+          <div className="next-race-track-wrap">
+            <div className="track-map-container next-race">
+              {!trackSvg && !loading && <div className="no-map-placeholder">🏁</div>}
+              <div
+                ref={trackContainerRef}
+                style={{ width: "100%", height: "100%", display: trackSvg ? "block" : "none" }}
+              />
+            </div>
           </div>
         </div>
-      </div>
-      )}
-
-      <h3 style={{ marginLeft: 4 }}>Расписание уикенда</h3>
-      <div className="standings-list">
-        {loading && (
-          <div className="loading">
-            <div className="spinner" />
-            <div>Загружаем расписание...</div>
-          </div>
         )}
-        {!loading && sessions.length === 0 && !error && (
-          <div style={{ padding: 20, textAlign: "center" }}>Нет расписания</div>
-        )}
-        {!loading &&
-          sessions.length > 0 &&
-          sessions.map((s, i) => (
-            <div key={i} className="standings-item">
-              <div className="standings-info">
-                <div className="standings-name" style={{ fontSize: 16 }}>
-                  {s.name}
-                </div>
-                <div className="standings-code" style={{ color: "var(--text-secondary)", marginTop: 4 }}>
-                  <span style={{ color: "var(--primary)", fontWeight: 700 }}>
-                    {"_time" in s ? (s as Session & { _time: string; _date: string })._time : "--:--"}
-                  </span>
-                  <span style={{ margin: "0 6px", opacity: 0.3 }}>|</span>
-                  {"_date" in s ? (s as Session & { _time: string; _date: string })._date : "--.--"}
+        <h3 style={{ marginLeft: 4 }}>Расписание уикенда</h3>
+        <div className="standings-list">
+          {loading && (
+            <div className="loading">
+              <div className="spinner" />
+              <div>Загружаем расписание...</div>
+            </div>
+          )}
+          {!loading && sessions.length === 0 && !error && (
+            <div style={{ padding: 20, textAlign: "center" }}>Нет расписания</div>
+          )}
+          {!loading &&
+            sessions.length > 0 &&
+            sessions.map((s, i) => (
+              <div key={i} className="standings-item">
+                <div className="standings-info">
+                  <div className="standings-name" style={{ fontSize: 16 }}>
+                    {s.name}
+                  </div>
+                  <div className="standings-code" style={{ color: "var(--text-secondary)", marginTop: 4 }}>
+                    <span style={{ color: "var(--primary)", fontWeight: 700 }}>
+                      {"_time" in s ? (s as Session & { _time: string; _date: string })._time : "--:--"}
+                    </span>
+                    <span style={{ margin: "0 6px", opacity: 0.3 }}>|</span>
+                    {"_date" in s ? (s as Session & { _time: string; _date: string })._date : "--.--"}
+                  </div>
                 </div>
               </div>
+            ))}
+        </div>
+
+        {!loading && eventName && (
+          <>
+            <section className="next-race-stage-data-section">
+              <div className="circuit-insights-card">
+                <div className="circuit-insights-title">Данные по этапу</div>
+                <div className="circuit-insights-stats">
+                  {insights.stats.map((item) => (
+                    <div className="circuit-stat-box" key={item.label}>
+                      <div className="circuit-stat-label">{item.label}</div>
+                      <div className="circuit-stat-value">{item.value}</div>
+                      {item.hint ? <div className="circuit-stat-hint">{item.hint}</div> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <div className="circuit-insights-card">
+              <div className="circuit-insights-title">Интересные факты</div>
+              <div className="circuit-facts-list">
+                {insights.facts.map((fact, idx) => {
+                  const expanded = expandedFactIndex === idx;
+                  return (
+                    <div className="circuit-fact-item" key={fact.title}>
+                      <button
+                        type="button"
+                        className={`circuit-fact-header ${expanded ? "expanded" : ""}`}
+                        onClick={() => setExpandedFactIndex(expanded ? -1 : idx)}
+                      >
+                        <span className="circuit-fact-title">{fact.title}</span>
+                        <span className="circuit-fact-chevron">{expanded ? "▲" : "▼"}</span>
+                      </button>
+                      <div className={`circuit-fact-body ${expanded ? "expanded" : ""}`}>
+                        <div className="circuit-fact-text">{fact.text}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          ))}
+          </>
+        )}
       </div>
 
-      {!loading && eventName && (
-        <>
-          <div className="circuit-insights-card">
-            <div className="circuit-insights-title">Данные по этапу</div>
-            <div className="circuit-insights-stats">
-              {insights.stats.map((item) => (
-                <div className="circuit-stat-box" key={item.label}>
-                  <div className="circuit-stat-label">{item.label}</div>
-                  <div className="circuit-stat-value">{item.value}</div>
-                  {item.hint ? <div className="circuit-stat-hint">{item.hint}</div> : null}
+      {!loading && (eventName || title) && (
+        <section className="next-race-desktop">
+          <div className="next-race-desktop-main">
+            <header className="next-race-desktop-hero">
+              <div className="next-race-desktop-left">
+                <div className="next-race-desktop-round">
+                  ЭТАП {String(raceRound || 0).padStart(2, "0")}
                 </div>
+                <h1>{(eventName || title).replace(/\s+Grand Prix$/i, "\nGrand Prix")}</h1>
+                <div className="next-race-desktop-location">
+                  <b>{raceCity || raceCountry}</b>
+                  <span>{raceCountry || "Formula 1"}</span>
+                </div>
+                <div className="next-race-desktop-start">
+                  <div>
+                    <span>{isCancelled ? "Статус этапа" : "Дата гонки"}</span>
+                    <strong>{isCancelled ? "Отменён" : raceDateText}</strong>
+                  </div>
+                  <div className="accent">
+                    <span>{isCancelled ? "Решение организатора" : "Старт"}</span>
+                    <strong>{isCancelled ? "—" : raceTimeText}</strong>
+                  </div>
+                </div>
+              </div>
+              <div className="next-race-desktop-track">
+                <div
+                  className={`next-race-desktop-track-panel ${trackSvg ? "track-panel-appear" : ""}`}
+                >
+                  <div className="next-race-desktop-track-caption">
+                    <span>Схема трассы</span>
+                    <b>{raceCity || eventName}</b>
+                  </div>
+                  {!trackSvg && <div className="no-map-placeholder">🏁</div>}
+                  <div
+                    ref={desktopTrackContainerRef}
+                    className="next-race-desktop-track-svg"
+                    style={{ display: trackSvg ? "block" : "none" }}
+                  />
+                </div>
+              </div>
+            </header>
+
+            <div className="next-race-desktop-stats">
+              {insights.stats.slice(0, 4).map((item) => (
+                <article className="next-race-desktop-stat" key={item.label}>
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </article>
               ))}
             </div>
-          </div>
 
-          <div className="circuit-insights-card">
-            <div className="circuit-insights-title">Интересные факты</div>
-            <div className="circuit-facts-list">
-              {insights.facts.map((fact, idx) => {
-                const expanded = expandedFactIndex === idx;
-                return (
-                  <div className="circuit-fact-item" key={fact.title}>
-                    <button
-                      type="button"
-                      className={`circuit-fact-header ${expanded ? "expanded" : ""}`}
-                      onClick={() => setExpandedFactIndex(expanded ? -1 : idx)}
-                    >
-                      <span className="circuit-fact-title">{fact.title}</span>
-                      <span className="circuit-fact-chevron">{expanded ? "▲" : "▼"}</span>
-                    </button>
-                    <div className={`circuit-fact-body ${expanded ? "expanded" : ""}`}>
-                      <div className="circuit-fact-text">{fact.text}</div>
+            <section className="next-race-desktop-schedule">
+              <div className="next-race-desktop-schedule-head">
+                <h2>Расписание</h2>
+                <span>Время: {displayTimezone}</span>
+              </div>
+              <div className="next-race-desktop-schedule-grid">
+                {desktopSessions.map((s, i) => (
+                  <article key={`${s.name}-${i}`} className={i === desktopSessions.length - 1 ? "active" : ""}>
+                    <u>{s._day}</u>
+                    <h5>{s.name}</h5>
+                    <div>
+                      <b>{s._timeLabel}</b>
+                      <small>{s._dateLabel}</small>
                     </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            <section className="next-race-desktop-facts">
+              <article className="next-race-desktop-overview">
+                <div>
+                  <h3>Обзор трассы</h3>
+                  <p>{insights.facts[0]?.text || "Подробности трассы появятся позже."}</p>
+                </div>
+              </article>
+              <div className="next-race-desktop-facts-list">
+                {insights.facts.slice(1, 4).map((fact) => (
+                  <div key={fact.title} className="next-race-desktop-fact-item">
+                    <div className="next-race-desktop-fact-head">
+                      <h6>{fact.title}</h6>
+                      <span>⌄</span>
+                    </div>
+                    <p>{fact.text}</p>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            </section>
           </div>
-        </>
+        </section>
       )}
     </>
   );

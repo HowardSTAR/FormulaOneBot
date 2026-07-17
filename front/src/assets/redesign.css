@@ -1,0 +1,3582 @@
+/* Compact desktop navigation and guest-first home dashboard. */
+
+@media (min-width: 900px) {
+  .app-content {
+    margin-left: 216px !important;
+    padding: 16px 22px 26px !important;
+  }
+
+  .app-header {
+    width: 216px !important;
+    padding: 18px 12px 14px !important;
+    gap: 18px !important;
+    background:
+      linear-gradient(180deg, rgba(225, 6, 0, 0.045), transparent 180px),
+      #101114 !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.065) !important;
+    box-shadow: 14px 0 42px rgba(0, 0, 0, 0.18);
+  }
+
+  .app-header-brand-wrap {
+    display: grid;
+    gap: 5px;
+    padding: 0 9px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
+  }
+
+  .app-header-brand {
+    display: flex;
+    align-items: baseline;
+    width: max-content;
+    margin: 0 !important;
+    font-size: 29px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.065em !important;
+  }
+
+  .app-header-brand-f1 {
+    margin-right: 2px;
+  }
+
+  .app-header-brand-caption {
+    color: rgba(255, 255, 255, 0.34);
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.21em;
+    text-transform: uppercase;
+  }
+
+  .app-header-nav {
+    gap: 4px !important;
+  }
+
+  .app-header-nav-label {
+    margin: 0 10px 5px;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+  }
+
+  .app-header-link {
+    position: relative;
+    min-height: 40px;
+    padding: 0 9px !important;
+    gap: 10px !important;
+    border: 1px solid transparent !important;
+    border-radius: 9px !important;
+    color: rgba(255, 255, 255, 0.57) !important;
+    font-size: 13px !important;
+    letter-spacing: 0.055em !important;
+    transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 160ms ease;
+  }
+
+  .app-header-link::before {
+    content: "";
+    position: absolute;
+    left: -1px;
+    top: 9px;
+    bottom: 9px;
+    width: 2px;
+    border-radius: 999px;
+    background: transparent;
+  }
+
+  .app-header-link:hover {
+    color: rgba(255, 255, 255, 0.92) !important;
+    background: rgba(255, 255, 255, 0.045) !important;
+    transform: translateX(1px);
+  }
+
+  .app-header-link.active {
+    color: #fff !important;
+    background: linear-gradient(90deg, rgba(225, 6, 0, 0.16), rgba(255, 255, 255, 0.045)) !important;
+    border-color: rgba(225, 6, 0, 0.18) !important;
+  }
+
+  .app-header-link.active::before {
+    background: #ff231c;
+    box-shadow: 0 0 12px rgba(255, 35, 28, 0.55);
+  }
+
+  .app-header-link-icon {
+    display: grid;
+    place-items: center;
+    width: 18px !important;
+    height: 18px;
+    flex: 0 0 18px;
+    color: rgba(255, 255, 255, 0.42);
+  }
+
+  .app-header-link-icon svg {
+    width: 17px;
+    height: 17px;
+  }
+
+  .app-header-link.active .app-header-link-icon {
+    color: #ff403a;
+  }
+
+  .app-header-link-arrow {
+    margin-left: auto;
+    color: rgba(255, 255, 255, 0.28);
+    font-size: 17px;
+    line-height: 1;
+    opacity: 0;
+    transform: translateX(-3px);
+    transition: opacity 160ms ease, transform 160ms ease;
+  }
+
+  .app-header-link:hover .app-header-link-arrow,
+  .app-header-link.active .app-header-link-arrow {
+    opacity: 1;
+    transform: none;
+  }
+
+  .app-header-bottom {
+    display: grid;
+    gap: 10px;
+    margin-top: auto;
+  }
+
+  .app-header-nav-secondary {
+    margin-top: 0 !important;
+    padding-top: 10px !important;
+  }
+
+  .app-header-guest {
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.028);
+  }
+
+  .app-header-guest > div {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .app-header-guest i,
+  .app-header-status i,
+  .index-data-badge i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #35d07f;
+    box-shadow: 0 0 9px rgba(53, 208, 127, 0.7);
+  }
+
+  .app-header-guest p {
+    margin: 7px 0 0;
+    color: rgba(255, 255, 255, 0.38);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .app-header-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 4px;
+    color: rgba(255, 255, 255, 0.35);
+  }
+
+  .app-header-status span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .app-header-status small {
+    font-size: 10px;
+  }
+
+  .app-page-main.route-home .index-desktop-shell.index-dashboard {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-areas: none !important;
+    gap: 12px !important;
+  }
+
+  .index-dashboard-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.67fr);
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .app-page-main.route-home .index-desktop-hero-wrap {
+    grid-area: auto !important;
+    min-width: 0;
+  }
+
+  .app-page-main.route-home .index-desktop-shell .hero-btn {
+    min-height: 280px !important;
+    height: 100%;
+    padding: 23px 25px !important;
+    border-radius: 16px !important;
+    background:
+      linear-gradient(90deg, rgba(206, 7, 1, 0.98) 0%, rgba(206, 7, 1, 0.82) 42%, rgba(13, 15, 20, 0.2) 100%),
+      url("https://lh3.googleusercontent.com/aida-public/AB6AXuBPw3ogNHqxt1hqNDZ2Joq2nPDkPDnEWIoSjabbuc7LMRpGWfvps7wF28kFSuGGBjO6-lCffBvmXrLd6TIV59F6f9QnylVYduJYqugqVBIRuMfYuIlS1NXjTWX0jnx4D9SGl7fiCqpQ5RFzGWy3idpedePRmnnt5iSa6ieu2HzdwywoNNVxI5-_iFmW2tkjJKCflyifU30ZnvHk37w3QAtY5N8JYTfEcIgya-t6l2vx8z-ilZjmdo7w2zaGPBRmutj5x-4EKYsY1iZ6") center/cover no-repeat !important;
+    box-shadow: 0 18px 45px rgba(130, 0, 0, 0.2) !important;
+  }
+
+  .app-page-main.route-home .index-desktop-shell .hero-title {
+    max-width: 590px !important;
+    margin: 7px 0 0 !important;
+    font-size: clamp(42px, 4.1vw, 64px) !important;
+    line-height: 0.88 !important;
+  }
+
+  .app-page-main.route-home .index-desktop-shell .hero-date {
+    font-size: 18px !important;
+    font-weight: 700 !important;
+  }
+
+  .app-page-main.route-home .index-desktop-shell .hero-timer {
+    width: max-content;
+    margin-top: auto !important;
+    padding: 10px 12px !important;
+    border-radius: 8px !important;
+    font-size: 15px !important;
+  }
+
+  .index-weekend-board,
+  .index-standings-preview,
+  .index-quick-panel {
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    border-radius: 16px;
+    background: rgba(24, 26, 32, 0.9);
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.18);
+  }
+
+  .index-weekend-board {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 17px;
+  }
+
+  .index-dashboard-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .index-dashboard-section-head > div > span,
+  .index-dashboard-section-head > span:first-child {
+    display: block;
+    margin-bottom: 5px;
+    color: #ff4943;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+  }
+
+  .index-dashboard-section-head h2 {
+    margin: 0;
+    color: #fff;
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 18px;
+    font-style: normal;
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    text-transform: uppercase;
+  }
+
+  .index-dashboard-section-head > a {
+    color: rgba(255, 255, 255, 0.52);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-decoration: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .index-dashboard-section-head > a b {
+    color: #ff4943;
+    font-size: 14px;
+  }
+
+  .index-weekend-location {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 12px 0 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .index-weekend-location span {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .index-weekend-location small {
+    color: rgba(255, 255, 255, 0.34);
+    font-size: 11px;
+  }
+
+  .index-session-list {
+    display: grid;
+    gap: 3px;
+  }
+
+  .index-session-row {
+    display: grid;
+    grid-template-columns: 7px minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 9px;
+    min-height: 34px;
+    padding: 4px 7px;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .index-session-row:hover,
+  .index-session-row.is-live {
+    background: rgba(255, 255, 255, 0.045);
+  }
+
+  .index-session-row > i {
+    width: 5px;
+    height: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+  }
+
+  .index-session-row.is-upcoming > i {
+    border-color: #ff403a;
+    background: #ff403a;
+  }
+
+  .index-session-row.is-live > i {
+    border-color: #35d07f;
+    background: #35d07f;
+    box-shadow: 0 0 8px rgba(53, 208, 127, 0.65);
+  }
+
+  .index-session-row > div {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .index-session-row strong {
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 12px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .index-session-row > div span {
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 10px;
+    text-transform: capitalize;
+    white-space: nowrap;
+  }
+
+  .index-session-row time {
+    color: rgba(255, 255, 255, 0.75);
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .index-session-row > b {
+    padding: 3px 5px;
+    border-radius: 4px;
+    background: #e10600;
+    color: #fff;
+    font-size: 7px;
+    letter-spacing: 0.08em;
+  }
+
+  .index-session-row.is-done {
+    opacity: 0.45;
+  }
+
+  .index-session-empty,
+  .index-standing-loading {
+    padding: 18px 8px;
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .index-guest-strip {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 18px;
+    min-height: 58px;
+    padding: 9px 13px;
+    border: 1px solid rgba(53, 208, 127, 0.14);
+    border-radius: 12px;
+    background: linear-gradient(90deg, rgba(53, 208, 127, 0.075), rgba(255, 255, 255, 0.022));
+  }
+
+  .index-guest-message {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .index-guest-icon {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid rgba(53, 208, 127, 0.36);
+    border-radius: 50%;
+    background: rgba(53, 208, 127, 0.1);
+    color: #64e5a1;
+    font-size: 14px;
+    font-weight: 800;
+  }
+
+  .index-guest-message strong,
+  .index-guest-message small {
+    display: block;
+  }
+
+  .index-guest-message strong {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 12px;
+  }
+
+  .index-guest-message small,
+  .index-guest-note {
+    margin-top: 3px;
+    color: rgba(255, 255, 255, 0.36);
+    font-size: 10px;
+  }
+
+  .index-guest-features {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .index-guest-features span {
+    padding: 5px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.025);
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.055em;
+    text-transform: uppercase;
+  }
+
+  .index-guest-note {
+    max-width: 175px;
+    margin: 0;
+    line-height: 1.35;
+    text-align: right;
+  }
+
+  .index-dashboard-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.67fr);
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .index-standings-preview,
+  .index-quick-panel {
+    padding: 17px;
+  }
+
+  .index-standings-preview-head {
+    align-items: center;
+    margin-bottom: 13px;
+  }
+
+  .index-data-badge {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    margin: 0 !important;
+    padding: 5px 8px;
+    border: 1px solid rgba(53, 208, 127, 0.12);
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.4) !important;
+    background: rgba(53, 208, 127, 0.04);
+    font-size: 10px !important;
+  }
+
+  .index-standings-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .index-standing-column {
+    display: block;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.022);
+    color: inherit;
+    text-decoration: none;
+    transition: border-color 160ms ease, background 160ms ease;
+  }
+
+  .index-standing-column:hover {
+    border-color: rgba(225, 6, 0, 0.24);
+    background: rgba(225, 6, 0, 0.035);
+  }
+
+  .index-standing-column-head,
+  .index-standing-line {
+    display: grid;
+    align-items: center;
+  }
+
+  .index-standing-column-head {
+    grid-template-columns: 1fr auto;
+    padding: 0 3px 8px 30px;
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 10px;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+  }
+
+  .index-standing-column-head strong {
+    color: rgba(255, 255, 255, 0.62);
+  }
+
+  .index-standing-line {
+    grid-template-columns: 22px minmax(0, 1fr) auto;
+    gap: 7px;
+    min-height: 34px;
+    border-top: 1px solid rgba(255, 255, 255, 0.045);
+  }
+
+  .index-standing-line > b {
+    color: rgba(255, 255, 255, 0.28);
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 13px;
+  }
+
+  .index-standing-line:first-of-type > b {
+    color: #ff403a;
+  }
+
+  .index-standing-line > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .index-standing-line img {
+    width: 17px;
+    height: 13px;
+    flex: 0 0 17px;
+    border-radius: 2px;
+    object-fit: contain;
+  }
+
+  .index-standing-line span {
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.76);
+    font-size: 12px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .index-standing-line small {
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.28);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .index-standing-line > strong {
+    color: #fff;
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 14px;
+  }
+
+  .index-standing-more {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 2px 0;
+    color: #ff625d;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .index-standing-more b {
+    font-size: 14px;
+  }
+
+  .index-quick-panel {
+    min-width: 0;
+  }
+
+  .index-quick-links {
+    display: grid;
+    gap: 5px;
+    margin-top: 12px;
+  }
+
+  .index-quick-links > a {
+    display: grid;
+    grid-template-columns: 25px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    min-height: 46px;
+    padding: 6px 8px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    color: inherit;
+    text-decoration: none;
+    transition: background 160ms ease, border-color 160ms ease;
+  }
+
+  .index-quick-links > a:hover {
+    border-color: rgba(225, 6, 0, 0.16);
+    background: rgba(225, 6, 0, 0.055);
+  }
+
+  .index-quick-links > a > span {
+    color: rgba(255, 255, 255, 0.24);
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .index-quick-links strong,
+  .index-quick-links small {
+    display: block;
+  }
+
+  .index-quick-links strong {
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 12px;
+  }
+
+  .index-quick-links small {
+    margin-top: 3px;
+    overflow: hidden;
+    color: rgba(255, 255, 255, 0.32);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .index-quick-links > a > b {
+    color: #ff4943;
+    font-size: 15px;
+    transition: transform 160ms ease;
+  }
+
+  .index-quick-links > a:hover > b {
+    transform: translateX(2px);
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1199px) {
+  .index-dashboard-top,
+  .index-dashboard-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .index-weekend-board .index-session-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .index-guest-strip {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .index-guest-note {
+    display: none;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1020px) {
+  .app-content {
+    margin-left: 196px !important;
+    padding-right: 16px !important;
+    padding-left: 16px !important;
+  }
+
+  .app-header {
+    width: 196px !important;
+  }
+
+  .index-standings-preview-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* More comfortable reading scale for the home dashboard. */
+@media (min-width: 900px) {
+  .app-page-main.route-home .index-dashboard {
+    gap: 14px !important;
+  }
+
+  .app-page-main.route-home .index-dashboard-top,
+  .app-page-main.route-home .index-dashboard-main {
+    gap: 14px;
+  }
+
+  .app-page-main.route-home .index-weekend-board,
+  .app-page-main.route-home .index-standings-preview,
+  .app-page-main.route-home .index-quick-panel {
+    padding: 20px;
+  }
+
+  .app-page-main.route-home .index-dashboard-section-head > div > span {
+    font-size: 12px;
+  }
+
+  .app-page-main.route-home .index-dashboard-section-head h2 {
+    font-size: 24px;
+  }
+
+  .app-page-main.route-home .index-dashboard-section-head > a {
+    min-height: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .app-page-main.route-home .index-weekend-location {
+    margin-top: 15px;
+    padding-bottom: 11px;
+  }
+
+  .app-page-main.route-home .index-weekend-location span {
+    font-size: 16px;
+  }
+
+  .app-page-main.route-home .index-weekend-location small {
+    font-size: 12px;
+  }
+
+  .app-page-main.route-home .index-session-list {
+    gap: 4px;
+  }
+
+  .app-page-main.route-home .index-session-row {
+    min-height: 44px;
+    grid-template-columns: 8px minmax(0, 1fr) auto auto;
+    gap: 10px;
+    padding: 5px 8px;
+  }
+
+  .app-page-main.route-home .index-session-row strong {
+    font-size: 15px;
+  }
+
+  .app-page-main.route-home .index-session-row > div span {
+    font-size: 12px;
+  }
+
+  .app-page-main.route-home .index-session-row time {
+    font-size: 16px;
+  }
+
+  .app-page-main.route-home .index-guest-strip {
+    min-height: 68px;
+    padding: 11px 15px;
+  }
+
+  .app-page-main.route-home .index-guest-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+  }
+
+  .app-page-main.route-home .index-guest-message strong {
+    font-size: 15px;
+  }
+
+  .app-page-main.route-home .index-guest-message small,
+  .app-page-main.route-home .index-guest-note {
+    font-size: 11px;
+  }
+
+  .app-page-main.route-home .index-guest-features span {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .app-page-main.route-home .index-data-badge {
+    padding: 6px 9px;
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-home .index-standing-column {
+    padding: 12px;
+  }
+
+  .app-page-main.route-home .index-standing-column-head {
+    padding-bottom: 10px;
+    font-size: 11px;
+  }
+
+  .app-page-main.route-home .index-standing-line {
+    min-height: 44px;
+    grid-template-columns: 25px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .app-page-main.route-home .index-standing-line > b {
+    font-size: 15px;
+  }
+
+  .app-page-main.route-home .index-standing-line img {
+    width: 20px;
+    height: 15px;
+    flex-basis: 20px;
+  }
+
+  .app-page-main.route-home .index-standing-line span {
+    font-size: 15px;
+  }
+
+  .app-page-main.route-home .index-standing-line small {
+    font-size: 12px;
+  }
+
+  .app-page-main.route-home .index-standing-line > strong {
+    font-size: 16px;
+  }
+
+  .app-page-main.route-home .index-standing-more {
+    min-height: 32px;
+    padding-top: 10px;
+    font-size: 11px;
+  }
+
+  .app-page-main.route-home .index-quick-links {
+    gap: 7px;
+    margin-top: 15px;
+  }
+
+  .app-page-main.route-home .index-quick-links > a {
+    min-height: 62px;
+    grid-template-columns: 30px minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 8px 10px;
+  }
+
+  .app-page-main.route-home .index-quick-links > a > span {
+    font-size: 14px;
+  }
+
+  .app-page-main.route-home .index-quick-links strong {
+    font-size: 15px;
+  }
+
+  .app-page-main.route-home .index-quick-links small {
+    font-size: 12px;
+  }
+
+  .app-page-main.route-home .index-quick-links > a > b {
+    font-size: 16px;
+  }
+}
+
+/* Season page: compact selected race and scannable calendar grid. */
+@media (min-width: 900px) {
+  .app-page-main.route-season .season-desktop-layout {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-primary {
+    position: static !important;
+    top: auto !important;
+  }
+
+  .app-page-main.route-season .season-desktop-primary-head {
+    min-height: 74px;
+    margin-bottom: 12px;
+    align-items: center !important;
+  }
+
+  .app-page-main.route-season .season-desktop-main-heading {
+    margin: 0 !important;
+    color: #f2f2f4 !important;
+    font-size: clamp(42px, 4vw, 58px) !important;
+    line-height: 0.88 !important;
+    letter-spacing: -0.045em !important;
+  }
+
+  .app-page-main.route-season .season-desktop-main-subheading {
+    margin-top: 9px !important;
+    color: rgba(255, 255, 255, 0.44) !important;
+    font-size: 13px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .app-page-main.route-season .season-desktop-season-picker {
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-season-label {
+    max-width: 72px;
+    color: rgba(255, 255, 255, 0.38) !important;
+    font-size: 11px !important;
+    line-height: 1.25;
+  }
+
+  .app-page-main.route-season .season-desktop-season-select {
+    min-width: 118px !important;
+    min-height: 54px !important;
+    padding: 0 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.09) !important;
+    border-radius: 11px !important;
+    background: #1a1c22 !important;
+    color: #fff !important;
+    font-size: 25px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-main-card {
+    padding: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.075) !important;
+    border-radius: 16px !important;
+    background: rgba(24, 26, 32, 0.92) !important;
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.18) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-card {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.18fr) minmax(390px, 0.82fr) !important;
+    gap: 12px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-media {
+    min-height: 290px !important;
+    padding: 22px !important;
+    border-radius: 12px !important;
+    justify-content: flex-end !important;
+    background:
+      linear-gradient(180deg, rgba(8, 10, 15, 0.08), rgba(8, 10, 15, 0.9)),
+      url("https://lh3.googleusercontent.com/aida-public/AB6AXuBPw3ogNHqxt1hqNDZ2Joq2nPDkPDnEWIoSjabbuc7LMRpGWfvps7wF28kFSuGGBjO6-lCffBvmXrLd6TIV59F6f9QnylVYduJYqugqVBIRuMfYuIlS1NXjTWX0jnx4D9SGl7fiCqpQ5RFzGWy3idpedePRmnnt5iSa6ieu2HzdwywoNNVxI5-_iFmW2tkjJKCflyifU30ZnvHk37w3QAtY5N8JYTfEcIgya-t6l2vx8z-ilZjmdo7w2zaGPBRmutj5x-4EKYsY1iZ6") center/cover no-repeat !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-next {
+    margin: 0 0 auto !important;
+    padding: 6px 9px !important;
+    border-radius: 6px !important;
+    font-size: 11px !important;
+    letter-spacing: 0.08em !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-media h4 {
+    max-width: 620px;
+    margin: 0 !important;
+    color: #fff !important;
+    font-size: clamp(42px, 4.2vw, 62px) !important;
+    line-height: 0.88 !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-meta {
+    margin-top: 12px !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-schedule {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 10px 8px 8px;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-schedule h5 {
+    margin: 0 0 10px !important;
+    color: #ff4d47 !important;
+    font-size: 12px !important;
+    letter-spacing: 0.13em !important;
+  }
+
+  .app-page-main.route-season .season-desktop-session-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-session-item {
+    min-height: 68px;
+    padding: 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.025) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-session-item.focus {
+    border-color: rgba(225, 6, 0, 0.58) !important;
+    background: rgba(225, 6, 0, 0.07) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-session-item span {
+    color: rgba(255, 255, 255, 0.42) !important;
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-session-item b {
+    margin-top: 7px !important;
+    font-size: 20px !important;
+    line-height: 1 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-top: auto !important;
+    padding-top: 10px;
+  }
+
+  .app-page-main.route-season .season-desktop-stat-box {
+    min-height: 60px;
+    padding: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.065) !important;
+    border-radius: 9px !important;
+    background: rgba(255, 255, 255, 0.02) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-stat-label {
+    color: rgba(255, 255, 255, 0.38) !important;
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-stat-value {
+    margin-top: 4px;
+    font-size: 18px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-facts-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-top: 10px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-facts-grid .season-desktop-fact-item {
+    min-height: 94px;
+    padding: 14px !important;
+    border: 1px solid rgba(255, 255, 255, 0.065) !important;
+    border-radius: 11px !important;
+    background: rgba(255, 255, 255, 0.025) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-fact-title {
+    color: rgba(255, 255, 255, 0.78) !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-fact-text {
+    margin-top: 5px;
+    color: rgba(255, 255, 255, 0.42) !important;
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-timeline {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)) !important;
+    gap: 8px !important;
+    max-height: none !important;
+    padding: 14px !important;
+    overflow: visible !important;
+    border: 1px solid rgba(255, 255, 255, 0.075) !important;
+    border-radius: 16px !important;
+    background: rgba(24, 26, 32, 0.9) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-timeline-title {
+    grid-column: 1 / -1;
+    margin: 0 0 5px !important;
+    color: rgba(255, 255, 255, 0.66) !important;
+    font-size: 13px !important;
+    letter-spacing: 0.12em !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item,
+  .app-page-main.route-season .season-desktop-race-item + .season-desktop-race-item {
+    min-height: 86px;
+    margin: 0 !important;
+    padding: 11px 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.065) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 255, 255, 0.025) !important;
+    text-align: left;
+    transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    background: rgba(255, 255, 255, 0.045) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item.active {
+    border-color: rgba(225, 6, 0, 0.72) !important;
+    background: linear-gradient(135deg, rgba(225, 6, 0, 0.13), rgba(255, 255, 255, 0.035)) !important;
+    box-shadow: inset 3px 0 0 #e10600 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item.finished {
+    opacity: 0.62 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item .race-round {
+    font-size: 10px !important;
+    letter-spacing: 0.09em !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item .race-name {
+    margin-top: 7px !important;
+    color: rgba(255, 255, 255, 0.88) !important;
+    font-size: clamp(18px, 1.55vw, 24px) !important;
+    line-height: 0.95 !important;
+    letter-spacing: -0.025em !important;
+    white-space: nowrap !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item .race-loc {
+    margin-top: 7px !important;
+    color: rgba(255, 255, 255, 0.35) !important;
+    font-size: 11px !important;
+    letter-spacing: 0.02em !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-icon {
+    width: 22px !important;
+    height: 22px !important;
+    color: #ff5b55 !important;
+    font-size: 13px !important;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1120px) {
+  .app-page-main.route-season .season-desktop-hero-card {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-media {
+    min-height: 260px !important;
+  }
+}
+
+/* Readability pass for season, results and championship tables. */
+@media (min-width: 900px) {
+  /* Season: larger copy, content-sized facts. */
+  .app-page-main.route-season .season-desktop-main-subheading {
+    font-size: 15px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-hero-schedule h5,
+  .app-page-main.route-season .season-desktop-session-item span,
+  .app-page-main.route-season .season-desktop-stat-label {
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-session-item b {
+    font-size: 22px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-stat-value {
+    font-size: 21px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-facts-grid {
+    align-items: start !important;
+    grid-auto-rows: auto !important;
+  }
+
+  .app-page-main.route-season .season-desktop-facts-grid .season-desktop-fact-item {
+    min-height: 0 !important;
+    height: auto !important;
+    align-self: start !important;
+  }
+
+  .app-page-main.route-season .season-desktop-fact-title {
+    font-size: 15px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-fact-text {
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-timeline-title {
+    font-size: 15px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item,
+  .app-page-main.route-season .season-desktop-race-item + .season-desktop-race-item {
+    min-height: 94px;
+    padding: 12px 13px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item .race-round {
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item .race-name {
+    font-size: clamp(20px, 1.65vw, 26px) !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item .race-loc {
+    font-size: 13px !important;
+  }
+
+  /* Race results: shorter presentation, readable dense rows. */
+  .app-page-main.route-race-results .race-results-desktop-head {
+    align-items: center !important;
+    margin-bottom: 12px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-kicker {
+    margin-bottom: 5px !important;
+    font-size: 14px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-head h1 {
+    font-size: clamp(46px, 4vw, 58px) !important;
+    line-height: 0.92 !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-head p {
+    margin-top: 7px !important;
+    font-size: 15px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-tabs {
+    width: 228px !important;
+    min-height: 46px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-tabs .segmented-tab {
+    min-height: 40px !important;
+    font-size: 15px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-content {
+    padding: 13px !important;
+    border-radius: 14px !important;
+    background: rgba(24, 26, 32, 0.92) !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-hero-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(330px, 0.65fr) !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner {
+    min-height: 190px !important;
+    padding: 15px !important;
+    border-radius: 11px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-badge {
+    margin-bottom: 7px !important;
+    padding: 5px 9px !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-name {
+    max-width: min(68%, 650px) !important;
+    font-size: clamp(34px, 3vw, 44px) !important;
+    line-height: 0.94 !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-meta {
+    margin-top: 7px !important;
+    font-size: 14px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary {
+    min-height: 190px !important;
+    padding: 14px 16px !important;
+    gap: 8px !important;
+    justify-content: center !important;
+    border-radius: 11px !important;
+    background: rgba(255, 255, 255, 0.045) !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary-points {
+    font-size: 42px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary-label {
+    margin-top: -3px !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary-row {
+    min-height: 38px;
+    padding-top: 9px !important;
+    font-size: 14px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary-row b {
+    font-size: 17px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-table-head,
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-row {
+    grid-template-columns: 58px minmax(220px, 1.2fr) minmax(180px, 1fr) 160px 110px !important;
+    gap: 12px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-table-head {
+    min-height: 40px;
+    padding: 8px 12px !important;
+    font-size: 13px !important;
+    background: rgba(8, 9, 12, 0.72) !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row {
+    min-height: 55px;
+    padding: 7px 12px !important;
+    font-size: 16px !important;
+    background: rgba(255, 255, 255, 0.025) !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row:hover {
+    background: rgba(255, 255, 255, 0.055) !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row.winner {
+    background: linear-gradient(90deg, rgba(225, 6, 0, 0.11), rgba(255, 255, 255, 0.045)) !important;
+    box-shadow: inset 3px 0 0 #ff706a;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(1) {
+    font-size: 23px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(2) {
+    font-size: 16px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(3) {
+    font-size: 15px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(4),
+  .app-page-main.route-race-results .race-results-desktop-row span:nth-child(5) {
+    font-size: 15px !important;
+  }
+
+  /* Drivers: reduce the billboard header, enlarge table copy. */
+  .app-page-main.route-drivers .drivers-desktop-shell {
+    padding: 15px !important;
+    border-radius: 14px !important;
+    background: rgba(24, 26, 32, 0.92) !important;
+  }
+
+  .app-page-main.route-drivers .drivers-desktop-toolbar {
+    align-items: center !important;
+    margin-bottom: 12px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-desktop-kicker {
+    margin-bottom: 5px !important;
+    font-size: 14px !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-heading {
+    font-size: clamp(43px, 4vw, 56px) !important;
+    line-height: 0.9 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-desktop-controls {
+    width: 370px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-filter-btn {
+    min-height: 50px !important;
+    font-size: 14px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-table-head,
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-row {
+    grid-template-columns: 58px minmax(270px, 1.08fr) minmax(240px, 1fr) 94px 138px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-table-head {
+    min-height: 42px;
+    padding: 9px 14px !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-scroll {
+    max-height: min(610px, calc(100vh - 300px)) !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-row {
+    min-height: 62px !important;
+    padding: 7px 14px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-row:hover {
+    background: rgba(255, 255, 255, 0.055) !important;
+  }
+
+  .app-page-main.route-drivers .drivers-standings-table .desktop-standings-pos {
+    font-size: 29px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-driver img {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-driver .desktop-standings-name {
+    font-size: 16px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-driver .desktop-standings-meta {
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-team span {
+    font-size: 15px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-row-car {
+    font-size: 20px !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-points strong {
+    font-size: 24px !important;
+  }
+
+  .app-page-main.route-drivers .desktop-standings-points small {
+    font-size: 12px !important;
+    line-height: 1.15 !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insights-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+    margin-top: 10px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card {
+    min-height: 0 !important;
+    padding: 12px 14px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card h4 {
+    margin-bottom: 6px !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card p {
+    font-size: 27px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card p.pro {
+    font-size: 20px !important;
+  }
+
+  .app-page-main.route-drivers .drivers-insight-card small {
+    font-size: 13px !important;
+  }
+
+  /* Constructors: compact leader block and denser standings. */
+  .app-page-main.route-constructors .page-head-row {
+    min-height: 64px !important;
+    margin-bottom: 12px !important;
+    padding: 9px 14px !important;
+    border-radius: 13px !important;
+  }
+
+  .app-page-main.route-constructors .page-head-title {
+    font-size: clamp(34px, 3vw, 44px) !important;
+    line-height: 0.95 !important;
+  }
+
+  .app-page-main.route-constructors .constructors-desktop-shell {
+    padding: 14px !important;
+    border-radius: 14px !important;
+    background: rgba(24, 26, 32, 0.92) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-desktop-toolbar {
+    min-height: 18px;
+    margin-bottom: 9px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-desktop-subtitle {
+    margin: 0 !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-hero-grid {
+    grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.75fr) !important;
+    gap: 10px !important;
+    max-width: none !important;
+    margin-bottom: 10px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-card {
+    min-height: 160px !important;
+    padding: 16px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-kicker {
+    margin-bottom: 9px !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-main span {
+    font-size: clamp(50px, 4.8vw, 66px) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-main b {
+    font-size: 36px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-tags {
+    margin-top: 11px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-tags span {
+    padding: 5px 8px !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-race-card {
+    min-height: 160px;
+    padding: 14px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-kicker {
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-race-card h3 {
+    font-size: 26px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-race-card p {
+    font-size: 15px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-days span {
+    font-size: 43px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-days b {
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-race-briefing {
+    min-height: 44px !important;
+    margin-top: 8px !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table {
+    max-width: none !important;
+    max-height: min(590px, calc(100vh - 335px));
+    margin-bottom: 10px !important;
+    overflow-y: auto !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    min-height: 40px;
+    padding: 8px 14px !important;
+    background: #15161a !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-row {
+    min-height: 64px;
+    padding: 8px 12px !important;
+    background: rgba(255, 255, 255, 0.025) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-row:hover {
+    background: rgba(255, 255, 255, 0.055) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-pos {
+    font-size: 29px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-row-team .desktop-standings-name {
+    font-size: 17px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-row-team .desktop-standings-team-logo {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-points {
+    font-size: 24px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-insights-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-insight-card {
+    min-height: 0 !important;
+    padding: 13px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-insight-title {
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-insight-card p,
+  .app-page-main.route-constructors .constructors-power-row {
+    font-size: 15px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-power-row b {
+    font-size: 15px !important;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px) {
+  .app-page-main.route-race-results .race-results-desktop-hero-grid,
+  .app-page-main.route-constructors .constructors-hero-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .app-page-main.route-drivers .drivers-desktop-toolbar {
+    align-items: flex-start !important;
+    flex-direction: column !important;
+  }
+
+  .app-page-main.route-drivers .drivers-desktop-controls {
+    width: 100% !important;
+  }
+}
+
+/* Driver and constructor detail pages: compact editorial profiles */
+@media (min-width: 900px) {
+  .app-page-main.route-driver-details .driver-profile-desktop-hero {
+    min-height: 318px !important;
+    margin-bottom: 12px !important;
+    border-radius: 12px !important;
+    background:
+      radial-gradient(circle at 72% 42%, rgba(255, 255, 255, 0.05), transparent 34%),
+      #141617 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-photo img {
+    display: block !important;
+    width: 58% !important;
+    margin-left: auto !important;
+    object-position: center 8% !important;
+    opacity: 0.95 !important;
+    filter: brightness(1.08) contrast(1.03) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-overlay {
+    background:
+      linear-gradient(90deg, #141617 0%, rgba(20, 22, 23, 0.96) 34%, rgba(20, 22, 23, 0.2) 71%, rgba(20, 22, 23, 0.58) 100%),
+      linear-gradient(0deg, rgba(10, 11, 12, 0.82), transparent 55%) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-content {
+    width: min(58%, 720px) !important;
+    padding: 24px 26px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-number {
+    font-size: 42px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-content h1 {
+    margin-top: 6px !important;
+    line-height: 0.9 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-content h1 span,
+  .app-page-main.route-driver-details .driver-profile-desktop-content h1 em {
+    font-size: clamp(42px, 4.25vw, 66px) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-content h1 em {
+    color: rgba(244, 241, 239, 0.5) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-team {
+    margin-top: 12px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-team b,
+  .app-page-main.route-driver-details .driver-profile-desktop-team span {
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-rank {
+    margin: 0 18px 18px auto !important;
+    grid-template-columns: repeat(3, minmax(74px, 1fr)) !important;
+    background: rgba(23, 24, 25, 0.78) !important;
+    border-radius: 10px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-rank > div {
+    padding: 10px 12px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-rank span {
+    margin-bottom: 3px !important;
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-rank strong {
+    font-size: 30px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(270px, 0.34fr) !important;
+    gap: 12px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-title {
+    margin-bottom: 8px !important;
+    font-size: 22px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-title::before {
+    width: 20px !important;
+    height: 2px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-season-cards {
+    gap: 8px !important;
+    padding: 8px !important;
+    border-radius: 10px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-season-cards article {
+    min-height: 78px !important;
+    padding: 10px !important;
+    border-radius: 8px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-season-cards span,
+  .app-page-main.route-driver-details .driver-profile-season-cards small {
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-season-cards strong {
+    margin: 5px 0 2px !important;
+    font-size: 30px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-grid {
+    gap: 8px !important;
+    margin-top: 8px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-card,
+  .app-page-main.route-driver-details .driver-profile-accolades-card,
+  .app-page-main.route-driver-details .driver-profile-bio-card {
+    padding: 12px !important;
+    border-radius: 10px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-card h4,
+  .app-page-main.route-driver-details .driver-profile-accolades-card h4 {
+    margin-bottom: 6px !important;
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-card div {
+    padding: 5px 0 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-career-card b {
+    font-size: 24px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-accolades-card p {
+    font-size: 24px !important;
+    line-height: 1 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-bio-card p {
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-bio-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-top: 10px !important;
+    padding-top: 10px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-bio-meta b {
+    font-size: 15px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-recent {
+    margin-top: 12px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-recent-strip {
+    gap: 8px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-recent-strip article {
+    min-height: 64px !important;
+    padding: 10px 12px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-recent-strip b {
+    font-size: 22px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-hero {
+    min-height: 276px !important;
+    padding: 18px !important;
+    border-radius: 12px !important;
+    background:
+      linear-gradient(90deg, rgba(15, 17, 18, 0.98) 0%, rgba(15, 17, 18, 0.58) 52%, rgba(15, 17, 18, 0.2) 100%),
+      #17191a !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-car {
+    width: 72% !important;
+    left: auto !important;
+    object-position: right center !important;
+    opacity: 0.55 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-brand {
+    left: 24px !important;
+    right: auto !important;
+    bottom: 24px !important;
+    max-width: 66% !important;
+    gap: 14px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-logo {
+    width: 68px !important;
+    height: 68px !important;
+    padding: 6px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-brand h1 {
+    line-height: 0.9 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-brand h1 span,
+  .app-page-main.route-constructor-details .constructor-profile-desktop-brand h1 em {
+    font-size: clamp(40px, 4.35vw, 66px) !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-meta {
+    margin-top: 8px !important;
+    gap: 6px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-meta span {
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-summary {
+    position: absolute !important;
+    z-index: 2 !important;
+    top: 16px !important;
+    right: 16px !important;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(78px, 1fr)) !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255, 255, 255, 0.09) !important;
+    border-radius: 10px !important;
+    background: rgba(18, 20, 21, 0.78) !important;
+    backdrop-filter: blur(12px) !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-summary div {
+    padding: 9px 12px !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-summary div:last-child {
+    border-right: 0 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-summary span {
+    display: block !important;
+    color: rgba(244, 241, 239, 0.48) !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-summary strong {
+    display: block !important;
+    margin-top: 3px !important;
+    color: #f4f1ef !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 25px !important;
+    line-height: 1 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-summary div:first-child strong {
+    color: #f0443e !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-grid {
+    grid-template-columns: minmax(250px, 0.68fr) minmax(0, 2fr) !important;
+    gap: 10px !important;
+    margin-top: 10px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-drivers-panel {
+    padding: 10px !important;
+    border-radius: 10px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-drivers-panel h3 {
+    margin-bottom: 8px !important;
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row {
+    grid-template-columns: 44px minmax(0, 1fr) auto !important;
+    gap: 8px !important;
+    min-height: 62px !important;
+    margin-bottom: 6px !important;
+    padding: 8px !important;
+    border-radius: 8px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row img {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row b {
+    font-size: 16px !important;
+    line-height: 1 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row i {
+    font-size: 24px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row u {
+    right: 8px !important;
+    top: 6px !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-right .driver-tabs {
+    max-width: 420px !important;
+    min-height: 40px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-right .driver-tab {
+    min-height: 38px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-stats-grid {
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-stats-grid .driver-stats-block {
+    padding: 12px !important;
+    border-radius: 10px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-head {
+    margin-bottom: 8px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-head strong {
+    font-size: 32px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-points-row {
+    margin-bottom: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-points-row b {
+    font-size: 30px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-metrics {
+    gap: 7px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-metrics > div {
+    min-height: 54px !important;
+    padding: 8px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-season-metrics b {
+    font-size: 23px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-career-block::after {
+    display: none !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-career-block .driver-stat-row {
+    padding: 7px 0 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-career-championships {
+    margin-top: 7px !important;
+    padding-top: 7px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-career-championships b {
+    font-size: 34px !important;
+  }
+
+  .app-page-main.route-constructor-details .driver-bio-block {
+    min-height: 180px !important;
+    padding: 16px !important;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px) {
+  .app-page-main.route-driver-details .driver-profile-desktop-content h1 span,
+  .app-page-main.route-driver-details .driver-profile-desktop-content h1 em {
+    font-size: 40px !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-grid {
+    grid-template-columns: minmax(0, 1fr) 260px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-brand h1 span,
+  .app-page-main.route-constructor-details .constructor-profile-desktop-brand h1 em {
+    font-size: 38px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-grid {
+    grid-template-columns: 238px minmax(0, 1fr) !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-summary {
+    grid-template-columns: repeat(3, minmax(68px, 1fr)) !important;
+  }
+}
+
+/* Compare: compact, factual analytics instead of a billboard layout. */
+@media (min-width: 900px) {
+  .app-page-main.route-compare .compare-back-button {
+    display: none !important;
+  }
+
+  .app-page-main.route-compare .page-head-row-compare {
+    min-height: 58px !important;
+    margin-bottom: 10px !important;
+    padding: 8px 12px 8px 16px !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    background: linear-gradient(90deg, rgba(225, 6, 0, 0.055), rgba(23, 24, 28, 0.94) 28%) !important;
+  }
+
+  .app-page-main.route-compare .page-head-row-compare .page-head-title {
+    font-size: clamp(30px, 2.6vw, 38px) !important;
+    line-height: 1 !important;
+    letter-spacing: -0.045em !important;
+  }
+
+  .app-page-main.route-compare .page-head-row-compare .page-head-controls {
+    width: min(240px, 32vw) !important;
+  }
+
+  .app-page-main.route-compare .page-head-row-compare .year-select-input {
+    min-height: 42px !important;
+  }
+
+  .app-page-main.route-compare .compare-layout-redesign {
+    gap: 10px !important;
+  }
+
+  .app-page-main.route-compare .compare-controls-panel-redesign {
+    padding: 12px !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    border-radius: 12px !important;
+    background: rgba(21, 22, 26, 0.9) !important;
+  }
+
+  .app-page-main.route-compare .compare-controls-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 9px;
+  }
+
+  .app-page-main.route-compare .compare-controls-header {
+    margin: 0 !important;
+  }
+
+  .app-page-main.route-compare .compare-controls-kicker {
+    margin: 0 0 2px !important;
+    font-size: 11px !important;
+    letter-spacing: 0.11em !important;
+  }
+
+  .app-page-main.route-compare .compare-controls-caption {
+    color: rgba(236, 232, 230, 0.72);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .app-page-main.route-compare .compare-redesign-tabs {
+    width: 230px !important;
+    max-width: 230px !important;
+    min-height: 40px !important;
+    margin: 0 !important;
+  }
+
+  .app-page-main.route-compare .compare-redesign-tabs .segmented-tab {
+    min-height: 38px !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-compare .compare-redesign-selectors {
+    grid-template-columns: minmax(220px, 1fr) 38px minmax(220px, 1fr) 150px !important;
+    align-items: end !important;
+    gap: 9px !important;
+    margin: 0 !important;
+  }
+
+  .app-page-main.route-compare .compare-participant-field {
+    display: grid;
+    min-width: 0;
+    gap: 5px;
+  }
+
+  .app-page-main.route-compare .compare-participant-field > span {
+    color: rgba(236, 232, 230, 0.44);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .app-page-main.route-compare .compare-participant-field .custom-select-trigger {
+    min-height: 44px !important;
+    padding: 9px 12px !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    border-radius: 9px !important;
+    background: rgba(255, 255, 255, 0.035) !important;
+    font-size: 16px !important;
+  }
+
+  .app-page-main.route-compare .compare-redesign-selectors .vs-badge {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin-bottom: 5px;
+    border: 1px solid rgba(225, 6, 0, 0.2);
+    border-radius: 50%;
+    background: rgba(225, 6, 0, 0.08);
+    color: #ff7d75;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .app-page-main.route-compare .compare-redesign-selectors .btn-compare {
+    height: 44px !important;
+    min-height: 44px !important;
+    border-radius: 9px !important;
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-compare .compare-result-shell {
+    padding: 12px !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    border-radius: 12px !important;
+    background: rgba(21, 22, 26, 0.9) !important;
+  }
+
+  .app-page-main.route-compare .compare-result-summary {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(200px, 0.62fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 9px;
+  }
+
+  .app-page-main.route-compare .compare-summary-participant,
+  .app-page-main.route-compare .compare-summary-outcome {
+    display: grid;
+    align-content: center;
+    min-height: 68px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .app-page-main.route-compare .compare-summary-participant > span,
+  .app-page-main.route-compare .compare-summary-outcome > span {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .app-page-main.route-compare .compare-summary-participant.red > span {
+    color: #ff5c54;
+  }
+
+  .app-page-main.route-compare .compare-summary-participant.cyan {
+    text-align: right;
+  }
+
+  .app-page-main.route-compare .compare-summary-participant.cyan > span {
+    color: #00d2be;
+  }
+
+  .app-page-main.route-compare .compare-summary-participant strong {
+    overflow: hidden;
+    color: #f4f1ef;
+    font-size: 17px;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-compare .compare-summary-outcome {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .app-page-main.route-compare .compare-summary-outcome > span,
+  .app-page-main.route-compare .compare-summary-outcome small {
+    color: rgba(236, 232, 230, 0.46);
+  }
+
+  .app-page-main.route-compare .compare-summary-outcome strong {
+    max-width: 100%;
+    overflow: hidden;
+    color: #f4f1ef;
+    font-size: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-compare .compare-summary-outcome small {
+    font-size: 11px;
+  }
+
+  .app-page-main.route-compare .compare-stats-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 9px !important;
+    margin-bottom: 9px !important;
+  }
+
+  .app-page-main.route-compare .compare-stats-grid .stat-card {
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    border-radius: 9px !important;
+    background: rgba(255, 255, 255, 0.028) !important;
+  }
+
+  .app-page-main.route-compare .compare-stats-grid .stat-title {
+    padding: 6px 10px !important;
+    border-color: rgba(255, 255, 255, 0.055) !important;
+    background: rgba(7, 8, 10, 0.55) !important;
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-compare .compare-stats-grid .stat-score {
+    padding: 9px 10px 3px !important;
+    font-size: 31px !important;
+  }
+
+  .app-page-main.route-compare .compare-stat-caption {
+    padding: 0 10px 8px;
+    color: rgba(236, 232, 230, 0.4);
+    font-size: 11px;
+    text-align: center;
+  }
+
+  .app-page-main.route-compare .compare-chart-container {
+    margin: 0 0 9px !important;
+    padding: 11px !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    border-radius: 10px !important;
+    background: rgba(9, 10, 12, 0.5) !important;
+  }
+
+  .app-page-main.route-compare .compare-chart-head {
+    margin-bottom: 4px !important;
+  }
+
+  .app-page-main.route-compare .compare-chart-head h3 {
+    font-size: 21px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.025em !important;
+  }
+
+  .app-page-main.route-compare .compare-chart-head p {
+    margin-top: 3px !important;
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-compare .compare-chart-canvas-wrap {
+    height: 250px !important;
+    min-height: 0 !important;
+    max-height: 250px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+  }
+
+  .app-page-main.route-compare .compare-facts-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+  }
+
+  .app-page-main.route-compare .compare-facts-grid article {
+    display: grid;
+    align-content: center;
+    min-height: 66px;
+    padding: 9px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .app-page-main.route-compare .compare-facts-grid span {
+    color: rgba(236, 232, 230, 0.43);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .app-page-main.route-compare .compare-facts-grid strong {
+    overflow: hidden;
+    color: #f4f1ef;
+    font-size: 18px;
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-compare .compare-facts-grid small {
+    color: rgba(236, 232, 230, 0.48);
+    font-size: 11px;
+  }
+
+  .app-page-main.route-compare .compare-empty-state {
+    min-height: 150px !important;
+    margin: 0 !important;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px) {
+  .app-page-main.route-compare .compare-redesign-selectors {
+    grid-template-columns: minmax(180px, 1fr) 34px minmax(180px, 1fr) 120px !important;
+  }
+
+  .app-page-main.route-compare .compare-chart-canvas-wrap {
+    height: 230px !important;
+    max-height: 230px !important;
+  }
+}
+
+/* Race results: richer winner card and navigable visual standings. */
+@media (min-width: 900px) {
+  .app-page-main.route-race-results .race-results-desktop-hero-grid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(330px, 0.62fr) !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(150px, 0.42fr) 150px;
+    align-items: center !important;
+    gap: 14px;
+    background:
+      radial-gradient(circle at 74% 50%, rgba(225, 6, 0, 0.12), transparent 32%),
+      linear-gradient(110deg, #121314 0%, #18191b 100%) !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-overlay {
+    background: linear-gradient(90deg, rgba(18, 19, 20, 0.12), rgba(18, 19, 20, 0.42)) !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-copy,
+  .app-page-main.route-race-results .race-results-desktop-winner-team,
+  .app-page-main.route-race-results .race-results-desktop-winner-portrait-link {
+    position: relative;
+    z-index: 1;
+    min-width: 0;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .app-page-main.route-race-results button.race-results-desktop-winner-name {
+    max-width: 100% !important;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #f7f5f3;
+    text-align: left;
+    cursor: pointer;
+    transition: color 160ms ease, transform 160ms ease;
+  }
+
+  .app-page-main.route-race-results button.race-results-desktop-winner-name:hover,
+  .app-page-main.route-race-results button.race-results-desktop-winner-name:focus-visible {
+    color: #ffb4aa;
+    transform: translateX(3px);
+    outline: none;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-team {
+    display: grid;
+    justify-items: center;
+    gap: 5px;
+    padding: 13px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.035);
+    text-align: center;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-team img {
+    width: 44px;
+    height: 44px;
+    object-fit: contain;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-team span {
+    color: rgba(227, 226, 227, 0.48);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-team strong {
+    max-width: 100%;
+    overflow: hidden;
+    color: #f2eeec;
+    font-size: 15px;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-portrait-link {
+    align-self: stretch;
+    width: 150px;
+    margin: -15px -15px -15px 0;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-portrait {
+    position: static !important;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain !important;
+    object-position: center bottom !important;
+    transition: transform 180ms ease, filter 180ms ease;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-portrait-link:hover .race-results-desktop-winner-portrait,
+  .app-page-main.route-race-results .race-results-desktop-winner-portrait-link:focus-visible .race-results-desktop-winner-portrait {
+    filter: saturate(1.08) contrast(1.04);
+    transform: scale(1.035);
+  }
+
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-table-head,
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-row {
+    grid-template-columns: 58px minmax(250px, 1.25fr) minmax(190px, 0.9fr) 160px 110px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-row {
+    min-height: 60px;
+  }
+
+  .app-page-main.route-race-results .race-results-driver-cell,
+  .app-page-main.route-race-results .race-results-team-cell {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .app-page-main.route-race-results .race-results-driver-cell {
+    width: fit-content;
+    max-width: 100%;
+    padding: 2px 8px 2px 2px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background 160ms ease, transform 160ms ease;
+  }
+
+  .app-page-main.route-race-results .race-results-driver-cell:hover,
+  .app-page-main.route-race-results .race-results-driver-cell:focus-visible {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateX(2px);
+    outline: none;
+  }
+
+  .app-page-main.route-race-results .race-results-driver-cell > img {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    object-fit: contain;
+    object-position: center bottom;
+  }
+
+  .app-page-main.route-race-results .race-results-driver-cell > span {
+    display: grid;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  .app-page-main.route-race-results .race-results-driver-cell strong {
+    overflow: hidden;
+    color: #f0eeec;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 15px;
+    font-style: italic;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-race-results .race-results-driver-cell small {
+    color: rgba(227, 226, 227, 0.45);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+  }
+
+  .app-page-main.route-race-results .race-results-team-cell img {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+  }
+
+  .app-page-main.route-race-results .race-results-team-cell span {
+    min-width: 0;
+    overflow: hidden;
+    color: rgba(237, 234, 232, 0.72);
+    font-size: 15px !important;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-race-results .race-results-time,
+  .app-page-main.route-race-results .race-results-gap {
+    font-size: 15px !important;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px) {
+  .app-page-main.route-race-results .race-results-desktop-hero-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner {
+    grid-template-columns: minmax(0, 1fr) minmax(140px, 0.4fr) 140px;
+  }
+
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-table-head,
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-row {
+    grid-template-columns: 54px minmax(180px, 1fr) minmax(130px, 0.72fr) 135px 82px !important;
+  }
+}
+
+.race-results-mobile .standings-item[role="link"] {
+  cursor: pointer;
+}
+
+/* Constructors: compact editorial dashboard with one shared alignment grid. */
+@media (min-width: 900px) {
+  .app-page-main.route-constructors .constructors-back-button {
+    display: none !important;
+  }
+
+  .app-page-main.route-constructors .page-head-row {
+    min-height: 58px !important;
+    margin-bottom: 10px !important;
+    padding: 8px 12px 8px 16px !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    background: linear-gradient(90deg, rgba(225, 6, 0, 0.055), rgba(23, 24, 28, 0.94) 28%) !important;
+  }
+
+  .app-page-main.route-constructors .page-head-title {
+    font-size: clamp(30px, 2.6vw, 38px) !important;
+    line-height: 1 !important;
+    letter-spacing: -0.045em !important;
+  }
+
+  .app-page-main.route-constructors .page-head-controls {
+    width: min(240px, 32vw) !important;
+  }
+
+  .app-page-main.route-constructors .page-head-controls .search-container {
+    gap: 8px !important;
+  }
+
+  .app-page-main.route-constructors .page-head-controls .year-select-input,
+  .app-page-main.route-constructors .page-head-controls .current-year-btn {
+    min-height: 42px !important;
+  }
+
+  .app-page-main.route-constructors .desktop-standings-layout {
+    display: block !important;
+  }
+
+  .app-page-main.route-constructors .constructors-desktop-shell {
+    padding: 12px !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    background: rgba(21, 22, 26, 0.88) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-desktop-toolbar {
+    justify-content: flex-start !important;
+    min-height: 18px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-desktop-subtitle {
+    color: rgba(236, 232, 230, 0.48) !important;
+    font-size: 12px !important;
+    letter-spacing: 0.14em !important;
+  }
+
+  .app-page-main.route-constructors .constructors-hero-grid {
+    grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.62fr) !important;
+    gap: 10px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-card {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 1fr auto;
+    align-items: center !important;
+    min-height: 138px !important;
+    padding: 15px 17px !important;
+    overflow: hidden;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    background-color: #111215 !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-identity {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 14px;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-identity > img {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.045);
+    object-fit: contain;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-kicker {
+    margin-bottom: 6px !important;
+    font-size: 12px !important;
+    letter-spacing: 0.11em !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-main {
+    display: block !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-main span {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    font-size: clamp(34px, 3.4vw, 48px) !important;
+    line-height: 0.94 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-score {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    justify-items: end;
+    min-width: 110px;
+    padding-left: 16px;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-score span {
+    color: rgba(236, 232, 230, 0.46);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-score strong {
+    color: #ffb4aa;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 38px;
+    line-height: 1;
+    letter-spacing: -0.05em;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-tags {
+    position: relative;
+    z-index: 1;
+    grid-column: 1 / -1;
+    margin-top: 10px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-leader-tags span {
+    padding: 4px 7px !important;
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-race-card {
+    display: grid !important;
+    grid-template-rows: auto auto auto 1fr;
+    min-height: 138px !important;
+    padding: 13px 14px !important;
+    border-left-width: 2px !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    border-left-color: #e10600 !important;
+    background: linear-gradient(145deg, rgba(225, 6, 0, 0.07), rgba(36, 37, 41, 0.96) 42%) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-topline,
+  .app-page-main.route-constructors .constructors-next-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .app-page-main.route-constructors .constructors-next-topline > span {
+    color: #ff9c94;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .app-page-main.route-constructors .constructors-next-race-card h3 {
+    margin: 5px 0 1px !important;
+    overflow: hidden;
+    font-size: clamp(20px, 2vw, 27px) !important;
+    line-height: 1 !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-constructors .constructors-next-race-card p {
+    overflow: hidden;
+    font-size: 13px !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-constructors .constructors-next-footer {
+    align-self: end;
+    margin-top: 7px;
+  }
+
+  .app-page-main.route-constructors .constructors-next-days {
+    margin: 0 !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-days span {
+    font-size: 32px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-days b {
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-race-briefing {
+    width: auto !important;
+    min-height: 36px !important;
+    margin: 0 !important;
+    padding: 7px 11px !important;
+    border-color: rgba(255, 255, 255, 0.09) !important;
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table {
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 0 10px !important;
+    overflow: hidden !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    border-radius: 10px !important;
+    background: rgba(14, 15, 18, 0.72) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head,
+  .app-page-main.route-constructors .constructors-table .desktop-standings-row {
+    grid-template-columns: 64px minmax(260px, 1fr) 150px 110px !important;
+    gap: 12px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head {
+    min-height: 38px !important;
+    padding: 7px 14px !important;
+    background: rgba(9, 10, 12, 0.82) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span,
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span:nth-child(1),
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span:nth-child(2),
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span:nth-child(3),
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span:nth-child(4) {
+    justify-self: start !important;
+    color: rgba(236, 232, 230, 0.42) !important;
+    font-size: 11px !important;
+    text-align: left !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span:last-child {
+    justify-self: end !important;
+    text-align: right !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-row {
+    min-height: 58px !important;
+    padding: 6px 14px !important;
+    border-color: rgba(255, 255, 255, 0.055) !important;
+    background: rgba(255, 255, 255, 0.018) !important;
+    transition: background 150ms ease, transform 150ms ease;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-row:hover,
+  .app-page-main.route-constructors .constructors-table .desktop-standings-row:focus-visible {
+    background: linear-gradient(90deg, rgba(225, 6, 0, 0.07), rgba(255, 255, 255, 0.04)) !important;
+    outline: none;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-pos {
+    justify-self: start;
+    font-size: 24px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-row-team {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    justify-self: stretch !important;
+    width: 100% !important;
+    gap: 11px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-row-team .desktop-standings-team-logo {
+    flex: 0 0 auto;
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .app-page-main.route-constructors .constructors-row-copy {
+    display: grid;
+    justify-items: start;
+    min-width: 0;
+    gap: 2px;
+    text-align: left;
+  }
+
+  .app-page-main.route-constructors .constructors-row-team .desktop-standings-name {
+    display: block;
+    font-size: 16px !important;
+    line-height: 1.05;
+    text-align: left !important;
+  }
+
+  .app-page-main.route-constructors .constructors-row-copy small {
+    overflow: hidden;
+    color: rgba(236, 232, 230, 0.38);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-constructors .constructors-row-gap {
+    justify-self: start;
+    padding: 4px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 999px;
+    color: rgba(236, 232, 230, 0.58);
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .app-page-main.route-constructors .constructors-row-gap.leader {
+    border-color: rgba(42, 215, 139, 0.22);
+    background: rgba(42, 215, 139, 0.08);
+    color: #63dea5;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-points {
+    display: flex;
+    align-items: baseline;
+    justify-self: end;
+    gap: 5px;
+    min-width: 0;
+    padding: 0 !important;
+    background: transparent !important;
+    color: #f4f1ef !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-points strong {
+    font-size: 22px;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-points small {
+    color: rgba(236, 232, 230, 0.38);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+  }
+
+  .app-page-main.route-constructors .constructors-season-stats {
+    display: grid;
+    grid-template-columns: 0.7fr 0.9fr 1.4fr;
+    gap: 10px;
+  }
+
+  .app-page-main.route-constructors .constructors-season-stats article {
+    display: grid;
+    align-content: center;
+    min-height: 72px;
+    padding: 10px 13px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.025);
+  }
+
+  .app-page-main.route-constructors .constructors-season-stats span {
+    color: rgba(236, 232, 230, 0.46);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .app-page-main.route-constructors .constructors-season-stats strong {
+    color: #f4f1ef;
+    font-size: 23px;
+    line-height: 1.1;
+  }
+
+  .app-page-main.route-constructors .constructors-season-stats small {
+    overflow: hidden;
+    color: rgba(236, 232, 230, 0.5);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px) {
+  .app-page-main.route-constructors .constructors-hero-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head,
+  .app-page-main.route-constructors .constructors-table .desktop-standings-row {
+    grid-template-columns: 54px minmax(180px, 1fr) 108px 82px !important;
+  }
+}
+
+/* Wide desktop readability scale. Keeps laptop layouts compact while making
+   the interface comfortably readable on 2K and large Full HD displays. */
+@media (min-width: 1400px) {
+  .app-header {
+    width: 236px !important;
+  }
+
+  .app-content {
+    margin-left: 236px !important;
+    padding: 18px 28px 30px !important;
+  }
+
+  .app-page-main {
+    max-width: 1600px !important;
+  }
+
+  .app-header-link {
+    min-height: 44px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-grid {
+    grid-template-columns: 380px minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-drivers-panel {
+    padding: 14px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-drivers-panel h3 {
+    margin-bottom: 11px !important;
+    font-size: 14px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row {
+    grid-template-columns: 76px minmax(0, 1fr) auto !important;
+    min-height: 96px !important;
+    gap: 13px !important;
+    padding: 10px 12px !important;
+    margin-bottom: 9px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row img {
+    width: 76px !important;
+    height: 76px !important;
+    object-position: center top !important;
+    background: rgba(255, 255, 255, 0.025) !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row b {
+    font-size: 21px !important;
+    line-height: 1.02 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row span {
+    margin-top: 5px !important;
+    font-size: 13px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row i {
+    font-size: 30px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-driver-row u {
+    top: 9px !important;
+    right: 11px !important;
+    font-size: 15px !important;
+  }
+}
+
+/* Next race: compact race briefing aligned with the redesigned dashboard. */
+@media (min-width: 900px) {
+  .app-page-main.route-next-race .next-race-desktop-main {
+    gap: 12px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-hero {
+    grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr) !important;
+    gap: 18px !important;
+    min-height: 304px !important;
+    padding: 22px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255, 255, 255, 0.075) !important;
+    border-radius: 12px !important;
+    background:
+      radial-gradient(circle at 16% 14%, rgba(225, 6, 0, 0.14), transparent 36%),
+      linear-gradient(135deg, #17191b 0%, #111315 64%, #0e1012 100%) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-left {
+    display: flex !important;
+    min-width: 0 !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-round {
+    width: max-content !important;
+    padding: 5px 9px !important;
+    border-radius: 5px !important;
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-left h1 {
+    max-width: 720px !important;
+    margin-top: 10px !important;
+    font-size: clamp(52px, 4.7vw, 76px) !important;
+    line-height: 0.88 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-location {
+    margin-top: 13px !important;
+    padding-left: 11px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-location b {
+    font-size: 18px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-location span {
+    margin-top: 2px !important;
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-start {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    width: min(100%, 470px) !important;
+    margin-top: 18px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-start > div {
+    min-height: 66px !important;
+    padding: 10px 12px !important;
+    border: 1px solid rgba(255, 255, 255, 0.075) !important;
+    border-radius: 9px !important;
+    background: rgba(255, 255, 255, 0.035) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-start > div.accent {
+    border-color: rgba(225, 6, 0, 0.28) !important;
+    background: rgba(225, 6, 0, 0.075) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-start span {
+    display: block !important;
+    color: rgba(244, 241, 239, 0.48) !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-start strong {
+    display: block !important;
+    margin-top: 5px !important;
+    color: #f4f1ef !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: 22px !important;
+    line-height: 1 !important;
+    text-transform: uppercase !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-panel {
+    position: relative !important;
+    display: grid !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    min-height: 260px !important;
+    height: 100% !important;
+    padding: 14px 16px !important;
+    border: 1px solid rgba(225, 6, 0, 0.18) !important;
+    border-radius: 11px !important;
+    background:
+      radial-gradient(circle at 50% 54%, rgba(225, 6, 0, 0.11), transparent 48%),
+      rgba(255, 255, 255, 0.025) !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-panel.track-panel-appear {
+    animation: none !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-caption {
+    z-index: 2 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    padding-bottom: 9px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-caption span,
+  .app-page-main.route-next-race .next-race-desktop-track-caption b {
+    color: rgba(244, 241, 239, 0.5) !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-caption b {
+    color: rgba(244, 241, 239, 0.78) !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg {
+    min-height: 210px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg svg {
+    width: 88% !important;
+    height: 86% !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-stats {
+    gap: 8px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-stat {
+    display: grid !important;
+    align-content: center !important;
+    min-height: 84px !important;
+    padding: 11px 13px !important;
+    border: 1px solid rgba(255, 255, 255, 0.07) !important;
+    border-left: 1px solid rgba(255, 255, 255, 0.07) !important;
+    border-radius: 9px !important;
+    background: rgba(255, 255, 255, 0.035) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-stat:first-child {
+    border-left: 3px solid #e10600 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-stat span {
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-stat strong {
+    margin-top: 5px !important;
+    font-size: clamp(28px, 2.3vw, 38px) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-head {
+    margin: 4px 0 7px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-head h2 {
+    font-size: 34px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-head span {
+    font-size: 11px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article {
+    display: grid !important;
+    align-content: space-between !important;
+    min-height: 104px !important;
+    padding: 12px 13px !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    border-radius: 9px !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article.active {
+    border-color: rgba(225, 6, 0, 0.3) !important;
+    border-bottom-color: #e10600 !important;
+    background: rgba(225, 6, 0, 0.075) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article u,
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article small {
+    font-size: 10px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article h5 {
+    margin-top: 6px !important;
+    font-size: 17px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article div {
+    margin-top: 10px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid article b {
+    font-size: 25px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-facts {
+    grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr) !important;
+    gap: 10px !important;
+    margin-top: 2px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-overview {
+    min-height: 216px !important;
+    padding: 20px !important;
+    align-items: center !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    border-radius: 10px !important;
+    background:
+      linear-gradient(115deg, rgba(225, 6, 0, 0.1), transparent 46%),
+      radial-gradient(circle at 92% 20%, rgba(255, 255, 255, 0.055), transparent 34%),
+      #17191b !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-overview h3 {
+    margin-bottom: 10px !important;
+    font-size: 34px !important;
+    line-height: 0.95 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-overview p {
+    max-width: 680px !important;
+    font-size: 14px !important;
+    line-height: 1.55 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-facts-list {
+    gap: 8px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-fact-item {
+    display: grid !important;
+    align-content: center !important;
+    min-height: 66px !important;
+    padding: 12px 14px !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    border-radius: 9px !important;
+    background: rgba(255, 255, 255, 0.03) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-fact-head h6 {
+    font-size: 16px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-fact-item p {
+    margin-top: 5px !important;
+    font-size: 12px !important;
+    line-height: 1.45 !important;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px) {
+  .app-page-main.route-next-race .next-race-desktop-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 0.78fr) !important;
+    padding: 18px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-left h1 {
+    font-size: 44px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-panel {
+    min-height: 230px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-schedule-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-facts {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+/* Next race follow-up: smaller hero and clean SVG draw animation. */
+@media (min-width: 900px) {
+  .app-page-main.route-next-race .next-race-desktop-hero {
+    min-height: 0 !important;
+    padding: 16px !important;
+    gap: 14px !important;
+    align-items: stretch !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-round {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-left h1 {
+    margin-top: 8px !important;
+    font-size: clamp(44px, 4vw, 60px) !important;
+    line-height: 0.88 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-location {
+    margin-top: 8px !important;
+    padding-left: 9px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-location b {
+    font-size: 15px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-location span {
+    font-size: 10px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-start {
+    gap: 7px !important;
+    margin-top: 10px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-start > div {
+    min-height: 52px !important;
+    padding: 8px 10px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-start span {
+    font-size: 9px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-start strong {
+    margin-top: 4px !important;
+    font-size: 18px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-panel {
+    min-height: 258px !important;
+    padding: 10px 12px !important;
+    border-color: rgba(255, 255, 255, 0.07) !important;
+    background: rgba(255, 255, 255, 0.018) !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-panel.track-panel-appear {
+    animation: none !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-caption {
+    padding-bottom: 6px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg {
+    height: 220px !important;
+    min-height: 220px !important;
+    max-height: 220px !important;
+    overflow: visible !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg svg {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+    transform: scale(1.06) !important;
+    transform-origin: center !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg path,
+  .app-page-main.route-next-race .next-race-desktop-track-svg polyline {
+    filter: none !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-outline {
+    fill: none !important;
+    stroke: #e10600 !important;
+    stroke-width: 1.6 !important;
+    opacity: 0 !important;
+    filter: none !important;
+    vector-effect: non-scaling-stroke !important;
+    transition:
+      stroke-dashoffset 3.1s cubic-bezier(0.65, 0, 0.35, 1),
+      opacity 0.08s linear !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-outline.animate {
+    opacity: 1 !important;
+    stroke-dashoffset: 0 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-outline.animation-complete {
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+    transition: none !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-fill {
+    fill: #17191b !important;
+    stroke: none !important;
+    opacity: 0 !important;
+    filter: none !important;
+    transition: opacity 0.45s ease-in-out 2.85s !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-fill.animate {
+    opacity: 1 !important;
+  }
+
+}
+
+@media (min-width: 900px) and (prefers-reduced-motion: reduce) {
+  .app-page-main.route-next-race .next-race-desktop-track-panel.track-panel-appear {
+    animation-duration: 0.01ms !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-outline,
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-fill {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+}

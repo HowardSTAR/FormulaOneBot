@@ -19,4 +19,4 @@ venv
 # Misc
 *.md
 .env
-.env.*
+env.example

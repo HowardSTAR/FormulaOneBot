@@ -1,3 +1,66 @@
+/*
+ * Safe desktop polish layer.
+ * This file intentionally contains only light visual tweaks and
+ * does not override core layout rules from styles.css.
+ */
+
+@media (min-width: 1200px) {
+  .app-content {
+    padding: 16px clamp(20px, 2.4vw, 36px) 28px;
+  }
+
+  .app-content > * {
+    max-width: 1480px;
+  }
+
+  .app-page-main {
+    padding-bottom: 28px;
+  }
+
+  .desktop-standings-board,
+  .desktop-side-card,
+  .season-desktop-main-card,
+  .compare-controls-panel,
+  .race-results-desktop-content,
+  .next-race-desktop-main {
+    box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+  }
+
+  .desktop-standings-table,
+  .race-results-desktop-table {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(225, 6, 0, 0.45) rgba(255, 255, 255, 0.06);
+  }
+
+  .desktop-standings-table::-webkit-scrollbar,
+  .race-results-desktop-table::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+
+  .desktop-standings-table::-webkit-scrollbar-thumb,
+  .race-results-desktop-table::-webkit-scrollbar-thumb {
+    background: rgba(225, 6, 0, 0.45);
+    border-radius: 999px;
+  }
+
+  .desktop-standings-table::-webkit-scrollbar-track,
+  .race-results-desktop-table::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 999px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .app-content {
+    padding-left: clamp(28px, 3vw, 52px);
+    padding-right: clamp(28px, 3vw, 52px);
+  }
+
+  .app-content > * {
+    max-width: 1580px;
+  }
+}
 @media (min-width: 900px) {
   .root {
     max-width: none !important;
@@ -559,7 +622,8 @@
   }
 
   .app-page-main.route-constructors .constructors-desktop-toolbar {
-    display: block !important;
+    display: flex !important;
+    justify-content: flex-end !important;
     margin-bottom: 14px !important;
   }
 
@@ -577,6 +641,10 @@
     grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr) !important;
     gap: 14px !important;
     margin-bottom: 14px !important;
+    max-width: 1240px !important;
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
   }
 
   .app-page-main.route-constructors .constructors-leader-card {
@@ -586,10 +654,11 @@
     min-height: 220px !important;
     padding: 18px !important;
     overflow: hidden !important;
-    background:
-      linear-gradient(90deg, rgba(18, 19, 20, 0.72) 0%, rgba(18, 19, 20, 0.86) 68%),
-      url("https://lh3.googleusercontent.com/aida-public/AB6AXuCAEfDawXxYh0w90sPoHP-6OouN68qCwZfa3WAVfl_f_sBgI9ivQQxCgvFLNX2osnE2Au2IylQjF6QJxtU5Rkv6jp_fVyfE4lT7BUsgKHwT7tUqQSIsQPh2ipG8WoXo42FIn-q52ZpNUDueAUxxRDApX9jKtzbnzAHvefcZCZoJIxrLbC0J-stUys2mf1qvk0HrTQ0k-X5lpc8-2ETnpsUWcgoE6A7Rh0vJ8uHGCcHuQ4EnfRRTkhQ_xy6hnInMfIrWEPInAe1j20oM")
-      center/cover no-repeat !important;
+    /* Фон карточки лидера задаём inline-style (через /api/car-image), чтобы брать фото из app/assets/{year}/cars/. */
+    background: rgba(18, 19, 20, 0.72) !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
@@ -652,6 +721,13 @@
     padding: 16px !important;
     display: flex !important;
     flex-direction: column !important;
+    cursor: pointer !important;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease !important;
+  }
+
+  .app-page-main.route-constructors .constructors-next-race-card:hover {
+    border-color: rgba(225, 6, 0, 0.55) !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35) !important;
   }
 
   .app-page-main.route-constructors .constructors-next-kicker {
@@ -718,14 +794,36 @@
     background: #1b1c1d !important;
     overflow: hidden !important;
     margin-bottom: 14px !important;
+    max-width: 1240px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head {
+    grid-template-columns: 78px minmax(0, 1fr) 120px !important;
+    align-items: center !important;
+    padding: 8px 14px 10px !important;
+    width: 100% !important;
+  }
+
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span:nth-child(1) {
+    text-align: center !important;
+  }
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span:nth-child(2) {
+    text-align: center !important;
+    justify-self: center !important;
+  }
+  .app-page-main.route-constructors .constructors-table .desktop-standings-table-head span:nth-child(3) {
+    text-align: right !important;
   }
 
   .app-page-main.route-constructors .constructors-table .desktop-standings-row {
     display: grid !important;
-    grid-template-columns: 78px minmax(0, 1fr) 120px 64px !important;
+    grid-template-columns: 78px minmax(0, 1fr) 120px !important;
     align-items: center !important;
     gap: 10px !important;
     padding: 14px 12px !important;
+    width: 100% !important;
     border: none !important;
     border-bottom: 1px solid rgba(94, 63, 58, 0.14) !important;
     border-radius: 0 !important;
@@ -738,6 +836,7 @@
   .app-page-main.route-constructors .constructors-row-team {
     display: flex !important;
     align-items: center !important;
+    justify-content: center !important;
     gap: 12px !important;
     min-width: 0 !important;
   }
@@ -863,13 +962,32 @@
   }
 
   .app-page-main.route-compare .driver-select .custom-select-trigger {
-    height: 56px !important;
-    font-size: 22px !important;
+    min-height: 56px !important;
+    height: auto !important;
+    font-size: 16px !important;
+    line-height: 1.1 !important;
     font-family: "Space Grotesk", sans-serif !important;
     font-weight: 700 !important;
     border-radius: 10px !important;
     background: #292a2b !important;
     border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    white-space: nowrap !important;
+    word-break: normal !important;
+    overflow: hidden !important;
+  }
+
+  .app-page-main.route-compare .driver-select {
+    max-width: none !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .app-page-main.route-compare .driver-select .custom-select-trigger > span {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
   }
 
   .app-page-main.route-compare .compare-controls-header {
@@ -908,20 +1026,29 @@
   .app-page-main.route-compare .compare-redesign-tabs {
     max-width: 360px !important;
     margin-bottom: 14px !important;
+    margin-left: auto !important;
   }
 
   .app-page-main.route-compare .compare-redesign-selectors {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) 62px minmax(0, 1fr) 210px !important;
-    gap: 12px !important;
+    grid-template-columns: minmax(0, 1fr) 36px minmax(0, 1fr) 180px !important;
+    gap: 10px !important;
     align-items: center !important;
     margin-bottom: 12px !important;
   }
 
   .app-page-main.route-compare .compare-redesign-selectors .btn-compare {
     grid-column: auto !important;
-    height: 60px !important;
+    height: 56px !important;
     margin: 0 !important;
+  }
+
+  .app-page-main.route-compare .page-head-row-compare {
+    justify-content: flex-start !important;
+  }
+
+  .app-page-main.route-compare .page-head-row-compare .page-head-controls {
+    margin-left: auto !important;
   }
 
   .app-page-main.route-compare .compare-selected-preview {
@@ -991,6 +1118,9 @@
     border: 1px solid rgba(94, 63, 58, 0.24) !important;
     border-radius: 14px !important;
     padding: 16px !important;
+    margin-bottom: 26px !important;
+    height: auto !important;
+    overflow: hidden !important;
   }
 
   .app-page-main.route-compare .compare-chart-head h3 {
@@ -1012,7 +1142,7 @@
 
   .app-page-main.route-compare .compare-chart-canvas-wrap {
     margin: 0 !important;
-    height: 420px !important;
+    height: 460px !important;
     padding: 0 !important;
     border-radius: 0 !important;
     border: none !important;
@@ -1023,7 +1153,7 @@
     display: grid !important;
     grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr) !important;
     gap: 14px !important;
-    margin-top: 14px !important;
+    margin-top: 26px !important;
   }
 
   .app-page-main.route-compare .compare-insight-card,
@@ -1480,6 +1610,93 @@
     color: #ffb4a8;
   }
 
+  .app-page-main.route-quali-results .race-results-desktop-winner {
+    background: linear-gradient(180deg, rgba(18, 19, 20, 0.18) 0%, rgba(18, 19, 20, 0.86) 100%);
+  }
+
+  .app-page-main.route-quali-results .race-results-desktop-hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .app-page-main.route-quali-results .race-results-desktop-summary {
+    width: 100%;
+  }
+
+  .app-page-main.route-quali-results .race-results-desktop-winner-portrait {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: right center;
+    z-index: 0;
+    filter: saturate(1.02) contrast(1.03);
+  }
+
+  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-table-head,
+  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-row {
+    grid-template-columns: 66px minmax(180px, 1fr) 88px 140px 92px;
+  }
+
+  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-table-head span,
+  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-row span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-quali-results .race-results-desktop-winner-name {
+    max-width: min(62%, 640px);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .app-page-main.route-quali-results .race-results-desktop-winner-meta {
+    max-width: min(62%, 640px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner {
+    background: linear-gradient(180deg, rgba(18, 19, 20, 0.18) 0%, rgba(18, 19, 20, 0.86) 100%);
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    width: 100%;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-summary {
+    width: 100%;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-winner-portrait {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: right center;
+    z-index: 0;
+    filter: saturate(1.02) contrast(1.03);
+  }
+
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-table-head,
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-row {
+    grid-template-columns: 66px minmax(180px, 1fr) minmax(140px, 1fr) 140px 100px;
+  }
+
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-table-head span,
+  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-row span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .app-page-main.route-race-results .standings-item,
   .app-page-main.route-quali-results .standings-item,
   .app-page-main.route-sprint-results .standings-item,
@@ -1534,7 +1751,7 @@
 
   .app-page-main.route-next-race .next-race-desktop {
     display: grid !important;
-    grid-template-columns: 190px minmax(0, 1fr) !important;
+    grid-template-columns: minmax(0, 1fr) !important;
     gap: 16px !important;
     align-items: start !important;
   }
@@ -1594,9 +1811,10 @@
 
   .app-page-main.route-next-race .next-race-desktop-hero {
     display: grid !important;
-    grid-template-columns: minmax(360px, 0.92fr) minmax(0, 1fr) !important;
+    grid-template-columns: minmax(320px, 0.88fr) minmax(0, 1fr) !important;
     gap: 16px !important;
     align-items: center !important;
+    animation: nextRaceDesktopAppear 0.6s ease-out both !important;
   }
 
   .app-page-main.route-next-race .next-race-desktop-round {
@@ -1659,24 +1877,39 @@
   }
 
   .app-page-main.route-next-race .next-race-desktop-track-panel {
-    min-height: 300px !important;
+    min-height: 240px !important;
     border-radius: 14px !important;
     border: 1px solid rgba(94, 63, 58, 0.24) !important;
     background: #1b1c1d !important;
     display: grid !important;
     place-items: center !important;
     box-shadow: 0 0 0 1px rgba(225, 6, 0, 0.16), 0 0 34px rgba(225, 6, 0, 0.16) !important;
-    padding: 20px !important;
+    padding: 14px !important;
+    opacity: 0;
+    transform: translate3d(-24px, 0, 0) scale(0.99);
+    will-change: transform, opacity;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-panel.track-panel-appear {
+    animation: nextRaceTrackPanelAppear 0.9s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
   }
 
   .app-page-main.route-next-race .next-race-desktop-track-svg {
     width: 100% !important;
     height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .app-page-main.route-next-race .next-race-desktop-track-svg svg {
-    width: 100% !important;
-    height: 100% !important;
+    width: 84% !important;
+    height: 78% !important;
+  }
+
+  @keyframes nextRaceTrackPanelAppear {
+    from { opacity: 0; transform: translate3d(-24px, 0, 0) scale(0.99); }
+    to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
   }
 
   .app-page-main.route-next-race .next-race-desktop-track-svg path,
@@ -1690,9 +1923,18 @@
 
   .app-page-main.route-next-race .next-race-desktop-track-svg .track-fill,
   .app-page-main.route-next-race .next-race-desktop-track-svg .track-outline {
-    opacity: 1 !important;
+    /* Keep base animation behavior from `styles.css`:
+       - `.track-fill` starts hidden and fades in on `.track-fill.animate`
+       - `.track-outline` draws via dashoffset on `.track-outline.animate` */
     transform: none !important;
-    stroke-dashoffset: 0 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-outline {
+    transition: stroke-dashoffset 5.2s ease-in-out !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-svg .track-fill {
+    transition: opacity 1.35s ease-in-out 3.3s !important;
   }
 
   .app-page-main.route-next-race .next-race-desktop-stats {
@@ -1750,7 +1992,7 @@
 
   .app-page-main.route-next-race .next-race-desktop-schedule-grid {
     display: grid !important;
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)) !important;
     gap: 10px !important;
   }
 
@@ -1781,9 +2023,12 @@
     margin: 8px 0 0 !important;
     font-family: "Space Grotesk", sans-serif !important;
     text-transform: uppercase !important;
-    font-size: 22px !important;
+    font-size: clamp(17px, 1.5vw, 22px) !important;
     letter-spacing: -0.02em !important;
-    line-height: 0.95 !important;
+    line-height: 1.05 !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    hyphens: auto !important;
   }
 
   .app-page-main.route-next-race .next-race-desktop-schedule-grid article div {
@@ -1938,6 +2183,12 @@
     align-items: start !important;
   }
 
+  .app-page-main.route-season .season-desktop-primary {
+    position: sticky !important;
+    top: 12px !important;
+    align-self: start !important;
+  }
+
   .app-page-main.route-season .btn-back,
   .app-page-main.route-season .season-page-head {
     display: none !important;
@@ -1948,6 +2199,8 @@
     border-radius: 12px !important;
     background: #1b1c1d !important;
     padding: 10px !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 
   .app-page-main.route-season .season-desktop-race-item {
@@ -1981,7 +2234,7 @@
     font-style: italic !important;
     letter-spacing: -0.03em !important;
     line-height: 0.95 !important;
-    font-size: clamp(56px, 5.4vw, 78px) !important;
+    font-size: clamp(38px, 4.8vw, 78px) !important;
   }
 
   .app-page-main.route-season .season-desktop-main-subheading {
@@ -2022,9 +2275,47 @@
     font-weight: 700 !important;
   }
 
+  @media (max-width: 1360px) {
+    .app-page-main.route-season .season-desktop-layout {
+      grid-template-columns: minmax(0, 1fr) !important;
+      gap: 12px !important;
+    }
+
+    .app-page-main.route-season .season-desktop-primary {
+      position: static !important;
+      top: auto !important;
+    }
+
+    .app-page-main.route-season .season-desktop-primary-head {
+      flex-wrap: wrap !important;
+      align-items: flex-start !important;
+      gap: 10px !important;
+    }
+  }
+
+  @media (max-width: 1240px) {
+    .app-page-main.route-season .season-desktop-primary-head {
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      gap: 10px !important;
+    }
+
+    .app-page-main.route-season .season-desktop-season-picker {
+      align-self: flex-start !important;
+      flex-wrap: wrap !important;
+      gap: 8px !important;
+    }
+
+    .app-page-main.route-season .season-desktop-season-select {
+      min-width: 112px !important;
+      font-size: 28px !important;
+      padding: 8px 12px !important;
+    }
+  }
+
   .app-page-main.route-season .season-desktop-hero-card {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr) !important;
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr) !important;
     gap: 14px !important;
   }
 
@@ -2063,7 +2354,10 @@
     font-style: italic !important;
     letter-spacing: -0.03em !important;
     line-height: 0.92 !important;
-    font-size: clamp(52px, 4.8vw, 74px) !important;
+    font-size: clamp(42px, 4.2vw, 68px) !important;
+    max-width: 100% !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
   }
 
   .app-page-main.route-season .season-desktop-hero-meta {
@@ -2143,6 +2437,20 @@
     background: #292a2b !important;
   }
 
+  .app-page-main.route-season .season-desktop-stats {
+    align-items: start !important;
+  }
+
+  .app-page-main.route-season .season-desktop-stat-box {
+    align-self: start !important;
+  }
+
+  .app-page-main.route-season .season-desktop-stat-value {
+    line-height: 1.05 !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
   .app-page-main.route-season .season-desktop-facts-grid {
     margin-top: 14px !important;
     display: grid !important;
@@ -2167,7 +2475,7 @@
 
   .app-page-main.route-season .season-desktop-timeline {
     max-height: none !important;
-    overflow: auto !important;
+    overflow: visible !important;
   }
 
   .app-page-main.route-season .season-desktop-race-item {
@@ -2179,6 +2487,17 @@
     text-transform: uppercase !important;
     letter-spacing: 0.1em !important;
     color: rgba(227, 226, 227, 0.5) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+  }
+
+  .app-page-main.route-season .season-desktop-race-item .race-round-prefix {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
   }
 
   .app-page-main.route-season .season-desktop-race-item .race-name {
@@ -2189,12 +2508,20 @@
     font-style: italic !important;
     letter-spacing: -0.03em !important;
     margin-top: 4px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
   }
 
   .app-page-main.route-season .season-desktop-race-item .race-loc {
     margin-top: 4px !important;
     font-size: 12px !important;
     color: rgba(227, 226, 227, 0.6) !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    max-width: 100% !important;
   }
 
   .app-page-main.route-season .season-desktop-race-icon {
@@ -2649,7 +2976,7 @@
   }
 
   .app-page-main.route-constructor-details .constructor-career-block::after {
-    content: "🏆" !important;
+    content: "ЁЯПЖ" !important;
     position: absolute !important;
     right: 12px !important;
     top: 8px !important;
@@ -2764,9 +3091,10 @@
   .app-page-main.route-driver-details .driver-profile-desktop-photo img {
     width: 100% !important;
     height: 100% !important;
-    object-fit: cover !important;
-    opacity: 0.8 !important;
-    transform: scale(1.03) !important;
+    object-fit: contain !important;
+    object-position: center bottom !important;
+    opacity: 0.88 !important;
+    transform: none !important;
   }
 
   .app-page-main.route-driver-details .driver-profile-desktop-overlay {

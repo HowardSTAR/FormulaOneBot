@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
 import { apiRequest } from "../../helpers/api";
+import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 
 const currentRealYear = new Date().getFullYear();
@@ -28,17 +29,18 @@ function SeasonPage() {
     yearFromUrl && yearFromUrl >= 1950 && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
   );
   const [races, setRaces] = useState<Race[]>([]);
-  const [userTz, setUserTz] = useState("UTC");
+  const [userTz, setUserTz] = useState(getDisplayTimezone());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
   const [expandedRound, setExpandedRound] = useState<number | null>(null);
+  const [desktopSelectedRound, setDesktopSelectedRound] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     apiRequest<SettingsResponse>("/api/settings")
       .then((s) => {
-        if (!cancelled && s?.timezone) setUserTz(s.timezone);
+        if (!cancelled) setUserTz(getDisplayTimezone(s?.timezone));
       })
       .catch(() => {});
     return () => {
@@ -55,8 +57,19 @@ function SeasonPage() {
       if (!data.races || data.races.length === 0) {
         setRaces([]);
         setEmptyMessage("Расписание не найдено");
+        setDesktopSelectedRound(null);
       } else {
-        setRaces(data.races);
+        const loadedRaces = data.races;
+        setRaces(loadedRaces);
+        const nowLocal = new Date();
+        nowLocal.setHours(0, 0, 0, 0);
+        const nextIdx = loadedRaces.findIndex((r) => {
+          const raceEnd = new Date(r.date);
+          raceEnd.setDate(raceEnd.getDate() + 1);
+          return raceEnd >= nowLocal;
+        });
+        const initial = nextIdx >= 0 ? loadedRaces[nextIdx] : loadedRaces[0];
+        setDesktopSelectedRound(initial?.round ?? null);
       }
     } catch (e) {
       console.error(e);
@@ -107,27 +120,195 @@ function SeasonPage() {
     raceEnd.setDate(raceEnd.getDate() + 1);
     return raceEnd >= now;
   });
+  const desktopRace = races.find((r) => r.round === desktopSelectedRound) || races[0] || null;
+  const desktopRaceIndex = desktopRace ? races.findIndex((r) => r.round === desktopRace.round) : -1;
+  const desktopRaceEnd = desktopRace ? new Date(desktopRace.date) : null;
+  desktopRaceEnd?.setDate(desktopRaceEnd.getDate() + 1);
+  const desktopRaceIsFinished = Boolean(desktopRaceEnd && desktopRaceEnd < now);
+  const desktopRaceIsNext = desktopRaceIndex === nextRaceIndex;
+  const completedRacesCount = races.filter((race) => {
+    const raceEnd = new Date(race.date);
+    raceEnd.setDate(raceEnd.getDate() + 1);
+    return raceEnd < now;
+  }).length;
+  const desktopInsights = desktopRace
+    ? getCircuitInsightsRu({
+        eventName: desktopRace.event_name,
+        country: "",
+        location: desktopRace.location,
+      })
+    : null;
+
+  const selectedRaceDate = desktopRace ? new Date(desktopRace.date) : null;
+  const selectedDateLabel = selectedRaceDate
+    ? selectedRaceDate.toLocaleDateString("ru-RU", { timeZone: userTz, day: "2-digit", month: "short" }).replace(".", "").toUpperCase()
+    : "—";
+  const formatSessionTime = (iso?: string | null): string =>
+    iso
+      ? new Date(iso).toLocaleTimeString("ru-RU", {
+          timeZone: userTz,
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "--:--";
+  const desktopFactTitles = ["Локация", "Ключевой участок", "Непредсказуемость"];
+  const timelineRaceName = (name: string): string => name.replace(/Grand Prix/gi, "GP");
 
   return (
     <>
       <BackButton>← <span>Главное меню</span></BackButton>
-      <h2>Календарь</h2>
+      <div className="page-head-row season-page-head">
+        <h2 className="page-head-title">Календарь</h2>
+        <div className="page-head-controls">
+          <YearSelect
+            value={year}
+            onChange={handleYearChange}
+            minYear={1950}
+            maxYear={currentRealYear}
+            placeholder="Введи год"
+          />
+        </div>
+      </div>
 
-      <YearSelect
-        value={year}
-        onChange={handleYearChange}
-        minYear={1950}
-        maxYear={currentRealYear}
-        placeholder="Введи год"
-      />
+      {!loading && !error && !emptyMessage && races.length > 0 && desktopRace && (
+        <div className="season-desktop-layout">
+          <section className="season-desktop-primary">
+            <div className="season-desktop-primary-head">
+              <div>
+                <h3 className="season-desktop-main-heading">Календарь</h3>
+                <p className="season-desktop-main-subheading">
+                  Сезон {year} · {races.length} этапа · {completedRacesCount} завершено
+                </p>
+              </div>
+              <div className="season-desktop-season-picker">
+                <span className="season-desktop-season-label">Выберите сезон</span>
+                <select
+                  className="season-desktop-season-select"
+                  value={year}
+                  onChange={(e) => handleYearChange(Number(e.target.value))}
+                >
+                  {Array.from({ length: currentRealYear - 1949 }, (_, i) => currentRealYear - i).map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-      <div className="standings-list">
+            <article className="season-desktop-main-card season-desktop-hero-card">
+              <div className="season-desktop-hero-media">
+                <div className="season-desktop-hero-next">
+                  {desktopRaceIsNext ? "Следующий этап" : desktopRaceIsFinished ? "Прошедший этап" : "Предстоящий этап"}: {String(desktopRace.round).padStart(2, "0")}
+                </div>
+                <h4>{desktopRace.event_name}</h4>
+                <div className="season-desktop-hero-meta">
+                  <span>{selectedDateLabel}</span>
+                  <span>{desktopRace.location}</span>
+                </div>
+              </div>
+
+              <div className="season-desktop-hero-schedule">
+                <h5>Расписание сессий</h5>
+                <div className="season-desktop-session-grid">
+                  {desktopRace.sprint_quali_start_utc && (
+                    <div className="season-desktop-session-item">
+                      <span>Спринт-квалификация</span>
+                      <b>{formatSessionTime(desktopRace.sprint_quali_start_utc)}</b>
+                    </div>
+                  )}
+                  {desktopRace.sprint_start_utc && (
+                    <div className="season-desktop-session-item">
+                      <span>Спринт</span>
+                      <b>{formatSessionTime(desktopRace.sprint_start_utc)}</b>
+                    </div>
+                  )}
+                  <div className="season-desktop-session-item">
+                    <span>Квалификация</span>
+                    <b>{formatSessionTime(desktopRace.quali_start_utc)}</b>
+                  </div>
+                  <div className="season-desktop-session-item focus">
+                    <span>Grand Prix</span>
+                    <b>{selectedDateLabel}</b>
+                  </div>
+                </div>
+                <div className="season-desktop-stats">
+                  {desktopInsights?.stats.slice(0, 4).map((item) => (
+                    <div className="season-desktop-stat-box" key={item.label}>
+                      <div className="season-desktop-stat-label">{item.label}</div>
+                      <div className="season-desktop-stat-value">{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </article>
+
+            <div className="season-desktop-facts-grid">
+              {desktopInsights?.facts.slice(0, 3).map((fact, i) => (
+                <div key={fact.title} className="season-desktop-fact-item">
+                  <div className="season-desktop-fact-title">{desktopFactTitles[i] || fact.title}</div>
+                  <div className="season-desktop-fact-text">"{fact.text}"</div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <aside className="season-desktop-list season-desktop-timeline">
+            <h4 className="season-desktop-timeline-title">Все этапы сезона · {races.length}</h4>
+            {races.map((race, index) => {
+              const raceDate = new Date(race.date);
+              const raceEndCheck = new Date(raceDate);
+              raceEndCheck.setDate(raceEndCheck.getDate() + 1);
+              const isNext = index === nextRaceIndex;
+              const isCancelled = Boolean(race.is_cancelled);
+              const isFinished = raceEndCheck < now;
+              const statusClass = isCancelled ? "cancelled" : isFinished ? "finished" : isNext ? "next" : "future";
+              const isSelected = desktopRace.round === race.round;
+              const statusLabel = isCancelled ? "ОТМЕНЕН" : isFinished ? "ЗАВЕРШЕН" : isNext ? "СКОРО" : "ЭТАП";
+              const dateLabel = raceDate
+                .toLocaleDateString("ru-RU", {
+                  timeZone: userTz,
+                  day: "2-digit",
+                  month: "short",
+                })
+                .replace(".", "")
+                .toUpperCase();
+              return (
+                <button
+                  key={`desktop-${race.round}`}
+                  type="button"
+                  className={`season-desktop-race-item ${statusClass} ${isSelected ? "active" : ""}`}
+                  onClick={() => setDesktopSelectedRound(race.round)}
+                  aria-pressed={isSelected}
+                >
+                  <div className="season-desktop-race-info">
+                    <div className="season-desktop-race-topline">
+                      <div className="race-round">
+                        <span className="race-round-prefix">
+                          Этап {String(race.round).padStart(2, "0")} •
+                        </span>
+                        <span className={`race-round-status ${statusClass}`}>{statusLabel}</span>
+                      </div>
+                      <span className="season-desktop-race-icon">{isSelected ? "➤" : isFinished ? "▣" : "○"}</span>
+                    </div>
+                    <div className="race-name">{timelineRaceName(race.event_name)}</div>
+                    <div className="race-loc">{dateLabel} • {race.location}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </aside>
+        </div>
+      )}
+
+      <div className="season-races-grid">
         {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка календаря...</div></div>}
-        {error && <div style={{ color: "red", textAlign: "center" }}>{error}</div>}
+        {error && <div className="page-error">{error}</div>}
         {!loading && emptyMessage && (
-          <div style={{ textAlign: "center", padding: "40px 20px" }}>
-            <div style={{ fontSize: 40 }}>🔮</div>
-            <div style={{ fontWeight: 600 }}>{emptyMessage}</div>
+          <div className="empty-state season-empty-state">
+            <div className="empty-icon">🔮</div>
+            <div className="empty-title">{emptyMessage}</div>
           </div>
         )}
         {!loading && !error && !emptyMessage &&
@@ -162,7 +343,7 @@ function SeasonPage() {
             const hasSprint = Boolean(race.sprint_start_utc);
             const hasSprintQuali = Boolean(race.sprint_quali_start_utc);
             return (
-              <div key={race.round}>
+              <div key={race.round} className="season-race-item">
                 <div
                   id={statusClass === "next" ? "next-race-card" : undefined}
                   className={`race-card ${statusClass}`}
@@ -178,7 +359,7 @@ function SeasonPage() {
                     <span className="date-month">{month}</span>
                   </div>
                   <div className="race-info">
-                    <div className="race-round">Round {race.round}</div>
+                    <div className="race-round">Этап {race.round}</div>
                     <div className="race-name">{race.event_name}</div>
                     <div className="race-loc">📍 {race.location}</div>
                   </div>

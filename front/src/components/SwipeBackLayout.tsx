@@ -1,6 +1,7 @@
 import { useRef, useCallback } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { hapticImpact } from "../helpers/telegram";
+import { AppHeader } from "./AppHeader";
 
 const EDGE_THRESHOLD = 30;
 const SWIPE_THRESHOLD = 60;
@@ -54,14 +55,23 @@ export function SwipeBackLayout() {
     [navigate, location.pathname]
   );
 
+  const routeKey =
+    location.pathname === "/"
+      ? "home"
+      : location.pathname
+          .replace(/^\/+/, "")
+          .replace(/\/+/g, "-")
+          .replace(/[^a-z0-9-_]/gi, "")
+          .toLowerCase() || "page";
+
   return (
-    <div
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      style={{ minHeight: "100%" }}
-    >
-      <Outlet />
+    <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className="app-shell">
+      <AppHeader />
+      <main className="app-content">
+        <section className={`app-page-main route-${routeKey}`}>
+          <Outlet />
+        </section>
+      </main>
     </div>
   );
 }

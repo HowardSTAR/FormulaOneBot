@@ -3,6 +3,7 @@ import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
 import { hapticSelection } from "../../helpers/telegram";
+import "../../assets/voting-desktop.css";
 
 Chart.register(...registerables);
 
@@ -26,7 +27,9 @@ function VotingPage() {
   const [stats, setStats] = useState<StatsResponse["stats"]>([]);
   const [driverStats, setDriverStats] = useState<DriverStatsResponse["stats"]>([]);
   const [expandedRound, setExpandedRound] = useState<number | null>(null);
-  const [chartExpanded, setChartExpanded] = useState(false);
+  const [chartExpanded, setChartExpanded] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<number | null>(null);
   const chartRaceRef = useRef<HTMLCanvasElement>(null);
@@ -231,7 +234,7 @@ function VotingPage() {
       <h2>Голосование</h2>
       <div className="voting-season-title">СЕЗОН {year}</div>
 
-      <div className="segmented-tabs">
+      <div className="segmented-tabs voting-page-tabs">
         <div
           className="segmented-slider"
           style={{ transform: tab === "race" ? "translateX(0)" : "translateX(100%)" }}
@@ -262,7 +265,7 @@ function VotingPage() {
       {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка голосования...</div></div>}
 
       {!loading && (
-        <>
+        <div className="voting-page-shell">
           {/* График — скрыт по умолчанию, раскрывается по клику */}
           {tab === "race" && (
             <div className="voting-chart-accordion">
@@ -396,7 +399,7 @@ function VotingPage() {
               Пока нет завершённых гонок для голосования
             </div>
           )}
-        </>
+        </div>
       )}
     </>
   );

@@ -1,3 +1,4 @@
+import asyncio
 import io
 import os
 import unicodedata
@@ -7,6 +8,7 @@ from pathlib import Path
 from typing import Optional, List
 
 import pandas as pd
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Query, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
@@ -14,7 +16,10 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel
 
-from app.auth import get_current_user_id
+# run_web.py imports this module directly, so load local configuration before
+# app.db and authentication services read environment variables.
+load_dotenv()
+
 from app.db import (
     db,
     get_favorite_drivers, get_favorite_teams,
@@ -22,9 +27,11 @@ from app.db import (
     remove_favorite_team, add_favorite_team,
     get_user_settings, update_user_setting,
     save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
-    get_last_notified_quali_round,
-    get_reaction_profile, upsert_reaction_profile, save_reaction_score, get_reaction_leaderboard,
-    save_reflex_grid_score, get_reflex_grid_leaderboard,
+)
+from app.api.auth_api import (
+    get_optional_hybrid_telegram_id as get_optional_user_id,
+    require_hybrid_telegram_id as get_current_user_id,
+    router as auth_router,
 )
 from app.f1_data import (
     points_for_race_position,
@@ -43,6 +50,7 @@ from app.f1_data import (
     get_event_details_async,
     get_cached_quali_results,
     set_cached_quali_results,
+    get_season_schedule_short,
 )
 from app.handlers.races import build_next_race_payload
 from app.utils.default import DRIVER_CODE_TO_FILE
@@ -56,30 +64,48 @@ FRONT_DIR = PROJECT_ROOT / "front" / "dist"
 # Используем React SPA (front) если собран, иначе web/app
 WEB_DIR = FRONT_DIR if FRONT_DIR.exists() else WEB_DIR_LEGACY
 STATIC_DIR = WEB_DIR / "static"
+ASSETS_DIR = PROJECT_ROOT / "app" / "assets"
 
 # --- Инициализация приложения ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.f1_data import init_redis_cache
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     await db.connect()
     await db.init_tables()
-    await init_redis_cache(redis_url)
-    yield
+    redis_url = os.getenv("REDIS_URL")
+    if redis_url:
+        await init_redis_cache(redis_url)
+    try:
+        yield
+    finally:
+        await db.close()
 
 
 web_app = FastAPI(title="FormulaOneBot Mini App API", lifespan=lifespan)
 
+web_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "WEB_ORIGINS",
+        "http://127.0.0.1:5173,http://localhost:5173",
+    ).split(",")
+    if origin.strip()
+]
+
 web_app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=web_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+web_app.include_router(auth_router)
+
 if STATIC_DIR.exists():
     web_app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+if ASSETS_DIR.exists():
+    web_app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 # --- МОДЕЛИ ДАННЫХ ---
 
@@ -95,6 +121,7 @@ class NextRaceResponse(BaseModel):
     utc: Optional[str] = None
     local: Optional[str] = None
     fmt_date: Optional[str] = None
+    race_start_utc: Optional[str] = None
     next_session_name: Optional[str] = None
     next_session_iso: Optional[str] = None
 
@@ -120,28 +147,13 @@ class SettingsRequest(BaseModel):
     notifications_enabled: bool = False
 
 
-class ReactionLeaderboardProfileRequest(BaseModel):
-    display_name: str = ""
-    participate: bool = False
-    prompt_seen: bool = True
-
-
-class ReactionLeaderboardScoreRequest(BaseModel):
-    time_ms: int
-
-
-class ReflexGridLeaderboardScoreRequest(BaseModel):
-    mode: str
-    difficulty: str
-    score: int
-    time_ms: int
-
-
 # --- ЭНДПОИНТЫ ---
 
 @web_app.get("/api/settings")
-async def api_get_settings(user_id: int = Depends(get_current_user_id)):
-    """Получить текущие настройки пользователя."""
+async def api_get_settings(user_id: Optional[int] = Depends(get_optional_user_id)):
+    """Получить текущие настройки пользователя. Для гостя возвращает дефолт."""
+    if user_id is None:
+        return {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False}
     return await get_user_settings(user_id)
 
 
@@ -159,83 +171,10 @@ async def api_save_settings(
     return {"status": "ok"}
 
 
-@web_app.get("/api/reaction-leaderboard/profile")
-async def api_reaction_leaderboard_profile(user_id: int = Depends(get_current_user_id)):
-    """Профиль пользователя для игры реакции (имя, участие, факт показа попапа)."""
-    return await get_reaction_profile(user_id)
-
-
-@web_app.post("/api/reaction-leaderboard/profile")
-async def api_update_reaction_leaderboard_profile(
-    body: ReactionLeaderboardProfileRequest,
-    user_id: int = Depends(get_current_user_id),
-):
-    profile = await upsert_reaction_profile(
-        user_id,
-        display_name=body.display_name,
-        participate=body.participate,
-        prompt_seen=body.prompt_seen,
-    )
-    return {"status": "ok", "profile": profile}
-
-
-@web_app.post("/api/reaction-leaderboard/score")
-async def api_save_reaction_leaderboard_score(
-    body: ReactionLeaderboardScoreRequest,
-    user_id: int = Depends(get_current_user_id),
-):
-    if body.time_ms <= 0:
-        raise HTTPException(status_code=400, detail="time_ms must be > 0")
-    saved = await save_reaction_score(user_id, int(body.time_ms))
-    return {"status": "ok", "saved": saved}
-
-
-@web_app.get("/api/reaction-leaderboard")
-async def api_reaction_leaderboard(user_id: int = Depends(get_current_user_id)):
-    """Таблица лидеров по лучшему времени реакции."""
-    data = await get_reaction_leaderboard(user_id)
-    return data
-
-
-@web_app.post("/api/reflex-grid-leaderboard/score")
-async def api_save_reflex_grid_leaderboard_score(
-    body: ReflexGridLeaderboardScoreRequest,
-    user_id: int = Depends(get_current_user_id),
-):
-    if body.score < 0:
-        raise HTTPException(status_code=400, detail="score must be >= 0")
-    if body.time_ms <= 0:
-        raise HTTPException(status_code=400, detail="time_ms must be > 0")
-    try:
-        saved = await save_reflex_grid_score(
-            user_id,
-            mode=body.mode,
-            difficulty=body.difficulty,
-            score=int(body.score),
-            time_ms=int(body.time_ms),
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return {"status": "ok", "saved": saved}
-
-
-@web_app.get("/api/reflex-grid-leaderboard")
-async def api_reflex_grid_leaderboard(
-    mode: str = Query("timed"),
-    difficulty: str = Query("easy"),
-    user_id: int = Depends(get_current_user_id),
-):
-    try:
-        data = await get_reflex_grid_leaderboard(mode=mode, difficulty=difficulty, telegram_id=user_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return data
-
-
 @web_app.get("/api/next-race", response_model=NextRaceResponse)
 async def api_next_race(
         season: Optional[int] = None,
-        user_id: Optional[int] = Depends(get_current_user_id)
+        user_id: Optional[int] = Depends(get_optional_user_id)
 ):
     """Информация о ближайшей гонке + таймер."""
     # Передаем user_id, чтобы дата гонки в шапке форматировалась как раньше
@@ -316,6 +255,17 @@ async def api_season(
     if season is None:
         season = datetime.now().year
     races = await get_season_schedule_short_async(season)
+    # Защита от "застывшего" async-кеша расписания (иногда обрезается до первых этапов).
+    # Для текущего/будущего сезона при слишком коротком списке пробуем свежий sync-source.
+    now_year = datetime.now().year
+    if season >= now_year and races and len(races) < 8:
+        try:
+            fresh_races = await asyncio.to_thread(get_season_schedule_short, season)
+            if fresh_races and len(fresh_races) > len(races):
+                races = fresh_races
+        except Exception:
+            pass
+
     if completed_only and races:
         now_utc = datetime.now(timezone.utc)
 
@@ -882,7 +832,7 @@ def _build_race_results(df: pd.DataFrame, fav_drivers: set, fav_teams: set) -> t
 
 @web_app.get("/api/race-results")
 async def api_race_results(
-        user_id: Optional[int] = Depends(get_current_user_id),
+        user_id: Optional[int] = Depends(get_optional_user_id),
         season: Optional[int] = Query(None),
         round_number: Optional[int] = Query(None, alias="round"),
 ):
@@ -1001,7 +951,7 @@ async def api_race_results(
 
 @web_app.get("/api/sprint-results")
 async def api_sprint_results(
-        user_id: Optional[int] = Depends(get_current_user_id),
+        user_id: Optional[int] = Depends(get_optional_user_id),
         season: Optional[int] = Query(None),
         round_number: Optional[int] = Query(None, alias="round"),
 ):
@@ -1106,10 +1056,25 @@ def _segment_by_position(pos: int) -> str:
 
 @web_app.get("/api/quali-results")
 async def api_quali_results(
-        user_id: Optional[int] = Depends(get_current_user_id),
+        user_id: Optional[int] = Depends(get_optional_user_id),
         season: Optional[int] = Query(None),
         round_number: Optional[int] = Query(None, alias="round"),
 ):
+    def _has_meaningful_quali_data(rows: list[dict]) -> bool:
+        if not rows:
+            return False
+        good_rows = 0
+        for row in rows:
+            name = str(row.get("name") or "").strip()
+            driver = str(row.get("driver") or "").strip()
+            best = str(row.get("best") or "").strip()
+            has_identity = name not in {"", "?"} or driver not in {"", "?"}
+            has_time = best not in {"", "-", "—"}
+            if has_identity and has_time:
+                good_rows += 1
+        min_good = min(5, len(rows))
+        return good_rows >= max(2, min_good)
+
     if season is None:
         season = datetime.now().year
     now_utc = datetime.now(timezone.utc)
@@ -1138,11 +1103,8 @@ async def api_quali_results(
             "results": results,
         }
     else:
-        last_notified = await get_last_notified_quali_round(season)
         cached = await get_cached_quali_results(season)
-        base_payload = None
-        if cached and (last_notified is None or cached.get("round") == last_notified):
-            base_payload = cached
+        base_payload = cached if cached else None
 
         if base_payload is None:
             data = await _get_latest_quali_async(season, limit=100)
@@ -1172,7 +1134,12 @@ async def api_quali_results(
                     "race_info": race_info,
                     "results": results,
                 }
-                await set_cached_quali_results(season, base_payload)
+                # OpenF1 иногда отдает "пустые" строки (имена '?', время '-').
+                # В таком случае лучше оставить последний валидный кэш для фронта.
+                if cached and not _has_meaningful_quali_data(results) and _has_meaningful_quali_data(cached.get("results", [])):
+                    base_payload = cached
+                else:
+                    await set_cached_quali_results(season, base_payload)
 
         if _should_reset_previous_results(schedule or [], now_utc, base_payload.get("round")):
             started_round = _get_latest_started_weekend_round(schedule or [], now_utc)
@@ -1228,7 +1195,7 @@ async def api_quali_results(
 
 @web_app.get("/api/sprint-quali-results")
 async def api_sprint_quali_results(
-        user_id: Optional[int] = Depends(get_current_user_id),
+        user_id: Optional[int] = Depends(get_optional_user_id),
         season: Optional[int] = Query(None),
         round_number: Optional[int] = Query(None, alias="round"),
 ):
@@ -1312,14 +1279,26 @@ async def api_sprint_quali_results(
 @web_app.get("/api/race-details")
 async def api_race_details(
         season: int = Query(..., description="Год сезона"),
-        # CHANGE HERE: Added alias="round"
         round_number: int = Query(..., description="Номер этапа", alias="round")
 ):
     """Возвращает полную инфу о трассе и расписание уикенда"""
     data = await get_event_details_async(season, round_number)
 
     if not data:
-        raise HTTPException(status_code=404, detail="Race not found")
+        # Fallback: если FastF1 не отдал event details, пробуем собрать минимум из сезонного расписания.
+        schedule = await get_season_schedule_short_async(season)
+        race = next((r for r in (schedule or []) if int(r.get("round", 0)) == int(round_number)), None)
+        if not race:
+            raise HTTPException(status_code=404, detail="Race not found")
+        data = {
+            "round": round_number,
+            "event_name": race.get("event_name") or f"Round {round_number}",
+            "official_name": race.get("event_name") or "",
+            "country": race.get("country") or "",
+            "location": race.get("location") or "",
+            "event_format": "",
+            "sessions": get_weekend_schedule(season, round_number) or [],
+        }
 
     # Русификация сессий для API
     name_map = {
