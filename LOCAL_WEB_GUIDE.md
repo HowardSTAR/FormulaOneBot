@@ -129,6 +129,28 @@ python -m pytest tests/test_api.py -q
 cd front && npm run build
 ```
 
+## Письма Yandex Cloud Postbox
+
+Обычный SMTP-режим использует `postbox.cloud.yandex.net:587` с STARTTLS.
+Если провайдер или корпоративная сеть блокирует SMTP, приложение также умеет
+отправлять через официальный HTTPS API Postbox на порту 443.
+
+Для HTTPS API создайте **статический ключ доступа** сервисного аккаунта с ролью
+`postbox.sender` в том же каталоге Yandex Cloud, где создан почтовый адрес. Это
+не тот же ключ, который создаётся специально для SMTP. Добавьте в `.env`:
+
+```env
+EMAIL_DELIVERY_MODE=yandex_postbox_api
+YANDEX_POSTBOX_ACCESS_KEY_ID=<идентификатор статического ключа>
+YANDEX_POSTBOX_SECRET_ACCESS_KEY=<секретная часть статического ключа>
+SMTP_FROM_EMAIL=auth@ваш-домен.ru
+```
+
+После изменения `.env` полностью перезапустите backend. Если и HTTPS-запрос к
+`postbox.cloud.yandex.net:443` зависает, смените сеть, включите VPN или запускайте
+отправку на Ubuntu-сервере: это сетевое ограничение Windows/провайдера, а не
+ошибка ключа приложения.
+
 ## Остановка и типичные проблемы
 
 - Остановить серверы: `Ctrl+C` в каждом окне.
