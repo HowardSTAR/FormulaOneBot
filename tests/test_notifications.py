@@ -1,6 +1,7 @@
 """
 Тесты уведомлений (user/group formatting).
 """
+import io
 from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock, patch
 
@@ -291,6 +292,8 @@ async def test_check_and_send_results_fallbacks_to_all_users_when_notifications_
             patch("app.utils.notifications.get_users_with_settings", side_effect=users_side_effect), \
             patch("app.utils.notifications.get_driver_standings_async", new_callable=AsyncMock) as m_driver_st, \
             patch("app.utils.notifications.get_constructor_standings_async", new_callable=AsyncMock) as m_con_st, \
+            patch("app.utils.notifications.create_f1_style_classification_image") as m_render, \
+            patch("app.utils.notifications.set_last_notified_round", new_callable=AsyncMock) as m_set_notified, \
             patch("app.utils.notifications.safe_send_photo", new_callable=AsyncMock) as m_send_photo:
         m_sched.return_value = schedule
         m_last_notified.return_value = None
@@ -300,11 +303,13 @@ async def test_check_and_send_results_fallbacks_to_all_users_when_notifications_
         m_groups.return_value = []
         m_driver_st.return_value = pd.DataFrame()
         m_con_st.return_value = pd.DataFrame()
+        m_render.return_value = io.BytesIO(b"test-image")
         m_send_photo.return_value = True
 
         await check_and_send_results(bot=object())
 
     assert m_send_photo.await_count >= 1
+    assert m_set_notified.await_count == 1
 
 
 @pytest.mark.asyncio
@@ -325,6 +330,8 @@ async def test_check_and_notify_quali_fallbacks_to_all_users_when_notifications_
             patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
             patch("app.utils.notifications.get_driver_standings_async", new_callable=AsyncMock) as m_driver_st, \
             patch("app.utils.notifications.set_cached_quali_results", new_callable=AsyncMock), \
+            patch("app.utils.notifications.create_f1_style_classification_image") as m_render, \
+            patch("app.utils.notifications.set_last_notified_quali_round", new_callable=AsyncMock) as m_set_notified, \
             patch("app.utils.notifications.safe_send_photo", new_callable=AsyncMock) as m_send_photo:
         m_latest.return_value = (8, results)
         m_last.return_value = None
@@ -332,8 +339,10 @@ async def test_check_and_notify_quali_fallbacks_to_all_users_when_notifications_
         m_groups.return_value = []
         m_sched.return_value = [{"round": 8, "event_name": "Monaco GP"}]
         m_driver_st.return_value = pd.DataFrame()
+        m_render.return_value = io.BytesIO(b"test-image")
         m_send_photo.return_value = True
 
         await check_and_notify_quali(bot=object())
 
     assert m_send_photo.await_count >= 1
+    assert m_set_notified.await_count == 1

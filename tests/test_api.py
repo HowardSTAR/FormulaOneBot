@@ -17,7 +17,8 @@ from PIL import Image
 @pytest.mark.asyncio
 async def test_api_season_schedule(api_client: AsyncClient):
     """GET /api/season — расписание сезона."""
-    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m, \
+            patch("app.api.miniapp_api.get_season_schedule_short", return_value=[]):
         m.return_value = [
             {"round": 1, "date": "2024-03-02", "event_name": "Bahrain GP", "country": "Bahrain", "location": "Sakhir"},
         ]
@@ -32,7 +33,8 @@ async def test_api_season_schedule(api_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_api_season_default_year(api_client: AsyncClient):
     """GET /api/season без season — текущий год."""
-    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m, \
+            patch("app.api.miniapp_api.get_season_schedule_short", return_value=[]):
         m.return_value = []
         r = await api_client.get("/api/season")
     assert r.status_code == 200
@@ -43,7 +45,8 @@ async def test_api_season_default_year(api_client: AsyncClient):
 async def test_api_season_completed_only_race_filters_future_rounds(api_client: AsyncClient):
     """GET /api/season?completed_only=1&session_type=race — возвращает только прошедшие этапы гонок."""
     now = datetime.now(timezone.utc)
-    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m, \
+            patch("app.api.miniapp_api.get_season_schedule_short", return_value=[]):
         m.return_value = [
             {
                 "round": 1,
@@ -69,7 +72,8 @@ async def test_api_season_completed_only_race_filters_future_rounds(api_client: 
 async def test_api_season_completed_only_quali_filters_by_quali_time(api_client: AsyncClient):
     """GET /api/season?completed_only=1&session_type=quali — фильтрует по времени квалификации."""
     now = datetime.now(timezone.utc)
-    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m, \
+            patch("app.api.miniapp_api.get_season_schedule_short", return_value=[]):
         m.return_value = [
             {
                 "round": 5,
@@ -708,7 +712,6 @@ async def test_api_quali_results_resets_previous_round_when_new_weekend_started(
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
             patch("app.api.miniapp_api.get_cached_quali_results", new_callable=AsyncMock) as m_cached, \
-            patch("app.api.miniapp_api.get_last_notified_quali_round", new_callable=AsyncMock) as m_last, \
             patch("app.api.miniapp_api._get_latest_quali_async", new_callable=AsyncMock) as m_latest, \
             patch("app.api.miniapp_api.get_quali_for_round_async", new_callable=AsyncMock) as m_quali_for_round:
         m_sched.return_value = [
@@ -718,7 +721,6 @@ async def test_api_quali_results_resets_previous_round_when_new_weekend_started(
              "first_session_start_utc": (now - timedelta(hours=1)).isoformat()},
         ]
         m_cached.return_value = None
-        m_last.return_value = None
         m_latest.return_value = (1, [{"position": 1, "driver": "VER", "name": "Max", "best": "1:29.0"}])
         m_quali_for_round.return_value = (
             2,

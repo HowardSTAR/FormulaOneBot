@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import parse_qs, urlparse
+
 import httpx
 import pytest
 from fastapi import HTTPException, Request
@@ -118,5 +120,67 @@ async def test_linked_web_session_can_use_personalized_api(temp_db_path, monkeyp
         cookie_token=session.token,
     )
     assert telegram_id == 987654321
+
+    await database.close()
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_email_link_resets_password_via_http(temp_db_path, monkeypatch):
+    database = Database(temp_db_path)
+    await database.connect()
+    await database.init_tables()
+    mailer = MockMailer()
+    auth = AuthService(database, mailer, pepper="test-pepper-with-enough-entropy")
+    monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
+    monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
+    monkeypatch.setenv("PUBLIC_WEB_URL", "https://f1hub.example")
+
+    transport = httpx.ASGITransport(app=web_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        old_password = "FormulaOne-2026-Secure"
+        new_password = "FormulaOne-2027-Recovered"
+        assert (await client.post(
+            "/api/auth/register",
+            json={"email": "recover-api@example.com", "password": old_password},
+        )).status_code == 202
+        code = str(mailer.messages[-1]["code"])
+        assert (await client.post(
+            "/api/auth/verify-email",
+            json={"email": "recover-api@example.com", "code": code},
+        )).status_code == 200
+
+        assert (await client.post(
+            "/api/auth/password/forgot", json={"email": "recover-api@example.com"}
+        )).status_code == 202
+        reset_url = str(mailer.messages[-1]["reset_url"])
+        assert reset_url.startswith("https://f1hub.example/reset-password?token=")
+        token = parse_qs(urlparse(reset_url).query)["token"][0]
+
+        reset = await client.post(
+            "/api/auth/password/reset",
+            json={
+                "token": token,
+                "new_password": new_password,
+                "password_confirmation": new_password,
+            },
+        )
+        assert reset.status_code == 200
+        assert (await client.get("/api/auth/me")).status_code == 401
+        assert (await client.post(
+            "/api/auth/login",
+            json={"email": "recover-api@example.com", "password": old_password},
+        )).status_code == 401
+        assert (await client.post(
+            "/api/auth/login",
+            json={"email": "recover-api@example.com", "password": new_password},
+        )).status_code == 200
+        assert (await client.post(
+            "/api/auth/password/reset",
+            json={
+                "token": token,
+                "new_password": "FormulaOne-2028-Another",
+                "password_confirmation": "FormulaOne-2028-Another",
+            },
+        )).status_code == 400
 
     await database.close()
