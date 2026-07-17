@@ -662,6 +662,20 @@ p {
 .empty-icon { font-size: 48px; margin-bottom: 16px; display: block; }
 .empty-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
 .empty-desc { color: var(--text-secondary); font-size: 14px; }
+.race-results-desktop-empty {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 280px;
+  box-sizing: border-box;
+  margin: 0;
+  border-style: solid;
+  background:
+    radial-gradient(circle at 50% 28%, rgba(225, 6, 0, .12), transparent 35%),
+    rgba(14, 16, 20, .78);
+}
+.race-results-desktop-empty .empty-title { font-size: clamp(24px, 2.7vw, 38px); text-transform: uppercase; }
+.race-results-desktop-empty .empty-desc { max-width: 560px; font-size: 16px; line-height: 1.55; }
 .archive-note {
   margin: -2px 0 12px;
   font-size: 12px;

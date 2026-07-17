@@ -19,6 +19,7 @@ import SprintQualiResultsPage from "./pages/sprint-quali-results/SprintQualiResu
 import SprintResultsPage from "./pages/sprint-results/SprintResultsPage";
 import VotingPage from "./pages/voting/VotingPage";
 import AccountPage from "./pages/account/AccountPage";
+import ResetPasswordPage from "./pages/reset-password/ResetPasswordPage";
 import { getWebsiteUser, hasTelegramAuth } from "./helpers/auth";
 
 function RequirePersonalAccount({ children }: { children: ReactElement }) {
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
       { path: "/quali-results", element: <QualiResultsPage /> },
       { path: "/race-details", element: <RaceDetailsPage /> },
       { path: "/race-results", element: <RaceResultsPage /> },
+      { path: "/reset-password", element: <ResetPasswordPage /> },
       { path: "/settings", element: <RequirePersonalAccount><SettingsPage /></RequirePersonalAccount> },
       { path: "/season", element: <SeasonPage /> },
       { path: "/sprint-quali-results", element: <SprintQualiResultsPage /> },

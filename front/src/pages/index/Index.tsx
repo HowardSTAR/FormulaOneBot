@@ -447,17 +447,14 @@ function IndexPage() {
               <span className="menu-label index-card-title">Сравнение</span>
               <span className="index-card-desc">Очки, темп и дуэли</span>
             </Link>
-            {isAuthenticated && (
-              <Link to="/voting" className="menu-item index-nav-card">
-                <span className="menu-label index-card-title">Голосование</span>
-                <span className="index-card-desc">Оценки и итоги этапов</span>
-              </Link>
-            )}
+            <Link to="/voting" className="menu-item index-nav-card">
+              <span className="menu-label index-card-title">Голосование</span>
+              <span className="index-card-desc">Оценки и итоги этапов</span>
+            </Link>
           </div>
         </div>
 
-        {isAuthenticated && (
-          <div className="index-my-section index-panel">
+        <div className="index-my-section index-panel">
             <div className="section-title">Моё</div>
             <Link to="/favorites" className="menu-item full-width index-wide-link index-favorites-link">
               <div className="index-wide-link-left">
@@ -485,8 +482,7 @@ function IndexPage() {
                 </div>
               </div>
             </Link>
-          </div>
-        )}
+        </div>
       </div>
 
       <div className="index-lower-stack">

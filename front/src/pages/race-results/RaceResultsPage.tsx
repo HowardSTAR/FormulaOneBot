@@ -345,6 +345,21 @@ function RaceResultsPage() {
             </div>
           )}
           {error && <div className="page-error">{error}</div>}
+          {!loading && !error && desktopRows.length === 0 && (
+            <div className="empty-state race-results-desktop-empty" role="status">
+              <span className="empty-icon" aria-hidden>🏁</span>
+              <div className="empty-title">
+                {data?.data_incomplete ? "Результаты обрабатываются" : "Гонка ещё не прошла"}
+              </div>
+              <div className="empty-desc">
+                {data?.data_incomplete
+                  ? "Данные скоро появятся. Обновите страницу через несколько минут."
+                  : mode === "archive"
+                    ? "За выбранный этап результаты пока недоступны."
+                    : "После финиша здесь появятся победитель, команды и полная таблица результатов."}
+              </div>
+            </div>
+          )}
           {!loading && !error && desktopWinner && (
             <div className="race-results-desktop-hero-grid">
               <div className="race-results-desktop-winner">
