@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
+from fastapi import HTTPException, Request
 
 from app.api import auth_api
 from app.api.miniapp_api import web_app
@@ -24,6 +25,7 @@ async def test_email_session_csrf_and_link_endpoint(temp_db_path, monkeypatch):
     monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
     monkeypatch.setattr(auth_api, "get_link_service", lambda: links)
     monkeypatch.setenv("TELEGRAM_BOT_USERNAME", "formula_test_bot")
+    monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
 
     transport = httpx.ASGITransport(app=web_app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -60,5 +62,44 @@ async def test_email_session_csrf_and_link_endpoint(temp_db_path, monkeypatch):
         )
         assert logged_out.status_code == 204
         assert (await client.get("/api/auth/me")).status_code == 401
+
+    await database.close()
+
+
+@pytest.mark.asyncio
+async def test_linked_web_session_can_use_personalized_api(temp_db_path, monkeypatch):
+    database = Database(temp_db_path)
+    await database.connect()
+    await database.init_tables()
+    mailer = MockMailer()
+    auth = AuthService(database, mailer, pepper="test-pepper-with-enough-entropy")
+    monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
+
+    await auth.register("linked@example.com", "FormulaOne-2026-Secure")
+    code = str(mailer.messages[-1]["code"])
+    session = await auth.verify_email("linked@example.com", code)
+    request = Request({
+        "type": "http",
+        "method": "GET",
+        "path": "/api/favorites",
+        "headers": [],
+        "query_string": b"",
+    })
+
+    with pytest.raises(HTTPException) as exc_info:
+        await auth_api.require_hybrid_telegram_id(request, cookie_token=session.token)
+    assert exc_info.value.status_code == 403
+
+    await database.conn.execute(
+        "UPDATE users SET telegram_id = ? WHERE id = ?",
+        (987654321, session.user["id"]),
+    )
+    await database.conn.commit()
+
+    telegram_id = await auth_api.require_hybrid_telegram_id(
+        request,
+        cookie_token=session.token,
+    )
+    assert telegram_id == 987654321
 
     await database.close()
