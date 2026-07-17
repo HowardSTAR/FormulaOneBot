@@ -102,6 +102,19 @@ web_app.add_middleware(
 
 web_app.include_router(auth_router)
 
+
+@web_app.get("/health", include_in_schema=False)
+async def healthcheck():
+    """Container/load-balancer readiness probe with a real SQLite check."""
+    if db.conn is None:
+        raise HTTPException(status_code=503, detail="database_not_ready")
+    try:
+        async with db.conn.execute("SELECT 1") as cursor:
+            await cursor.fetchone()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="database_unavailable") from exc
+    return {"status": "ok", "database": "ready"}
+
 if STATIC_DIR.exists():
     web_app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 if ASSETS_DIR.exists():
