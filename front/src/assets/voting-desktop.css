@@ -1,0 +1,137 @@
+/* Desktop-only presentation. Mobile keeps the original Mini App layout. */
+@media (min-width: 900px) {
+  .app-page-main.route-voting {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+    column-gap: 18px;
+    align-items: end;
+    max-width: 1240px;
+    padding: 4px 0 30px;
+  }
+
+  .app-page-main.route-voting > .btn-back {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .app-page-main.route-voting > h2 {
+    grid-column: 1;
+    grid-row: 2;
+    margin: 8px 0 2px;
+    font-size: clamp(48px, 5vw, 72px);
+    line-height: 0.9;
+  }
+
+  .app-page-main.route-voting > .voting-season-title {
+    grid-column: 1;
+    grid-row: 3;
+    margin: 8px 0 22px 2px;
+    color: #ff5b54;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+  }
+
+  .app-page-main.route-voting > .voting-page-tabs {
+    grid-column: 2;
+    grid-row: 2 / 4;
+    align-self: center;
+    width: 100%;
+    max-width: none !important;
+    min-height: 50px;
+    margin: 0 0 14px !important;
+  }
+
+  .app-page-main.route-voting > .loading,
+  .app-page-main.route-voting > .voting-page-shell {
+    grid-column: 1 / -1;
+  }
+
+  .app-page-main.route-voting .voting-page-shell {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 14px;
+    padding: 14px !important;
+    border-radius: 16px !important;
+    background: rgba(23, 25, 28, 0.94) !important;
+  }
+
+  .app-page-main.route-voting .voting-chart-accordion {
+    min-width: 0;
+    margin: 0 !important;
+    border-radius: 13px !important;
+    background:
+      linear-gradient(145deg, rgba(225, 6, 0, 0.08), transparent 55%),
+      #202225 !important;
+  }
+
+  .app-page-main.route-voting .voting-chart-toggle {
+    min-height: 54px;
+    padding: 14px 16px !important;
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-voting .voting-chart-body.expanded {
+    max-height: 380px;
+  }
+
+  .app-page-main.route-voting .voting-chart {
+    height: 300px;
+  }
+
+  .app-page-main.route-voting .voting-accordion-list {
+    min-width: 0;
+    gap: 9px;
+  }
+
+  .app-page-main.route-voting .voting-accordion-item {
+    border-radius: 11px !important;
+    background: #222427 !important;
+  }
+
+  .app-page-main.route-voting .voting-accordion-header {
+    min-height: 56px;
+    padding: 13px 16px !important;
+    font-size: 12px !important;
+  }
+
+  .app-page-main.route-voting .voting-accordion-badge {
+    min-width: 38px;
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: rgba(225, 6, 0, 0.1);
+    text-align: center;
+  }
+
+  .app-page-main.route-voting .voting-accordion-inner {
+    padding: 16px;
+  }
+
+  .app-page-main.route-voting .voting-stars {
+    justify-content: flex-start;
+  }
+
+  .app-page-main.route-voting .voting-drivers {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 360px;
+  }
+
+  .app-page-main.route-voting .driver-vote-btn {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-page-main.route-voting .voting-page-shell {
+    grid-template-columns: minmax(330px, 0.78fr) minmax(0, 1.22fr);
+  }
+
+  .app-page-main.route-voting .voting-chart-accordion {
+    position: sticky;
+    top: 18px;
+  }
+}
