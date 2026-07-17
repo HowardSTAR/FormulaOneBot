@@ -11,181 +11,98 @@ type HeroProps = {
   userTz: string;
 };
 
+type HeroView = {
+  status: "future" | "running" | "completed";
+  timerText: string;
+  dateText: string;
+  subLabel: string;
+  showTimer: boolean;
+};
+
+function formatCountdown(targetMs: number, nowMs: number): string {
+  const distance = Math.max(0, targetMs - nowMs);
+  const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+  return `${days > 0 ? `${days}д ` : ""}${hours.toString().padStart(2, "0")}:${minutes
+    .toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function formatSessionDate(value: string, timeZone: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("ru-RU", {
+    timeZone,
+    day: "numeric",
+    month: "long",
+  }).toUpperCase();
+}
+
 function Hero({ nextRace, schedule, userTz }: HeroProps) {
-  const [status, setStatus] = useState<"future" | "running" | "completed">("completed");
-  const [timerText, setTimerText] = useState("--:--:--");
-  const [dateText, setDateText] = useState("--.--");
-  const [subLabel, setSubLabel] = useState("БЛИЖАЙШИЙ ЭТАП");
-  const [showTimer, setShowTimer] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const displayTz = getDisplayTimezone(userTz);
 
-  const formatCountdown = (targetMs: number, nowMs: number): string => {
-    const distance = Math.max(0, targetMs - nowMs);
-    const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-    let text = "";
-    if (days > 0) text += `${days}д `;
-    text += `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-    return text;
-  };
-
-  // Dynamic timer from weekend schedule (like web/app)
   useEffect(() => {
-    if (!schedule.length) return;
-
-    function update() {
-      const now = Date.now();
-      let found: SessionItem | null = null;
-      let st: "future" | "running" | "completed" = "completed";
-
-      for (const session of schedule) {
-        const utcIso = session.utc_iso;
-        if (!utcIso) continue;
-        const startTime = new Date(utcIso).getTime();
-        const endTime = startTime + SESSION_DURATION_MS;
-
-        if (now < startTime) {
-          found = session;
-          st = "future";
-          break;
-        } else if (now >= startTime && now <= endTime) {
-          found = session;
-          st = "running";
-          break;
-        }
-      }
-
-      setStatus(st);
-
-      if (!found) {
-        setSubLabel("УИК-ЭНД ЗАВЕРШЕН");
-        setShowTimer(false);
-        setDateText("");
-        return;
-      }
-
-      setShowTimer(true);
-
-      if (st === "running") {
-        setSubLabel(`LIVE: ${found.name}`);
-        setTimerText("СЕССИЯ ИДЕТ");
-        const dateObj = new Date(found.utc_iso!);
-        setDateText(
-          dateObj.toLocaleDateString("ru-RU", {
-            timeZone: displayTz,
-            day: "numeric",
-            month: "long",
-          }).toUpperCase()
-        );
-      } else {
-        setSubLabel(found.name);
-        const dateObj = new Date(found.utc_iso!);
-        setDateText(
-          dateObj.toLocaleDateString("ru-RU", {
-            timeZone: displayTz,
-            day: "numeric",
-            month: "long",
-          }).toUpperCase()
-        );
-        setTimerText(formatCountdown(dateObj.getTime(), now));
-      }
-    }
-
-    update();
-    const id = setInterval(update, 1000);
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, [schedule, displayTz]);
+  }, []);
 
-  // Fallback when no schedule - use next_session_iso from next-race
-  useEffect(() => {
-    if (schedule.length > 0) return;
-    const data = nextRace;
-    if (!data?.next_session_iso || !data?.next_session_name) return;
-
-    setShowTimer(true);
-    setSubLabel(data.next_session_name);
-
-    function update() {
-      const targetTime = new Date(data!.next_session_iso!).getTime();
-      const now = Date.now();
-      if (now >= targetTime) {
-        setSubLabel(`LIVE: ${data!.next_session_name!}`);
-        setTimerText("СЕССИЯ ИДЕТ");
-        return;
+  const view: HeroView = (() => {
+    for (const session of schedule) {
+      if (!session.utc_iso) continue;
+      const start = new Date(session.utc_iso).getTime();
+      if (!Number.isFinite(start)) continue;
+      if (now < start) {
+        return {
+          status: "future",
+          timerText: formatCountdown(start, now),
+          dateText: formatSessionDate(session.utc_iso, displayTz),
+          subLabel: session.name,
+          showTimer: true,
+        };
       }
-      setTimerText(formatCountdown(targetTime, now));
-    }
-
-    if (data.next_session_iso) {
-      const d = new Date(data.next_session_iso);
-      setDateText(
-        d.toLocaleDateString("ru-RU", {
-          timeZone: displayTz,
-          day: "numeric",
-          month: "long",
-        }).toUpperCase()
-      );
-    } else {
-      setDateText(data.date || "");
-    }
-
-    update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, [nextRace, schedule.length, displayTz]);
-
-  // Initial date when no timer (schedule empty, no next_session)
-  useEffect(() => {
-    if (schedule.length > 0 || nextRace?.next_session_iso) return;
-    const data = nextRace;
-    if (!data || data.status === "season_finished") return;
-
-    if (data.race_start_utc) {
-      const target = new Date(data.race_start_utc);
-      setSubLabel("ГОНКА");
-      setShowTimer(true);
-      setDateText(
-        target.toLocaleDateString("ru-RU", {
-          timeZone: displayTz,
-          day: "numeric",
-          month: "long",
-        }).toUpperCase()
-      );
-      const update = () => {
-        const now = Date.now();
-        const targetMs = target.getTime();
-        if (now >= targetMs && now <= targetMs + SESSION_DURATION_MS) {
-          setStatus("running");
-          setTimerText("СЕССИЯ ИДЕТ");
-        } else if (now < targetMs) {
-          setStatus("future");
-          setTimerText(formatCountdown(targetMs, now));
-        } else {
-          setStatus("completed");
-          setShowTimer(false);
-        }
-      };
-      update();
-      const id = setInterval(update, 1000);
-      return () => clearInterval(id);
-    } else if (data.date) {
-      const d = new Date(data.date);
-      if (!Number.isNaN(d.getTime())) {
-        setDateText(
-          d.toLocaleDateString("ru-RU", {
-            timeZone: displayTz,
-            day: "numeric",
-            month: "long",
-          }).toUpperCase()
-        );
-      } else {
-        setDateText(data.date);
+      if (now <= start + SESSION_DURATION_MS) {
+        return {
+          status: "running",
+          timerText: "СЕССИЯ ИДЕТ",
+          dateText: formatSessionDate(session.utc_iso, displayTz),
+          subLabel: `LIVE: ${session.name}`,
+          showTimer: true,
+        };
       }
-      setShowTimer(false);
     }
-  }, [nextRace, schedule.length, displayTz]);
+    if (schedule.length > 0) {
+      return { status: "completed", timerText: "", dateText: "", subLabel: "УИК-ЭНД ЗАВЕРШЕН", showTimer: false };
+    }
+
+    const targetIso = nextRace?.next_session_iso || nextRace?.race_start_utc;
+    const label = nextRace?.next_session_name || "ГОНКА";
+    if (targetIso) {
+      const target = new Date(targetIso).getTime();
+      if (Number.isFinite(target)) {
+        const running = now >= target && now <= target + SESSION_DURATION_MS;
+        const completed = now > target + SESSION_DURATION_MS;
+        return {
+          status: running ? "running" : completed ? "completed" : "future",
+          timerText: running ? "СЕССИЯ ИДЕТ" : completed ? "" : formatCountdown(target, now),
+          dateText: formatSessionDate(targetIso, displayTz),
+          subLabel: running ? `LIVE: ${label}` : label,
+          showTimer: !completed,
+        };
+      }
+    }
+
+    return {
+      status: "completed",
+      timerText: "",
+      dateText: nextRace?.date ? formatSessionDate(nextRace.date, displayTz) : "--.--",
+      subLabel: "БЛИЖАЙШИЙ ЭТАП",
+      showTimer: false,
+    };
+  })();
+
+  const { status, timerText, dateText, subLabel, showTimer } = view;
 
   if (!nextRace?.status && !nextRace?.event_name) {
     return (

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { useHeroData } from "../../context/HeroDataContext";
+import { useHeroData } from "../../context/useHeroData";
 import { useAuthState } from "../../helpers/auth";
 import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";

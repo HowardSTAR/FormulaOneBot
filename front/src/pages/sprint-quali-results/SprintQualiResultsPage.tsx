@@ -114,7 +114,7 @@ function SprintQualiResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [mode, selectedRound]);
+  }, [mode, selectedRound, season]);
 
   return (
     <>

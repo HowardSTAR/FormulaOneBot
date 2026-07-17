@@ -124,7 +124,7 @@ function QualiResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [mode, selectedRound]);
+  }, [mode, selectedRound, season]);
 
   return (
     <>

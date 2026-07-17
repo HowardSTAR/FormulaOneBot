@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { useState, useCallback, type ReactNode } from "react";
 import { apiRequest } from "../helpers/api";
+import { HeroDataContext } from "./heroDataContextObject";
 
 export type NextRaceStatus = "ok" | "season_finished" | "error";
 
@@ -35,7 +36,7 @@ type HeroDataState = {
   loaded: boolean;
 };
 
-type HeroDataContextValue = HeroDataState & {
+export type HeroDataContextValue = HeroDataState & {
   load: () => Promise<void>;
 };
 
@@ -45,8 +46,6 @@ const initialState: HeroDataState = {
   userTz: "UTC",
   loaded: false,
 };
-
-const HeroDataContext = createContext<HeroDataContextValue | null>(null);
 
 export function HeroDataProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<HeroDataState>(initialState);
@@ -92,10 +91,4 @@ export function HeroDataProvider({ children }: { children: ReactNode }) {
       {children}
     </HeroDataContext.Provider>
   );
-}
-
-export function useHeroData() {
-  const ctx = useContext(HeroDataContext);
-  if (!ctx) throw new Error("useHeroData must be used within HeroDataProvider");
-  return ctx;
 }

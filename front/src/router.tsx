@@ -1,7 +1,6 @@
-import { Navigate, createBrowserRouter } from "react-router-dom";
-import { useEffect, useState } from "react";
-import type { ReactElement } from "react";
+import { createBrowserRouter } from "react-router-dom";
 import { SwipeBackLayout } from "./components/SwipeBackLayout";
+import { RequirePersonalAccount } from "./components/RequirePersonalAccount";
 import IndexPage from "./pages/index/Index";
 import ComparePage from "./pages/compare/ComparePage";
 import ConstructorsPage from "./pages/constructors/ConstructorsPage";
@@ -20,20 +19,6 @@ import SprintResultsPage from "./pages/sprint-results/SprintResultsPage";
 import VotingPage from "./pages/voting/VotingPage";
 import AccountPage from "./pages/account/AccountPage";
 import ResetPasswordPage from "./pages/reset-password/ResetPasswordPage";
-import { getWebsiteUser, hasTelegramAuth } from "./helpers/auth";
-
-function RequirePersonalAccount({ children }: { children: ReactElement }) {
-  const telegramMiniApp = hasTelegramAuth();
-  const [allowed, setAllowed] = useState<boolean | null>(telegramMiniApp ? true : null);
-
-  useEffect(() => {
-    if (telegramMiniApp) return;
-    getWebsiteUser().then((user) => setAllowed(Boolean(user?.telegram_id)));
-  }, [telegramMiniApp]);
-
-  if (allowed === null) return null;
-  return allowed ? children : <Navigate to="/account" replace />;
-}
 
 export const router = createBrowserRouter([
   {

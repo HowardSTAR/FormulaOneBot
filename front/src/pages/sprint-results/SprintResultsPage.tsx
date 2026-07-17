@@ -114,7 +114,7 @@ function SprintResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [mode, selectedRound]);
+  }, [mode, selectedRound, season]);
 
   return (
     <>
