@@ -28,7 +28,13 @@
 .account-code-form { grid-template-columns: minmax(110px,.55fr) minmax(210px,1fr) auto; }
 .account-code-form input { font-size: 20px; letter-spacing: .18em; font-weight: 900; }
 .account-hint { margin-top: 12px; }.account-hint code { color: white; }
+.account-personal-card h2 { margin: 8px 0 10px; font-size: 28px; }
+.account-personal-card > p { max-width: 600px; margin: 0 0 18px; color: #a6a8ad; line-height: 1.55; }
+.account-quick-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.account-quick-links a { position: relative; display: grid; gap: 5px; min-height: 88px; box-sizing: border-box; padding: 16px 44px 16px 16px; border: 1px solid rgba(255,255,255,.09); border-radius: 11px; color: #f5f5f5; background: #111315; text-decoration: none; transition: border-color .2s ease, transform .2s ease, background .2s ease; }
+.account-quick-links a:hover { transform: translateY(-2px); border-color: rgba(225,6,0,.65); background: #191416; }
+.account-quick-links strong { font-size: 17px; }.account-quick-links span { color: #858991; font-size: 13px; }
+.account-quick-links b { position: absolute; right: 16px; top: 50%; color: #ff3029; font-size: 20px; transform: translateY(-50%); }
 .account-notice { margin-top: 14px; padding: 13px 16px; border-radius: 9px; font-weight: 700; }
 .account-notice.success { color: #7ce6b0; background: rgba(23,164,93,.13); }.account-notice.error { color: #ff938f; background: rgba(225,6,0,.13); }
-@media(max-width:820px){.account-page{padding:14px 12px 40px}.account-grid{grid-template-columns:1fr}.account-code-form{grid-template-columns:1fr}.account-link-session{grid-template-columns:1fr}.account-hero{padding:18px}.account-card{padding:17px}}
-
+@media(max-width:820px){.account-page{padding:14px 12px 40px}.account-grid{grid-template-columns:1fr}.account-code-form{grid-template-columns:1fr}.account-link-session{grid-template-columns:1fr}.account-quick-links{grid-template-columns:1fr}.account-hero{padding:18px}.account-card{padding:17px}}

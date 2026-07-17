@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
+import { notifyAuthChanged } from "../../helpers/auth";
 import "./AccountPage.css";
 
 type User = {
@@ -17,6 +19,8 @@ type LinkSession = {
   deep_link: string;
   qr_url: string;
 };
+
+type LinkStatus = { status: "pending" | "approved" | "expired" | "cancelled" | "failed" };
 
 type ApiErrorPayload = { detail?: { message?: string; code?: string } | string };
 
@@ -62,6 +66,42 @@ export default function AccountPage() {
       .catch(() => setUser(null));
   }, []);
 
+  useEffect(() => {
+    if (!linkSession) return;
+    let active = true;
+    let checking = false;
+
+    const checkStatus = async () => {
+      if (checking) return;
+      checking = true;
+      try {
+        const result = await authFetch<LinkStatus>(`/api/auth/telegram/link-sessions/${linkSession.token}/status`);
+        if (!active) return;
+        if (result.status === "approved") {
+          const refreshedUser = await authFetch<User>("/api/auth/me");
+          if (!active) return;
+          setUser(refreshedUser);
+          setLinkSession(null);
+          notifyAuthChanged();
+        } else if (["expired", "cancelled", "failed"].includes(result.status)) {
+          setLinkSession(null);
+          setError("Ссылка больше не действует. Создайте новую ссылку.");
+        }
+      } catch {
+        // Временная ошибка сети не должна прерывать активную сессию привязки.
+      } finally {
+        checking = false;
+      }
+    };
+
+    void checkStatus();
+    const interval = window.setInterval(checkStatus, 2000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [linkSession]);
+
   const submitAuth = async (event: FormEvent) => {
     event.preventDefault();
     setBusy(true); setError(""); setMessage("");
@@ -78,12 +118,14 @@ export default function AccountPage() {
         });
         sessionStorage.setItem("f1hub_csrf", result.csrf_token);
         setUser(result.user);
+        notifyAuthChanged();
       } else {
         const result = await authFetch<{ csrf_token: string; user: User }>("/api/auth/login", {
           method: "POST", body: JSON.stringify({ email, password }),
         });
         sessionStorage.setItem("f1hub_csrf", result.csrf_token);
         setUser(result.user);
+        notifyAuthChanged();
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Не удалось выполнить запрос");
@@ -106,8 +148,8 @@ export default function AccountPage() {
         method: "POST", body: JSON.stringify({ code: manualCode, strategy }),
       });
       setUser(result.user);
-      setMessage("Telegram успешно привязан.");
       setLinkSession(null);
+      notifyAuthChanged();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Не удалось привязать Telegram");
     } finally { setBusy(false); }
@@ -117,6 +159,7 @@ export default function AccountPage() {
     await authFetch("/api/auth/logout", { method: "POST" });
     sessionStorage.removeItem("f1hub_csrf");
     setUser(null); setLinkSession(null); setMode("login");
+    notifyAuthChanged();
   };
 
   return (
@@ -124,8 +167,10 @@ export default function AccountPage() {
       <BackButton>← <span>Главное меню</span></BackButton>
       <header className="account-hero">
         <span>ПРОФИЛЬ F1 HUB</span>
-        <h1>АККАУНТ И TELEGRAM</h1>
-        <p>Email используется для безопасного входа. Telegram подключается отдельно через бота.</p>
+        <h1>{user?.telegram_id ? "АККАУНТ" : "АККАУНТ И TELEGRAM"}</h1>
+        <p>{user?.telegram_id
+          ? "Управляйте профилем, избранным и персональными настройками."
+          : "Email используется для безопасного входа. Telegram подключается отдельно через бота."}</p>
       </header>
 
       {!user ? (
@@ -153,28 +198,40 @@ export default function AccountPage() {
             <dl><div><dt>Email</dt><dd>Подтверждён</dd></div><div><dt>Telegram</dt><dd>{user.telegram_id ? `ID ${user.telegram_id}` : "Не подключён"}</dd></div></dl>
             <button className="account-secondary" onClick={logout}>Выйти</button>
           </section>
-          <section className="account-card account-link-card">
-            <span className="account-kicker">СВЯЗАТЬ АККАУНТЫ</span>
-            <h2>Подключить Telegram</h2>
-            {!linkSession ? (
-              <button className="account-primary" onClick={createLink} disabled={busy || Boolean(user.telegram_id)}>Создать ссылку и QR</button>
-            ) : (
-              <div className="account-link-session">
-                <img src={linkSession.qr_url} alt="QR-код для привязки Telegram" />
-                <div><a className="account-primary" href={linkSession.deep_link} target="_blank" rel="noreferrer">Открыть Telegram</a><small>Ссылка действует 5 минут</small></div>
-              </div>
-            )}
-            <div className="account-divider"><span>или код из бота</span></div>
-            <form className="account-code-form" onSubmit={linkByCode}>
-              <input aria-label="Шестизначный код" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} placeholder="000000" value={manualCode} onChange={e => setManualCode(e.target.value.replace(/\D/g, ""))} />
-              <select value={strategy} onChange={e => setStrategy(e.target.value as typeof strategy)} aria-label="Основной профиль">
-                <option value="keep_web">Сохранить профиль сайта</option>
-                <option value="keep_telegram">Сохранить профиль Telegram</option>
-              </select>
-              <button className="account-secondary" disabled={manualCode.length !== 6 || busy}>Привязать</button>
-            </form>
-            <p className="account-hint">Отправьте команду <code>/link</code> боту и введите полученный код здесь.</p>
-          </section>
+          {user.telegram_id ? (
+            <section className="account-card account-personal-card">
+              <span className="account-kicker">ПЕРСОНАЛИЗАЦИЯ</span>
+              <h2>Ваш F1 HUB</h2>
+              <p>Сохраняйте любимых пилотов и команды, настраивайте часовой пояс и уведомления о событиях.</p>
+              <nav className="account-quick-links" aria-label="Персональные разделы">
+                <Link to="/favorites"><strong>Избранное</strong><span>Пилоты и команды</span><b aria-hidden>→</b></Link>
+                <Link to="/settings"><strong>Настройки</strong><span>Время и уведомления</span><b aria-hidden>→</b></Link>
+              </nav>
+            </section>
+          ) : (
+            <section className="account-card account-link-card">
+              <span className="account-kicker">СВЯЗАТЬ АККАУНТЫ</span>
+              <h2>Подключить Telegram</h2>
+              {!linkSession ? (
+                <button className="account-primary" onClick={createLink} disabled={busy}>Создать ссылку и QR</button>
+              ) : (
+                <div className="account-link-session">
+                  <img src={linkSession.qr_url} alt="QR-код для привязки Telegram" />
+                  <div><a className="account-primary" href={linkSession.deep_link} target="_blank" rel="noreferrer">Открыть Telegram</a><small>Ссылка действует 5 минут</small></div>
+                </div>
+              )}
+              <div className="account-divider"><span>или код из бота</span></div>
+              <form className="account-code-form" onSubmit={linkByCode}>
+                <input aria-label="Шестизначный код" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} placeholder="000000" value={manualCode} onChange={e => setManualCode(e.target.value.replace(/\D/g, ""))} />
+                <select value={strategy} onChange={e => setStrategy(e.target.value as typeof strategy)} aria-label="Основной профиль">
+                  <option value="keep_web">Сохранить профиль сайта</option>
+                  <option value="keep_telegram">Сохранить профиль Telegram</option>
+                </select>
+                <button className="account-secondary" disabled={manualCode.length !== 6 || busy}>Привязать</button>
+              </form>
+              <p className="account-hint">Отправьте команду <code>/link</code> боту и введите полученный код здесь.</p>
+            </section>
+          )}
         </div>
       )}
       {message && <div className="account-notice success">{message}</div>}

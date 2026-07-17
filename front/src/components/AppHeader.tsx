@@ -1,5 +1,6 @@
+import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { hasTelegramAuth } from "../helpers/auth";
+import { AUTH_CHANGED_EVENT, getWebsiteUser, hasTelegramAuth } from "../helpers/auth";
 
 type IconName = "home" | "calendar" | "results" | "drivers" | "teams" | "compare" | "star" | "settings" | "account";
 
@@ -41,9 +42,22 @@ function NavIcon({ name }: { name: IconName }) {
 }
 
 export function AppHeader() {
-  const isAuthenticated = hasTelegramAuth();
+  const telegramMiniApp = hasTelegramAuth();
+  const [websiteLinked, setWebsiteLinked] = useState<boolean | null>(telegramMiniApp ? true : null);
   const { pathname } = useLocation();
   const isActive = (paths: string[]) => paths.includes(pathname);
+  const refreshWebsiteAuth = useCallback(() => {
+    if (telegramMiniApp) return;
+    void getWebsiteUser().then((user) => setWebsiteLinked(Boolean(user?.telegram_id)));
+  }, [telegramMiniApp]);
+
+  useEffect(() => {
+    refreshWebsiteAuth();
+    window.addEventListener(AUTH_CHANGED_EVENT, refreshWebsiteAuth);
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, refreshWebsiteAuth);
+  }, [refreshWebsiteAuth]);
+
+  const isAuthenticated = telegramMiniApp || websiteLinked;
 
   return (
     <header className="app-header">
@@ -85,12 +99,12 @@ export function AppHeader() {
               <span className="app-header-link-label">Настройки</span>
             </Link>
           </nav>
-        ) : (
+        ) : websiteLinked === false ? (
           <div className="app-header-guest">
             <div><i aria-hidden />Гостевой режим</div>
             <p>Календарь, результаты и статистика доступны без входа.</p>
           </div>
-        )}
+        ) : null}
 
         <div className="app-header-status">
           <span><i aria-hidden />API online</span>

@@ -12,6 +12,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
+from app.auth import get_current_user_id as get_telegram_user_id
 from app.db import db
 from app.emailer import EmailDeliveryError, EnvironmentMailer
 from app.services.account_link_service import (
@@ -165,6 +166,65 @@ async def require_web_session(
         if not get_auth_service().verify_csrf(x_csrf_token, user["csrf_hash"]):
             raise HTTPException(403, detail={"code": "invalid_csrf", "message": "CSRF token is missing or invalid"})
     return WebSessionContext(user=user, raw_token=raw_token, from_cookie=from_cookie)
+
+
+async def require_hybrid_telegram_id(
+    request: Request,
+    x_telegram_init_data: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+    x_csrf_token: Annotated[str | None, Header()] = None,
+    cookie_token: Annotated[str | None, Cookie(alias=COOKIE_NAME)] = None,
+) -> int:
+    """Accept Telegram initData or a linked website session.
+
+    Existing database helpers use Telegram IDs as their public identity key, so
+    a website account must have completed linking before personalized Mini App
+    data can be accessed.
+    """
+    if x_telegram_init_data:
+        return await get_telegram_user_id(x_telegram_init_data)
+    session = await require_web_session(
+        request=request,
+        authorization=authorization,
+        x_csrf_token=x_csrf_token,
+        cookie_token=cookie_token,
+    )
+    telegram_id = session.user.get("telegram_id")
+    if telegram_id is None:
+        raise HTTPException(
+            403,
+            detail={
+                "code": "telegram_link_required",
+                "message": "Link Telegram to use personalized features",
+            },
+        )
+    return int(telegram_id)
+
+
+async def get_optional_hybrid_telegram_id(
+    request: Request,
+    x_telegram_init_data: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+    cookie_token: Annotated[str | None, Cookie(alias=COOKIE_NAME)] = None,
+) -> int | None:
+    if x_telegram_init_data:
+        try:
+            return await get_telegram_user_id(x_telegram_init_data)
+        except HTTPException:
+            return None
+    if not authorization and not cookie_token:
+        return None
+    try:
+        session = await require_web_session(
+            request=request,
+            authorization=authorization,
+            x_csrf_token=None,
+            cookie_token=cookie_token,
+        )
+    except HTTPException:
+        return None
+    telegram_id = session.user.get("telegram_id")
+    return int(telegram_id) if telegram_id is not None else None
 
 
 @router.post("/register", status_code=202)
