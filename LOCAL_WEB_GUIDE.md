@@ -162,3 +162,57 @@ SMTP_FROM_EMAIL=auth@ваш-домен.ru
   делать не нужно.
 - Ошибка данных внешнего провайдера: повторите запрос через несколько секунд;
   API использует несколько источников и файловый кэш как резервный вариант.
+
+## Production-запуск на Ubuntu через Docker Compose
+
+Установите Docker Engine и Compose plugin, затем из каталога проекта выполните:
+
+```bash
+cp .env.production.example .env
+nano .env
+mkdir -p data logs fastf1_cache ssl
+chmod 700 data logs fastf1_cache ssl
+```
+
+Положите сертификаты домена в `ssl/fullchain.pem` и `ssl/privkey.pem`. Перед
+первым запуском обязательно проверьте итоговую конфигурацию:
+
+```bash
+docker compose -f docker-compose-build.yml config
+docker compose -f docker-compose-build.yml build --pull
+docker compose -f docker-compose-build.yml up -d --remove-orphans
+docker compose -f docker-compose-build.yml ps
+```
+
+Проверка после запуска:
+
+```bash
+curl -fsS https://f1hub.ru/health
+curl -fsS https://f1hub.ru/api/auth/me -o /dev/null -w '%{http_code}\n'
+docker compose -f docker-compose-build.yml logs --tail=100 web bot nginx
+```
+
+`/health` должен вернуть `{"status":"ok","database":"ready"}`, а гостевой
+`/api/auth/me` — ожидаемый `401`. Для обновления кода повторите `build --pull` и
+`up -d --remove-orphans`; SQLite и Redis сохраняются в volumes/bind mounts.
+
+Реальная проверка обоих шаблонов Yandex Postbox из production-контейнера:
+
+```bash
+docker compose -f docker-compose-build.yml run --rm web \
+  python scripts/test_email.py your-email@example.com --kind both \
+  --public-url https://f1hub.ru
+```
+
+Команда должна завершиться текстом `accepted`, после чего проверьте входящие,
+спам и журнал выполнения Postbox. Если SMTP-порты сервера заблокированы,
+переключите `.env` на `EMAIL_DELIVERY_MODE=yandex_postbox_api` и используйте
+статический ключ доступа, описанный выше.
+
+Перед обновлением сервера сделайте резервную копию базы:
+
+```bash
+docker compose -f docker-compose-build.yml stop bot web
+cp data/bot.db "data/bot.db.backup-$(date +%Y%m%d-%H%M%S)"
+docker compose -f docker-compose-build.yml start web bot
+```
