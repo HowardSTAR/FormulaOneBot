@@ -7,6 +7,8 @@ __pycache__
 *.pyc
 .venv
 venv
+.pytest_cache
+.ruff_cache
 
 # Git
 .git
@@ -17,6 +19,18 @@ venv
 .vscode
 
 # Misc
-*.md
 .env
-env.example
+.env.*
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+data
+logs
+fastf1_cache
+f1bot_cache
+ssl
+*.pem
+*.key
+*.log
