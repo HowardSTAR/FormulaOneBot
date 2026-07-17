@@ -44,6 +44,23 @@ async def test_email_session_csrf_and_link_endpoint(temp_db_path, monkeypatch):
         assert client.cookies.get("f1hub_session")
         assert client.cookies.get("f1hub_csrf") == payload["csrf_token"]
 
+        changed = await client.post(
+            "/api/auth/password/change",
+            headers={"X-CSRF-Token": payload["csrf_token"]},
+            json={
+                "current_password": "FormulaOne-2026-Secure",
+                "new_password": "FormulaOne-2027-Changed",
+                "password_confirmation": "FormulaOne-2027-Changed",
+            },
+        )
+        assert changed.status_code == 200
+
+        forgot = await client.post(
+            "/api/auth/password/forgot", json={"email": "api@example.com"}
+        )
+        assert forgot.status_code == 202
+        assert "reset_url" in mailer.messages[-1]
+
         rejected = await client.post("/api/auth/telegram/link-sessions")
         assert rejected.status_code == 403
 

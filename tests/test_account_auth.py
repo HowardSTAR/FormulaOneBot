@@ -2,18 +2,40 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from urllib.parse import parse_qs, urlparse
+
 import aiosqlite
 import pytest
 
 from app.db import Database
-from app.emailer import MockMailer
+from app.emailer import MockMailer, YandexPostboxAPIConfig, YandexPostboxAPIMailer
 from app.services.account_link_service import AccountLinkService, LinkAlreadyUsed, LinkConflict
-from app.services.auth_service import AuthService, InvalidVerificationCode
+from app.services.auth_service import (
+    AuthService,
+    InvalidCredentials,
+    InvalidResetToken,
+    InvalidVerificationCode,
+)
 
 
 @pytest.fixture
 def strong_password() -> str:
     return "FormulaOne-2026-Secure"
+
+
+def test_yandex_postbox_api_signature_does_not_expose_secret():
+    mailer = YandexPostboxAPIMailer(
+        YandexPostboxAPIConfig(
+            access_key_id="test-access-key",
+            secret_access_key="test-secret-key",
+            from_email="auth@example.com",
+        )
+    )
+    headers = mailer._headers(b"{}", datetime(2026, 7, 17, 12, 0, tzinfo=timezone.utc))
+    assert headers["X-Amz-Date"] == "20260717T120000Z"
+    assert "Credential=test-access-key/20260717/ru-central1/ses/aws4_request" in headers["Authorization"]
+    assert "test-secret-key" not in headers["Authorization"]
 
 
 @pytest.mark.asyncio
@@ -87,6 +109,60 @@ async def test_registration_verification_and_login(temp_db_path, strong_password
 
     login = await service.login("fan@example.com", strong_password)
     assert login.user["id"] == session.user["id"]
+    await database.close()
+
+
+@pytest.mark.asyncio
+async def test_password_reset_is_one_time_and_revokes_sessions(temp_db_path, strong_password):
+    database = Database(temp_db_path)
+    await database.connect()
+    await database.init_tables()
+    mailer = MockMailer()
+    service = AuthService(database, mailer, pepper="test-pepper-with-enough-entropy")
+
+    await service.register("reset@example.com", strong_password)
+    session = await service.verify_email("reset@example.com", str(mailer.messages[-1]["code"]))
+    await service.request_password_reset("reset@example.com", "https://f1hub.example")
+    reset_url = str(mailer.messages[-1]["reset_url"])
+    token = parse_qs(urlparse(reset_url).query)["token"][0]
+
+    async with database.conn.execute("SELECT token_hash FROM password_reset_tokens") as cursor:
+        stored = await cursor.fetchone()
+    assert token not in stored["token_hash"]
+
+    new_password = "FormulaOne-2027-NewPassword"
+    await service.reset_password(token, new_password)
+    with pytest.raises(InvalidResetToken):
+        await service.reset_password(token, new_password)
+    with pytest.raises(InvalidCredentials):
+        await service.authenticate_session(session.token)
+    with pytest.raises(InvalidCredentials):
+        await service.login("reset@example.com", strong_password)
+    assert (await service.login("reset@example.com", new_password)).user["email"] == "reset@example.com"
+    await database.close()
+
+
+@pytest.mark.asyncio
+async def test_change_password_keeps_current_session_and_revokes_others(temp_db_path, strong_password):
+    database = Database(temp_db_path)
+    await database.connect()
+    await database.init_tables()
+    mailer = MockMailer()
+    service = AuthService(database, mailer, pepper="test-pepper-with-enough-entropy")
+
+    await service.register("change@example.com", strong_password)
+    first = await service.verify_email("change@example.com", str(mailer.messages[-1]["code"]))
+    second = await service.login("change@example.com", strong_password)
+    current = await service.authenticate_session(first.token)
+    new_password = "FormulaOne-2028-Changed"
+    await service.change_password(
+        int(current["id"]), strong_password, new_password, current["session_token_hash"]
+    )
+
+    assert (await service.authenticate_session(first.token))["email"] == "change@example.com"
+    with pytest.raises(InvalidCredentials):
+        await service.authenticate_session(second.token)
+    assert (await service.login("change@example.com", new_password)).user["id"] == current["id"]
     await database.close()
 
 
