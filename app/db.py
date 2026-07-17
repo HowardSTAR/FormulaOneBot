@@ -34,6 +34,9 @@ class Database:
             # Включаем доступ к полям по именам (dict-like access)
             self.conn.row_factory = aiosqlite.Row
             await self.conn.execute("PRAGMA foreign_keys = ON;")
+            # bot и web работают с одним SQLite-файлом в разных контейнерах.
+            # Вместо мгновенного `database is locked` ждём освобождения записи.
+            await self.conn.execute("PRAGMA busy_timeout = 30000;")
             # WAL-режим критически важен для конкурентной записи и чтения
             await self.conn.execute("PRAGMA journal_mode = WAL;")
             await self.conn.commit()
