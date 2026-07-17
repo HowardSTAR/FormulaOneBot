@@ -18,11 +18,14 @@ from app.emailer import build_mailer  # noqa: E402
 
 async def main(recipient: str) -> None:
     await build_mailer().send_verification_code(recipient, "123456", 10)
-    print(f"SMTP accepted the test message for {recipient}. Check Inbox/Spam and Resend Logs.")
+    print(
+        f"Yandex Cloud Postbox accepted the test message for {recipient}. "
+        "Check Inbox/Spam and the Postbox execution log."
+    )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("recipient", help="For onboarding@resend.dev use your Resend account email")
+    parser.add_argument("recipient", help="Email address that should receive the Postbox test")
     args = parser.parse_args()
     asyncio.run(main(args.recipient))
