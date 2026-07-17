@@ -41,11 +41,15 @@ class SMTPConfig:
             raise EmailDeliveryError("SMTP_HOST and SMTP_FROM_EMAIL must be configured")
         use_ssl = os.getenv("SMTP_USE_SSL", "false").lower() in {"1", "true", "yes"}
         default_port = 465 if use_ssl else 587
+        username = os.getenv("SMTP_USERNAME") or None
+        password = os.getenv("SMTP_PASSWORD") or None
+        if bool(username) != bool(password):
+            raise EmailDeliveryError("SMTP_USERNAME and SMTP_PASSWORD must be configured together")
         return cls(
             host=host,
             port=int(os.getenv("SMTP_PORT", str(default_port))),
-            username=os.getenv("SMTP_USERNAME") or None,
-            password=os.getenv("SMTP_PASSWORD") or None,
+            username=username,
+            password=password,
             from_email=from_email,
             use_ssl=use_ssl,
             start_tls=os.getenv("SMTP_STARTTLS", "true").lower() in {"1", "true", "yes"},
@@ -72,6 +76,8 @@ class SMTPMailer:
         )
 
         context = ssl.create_default_context()
+        # Yandex Cloud Postbox supports TLS 1.2/1.3; never negotiate an older protocol.
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
         try:
             if self.config.use_ssl:
                 with smtplib.SMTP_SSL(
