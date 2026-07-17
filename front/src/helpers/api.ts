@@ -6,6 +6,13 @@ function getInitData(): string {
   return tg?.initData ?? '';
 }
 
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const prefix = `${encodeURIComponent(name)}=`;
+  const item = document.cookie.split('; ').find((value) => value.startsWith(prefix));
+  return item ? decodeURIComponent(item.slice(prefix.length)) : null;
+}
+
 // VITE_API_URL = полный URL бэкенда, если фронт и API на разных серверах
 // BASE_URL = базовый путь, если приложение развёрнуто в подпапке (например /bot/)
 const API_BASE = (import.meta.env.VITE_API_URL as string) || '';
@@ -27,10 +34,14 @@ export async function apiRequest<T = unknown>(
   if (initData) {
     headers['X-Telegram-Init-Data'] = initData;
   }
+  const csrf = readCookie('f1hub_csrf');
+  if (csrf) {
+    headers['X-CSRF-Token'] = csrf;
+  }
 
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  const options: RequestInit = { method, headers, signal: controller.signal };
+  const options: RequestInit = { method, headers, signal: controller.signal, credentials: 'include' };
 
   if (method === 'GET') {
     Object.keys(params).forEach((key) => {
@@ -67,9 +78,16 @@ export async function apiRequest<T = unknown>(
   }
 
   if (!response.ok) {
-    const msg = response.status === 401
-      ? 'Откройте приложение в Telegram'
-      : `Ошибка сервера: ${response.status}`;
+    let serverMessage = "";
+    try {
+      const payload = await response.json() as { detail?: string | { message?: string } };
+      serverMessage = typeof payload.detail === 'string' ? payload.detail : payload.detail?.message || '';
+    } catch { /* response without JSON */ }
+    const msg = serverMessage || (response.status === 401
+      ? 'Войдите в аккаунт или откройте приложение в Telegram'
+      : response.status === 403
+        ? 'Сначала подключите Telegram в разделе «Аккаунт»'
+        : `Ошибка сервера: ${response.status}`);
     throw new Error(msg);
   }
 

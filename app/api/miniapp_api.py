@@ -20,7 +20,6 @@ from pydantic import BaseModel
 # app.db and authentication services read environment variables.
 load_dotenv()
 
-from app.auth import get_current_user_id, get_optional_user_id
 from app.db import (
     db,
     get_favorite_drivers, get_favorite_teams,
@@ -29,7 +28,11 @@ from app.db import (
     get_user_settings, update_user_setting,
     save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
 )
-from app.api.auth_api import router as auth_router
+from app.api.auth_api import (
+    get_optional_hybrid_telegram_id as get_optional_user_id,
+    require_hybrid_telegram_id as get_current_user_id,
+    router as auth_router,
+)
 from app.f1_data import (
     points_for_race_position,
     get_season_schedule_short_async,

@@ -7,11 +7,6 @@ type Driver = { code: string; name: string };
 type Team = { name: string };
 type FavoritesData = { drivers: string[]; teams: string[] };
 
-function getInitData(): string {
-  const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
-  return tg?.initData ?? "";
-}
-
 function FavoritesPage() {
   const [tab, setTab] = useState<"drivers" | "teams">("drivers");
   const [driversList, setDriversList] = useState<Driver[]>([]);
@@ -72,11 +67,7 @@ function FavoritesPage() {
       drivers: prev.drivers.includes(code) ? prev.drivers.filter((c) => c !== code) : [...prev.drivers, code],
     }));
     try {
-      await fetch(new URL("/api/favorites/driver", window.location.origin).toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Telegram-Init-Data": getInitData() },
-        body: JSON.stringify({ id: code }),
-      });
+      await apiRequest("/api/favorites/driver", { id: code }, "POST");
     } catch (e) {
       console.error(e);
       setUserFavorites((prev) => ({
@@ -93,11 +84,7 @@ function FavoritesPage() {
       teams: prev.teams.includes(name) ? prev.teams.filter((t) => t !== name) : [...prev.teams, name],
     }));
     try {
-      await fetch(new URL("/api/favorites/team", window.location.origin).toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Telegram-Init-Data": getInitData() },
-        body: JSON.stringify({ id: name }),
-      });
+      await apiRequest("/api/favorites/team", { id: name }, "POST");
     } catch (e) {
       console.error(e);
       setUserFavorites((prev) => ({

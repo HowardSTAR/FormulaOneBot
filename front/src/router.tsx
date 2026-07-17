@@ -1,4 +1,5 @@
 import { Navigate, createBrowserRouter } from "react-router-dom";
+import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { SwipeBackLayout } from "./components/SwipeBackLayout";
 import IndexPage from "./pages/index/Index";
@@ -18,13 +19,19 @@ import SprintQualiResultsPage from "./pages/sprint-quali-results/SprintQualiResu
 import SprintResultsPage from "./pages/sprint-results/SprintResultsPage";
 import VotingPage from "./pages/voting/VotingPage";
 import AccountPage from "./pages/account/AccountPage";
-import { hasTelegramAuth } from "./helpers/auth";
+import { getWebsiteUser, hasTelegramAuth } from "./helpers/auth";
 
-function RequireTelegramAuth({ children }: { children: ReactElement }) {
-  if (!hasTelegramAuth()) {
-    return <Navigate to="/" replace />;
-  }
-  return children;
+function RequirePersonalAccount({ children }: { children: ReactElement }) {
+  const telegramMiniApp = hasTelegramAuth();
+  const [allowed, setAllowed] = useState<boolean | null>(telegramMiniApp ? true : null);
+
+  useEffect(() => {
+    if (telegramMiniApp) return;
+    getWebsiteUser().then((user) => setAllowed(Boolean(user?.telegram_id)));
+  }, [telegramMiniApp]);
+
+  if (allowed === null) return null;
+  return allowed ? children : <Navigate to="/account" replace />;
 }
 
 export const router = createBrowserRouter([
@@ -38,16 +45,16 @@ export const router = createBrowserRouter([
       { path: "/constructors", element: <ConstructorsPage /> },
       { path: "/driver-details", element: <DriverDetailsPage /> },
       { path: "/drivers", element: <DriversPage /> },
-      { path: "/favorites", element: <RequireTelegramAuth><FavoritesPage /></RequireTelegramAuth> },
+      { path: "/favorites", element: <RequirePersonalAccount><FavoritesPage /></RequirePersonalAccount> },
       { path: "/next-race", element: <NextRacePage /> },
       { path: "/quali-results", element: <QualiResultsPage /> },
       { path: "/race-details", element: <RaceDetailsPage /> },
       { path: "/race-results", element: <RaceResultsPage /> },
-      { path: "/settings", element: <RequireTelegramAuth><SettingsPage /></RequireTelegramAuth> },
+      { path: "/settings", element: <RequirePersonalAccount><SettingsPage /></RequirePersonalAccount> },
       { path: "/season", element: <SeasonPage /> },
       { path: "/sprint-quali-results", element: <SprintQualiResultsPage /> },
       { path: "/sprint-results", element: <SprintResultsPage /> },
-      { path: "/voting", element: <RequireTelegramAuth><VotingPage /></RequireTelegramAuth> },
+      { path: "/voting", element: <RequirePersonalAccount><VotingPage /></RequirePersonalAccount> },
     ],
   },
 ]);
