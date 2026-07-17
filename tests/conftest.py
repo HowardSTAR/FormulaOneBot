@@ -55,8 +55,7 @@ async def app_with_overrides(temp_db_path):
     """
     os.environ["DATABASE_PATH"] = str(temp_db_path)
 
-    from app.api.miniapp_api import web_app
-    from app.auth import get_current_user_id
+    from app.api.miniapp_api import get_current_user_id, web_app
     from app.db import db
 
     async def fake_get_current_user_id():
