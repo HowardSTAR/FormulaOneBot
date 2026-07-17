@@ -52,6 +52,14 @@ class InvalidInput(AuthError):
     code = "invalid_input"
 
 
+class InvalidResetToken(AuthError):
+    code = "invalid_reset_token"
+
+
+class PasswordResetExpired(AuthError):
+    code = "password_reset_expired"
+
+
 @dataclass(frozen=True)
 class AuthenticatedSession:
     token: str
@@ -90,6 +98,7 @@ def validate_password(password: str) -> None:
 
 class AuthService:
     verification_ttl = timedelta(minutes=10)
+    password_reset_ttl = timedelta(minutes=30)
     session_ttl = timedelta(days=30)
 
     def __init__(self, database: Database, mailer: VerificationMailer, pepper: str | None = None):
@@ -316,6 +325,189 @@ class AuthService:
                 await conn.rollback()
                 raise
 
+    async def request_password_reset(self, email: str, public_web_url: str) -> None:
+        """Create and email a one-time reset link without revealing account existence."""
+        normalized = normalize_email(email)
+        base_url = public_web_url.strip().rstrip("/")
+        if not re.fullmatch(r"https?://[^\s]+", base_url):
+            raise InvalidInput("PUBLIC_WEB_URL must be an absolute http(s) URL")
+
+        conn = await self._conn()
+        token: str | None = None
+        token_hash: str | None = None
+        expires_at = utc_now() + self.password_reset_ttl
+        async with self.database.write_lock:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                await self._consume_rate_limit(
+                    conn, "password-reset-request", normalized, 4, timedelta(hours=1)
+                )
+                async with conn.execute(
+                    """
+                    SELECT id FROM users
+                    WHERE email = ? AND email_verified = 1 AND password_hash IS NOT NULL
+                      AND archived_at IS NULL
+                    """,
+                    (normalized,),
+                ) as cursor:
+                    user = await cursor.fetchone()
+                if user:
+                    token = secrets.token_urlsafe(48)
+                    token_hash = self._token_hash(token)
+                    now = iso(utc_now())
+                    await conn.execute(
+                        """
+                        UPDATE password_reset_tokens SET consumed_at = ?
+                        WHERE user_id = ? AND consumed_at IS NULL
+                        """,
+                        (now, int(user["id"])),
+                    )
+                    await conn.execute(
+                        """
+                        INSERT INTO password_reset_tokens(user_id, token_hash, expires_at)
+                        VALUES (?, ?, ?)
+                        """,
+                        (int(user["id"]), token_hash, iso(expires_at)),
+                    )
+                await conn.commit()
+            except Exception:
+                await conn.rollback()
+                raise
+
+        # The same successful HTTP response is returned for unknown addresses.
+        if token is None or token_hash is None:
+            return
+        reset_url = f"{base_url}/reset-password?token={token}"
+        try:
+            await self.mailer.send_password_reset(
+                normalized,
+                reset_url,
+                int(self.password_reset_ttl.total_seconds() // 60),
+            )
+        except Exception:
+            async with self.database.write_lock:
+                await conn.execute(
+                    "DELETE FROM password_reset_tokens WHERE token_hash = ?", (token_hash,)
+                )
+                await conn.commit()
+            raise
+
+    async def reset_password(self, token: str, new_password: str) -> None:
+        if not re.fullmatch(r"[A-Za-z0-9_-]{40,512}", token or ""):
+            raise InvalidResetToken("Ссылка для восстановления недействительна")
+        conn = await self._conn()
+        token_hash = self._token_hash(token)
+        # Reject random tokens before running the deliberately expensive bcrypt hash.
+        async with conn.execute(
+            """
+            SELECT prt.expires_at, prt.consumed_at, u.archived_at
+            FROM password_reset_tokens prt
+            JOIN users u ON u.id = prt.user_id
+            WHERE prt.token_hash = ?
+            """,
+            (token_hash,),
+        ) as cursor:
+            candidate = await cursor.fetchone()
+        if not candidate or candidate["consumed_at"] or candidate["archived_at"]:
+            raise InvalidResetToken("Ссылка для восстановления недействительна")
+        if datetime.fromisoformat(candidate["expires_at"]) <= utc_now():
+            raise PasswordResetExpired("Срок действия ссылки истёк")
+        new_password_hash = await self._hash_password(new_password)
+        async with self.database.write_lock:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                async with conn.execute(
+                    """
+                    SELECT prt.*, u.archived_at FROM password_reset_tokens prt
+                    JOIN users u ON u.id = prt.user_id
+                    WHERE prt.token_hash = ?
+                    """,
+                    (token_hash,),
+                ) as cursor:
+                    reset = await cursor.fetchone()
+                if not reset or reset["consumed_at"] or reset["archived_at"]:
+                    raise InvalidResetToken("Ссылка для восстановления недействительна")
+                now_dt = utc_now()
+                now = iso(now_dt)
+                if datetime.fromisoformat(reset["expires_at"]) <= now_dt:
+                    await conn.execute(
+                        "UPDATE password_reset_tokens SET consumed_at = ? WHERE id = ?",
+                        (now, int(reset["id"])),
+                    )
+                    await conn.commit()
+                    raise PasswordResetExpired("Срок действия ссылки истёк")
+                await conn.execute(
+                    "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+                    (new_password_hash, now, int(reset["user_id"])),
+                )
+                await conn.execute(
+                    "UPDATE password_reset_tokens SET consumed_at = ? WHERE user_id = ? AND consumed_at IS NULL",
+                    (now, int(reset["user_id"])),
+                )
+                await conn.execute(
+                    "UPDATE auth_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL",
+                    (now, int(reset["user_id"])),
+                )
+                await conn.commit()
+            except PasswordResetExpired:
+                raise
+            except Exception:
+                await conn.rollback()
+                raise
+
+    async def change_password(
+        self,
+        user_id: int,
+        current_password: str,
+        new_password: str,
+        current_session_hash: str,
+    ) -> None:
+        validate_password(new_password)
+        conn = await self._conn()
+        async with self.database.write_lock:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                async with conn.execute(
+                    "SELECT password_hash FROM users WHERE id = ? AND archived_at IS NULL",
+                    (user_id,),
+                ) as cursor:
+                    user = await cursor.fetchone()
+                await self._consume_rate_limit(
+                    conn, "password-change", str(user_id), 8, timedelta(minutes=15)
+                )
+                if not user or not user["password_hash"]:
+                    raise InvalidCredentials("Текущий пароль указан неверно")
+                if not await self._verify_password(current_password, user["password_hash"]):
+                    raise InvalidCredentials("Текущий пароль указан неверно")
+                if await self._verify_password(new_password, user["password_hash"]):
+                    raise InvalidInput("Новый пароль должен отличаться от текущего")
+                new_password_hash = await self._hash_password(new_password)
+                now = iso(utc_now())
+                await conn.execute(
+                    "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+                    (new_password_hash, now, user_id),
+                )
+                await conn.execute(
+                    """
+                    UPDATE auth_sessions SET revoked_at = ?
+                    WHERE user_id = ? AND token_hash <> ? AND revoked_at IS NULL
+                    """,
+                    (now, user_id, current_session_hash),
+                )
+                await conn.execute(
+                    "UPDATE password_reset_tokens SET consumed_at = ? WHERE user_id = ? AND consumed_at IS NULL",
+                    (now, user_id),
+                )
+                await self._clear_rate_limit(conn, "password-change", str(user_id))
+                await conn.commit()
+            except (InvalidCredentials, InvalidInput, RateLimitExceeded):
+                if conn.in_transaction:
+                    await conn.commit()
+                raise
+            except Exception:
+                await conn.rollback()
+                raise
+
     async def _create_session_locked(
         self, conn, user_id: int, user_agent: str | None, ip_address: str | None
     ) -> AuthenticatedSession:
@@ -375,6 +567,6 @@ class AuthService:
         async with self.database.write_lock:
             await conn.execute("DELETE FROM auth_sessions WHERE expires_at <= ? OR revoked_at IS NOT NULL", (now,))
             await conn.execute("DELETE FROM verification_codes WHERE expires_at <= ?", (now,))
+            await conn.execute("DELETE FROM password_reset_tokens WHERE expires_at <= ? OR consumed_at IS NOT NULL", (now,))
             await conn.execute("DELETE FROM auth_rate_limits WHERE window_expires_at <= ?", (now,))
             await conn.commit()
-

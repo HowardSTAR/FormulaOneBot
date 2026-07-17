@@ -30,7 +30,9 @@ from app.services.auth_service import (
     EmailNotVerified,
     InvalidCredentials,
     InvalidInput,
+    InvalidResetToken,
     InvalidVerificationCode,
+    PasswordResetExpired,
     RateLimitExceeded,
     VerificationCodeExpired,
 )
@@ -53,6 +55,22 @@ class VerifyEmailRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=128)
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=40, max_length=512)
+    new_password: str = Field(min_length=12, max_length=128)
+    password_confirmation: str = Field(min_length=12, max_length=128)
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=12, max_length=128)
+    password_confirmation: str = Field(min_length=12, max_length=128)
 
 
 class LinkCodeRequest(BaseModel):
@@ -126,6 +144,10 @@ def _auth_http_error(exc: Exception) -> HTTPException:
     if isinstance(exc, (VerificationCodeExpired, RateLimitExceeded)):
         status = 429 if isinstance(exc, RateLimitExceeded) else 410
         return HTTPException(status, detail={"code": exc.code, "message": str(exc)})
+    if isinstance(exc, PasswordResetExpired):
+        return HTTPException(410, detail={"code": exc.code, "message": str(exc)})
+    if isinstance(exc, InvalidResetToken):
+        return HTTPException(400, detail={"code": exc.code, "message": str(exc)})
     if isinstance(exc, InvalidInput):
         return HTTPException(422, detail={"code": exc.code, "message": str(exc)})
     if isinstance(exc, EmailDeliveryError):
@@ -269,6 +291,67 @@ async def login(data: LoginRequest, request: Request, response: Response):
         int(get_auth_service().session_ttl.total_seconds()),
     )
     return _session_payload(session)
+
+
+def _public_web_url(request: Request) -> str:
+    configured = (
+        os.getenv("PUBLIC_WEB_URL")
+        or os.getenv("FRONTEND_URL")
+        or os.getenv("MINI_APP_URL")
+        or ""
+    ).strip()
+    if configured:
+        return configured.rstrip("/")
+    if os.getenv("APP_ENV", "development").lower() == "production":
+        raise HTTPException(
+            503,
+            detail={"code": "public_web_url_missing", "message": "PUBLIC_WEB_URL is not configured"},
+        )
+    return str(request.base_url).rstrip("/")
+
+
+@router.post("/password/forgot", status_code=202)
+async def forgot_password(data: ForgotPasswordRequest, request: Request):
+    # Always return the same response so the endpoint cannot be used to enumerate accounts.
+    try:
+        await get_auth_service().request_password_reset(data.email, _public_web_url(request))
+    except EmailDeliveryError as exc:
+        raise _auth_http_error(exc) from exc
+    except AuthError as exc:
+        raise _auth_http_error(exc) from exc
+    return {
+        "message": "Если аккаунт с таким email существует, ссылка для восстановления уже отправлена."
+    }
+
+
+@router.post("/password/reset")
+async def reset_password(data: ResetPasswordRequest):
+    if data.new_password != data.password_confirmation:
+        raise _auth_http_error(InvalidInput("Пароли не совпадают"))
+    try:
+        await get_auth_service().reset_password(data.token, data.new_password)
+    except AuthError as exc:
+        raise _auth_http_error(exc) from exc
+    return {"message": "Пароль изменён. Теперь можно войти с новым паролем."}
+
+
+@router.post("/password/change")
+async def change_password(
+    data: ChangePasswordRequest,
+    session: WebSessionContext = Depends(require_web_session),
+):
+    if data.new_password != data.password_confirmation:
+        raise _auth_http_error(InvalidInput("Пароли не совпадают"))
+    try:
+        await get_auth_service().change_password(
+            int(session.user["id"]),
+            data.current_password,
+            data.new_password,
+            session.user["session_token_hash"],
+        )
+    except AuthError as exc:
+        raise _auth_http_error(exc) from exc
+    return {"message": "Пароль успешно изменён."}
 
 
 @router.post("/logout", status_code=204)
