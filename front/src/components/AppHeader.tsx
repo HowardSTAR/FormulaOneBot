@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { AUTH_CHANGED_EVENT, getWebsiteUser, hasTelegramAuth } from "../helpers/auth";
+import { useAuthState } from "../helpers/auth";
 
-type IconName = "home" | "calendar" | "results" | "drivers" | "teams" | "compare" | "star" | "settings" | "account";
+type IconName = "home" | "calendar" | "results" | "drivers" | "teams" | "compare" | "star" | "vote" | "settings" | "account";
 
 type NavItem = {
   to: string;
@@ -30,6 +29,7 @@ function NavIcon({ name }: { name: IconName }) {
     teams: <><circle cx="8" cy="8" r="3" /><circle cx="17" cy="9" r="2.5" /><path d="M2.5 20a5.5 5.5 0 0 1 11 0M13 20a4.5 4.5 0 0 1 8.5-2" /></>,
     compare: <><path d="M7 7h12l-3-3M17 17H5l3 3" /></>,
     star: <path d="m12 3 2.75 5.57 6.15.9-4.45 4.33 1.05 6.12L12 17.03l-5.5 2.89 1.05-6.12L3.1 9.47l6.15-.9L12 3Z" />,
+    vote: <><path d="M7 3h10v4H7z" /><path d="M5 7h14l2 4v10H3V11z" /><path d="m9 14 2 2 4-5" /></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15 1.7 1.7 0 0 0 3.08 14H3v-4h.08A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88L4.2 7.06l2.83-2.83.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.08V3h4v.08A1.7 1.7 0 0 0 15.03 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9 1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z" /></>,
     account: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
   };
@@ -42,22 +42,9 @@ function NavIcon({ name }: { name: IconName }) {
 }
 
 export function AppHeader() {
-  const telegramMiniApp = hasTelegramAuth();
-  const [websiteLinked, setWebsiteLinked] = useState<boolean | null>(telegramMiniApp ? true : null);
+  const auth = useAuthState();
   const { pathname } = useLocation();
   const isActive = (paths: string[]) => paths.includes(pathname);
-  const refreshWebsiteAuth = useCallback(() => {
-    if (telegramMiniApp) return;
-    void getWebsiteUser().then((user) => setWebsiteLinked(Boolean(user?.telegram_id)));
-  }, [telegramMiniApp]);
-
-  useEffect(() => {
-    refreshWebsiteAuth();
-    window.addEventListener(AUTH_CHANGED_EVENT, refreshWebsiteAuth);
-    return () => window.removeEventListener(AUTH_CHANGED_EVENT, refreshWebsiteAuth);
-  }, [refreshWebsiteAuth]);
-
-  const isAuthenticated = telegramMiniApp || websiteLinked;
 
   return (
     <header className="app-header">
@@ -88,8 +75,12 @@ export function AppHeader() {
       </nav>
 
       <div className="app-header-bottom">
-        {isAuthenticated ? (
+        {auth.personalized ? (
           <nav className="app-header-nav app-header-nav-secondary" aria-label="Пользовательское меню">
+            <Link to="/voting" className={`app-header-link${pathname === "/voting" ? " active" : ""}`}>
+              <span className="app-header-link-icon"><NavIcon name="vote" /></span>
+              <span className="app-header-link-label">Голосование</span>
+            </Link>
             <Link to="/favorites" className={`app-header-link${pathname === "/favorites" ? " active" : ""}`}>
               <span className="app-header-link-icon"><NavIcon name="star" /></span>
               <span className="app-header-link-label">Избранное</span>
@@ -99,7 +90,7 @@ export function AppHeader() {
               <span className="app-header-link-label">Настройки</span>
             </Link>
           </nav>
-        ) : websiteLinked === false ? (
+        ) : auth.loaded && !auth.signedIn ? (
           <div className="app-header-guest">
             <div><i aria-hidden />Гостевой режим</div>
             <p>Календарь, результаты и статистика доступны без входа.</p>

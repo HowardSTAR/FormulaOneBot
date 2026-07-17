@@ -126,14 +126,30 @@
     margin-top: 8px;
 }
 
+.index-my-section > .index-wide-link {
+    margin-bottom: 12px;
+}
+
+.index-my-section > .index-wide-link:last-child {
+    margin-bottom: 0;
+}
+
 .index-favorites-link {
     border-color: rgba(255, 215, 0, 0.3);
-    margin-bottom: 12px;
 }
 
 .index-favorites-link .menu-label,
 .index-favorites-link .index-wide-link-arrow {
     color: #ffd700;
+}
+
+.index-account-link {
+    border-color: rgba(225, 6, 0, 0.42);
+    background: linear-gradient(135deg, rgba(225, 6, 0, 0.14), #15171e 62%);
+}
+
+.index-account-link .menu-label {
+    color: #ffb4a8;
 }
 
 .index-standings-grid {

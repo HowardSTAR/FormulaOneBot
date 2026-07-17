@@ -436,6 +436,10 @@ p {
     margin-left: 6px;
 }
 
+.btn-back > span:first-child {
+    margin-left: 0;
+}
+
 /* --- Меню (Grid) --- */
 .menu-grid {
     display: grid;

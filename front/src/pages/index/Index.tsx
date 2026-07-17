@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useHeroData } from "../../context/HeroDataContext";
-import { hasTelegramAuth } from "../../helpers/auth";
+import { useAuthState } from "../../helpers/auth";
 import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCountryFlagUrl } from "../../constants/flags";
@@ -79,7 +79,8 @@ const TEAM_FLAG_BY_ID: Record<string, string> = {
 
 function IndexPage() {
   const { nextRace, schedule, userTz, loaded, load } = useHeroData();
-  const isAuthenticated = hasTelegramAuth();
+  const auth = useAuthState();
+  const isAuthenticated = auth.signedIn;
   const currentYear = new Date().getFullYear();
   const [renderedAt] = useState(() => Date.now());
   const [driversTop, setDriversTop] = useState<DriverStanding[]>([]);
@@ -275,7 +276,7 @@ function IndexPage() {
           </aside>
         </section>
 
-        {!isAuthenticated && (
+        {auth.loaded && !isAuthenticated && (
           <section className="index-guest-strip">
             <div className="index-guest-message">
               <span className="index-guest-icon" aria-hidden>✓</span>
@@ -472,6 +473,15 @@ function IndexPage() {
                 <div className="index-wide-link-text">
                   <span className="menu-label index-card-title">Настройки</span>
                   <span className="index-card-desc">Часовой пояс и уведомления</span>
+                </div>
+              </div>
+            </Link>
+
+            <Link to="/account" className="menu-item full-width index-wide-link index-account-link">
+              <div className="index-wide-link-left">
+                <div className="index-wide-link-text">
+                  <span className="menu-label index-card-title">Аккаунт</span>
+                  <span className="index-card-desc">Профиль и безопасность входа</span>
                 </div>
               </div>
             </Link>

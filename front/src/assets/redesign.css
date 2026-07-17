@@ -212,7 +212,7 @@
 
   .index-dashboard-top {
     display: grid;
-    grid-template-columns: minmax(0, 1.55fr) minmax(310px, 0.68fr);
+    grid-template-columns: minmax(0, 1.65fr) minmax(300px, 0.67fr);
     gap: 12px;
     min-width: 0;
   }

@@ -3,6 +3,7 @@ import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
 import { hapticSelection } from "../../helpers/telegram";
+import "../../assets/voting-desktop.css";
 
 Chart.register(...registerables);
 
@@ -26,7 +27,9 @@ function VotingPage() {
   const [stats, setStats] = useState<StatsResponse["stats"]>([]);
   const [driverStats, setDriverStats] = useState<DriverStatsResponse["stats"]>([]);
   const [expandedRound, setExpandedRound] = useState<number | null>(null);
-  const [chartExpanded, setChartExpanded] = useState(false);
+  const [chartExpanded, setChartExpanded] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<number | null>(null);
   const chartRaceRef = useRef<HTMLCanvasElement>(null);
