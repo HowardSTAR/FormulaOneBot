@@ -49,7 +49,7 @@ async function authFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export default function AccountPage() {
   const [user, setUser] = useState<User | null>(null);
-  const [mode, setMode] = useState<"login" | "register" | "verify">("login");
+  const [mode, setMode] = useState<"login" | "register" | "verify" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -59,6 +59,9 @@ export default function AccountPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
 
   useEffect(() => {
     authFetch<User>("/api/auth/me")
@@ -119,6 +122,11 @@ export default function AccountPage() {
         sessionStorage.setItem("f1hub_csrf", result.csrf_token);
         setUser(result.user);
         notifyAuthChanged();
+      } else if (mode === "forgot") {
+        const result = await authFetch<{ message: string }>("/api/auth/password/forgot", {
+          method: "POST", body: JSON.stringify({ email }),
+        });
+        setMessage(result.message);
       } else {
         const result = await authFetch<{ csrf_token: string; user: User }>("/api/auth/login", {
           method: "POST", body: JSON.stringify({ email, password }),
@@ -129,6 +137,25 @@ export default function AccountPage() {
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Не удалось выполнить запрос");
+    } finally { setBusy(false); }
+  };
+
+  const changePassword = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true); setError(""); setMessage("");
+    try {
+      const result = await authFetch<{ message: string }>("/api/auth/password/change", {
+        method: "POST",
+        body: JSON.stringify({
+          current_password: currentPassword,
+          new_password: newPassword,
+          password_confirmation: passwordConfirmation,
+        }),
+      });
+      setCurrentPassword(""); setNewPassword(""); setPasswordConfirmation("");
+      setMessage(result.message);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Не удалось изменить пароль");
     } finally { setBusy(false); }
   };
 
@@ -177,17 +204,27 @@ export default function AccountPage() {
         <section className="account-card account-auth-card">
           <div className="account-tabs">
             <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Вход</button>
-            <button className={mode !== "login" ? "active" : ""} onClick={() => setMode("register")}>Регистрация</button>
+            <button className={mode === "register" || mode === "verify" ? "active" : ""} onClick={() => setMode("register")}>Регистрация</button>
           </div>
           <form onSubmit={submitAuth}>
             <label>Email<input type="email" required value={email} onChange={e => setEmail(e.target.value)} /></label>
-            {mode !== "verify" && (
-              <label>Пароль<input type="password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)} /></label>
+            {mode !== "verify" && mode !== "forgot" && (
+              <label>Пароль<input type="password" minLength={mode === "register" ? 12 : undefined} required value={password} onChange={e => setPassword(e.target.value)} /></label>
             )}
             {mode === "verify" && (
               <label>Код из письма<input inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ""))} /></label>
             )}
-            <button className="account-primary" disabled={busy}>{busy ? "Подождите…" : mode === "login" ? "Войти" : mode === "register" ? "Получить код" : "Подтвердить email"}</button>
+            {mode === "login" && (
+              <button type="button" className="account-text-button" onClick={() => { setMode("forgot"); setError(""); setMessage(""); }}>
+                Забыли пароль?
+              </button>
+            )}
+            <button className="account-primary" disabled={busy}>{busy ? "Подождите…" : mode === "login" ? "Войти" : mode === "register" ? "Получить код" : mode === "verify" ? "Подтвердить email" : "Отправить ссылку"}</button>
+            {mode === "forgot" && (
+              <button type="button" className="account-text-button account-text-button-center" onClick={() => setMode("login")}>
+                Вернуться ко входу
+              </button>
+            )}
           </form>
         </section>
       ) : (
@@ -230,6 +267,21 @@ export default function AccountPage() {
                 <button className="account-secondary" disabled={manualCode.length !== 6 || busy}>Привязать</button>
               </form>
               <p className="account-hint">Отправьте команду <code>/link</code> боту и введите полученный код здесь.</p>
+            </section>
+          )}
+          {user.email && (
+            <section className="account-card account-security-card">
+              <div className="account-security-copy">
+                <span className="account-kicker">БЕЗОПАСНОСТЬ</span>
+                <h2>Сменить пароль</h2>
+                <p>После сохранения другие активные сеансы будут завершены.</p>
+              </div>
+              <form onSubmit={changePassword}>
+                <label>Текущий пароль<input type="password" autoComplete="current-password" required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} /></label>
+                <label>Новый пароль<input type="password" autoComplete="new-password" minLength={12} required value={newPassword} onChange={e => setNewPassword(e.target.value)} /></label>
+                <label>Повторите новый пароль<input type="password" autoComplete="new-password" minLength={12} required value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)} /></label>
+                <button className="account-primary" disabled={busy || newPassword !== passwordConfirmation}>Изменить пароль</button>
+              </form>
             </section>
           )}
         </div>
