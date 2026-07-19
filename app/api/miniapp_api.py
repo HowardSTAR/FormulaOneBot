@@ -28,6 +28,9 @@ from app.db import (
     get_user_settings, update_user_setting,
     save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
     get_driver_vote_round_winners,
+    get_reaction_profile, upsert_reaction_profile,
+    save_reaction_score, get_reaction_leaderboard,
+    save_reflex_grid_score, get_reflex_grid_leaderboard,
 )
 from app.api.auth_api import (
     get_optional_hybrid_telegram_id as get_optional_user_id,
@@ -336,6 +339,23 @@ class DriverVoteRequest(BaseModel):
     driver_code: str
 
 
+class LeaderboardProfileRequest(BaseModel):
+    display_name: Optional[str] = None
+    participate: Optional[bool] = None
+    prompt_seen: Optional[bool] = None
+
+
+class ReactionScoreRequest(BaseModel):
+    time_ms: int
+
+
+class ReflexGridScoreRequest(BaseModel):
+    mode: str
+    difficulty: str
+    score: int
+    time_ms: int
+
+
 @web_app.get("/api/votes/me")
 async def api_votes_me(
     season: int = Query(...),
@@ -346,6 +366,76 @@ async def api_votes_me(
         return {"race_votes": {}, "driver_votes": {}}
     race_votes, driver_votes = await get_user_votes(user_id, season)
     return {"race_votes": race_votes, "driver_votes": driver_votes}
+
+
+# --- Общий профиль и лидерборды мини-игр ---
+
+@web_app.get("/api/reaction-leaderboard/profile")
+async def api_game_leaderboard_profile(
+    user_id: int = Depends(get_current_user_id),
+):
+    """Общее имя и настройка участия для обеих мини-игр."""
+    return await get_reaction_profile(user_id)
+
+
+@web_app.post("/api/reaction-leaderboard/profile")
+async def api_game_leaderboard_profile_save(
+    body: LeaderboardProfileRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    profile = await upsert_reaction_profile(
+        user_id,
+        display_name=body.display_name,
+        participate=body.participate,
+        prompt_seen=body.prompt_seen,
+    )
+    return {"profile": profile}
+
+
+@web_app.get("/api/reaction-leaderboard")
+async def api_reaction_leaderboard(
+    user_id: Optional[int] = Depends(get_optional_user_id),
+):
+    return await get_reaction_leaderboard(user_id)
+
+
+@web_app.post("/api/reaction-leaderboard/score")
+async def api_reaction_leaderboard_score(
+    body: ReactionScoreRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    saved = await save_reaction_score(user_id, body.time_ms)
+    return {"status": "ok", "saved": saved}
+
+
+@web_app.get("/api/reflex-grid-leaderboard")
+async def api_reflex_grid_leaderboard(
+    mode: str = Query(...),
+    difficulty: str = Query(...),
+    user_id: Optional[int] = Depends(get_optional_user_id),
+):
+    try:
+        return await get_reflex_grid_leaderboard(mode, difficulty, user_id)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@web_app.post("/api/reflex-grid-leaderboard/score")
+async def api_reflex_grid_leaderboard_score(
+    body: ReflexGridScoreRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    try:
+        saved = await save_reflex_grid_score(
+            user_id,
+            body.mode,
+            body.difficulty,
+            body.score,
+            body.time_ms,
+        )
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"status": "ok", "saved": saved}
 
 
 @web_app.post("/api/votes/race")
