@@ -570,6 +570,38 @@ async def get_driver_vote_stats(season: int) -> List[Tuple[str, int]]:
         return [(r["driver_code"], r["cnt"]) for r in await cursor.fetchall()]
 
 
+async def get_driver_vote_round_winners(season: int) -> List[Tuple[int, str, int]]:
+    """Победители голосования «Пилот дня» по этапам.
+
+    Возвращает по одной записи на этап: ``(round, driver_code, count)``.
+    При равенстве голосов результат стабилен: выигрывает код, который идёт
+    первым по алфавиту.
+    """
+    if not db.conn:
+        await db.connect()
+    async with db.conn.execute(
+        """
+        SELECT round, driver_code, COUNT(*) AS cnt
+        FROM driver_votes
+        WHERE season = ?
+        GROUP BY round, driver_code
+        ORDER BY round ASC, cnt DESC, driver_code ASC
+        """,
+        (season,),
+    ) as cursor:
+        rows = await cursor.fetchall()
+
+    winners: List[Tuple[int, str, int]] = []
+    seen_rounds: set[int] = set()
+    for row in rows:
+        round_num = int(row["round"])
+        if round_num in seen_rounds:
+            continue
+        seen_rounds.add(round_num)
+        winners.append((round_num, str(row["driver_code"]), int(row["cnt"])))
+    return winners
+
+
 async def get_driver_vote_winner(season: int, round_num: int) -> Tuple[str | None, int]:
     """Пилот дня по этапу: (driver_code, count) или (None, 0) если нет голосов."""
     if not db.conn: await db.connect()
@@ -578,7 +610,7 @@ async def get_driver_vote_winner(season: int, round_num: int) -> Tuple[str | Non
         SELECT driver_code, COUNT(*) as cnt
         FROM driver_votes WHERE season = ? AND round = ?
         GROUP BY driver_code
-        ORDER BY cnt DESC
+        ORDER BY cnt DESC, driver_code ASC
         LIMIT 1
         """,
         (season, round_num),
