@@ -331,11 +331,16 @@ async def test_api_votes_race_invalid_rating(api_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_api_votes_me(api_client: AsyncClient):
-    """GET /api/votes/me — голоса пользователя."""
+    """GET /api/votes/me возвращает голос из гибридной веб/Telegram-сессии."""
+    saved = await api_client.post(
+        "/api/votes/race",
+        json={"season": 2024, "round": 3, "rating": 4},
+    )
+    assert saved.status_code == 200
     r = await api_client.get("/api/votes/me", params={"season": 2024})
     assert r.status_code == 200
     data = r.json()
-    assert "race_votes" in data
+    assert data["race_votes"]["3"] == 4
     assert "driver_votes" in data
 
 
@@ -352,11 +357,16 @@ async def test_api_votes_stats(api_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_api_votes_driver_stats(api_client: AsyncClient):
     """GET /api/votes/driver-stats — голоса за пилотов дня."""
-    with patch("app.api.miniapp_api.get_driver_vote_stats", new_callable=AsyncMock) as m:
+    with patch("app.api.miniapp_api.get_driver_vote_stats", new_callable=AsyncMock) as m, \
+            patch("app.api.miniapp_api.get_driver_vote_round_winners", new_callable=AsyncMock) as m_rounds:
         m.return_value = [("VER", 50), ("NOR", 30)]
+        m_rounds.return_value = [(1, "VER", 7), (2, "NOR", 5)]
         r = await api_client.get("/api/votes/driver-stats", params={"season": 2024})
     assert r.status_code == 200
-    assert "stats" in r.json()
+    assert r.json()["round_winners"] == [
+        {"round": 1, "driver_code": "VER", "count": 7},
+        {"round": 2, "driver_code": "NOR", "count": 5},
+    ]
 
 
 @pytest.mark.asyncio

@@ -169,3 +169,20 @@ async def test_get_driver_vote_stats(db_session):
 
     stats = await get_driver_vote_stats(2024)
     assert any(d == "VER" for d, _ in stats)
+
+
+@pytest.mark.asyncio
+async def test_get_driver_vote_round_winners(db_session):
+    """Победитель «Пилота дня» рассчитывается отдельно для каждого этапа."""
+    from app.db import get_driver_vote_round_winners, save_driver_vote
+
+    season = 2037
+    await save_driver_vote(101001, season, 1, "VER")
+    await save_driver_vote(101002, season, 1, "VER")
+    await save_driver_vote(101003, season, 1, "NOR")
+    await save_driver_vote(101001, season, 2, "LEC")
+
+    assert await get_driver_vote_round_winners(season) == [
+        (1, "VER", 2),
+        (2, "LEC", 1),
+    ]
