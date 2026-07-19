@@ -345,6 +345,57 @@ async def test_api_votes_me(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_game_profile_is_shared_by_both_leaderboards(api_client: AsyncClient):
+    """POST/GET игрового профиля сохраняет одно имя для обеих мини-игр."""
+    saved = await api_client.post(
+        "/api/reaction-leaderboard/profile",
+        json={"display_name": "Admin", "participate": True, "prompt_seen": True},
+    )
+    assert saved.status_code == 200
+    assert saved.json()["profile"] == {
+        "display_name": "Admin",
+        "participate": True,
+        "prompt_seen": True,
+    }
+
+    loaded = await api_client.get("/api/reaction-leaderboard/profile")
+    assert loaded.status_code == 200
+    assert loaded.json()["display_name"] == "Admin"
+
+    reaction_score = await api_client.post(
+        "/api/reaction-leaderboard/score",
+        json={"time_ms": 245},
+    )
+    assert reaction_score.status_code == 200
+    assert reaction_score.json()["saved"] is True
+
+    reflex_score = await api_client.post(
+        "/api/reflex-grid-leaderboard/score",
+        json={"mode": "timed", "difficulty": "easy", "score": 7, "time_ms": 10_000},
+    )
+    assert reflex_score.status_code == 200
+    assert reflex_score.json()["saved"] is True
+
+    reflex = await api_client.get(
+        "/api/reflex-grid-leaderboard",
+        params={"mode": "timed", "difficulty": "easy"},
+    )
+    assert reflex.status_code == 200
+    assert reflex.json()["me"]["name"] == "Admin"
+    assert reflex.json()["me"]["score"] == 7
+
+
+@pytest.mark.asyncio
+async def test_game_profile_save_no_longer_returns_method_not_allowed(api_client: AsyncClient):
+    """Маршрут сохранения имени принимает POST вместо ответа 405."""
+    response = await api_client.post(
+        "/api/reaction-leaderboard/profile",
+        json={"display_name": "Pilot", "participate": False, "prompt_seen": True},
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
 async def test_api_votes_stats(api_client: AsyncClient):
     """GET /api/votes/stats — статистика оценок гонок."""
     with patch("app.api.miniapp_api.get_race_vote_stats", new_callable=AsyncMock) as m:
