@@ -10,9 +10,11 @@ import pytest
 
 from app.utils.notifications import (
     GROUP_TIMEZONE,
+    _is_voting_results_send_time,
     check_and_send_notifications,
     check_and_send_results,
     check_and_notify_quali,
+    check_and_notify_voting_results,
     get_notification_text,
 )
 
@@ -73,6 +75,46 @@ def test_notification_text_contains_local_date(request: pytest.FixtureRequest):
 
     assert "📅" in text
     assert "02.03.2026" in text
+
+
+def test_voting_results_retry_window_stays_open_after_ten():
+    """Пропущенный запуск в 10:00 можно безопасно повторить позднее в тот же день."""
+    assert _is_voting_results_send_time(
+        "Europe/Moscow",
+        datetime(2026, 7, 18, 8, 30, tzinfo=timezone.utc),
+    ) is True
+
+
+@pytest.mark.asyncio
+async def test_voting_results_do_not_depend_on_external_race_results():
+    """Итоги из локальных голосов доставляются даже без внешнего протокола гонки."""
+    schedule = [{"round": 1, "event_name": "Australian GP", "date": "2026-01-01"}]
+
+    with patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.utils.notifications.get_last_notified_voting_round", new_callable=AsyncMock) as m_last, \
+            patch("app.utils.notifications.get_users_with_settings", new_callable=AsyncMock) as m_users, \
+            patch("app.utils.notifications.get_race_avg_for_round", new_callable=AsyncMock) as m_avg, \
+            patch("app.utils.notifications.get_driver_vote_winner", new_callable=AsyncMock) as m_winner, \
+            patch("app.utils.notifications.get_driver_full_name_async", new_callable=AsyncMock) as m_name, \
+            patch("app.utils.notifications._is_voting_results_send_time", return_value=True), \
+            patch("app.utils.notifications.was_reminder_sent", new_callable=AsyncMock) as m_was_sent, \
+            patch("app.utils.notifications.set_reminder_sent", new_callable=AsyncMock) as m_set_sent, \
+            patch("app.utils.notifications.safe_send_message", new_callable=AsyncMock) as m_send:
+        m_sched.return_value = schedule
+        m_last.return_value = None
+        m_users.return_value = [(111, "Europe/Moscow", 60, 1)]
+        m_avg.return_value = (4.5, 12)
+        m_winner.return_value = ("PIA", 8)
+        m_name.return_value = "Oscar Piastri"
+        m_was_sent.return_value = False
+        m_send.return_value = True
+
+        await check_and_notify_voting_results(bot=object())
+
+    m_send.assert_awaited_once()
+    assert "4.5" in m_send.await_args.args[2]
+    assert "Oscar Piastri" in m_send.await_args.args[2]
+    m_set_sent.assert_awaited_once()
 
 
 @pytest.mark.asyncio
