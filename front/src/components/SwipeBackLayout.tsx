@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useLayoutEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { hapticImpact } from "../helpers/telegram";
 import { AppHeader } from "./AppHeader";
@@ -12,6 +12,18 @@ export function SwipeBackLayout() {
   const startX = useRef(0);
   const startY = useRef(0);
   const tracking = useRef(false);
+
+  useLayoutEffect(() => {
+    const resetScroll = () => {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    };
+
+    resetScroll();
+    const frameId = window.requestAnimationFrame(resetScroll);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [location.pathname, location.search]);
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
