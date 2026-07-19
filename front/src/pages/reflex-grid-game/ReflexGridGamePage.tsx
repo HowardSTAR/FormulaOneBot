@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackButton } from "../../components/BackButton";
 import { hapticImpact, hapticSelection } from "../../helpers/telegram";
 import { apiRequest } from "../../helpers/api";
+import "../games.css";
 
 type ReactionTab = "game" | "leaderboard";
 type GameMode = "timed" | "endless";
@@ -332,7 +333,7 @@ function ReflexGridGamePage() {
   }, [leaderboard.me, mode]);
 
   return (
-    <>
+    <div className="game-page reflex-game-page">
       {showOnboarding && (
         <div className="reaction-modal-overlay">
           <div className="reaction-modal-card">
@@ -474,13 +475,17 @@ function ReflexGridGamePage() {
 
       {activeTab === "game" && (
         <>
-          <div className="reaction-timer-card">
+          <div className="reaction-timer-card reflex-timer-card" data-state={status}>
             <div className="reaction-main-time">{mode === "timed" ? timerText : `${formatSecondsMs(elapsedMs)}`}</div>
             <div className="reaction-time-unit">{mode === "timed" ? "До конца" : "Секунд"}</div>
             <div className="reaction-result" style={{ marginTop: 8 }}>{currentMetricText}</div>
           </div>
 
-          <div className="reflex-grid" style={{ gridTemplateColumns: `repeat(${boardSize}, minmax(0, 1fr))` }}>
+          <div
+            className="reflex-grid"
+            data-size={boardSize}
+            style={{ gridTemplateColumns: `repeat(${boardSize}, minmax(0, 1fr))` }}
+          >
             {Array.from({ length: totalTiles }).map((_, index) => (
               <button
                 key={`${difficulty}-${index}`}
@@ -488,11 +493,12 @@ function ReflexGridGamePage() {
                 className={`reflex-tile ${index === activeTile ? "active" : ""}`}
                 onClick={() => handleTileClick(index)}
                 aria-label={`Плитка ${index + 1}`}
+                aria-pressed={index === activeTile}
               />
             ))}
           </div>
 
-          <button type="button" className="reaction-settings-edit" style={{ marginTop: 14 }} onClick={resetBoard}>
+          <button type="button" className="reaction-settings-edit reflex-reset-button" onClick={resetBoard}>
             Сыграть снова
           </button>
           <p className="reaction-helper">{helperText}</p>
@@ -612,7 +618,7 @@ function ReflexGridGamePage() {
                     className={`reaction-row ${entry.is_me ? "is-me" : ""} ${entry.place <= 3 ? `top-${entry.place}` : ""}`}
                   >
                     <div className="reaction-row-place">
-                      {entry.place === 1 ? "🥇" : entry.place === 2 ? "🥈" : entry.place === 3 ? "🥉" : `#${entry.place}`}
+                      #{entry.place}
                     </div>
                     <div className="reaction-row-name-wrap">
                       <div className="reaction-row-name">{entry.name}</div>
@@ -627,7 +633,7 @@ function ReflexGridGamePage() {
           </div>
         </section>
       )}
-    </>
+    </div>
   );
 }
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackButton } from "../../components/BackButton";
 import { hapticImpact, hapticSelection } from "../../helpers/telegram";
 import { apiRequest } from "../../helpers/api";
+import "../games.css";
 
 type GameStatus = "idle" | "starting" | "armed" | "running" | "finished" | "false-start";
 type ReactionTab = "game" | "leaderboard";
@@ -28,7 +29,7 @@ type LeaderboardResponse = {
 const LIGHT_COUNT = 4;
 const LAMPS_PER_LIGHT = 4;
 const ACTIVE_LAMP_START_INDEX = 2;
-const LIGHT_STEP_MS = 1500;
+const LIGHT_STEP_MS = 850;
 const RANDOM_DELAY_MIN_MS = 800;
 const RANDOM_DELAY_MAX_MS = 4500;
 
@@ -217,7 +218,6 @@ function ReactionGamePage() {
     const totalStartMs = LIGHT_COUNT * LIGHT_STEP_MS;
     // После включения всех огней старт назначается заново для каждой попытки.
     // Криптографический источник не повторяет предсказуемую последовательность
-    // при быстрых перезапусках внутри Telegram WebView.
     const randomDelayMs = getRandomStartDelayMs();
 
     const armId = window.setTimeout(() => {
@@ -305,7 +305,7 @@ function ReactionGamePage() {
     settingsName.trim() !== (profile.display_name || "").trim() || settingsParticipate !== profile.participate;
 
   return (
-    <>
+    <div className="game-page reaction-game-page">
       {showOnboarding && (
         <div className="reaction-modal-overlay">
           <div className="reaction-modal-card">
@@ -381,7 +381,7 @@ function ReactionGamePage() {
 
       {activeTab === "game" && (
         <>
-          <div className="reaction-board">
+          <div className="reaction-board" aria-label="Стартовые огни Formula 1">
             {Array.from({ length: LIGHT_COUNT }).map((_, lightIndex) => {
               const isActive = lightIndex < activeLights;
               return (
@@ -397,7 +397,7 @@ function ReactionGamePage() {
             })}
           </div>
 
-          <div className="reaction-timer-card">
+          <div className="reaction-timer-card" data-state={status}>
             <div className="reaction-main-time">{formatSecondsMs(currentTimeMs)}</div>
             <div className="reaction-time-unit">сек</div>
             {resultTimeMs != null && (
@@ -545,7 +545,7 @@ function ReactionGamePage() {
                       }`}
                     >
                       <div className="reaction-row-place">
-                        {entry.place === 1 ? "🥇" : entry.place === 2 ? "🥈" : entry.place === 3 ? "🥉" : `#${entry.place}`}
+                        #{entry.place}
                       </div>
                       <div className="reaction-row-name-wrap">
                         <div className="reaction-row-name">{entry.name}</div>
@@ -559,7 +559,7 @@ function ReactionGamePage() {
             </div>
         </section>
       )}
-    </>
+    </div>
   );
 }
 
