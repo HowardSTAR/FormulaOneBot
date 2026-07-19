@@ -82,6 +82,58 @@
     padding: 16px 18px;
     min-height: 72px;
 }
+
+.index-menu-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    color: #ff5d57;
+    background: rgba(225, 6, 0, 0.1);
+    border: 1px solid rgba(225, 6, 0, 0.22);
+}
+
+.index-menu-icon svg {
+    width: 23px;
+    height: 23px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.index-menu-icon.is-grid {
+    color: #ffd24a;
+    background: rgba(255, 210, 74, 0.1);
+    border-color: rgba(255, 210, 74, 0.24);
+}
+
+.index-menu-icon.is-reaction {
+    color: #55d98a;
+    background: rgba(85, 217, 138, 0.1);
+    border-color: rgba(85, 217, 138, 0.24);
+}
+
+.index-menu-icon.is-favorite {
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.09);
+    border-color: rgba(255, 215, 0, 0.22);
+}
+
+.index-link-arrow {
+    width: 21px;
+    height: 21px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0.72;
+    flex: 0 0 auto;
+}
 .hero-timer {
     background: rgba(0, 0, 0, 0.3);
     padding: 6px 12px;
@@ -179,6 +231,10 @@
 
 .index-calendar-main-link {
     margin-top: 12px;
+}
+
+.index-games-panel {
+    margin-top: 4px;
 }
 
 .index-standings-card {

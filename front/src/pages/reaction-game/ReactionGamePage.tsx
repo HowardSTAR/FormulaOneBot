@@ -29,8 +29,19 @@ const LIGHT_COUNT = 4;
 const LAMPS_PER_LIGHT = 4;
 const ACTIVE_LAMP_START_INDEX = 2;
 const LIGHT_STEP_MS = 1500;
-const RANDOM_DELAY_MIN_MS = 1200;
-const RANDOM_DELAY_MAX_MS = 3200;
+const RANDOM_DELAY_MIN_MS = 800;
+const RANDOM_DELAY_MAX_MS = 4500;
+
+function getRandomStartDelayMs(): number {
+  const range = RANDOM_DELAY_MAX_MS - RANDOM_DELAY_MIN_MS + 1;
+  const cryptoApi = typeof window !== "undefined" ? window.crypto : undefined;
+  if (cryptoApi?.getRandomValues) {
+    const value = new Uint32Array(1);
+    cryptoApi.getRandomValues(value);
+    return RANDOM_DELAY_MIN_MS + Math.floor((value[0] / 2 ** 32) * range);
+  }
+  return RANDOM_DELAY_MIN_MS + Math.floor(Math.random() * range);
+}
 
 function formatSecondsMs(ms: number): string {
   return (ms / 1000).toFixed(3);
@@ -204,8 +215,10 @@ function ReactionGamePage() {
     }
 
     const totalStartMs = LIGHT_COUNT * LIGHT_STEP_MS;
-    const randomDelayMs =
-      RANDOM_DELAY_MIN_MS + Math.floor(Math.random() * (RANDOM_DELAY_MAX_MS - RANDOM_DELAY_MIN_MS + 1));
+    // После включения всех огней старт назначается заново для каждой попытки.
+    // Криптографический источник не повторяет предсказуемую последовательность
+    // при быстрых перезапусках внутри Telegram WebView.
+    const randomDelayMs = getRandomStartDelayMs();
 
     const armId = window.setTimeout(() => {
       setStatus("armed");

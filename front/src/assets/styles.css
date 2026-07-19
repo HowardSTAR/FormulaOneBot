@@ -2291,6 +2291,22 @@ input:checked + .slider:before {
 .voting-chart-toggle:hover {
   background: rgba(255, 255, 255, 0.03);
 }
+.voting-chart-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.voting-title-icon {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--primary);
+  flex: 0 0 auto;
+}
 .voting-chart-body {
   max-height: 0;
   overflow: hidden;

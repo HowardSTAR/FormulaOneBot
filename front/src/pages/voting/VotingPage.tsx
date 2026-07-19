@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
@@ -15,7 +15,19 @@ type SeasonResponse = { races?: Race[] };
 type DriversResponse = { drivers?: DriverOption[] };
 type VotesResponse = { race_votes: Record<number, number>; driver_votes: Record<number, string> };
 type StatsResponse = { stats: { round: number; avg: number; count: number }[] };
-type DriverStatsResponse = { stats: { driver_code: string; count: number }[] };
+type DriverRoundWinner = { round: number; driver_code: string; count: number };
+type DriverStatsResponse = {
+  stats: { driver_code: string; count: number }[];
+  round_winners?: DriverRoundWinner[];
+};
+
+function ChartIcon() {
+  return (
+    <svg className="voting-title-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+    </svg>
+  );
+}
 
 function VotingPage() {
   const [tab, setTab] = useState<"race" | "driver">("race");
@@ -26,6 +38,7 @@ function VotingPage() {
   const [driverVotes, setDriverVotes] = useState<Record<number, string>>({});
   const [stats, setStats] = useState<StatsResponse["stats"]>([]);
   const [driverStats, setDriverStats] = useState<DriverStatsResponse["stats"]>([]);
+  const [driverRoundWinners, setDriverRoundWinners] = useState<DriverRoundWinner[]>([]);
   const [expandedRound, setExpandedRound] = useState<number | null>(null);
   const [chartExpanded, setChartExpanded] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches
@@ -69,12 +82,14 @@ function VotingPage() {
       setDriverVotes(votesRes.driver_votes || {});
       setStats(statsRes.stats || []);
       setDriverStats(driverStatsRes.stats || []);
+      setDriverRoundWinners(driverStatsRes.round_winners || []);
       setDrivers(driversRes.drivers || []);
     } catch (e) {
       console.error(e);
       setRaces([]);
       setStats([]);
       setDriverStats([]);
+      setDriverRoundWinners([]);
     } finally {
       setLoading(false);
     }
@@ -216,6 +231,7 @@ function VotingPage() {
         apiRequest<DriverStatsResponse>("/api/votes/driver-stats", { season: year }),
       ]);
       setDriverStats(driverStatsRes.stats || []);
+      setDriverRoundWinners(driverStatsRes.round_winners || []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -227,6 +243,15 @@ function VotingPage() {
     hapticSelection();
     setExpandedRound((prev) => (prev === round ? null : round));
   };
+
+  const raceStatsByRound = useMemo(
+    () => new Map(stats.map((item) => [item.round, item])),
+    [stats]
+  );
+  const driverWinnerByRound = useMemo(
+    () => new Map(driverRoundWinners.map((item) => [item.round, item])),
+    [driverRoundWinners]
+  );
 
   return (
     <>
@@ -277,7 +302,7 @@ function VotingPage() {
                   setChartExpanded((v) => !v);
                 }}
               >
-                <span>📊 Средняя оценка гонок по этапам</span>
+                <span className="voting-chart-title"><ChartIcon />Средняя оценка гонок по этапам</span>
                 <span className="voting-accordion-chevron">{chartExpanded ? "▼" : "▶"}</span>
               </button>
               <div className={`voting-chart-body ${chartExpanded ? "expanded" : ""}`}>
@@ -301,7 +326,7 @@ function VotingPage() {
                   setChartExpanded((v) => !v);
                 }}
               >
-                <span>📊 Голоса «Пилот дня» за сезон</span>
+                <span className="voting-chart-title"><ChartIcon />Голоса «Пилот дня» за сезон</span>
                 <span className="voting-accordion-chevron">{chartExpanded ? "▼" : "▶"}</span>
               </button>
               <div className={`voting-chart-body ${chartExpanded ? "expanded" : ""}`}>
@@ -321,6 +346,8 @@ function VotingPage() {
               const isExpanded = expandedRound === race.round;
               const myRaceVote = raceVotes[race.round];
               const myDriverVote = driverVotes[race.round];
+              const publicRaceStat = raceStatsByRound.get(race.round);
+              const publicDriverWinner = driverWinnerByRound.get(race.round);
               const isSaving = saving === race.round;
               const raceDate = new Date(race.date);
               raceDate.setHours(0, 0, 0, 0);
@@ -340,11 +367,11 @@ function VotingPage() {
                     </span>
                     <span className="voting-accordion-badge">
                       {tab === "race"
-                        ? myRaceVote
-                          ? `★ ${myRaceVote}`
+                        ? publicRaceStat
+                          ? `★ ${publicRaceStat.avg.toLocaleString("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`
                           : "—"
-                        : myDriverVote
-                          ? myDriverVote
+                        : publicDriverWinner?.driver_code || myDriverVote
+                          ? publicDriverWinner?.driver_code || myDriverVote
                           : "—"}
                     </span>
                     <span className="voting-accordion-chevron">{isExpanded ? "▼" : "▶"}</span>

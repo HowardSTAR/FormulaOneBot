@@ -77,6 +77,44 @@ const TEAM_FLAG_BY_ID: Record<string, string> = {
   cadillac: "us",
 };
 
+type IndexIconName =
+  | "quali"
+  | "race"
+  | "sprint"
+  | "drivers"
+  | "teams"
+  | "compare"
+  | "vote"
+  | "calendar"
+  | "reaction"
+  | "grid"
+  | "favorite"
+  | "settings"
+  | "account";
+
+function IndexIcon({ name }: { name: IndexIconName }) {
+  const paths: Record<IndexIconName, React.ReactNode> = {
+    quali: <><circle cx="12" cy="13" r="8" /><path d="M12 9v4l3 2M9 2h6M12 5V2" /></>,
+    race: <><path d="M5 21V4M5 5c5-3 8 3 14 0v9c-6 3-9-3-14 0" /><path d="M9 5v4M13 6v4M17 6v4M5 10h4M9 9h4M13 10h4" /></>,
+    sprint: <path d="m13 2-8 12h6l-1 8 9-13h-6z" />,
+    drivers: <><circle cx="12" cy="8" r="4" /><path d="M4 21c.8-5 3.5-7 8-7s7.2 2 8 7" /></>,
+    teams: <><path d="M3 15h18l-2-6H8L5 12H3zM5 15v3M19 15v3" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></>,
+    compare: <><path d="M7 4 3 8l4 4M3 8h15M17 20l4-4-4-4M21 16H6" /></>,
+    vote: <><path d="M8 3h8v5H8zM5 9h14l2 4v8H3v-8z" /><path d="m9 14 2 2 4-5" /></>,
+    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18M8 14h2M14 14h2M8 18h2" /></>,
+    reaction: <><rect x="7" y="2" width="10" height="20" rx="5" /><circle cx="12" cy="7" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="17" r="2" /></>,
+    grid: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
+    favorite: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z" />,
+    settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" /></>,
+    account: <><circle cx="9" cy="8" r="4" /><path d="M2 21c.7-4.6 3-7 7-7 2 0 3.6.6 4.8 1.7M16 19l2 2 4-5" /></>,
+  };
+  return <span className={`menu-icon index-menu-icon is-${name}`} aria-hidden><svg viewBox="0 0 24 24">{paths[name]}</svg></span>;
+}
+
+function IndexArrow() {
+  return <svg className="index-link-arrow" viewBox="0 0 24 24" aria-hidden><path d="m9 5 7 7-7 7" /></svg>;
+}
+
 function IndexPage() {
   const { nextRace, schedule, userTz, loaded, load } = useHeroData();
   const auth = useAuthState();
@@ -373,6 +411,7 @@ function IndexPage() {
           <div className="section-title">Последний этап</div>
           <div className="results-grid">
             <Link to="/quali-results" className="menu-item index-result-tile">
+              <IndexIcon name="quali" />
               <span className="menu-label index-card-title">Квалификация</span>
               {sessionMeta.quali ? (
                 <span className="index-card-meta">
@@ -387,6 +426,7 @@ function IndexPage() {
               )}
             </Link>
             <Link to="/race-results" className="menu-item index-result-tile">
+              <IndexIcon name="race" />
               <span className="menu-label index-card-title">Гонка</span>
               {sessionMeta.race ? (
                 <span className="index-card-meta">
@@ -403,6 +443,7 @@ function IndexPage() {
             {isSprintWeekendActive && (
               <>
                 <Link to="/sprint-results" className="menu-item index-result-tile">
+                  <IndexIcon name="sprint" />
                   <span className="menu-label index-card-title">Спринт</span>
                   {sessionMeta.sprint ? (
                     <span className="index-card-meta">
@@ -414,6 +455,7 @@ function IndexPage() {
                   )}
                 </Link>
                 <Link to="/sprint-quali-results" className="menu-item index-result-tile">
+                  <IndexIcon name="quali" />
                   <span className="menu-label index-card-title">Спринт-квала</span>
                   {sessionMeta.sprintQuali ? (
                     <span className="index-card-meta">
@@ -436,20 +478,60 @@ function IndexPage() {
 
           <div className="menu-grid index-quick-grid">
             <Link to="/drivers" className="menu-item index-nav-card">
+              <IndexIcon name="drivers" />
               <span className="menu-label index-card-title">Пилоты</span>
               <span className="index-card-desc">Личный зачет и форма</span>
             </Link>
             <Link to="/constructors" className="menu-item index-nav-card">
+              <IndexIcon name="teams" />
               <span className="menu-label index-card-title">Команды</span>
               <span className="index-card-desc">Кубок конструкторов</span>
             </Link>
             <Link to="/compare" className="menu-item index-nav-card">
+              <IndexIcon name="compare" />
               <span className="menu-label index-card-title">Сравнение</span>
               <span className="index-card-desc">Очки, темп и дуэли</span>
             </Link>
             <Link to="/voting" className="menu-item index-nav-card">
+              <IndexIcon name="vote" />
               <span className="menu-label index-card-title">Голосование</span>
               <span className="index-card-desc">Оценки и итоги этапов</span>
+            </Link>
+          </div>
+          <Link to="/season" className="menu-item full-width index-wide-link index-calendar-main-link">
+            <div className="index-wide-link-left">
+              <IndexIcon name="calendar" />
+              <div className="index-wide-link-text">
+                <span className="menu-label index-card-title">Календарь</span>
+                <span className="index-card-desc">Расписание и этапы сезона</span>
+              </div>
+            </div>
+            <IndexArrow />
+          </Link>
+        </div>
+
+        <div className="index-panel index-games-panel">
+          <div className="section-title">Игры</div>
+          <div className="games-list">
+            <Link to="/reaction-game" className="menu-item games-item">
+              <div className="index-wide-link-left">
+                <IndexIcon name="reaction" />
+                <div className="index-wide-link-text">
+                  <span className="menu-label index-card-title">Тест реакции</span>
+                  <span className="index-card-desc">Случайный старт светофора</span>
+                </div>
+              </div>
+              <IndexArrow />
+            </Link>
+            <Link to="/reflex-grid-game" className="menu-item games-item">
+              <div className="index-wide-link-left">
+                <IndexIcon name="grid" />
+                <div className="index-wide-link-text">
+                  <span className="menu-label index-card-title">Reflex Grid</span>
+                  <span className="index-card-desc">Скорость и точность на сетке</span>
+                </div>
+              </div>
+              <IndexArrow />
             </Link>
           </div>
         </div>
@@ -458,29 +540,35 @@ function IndexPage() {
             <div className="section-title">Моё</div>
             <Link to="/favorites" className="menu-item full-width index-wide-link index-favorites-link">
               <div className="index-wide-link-left">
+                <IndexIcon name="favorite" />
                 <div className="index-wide-link-text">
                   <span className="menu-label index-card-title">Избранное</span>
                   <span className="index-card-desc">Любимые пилоты и команды</span>
                 </div>
               </div>
+              <IndexArrow />
             </Link>
 
             <Link to="/settings" className="menu-item full-width index-wide-link">
               <div className="index-wide-link-left">
+                <IndexIcon name="settings" />
                 <div className="index-wide-link-text">
                   <span className="menu-label index-card-title">Настройки</span>
                   <span className="index-card-desc">Часовой пояс и уведомления</span>
                 </div>
               </div>
+              <IndexArrow />
             </Link>
 
             <Link to="/account" className="menu-item full-width index-wide-link index-account-link">
               <div className="index-wide-link-left">
+                <IndexIcon name="account" />
                 <div className="index-wide-link-text">
                   <span className="menu-label index-card-title">Аккаунт</span>
                   <span className="index-card-desc">Профиль и безопасность входа</span>
                 </div>
               </div>
+              <IndexArrow />
             </Link>
         </div>
       </div>
@@ -549,15 +637,6 @@ function IndexPage() {
             </div>
           </div>
         </div>
-
-        <Link to="/season" className="menu-item full-width index-wide-link index-calendar-main-link">
-          <div className="index-wide-link-left">
-            <div className="index-wide-link-text">
-              <span className="menu-label index-card-title">Календарь</span>
-              <span className="index-card-desc">Расписание и этапы сезона</span>
-            </div>
-          </div>
-        </Link>
       </div>
       </div>
     </>
