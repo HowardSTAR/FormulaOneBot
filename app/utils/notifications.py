@@ -165,9 +165,12 @@ async def get_users_with_settings(notifications_only: bool = False):
     """Возвращает (telegram_id, timezone, notify_before[, notifications_enabled])."""
     if not db.conn: await db.connect()
     try:
-        q = "SELECT telegram_id, timezone, notify_before, notifications_enabled FROM users"
+        q = (
+            "SELECT telegram_id, timezone, notify_before, notifications_enabled "
+            "FROM users WHERE telegram_id IS NOT NULL"
+        )
         if notifications_only:
-            q += " WHERE notifications_enabled = 1"
+            q += " AND notifications_enabled = 1"
         async with db.conn.execute(q) as cursor:
             rows = await cursor.fetchall()
             return [(r[0], r[1], r[2], r[3] if len(r) > 3 else False) for r in rows]
@@ -853,13 +856,18 @@ VOTING_RESULTS_NOTIFY_KEY = 10000
 
 
 def _is_voting_results_send_time(tz_name: str, now_utc: datetime) -> bool:
-    """Отправляем итоги голосования только в 10:00 по локальной таймзоне пользователя."""
+    """Итоги уже можно отправлять после 10:00 по локальному времени.
+
+    Проверка ``hour == 10`` теряла рассылку, если бот был выключен в этот час
+    или первая попытка доставки завершилась ошибкой. Персональная дедупликация
+    ниже гарантирует, что успешный получатель не увидит сообщение повторно.
+    """
     try:
         tz = ZoneInfo(tz_name)
     except ZoneInfoNotFoundError:
         tz = ZoneInfo("Europe/Moscow")
     local_now = now_utc.astimezone(tz)
-    return local_now.hour == VOTING_RESULTS_SEND_HOUR
+    return local_now.hour >= VOTING_RESULTS_SEND_HOUR
 
 
 async def check_and_notify_voting_results(bot: Bot) -> None:
@@ -901,10 +909,6 @@ async def check_and_notify_voting_results(bot: Bot) -> None:
         if now < voting_closes:
             continue
 
-        results_df = await get_race_results_async(season, round_num)
-        if results_df.empty:
-            continue
-
         event_name = event.get("event_name", "Гран-при")
         avg_rating, race_count = await get_race_avg_for_round(season, round_num)
         driver_winner, driver_count = await get_driver_vote_winner(season, round_num)
@@ -915,7 +919,16 @@ async def check_and_notify_voting_results(bot: Bot) -> None:
 
         rating_str = f"{avg_rating:.1f} ★" if avg_rating is not None and race_count > 0 else "—"
         if driver_winner and driver_count > 0:
-            driver_str = await get_driver_full_name_async(season, round_num, driver_winner)
+            try:
+                driver_str = await get_driver_full_name_async(season, round_num, driver_winner)
+            except Exception:
+                logger.exception(
+                    "Failed to resolve driver name for voting results: season=%s round=%s code=%s",
+                    season,
+                    round_num,
+                    driver_winner,
+                )
+                driver_str = driver_winner
         else:
             driver_str = "не выбран"
 
@@ -942,6 +955,11 @@ async def check_and_notify_voting_results(bot: Bot) -> None:
 
         if sent_count > 0:
             logger.info(f"✅ Sent voting results for {event_name} to {sent_count} users.")
+        else:
+            logger.info(
+                "Voting results for %s are pending: no eligible delivery succeeded in this run.",
+                event_name,
+            )
 
         all_users_notified = True
         for tg_id in tz_map:

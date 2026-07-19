@@ -27,6 +27,7 @@ from app.db import (
     remove_favorite_team, add_favorite_team,
     get_user_settings, update_user_setting,
     save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
+    get_driver_vote_round_winners,
 )
 from app.api.auth_api import (
     get_optional_hybrid_telegram_id as get_optional_user_id,
@@ -338,15 +339,9 @@ class DriverVoteRequest(BaseModel):
 @web_app.get("/api/votes/me")
 async def api_votes_me(
     season: int = Query(...),
-    x_telegram_init_data: Optional[str] = Header(None, alias="X-Telegram-Init-Data"),
+    user_id: Optional[int] = Depends(get_optional_user_id),
 ):
-    """Голоса пользователя за сезон: race_votes и driver_votes. Работает без auth — вернёт пустые голоса."""
-    user_id = None
-    if x_telegram_init_data:
-        try:
-            user_id = await get_current_user_id(x_telegram_init_data)
-        except Exception:
-            pass
+    """Голоса пользователя за сезон для Telegram и связанной веб-сессии."""
     if user_id is None:
         return {"race_votes": {}, "driver_votes": {}}
     race_votes, driver_votes = await get_user_votes(user_id, season)
@@ -395,9 +390,16 @@ async def api_votes_stats(season: int = Query(...)):
 
 @web_app.get("/api/votes/driver-stats")
 async def api_votes_driver_stats(season: int = Query(...)):
-    """Голоса за пилотов дня: [(driver_code, count), ...]."""
+    """Сезонная статистика и победитель «Пилота дня» каждого этапа."""
     stats = await get_driver_vote_stats(season)
-    return {"stats": [{"driver_code": d, "count": c} for d, c in stats]}
+    round_winners = await get_driver_vote_round_winners(season)
+    return {
+        "stats": [{"driver_code": d, "count": c} for d, c in stats],
+        "round_winners": [
+            {"round": round_num, "driver_code": driver_code, "count": count}
+            for round_num, driver_code, count in round_winners
+        ],
+    }
 
 
 @web_app.get("/api/weekend-schedule", response_model=ScheduleResponse)
