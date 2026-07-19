@@ -40,7 +40,6 @@ RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
-COPY scripts/ ./scripts/
 COPY run_web.py .
 
 COPY --from=front-builder /front/dist ./front/dist
