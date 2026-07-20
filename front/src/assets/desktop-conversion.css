@@ -51,6 +51,137 @@
   }
 }
 
+@media (min-width: 900px) {
+  .app-page-main.route-constructor-details .constructor-profile-desktop-grid {
+    align-items: stretch !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-left,
+  .app-page-main.route-constructor-details .constructor-profile-desktop-right,
+  .app-page-main.route-constructor-details .constructor-profile-drivers-panel,
+  .app-page-main.route-constructor-details .constructor-profile-stats-grid,
+  .app-page-main.route-constructor-details .constructor-profile-stats-grid > .driver-stats-block {
+    height: 100% !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-principal-row {
+    margin-top: 10px !important;
+    border-left: 3px solid #e10600 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-principal-row i {
+    font-size: 24px !important;
+    color: #e10600 !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-bio,
+  .app-page-main.route-driver-details .driver-profile-desktop-bio-bottom {
+    margin-top: 14px !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-bio .driver-bio-block,
+  .app-page-main.route-driver-details .driver-profile-desktop-bio-bottom .driver-profile-bio-card {
+    min-height: 0 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-main {
+    width: 100% !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-bio-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-bio-bottom .driver-bio-link {
+    margin-top: 14px !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-mobile {
+    display: none !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-desktop {
+    display: block !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-desktop > .btn-back {
+    display: none !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-desktop-hero {
+    min-height: 520px !important;
+    display: grid !important;
+    grid-template-columns: minmax(360px, 42%) minmax(0, 1fr) !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 14px !important;
+    background: #1b1c1d !important;
+    overflow: hidden !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-desktop-photo {
+    min-height: 520px !important;
+    background: linear-gradient(180deg, #292a2b, #121314) !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-desktop-photo img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    object-position: center top !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-desktop-copy {
+    align-self: end !important;
+    padding: 44px !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-desktop-copy > span {
+    color: #e10600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.16em !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-desktop-copy h1 {
+    margin: 10px 0 22px !important;
+    max-width: 780px !important;
+    font-family: "Space Grotesk", sans-serif !important;
+    font-size: clamp(64px, 7vw, 116px) !important;
+    line-height: 0.88 !important;
+    letter-spacing: -0.05em !important;
+    text-transform: uppercase !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-desktop-copy > div {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-desktop-copy b {
+    border: 1px solid rgba(94, 63, 58, 0.3) !important;
+    border-radius: 999px !important;
+    padding: 6px 12px !important;
+    color: rgba(227, 226, 227, 0.74) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    font-size: 10px !important;
+  }
+
+  .app-page-main.route-team-principal .team-principal-desktop-bio {
+    margin-top: 14px !important;
+    padding: 24px !important;
+    border: 1px solid rgba(94, 63, 58, 0.24) !important;
+    border-radius: 14px !important;
+    background: #1b1c1d !important;
+  }
+}
+
 @media (min-width: 1600px) {
   .app-content {
     padding-left: clamp(28px, 3vw, 52px);
@@ -3558,5 +3689,23 @@
     text-transform: uppercase !important;
     font-size: 11px !important;
     letter-spacing: 0.08em !important;
+  }
+}
+
+@media (min-width: 900px) {
+  .app-page-main.route-constructor-details .constructor-profile-desktop-grid {
+    align-items: stretch !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-left,
+  .app-page-main.route-constructor-details .constructor-profile-desktop-right,
+  .app-page-main.route-constructor-details .constructor-profile-drivers-panel,
+  .app-page-main.route-constructor-details .constructor-profile-stats-grid,
+  .app-page-main.route-constructor-details .constructor-profile-stats-grid > .driver-stats-block {
+    height: 100% !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 }

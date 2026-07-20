@@ -2877,6 +2877,110 @@ input:checked + .slider:before {
   border-radius: 2px;
 }
 
+.constructor-principal-card .constructor-driver-card-bg {
+  background: linear-gradient(135deg, rgba(91, 24, 24, 0.6), rgba(20, 30, 48, 0.82));
+}
+
+.constructor-principal-mark {
+  color: var(--primary);
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.team-principal-desktop {
+  display: none;
+}
+
+.team-principal-mobile {
+  display: block;
+}
+
+.team-principal-hero,
+.team-principal-bio {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface-color);
+  overflow: hidden;
+}
+
+.team-principal-hero {
+  position: relative;
+  min-height: 390px;
+  display: flex;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.team-principal-hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 30%, rgba(10, 11, 16, 0.94) 88%);
+}
+
+.team-principal-hero > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.team-principal-hero-copy {
+  position: relative;
+  z-index: 1;
+  padding: 22px;
+}
+
+.team-principal-hero-copy > span {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+.team-principal-hero-copy h1 {
+  margin: 6px 0;
+  font-size: clamp(34px, 10vw, 52px);
+  line-height: 0.96;
+}
+
+.team-principal-hero-copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.team-principal-bio {
+  padding: 20px;
+}
+
+.team-principal-bio h2,
+.team-principal-desktop-bio h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+.team-principal-bio p,
+.team-principal-desktop-bio p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.team-principal-bio a,
+.team-principal-desktop-bio a {
+  display: inline-block;
+  margin-top: 16px;
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 700;
+}
+
 .constructor-profile-desktop {
   display: none;
 }
