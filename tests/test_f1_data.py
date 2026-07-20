@@ -7,12 +7,47 @@ import pandas as pd
 import pytest
 
 from app.f1_data import (
+    _extract_team_principal_from_html,
     _fill_drivers_headshots,
+    _shorten_wiki_bio,
     get_driver_details_async,
     get_season_schedule_short,
     get_sprint_quali_results_async,
     sort_standings_zero_last,
 )
+
+
+def test_shorten_wiki_bio_keeps_complete_sentences():
+    text = "Первый факт. Второй факт. Третий факт. Четвертый факт. Пятый факт."
+    assert _shorten_wiki_bio(text, max_chars=200, max_sentences=3) == (
+        "Первый факт. Второй факт. Третий факт."
+    )
+
+
+def test_shorten_wiki_bio_removes_disambiguation_notice():
+    text = (
+        "Эта общая статья о выступлениях Mercedes. О старой команде см. другую статью. "
+        "Mercedes участвует в Формуле-1 как заводская команда и поставщик двигателей."
+    )
+    assert _shorten_wiki_bio(text) == (
+        "Mercedes участвует в Формуле-1 как заводская команда и поставщик двигателей."
+    )
+
+
+def test_extract_team_principal_from_infobox():
+    parsed_html = """
+      <table class="infobox vcard">
+        <tr><th>Team principal(s)</th><td><a href="/wiki/Toto_Wolff">Toto Wolff</a></td></tr>
+      </table>
+    """
+    assert _extract_team_principal_from_html(parsed_html) == {
+        "name": "Toto Wolff",
+        "page_title": "Toto_Wolff",
+    }
+
+
+def test_extract_team_principal_ignores_missing_infobox_row():
+    assert _extract_team_principal_from_html("<table><tr><td>No principal</td></tr></table>") == {}
 
 
 def test_sort_standings_zero_last_normal():
