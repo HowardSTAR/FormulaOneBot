@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackButton } from "../../components/BackButton";
 import { hapticImpact, hapticSelection } from "../../helpers/telegram";
 import { apiRequest } from "../../helpers/api";
+import { usePageScrollLock } from "../../hooks/usePageScrollLock";
 import "../games.css";
 
 type GameStatus = "idle" | "starting" | "armed" | "running" | "finished" | "false-start";
@@ -76,6 +77,9 @@ function ReactionGamePage() {
   const rafIdRef = useRef<number | null>(null);
   const timerStartRef = useRef<number | null>(null);
   const timeoutIdsRef = useRef<number[]>([]);
+  const scrollLocked = status === "starting" || status === "armed" || status === "running";
+
+  usePageScrollLock(scrollLocked);
 
   const clearAllTimers = useCallback(() => {
     timeoutIdsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
