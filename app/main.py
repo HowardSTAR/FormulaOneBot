@@ -134,7 +134,10 @@ async def main():
         "interval",
         minutes=5,
         args=[bot],
-        id="results_job"
+        id="results_job",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
     scheduler.add_job(
         check_and_notify_voting_results,

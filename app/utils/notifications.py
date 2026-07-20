@@ -28,7 +28,6 @@ from app.f1_data import (
     points_for_race_position,
     get_season_schedule_short_async,
     get_race_results_async,
-    get_constructor_standings_async,
     get_driver_standings_async,
     _get_latest_quali_async,
     get_testing_results_async,
@@ -304,6 +303,8 @@ async def check_and_send_notifications(bot: Bot):
 
 # --- ЗАДАЧА 2: РЕЗУЛЬТАТЫ (ГОНКИ И ТЕСТЫ) ---
 
+RACE_RESULTS_MIN_ROWS = 10
+
 def build_results_text(race_name: str, favorites_results: list[dict]) -> str:
     """Текст по избранным пилотам (для тестовых команд)."""
     lines = []
@@ -363,8 +364,9 @@ async def check_and_send_results(bot: Bot):
         try:
             race_dt = datetime.fromisoformat(r["race_start_utc"])
             if race_dt.tzinfo is None: race_dt = race_dt.replace(tzinfo=timezone.utc)
-            # Считаем завершенным: тесты — 9ч; гонка — 1ч (OpenF1 даёт результаты почти сразу)
-            finish_offset = 9 if r.get("is_testing") else 1
+            # Не читаем live-позиции как финальную классификацию: обычную гонку
+            # начинаем проверять не раньше чем через два часа после старта.
+            finish_offset = 9 if r.get("is_testing") else 2
 
             if now > race_dt + timedelta(hours=finish_offset):
                 finished_event = r
@@ -480,7 +482,11 @@ async def check_and_send_results(bot: Bot):
     if "Position" in results_df.columns:
         results_df = results_df.sort_values("Position")
 
-    driver_standings = await get_driver_standings_async(season, round_number=round_num)
+    try:
+        driver_standings = await get_driver_standings_async(season, round_number=round_num)
+    except Exception:
+        logger.exception("Failed to load driver standings while preparing race notification")
+        driver_standings = pd.DataFrame()
     code_to_team: dict[str, str] = {}
     if not driver_standings.empty and "driverCode" in driver_standings.columns:
         for row in driver_standings.itertuples(index=False):
@@ -549,10 +555,11 @@ async def check_and_send_results(bot: Bot):
             "driver_code": code.upper() if code else "",
         })
 
-    if not rows_for_image:
+    if len(rows_for_image) < RACE_RESULTS_MIN_ROWS:
         logger.warning(
-            "⚠️ Race results for round %s are present but unparseable, will retry later.",
+            "⚠️ Race results for round %s are incomplete (%s rows), will retry later.",
             round_num,
+            len(rows_for_image),
         )
         return
 
@@ -582,7 +589,6 @@ async def check_and_send_results(bot: Bot):
                 pts = 0
         res_map[code] = {"pos": str(row.get("Position", "DNF")), "points": pts}
 
-    constructor_standings = await get_constructor_standings_async(season, round_number=round_num)
     constructor_results_by_name = {}
     for row in results_df.itertuples(index=False):
         team_name = getattr(row, "TeamName", None)
@@ -592,11 +598,22 @@ async def check_and_send_results(bot: Bot):
             constructor_results_by_name[team_name].append(row)
 
     sent_count = 0
-    # Пользователи с избранным — картинка с их избранными + подробный текст
-    for tg_id, favs in users_favorites.items():
-        fav_codes = {str(c).upper() for c in favs.get("drivers", [])}
-        photo_bytes = (await asyncio.to_thread(_render_race_image, fav_codes)).getvalue()
+    # Общая классификация приходит картинкой, а избранные — отдельным сообщением.
+    notification_recipients = [(u[0], u[1] or "Europe/Moscow") for u in notifications_users]
+    for tg_id, tz in notification_recipients:
+        if await safe_send_photo(
+            bot,
+            tg_id,
+            photo_bytes_generic,
+            caption="🏁 Результаты последней гонки (таблица на картинке).",
+            parse_mode="HTML",
+            has_spoiler=True,
+            disable_notification=is_quiet_hours(tz),
+        ):
+            sent_count += 1
+        await asyncio.sleep(0.05)
 
+    for tg_id, favs in users_favorites.items():
         driver_res = []
         for code in favs.get("drivers", []):
             if code in res_map:
@@ -618,31 +635,17 @@ async def check_and_send_results(bot: Bot):
                 best_pos = min(int(getattr(r, "Position", 999)) for r in team_rows)
                 team_res.append({"team": team_name, "text": f"P{best_pos}, +{int(total_pts)} очк."})
 
+        if not driver_res and not team_res:
+            continue
         caption = build_favorites_caption(race_info.get("event_name", "Гран-при"), driver_res, team_res)
         tz = tz_map.get(tg_id, "Europe/Moscow")
         quiet = is_quiet_hours(tz)
-        if await safe_send_photo(
-            bot, tg_id, photo_bytes,
-            caption=caption,
+        if await safe_send_message(
+            bot,
+            tg_id,
+            caption,
             parse_mode="HTML",
-            has_spoiler=True,
             disable_notification=quiet,
-        ):
-            sent_count += 1
-        await asyncio.sleep(0.05)
-
-    # Пользователи без избранного, но с уведомлениями — только короткий текст
-    caption_no_fav = "🏁 Результаты последней гонки (таблица на картинке)."
-    fav_tg_ids = set(users_favorites.keys())
-    for tg_id, tz in [(u[0], u[1] or "Europe/Moscow") for u in notifications_users]:
-        if tg_id in fav_tg_ids:
-            continue
-        if await safe_send_photo(
-            bot, tg_id, photo_bytes_generic,
-            caption=caption_no_fav,
-            parse_mode="HTML",
-            has_spoiler=True,
-            disable_notification=is_quiet_hours(tz),
         ):
             sent_count += 1
         await asyncio.sleep(0.05)
