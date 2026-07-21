@@ -15,7 +15,10 @@ function readCookie(name: string): string | null {
 
 // VITE_API_URL = полный URL бэкенда, если фронт и API на разных серверах
 // BASE_URL = базовый путь, если приложение развёрнуто в подпапке (например /bot/)
-const API_BASE = (import.meta.env.VITE_API_URL as string) || '';
+const CONFIGURED_API_BASE = (import.meta.env.VITE_API_URL as string) || '';
+const IS_LOCAL_HOST = typeof window !== 'undefined'
+  && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const API_BASE = IS_LOCAL_HOST ? '' : CONFIGURED_API_BASE;
 const PATH_BASE = ((import.meta.env.BASE_URL as string) || '/').replace(/\/$/, '');
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 15000);
 

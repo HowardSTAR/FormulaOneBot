@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackButton } from "../../components/BackButton";
 import { hapticImpact, hapticSelection } from "../../helpers/telegram";
 import { apiRequest } from "../../helpers/api";
+import { usePageScrollLock } from "../../hooks/usePageScrollLock";
 import "../games.css";
 
 type ReactionTab = "game" | "leaderboard";
@@ -93,6 +94,8 @@ function ReflexGridGamePage() {
   const rafIdRef = useRef<number | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const scoreRef = useRef(0);
+
+  usePageScrollLock(status === "running");
 
   const boardSize = useMemo(
     () => DIFFICULTY_OPTIONS.find((item) => item.id === difficulty)?.size ?? 3,
