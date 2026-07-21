@@ -763,32 +763,58 @@ _DRIVER_NUMBER_TO_CODE_FALLBACK: dict[int, str] = {
 }
 
 
-async def _openf1_get_drivers_for_session(session_key: int) -> dict[int, dict]:
-    """driver_number -> {code (name_acronym), name (full_name/last_name)}. Дополняет из /drivers без session."""
+async def _openf1_get_drivers_for_session(
+    session_key: int,
+    meeting_key: int | None = None,
+) -> dict[int, dict]:
+    """driver_number -> {code, name} с несколькими резервными запросами OpenF1."""
     out: dict[int, dict] = {}
 
     def _add(d: dict) -> None:
         num = d.get("driver_number")
-        if num is None or num in out:
+        if num is None:
+            return
+        try:
+            num = int(num)
+        except (TypeError, ValueError):
             return
         code = (d.get("name_acronym") or "").strip() or (d.get("last_name") or "")[:3].upper()
         name = (d.get("full_name") or d.get("last_name") or "").strip()
-        out[num] = {
-            "code": code or _DRIVER_NUMBER_TO_CODE_FALLBACK.get(num, "?"),
-            "name": name or (code or _DRIVER_NUMBER_TO_CODE_FALLBACK.get(num, "?")),
-        }
+        fallback_code = _DRIVER_NUMBER_TO_CODE_FALLBACK.get(num, "?")
+        incoming = {"code": code or fallback_code, "name": name or code or fallback_code}
+        current = out.get(num)
+        if current is None:
+            out[num] = incoming
+            return
+        # Более широкий резервный запрос должен уметь заполнить поля, которые
+        # session-scoped endpoint временно вернул как пустые/"?".
+        if not current.get("code") or current.get("code") == "?":
+            current["code"] = incoming["code"]
+        current_name = str(current.get("name") or "").strip()
+        current_code = str(current.get("code") or "").strip()
+        if (
+            not current_name
+            or current_name == "?"
+            or current_name == current_code
+            or (len(current_name) <= 4 and current_name.isalpha() and current_name.isupper())
+        ):
+            current["name"] = incoming["name"]
 
     data = await _openf1_get("drivers", session_key=session_key)
     if data:
         for d in data:
             _add(d)
 
+    if meeting_key is not None:
+        meeting_data = await _openf1_get("drivers", meeting_key=meeting_key)
+        if meeting_data:
+            for d in meeting_data:
+                _add(d)
+
     extra = await _openf1_get("drivers")
     if extra:
         for d in extra:
-            num = d.get("driver_number")
-            if num is not None and (num not in out or out[num].get("code") == "?"):
-                _add(d)
+            _add(d)
 
     return out
 
@@ -874,7 +900,7 @@ async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[
     if session_key is None:
         return None, []
     positions = await _openf1_get_position_final(session_key)
-    drivers_map = await _openf1_get_drivers_for_session(session_key)
+    drivers_map = await _openf1_get_drivers_for_session(session_key, session.get("meeting_key"))
     best_laps = await _openf1_get_best_lap_per_driver(session_key)
     schedule = await get_season_schedule_short_async(season)
     round_num = _openf1_match_round_from_schedule(
@@ -885,9 +911,17 @@ async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[
     valid_ms = [best_laps.get(p.get("driver_number")) for p in positions if best_laps.get(p.get("driver_number"))]
     min_ms = min(valid_ms) if valid_ms else None
     results = []
+    standings_map = await _get_driver_number_to_info_from_standings(season, round_num)
     for p in positions[:limit]:
         dn = p.get("driver_number")
         info = drivers_map.get(dn, {})
+        standings_info = standings_map.get(dn, {}) if dn is not None else {}
+        code = str(info.get("code") or "").strip()
+        if not code or code == "?":
+            code = str(standings_info.get("code") or "").strip()
+        name = str(info.get("name") or "").strip()
+        if not name or name == "?" or name == code:
+            name = str(standings_info.get("name") or "").strip()
         best_ms = best_laps.get(dn) if dn is not None else None
         best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
         if best_ms is None or min_ms is None:
@@ -898,8 +932,8 @@ async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[
             gap_str = f"+{(best_ms - min_ms) / 1000:.3f}"
         results.append({
             "position": int(p.get("position", 0)),
-            "driver": info.get("code", "?"),
-            "name": info.get("name", "?"),
+            "driver": code or "?",
+            "name": name or code or "?",
             "best": best_str,
             "gap": gap_str,
         })
@@ -929,16 +963,19 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
     if not sessions:
         return None, []
     session_key = None
+    meeting_key = None
     for s in sessions:
         if (s.get("session_type") or "").strip() != "Qualifying":
             continue
         if (s.get("date_start") or "")[:10] == quali_date:
             session_key = s.get("session_key")
+            meeting_key = s.get("meeting_key")
             break
     if session_key is None:
         return None, []
     positions = await _openf1_get_position_final(session_key)
-    drivers_map = await _openf1_get_drivers_for_session(session_key)
+    drivers_map = await _openf1_get_drivers_for_session(session_key, meeting_key)
+    standings_map = await _get_driver_number_to_info_from_standings(season, round_num)
     best_laps = await _openf1_get_best_lap_per_driver(session_key)
     valid_ms = [best_laps.get(p.get("driver_number")) for p in positions if best_laps.get(p.get("driver_number"))]
     min_ms = min(valid_ms) if valid_ms else None
@@ -946,6 +983,13 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
     for p in positions[:limit]:
         dn = p.get("driver_number")
         info = drivers_map.get(dn, {})
+        standings_info = standings_map.get(dn, {}) if dn is not None else {}
+        code = str(info.get("code") or "").strip()
+        if not code or code == "?":
+            code = str(standings_info.get("code") or "").strip()
+        name = str(info.get("name") or "").strip()
+        if not name or name == "?" or name == code:
+            name = str(standings_info.get("name") or "").strip()
         best_ms = best_laps.get(dn) if dn is not None else None
         best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
         if best_ms is None or min_ms is None:
@@ -956,8 +1000,8 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
             gap_str = f"+{(best_ms - min_ms) / 1000:.3f}"
         results.append({
             "position": int(p.get("position", 0)),
-            "driver": info.get("code", "?"),
-            "name": info.get("name", "?"),
+            "driver": code or "?",
+            "name": name or code or "?",
             "best": best_str,
             "gap": gap_str,
         })
@@ -988,6 +1032,7 @@ async def openf1_get_sprint_quali_for_round(season: int, round_num: int, limit: 
         return None, []
 
     session_key = None
+    meeting_key = None
     allowed_types = {"Qualifying", "Sprint Qualifying", "Sprint Shootout"}
     for s in sessions:
         s_type = (s.get("session_type") or "").strip()
@@ -995,13 +1040,15 @@ async def openf1_get_sprint_quali_for_round(season: int, round_num: int, limit: 
             continue
         if (s.get("date_start") or "")[:10] == sq_date:
             session_key = s.get("session_key")
+            meeting_key = s.get("meeting_key")
             break
 
     if session_key is None:
         return None, []
 
     positions = await _openf1_get_position_final(session_key)
-    drivers_map = await _openf1_get_drivers_for_session(session_key)
+    drivers_map = await _openf1_get_drivers_for_session(session_key, meeting_key)
+    standings_map = await _get_driver_number_to_info_from_standings(season, round_num)
     best_laps = await _openf1_get_best_lap_per_driver(session_key)
     valid_ms = [best_laps.get(p.get("driver_number")) for p in positions if best_laps.get(p.get("driver_number"))]
     min_ms = min(valid_ms) if valid_ms else None
@@ -1010,6 +1057,13 @@ async def openf1_get_sprint_quali_for_round(season: int, round_num: int, limit: 
     for p in positions[:limit]:
         dn = p.get("driver_number")
         info = drivers_map.get(dn, {})
+        standings_info = standings_map.get(dn, {}) if dn is not None else {}
+        code = str(info.get("code") or "").strip()
+        if not code or code == "?":
+            code = str(standings_info.get("code") or "").strip()
+        name = str(info.get("name") or "").strip()
+        if not name or name == "?" or name == code:
+            name = str(standings_info.get("name") or "").strip()
         best_ms = best_laps.get(dn) if dn is not None else None
         best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
         if best_ms is None or min_ms is None:
@@ -1020,8 +1074,8 @@ async def openf1_get_sprint_quali_for_round(season: int, round_num: int, limit: 
             gap_str = f"+{(best_ms - min_ms) / 1000:.3f}"
         results.append({
             "position": int(p.get("position", 0)),
-            "driver": info.get("code", "?"),
-            "name": info.get("name", "?"),
+            "driver": code or "?",
+            "name": name or code or "?",
             "best": best_str,
             "gap": gap_str,
         })
@@ -1139,7 +1193,7 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
     """Асинхронно получает личный зачет (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/driverStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json"
 
-    async with aiohttp.ClientSession() as session_req:
+    async with _profile_http_session() as session_req:
         try:
             async with session_req.get(url) as response:
                 if response.status == 200:
@@ -1204,7 +1258,7 @@ async def get_constructor_standings_async(season: int, round_number: int | None 
     """Асинхронно получает кубок конструкторов (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/constructorStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json"
 
-    async with aiohttp.ClientSession() as session_req:
+    async with _profile_http_session() as session_req:
         try:
             async with session_req.get(url) as response:
                 if response.status == 200:
@@ -1310,7 +1364,7 @@ async def _get_zero_point_driver_standings() -> pd.DataFrame:
     """Собирает сетку пилотов из OpenF1 и выдает всем 0 очков. driverId берём из Ergast по code."""
     current_year = datetime.now().year
     ergast_drivers: dict[str, str] = {}  # code -> driverId
-    async with aiohttp.ClientSession() as session_req:
+    async with _profile_http_session() as session_req:
         try:
             async with session_req.get(f"https://api.jolpi.ca/ergast/f1/{current_year}/drivers.json?limit=50") as resp:
                 if resp.status == 200:
@@ -1368,7 +1422,7 @@ async def _get_zero_point_driver_standings() -> pd.DataFrame:
 async def _get_zero_point_constructor_standings() -> pd.DataFrame:
     """Собирает сетку команд из OpenF1 и выдает всем 0 очков."""
     url = "https://api.openf1.org/v1/drivers?session_key=latest"
-    async with aiohttp.ClientSession() as session_req:
+    async with _profile_http_session() as session_req:
         try:
             async with session_req.get(url) as response:
                 if response.status != 200:
