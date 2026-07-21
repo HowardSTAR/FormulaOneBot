@@ -129,6 +129,76 @@
     transition: opacity 160ms ease, transform 160ms ease;
   }
 
+  .app-header-menu {
+    display: grid;
+    gap: 3px;
+  }
+
+  .app-header-menu-trigger {
+    width: 100%;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  .app-header-menu-trigger .app-header-link-arrow {
+    opacity: 1;
+    transform: rotate(0deg);
+  }
+
+  .app-header-menu.is-open .app-header-menu-trigger .app-header-link-arrow {
+    transform: rotate(90deg);
+  }
+
+  .app-header-submenu {
+    display: grid;
+    gap: 2px;
+    padding: 1px 0 3px 36px;
+  }
+
+  .app-header-submenu[hidden] {
+    display: none;
+  }
+
+  .app-header-submenu-link {
+    display: flex;
+    min-height: 34px;
+    padding: 0 10px;
+    align-items: center;
+    gap: 9px;
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.48);
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.055em;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: color 160ms ease, background 160ms ease;
+  }
+
+  .app-header-submenu-link > span {
+    width: 5px;
+    height: 5px;
+    flex: 0 0 5px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.24);
+  }
+
+  .app-header-submenu-link:hover {
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(255, 255, 255, 0.045);
+  }
+
+  .app-header-submenu-link.active {
+    color: #fff;
+    background: rgba(225, 6, 0, 0.11);
+  }
+
+  .app-header-submenu-link.active > span {
+    background: #ff342d;
+    box-shadow: 0 0 9px rgba(255, 52, 45, 0.62);
+  }
+
   .app-header-link:hover .app-header-link-arrow,
   .app-header-link.active .app-header-link-arrow {
     opacity: 1;
