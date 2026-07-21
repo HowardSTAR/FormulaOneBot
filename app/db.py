@@ -215,6 +215,96 @@ class Database:
             "CREATE INDEX IF NOT EXISTS idx_reflex_grid_telegram ON reflex_grid_scores(telegram_id)"
         )
 
+        # 9. Прогнозы на этапы Formula 1 и история начисления баллов.
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS prediction_profiles (
+                telegram_id INTEGER PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS race_predictions (
+                user_id INTEGER NOT NULL,
+                season INTEGER NOT NULL,
+                round INTEGER NOT NULL,
+                pole_driver TEXT NOT NULL,
+                winner_driver TEXT NOT NULL,
+                second_driver TEXT NOT NULL,
+                third_driver TEXT NOT NULL,
+                fourth_driver TEXT NOT NULL,
+                fifth_driver TEXT NOT NULL,
+                fastest_lap_driver TEXT NOT NULL,
+                first_retirement_driver TEXT NOT NULL,
+                safety_car INTEGER NOT NULL CHECK (safety_car IN (0, 1)),
+                points INTEGER,
+                max_points INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                scored_at TIMESTAMP,
+                PRIMARY KEY (user_id, season, round),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+            """
+        )
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS prediction_round_results (
+                season INTEGER NOT NULL,
+                round INTEGER NOT NULL,
+                event_name TEXT NOT NULL,
+                pole_driver TEXT,
+                winner_driver TEXT,
+                second_driver TEXT,
+                third_driver TEXT,
+                fourth_driver TEXT,
+                fifth_driver TEXT,
+                fastest_lap_driver TEXT,
+                first_retirement_driver TEXT,
+                safety_car INTEGER CHECK (safety_car IN (0, 1) OR safety_car IS NULL),
+                max_points INTEGER NOT NULL DEFAULT 0,
+                calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (season, round)
+            );
+            """
+        )
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS prediction_notification_state (
+                season INTEGER NOT NULL,
+                round INTEGER NOT NULL,
+                opened_sent INTEGER NOT NULL DEFAULT 0,
+                results_sent INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (season, round)
+            );
+            """
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_predictions_round ON race_predictions(season, round)"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_predictions_user ON race_predictions(user_id)"
+        )
+
+        # 10. Журнал сообщений формы обратной связи (доставка в Telegram отмечается отдельно).
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS admin_feedback_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_id INTEGER,
+                sender_name TEXT NOT NULL,
+                sender_contact TEXT NOT NULL,
+                message TEXT NOT NULL,
+                delivered INTEGER NOT NULL DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+
         await self.conn.commit()
 
 
