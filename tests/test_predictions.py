@@ -33,6 +33,25 @@ def test_broadcast_payload_preserves_telegram_formatting():
     assert _broadcast_html_payload(message) == "<b>Важный текст</b>"
 
 
+@pytest.mark.asyncio
+async def test_long_broadcast_text_is_split_at_telegram_limit():
+    """Текст длиннее 4096 символов отправляется безопасными отдельными сообщениями."""
+    from app.handlers.secret import _send_broadcast_text
+
+    bot = AsyncMock()
+    plain = "A" * 8500
+    with patch("app.handlers.secret.safe_send_message", new_callable=AsyncMock, return_value=True) as send:
+        assert await _send_broadcast_text(
+            bot,
+            12345,
+            plain,
+            plain,
+            disable_notification=False,
+        )
+    assert send.await_count == 3
+    assert all(len(call.args[2]) <= 4000 for call in send.await_args_list)
+
+
 def test_prediction_fallback_excludes_unavailable_api_categories():
     """Нет данных по SC/первому сходу/лучшему кругу — категории остаются недоступными."""
     from app.services.prediction_service import build_actual_answers

@@ -19,7 +19,8 @@ from app.middlewares.error_logging import ErrorLoggingMiddleware
 from app.utils.backup import create_backup
 from app.utils.notifications import (
     check_and_send_notifications,
-    check_and_send_session_results,
+    check_and_send_results,
+    check_and_notify_quali,
     check_and_notify_voting_results,
 )
 from app.services.prediction_notifications import check_and_notify_predictions
@@ -130,14 +131,11 @@ async def main():
         replace_existing=True,
     )
     scheduler.add_job(
-        check_and_send_session_results,
+        check_and_send_results,
         "interval",
         minutes=5,
         args=[bot],
-        id="session_results_job",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
+        id="results_job"
     )
     scheduler.add_job(
         check_and_notify_voting_results,
@@ -155,13 +153,6 @@ async def main():
         replace_existing=True,
         max_instances=1,
         coalesce=True,
-    )
-    scheduler.add_job(
-        check_and_notify_quali,
-        "interval",
-        minutes=15,
-        args=[bot],
-        id="quali_results_job"
     )
     scheduler.start()
 

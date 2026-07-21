@@ -61,6 +61,48 @@ def _broadcast_html_payload(message: Message) -> str:
     ).strip()
 
 
+def _broadcast_plain_payload(message: Message) -> str:
+    """Тот же payload без HTML — нужен для проверки лимитов Telegram."""
+    plain = (message.caption if message.caption is not None else message.text) or ""
+    return re.sub(
+        r"^/broadcast(?:@[A-Za-z0-9_]+)?(?:\s+|$)",
+        "",
+        plain.strip(),
+        count=1,
+        flags=re.IGNORECASE,
+    ).strip()
+
+
+async def _send_broadcast_text(
+    bot,
+    chat_id: int,
+    html_text: str,
+    plain_text: str,
+    *,
+    disable_notification: bool,
+) -> bool:
+    """Отправляет текст целиком; сверх лимита Telegram делит plain-text на части."""
+    if len(plain_text) <= 4096:
+        return await safe_send_message(
+            bot,
+            chat_id,
+            html_text,
+            parse_mode="HTML",
+            disable_notification=disable_notification,
+        )
+
+    chunks = [plain_text[start:start + 4000] for start in range(0, len(plain_text), 4000)]
+    for chunk in chunks:
+        if not await safe_send_message(
+            bot,
+            chat_id,
+            chunk,
+            disable_notification=disable_notification,
+        ):
+            return False
+    return True
+
+
 def _remember_album_message(message: Message) -> None:
     media_group_id = message.media_group_id
     if not media_group_id or not message.photo:
@@ -624,6 +666,7 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
 
     # Текст/подпись: из аргумента команды, из caption (если есть фото) или из ответа на сообщение с фото
     text_to_send = _broadcast_html_payload(message) or (command.args or "").strip()
+    plain_text_to_send = _broadcast_plain_payload(message) or (command.args or "").strip()
 
     # Telegram присылает альбом отдельными апдейтами с общим media_group_id.
     photo_file_ids: list[str] = []
@@ -641,11 +684,13 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
         if not text_to_send:
             caption_message = next((item for item in album_messages if item.caption), None)
             text_to_send = _broadcast_html_payload(caption_message) if caption_message else ""
+            plain_text_to_send = _broadcast_plain_payload(caption_message) if caption_message else ""
     elif message.photo:
         photo_file_ids = [message.photo[-1].file_id]
     elif message.reply_to_message and message.reply_to_message.photo:
         photo_file_ids = [message.reply_to_message.photo[-1].file_id]
         text_to_send = text_to_send or (message.reply_to_message.html_text or "").strip()
+        plain_text_to_send = plain_text_to_send or (message.reply_to_message.caption or "").strip()
 
     if not photo_file_ids and not text_to_send:
         await message.answer(
@@ -676,12 +721,14 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
             tz = user[1] or "Europe/Moscow"
             quiet = is_quiet_hours(tz)
             try:
+                caption_fits_media = bool(text_to_send) and len(plain_text_to_send) <= 1024
+                send_text_separately = bool(photo_file_ids and text_to_send and not caption_fits_media)
                 if len(photo_file_ids) > 1:
                     media = [
                         InputMediaPhoto(
                             media=file_id,
-                            caption=text_to_send if index == 0 and text_to_send else None,
-                            parse_mode="HTML" if index == 0 and text_to_send else None,
+                            caption=text_to_send if index == 0 and caption_fits_media else None,
+                            parse_mode="HTML" if index == 0 and caption_fits_media else None,
                         )
                         for index, file_id in enumerate(photo_file_ids[:10])
                     ]
@@ -696,16 +743,24 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
                         message.bot,
                         tg_id,
                         photo_file_ids[0],
-                        caption=text_to_send or None,
-                        parse_mode="HTML",
+                        caption=text_to_send if caption_fits_media else None,
+                        parse_mode="HTML" if caption_fits_media else None,
                         disable_notification=quiet,
                     )
                 else:
-                    ok = await safe_send_message(
+                    ok = await _send_broadcast_text(
                         message.bot,
                         tg_id,
                         text_to_send,
-                        parse_mode="HTML",
+                        plain_text_to_send,
+                        disable_notification=quiet,
+                    )
+                if ok and send_text_separately:
+                    ok = await _send_broadcast_text(
+                        message.bot,
+                        tg_id,
+                        text_to_send,
+                        plain_text_to_send,
                         disable_notification=quiet,
                     )
                 if ok:
