@@ -57,6 +57,17 @@ from app.f1_data import (
     get_season_schedule_short,
 )
 from app.handlers.races import build_next_race_payload
+from app.services.admin_feedback_service import send_admin_feedback
+from app.services.prediction_service import (
+    PREDICTION_FIELDS,
+    get_prediction_context,
+    get_prediction_drivers,
+    get_prediction_leaderboard,
+    get_prediction_profile,
+    get_user_prediction,
+    save_prediction_profile,
+    save_user_prediction,
+)
 from app.utils.default import DRIVER_CODE_TO_FILE
 from app.utils.image_render import _get_team_logo, get_car_image_path
 
@@ -164,6 +175,28 @@ class SettingsRequest(BaseModel):
     notifications_enabled: bool = False
 
 
+class PredictionProfileRequest(BaseModel):
+    display_name: str
+
+
+class PredictionRequest(BaseModel):
+    pole_driver: str
+    winner_driver: str
+    second_driver: str
+    third_driver: str
+    fourth_driver: str
+    fifth_driver: str
+    fastest_lap_driver: str
+    first_retirement_driver: str
+    safety_car: bool
+
+
+class AdminFeedbackRequest(BaseModel):
+    sender_name: str
+    sender_contact: str
+    message: str
+
+
 # --- ЭНДПОИНТЫ ---
 
 @web_app.get("/api/settings")
@@ -186,6 +219,96 @@ async def api_save_settings(
     # ДОБАВИТЬ СОХРАНЕНИЕ НОВОГО ПОЛЯ В БД:
     await update_user_setting(user_id, "notifications_enabled", int(settings.notifications_enabled))
     return {"status": "ok"}
+
+
+def _serialize_prediction(row: dict | None) -> dict | None:
+    if not row:
+        return None
+    return {
+        field: bool(row[field]) if field == "safety_car" else row[field]
+        for field in PREDICTION_FIELDS
+    } | {
+        "points": row.get("points"),
+        "max_points": row.get("max_points"),
+        "updated_at": row.get("updated_at"),
+    }
+
+
+@web_app.get("/api/predictions/current")
+async def api_prediction_current(user_id: int = Depends(get_current_user_id)):
+    context = await get_prediction_context()
+    profile = await get_prediction_profile(user_id)
+    drivers = await get_prediction_drivers(int(context.get("season") or datetime.now(timezone.utc).year))
+    prediction = None
+    if context.get("round") is not None:
+        prediction = await get_user_prediction(user_id, context["season"], context["round"])
+    return {
+        **context,
+        "profile": profile,
+        "drivers": drivers,
+        "prediction": _serialize_prediction(prediction),
+    }
+
+
+@web_app.post("/api/predictions/profile")
+async def api_prediction_profile(
+    data: PredictionProfileRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    try:
+        return await save_prediction_profile(user_id, data.display_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@web_app.post("/api/predictions/current")
+async def api_prediction_save(
+    data: PredictionRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    # Дедлайн повторно вычисляется на сервере в момент записи, поэтому обход блокировки UI невозможен.
+    context = await get_prediction_context()
+    if context.get("status") != "ok":
+        raise HTTPException(status_code=503, detail="Расписание этапа временно недоступно")
+    if not context.get("is_open"):
+        raise HTTPException(status_code=409, detail="Приём прогнозов закрыт: квалификация уже началась")
+    drivers = await get_prediction_drivers(context["season"])
+    allowed_codes = {item["code"] for item in drivers}
+    try:
+        prediction = await save_user_prediction(
+            user_id,
+            context["season"],
+            context["round"],
+            data.model_dump(),
+            allowed_driver_codes=allowed_codes or None,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"status": "ok", "prediction": _serialize_prediction(prediction)}
+
+
+@web_app.get("/api/predictions/leaderboard")
+async def api_prediction_leaderboard(_: int = Depends(get_current_user_id)):
+    return {"entries": await get_prediction_leaderboard()}
+
+
+@web_app.post("/api/contact-admin")
+async def api_contact_admin(
+    data: AdminFeedbackRequest,
+    user_id: Optional[int] = Depends(get_optional_user_id),
+):
+    try:
+        feedback_id = await send_admin_feedback(
+            sender_name=data.sender_name,
+            sender_contact=data.sender_contact,
+            message=data.message,
+            telegram_id=user_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    return {"status": "sent", "id": feedback_id}
 
 
 @web_app.get("/api/next-race", response_model=NextRaceResponse)

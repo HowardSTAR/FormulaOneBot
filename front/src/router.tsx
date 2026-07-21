@@ -22,6 +22,8 @@ import AccountPage from "./pages/account/AccountPage";
 import ResetPasswordPage from "./pages/reset-password/ResetPasswordPage";
 import ReactionGamePage from "./pages/reaction-game/ReactionGamePage";
 import ReflexGridGamePage from "./pages/reflex-grid-game/ReflexGridGamePage";
+import PredictionsPage from "./pages/predictions/PredictionsPage";
+import ContactAdminPage from "./pages/contact-admin/ContactAdminPage";
 
 export const router = createBrowserRouter([
   {
@@ -42,6 +44,8 @@ export const router = createBrowserRouter([
       { path: "/race-results", element: <RaceResultsPage /> },
       { path: "/reaction-game", element: <ReactionGamePage /> },
       { path: "/reflex-grid-game", element: <ReflexGridGamePage /> },
+      { path: "/predictions", element: <RequirePersonalAccount><PredictionsPage /></RequirePersonalAccount> },
+      { path: "/contact-admin", element: <ContactAdminPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },
       { path: "/settings", element: <RequirePersonalAccount><SettingsPage /></RequirePersonalAccount> },
       { path: "/season", element: <SeasonPage /> },

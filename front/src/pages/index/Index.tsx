@@ -85,6 +85,8 @@ type IndexIconName =
   | "teams"
   | "compare"
   | "vote"
+  | "predictions"
+  | "contact"
   | "calendar"
   | "reaction"
   | "grid"
@@ -101,6 +103,8 @@ function IndexIcon({ name }: { name: IndexIconName }) {
     teams: <><path d="M3 15h18l-2-6H8L5 12H3zM5 15v3M19 15v3" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></>,
     compare: <><path d="M7 4 3 8l4 4M3 8h15M17 20l4-4-4-4M21 16H6" /></>,
     vote: <><path d="M8 3h8v5H8zM5 9h14l2 4v8H3v-8z" /><path d="m9 14 2 2 4-5" /></>,
+    predictions: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /><path d="m4 7 6-4 6 7 5-5" /></>,
+    contact: <><path d="M4 4h16v13H8l-4 4z" /><path d="M8 9h8M8 13h5" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18M8 14h2M14 14h2M8 18h2" /></>,
     reaction: <><rect x="7" y="2" width="10" height="20" rx="5" /><circle cx="12" cy="7" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="17" r="2" /></>,
     grid: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
@@ -497,6 +501,11 @@ function IndexPage() {
               <span className="menu-label index-card-title">Голосование</span>
               <span className="index-card-desc">Оценки и итоги этапов</span>
             </Link>
+            <Link to="/predictions" className="menu-item index-nav-card">
+              <IndexIcon name="predictions" />
+              <span className="menu-label index-card-title">Прогнозы</span>
+              <span className="index-card-desc">Состав этапа и общий зачёт</span>
+            </Link>
           </div>
           <Link to="/season" className="menu-item full-width index-wide-link index-calendar-main-link">
             <div className="index-wide-link-left">
@@ -566,6 +575,17 @@ function IndexPage() {
                 <div className="index-wide-link-text">
                   <span className="menu-label index-card-title">Аккаунт</span>
                   <span className="index-card-desc">Профиль и безопасность входа</span>
+                </div>
+              </div>
+              <IndexArrow />
+            </Link>
+
+            <Link to="/contact-admin" className="menu-item full-width index-wide-link">
+              <div className="index-wide-link-left">
+                <IndexIcon name="contact" />
+                <div className="index-wide-link-text">
+                  <span className="menu-label index-card-title">Связаться с админом</span>
+                  <span className="index-card-desc">Отправить сообщение в Telegram</span>
                 </div>
               </div>
               <IndexArrow />

@@ -225,6 +225,10 @@
   text-align: center;
 }
 
+.reaction-desktop-stage {
+  display: none;
+}
+
 .reaction-slide {
   margin-top: 18px;
 }
@@ -641,6 +645,298 @@
   .game-page {
     width: min(100%, 760px);
     padding-top: 10px;
+  }
+
+  .reaction-game-page.game-page {
+    width: min(100%, 1240px);
+  }
+
+  .reaction-game-page .reaction-segmented {
+    width: min(100%, 520px);
+    margin-right: auto;
+    margin-left: auto;
+  }
+
+  .reaction-mobile-scene {
+    display: none;
+  }
+
+  .reaction-desktop-stage {
+    isolation: isolate;
+    position: relative;
+    display: grid;
+    min-height: 600px;
+    padding: 26px 42px 20px;
+    overflow: hidden;
+    grid-template-rows: auto minmax(280px, 1fr) auto auto;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 28px;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(162, 170, 182, 0.11), transparent 31%),
+      linear-gradient(180deg, rgba(25, 28, 34, 0.98), rgba(10, 12, 16, 0.99));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      inset 0 -70px 100px rgba(0, 0, 0, 0.35),
+      0 30px 70px rgba(0, 0, 0, 0.32);
+  }
+
+  .reaction-desktop-stage::before,
+  .reaction-desktop-stage::after {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .reaction-desktop-stage::before {
+    inset: 0;
+    opacity: 0.2;
+    background-image:
+      repeating-linear-gradient(90deg, transparent 0 88px, rgba(255, 255, 255, 0.1) 88px 90px),
+      repeating-linear-gradient(0deg, transparent 0 88px, rgba(255, 255, 255, 0.08) 88px 90px);
+    transform: perspective(520px) rotateX(61deg) scale(1.55) translateY(21%);
+    transform-origin: center bottom;
+  }
+
+  .reaction-desktop-stage::after {
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 4px;
+    opacity: 0.42;
+    background: repeating-linear-gradient(0deg, #e5e7eb 0 30px, transparent 30px 58px);
+    transform: translateX(-50%);
+  }
+
+  .reaction-desktop-grid {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    background:
+      linear-gradient(90deg, rgba(225, 6, 0, 0.82), rgba(225, 6, 0, 0)) top left / 42% 4px no-repeat,
+      linear-gradient(270deg, rgba(225, 6, 0, 0.82), rgba(225, 6, 0, 0)) top right / 42% 4px no-repeat;
+    pointer-events: none;
+  }
+
+  .reaction-desktop-stage > :not(.reaction-desktop-grid) {
+    position: relative;
+    z-index: 2;
+  }
+
+  .reaction-desktop-status {
+    position: absolute !important;
+    top: 24px;
+    right: 34px;
+    padding: 9px 15px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.72);
+    background: rgba(8, 10, 14, 0.76);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+  }
+
+  .reaction-desktop-lights {
+    display: flex;
+    width: max-content;
+    margin: 0 auto 10px;
+    padding: 10px 13px;
+    gap: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 15px;
+    background: linear-gradient(180deg, #22262c, #080a0d);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.11),
+      0 14px 28px rgba(0, 0, 0, 0.44);
+  }
+
+  .reaction-desktop-light {
+    display: grid;
+    width: 54px;
+    height: 54px;
+    place-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: linear-gradient(145deg, #1d2127, #090b0f);
+  }
+
+  .reaction-desktop-light span {
+    display: block;
+    width: 34px;
+    aspect-ratio: 1;
+    border: 2px solid rgba(126, 136, 150, 0.34);
+    border-radius: 50%;
+    background: radial-gradient(circle at 37% 31%, #39414b, #11151a 38%, #020304 76%);
+    box-shadow: inset 0 0 13px #000, 0 2px 7px rgba(0, 0, 0, 0.7);
+    transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+  }
+
+  .reaction-desktop-light.is-lit span {
+    border-color: #ff9994;
+    background: radial-gradient(circle at 38% 31%, #fff4f1 0%, #ff554d 14%, #ef150d 40%, #a90000 70%, #510000 100%);
+    box-shadow:
+      inset 0 0 10px rgba(255, 235, 232, 0.5),
+      0 0 17px rgba(255, 31, 22, 0.95),
+      0 0 38px rgba(225, 6, 0, 0.72);
+    transform: scale(1.04);
+  }
+
+  .reaction-desktop-car-zone {
+    display: grid;
+    min-height: 285px;
+    grid-template-columns: minmax(120px, 1fr) minmax(235px, 310px) minmax(120px, 1fr);
+    align-items: center;
+    gap: clamp(28px, 6vw, 90px);
+  }
+
+  .reaction-desktop-car {
+    display: block;
+    width: 100%;
+    height: 305px;
+    margin: 0 auto;
+    overflow: visible;
+    filter: drop-shadow(0 20px 22px rgba(0, 0, 0, 0.55));
+  }
+
+  .reaction-car-wheels rect {
+    fill: #060708;
+    stroke: #626873;
+    stroke-width: 3;
+  }
+
+  .reaction-car-wheels path {
+    fill: none;
+    stroke: rgba(211, 214, 219, 0.32);
+    stroke-width: 4;
+  }
+
+  .reaction-grid-slot {
+    height: 184px;
+    border: 4px solid rgba(240, 242, 245, 0.68);
+    border-right-width: 0;
+    border-left-width: 0;
+    opacity: 0.44;
+  }
+
+  .reaction-grid-slot-left {
+    border-left-width: 4px;
+  }
+
+  .reaction-grid-slot-right {
+    border-right-width: 4px;
+  }
+
+  .reaction-desktop-result {
+    display: flex;
+    min-height: 56px;
+    margin: -4px auto 12px;
+    padding: 10px 22px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 16px;
+    color: #fff;
+    background: rgba(8, 10, 14, 0.78);
+    backdrop-filter: blur(10px);
+  }
+
+  .reaction-desktop-result strong {
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: clamp(17px, 1.55vw, 23px);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .reaction-desktop-result span {
+    margin-top: 4px;
+    color: #ffd86b;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .reaction-desktop-result.is-error {
+    border-color: rgba(255, 67, 59, 0.72);
+    color: #ff7771;
+    background: rgba(73, 10, 10, 0.68);
+  }
+
+  .reaction-desktop-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .reaction-desktop-start {
+    min-width: 340px;
+    min-height: 60px;
+    padding: 0 34px;
+    border: 1px solid rgba(255, 170, 165, 0.68);
+    border-radius: 15px;
+    color: #fff;
+    cursor: pointer;
+    background: linear-gradient(180deg, #ff2d25, #e10600 58%, #ae0000);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.35),
+      inset 0 -12px 20px rgba(88, 0, 0, 0.32),
+      0 12px 30px rgba(225, 6, 0, 0.3);
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  .reaction-desktop-start:hover {
+    filter: brightness(1.12);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+      inset 0 -12px 20px rgba(88, 0, 0, 0.26),
+      0 16px 38px rgba(225, 6, 0, 0.42);
+  }
+
+  .reaction-desktop-start:active {
+    transform: translateY(2px) scale(0.99);
+  }
+
+  .reaction-desktop-hint {
+    margin-top: 11px;
+    padding: 8px 13px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    color: rgba(255, 255, 255, 0.58);
+    background: rgba(9, 11, 15, 0.7);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .reaction-desktop-hint kbd {
+    margin-left: 3px;
+    padding: 2px 7px;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    color: rgba(255, 255, 255, 0.86);
+    background: #292d34;
+    font: inherit;
+  }
+
+  .reaction-desktop-stage.is-running .reaction-desktop-result {
+    border-color: rgba(76, 255, 134, 0.46);
+    box-shadow: 0 0 32px rgba(39, 204, 101, 0.13);
+  }
+
+  .reaction-desktop-stage.is-running .reaction-desktop-status {
+    color: #75ff9f;
+    border-color: rgba(68, 255, 126, 0.36);
+  }
+
+  .reaction-game-page > .reaction-slide,
+  .reaction-game-page .reaction-leaderboard-card {
+    width: min(100%, 920px);
+    margin-right: auto;
+    margin-left: auto;
   }
 
   .reaction-board {

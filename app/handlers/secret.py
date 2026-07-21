@@ -1,12 +1,13 @@
 import asyncio
 import logging
+import re
 import pandas as pd
 from datetime import datetime, timezone
 from io import BytesIO
 
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
-from aiogram.types import Message
+from aiogram.types import InputMediaPhoto, Message
 from aiogram.types import BufferedInputFile
 
 from app.config import get_settings
@@ -39,10 +40,34 @@ from app.utils.notifications import (
     build_favorites_caption,
     is_quiet_hours,
 )
-from app.utils.safe_send import safe_send_message, safe_send_photo
+from app.utils.safe_send import safe_send_media_group, safe_send_message, safe_send_photo
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+_broadcast_album_buffers: dict[str, list[Message]] = {}
+_broadcast_album_commands: set[str] = set()
+
+
+def _broadcast_html_payload(message: Message) -> str:
+    """Возвращает текст без команды, сохраняя Telegram entities как HTML."""
+    formatted = (message.html_text or "").strip()
+    return re.sub(
+        r"^/broadcast(?:@[A-Za-z0-9_]+)?(?:\s+|$)",
+        "",
+        formatted,
+        count=1,
+        flags=re.IGNORECASE,
+    ).strip()
+
+
+def _remember_album_message(message: Message) -> None:
+    media_group_id = message.media_group_id
+    if not media_group_id or not message.photo:
+        return
+    bucket = _broadcast_album_buffers.setdefault(media_group_id, [])
+    if all(item.message_id != message.message_id for item in bucket):
+        bucket.append(message)
 
 ADMINS = [2099386]
 
@@ -591,31 +616,43 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
     """
     Рассылка всем пользователям в обход тумблера уведомлений.
     С 21:00 до 10:00 по времени каждого пользователя — в тихом режиме (без звука).
-    Поддержка: только текст или фото (из сообщения/ответа) с подписью.
+    Поддержка: текст, одиночное фото и Telegram-альбом с общей подписью.
     """
     settings = get_settings()
     if message.from_user.id not in settings.admin_ids:
         return
 
     # Текст/подпись: из аргумента команды, из caption (если есть фото) или из ответа на сообщение с фото
-    text_from_caption = (message.caption or "").replace("/broadcast", "").strip()
-    text_to_send = (command.args or "").strip() or text_from_caption
+    text_to_send = _broadcast_html_payload(message) or (command.args or "").strip()
 
-    # Определяем, есть ли фото: в самом сообщении или в ответе
-    photo_file_id = None
-    if message.photo:
-        photo_file_id = message.photo[-1].file_id
+    # Telegram присылает альбом отдельными апдейтами с общим media_group_id.
+    photo_file_ids: list[str] = []
+    if message.media_group_id and message.photo:
+        media_group_id = message.media_group_id
+        _broadcast_album_commands.add(media_group_id)
+        _remember_album_message(message)
+        await asyncio.sleep(1.0)
+        album_messages = sorted(
+            _broadcast_album_buffers.pop(media_group_id, []),
+            key=lambda item: item.message_id,
+        )
+        _broadcast_album_commands.discard(media_group_id)
+        photo_file_ids = [item.photo[-1].file_id for item in album_messages if item.photo]
         if not text_to_send:
-            text_to_send = text_from_caption
+            caption_message = next((item for item in album_messages if item.caption), None)
+            text_to_send = _broadcast_html_payload(caption_message) if caption_message else ""
+    elif message.photo:
+        photo_file_ids = [message.photo[-1].file_id]
     elif message.reply_to_message and message.reply_to_message.photo:
-        photo_file_id = message.reply_to_message.photo[-1].file_id
-        text_to_send = text_to_send or (message.reply_to_message.caption or "").strip() or (command.args or "").strip()
+        photo_file_ids = [message.reply_to_message.photo[-1].file_id]
+        text_to_send = text_to_send or (message.reply_to_message.html_text or "").strip()
 
-    if not photo_file_id and not text_to_send:
+    if not photo_file_ids and not text_to_send:
         await message.answer(
             "⚠️ Использование:\n"
             "• <code>/broadcast Ваш текст</code> — рассылка текста всем.\n"
-            "• Отправьте фото с подписью или ответьте фото на <code>/broadcast текст</code> — рассылка фото с подписью.\n\n"
+            "• Прикрепите одно или несколько фото к <code>/broadcast текст</code> — фото или альбом с подписью.\n"
+            "• Можно ответить командой на одиночное фото.\n\n"
             "Сообщение уходит <b>всем</b> пользователям (игнорируя отключение уведомлений). "
             "С 21:00 до 10:00 по времени получателя — в тихом режиме (без звука).",
             parse_mode="HTML"
@@ -632,36 +669,68 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
     await message.answer(f"🏁 Рассылка для {len(users)} пользователей (в обход настроек уведомлений)...")
 
     success_count = 0
-    for user in users:
-        tg_id = user[0]
-        tz = user[1] or "Europe/Moscow"
-        quiet = is_quiet_hours(tz)
-        try:
-            if photo_file_id:
-                ok = await safe_send_photo(
-                    message.bot,
-                    tg_id,
-                    photo_file_id,
-                    caption=text_to_send or None,
-                    parse_mode="HTML",
-                    disable_notification=quiet,
-                )
-            else:
-                ok = await safe_send_message(
-                    message.bot,
-                    tg_id,
-                    text_to_send,
-                    parse_mode="HTML",
-                    disable_notification=quiet,
-                )
-            if ok:
-                success_count += 1
-        except Exception:
-            pass
-        await asyncio.sleep(0.05)
+    batch_size = 20
+    for batch_start in range(0, len(users), batch_size):
+        for user in users[batch_start:batch_start + batch_size]:
+            tg_id = user[0]
+            tz = user[1] or "Europe/Moscow"
+            quiet = is_quiet_hours(tz)
+            try:
+                if len(photo_file_ids) > 1:
+                    media = [
+                        InputMediaPhoto(
+                            media=file_id,
+                            caption=text_to_send if index == 0 and text_to_send else None,
+                            parse_mode="HTML" if index == 0 and text_to_send else None,
+                        )
+                        for index, file_id in enumerate(photo_file_ids[:10])
+                    ]
+                    ok = await safe_send_media_group(
+                        message.bot,
+                        tg_id,
+                        media,
+                        disable_notification=quiet,
+                    )
+                elif photo_file_ids:
+                    ok = await safe_send_photo(
+                        message.bot,
+                        tg_id,
+                        photo_file_ids[0],
+                        caption=text_to_send or None,
+                        parse_mode="HTML",
+                        disable_notification=quiet,
+                    )
+                else:
+                    ok = await safe_send_message(
+                        message.bot,
+                        tg_id,
+                        text_to_send,
+                        parse_mode="HTML",
+                        disable_notification=quiet,
+                    )
+                if ok:
+                    success_count += 1
+            except Exception:
+                logger.exception("Broadcast delivery failed for %s", tg_id)
+            await asyncio.sleep(0.06)
+        if batch_start + batch_size < len(users):
+            await asyncio.sleep(1.0)
 
     await message.answer(
         f"✅ <b>Рассылка завершена</b>\n"
         f"Доставлено: {success_count} из {len(users)}",
         parse_mode="HTML"
     )
+
+
+@router.message(F.media_group_id)
+async def collect_admin_broadcast_album(message: Message):
+    """Собирает остальные фото альбома, пока командный апдейт ожидает Media Group."""
+    settings = get_settings()
+    if not message.from_user or message.from_user.id not in settings.admin_ids or not message.photo:
+        return
+    _remember_album_message(message)
+    media_group_id = message.media_group_id
+    await asyncio.sleep(2.0)
+    if media_group_id and media_group_id not in _broadcast_album_commands:
+        _broadcast_album_buffers.pop(media_group_id, None)

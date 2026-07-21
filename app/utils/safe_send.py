@@ -1,10 +1,10 @@
 import asyncio
 import logging
-from io import BytesIO
+from typing import Sequence
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramNetworkError, TelegramForbiddenError, TelegramRetryAfter, TelegramBadRequest
-from aiogram.types import Message, CallbackQuery, BufferedInputFile
+from aiogram.types import Message, CallbackQuery, InputMediaPhoto
 
 
 logger = logging.getLogger(__name__)
@@ -75,6 +75,45 @@ async def safe_send_photo(bot: Bot, chat_id: int, photo, caption: str = "", **kw
     except Exception as e:
         logger.exception(f"Unexpected error sending photo to {chat_id}: {e}")
         return False
+
+
+async def safe_send_media_group(
+    bot: Bot,
+    chat_id: int,
+    media: Sequence[InputMediaPhoto],
+    retries: int = 3,
+    **kwargs,
+) -> bool:
+    """Отправляет Telegram-альбом с ограниченными повторами при FloodWait/сетевой ошибке."""
+    if not 2 <= len(media) <= 10:
+        logger.error("Media group for %s must contain 2..10 items, got %s", chat_id, len(media))
+        return False
+
+    for attempt in range(1, retries + 1):
+        try:
+            await bot.send_media_group(chat_id=chat_id, media=list(media), **kwargs)
+            return True
+        except TelegramForbiddenError:
+            logger.warning("User %s blocked the bot.", chat_id)
+            return False
+        except TelegramRetryAfter as exc:
+            if attempt == retries:
+                logger.error("FloodWait retries exhausted for media group to %s", chat_id)
+                return False
+            await asyncio.sleep(float(exc.retry_after) + 0.25)
+        except TelegramNetworkError as exc:
+            if attempt == retries:
+                logger.error("Network retries exhausted for media group to %s: %s", chat_id, exc)
+                return False
+            await asyncio.sleep(float(attempt))
+        except TelegramBadRequest as exc:
+            logger.error("Bad media group request for %s: %s", chat_id, exc)
+            return False
+        except Exception as exc:
+            logger.exception("Unexpected media group error for %s: %s", chat_id, exc)
+            return False
+
+    return False
 
 
 async def safe_send_message(bot: Bot, chat_id: int, text: str, **kwargs) -> bool:

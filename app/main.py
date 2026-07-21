@@ -22,6 +22,7 @@ from app.utils.notifications import (
     check_and_send_session_results,
     check_and_notify_voting_results,
 )
+from app.services.prediction_notifications import check_and_notify_predictions
 
 
 # --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
@@ -144,6 +145,23 @@ async def main():
         minute=0,
         args=[bot],
         id="voting_results_job",
+    )
+    scheduler.add_job(
+        check_and_notify_predictions,
+        "interval",
+        minutes=5,
+        args=[bot],
+        id="prediction_notifications_job",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        check_and_notify_quali,
+        "interval",
+        minutes=15,
+        args=[bot],
+        id="quali_results_job"
     )
     scheduler.start()
 

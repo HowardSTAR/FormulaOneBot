@@ -2,10 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackButton } from "../../components/BackButton";
 import { hapticImpact, hapticSelection } from "../../helpers/telegram";
 import { apiRequest } from "../../helpers/api";
-import { usePageScrollLock } from "../../hooks/usePageScrollLock";
+import { ReactionDesktopScene, type ReactionDesktopStatus } from "./ReactionDesktopScene";
 import "../games.css";
 
-type GameStatus = "idle" | "starting" | "armed" | "running" | "finished" | "false-start";
+type GameStatus = ReactionDesktopStatus;
 type ReactionTab = "game" | "leaderboard";
 
 type LeaderboardProfile = {
@@ -27,12 +27,13 @@ type LeaderboardResponse = {
   me: LeaderboardEntry | null;
 };
 
-const LIGHT_COUNT = 4;
+const MOBILE_LIGHT_COUNT = 4;
+const DESKTOP_LIGHT_COUNT = 5;
 const LAMPS_PER_LIGHT = 4;
 const ACTIVE_LAMP_START_INDEX = 2;
-const LIGHT_STEP_MS = 850;
-const RANDOM_DELAY_MIN_MS = 800;
-const RANDOM_DELAY_MAX_MS = 4500;
+const LIGHT_STEP_MS = 1000;
+const RANDOM_DELAY_MIN_MS = 1000;
+const RANDOM_DELAY_MAX_MS = 4000;
 
 function getRandomStartDelayMs(): number {
   const range = RANDOM_DELAY_MAX_MS - RANDOM_DELAY_MIN_MS + 1;
@@ -53,6 +54,11 @@ function ReactionGamePage() {
   const [status, setStatus] = useState<GameStatus>("idle");
   const [activeTab, setActiveTab] = useState<ReactionTab>("game");
   const [activeLights, setActiveLights] = useState(0);
+  const [sequenceLightCount, setSequenceLightCount] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches
+      ? DESKTOP_LIGHT_COUNT
+      : MOBILE_LIGHT_COUNT
+  );
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [resultTimeMs, setResultTimeMs] = useState<number | null>(null);
   const [bestTimeMs, setBestTimeMs] = useState<number | null>(null);
@@ -79,7 +85,17 @@ function ReactionGamePage() {
   const timeoutIdsRef = useRef<number[]>([]);
   const scrollLocked = status === "starting" || status === "armed" || status === "running";
 
-  usePageScrollLock(scrollLocked);
+  useEffect(() => {
+    if (!scrollLocked) return;
+    const bodyOverflow = document.body.style.overflow;
+    const htmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = bodyOverflow;
+      document.documentElement.style.overflow = htmlOverflow;
+    };
+  }, [scrollLocked]);
 
   const clearAllTimers = useCallback(() => {
     timeoutIdsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
@@ -206,20 +222,24 @@ function ReactionGamePage() {
   }, []);
 
   const scheduleLightSequence = useCallback(() => {
+    const lightCount = window.matchMedia("(min-width: 900px)").matches
+      ? DESKTOP_LIGHT_COUNT
+      : MOBILE_LIGHT_COUNT;
     setStatus("starting");
     setActiveLights(0);
+    setSequenceLightCount(lightCount);
     setCurrentTimeMs(0);
     setResultTimeMs(null);
     timerStartRef.current = null;
 
-    for (let index = 1; index <= LIGHT_COUNT; index += 1) {
+    for (let index = 1; index <= lightCount; index += 1) {
       const timeoutId = window.setTimeout(() => {
         setActiveLights(index);
       }, index * LIGHT_STEP_MS);
       timeoutIdsRef.current.push(timeoutId);
     }
 
-    const totalStartMs = LIGHT_COUNT * LIGHT_STEP_MS;
+    const totalStartMs = lightCount * LIGHT_STEP_MS;
     // После включения всех огней старт назначается заново для каждой попытки.
     // Криптографический источник не повторяет предсказуемую последовательность
     const randomDelayMs = getRandomStartDelayMs();
@@ -266,7 +286,7 @@ function ReactionGamePage() {
     timerStartRef.current = null;
   }, [clearAllTimers]);
 
-  const handleMainAction = () => {
+  const handleMainAction = useCallback(() => {
     if (status === "running") {
       hapticImpact("medium");
       stopGameTimer();
@@ -281,7 +301,21 @@ function ReactionGamePage() {
 
     hapticImpact("light");
     startGame();
-  };
+  }, [falseStart, startGame, status, stopGameTimer]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      event.preventDefault();
+      if (event.repeat || activeTab !== "game" || showOnboarding) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.isContentEditable || target?.matches("input, textarea, select")) return;
+      handleMainAction();
+    };
+
+    window.addEventListener("keydown", onKeyDown, { passive: false });
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [activeTab, handleMainAction, showOnboarding]);
 
   const helperText =
     status === "running"
@@ -299,7 +333,9 @@ function ReactionGamePage() {
         ? "ЖДИ"
         : status === "idle"
           ? "СТАРТ"
-          : "ЕЩЕ РАЗ";
+          : status === "false-start"
+            ? "ПОПРОБОВАТЬ СНОВА"
+            : "СЫГРАТЬ ЕЩЕ РАЗ";
 
   const myPlaceText = useMemo(() => {
     if (!leaderboard.me) return "Пока нет результата в таблице";
@@ -354,7 +390,7 @@ function ReactionGamePage() {
 
       <BackButton>← <span>На главную</span></BackButton>
       <h2 style={{ marginTop: 10, marginBottom: 10 }}>Тест реакции</h2>
-      <p className="reaction-subtitle">4 светофора запускаются слева направо, отпускают в случайный момент.</p>
+      <p className="reaction-subtitle">Стартовые огни загораются по очереди и гаснут в случайный момент.</p>
       <div className="segmented-tabs reaction-segmented">
         <div
           className="segmented-slider"
@@ -385,8 +421,9 @@ function ReactionGamePage() {
 
       {activeTab === "game" && (
         <>
+          <div className="reaction-mobile-scene">
           <div className="reaction-board" aria-label="Стартовые огни Formula 1">
-            {Array.from({ length: LIGHT_COUNT }).map((_, lightIndex) => {
+            {Array.from({ length: MOBILE_LIGHT_COUNT }).map((_, lightIndex) => {
               const isActive = lightIndex < activeLights;
               return (
                 <div key={lightIndex} className={`reaction-light ${isActive ? "active" : ""}`}>
@@ -418,6 +455,17 @@ function ReactionGamePage() {
             {buttonLabel}
           </button>
           <p className="reaction-helper">{helperText}</p>
+          </div>
+
+          <ReactionDesktopScene
+            status={status}
+            activeLights={activeLights}
+            totalLights={sequenceLightCount}
+            currentTimeMs={currentTimeMs}
+            resultTimeMs={resultTimeMs}
+            bestTimeMs={bestTimeMs}
+            onAction={handleMainAction}
+          />
 
           <section className="reaction-slide">
             <div className="reaction-settings-card">
