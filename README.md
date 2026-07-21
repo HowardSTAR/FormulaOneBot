@@ -79,6 +79,7 @@ FormulaOneBot/
 
 ```bash
 BOT_TOKEN=your_telegram_bot_token
+ADMIN_TELEGRAM_ID=123456789
 DATABASE_URL=sqlite+aiosqlite:///./bot.db
 WEB_APP_URL=https://your-domain.com
 
@@ -117,4 +118,3 @@ npm run dev
 ## 🔧 Настройка
 
 Данные о пилотах и командах на сезон 2026 уже интегрированы в проект. Вы можете обновить ассеты в папке `app/assets/2026/`, если составы команд изменятся.
-
