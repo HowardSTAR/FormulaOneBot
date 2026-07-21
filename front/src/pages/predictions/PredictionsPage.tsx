@@ -1,0 +1,274 @@
+import { useEffect, useMemo, useState } from "react";
+import { BackButton } from "../../components/BackButton";
+import { apiRequest } from "../../helpers/api";
+import "./predictions.css";
+
+type Driver = { code: string; name: string };
+type Prediction = {
+  pole_driver: string;
+  winner_driver: string;
+  second_driver: string;
+  third_driver: string;
+  fourth_driver: string;
+  fifth_driver: string;
+  fastest_lap_driver: string;
+  first_retirement_driver: string;
+  safety_car: boolean;
+  points?: number | null;
+  max_points?: number | null;
+};
+type CurrentResponse = {
+  status: string;
+  season: number;
+  round: number | null;
+  event_name?: string;
+  deadline_utc?: string | null;
+  is_open: boolean;
+  profile: { display_name: string; completed: boolean };
+  drivers: Driver[];
+  prediction: Prediction | null;
+};
+type HistoryItem = { season: number; round: number; event_name?: string; points: number; max_points: number };
+type LeaderboardEntry = {
+  place: number;
+  telegram_id: number;
+  display_name: string;
+  total_points: number;
+  rounds_scored: number;
+  history: HistoryItem[];
+};
+
+const EMPTY_PREDICTION: Prediction = {
+  pole_driver: "",
+  winner_driver: "",
+  second_driver: "",
+  third_driver: "",
+  fourth_driver: "",
+  fifth_driver: "",
+  fastest_lap_driver: "",
+  first_retirement_driver: "",
+  safety_car: false,
+};
+
+const DRIVER_FIELDS: Array<{ key: keyof Prediction; label: string; marker: string }> = [
+  { key: "pole_driver", label: "Поул-позиция", marker: "P" },
+  { key: "winner_driver", label: "Победитель", marker: "1" },
+  { key: "second_driver", label: "2 место", marker: "2" },
+  { key: "third_driver", label: "3 место", marker: "3" },
+  { key: "fourth_driver", label: "4 место", marker: "4" },
+  { key: "fifth_driver", label: "5 место", marker: "5" },
+  { key: "fastest_lap_driver", label: "Лучший круг", marker: "FL" },
+  { key: "first_retirement_driver", label: "Первый сход", marker: "DNF" },
+];
+
+function deadlineText(value?: string | null) {
+  if (!value) return "Время квалификации уточняется";
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+export default function PredictionsPage() {
+  const [tab, setTab] = useState<"form" | "leaderboard">("form");
+  const [current, setCurrent] = useState<CurrentResponse | null>(null);
+  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [form, setForm] = useState<Prediction>(EMPTY_PREDICTION);
+  const [displayName, setDisplayName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [currentData, leaderboardData] = await Promise.all([
+        apiRequest<CurrentResponse>("/api/predictions/current"),
+        apiRequest<{ entries: LeaderboardEntry[] }>("/api/predictions/leaderboard"),
+      ]);
+      setCurrent(currentData);
+      setDisplayName(currentData.profile.display_name || "");
+      setForm(currentData.prediction ? { ...EMPTY_PREDICTION, ...currentData.prediction } : EMPTY_PREDICTION);
+      setEntries(leaderboardData.entries || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось загрузить прогнозы");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const selectedTopFive = useMemo(
+    () => new Set([form.winner_driver, form.second_driver, form.third_driver, form.fourth_driver, form.fifth_driver].filter(Boolean)),
+    [form],
+  );
+
+  const saveName = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      const profile = await apiRequest<{ display_name: string; completed: boolean }>(
+        "/api/predictions/profile",
+        { display_name: displayName },
+        "POST",
+      );
+      setCurrent((value) => value ? { ...value, profile } : value);
+      setDisplayName(profile.display_name);
+      setNotice("Имя участника сохранено");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось сохранить имя");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const savePrediction = async () => {
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      await apiRequest("/api/predictions/current", form, "POST");
+      setNotice("Прогноз сохранён. Его можно изменить до начала квалификации.");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Не удалось сохранить прогноз");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const formComplete = DRIVER_FIELDS.every(({ key }) => Boolean(form[key]));
+
+  return (
+    <main className="predictions-page">
+      <BackButton>← <span>Назад</span></BackButton>
+      <header className="predictions-hero">
+        <div>
+          <span className="predictions-kicker">F1 Forecast</span>
+          <h2>Прогнозы</h2>
+          <p>Девять решений до старта квалификации. Один точный ответ — один балл.</p>
+        </div>
+        {current?.status === "ok" && (
+          <div className={`predictions-deadline ${current.is_open ? "is-open" : "is-closed"}`}>
+            <span>{current.is_open ? "Приём открыт" : "Приём закрыт"}</span>
+            <strong>{deadlineText(current.deadline_utc)}</strong>
+          </div>
+        )}
+      </header>
+
+      <div className="predictions-tabs" role="tablist">
+        <button className={tab === "form" ? "active" : ""} onClick={() => setTab("form")}>Мой прогноз</button>
+        <button className={tab === "leaderboard" ? "active" : ""} onClick={() => setTab("leaderboard")}>Турнирная таблица</button>
+      </div>
+
+      {error && <div className="predictions-message is-error">{error}</div>}
+      {notice && <div className="predictions-message is-success">{notice}</div>}
+      {loading && <div className="predictions-loading">Загрузка данных этапа…</div>}
+
+      {!loading && current && tab === "form" && (
+        <section className="prediction-form-shell">
+          <div className="prediction-round-title">
+            <span>Этап {current.round ?? "—"} · {current.season}</span>
+            <h3>{current.event_name || "Следующий Гран-при"}</h3>
+          </div>
+
+          {!current.profile.completed ? (
+            <div className="prediction-name-card">
+              <span className="prediction-step">Шаг 01</span>
+              <h3>Имя участника</h3>
+              <p>Оно будет отображаться в общей турнирной таблице.</p>
+              <div className="prediction-name-row">
+                <input
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  maxLength={40}
+                  placeholder="Например, Alex Racing"
+                />
+                <button disabled={saving || displayName.trim().length < 2} onClick={() => void saveName()}>
+                  Продолжить
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="prediction-profile-line">
+                <span>Участник</span>
+                <strong>{current.profile.display_name}</strong>
+                <button onClick={() => setCurrent({ ...current, profile: { ...current.profile, completed: false } })}>Изменить</button>
+              </div>
+
+              <div className="prediction-grid">
+                {DRIVER_FIELDS.map(({ key, label, marker }) => (
+                  <label key={key} className="prediction-field">
+                    <span className="prediction-field-marker">{marker}</span>
+                    <span className="prediction-field-copy">{label}</span>
+                    <select
+                      value={String(form[key] ?? "")}
+                      disabled={!current.is_open}
+                      onChange={(event) => setForm({ ...form, [key]: event.target.value })}
+                    >
+                      <option value="">Выберите пилота</option>
+                      {current.drivers.map((driver) => {
+                        const isPlacement = ["winner_driver", "second_driver", "third_driver", "fourth_driver", "fifth_driver"].includes(key);
+                        const disabled = isPlacement && selectedTopFive.has(driver.code) && form[key] !== driver.code;
+                        return <option key={driver.code} value={driver.code} disabled={disabled}>{driver.name} · {driver.code}</option>;
+                      })}
+                    </select>
+                  </label>
+                ))}
+
+                <fieldset className="prediction-field prediction-safety-car" disabled={!current.is_open}>
+                  <span className="prediction-field-marker">SC</span>
+                  <legend>Машина безопасности</legend>
+                  <div>
+                    <button type="button" className={form.safety_car ? "active" : ""} onClick={() => setForm({ ...form, safety_car: true })}>Да</button>
+                    <button type="button" className={!form.safety_car ? "active" : ""} onClick={() => setForm({ ...form, safety_car: false })}>Нет</button>
+                  </div>
+                </fieldset>
+              </div>
+
+              <div className="prediction-submit-row">
+                <p>{current.is_open ? "После старта квалификации сервер заблокирует любые изменения." : "Прогноз доступен только для просмотра."}</p>
+                <button disabled={!current.is_open || !formComplete || saving} onClick={() => void savePrediction()}>
+                  {saving ? "Сохраняем…" : current.prediction ? "Обновить прогноз" : "Отправить прогноз"}
+                </button>
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
+      {!loading && tab === "leaderboard" && (
+        <section className="prediction-leaderboard">
+          <div className="prediction-leaderboard-head">
+            <span>Место</span><span>Участник</span><span>Этапы</span><span>Очки</span>
+          </div>
+          {entries.map((entry) => (
+            <details key={entry.telegram_id} className="prediction-leaderboard-row">
+              <summary>
+                <strong className="prediction-place">{String(entry.place).padStart(2, "0")}</strong>
+                <span>{entry.display_name}</span>
+                <span>{entry.rounds_scored}</span>
+                <strong>{entry.total_points}</strong>
+              </summary>
+              <div className="prediction-history">
+                {entry.history.length ? entry.history.map((item) => (
+                  <div key={`${item.season}-${item.round}`}>
+                    <span>R{item.round} · {item.event_name || item.season}</span>
+                    <strong>{item.points}/{item.max_points}</strong>
+                  </div>
+                )) : <p>Пока нет рассчитанных этапов.</p>}
+              </div>
+            </details>
+          ))}
+          {!entries.length && <div className="predictions-loading">Турнирная таблица пока пуста.</div>}
+        </section>
+      )}
+    </main>
+  );
+}
