@@ -20,7 +20,7 @@ const PRIMARY_NAV_ITEMS: NavItem[] = [
   { to: "/compare", label: "Сравнение", icon: "compare", activePaths: ["/compare"] },
   { to: "/predictions", label: "Прогнозы", icon: "predictions", activePaths: ["/predictions"] },
   { to: "/account", label: "Аккаунт", icon: "account", activePaths: ["/account"] },
-  { to: "/contact-admin", label: "Связаться", icon: "contact", activePaths: ["/contact-admin"] },
+  { to: "/contact-admin", label: "Обратная связь", icon: "contact", activePaths: ["/contact-admin"] },
 ];
 
 function NavIcon({ name }: { name: IconName }) {
