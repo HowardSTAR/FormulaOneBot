@@ -1,0 +1,32 @@
+.contact-admin-page { width: min(100%, 1120px); margin: 0 auto; padding: 10px 0 50px; }
+.contact-admin-layout { display: grid; margin-top: 28px; grid-template-columns: .9fr 1.1fr; overflow: hidden; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; background: #11141a; }
+.contact-admin-intro { position: relative; min-height: 610px; padding: 48px; overflow: hidden; background: radial-gradient(circle at 20% 80%, rgba(225,6,0,.28), transparent 45%), linear-gradient(145deg, #201314, #0b0d12 65%); }
+.contact-admin-intro::after { content: ""; position: absolute; right: -120px; bottom: -120px; width: 360px; height: 360px; border: 60px solid rgba(255,255,255,.025); border-radius: 50%; }
+.contact-admin-intro > span { color: #ff453e; font-size: 11px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
+.contact-admin-intro h2 { margin: 16px 0; color: #fff; font-size: clamp(46px, 5vw, 72px); font-style: italic; line-height: .92; letter-spacing: -.055em; text-transform: uppercase; }
+.contact-admin-intro p { max-width: 350px; color: rgba(255,255,255,.52); line-height: 1.6; }
+.contact-admin-route { position: absolute; left: 48px; right: 48px; bottom: 45px; display: flex; align-items: center; color: rgba(255,255,255,.35); }
+.contact-admin-route i { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid rgba(255,255,255,.13); border-radius: 50%; font-size: 10px; font-style: normal; }
+.contact-admin-route b { height: 1px; flex: 1; background: linear-gradient(90deg, rgba(225,6,0,.6), rgba(255,255,255,.1)); }
+.contact-admin-form { display: grid; padding: 46px; align-content: center; gap: 17px; }
+.contact-admin-form label { display: grid; gap: 8px; }
+.contact-admin-form label > span { color: rgba(255,255,255,.58); font-size: 11px; font-weight: 900; letter-spacing: .11em; text-transform: uppercase; }
+.contact-admin-form input,
+.contact-admin-form textarea { width: 100%; padding: 15px 16px; border: 1px solid rgba(255,255,255,.12); border-radius: 11px; outline: none; color: #fff; background: #181c23; font: inherit; resize: vertical; }
+.contact-admin-form input:focus,
+.contact-admin-form textarea:focus { border-color: rgba(255,56,49,.65); box-shadow: 0 0 0 3px rgba(225,6,0,.08); }
+.contact-admin-counter { margin-top: -12px; color: rgba(255,255,255,.3); font-size: 10px; text-align: right; }
+.contact-admin-form > button { min-height: 58px; border: 0; border-radius: 11px; color: #fff; background: linear-gradient(180deg, #f52f28, #bd0000); font-weight: 900; cursor: pointer; }
+.contact-admin-form > button:disabled { cursor: not-allowed; opacity: .4; }
+.contact-admin-status { padding: 12px 14px; border-radius: 9px; font-size: 13px; }
+.contact-admin-status.is-error { color: #ff817b; background: rgba(225,6,0,.11); }
+.contact-admin-status.is-success { color: #6ce497; background: rgba(45,196,101,.1); }
+
+@media (max-width: 899px) {
+  .contact-admin-page { padding: 76px 14px 40px; }
+  .contact-admin-layout { grid-template-columns: 1fr; }
+  .contact-admin-intro { min-height: 330px; padding: 30px 24px; }
+  .contact-admin-intro h2 { font-size: 46px; }
+  .contact-admin-route { left: 24px; right: 24px; bottom: 25px; }
+  .contact-admin-form { padding: 24px 18px; }
+}
