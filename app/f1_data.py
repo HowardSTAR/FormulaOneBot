@@ -5,14 +5,19 @@ import pathlib
 import time
 import pickle
 import hashlib
+import re
+import ssl
 from datetime import date as _date, timezone, timedelta, datetime
 from typing import Optional, Any, Dict, Tuple, List
+from urllib.parse import unquote
 
 import aiohttp
+import certifi
 import fastf1
 import pandas as pd
 from fastf1._api import SessionNotAvailableError
 from fastf1.ergast import Ergast
+from lxml import html as lxml_html
 from redis.asyncio import Redis
 
 # --- ЛОГИРОВАНИЕ --- #
@@ -206,6 +211,15 @@ def cache_result(ttl: int = 300, key_prefix: str = ""):
 async def _run_sync(func, *args, **kwargs):
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
+
+
+def _profile_http_session() -> aiohttp.ClientSession:
+    """ClientSession с certifi CA bundle для Jolpica/OpenF1/Wikipedia на локальном Python."""
+    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    return aiohttp.ClientSession(
+        connector=aiohttp.TCPConnector(ssl=ssl_context),
+        headers={"User-Agent": "F1Hub/1.0 (Formula One statistics app; f1hub.ru) aiohttp"},
+    )
 
 
 # --- ОСНОВНАЯ ЛОГИКА (Синхронная часть) --- #
@@ -749,32 +763,58 @@ _DRIVER_NUMBER_TO_CODE_FALLBACK: dict[int, str] = {
 }
 
 
-async def _openf1_get_drivers_for_session(session_key: int) -> dict[int, dict]:
-    """driver_number -> {code (name_acronym), name (full_name/last_name)}. Дополняет из /drivers без session."""
+async def _openf1_get_drivers_for_session(
+    session_key: int,
+    meeting_key: int | None = None,
+) -> dict[int, dict]:
+    """driver_number -> {code, name} с несколькими резервными запросами OpenF1."""
     out: dict[int, dict] = {}
 
     def _add(d: dict) -> None:
         num = d.get("driver_number")
-        if num is None or num in out:
+        if num is None:
+            return
+        try:
+            num = int(num)
+        except (TypeError, ValueError):
             return
         code = (d.get("name_acronym") or "").strip() or (d.get("last_name") or "")[:3].upper()
         name = (d.get("full_name") or d.get("last_name") or "").strip()
-        out[num] = {
-            "code": code or _DRIVER_NUMBER_TO_CODE_FALLBACK.get(num, "?"),
-            "name": name or (code or _DRIVER_NUMBER_TO_CODE_FALLBACK.get(num, "?")),
-        }
+        fallback_code = _DRIVER_NUMBER_TO_CODE_FALLBACK.get(num, "?")
+        incoming = {"code": code or fallback_code, "name": name or code or fallback_code}
+        current = out.get(num)
+        if current is None:
+            out[num] = incoming
+            return
+        # Более широкий резервный запрос должен уметь заполнить поля, которые
+        # session-scoped endpoint временно вернул как пустые/"?".
+        if not current.get("code") or current.get("code") == "?":
+            current["code"] = incoming["code"]
+        current_name = str(current.get("name") or "").strip()
+        current_code = str(current.get("code") or "").strip()
+        if (
+            not current_name
+            or current_name == "?"
+            or current_name == current_code
+            or (len(current_name) <= 4 and current_name.isalpha() and current_name.isupper())
+        ):
+            current["name"] = incoming["name"]
 
     data = await _openf1_get("drivers", session_key=session_key)
     if data:
         for d in data:
             _add(d)
 
+    if meeting_key is not None:
+        meeting_data = await _openf1_get("drivers", meeting_key=meeting_key)
+        if meeting_data:
+            for d in meeting_data:
+                _add(d)
+
     extra = await _openf1_get("drivers")
     if extra:
         for d in extra:
-            num = d.get("driver_number")
-            if num is not None and (num not in out or out[num].get("code") == "?"):
-                _add(d)
+            _add(d)
 
     return out
 
@@ -860,7 +900,7 @@ async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[
     if session_key is None:
         return None, []
     positions = await _openf1_get_position_final(session_key)
-    drivers_map = await _openf1_get_drivers_for_session(session_key)
+    drivers_map = await _openf1_get_drivers_for_session(session_key, session.get("meeting_key"))
     best_laps = await _openf1_get_best_lap_per_driver(session_key)
     schedule = await get_season_schedule_short_async(season)
     round_num = _openf1_match_round_from_schedule(
@@ -871,9 +911,17 @@ async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[
     valid_ms = [best_laps.get(p.get("driver_number")) for p in positions if best_laps.get(p.get("driver_number"))]
     min_ms = min(valid_ms) if valid_ms else None
     results = []
+    standings_map = await _get_driver_number_to_info_from_standings(season, round_num)
     for p in positions[:limit]:
         dn = p.get("driver_number")
         info = drivers_map.get(dn, {})
+        standings_info = standings_map.get(dn, {}) if dn is not None else {}
+        code = str(info.get("code") or "").strip()
+        if not code or code == "?":
+            code = str(standings_info.get("code") or "").strip()
+        name = str(info.get("name") or "").strip()
+        if not name or name == "?" or name == code:
+            name = str(standings_info.get("name") or "").strip()
         best_ms = best_laps.get(dn) if dn is not None else None
         best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
         if best_ms is None or min_ms is None:
@@ -884,8 +932,8 @@ async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[
             gap_str = f"+{(best_ms - min_ms) / 1000:.3f}"
         results.append({
             "position": int(p.get("position", 0)),
-            "driver": info.get("code", "?"),
-            "name": info.get("name", "?"),
+            "driver": code or "?",
+            "name": name or code or "?",
             "best": best_str,
             "gap": gap_str,
         })
@@ -915,16 +963,19 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
     if not sessions:
         return None, []
     session_key = None
+    meeting_key = None
     for s in sessions:
         if (s.get("session_type") or "").strip() != "Qualifying":
             continue
         if (s.get("date_start") or "")[:10] == quali_date:
             session_key = s.get("session_key")
+            meeting_key = s.get("meeting_key")
             break
     if session_key is None:
         return None, []
     positions = await _openf1_get_position_final(session_key)
-    drivers_map = await _openf1_get_drivers_for_session(session_key)
+    drivers_map = await _openf1_get_drivers_for_session(session_key, meeting_key)
+    standings_map = await _get_driver_number_to_info_from_standings(season, round_num)
     best_laps = await _openf1_get_best_lap_per_driver(session_key)
     valid_ms = [best_laps.get(p.get("driver_number")) for p in positions if best_laps.get(p.get("driver_number"))]
     min_ms = min(valid_ms) if valid_ms else None
@@ -932,6 +983,13 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
     for p in positions[:limit]:
         dn = p.get("driver_number")
         info = drivers_map.get(dn, {})
+        standings_info = standings_map.get(dn, {}) if dn is not None else {}
+        code = str(info.get("code") or "").strip()
+        if not code or code == "?":
+            code = str(standings_info.get("code") or "").strip()
+        name = str(info.get("name") or "").strip()
+        if not name or name == "?" or name == code:
+            name = str(standings_info.get("name") or "").strip()
         best_ms = best_laps.get(dn) if dn is not None else None
         best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
         if best_ms is None or min_ms is None:
@@ -942,8 +1000,8 @@ async def openf1_get_quali_for_round(season: int, round_num: int, limit: int = 1
             gap_str = f"+{(best_ms - min_ms) / 1000:.3f}"
         results.append({
             "position": int(p.get("position", 0)),
-            "driver": info.get("code", "?"),
-            "name": info.get("name", "?"),
+            "driver": code or "?",
+            "name": name or code or "?",
             "best": best_str,
             "gap": gap_str,
         })
@@ -974,6 +1032,7 @@ async def openf1_get_sprint_quali_for_round(season: int, round_num: int, limit: 
         return None, []
 
     session_key = None
+    meeting_key = None
     allowed_types = {"Qualifying", "Sprint Qualifying", "Sprint Shootout"}
     for s in sessions:
         s_type = (s.get("session_type") or "").strip()
@@ -981,13 +1040,15 @@ async def openf1_get_sprint_quali_for_round(season: int, round_num: int, limit: 
             continue
         if (s.get("date_start") or "")[:10] == sq_date:
             session_key = s.get("session_key")
+            meeting_key = s.get("meeting_key")
             break
 
     if session_key is None:
         return None, []
 
     positions = await _openf1_get_position_final(session_key)
-    drivers_map = await _openf1_get_drivers_for_session(session_key)
+    drivers_map = await _openf1_get_drivers_for_session(session_key, meeting_key)
+    standings_map = await _get_driver_number_to_info_from_standings(season, round_num)
     best_laps = await _openf1_get_best_lap_per_driver(session_key)
     valid_ms = [best_laps.get(p.get("driver_number")) for p in positions if best_laps.get(p.get("driver_number"))]
     min_ms = min(valid_ms) if valid_ms else None
@@ -996,6 +1057,13 @@ async def openf1_get_sprint_quali_for_round(season: int, round_num: int, limit: 
     for p in positions[:limit]:
         dn = p.get("driver_number")
         info = drivers_map.get(dn, {})
+        standings_info = standings_map.get(dn, {}) if dn is not None else {}
+        code = str(info.get("code") or "").strip()
+        if not code or code == "?":
+            code = str(standings_info.get("code") or "").strip()
+        name = str(info.get("name") or "").strip()
+        if not name or name == "?" or name == code:
+            name = str(standings_info.get("name") or "").strip()
         best_ms = best_laps.get(dn) if dn is not None else None
         best_str = _format_quali_time_ms(best_ms) if best_ms else "—"
         if best_ms is None or min_ms is None:
@@ -1006,8 +1074,8 @@ async def openf1_get_sprint_quali_for_round(season: int, round_num: int, limit: 
             gap_str = f"+{(best_ms - min_ms) / 1000:.3f}"
         results.append({
             "position": int(p.get("position", 0)),
-            "driver": info.get("code", "?"),
-            "name": info.get("name", "?"),
+            "driver": code or "?",
+            "name": name or code or "?",
             "best": best_str,
             "gap": gap_str,
         })
@@ -1125,7 +1193,7 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
     """Асинхронно получает личный зачет (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/driverStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json"
 
-    async with aiohttp.ClientSession() as session_req:
+    async with _profile_http_session() as session_req:
         try:
             async with session_req.get(url) as response:
                 if response.status == 200:
@@ -1190,7 +1258,7 @@ async def get_constructor_standings_async(season: int, round_number: int | None 
     """Асинхронно получает кубок конструкторов (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/constructorStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json"
 
-    async with aiohttp.ClientSession() as session_req:
+    async with _profile_http_session() as session_req:
         try:
             async with session_req.get(url) as response:
                 if response.status == 200:
@@ -1238,7 +1306,7 @@ async def get_constructor_standings_async(season: int, round_number: int | None 
 
 async def _get_drivers_list_ergast(season: int) -> pd.DataFrame:
     """Список пилотов сезона из Ergast (без очков). Для избранного/составов до первой гонки."""
-    async with aiohttp.ClientSession() as session:
+    async with _profile_http_session() as session:
         for base in _ERGAST_BASES:
             try:
                 data = await _fetch_json(session, f"{base}/{season}/drivers.json?limit=50")
@@ -1269,7 +1337,7 @@ async def _get_drivers_list_ergast(season: int) -> pd.DataFrame:
 
 async def _get_constructors_list_ergast(season: int) -> pd.DataFrame:
     """Список команд сезона из Ergast. Для избранного до первой гонки."""
-    async with aiohttp.ClientSession() as session:
+    async with _profile_http_session() as session:
         for base in _ERGAST_BASES:
             try:
                 data = await _fetch_json(session, f"{base}/{season}/constructors.json?limit=30")
@@ -1296,7 +1364,7 @@ async def _get_zero_point_driver_standings() -> pd.DataFrame:
     """Собирает сетку пилотов из OpenF1 и выдает всем 0 очков. driverId берём из Ergast по code."""
     current_year = datetime.now().year
     ergast_drivers: dict[str, str] = {}  # code -> driverId
-    async with aiohttp.ClientSession() as session_req:
+    async with _profile_http_session() as session_req:
         try:
             async with session_req.get(f"https://api.jolpi.ca/ergast/f1/{current_year}/drivers.json?limit=50") as resp:
                 if resp.status == 200:
@@ -1354,7 +1422,7 @@ async def _get_zero_point_driver_standings() -> pd.DataFrame:
 async def _get_zero_point_constructor_standings() -> pd.DataFrame:
     """Собирает сетку команд из OpenF1 и выдает всем 0 очков."""
     url = "https://api.openf1.org/v1/drivers?session_key=latest"
-    async with aiohttp.ClientSession() as session_req:
+    async with _profile_http_session() as session_req:
         try:
             async with session_req.get(url) as response:
                 if response.status != 200:
@@ -1598,34 +1666,114 @@ async def _fetch_driver_career_results(session: aiohttp.ClientSession, did: str)
     return []
 
 
-async def _fetch_wiki_bio(session: aiohttp.ClientSession, wiki_url: str) -> str:
-    """Загружает биографию из Wikipedia."""
+def _wiki_title_from_url(wiki_url: str) -> str:
     if not wiki_url or "wikipedia.org/wiki/" not in wiki_url:
         return ""
+    return unquote(wiki_url.split("wiki/", 1)[-1]).replace(" ", "_").split("#", 1)[0]
+
+
+def _shorten_wiki_bio(text: str, max_chars: int = 900, max_sentences: int = 4) -> str:
+    """Оставляет короткое, читаемое вступление без обрыва посреди слова."""
+    clean = re.sub(r"\s+", " ", (text or "")).strip()
+    if not clean:
+        return ""
+    clean = re.sub(r"^Эта (?:общая )?статья[^.]*\.\s*", "", clean, flags=re.IGNORECASE)
+    clean = re.sub(r"^(?:О|Об)\s+.*?\s+см\.\s+.*?\.\s*", "", clean, flags=re.IGNORECASE)
+    sentences = re.split(r"(?<=[.!?])\s+", clean)
+    sentences = [
+        sentence for sentence in sentences
+        if not (
+            sentence.lower().startswith(("эта статья", "эта общая статья"))
+            or (
+                "см." in sentence.lower()
+                and sentence.lower().startswith(("об ", "о "))
+            )
+        )
+    ] or [clean]
+    selected: list[str] = []
+    for sentence in sentences:
+        candidate = " ".join([*selected, sentence]).strip()
+        if selected and (len(selected) >= max_sentences or len(candidate) > max_chars):
+            break
+        selected.append(sentence)
+    summary = " ".join(selected).strip() or clean
+    if len(summary) <= max_chars:
+        return summary
+    clipped = summary[:max_chars].rsplit(" ", 1)[0].rstrip(" ,;:—-")
+    return f"{clipped}…"
+
+
+async def _fetch_wiki_page_profile(
+    session: aiohttp.ClientSession,
+    title: str,
+    language: str,
+    include_russian_link: bool = False,
+) -> dict:
+    if not title:
+        return {}
+    props = ["extracts", "pageimages"]
+    if include_russian_link:
+        props.append("langlinks")
+    params = {
+        "format": "json",
+        "formatversion": 2,
+        "action": "query",
+        "prop": "|".join(props),
+        "exintro": 1,
+        "explaintext": 1,
+        "pithumbsize": 800,
+        "redirects": 1,
+        "titles": title,
+    }
+    if include_russian_link:
+        params.update({"lllang": "ru", "lllimit": 1})
     try:
-        title = wiki_url.split("wiki/")[-1].replace(" ", "_")
         async with session.get(
-            "https://en.wikipedia.org/w/api.php",
-            params={
-                "format": "json",
-                "action": "query",
-                "prop": "extracts",
-                "exintro": 1,
-                "explaintext": 1,
-                "redirects": 1,
-                "titles": title,
-            },
+            f"https://{language}.wikipedia.org/w/api.php",
+            params=params,
             timeout=aiohttp.ClientTimeout(total=10),
-        ) as wresp:
-            if wresp.status == 200:
-                wdata = await wresp.json()
-                pages = wdata.get("query", {}).get("pages", {})
-                for pid, p in pages.items():
-                    if pid != "-1" and p.get("extract"):
-                        return p["extract"][:2000]
+        ) as response:
+            if response.status != 200:
+                return {}
+            pages = (await response.json()).get("query", {}).get("pages", [])
+            if not pages or pages[0].get("missing"):
+                return {}
+            return pages[0]
     except Exception:
-        pass
-    return ""
+        return {}
+
+
+async def _fetch_wiki_profile(session: aiohttp.ClientSession, wiki_url: str) -> dict:
+    """Короткое русское описание + Wikimedia thumbnail, с fallback на английский."""
+    title = _wiki_title_from_url(wiki_url)
+    if not title:
+        return {}
+    english = await _fetch_wiki_page_profile(session, title, "en", include_russian_link=True)
+    russian_title = ""
+    for link in english.get("langlinks", []) or []:
+        if link.get("lang") == "ru" and link.get("title"):
+            russian_title = link["title"]
+            break
+    russian = {}
+    if russian_title:
+        async with _profile_http_session() as localized_session:
+            russian = await _fetch_wiki_page_profile(localized_session, russian_title, "ru")
+    preferred = russian if russian.get("extract") else english
+    thumbnail = preferred.get("thumbnail", {}) or english.get("thumbnail", {})
+    return {
+        "bio": _shorten_wiki_bio(preferred.get("extract", "")),
+        "photo_url": thumbnail.get("source", "") if isinstance(thumbnail, dict) else "",
+        "source_url": (
+            f"https://ru.wikipedia.org/wiki/{russian_title.replace(' ', '_')}"
+            if russian_title
+            else wiki_url
+        ),
+    }
+
+
+async def _fetch_wiki_bio(session: aiohttp.ClientSession, wiki_url: str) -> str:
+    """Загружает короткую русскую биографию из Wikipedia."""
+    return (await _fetch_wiki_profile(session, wiki_url)).get("bio", "")
 
 
 def _as_openf1_drivers_list(payload: Any) -> list[dict]:
@@ -1637,35 +1785,88 @@ def _as_openf1_drivers_list(payload: Any) -> list[dict]:
 
 async def _fetch_wiki_thumbnail(session: aiohttp.ClientSession, wiki_url: str) -> str:
     """Возвращает thumbnail URL из Wikipedia по ссылке страницы пилота."""
-    if not wiki_url or "wikipedia.org/wiki/" not in wiki_url:
-        return ""
+    return (await _fetch_wiki_profile(session, wiki_url)).get("photo_url", "")
+
+
+def _extract_team_principal_from_html(parsed_html: str) -> dict:
+    """Извлекает первого руководителя из строки Team principal(s) инфобокса."""
+    if not parsed_html:
+        return {}
     try:
-        title = wiki_url.split("wiki/")[-1].replace(" ", "_")
+        document = lxml_html.fromstring(parsed_html)
+    except Exception:
+        return {}
+    for row in document.xpath("//table[contains(concat(' ', normalize-space(@class), ' '), ' infobox ')]//tr"):
+        headers = row.xpath("./th")
+        cells = row.xpath("./td")
+        if not headers or not cells:
+            continue
+        label = re.sub(r"\s+", " ", headers[0].text_content()).strip().lower()
+        if "team principal" not in label and label not in {"principal", "principals"}:
+            continue
+        for link in cells[0].xpath(".//a[@href]"):
+            href = (link.get("href") or "").strip()
+            name = re.sub(r"\s+", " ", link.text_content()).strip()
+            if not name or not href or href.startswith("#") or "File:" in href:
+                continue
+            if href.startswith("./"):
+                page_title = href[2:].split("#", 1)[0]
+            elif "/wiki/" in href:
+                page_title = href.split("/wiki/", 1)[1].split("#", 1)[0]
+            else:
+                continue
+            if page_title and ":" not in page_title:
+                return {"name": name, "page_title": unquote(page_title)}
+    return {}
+
+
+async def _fetch_team_principal(
+    session: aiohttp.ClientSession,
+    team_wiki_url: str,
+    team_name: str,
+) -> dict | None:
+    """Парсит актуального team principal и возвращает карточку только с валидным фото."""
+    title = _wiki_title_from_url(team_wiki_url)
+    if not title:
+        return None
+    try:
         async with session.get(
             "https://en.wikipedia.org/w/api.php",
             params={
                 "format": "json",
-                "action": "query",
-                "prop": "pageimages",
-                "pithumbsize": 400,
+                "formatversion": 2,
+                "action": "parse",
+                "page": title,
+                "prop": "text",
                 "redirects": 1,
-                "titles": title,
             },
             timeout=aiohttp.ClientTimeout(total=10),
-        ) as wresp:
-            if wresp.status != 200:
-                return ""
-            wdata = await wresp.json()
-            pages = wdata.get("query", {}).get("pages", {})
-            for pid, p in pages.items():
-                if pid != "-1" and isinstance(p, dict):
-                    thumb = p.get("thumbnail", {})
-                    src = thumb.get("source") if isinstance(thumb, dict) else ""
-                    if src:
-                        return src
+        ) as response:
+            if response.status != 200:
+                return None
+            parsed = (await response.json()).get("parse", {}).get("text", "")
+            if isinstance(parsed, dict):
+                parsed = parsed.get("*", "")
     except Exception:
-        pass
-    return ""
+        return None
+    principal = _extract_team_principal_from_html(parsed)
+    if not principal:
+        return None
+    principal_url = f"https://en.wikipedia.org/wiki/{principal['page_title'].replace(' ', '_')}"
+    # Wikimedia иногда закрывает повторный Action API запрос на том же keep-alive соединении.
+    async with _profile_http_session() as profile_session:
+        profile = await _fetch_wiki_profile(profile_session, principal_url)
+    if not profile.get("photo_url"):
+        return None
+    return {
+        "id": re.sub(r"[^a-z0-9]+", "-", principal["page_title"].lower()).strip("-"),
+        "name": principal["name"],
+        "role": "Руководитель команды",
+        "team_name": team_name,
+        "photo_url": profile["photo_url"],
+        "bio": profile.get("bio", ""),
+        "url": profile.get("source_url") or principal_url,
+    }
 
 
 async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str, season: int) -> str:
@@ -1698,7 +1899,7 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
     return ""
 
 
-@cache_result(ttl=3600, key_prefix="driver_details_v4")
+@cache_result(ttl=3600, key_prefix="driver_details_v7")
 async def get_driver_details_async(driver_id: str, season: int, code: str | None = None):
     """
     Получает профиль пилота, статистику сезона и карьеры из Ergast/Jolpica API.
@@ -1712,7 +1913,7 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
         if resolved and not resolved.isdigit():
             did = resolved
 
-    async with aiohttp.ClientSession() as session:
+    async with _profile_http_session() as session:
         # 1. Информация о пилоте (обязательно первым — нужны wiki_url, code)
         data = await _try_bases(session, f"/drivers/{did}.json")
         driver_info = None
@@ -1846,7 +2047,7 @@ async def _count_driver_championships(driver_id: str, seasons: list[str]) -> int
     if not seasons:
         return 0
     count = 0
-    async with aiohttp.ClientSession() as session:
+    async with _profile_http_session() as session:
         for yr in seasons:
             for base in _ERGAST_BASES:
                 try:
@@ -2218,18 +2419,22 @@ async def _fetch_constructor_drivers(session: aiohttp.ClientSession, cid: str, s
     return drivers
 
 
-async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers: list, season: int) -> None:
+async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers: list, season: int) -> set[str]:
     """Дополняет пилотов headshot и nationality из OpenF1 (только для сезонов >= 2023)."""
     if not season_drivers or season < 2023:
         for sd in season_drivers:
             sd.setdefault("headshot_url", "")
-        return
+        return set()
 
-    def _apply(drivers_o: list) -> None:
+    current_codes: set[str] = set()
+
+    def _apply(drivers_o: list, mark_current: bool = False) -> None:
         for sd in season_drivers:
             code = sd.get("code", "").upper()
             for d in drivers_o:
                 if d.get("name_acronym", "").upper() == code:
+                    if mark_current and code:
+                        current_codes.add(code)
                     url = d.get("headshot_url") or ""
                     if url and not sd.get("headshot_url"):
                         sd["headshot_url"] = url
@@ -2245,7 +2450,7 @@ async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers
             timeout=aiohttp.ClientTimeout(total=10),
         ) as oresp:
             if oresp.status == 200:
-                _apply(await oresp.json())
+                _apply(_as_openf1_drivers_list(await oresp.json()), mark_current=True)
         missing = any(not sd.get("headshot_url") or not sd.get("nationality") for sd in season_drivers)
         if missing:
             async with session.get(
@@ -2253,7 +2458,7 @@ async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as oresp2:
                 if oresp2.status == 200:
-                    _apply(await oresp2.json())
+                    _apply(_as_openf1_drivers_list(await oresp2.json()))
     except Exception:
         pass
 
@@ -2287,16 +2492,17 @@ async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers
     for sd in season_drivers:
         sd.setdefault("headshot_url", "")
         sd["nationality"] = (sd.get("nationality") or "").strip()
+    return current_codes
 
 
 # --- КАРТОЧКА КОНСТРУКТОРА --- #
-@cache_result(ttl=3600, key_prefix="constructor_details_v12")
+@cache_result(ttl=3600, key_prefix="constructor_details_v16")
 async def get_constructor_details_async(constructor_id: str, season: int):
     """Профиль команды: название, лого, статистика сезона и карьеры, биография."""
     cid = constructor_id.strip().lower().replace(" ", "_")
     cid = CONSTRUCTOR_ID_MAP.get(cid, cid)
 
-    async with aiohttp.ClientSession() as session:
+    async with _profile_http_session() as session:
         # 1. Конструктор (обязательно первым)
         data = await _try_bases(session, f"/constructors/{cid}.json")
         constructor_info = None
@@ -2315,12 +2521,14 @@ async def get_constructor_details_async(constructor_id: str, season: int):
             career_results,
             season_drivers,
             bio,
+            principal,
             standings_df,
         ) = await asyncio.gather(
             _fetch_constructor_season_results(session, cid, season),
             _fetch_constructor_career_results(session, cid),
             _fetch_constructor_drivers(session, cid, season, constructor_info),
             _fetch_wiki_bio(session, wiki_url),
+            _fetch_team_principal(session, wiki_url, constructor_info.get("name", "")),
             get_constructor_standings_async(season),
         )
 
@@ -2329,7 +2537,12 @@ async def get_constructor_details_async(constructor_id: str, season: int):
             season_results = [r for r in career_results if r.get("season") == str(season)]
 
         # 3. Дополнение headshot/nationality (зависит от season_drivers)
-        await _fill_drivers_headshots(session, season_drivers, season)
+        current_codes = await _fill_drivers_headshots(session, season_drivers, season)
+        if season >= datetime.now().year and len(current_codes) >= 2:
+            current_drivers = [d for d in season_drivers if (d.get("code") or "").upper() in current_codes]
+            season_drivers = current_drivers[:2]
+        else:
+            season_drivers = season_drivers[:2]
 
     # Career stats
     gp_entered = len(career_results)
@@ -2355,6 +2568,7 @@ async def get_constructor_details_async(constructor_id: str, season: int):
         "url": wiki_url,
         "bio": bio,
         "drivers": season_drivers,
+        "principal": principal,
         "season": season,
         "season_stats": {
             "position": season_pos,
@@ -2397,7 +2611,7 @@ async def _count_constructor_championships(constructor_id: str, seasons: list[st
         return 0
     base = "https://api.jolpi.ca/ergast/f1"
     count = 0
-    async with aiohttp.ClientSession() as session:
+    async with _profile_http_session() as session:
         for yr in seasons:
             try:
                 async with session.get(f"{base}/{yr}/constructorStandings.json?limit=100") as resp:

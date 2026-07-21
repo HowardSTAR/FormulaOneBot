@@ -88,7 +88,9 @@ class Database:
                 season INTEGER PRIMARY KEY,
                 last_notified_round INTEGER,
                 last_reminded_round INTEGER,
-                last_notified_quali_round INTEGER
+                last_notified_quali_round INTEGER,
+                last_notified_sprint_quali_round INTEGER,
+                last_notified_sprint_round INTEGER
             );
             """
         )
@@ -96,6 +98,23 @@ class Database:
             cols = [row['name'] for row in await cursor.fetchall()]
         if "last_notified_quali_round" not in cols:
             await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_quali_round INTEGER")
+        if "last_notified_sprint_quali_round" not in cols:
+            await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_sprint_quali_round INTEGER")
+        if "last_notified_sprint_round" not in cols:
+            await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_sprint_round INTEGER")
+        # При первом развёртывании новых типов не рассылаем задним числом спринты
+        # уже завершённых этапов. Если текущий этап ещё не закрыт гонкой/квалой,
+        # значение останется на предыдущем раунде и нужный спринт будет отправлен.
+        await self.conn.execute(
+            "UPDATE notification_state SET last_notified_sprint_quali_round = "
+            "COALESCE(last_notified_quali_round, last_notified_round) "
+            "WHERE last_notified_sprint_quali_round IS NULL"
+        )
+        await self.conn.execute(
+            "UPDATE notification_state SET last_notified_sprint_round = "
+            "COALESCE(last_notified_round, last_notified_quali_round) "
+            "WHERE last_notified_sprint_round IS NULL"
+        )
         if "last_notified_voting_round" not in cols:
             await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_voting_round INTEGER")
         if "last_notified_voting_invite_round" not in cols:
@@ -550,6 +569,22 @@ async def get_last_notified_quali_round(season: int) -> int | None: return await
 async def set_last_notified_quali_round(season: int, r: int) -> None: await _set_round_value(season,
                                                                                              "last_notified_quali_round",
                                                                                              r)
+
+
+async def get_last_notified_sprint_quali_round(season: int) -> int | None:
+    return await _get_round_value(season, "last_notified_sprint_quali_round")
+
+
+async def set_last_notified_sprint_quali_round(season: int, r: int) -> None:
+    await _set_round_value(season, "last_notified_sprint_quali_round", r)
+
+
+async def get_last_notified_sprint_round(season: int) -> int | None:
+    return await _get_round_value(season, "last_notified_sprint_round")
+
+
+async def set_last_notified_sprint_round(season: int, r: int) -> None:
+    await _set_round_value(season, "last_notified_sprint_round", r)
 
 
 async def get_last_notified_voting_round(season: int) -> int | None:

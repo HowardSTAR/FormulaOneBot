@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
@@ -14,12 +14,38 @@ type Race = {
   location: string;
   date: string;
   is_cancelled?: boolean;
+  first_session_start_utc?: string | null;
+  race_start_utc?: string | null;
   quali_start_utc?: string | null;
   sprint_start_utc?: string | null;
   sprint_quali_start_utc?: string | null;
 };
 type SeasonResponse = { races?: Race[] };
 type SettingsResponse = { timezone?: string };
+type RaceResultsResponse = { round?: number | null; results?: unknown[]; data_incomplete?: boolean };
+type CalendarRaceStatus = "cancelled" | "live" | "recent" | "next" | "finished" | "future";
+
+const RACE_RESULTS_MIN_AGE_MS = 2 * 60 * 60 * 1000;
+
+function parseRaceTime(value?: string | null): number | null {
+  if (!value) return null;
+  const time = new Date(value).getTime();
+  return Number.isNaN(time) ? null : time;
+}
+
+function weekendStartTime(race: Race): number {
+  const candidates = [
+    race.first_session_start_utc,
+    race.sprint_quali_start_utc,
+    race.quali_start_utc,
+    race.sprint_start_utc,
+    race.race_start_utc,
+  ]
+    .map(parseRaceTime)
+    .filter((value): value is number => value !== null);
+  if (candidates.length > 0) return Math.min(...candidates);
+  return new Date(race.date).getTime();
+}
 
 function SeasonPage() {
   const navigate = useNavigate();
@@ -35,6 +61,8 @@ function SeasonPage() {
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
   const [expandedRound, setExpandedRound] = useState<number | null>(null);
   const [desktopSelectedRound, setDesktopSelectedRound] = useState<number | null>(null);
+  const [calendarNowMs, setCalendarNowMs] = useState(() => Date.now());
+  const [latestReadyRound, setLatestReadyRound] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -91,11 +119,56 @@ function SeasonPage() {
   }, [setSearchParams]);
 
   useEffect(() => {
-    if (year === currentRealYear && races.length > 0) {
-      const nextId = document.getElementById("next-race-card");
-      nextId?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (year !== currentRealYear || races.length === 0) {
+      setLatestReadyRound(null);
+      return;
     }
-  }, [year, races]);
+
+    let cancelled = false;
+    const refreshStatus = async () => {
+      const nowMs = Date.now();
+      setCalendarNowMs(nowMs);
+      const latestRaceStarted = [...races]
+        .reverse()
+        .find((race) => {
+          const raceStart = parseRaceTime(race.race_start_utc);
+          return raceStart !== null && raceStart <= nowMs;
+        });
+
+      if (!latestRaceStarted) {
+        if (!cancelled) setLatestReadyRound(null);
+        return;
+      }
+
+      const raceStart = parseRaceTime(latestRaceStarted.race_start_utc);
+      if (raceStart === null || nowMs - raceStart < RACE_RESULTS_MIN_AGE_MS) {
+        if (!cancelled) setLatestReadyRound(null);
+        return;
+      }
+
+      try {
+        const response = await apiRequest<RaceResultsResponse>("/api/race-results", {
+          season: year,
+          round: latestRaceStarted.round,
+        });
+        if (cancelled) return;
+        const ready =
+          response.round === latestRaceStarted.round &&
+          (response.results?.length || 0) >= 10 &&
+          !response.data_incomplete;
+        setLatestReadyRound(ready ? latestRaceStarted.round : null);
+      } catch {
+        // Сохраняем прошлое подтверждённое состояние и повторяем проверку через минуту.
+      }
+    };
+
+    void refreshStatus();
+    const intervalId = window.setInterval(() => void refreshStatus(), 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [races, year]);
 
   const handleYearChange = (y: number) => {
     if (y > currentRealYear) {
@@ -113,23 +186,51 @@ function SeasonPage() {
     updateYear(y);
   };
 
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const nextRaceIndex = races.findIndex((r) => {
-    const raceEnd = new Date(r.date);
-    raceEnd.setDate(raceEnd.getDate() + 1);
-    return raceEnd >= now;
-  });
+  const calendarState = useMemo(() => {
+    const statusByRound = new Map<number, CalendarRaceStatus>();
+    if (races.length === 0) return { statusByRound, nextRaceIndex: -1 };
+
+    if (year !== currentRealYear) {
+      races.forEach((race) => statusByRound.set(race.round, race.is_cancelled ? "cancelled" : "finished"));
+      return { statusByRound, nextRaceIndex: -1 };
+    }
+
+    let latestStartedWeekendIndex = -1;
+    races.forEach((race, index) => {
+      if (weekendStartTime(race) <= calendarNowMs) latestStartedWeekendIndex = index;
+    });
+    const liveIndex =
+      latestStartedWeekendIndex >= 0 &&
+      !races[latestStartedWeekendIndex].is_cancelled &&
+      latestReadyRound !== races[latestStartedWeekendIndex].round
+        ? latestStartedWeekendIndex
+        : -1;
+    const recentIndex = liveIndex < 0
+      ? races.findIndex((race) => race.round === latestReadyRound)
+      : -1;
+    const nextRaceIndex = liveIndex >= 0
+      ? -1
+      : races.findIndex((race) => weekendStartTime(race) > calendarNowMs && !race.is_cancelled);
+
+    races.forEach((race, index) => {
+      let status: CalendarRaceStatus;
+      if (race.is_cancelled) status = "cancelled";
+      else if (index === liveIndex) status = "live";
+      else if (index === recentIndex) status = "recent";
+      else if (index === nextRaceIndex) status = "next";
+      else if (index < Math.max(liveIndex, recentIndex, nextRaceIndex)) status = "finished";
+      else status = "future";
+      statusByRound.set(race.round, status);
+    });
+
+    return { statusByRound, nextRaceIndex };
+  }, [calendarNowMs, latestReadyRound, races, year]);
+
   const desktopRace = races.find((r) => r.round === desktopSelectedRound) || races[0] || null;
-  const desktopRaceIndex = desktopRace ? races.findIndex((r) => r.round === desktopRace.round) : -1;
-  const desktopRaceEnd = desktopRace ? new Date(desktopRace.date) : null;
-  desktopRaceEnd?.setDate(desktopRaceEnd.getDate() + 1);
-  const desktopRaceIsFinished = Boolean(desktopRaceEnd && desktopRaceEnd < now);
-  const desktopRaceIsNext = desktopRaceIndex === nextRaceIndex;
+  const desktopRaceStatus = desktopRace ? calendarState.statusByRound.get(desktopRace.round) : undefined;
   const completedRacesCount = races.filter((race) => {
-    const raceEnd = new Date(race.date);
-    raceEnd.setDate(raceEnd.getDate() + 1);
-    return raceEnd < now;
+    const status = calendarState.statusByRound.get(race.round);
+    return status === "finished" || status === "recent";
   }).length;
   const desktopInsights = desktopRace
     ? getCircuitInsightsRu({
@@ -199,7 +300,15 @@ function SeasonPage() {
             <article className="season-desktop-main-card season-desktop-hero-card">
               <div className="season-desktop-hero-media">
                 <div className="season-desktop-hero-next">
-                  {desktopRaceIsNext ? "Следующий этап" : desktopRaceIsFinished ? "Прошедший этап" : "Предстоящий этап"}: {String(desktopRace.round).padStart(2, "0")}
+                  {desktopRaceStatus === "live"
+                    ? "LIVE"
+                    : desktopRaceStatus === "recent"
+                      ? "Только что прошёл"
+                      : desktopRaceStatus === "next"
+                        ? "Следующий этап"
+                        : desktopRaceStatus === "finished"
+                          ? "Прошедший этап"
+                          : "Предстоящий этап"}: {String(desktopRace.round).padStart(2, "0")}
                 </div>
                 <h4>{desktopRace.event_name}</h4>
                 <div className="season-desktop-hero-meta">
@@ -256,16 +365,22 @@ function SeasonPage() {
 
           <aside className="season-desktop-list season-desktop-timeline">
             <h4 className="season-desktop-timeline-title">Все этапы сезона · {races.length}</h4>
-            {races.map((race, index) => {
+            {races.map((race) => {
               const raceDate = new Date(race.date);
-              const raceEndCheck = new Date(raceDate);
-              raceEndCheck.setDate(raceEndCheck.getDate() + 1);
-              const isNext = index === nextRaceIndex;
-              const isCancelled = Boolean(race.is_cancelled);
-              const isFinished = raceEndCheck < now;
-              const statusClass = isCancelled ? "cancelled" : isFinished ? "finished" : isNext ? "next" : "future";
+              const statusClass = calendarState.statusByRound.get(race.round) || "future";
+              const isFinished = statusClass === "finished" || statusClass === "recent";
               const isSelected = desktopRace.round === race.round;
-              const statusLabel = isCancelled ? "ОТМЕНЕН" : isFinished ? "ЗАВЕРШЕН" : isNext ? "СКОРО" : "ЭТАП";
+              const statusLabel = statusClass === "cancelled"
+                ? "ОТМЕНЕН"
+                : statusClass === "live"
+                  ? "LIVE"
+                  : statusClass === "recent"
+                    ? "ТОЛЬКО ЧТО"
+                    : statusClass === "finished"
+                      ? "ЗАВЕРШЕН"
+                      : statusClass === "next"
+                        ? "NEXT · СКОРО"
+                        : "ЭТАП";
               const dateLabel = raceDate
                 .toLocaleDateString("ru-RU", {
                   timeZone: userTz,
@@ -290,7 +405,7 @@ function SeasonPage() {
                         </span>
                         <span className={`race-round-status ${statusClass}`}>{statusLabel}</span>
                       </div>
-                      <span className="season-desktop-race-icon">{isSelected ? "➤" : isFinished ? "▣" : "○"}</span>
+                      <span className="season-desktop-race-icon">{isSelected ? "➤" : statusClass === "live" ? "●" : isFinished ? "▣" : "○"}</span>
                     </div>
                     <div className="race-name">{timelineRaceName(race.event_name)}</div>
                     <div className="race-loc">{dateLabel} • {race.location}</div>
@@ -312,21 +427,20 @@ function SeasonPage() {
           </div>
         )}
         {!loading && !error && !emptyMessage &&
-          races.map((race, index) => {
+          races.map((race) => {
             const raceDate = new Date(race.date);
-            const raceEndCheck = new Date(raceDate);
-            raceEndCheck.setDate(raceEndCheck.getDate() + 1);
-            const isNext = index === nextRaceIndex;
-            const isCancelled = Boolean(race.is_cancelled);
-            const isFinished = raceEndCheck < now;
-            const statusClass: "finished" | "next" | "future" | "cancelled" = isCancelled
-              ? "cancelled"
-              : isFinished
-                ? "finished"
-                : isNext
-                  ? "next"
-                  : "future";
-            const statusIcon = isCancelled ? "ОТМЕНЕН" : isFinished ? "🏁" : isNext ? "NEXT" : "";
+            const statusClass = calendarState.statusByRound.get(race.round) || "future";
+            const statusIcon = statusClass === "cancelled"
+              ? "ОТМЕНЕН"
+              : statusClass === "live"
+                ? "LIVE"
+                : statusClass === "recent"
+                  ? "ТОЛЬКО ЧТО"
+                  : statusClass === "finished"
+                    ? "🏁"
+                    : statusClass === "next"
+                      ? "NEXT · СКОРО"
+                      : "";
             const day = raceDate.toLocaleDateString("ru-RU", {
               timeZone: userTz,
               day: "numeric",

@@ -5,6 +5,7 @@ import IndexPage from "./pages/index/Index";
 import ComparePage from "./pages/compare/ComparePage";
 import ConstructorsPage from "./pages/constructors/ConstructorsPage";
 import ConstructorDetailsPage from "./pages/constructor-details/ConstructorDetailsPage";
+import TeamPrincipalPage from "./pages/team-principal/TeamPrincipalPage";
 import DriverDetailsPage from "./pages/driver-details/DriverDetailsPage";
 import DriversPage from "./pages/drivers/DriversPage";
 import FavoritesPage from "./pages/favorites/FavoritesPage";
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: "/account", element: <AccountPage /> },
       { path: "/compare", element: <ComparePage /> },
       { path: "/constructor-details", element: <ConstructorDetailsPage /> },
+      { path: "/team-principal", element: <TeamPrincipalPage /> },
       { path: "/constructors", element: <ConstructorsPage /> },
       { path: "/driver-details", element: <DriverDetailsPage /> },
       { path: "/drivers", element: <DriversPage /> },

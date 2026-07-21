@@ -16,7 +16,7 @@ const PRIMARY_NAV_ITEMS: NavItem[] = [
   { to: "/season", label: "Календарь", icon: "calendar", activePaths: ["/season", "/next-race", "/race-details"] },
   { to: "/race-results", label: "Результаты", icon: "results", activePaths: ["/race-results", "/quali-results", "/sprint-results", "/sprint-quali-results"] },
   { to: "/drivers", label: "Пилоты", icon: "drivers", activePaths: ["/drivers", "/driver-details"] },
-  { to: "/constructors", label: "Команды", icon: "teams", activePaths: ["/constructors", "/constructor-details"] },
+  { to: "/constructors", label: "Команды", icon: "teams", activePaths: ["/constructors", "/constructor-details", "/team-principal"] },
   { to: "/compare", label: "Сравнение", icon: "compare", activePaths: ["/compare"] },
   { to: "/predictions", label: "Прогнозы", icon: "predictions", activePaths: ["/predictions"] },
   { to: "/account", label: "Аккаунт", icon: "account", activePaths: ["/account"] },

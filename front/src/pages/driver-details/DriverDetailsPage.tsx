@@ -326,22 +326,6 @@ function DriverDetailsPage() {
               </article>
             </div>
           </section>
-          <aside className="driver-profile-desktop-bio">
-            <h3 className="driver-profile-title">Биография</h3>
-            <div className="driver-profile-bio-card">
-              <p>{data.bio || "Биография пока недоступна."}</p>
-              <div className="driver-profile-bio-meta">
-                <div>
-                  <span>Гражданство</span>
-                  <b>{data.nationality}</b>
-                </div>
-                <div>
-                  <span>Дата рождения</span>
-                  <b>{data.dateOfBirth || "—"}</b>
-                </div>
-              </div>
-            </div>
-          </aside>
         </div>
 
         <section className="driver-profile-desktop-recent">
@@ -359,6 +343,28 @@ function DriverDetailsPage() {
               <span>Очки</span>
               <b>{ss.points}</b>
             </article>
+          </div>
+        </section>
+
+        <section className="driver-profile-desktop-bio driver-profile-desktop-bio-bottom">
+          <h3 className="driver-profile-title">Биография</h3>
+          <div className="driver-profile-bio-card">
+            <p>{data.bio || "Биография пока недоступна."}</p>
+            <div className="driver-profile-bio-meta">
+              <div>
+                <span>Гражданство</span>
+                <b>{data.nationality}</b>
+              </div>
+              <div>
+                <span>Дата рождения</span>
+                <b>{data.dateOfBirth || "—"}</b>
+              </div>
+            </div>
+            {data.url && (
+              <a href={data.url} target="_blank" rel="noopener noreferrer" className="driver-bio-link">
+                Открыть источник →
+              </a>
+            )}
           </div>
         </section>
       </section>
