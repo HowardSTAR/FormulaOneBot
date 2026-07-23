@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
-import { apiRequest } from "../../helpers/api";
+import { apiAssetUrl, apiRequest } from "../../helpers/api";
 
 type Result = {
   position: number;
@@ -33,21 +33,19 @@ type DriverTeamInfo = {
 type DriversResponse = { drivers?: DriverTeamInfo[] };
 
 function pilotPortraitUrl(code: string, fullName: string, season: number): string {
-  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
-  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
-  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
-  const params = new URLSearchParams({ season: String(season) });
-  if (code) params.set("code", code);
-  if (fullName) params.set("name", fullName);
-  return `${origin.replace(/\/$/, "")}${pathBase}/api/pilot-portrait?${params.toString()}`;
+  return apiAssetUrl("/api/pilot-portrait", {
+    season,
+    code,
+    name: fullName,
+  });
 }
 
 function teamLogoUrl(teamId: string, teamName: string, season: number): string {
-  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
-  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
-  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
-  const params = new URLSearchParams({ team: teamId || teamName, name: teamName, season: String(season) });
-  return `${origin.replace(/\/$/, "")}${pathBase}/api/team-logo?${params.toString()}`;
+  return apiAssetUrl("/api/team-logo", {
+    team: teamId || teamName,
+    name: teamName,
+    season,
+  });
 }
 
 function parseOptionalInt(value: string | null): number | null {

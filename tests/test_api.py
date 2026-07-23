@@ -1004,6 +1004,35 @@ async def test_api_pilot_portrait_uses_local_season_file_and_crops_head(api_clie
 
 
 @pytest.mark.asyncio
+async def test_api_pilot_portrait_preserves_ready_transparent_headshot(api_client: AsyncClient):
+    """Готовый квадратный PNG с альфой не обрезается повторно."""
+    with tempfile.TemporaryDirectory() as tmp:
+        project_root = Path(tmp)
+        pilots_dir = project_root / "app" / "assets" / "2025" / "pilots"
+        pilots_dir.mkdir(parents=True, exist_ok=True)
+        portrait = Image.new("RGBA", (96, 96), (230, 20, 20, 255))
+        for x in range(96):
+            portrait.putpixel((x, 0), (0, 0, 0, 0))
+        portrait.save(pilots_dir / "Max Verstappen.png")
+
+        fallback_path = project_root / "app" / "assets" / "pilot" / "pilot.png"
+        fallback_path.parent.mkdir(parents=True, exist_ok=True)
+        Image.new("RGBA", (20, 20), (255, 0, 0, 255)).save(fallback_path)
+
+        with patch("app.api.miniapp_api.PROJECT_ROOT", project_root), \
+             patch("app.api.miniapp_api.PILOT_FALLBACK_PATH", fallback_path):
+            response = await api_client.get(
+                "/api/pilot-portrait",
+                params={"season": 2025, "code": "VER", "name": "Max Verstappen"},
+            )
+
+    assert response.status_code == 200
+    output = Image.open(io.BytesIO(response.content)).convert("RGBA")
+    assert output.size == (96, 96)
+    assert output.getchannel("A").getextrema() == (0, 255)
+
+
+@pytest.mark.asyncio
 async def test_api_static_not_api_route(api_client: AsyncClient):
     """Запрос api/xxx без реального эндпоинта — 404."""
     r = await api_client.get("/api/nonexistent")

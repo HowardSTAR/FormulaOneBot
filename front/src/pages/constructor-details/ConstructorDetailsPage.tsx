@@ -1,35 +1,24 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
-import { apiRequest } from "../../helpers/api";
+import { apiAssetUrl, apiRequest } from "../../helpers/api";
 import { getFlagUrlForNationality } from "../../constants/flags";
 
 function teamLogoUrl(teamId: string, teamName: string, season: number): string {
-  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
-  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
-  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
   const team = teamId || teamName;
-  const params = new URLSearchParams({ team, season: String(season) });
-  if (teamName) params.set("name", teamName);
-  return `${origin.replace(/\/$/, "")}${pathBase}/api/team-logo?${params}`;
+  return apiAssetUrl("/api/team-logo", { team, name: teamName, season });
 }
 
 function carImageUrl(teamName: string, season: number): string {
-  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
-  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
-  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
-  const params = new URLSearchParams({ team: teamName, season: String(season) });
-  return `${origin.replace(/\/$/, "")}${pathBase}/api/car-image?${params}`;
+  return apiAssetUrl("/api/car-image", { team: teamName, season });
 }
 
 function pilotPortraitUrl(code: string, fullName: string, season: number): string {
-  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
-  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
-  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
-  const params = new URLSearchParams({ season: String(season) });
-  if (code) params.set("code", code);
-  if (fullName) params.set("name", fullName);
-  return `${origin.replace(/\/$/, "")}${pathBase}/api/pilot-portrait?${params.toString()}`;
+  return apiAssetUrl("/api/pilot-portrait", {
+    season,
+    code,
+    name: fullName,
+  });
 }
 
 type SeasonStats = {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useHeroData } from "../../context/useHeroData";
 import { useAuthState } from "../../helpers/auth";
-import { apiRequest } from "../../helpers/api";
+import { apiAssetUrl, apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCountryFlagUrl } from "../../constants/flags";
 import "./styles.css";
@@ -29,13 +29,8 @@ type ConstructorsResponse = { constructors?: ConstructorStanding[] };
 type ScheduleResponse = { sessions?: SessionItem[] };
 
 function teamLogoUrl(teamId: string, teamName: string, season: number): string {
-  const apiBase = (import.meta.env.VITE_API_URL as string) || "";
-  const pathBase = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
-  const origin = apiBase || (typeof window !== "undefined" ? window.location.origin : "");
   const team = teamId || teamName;
-  const params = new URLSearchParams({ team, season: String(season) });
-  if (teamName) params.set("name", teamName);
-  return `${origin.replace(/\/$/, "")}${pathBase}/api/team-logo?${params}`;
+  return apiAssetUrl("/api/team-logo", { team, name: teamName, season });
 }
 
 const DRIVER_FLAG_BY_CODE: Record<string, string> = {

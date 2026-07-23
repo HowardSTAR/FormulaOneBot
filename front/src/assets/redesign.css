@@ -3650,3 +3650,167 @@
     transition-delay: 0s !important;
   }
 }
+
+/* Final responsive fixes for comparison and profile detail pages. These live
+   after the legacy conversion layers so one breakpoint owns each layout. */
+@media (min-width: 900px) {
+  .app-page-main.route-compare .compare-redesign-selectors {
+    grid-template-columns: minmax(0, 1fr) 44px minmax(0, 1fr) !important;
+    grid-template-rows: auto auto;
+    align-items: end !important;
+    column-gap: 12px !important;
+    row-gap: 12px !important;
+  }
+
+  .app-page-main.route-compare .compare-redesign-selectors .vs-badge {
+    align-self: end;
+    justify-self: center;
+    margin: 0 0 5px !important;
+  }
+
+  .app-page-main.route-compare .compare-redesign-selectors .btn-compare {
+    grid-column: 1 / -1 !important;
+    width: calc((100% - 56px) / 2) !important;
+    min-width: 220px;
+    justify-self: center;
+    margin: 0 !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-desktop-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .app-page-main.route-driver-details .driver-profile-season-cards {
+    grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+  }
+
+  .app-page-main.route-constructor-details .constructor-profile-desktop-car {
+    inset: 0 0 0 auto !important;
+    width: 76% !important;
+    height: 100% !important;
+    box-sizing: border-box;
+    padding: 18px 18px 58px 0;
+    object-fit: contain !important;
+    object-position: right center !important;
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1180px) {
+  .app-page-main.route-driver-details .driver-profile-season-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 899px) {
+  .app-page-main.route-compare {
+    min-width: 0;
+    overflow-x: clip;
+  }
+
+  .app-page-main.route-compare .page-head-row-compare {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .app-page-main.route-compare .page-head-row-compare .page-head-controls {
+    width: 100%;
+    max-width: none;
+  }
+
+  .app-page-main.route-compare .compare-controls-panel-redesign {
+    padding: 14px;
+  }
+
+  .app-page-main.route-compare .compare-controls-topline {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .app-page-main.route-compare .compare-redesign-tabs {
+    width: 100%;
+    max-width: none;
+    margin: 0 0 4px;
+  }
+
+  .app-page-main.route-compare .compare-redesign-selectors {
+    display: flex;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+    margin: 0;
+  }
+
+  .app-page-main.route-compare .compare-participant-field {
+    display: grid;
+    min-width: 0;
+    gap: 6px;
+  }
+
+  .app-page-main.route-compare .compare-participant-field > span {
+    color: rgba(236, 232, 230, 0.48);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .app-page-main.route-compare .driver-select {
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    padding: 0;
+  }
+
+  .app-page-main.route-compare .driver-select .custom-select-trigger {
+    width: 100%;
+    min-height: 52px;
+    padding: 12px 14px;
+    font-size: 15px;
+  }
+
+  .app-page-main.route-compare .compare-redesign-selectors .vs-badge {
+    display: grid;
+    place-items: center;
+    align-self: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(225, 6, 0, 0.22);
+    border-radius: 50%;
+    background: rgba(225, 6, 0, 0.08);
+    font-size: 12px;
+  }
+
+  .app-page-main.route-compare .compare-redesign-selectors .btn-compare {
+    width: 100%;
+    min-height: 54px;
+    margin: 4px 0 0;
+    border-radius: 11px;
+    font-size: 14px;
+    touch-action: manipulation;
+  }
+
+  .app-page-main.route-compare .compare-result-summary,
+  .app-page-main.route-compare .compare-stats-grid,
+  .app-page-main.route-compare .compare-facts-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-page-main.route-compare .compare-summary-participant.cyan {
+    text-align: left;
+  }
+
+  .app-page-main.route-compare .compare-chart-container {
+    min-width: 0;
+    padding: 10px;
+  }
+
+  .app-page-main.route-compare .compare-chart-canvas-wrap {
+    width: 100%;
+    min-width: 0;
+    height: 260px;
+  }
+}

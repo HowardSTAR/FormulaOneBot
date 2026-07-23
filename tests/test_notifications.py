@@ -11,7 +11,7 @@ from aiogram.types import BufferedInputFile
 
 from app.utils.notifications import (
     GROUP_TIMEZONE,
-    _is_voting_results_send_time,
+    _voting_closes_at,
     check_and_send_notifications,
     check_and_send_results,
     check_and_send_session_results,
@@ -80,12 +80,13 @@ def test_notification_text_contains_local_date(request: pytest.FixtureRequest):
     assert "02.03.2026" in text
 
 
-def test_voting_results_retry_window_stays_open_after_ten():
-    """Пропущенный запуск в 10:00 можно безопасно повторить позднее в тот же день."""
-    assert _is_voting_results_send_time(
-        "Europe/Moscow",
-        datetime(2026, 7, 18, 8, 30, tzinfo=timezone.utc),
-    ) is True
+def test_voting_results_deadline_uses_exact_race_start():
+    """Трёхдневный таймер считается от времени старта, а не от календарной даты."""
+    closes_at = _voting_closes_at({
+        "date": "2026-07-19",
+        "race_start_utc": "2026-07-19T13:00:00+00:00",
+    })
+    assert closes_at == datetime(2026, 7, 22, 13, 0, tzinfo=timezone.utc)
 
 
 @pytest.mark.asyncio
@@ -99,7 +100,6 @@ async def test_voting_results_do_not_depend_on_external_race_results():
             patch("app.utils.notifications.get_race_avg_for_round", new_callable=AsyncMock) as m_avg, \
             patch("app.utils.notifications.get_driver_vote_winner", new_callable=AsyncMock) as m_winner, \
             patch("app.utils.notifications.get_driver_full_name_async", new_callable=AsyncMock) as m_name, \
-            patch("app.utils.notifications._is_voting_results_send_time", return_value=True), \
             patch("app.utils.notifications.was_reminder_sent", new_callable=AsyncMock) as m_was_sent, \
             patch("app.utils.notifications.set_reminder_sent", new_callable=AsyncMock) as m_set_sent, \
             patch("app.utils.notifications.safe_send_message", new_callable=AsyncMock) as m_send:

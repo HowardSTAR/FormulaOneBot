@@ -873,9 +873,17 @@ def _render_head_crop_png_bytes(path: Path) -> bytes:
     with Image.open(path) as img:
         base = img.convert("RGBA")
         w, h = base.size
-        # Берём верхнюю часть без обратного растягивания, чтобы не было деформации.
-        crop_h = max(1, int(h * PILOT_HEAD_CROP_RATIO))
-        head = base.crop((0, 0, w, crop_h))
+        alpha_extrema = base.getchannel("A").getextrema()
+        is_transparent_square_portrait = h <= int(w * 1.25) and alpha_extrema[0] < 255
+        if is_transparent_square_portrait:
+            # Готовые квадратные headshot-ассеты уже скомпонованы вокруг лица.
+            # Повторный кроп срезал подбородок и форму у портретов 2025 года.
+            head = base
+        else:
+            # Высокие ростовые портреты 2026: берём верхнюю часть без
+            # обратного растягивания, чтобы лицо оставалось пропорциональным.
+            crop_h = max(1, int(h * PILOT_HEAD_CROP_RATIO))
+            head = base.crop((0, 0, w, crop_h))
         buf = io.BytesIO()
         head.save(buf, format="PNG")
         return buf.getvalue()
