@@ -5,6 +5,8 @@ import "./predictions.css";
 
 type Driver = { code: string; name: string };
 type Prediction = {
+  sprint_pole_driver: string;
+  sprint_winner_driver: string;
   pole_driver: string;
   winner_driver: string;
   second_driver: string;
@@ -23,22 +25,32 @@ type CurrentResponse = {
   round: number | null;
   event_name?: string;
   deadline_utc?: string | null;
+  has_sprint: boolean;
   is_open: boolean;
   profile: { display_name: string; completed: boolean };
   drivers: Driver[];
   prediction: Prediction | null;
+  scoring_rules: ScoringRule[];
 };
-type HistoryItem = { season: number; round: number; event_name?: string; points: number; max_points: number };
+type ScoringRule = { key: string; label: string; exact: number; offsets: [number, number, number] };
+type HistoryItem = { season: number; round: number; event_name?: string; short_code: string; points: number; max_points: number };
+type RoundColumn = { season: number; round: number; event_name: string; short_code: string; max_points: number };
 type LeaderboardEntry = {
   place: number;
   telegram_id: number;
   display_name: string;
   total_points: number;
   rounds_scored: number;
+  wins: number;
+  best_points: number;
+  average_points: number;
   history: HistoryItem[];
 };
+type LeaderboardResponse = { season: number; entries: LeaderboardEntry[]; rounds: RoundColumn[] };
 
 const EMPTY_PREDICTION: Prediction = {
+  sprint_pole_driver: "",
+  sprint_winner_driver: "",
   pole_driver: "",
   winner_driver: "",
   second_driver: "",
@@ -50,7 +62,12 @@ const EMPTY_PREDICTION: Prediction = {
   safety_car: false,
 };
 
-const DRIVER_FIELDS: Array<{ key: keyof Prediction; label: string; marker: string }> = [
+const SPRINT_DRIVER_FIELDS: Array<{ key: keyof Prediction; label: string; marker: string }> = [
+  { key: "sprint_pole_driver", label: "Спринт-поул", marker: "SP" },
+  { key: "sprint_winner_driver", label: "Спринт-победа", marker: "S1" },
+];
+
+const BASE_DRIVER_FIELDS: Array<{ key: keyof Prediction; label: string; marker: string }> = [
   { key: "pole_driver", label: "Поул-позиция", marker: "P" },
   { key: "winner_driver", label: "Победитель", marker: "1" },
   { key: "second_driver", label: "2 место", marker: "2" },
@@ -71,10 +88,18 @@ function deadlineText(value?: string | null) {
   }).format(new Date(value));
 }
 
+function pointsLabel(points: number) {
+  if (points === 1) return "1 балл";
+  if (points >= 2 && points <= 4) return `${points} балла`;
+  return `${points} баллов`;
+}
+
 export default function PredictionsPage() {
   const [tab, setTab] = useState<"form" | "leaderboard">("form");
   const [current, setCurrent] = useState<CurrentResponse | null>(null);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [rounds, setRounds] = useState<RoundColumn[]>([]);
+  const [leaderboardSeason, setLeaderboardSeason] = useState<number | null>(null);
   const [form, setForm] = useState<Prediction>(EMPTY_PREDICTION);
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -88,12 +113,14 @@ export default function PredictionsPage() {
     try {
       const [currentData, leaderboardData] = await Promise.all([
         apiRequest<CurrentResponse>("/api/predictions/current"),
-        apiRequest<{ entries: LeaderboardEntry[] }>("/api/predictions/leaderboard"),
+        apiRequest<LeaderboardResponse>("/api/predictions/leaderboard"),
       ]);
       setCurrent(currentData);
       setDisplayName(currentData.profile.display_name || "");
       setForm(currentData.prediction ? { ...EMPTY_PREDICTION, ...currentData.prediction } : EMPTY_PREDICTION);
       setEntries(leaderboardData.entries || []);
+      setRounds(leaderboardData.rounds || []);
+      setLeaderboardSeason(leaderboardData.season || null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось загрузить прогнозы");
     } finally {
@@ -142,7 +169,10 @@ export default function PredictionsPage() {
     }
   };
 
-  const formComplete = DRIVER_FIELDS.every(({ key }) => Boolean(form[key]));
+  const driverFields = current?.has_sprint
+    ? [...SPRINT_DRIVER_FIELDS, ...BASE_DRIVER_FIELDS]
+    : BASE_DRIVER_FIELDS;
+  const formComplete = driverFields.every(({ key }) => Boolean(form[key]));
 
   return (
     <main className="predictions-page">
@@ -151,7 +181,7 @@ export default function PredictionsPage() {
         <div>
           <span className="predictions-kicker">F1 Forecast</span>
           <h2>Прогнозы</h2>
-          <p>Девять решений до старта квалификации. Один точный ответ — один балл.</p>
+          <p>Прогноз закрывается перед первой квалификацией. Чем точнее позиция — тем больше баллов.</p>
         </div>
         {current?.status === "ok" && (
           <div className={`predictions-deadline ${current.is_open ? "is-open" : "is-closed"}`}>
@@ -165,6 +195,37 @@ export default function PredictionsPage() {
         <button className={tab === "form" ? "active" : ""} onClick={() => setTab("form")}>Мой прогноз</button>
         <button className={tab === "leaderboard" ? "active" : ""} onClick={() => setTab("leaderboard")}>Турнирная таблица</button>
       </div>
+
+      <details className="prediction-rules">
+        <summary>
+          <span>Как начисляются баллы</span>
+          <strong>MAX 37 · СПРИНТ 43</strong>
+        </summary>
+        <div className="prediction-rules-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Категория</th>
+                <th>Точное попадание</th>
+                <th>Ошибка на 1 место</th>
+                <th>Ошибка на 2 места</th>
+                <th>Ошибка на 3 места</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(current?.scoring_rules || []).map((rule) => (
+                <tr key={rule.key}>
+                  <th>{rule.label}</th>
+                  <td>{pointsLabel(rule.exact)}</td>
+                  {rule.offsets.map((points, index) => (
+                    <td key={index} className={points ? "" : "is-zero"}>{pointsLabel(points)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
 
       {error && <div className="predictions-message is-error">{error}</div>}
       {notice && <div className="predictions-message is-success">{notice}</div>}
@@ -203,7 +264,7 @@ export default function PredictionsPage() {
               </div>
 
               <div className="prediction-grid">
-                {DRIVER_FIELDS.map(({ key, label, marker }) => (
+                {driverFields.map(({ key, label, marker }) => (
                   <label key={key} className="prediction-field">
                     <span className="prediction-field-marker">{marker}</span>
                     <span className="prediction-field-copy">{label}</span>
@@ -233,7 +294,9 @@ export default function PredictionsPage() {
               </div>
 
               <div className="prediction-submit-row">
-                <p>{current.is_open ? "После старта квалификации сервер заблокирует любые изменения." : "Прогноз доступен только для просмотра."}</p>
+                <p>{current.is_open
+                  ? `После старта ${current.has_sprint ? "спринт-квалификации" : "квалификации"} сервер заблокирует любые изменения.`
+                  : "Прогноз доступен только для просмотра."}</p>
                 <button disabled={!current.is_open || !formComplete || saving} onClick={() => void savePrediction()}>
                   {saving ? "Сохраняем…" : current.prediction ? "Обновить прогноз" : "Отправить прогноз"}
                 </button>
@@ -245,27 +308,59 @@ export default function PredictionsPage() {
 
       {!loading && tab === "leaderboard" && (
         <section className="prediction-leaderboard">
-          <div className="prediction-leaderboard-head">
-            <span>Место</span><span>Участник</span><span>Этапы</span><span>Очки</span>
+          <div className="prediction-leaderboard-title">
+            <div>
+              <span>Season standings · {leaderboardSeason ?? current?.season}</span>
+              <h3>Турнирная таблица</h3>
+            </div>
+            <p>Прокрутите таблицу вправо, чтобы увидеть результаты каждого этапа.</p>
           </div>
-          {entries.map((entry) => (
-            <details key={entry.telegram_id} className="prediction-leaderboard-row">
-              <summary>
-                <strong className="prediction-place">{String(entry.place).padStart(2, "0")}</strong>
-                <span>{entry.display_name}</span>
-                <span>{entry.rounds_scored}</span>
-                <strong>{entry.total_points}</strong>
-              </summary>
-              <div className="prediction-history">
-                {entry.history.length ? entry.history.map((item) => (
-                  <div key={`${item.season}-${item.round}`}>
-                    <span>R{item.round} · {item.event_name || item.season}</span>
-                    <strong>{item.points}/{item.max_points}</strong>
-                  </div>
-                )) : <p>Пока нет рассчитанных этапов.</p>}
-              </div>
-            </details>
-          ))}
+          <div className="prediction-leaderboard-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th className="is-place">Место</th>
+                  <th className="is-name">Участник</th>
+                  <th>Побед</th>
+                  <th>Лучший</th>
+                  <th>Средний</th>
+                  <th>Этапы</th>
+                  <th className="is-total">Баллы всего</th>
+                  {rounds.map((roundInfo) => (
+                    <th key={`${roundInfo.season}-${roundInfo.round}`} title={roundInfo.event_name}>
+                      {roundInfo.short_code}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((entry) => {
+                  const stagePoints = new Map(
+                    entry.history.map((item) => [`${item.season}-${item.round}`, item.points]),
+                  );
+                  return (
+                    <tr key={entry.telegram_id}>
+                      <td className="is-place"><strong>{String(entry.place).padStart(2, "0")}</strong></td>
+                      <th className="is-name">{entry.display_name}</th>
+                      <td>{entry.wins}</td>
+                      <td>{entry.best_points}</td>
+                      <td>{entry.average_points.toFixed(1)}</td>
+                      <td>{entry.rounds_scored}</td>
+                      <td className="is-total"><strong>{entry.total_points}</strong></td>
+                      {rounds.map((roundInfo) => {
+                        const points = stagePoints.get(`${roundInfo.season}-${roundInfo.round}`);
+                        return (
+                          <td key={`${roundInfo.season}-${roundInfo.round}`} title={roundInfo.event_name}>
+                            {points ?? "—"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           {!entries.length && <div className="predictions-loading">Турнирная таблица пока пуста.</div>}
         </section>
       )}

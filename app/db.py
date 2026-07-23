@@ -251,6 +251,8 @@ class Database:
                 user_id INTEGER NOT NULL,
                 season INTEGER NOT NULL,
                 round INTEGER NOT NULL,
+                sprint_pole_driver TEXT,
+                sprint_winner_driver TEXT,
                 pole_driver TEXT NOT NULL,
                 winner_driver TEXT NOT NULL,
                 second_driver TEXT NOT NULL,
@@ -276,6 +278,8 @@ class Database:
                 season INTEGER NOT NULL,
                 round INTEGER NOT NULL,
                 event_name TEXT NOT NULL,
+                sprint_pole_driver TEXT,
+                sprint_winner_driver TEXT,
                 pole_driver TEXT,
                 winner_driver TEXT,
                 second_driver TEXT,
@@ -291,6 +295,19 @@ class Database:
             );
             """
         )
+        # Миграция существующей БД: спринт-поля nullable, поэтому старые
+        # прогнозы и рассчитанные этапы остаются валидными.
+        for table_name in ("race_predictions", "prediction_round_results"):
+            async with self.conn.execute(f"PRAGMA table_info({table_name})") as cursor:
+                prediction_cols = {row["name"] for row in await cursor.fetchall()}
+            if "sprint_pole_driver" not in prediction_cols:
+                await self.conn.execute(
+                    f"ALTER TABLE {table_name} ADD COLUMN sprint_pole_driver TEXT"
+                )
+            if "sprint_winner_driver" not in prediction_cols:
+                await self.conn.execute(
+                    f"ALTER TABLE {table_name} ADD COLUMN sprint_winner_driver TEXT"
+                )
         await self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS prediction_notification_state (

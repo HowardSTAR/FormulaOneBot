@@ -8,7 +8,11 @@ from app.db import db, get_or_create_user
 from app.f1_data import get_driver_standings_async, get_season_schedule_short_async
 
 
-PREDICTION_FIELDS = (
+SPRINT_FIELDS = (
+    "sprint_pole_driver",
+    "sprint_winner_driver",
+)
+PREDICTION_FIELDS = SPRINT_FIELDS + (
     "pole_driver",
     "winner_driver",
     "second_driver",
@@ -27,6 +31,82 @@ PLACEMENT_FIELDS = (
     "fourth_driver",
     "fifth_driver",
 )
+PLACEMENT_TARGETS = {
+    "winner_driver": 1,
+    "second_driver": 2,
+    "third_driver": 3,
+    "fourth_driver": 4,
+    "fifth_driver": 5,
+}
+EXACT_POINTS = {
+    "sprint_pole_driver": 3,
+    "sprint_winner_driver": 3,
+    "pole_driver": 3,
+    "winner_driver": 8,
+    "second_driver": 5,
+    "third_driver": 5,
+    "fourth_driver": 5,
+    "fifth_driver": 5,
+    "fastest_lap_driver": 2,
+    "first_retirement_driver": 2,
+    "safety_car": 2,
+}
+PREDICTION_SCORING_RULES = [
+    {"key": "sprint_pole_driver", "label": "Спринт-поул", "exact": 3, "offsets": [0, 0, 0]},
+    {"key": "sprint_winner_driver", "label": "Спринт-победа", "exact": 3, "offsets": [0, 0, 0]},
+    {"key": "pole_driver", "label": "Поул-позиция", "exact": 3, "offsets": [0, 0, 0]},
+    {"key": "winner_driver", "label": "Победитель", "exact": 8, "offsets": [3, 2, 1]},
+    {"key": "second_driver", "label": "2 место", "exact": 5, "offsets": [3, 2, 1]},
+    {"key": "third_driver", "label": "3 место", "exact": 5, "offsets": [3, 2, 1]},
+    {"key": "fourth_driver", "label": "4 место", "exact": 5, "offsets": [3, 2, 1]},
+    {"key": "fifth_driver", "label": "5 место", "exact": 5, "offsets": [3, 2, 1]},
+    {"key": "fastest_lap_driver", "label": "Лучший круг", "exact": 2, "offsets": [0, 0, 0]},
+    {"key": "first_retirement_driver", "label": "Сход №1", "exact": 2, "offsets": [0, 0, 0]},
+    {"key": "safety_car", "label": "Машина безопасности", "exact": 2, "offsets": [0, 0, 0]},
+]
+EVENT_SHORT_CODES = {
+    "australian": "AUS",
+    "chinese": "CHN",
+    "japanese": "JPN",
+    "bahrain": "BHR",
+    "saudi": "SAU",
+    "miami": "MIA",
+    "emilia": "EMI",
+    "monaco": "MON",
+    "spanish": "ESP",
+    "barcelona": "ESP",
+    "canadian": "CAN",
+    "austrian": "AUT",
+    "british": "GBR",
+    "belgian": "BEL",
+    "hungarian": "HUN",
+    "dutch": "NED",
+    "italian": "ITA",
+    "azerbaijan": "AZE",
+    "singapore": "SGP",
+    "united states": "USA",
+    "mexico": "MEX",
+    "são paulo": "BRA",
+    "sao paulo": "BRA",
+    "las vegas": "LV",
+    "qatar": "QAT",
+    "abu dhabi": "ABU",
+}
+
+
+def event_short_code(event_name: str | None, round_num: int) -> str:
+    normalized = str(event_name or "").strip().lower()
+    for marker, code in EVENT_SHORT_CODES.items():
+        if marker in normalized:
+            return code
+    words = [
+        word
+        for word in re.findall(r"[A-Za-zА-Яа-яЁё]+", str(event_name or ""))
+        if word.lower() not in {"grand", "prix", "гран", "при"}
+    ]
+    if len(words) == 1:
+        return words[0][:3].upper()
+    return "".join(word[0] for word in words[:3]).upper() or f"R{round_num}"
 
 
 def normalize_driver_code(value: Any) -> str:
@@ -58,10 +138,19 @@ async def get_prediction_context(now_utc: datetime | None = None) -> dict[str, A
         if race_at and now <= race_at + timedelta(hours=6):
             candidates.append((race_at, event))
     if not candidates:
-        return {"status": "unavailable", "season": season, "round": None, "is_open": False}
+        return {
+            "status": "unavailable",
+            "season": season,
+            "round": None,
+            "has_sprint": False,
+            "is_open": False,
+        }
 
     _, event = min(candidates, key=lambda item: item[0])
-    deadline = parse_utc(event.get("quali_start_utc"))
+    has_sprint = bool(event.get("sprint_start_utc") or event.get("sprint_quali_start_utc"))
+    deadline = parse_utc(
+        event.get("sprint_quali_start_utc") if has_sprint else event.get("quali_start_utc")
+    )
     return {
         "status": "ok",
         "season": season,
@@ -69,6 +158,7 @@ async def get_prediction_context(now_utc: datetime | None = None) -> dict[str, A
         "event_name": event.get("event_name") or "Гран-при",
         "deadline_utc": deadline.isoformat() if deadline else None,
         "race_start_utc": event.get("race_start_utc"),
+        "has_sprint": has_sprint,
         "is_open": bool(deadline and now < deadline),
     }
 
@@ -145,6 +235,7 @@ async def save_user_prediction(
     round_num: int,
     payload: dict[str, Any],
     allowed_driver_codes: set[str] | None = None,
+    require_sprint: bool = False,
 ) -> dict[str, Any]:
     profile = await get_prediction_profile(telegram_id)
     if not profile["completed"]:
@@ -152,6 +243,9 @@ async def save_user_prediction(
 
     normalized: dict[str, Any] = {}
     for field in DRIVER_FIELDS:
+        if field in SPRINT_FIELDS and not require_sprint:
+            normalized[field] = None
+            continue
         normalized[field] = normalize_driver_code(payload.get(field))
         if allowed_driver_codes and normalized[field] not in allowed_driver_codes:
             raise ValueError(f"Пилот {normalized[field]} отсутствует в текущем сезоне")
@@ -169,11 +263,14 @@ async def save_user_prediction(
         await db.conn.execute(
             """
             INSERT INTO race_predictions(
-                user_id, season, round, pole_driver, winner_driver, second_driver,
+                user_id, season, round, sprint_pole_driver, sprint_winner_driver,
+                pole_driver, winner_driver, second_driver,
                 third_driver, fourth_driver, fifth_driver, fastest_lap_driver,
                 first_retirement_driver, safety_car
-            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id, season, round) DO UPDATE SET
+                sprint_pole_driver=excluded.sprint_pole_driver,
+                sprint_winner_driver=excluded.sprint_winner_driver,
                 pole_driver=excluded.pole_driver,
                 winner_driver=excluded.winner_driver,
                 second_driver=excluded.second_driver,
@@ -204,10 +301,26 @@ def _row_code(row: pd.Series) -> str | None:
 def build_actual_answers(
     race_results: pd.DataFrame,
     qualifying_results: list[dict[str, Any]],
+    sprint_qualifying_results: list[dict[str, Any]] | None = None,
+    sprint_results: pd.DataFrame | None = None,
     extra_facts: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Строит только подтверждённые API факты; отсутствующие категории остаются None."""
     answers: dict[str, Any] = {field: None for field in PREDICTION_FIELDS}
+    if sprint_qualifying_results:
+        sprint_pole = min(
+            sprint_qualifying_results,
+            key=lambda item: int(item.get("position") or 999),
+        )
+        answers["sprint_pole_driver"] = (
+            str(sprint_pole.get("driver") or "").strip().upper() or None
+        )
+    if sprint_results is not None and not sprint_results.empty and "Position" in sprint_results.columns:
+        sprint_ordered = sprint_results.copy()
+        sprint_ordered["_position"] = pd.to_numeric(sprint_ordered["Position"], errors="coerce")
+        sprint_ordered = sprint_ordered.dropna(subset=["_position"]).sort_values("_position")
+        if not sprint_ordered.empty:
+            answers["sprint_winner_driver"] = _row_code(sprint_ordered.iloc[0])
     if qualifying_results:
         pole = min(qualifying_results, key=lambda item: int(item.get("position") or 999))
         answers["pole_driver"] = str(pole.get("driver") or "").strip().upper() or None
@@ -216,6 +329,11 @@ def build_actual_answers(
         ordered = race_results.copy()
         ordered["_position"] = pd.to_numeric(ordered["Position"], errors="coerce")
         ordered = ordered.dropna(subset=["_position"]).sort_values("_position")
+        answers["_race_positions"] = {
+            code: int(row["_position"])
+            for _, row in ordered.iterrows()
+            if (code := _row_code(row)) is not None
+        }
         top = [_row_code(row) for _, row in ordered.head(5).iterrows()]
         if len(top) == 5 and all(top):
             for field, code in zip(PLACEMENT_FIELDS, top):
@@ -251,6 +369,40 @@ def build_actual_answers(
     return answers
 
 
+def calculate_prediction_points(prediction: Any, answers: dict[str, Any]) -> int:
+    """Начисляет баллы по матрице сезона-2026 из правил прогнозов."""
+    race_positions = dict(answers.get("_race_positions") or {})
+    if not race_positions:
+        race_positions = {
+            str(answers[field]): target
+            for field, target in PLACEMENT_TARGETS.items()
+            if answers.get(field)
+        }
+
+    points = 0
+    for field in PREDICTION_FIELDS:
+        actual = answers.get(field)
+        if actual is None:
+            continue
+        predicted = prediction[field]
+        if field in PLACEMENT_TARGETS:
+            actual_position = race_positions.get(str(predicted))
+            if actual_position is None:
+                continue
+            delta = abs(actual_position - PLACEMENT_TARGETS[field])
+            if delta == 0:
+                points += EXACT_POINTS[field]
+            elif delta == 1:
+                points += 3
+            elif delta == 2:
+                points += 2
+            elif delta == 3:
+                points += 1
+        elif predicted == actual:
+            points += EXACT_POINTS[field]
+    return points
+
+
 async def score_prediction_round(
     season: int,
     round_num: int,
@@ -258,7 +410,7 @@ async def score_prediction_round(
     answers: dict[str, Any],
 ) -> dict[str, Any]:
     available_fields = [field for field in PREDICTION_FIELDS if answers.get(field) is not None]
-    max_points = len(available_fields)
+    max_points = sum(EXACT_POINTS[field] for field in available_fields)
     if not db.conn:
         await db.connect()
 
@@ -267,12 +419,15 @@ async def score_prediction_round(
         await db.conn.execute(
             """
             INSERT INTO prediction_round_results(
-                season, round, event_name, pole_driver, winner_driver, second_driver,
+                season, round, event_name, sprint_pole_driver, sprint_winner_driver,
+                pole_driver, winner_driver, second_driver,
                 third_driver, fourth_driver, fifth_driver, fastest_lap_driver,
                 first_retirement_driver, safety_car, max_points
-            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(season, round) DO UPDATE SET
                 event_name=excluded.event_name,
+                sprint_pole_driver=excluded.sprint_pole_driver,
+                sprint_winner_driver=excluded.sprint_winner_driver,
                 pole_driver=excluded.pole_driver,
                 winner_driver=excluded.winner_driver,
                 second_driver=excluded.second_driver,
@@ -294,7 +449,7 @@ async def score_prediction_round(
         ) as cursor:
             predictions = await cursor.fetchall()
         for prediction in predictions:
-            points = sum(int(prediction[field] == answers[field]) for field in available_fields)
+            points = calculate_prediction_points(prediction, answers)
             await db.conn.execute(
                 """
                 UPDATE race_predictions SET points = ?, max_points = ?, scored_at = CURRENT_TIMESTAMP
@@ -325,39 +480,104 @@ async def get_stage_top(season: int, round_num: int, limit: int = 3) -> list[dic
         return [dict(row) for row in await cursor.fetchall()]
 
 
-async def get_prediction_leaderboard() -> list[dict[str, Any]]:
+async def get_prediction_leaderboard() -> dict[str, Any]:
     if not db.conn:
         await db.connect()
     async with db.conn.execute(
+        "SELECT MAX(season) AS season FROM prediction_round_results"
+    ) as cursor:
+        latest_round = await cursor.fetchone()
+    leaderboard_season = int(latest_round["season"]) if latest_round and latest_round["season"] else datetime.now(timezone.utc).year
+
+    async with db.conn.execute(
         """
-        SELECT pp.telegram_id, pp.display_name,
-               COALESCE(SUM(rp.points), 0) AS total_points,
-               COUNT(rp.points) AS rounds_scored
-        FROM prediction_profiles pp
-        LEFT JOIN users u ON u.telegram_id = pp.telegram_id
-        LEFT JOIN race_predictions rp ON rp.user_id = u.id
-        GROUP BY pp.telegram_id, pp.display_name
-        ORDER BY total_points DESC, rounds_scored DESC, pp.display_name COLLATE NOCASE
+        SELECT telegram_id, display_name
+        FROM prediction_profiles
+        ORDER BY display_name COLLATE NOCASE
         """
     ) as cursor:
         participants = [dict(row) for row in await cursor.fetchall()]
 
+    async with db.conn.execute(
+        """
+        SELECT u.telegram_id, rp.season, rp.round, rp.points, rp.max_points,
+               rr.event_name
+        FROM race_predictions rp
+        JOIN users u ON u.id = rp.user_id
+        LEFT JOIN prediction_round_results rr
+          ON rr.season = rp.season AND rr.round = rp.round
+        WHERE rp.points IS NOT NULL AND rp.season = ?
+        ORDER BY rp.season, rp.round
+        """,
+        (leaderboard_season,),
+    ) as cursor:
+        score_rows = [dict(row) for row in await cursor.fetchall()]
+
+    async with db.conn.execute(
+        """
+        SELECT season, round, event_name, max_points
+        FROM prediction_round_results
+        WHERE season = ?
+        ORDER BY season, round
+        """,
+        (leaderboard_season,),
+    ) as cursor:
+        rounds = [dict(row) for row in await cursor.fetchall()]
+
+    round_max: dict[tuple[int, int], int] = {}
+    by_user: dict[int, list[dict[str, Any]]] = {}
+    for row in score_rows:
+        key = (int(row["season"]), int(row["round"]))
+        round_max[key] = max(round_max.get(key, 0), int(row["points"] or 0))
+        by_user.setdefault(int(row["telegram_id"]), []).append(row)
+
+    for participant in participants:
+        history = by_user.get(int(participant["telegram_id"]), [])
+        total_points = sum(int(row["points"] or 0) for row in history)
+        participant["total_points"] = total_points
+        participant["rounds_scored"] = len(history)
+        participant["best_points"] = max((int(row["points"] or 0) for row in history), default=0)
+        participant["average_points"] = round(total_points / len(history), 1) if history else 0.0
+        participant["wins"] = sum(
+            1
+            for row in history
+            if int(row["points"] or 0) > 0
+            and int(row["points"] or 0)
+            == round_max[(int(row["season"]), int(row["round"]))]
+        )
+        participant["history"] = [
+            {
+                **row,
+                "short_code": event_short_code(row.get("event_name"), int(row["round"])),
+            }
+            for row in history
+        ]
+
+    participants.sort(
+        key=lambda item: (
+            -int(item["total_points"]),
+            -int(item["wins"]),
+            -int(item["best_points"]),
+            str(item["display_name"]).casefold(),
+        )
+    )
     for place, participant in enumerate(participants, start=1):
         participant["place"] = place
-        async with db.conn.execute(
-            """
-            SELECT rp.season, rp.round, rr.event_name, rp.points, rp.max_points
-            FROM race_predictions rp
-            JOIN users u ON u.id = rp.user_id
-            LEFT JOIN prediction_round_results rr
-              ON rr.season = rp.season AND rr.round = rp.round
-            WHERE u.telegram_id = ? AND rp.points IS NOT NULL
-            ORDER BY rp.season DESC, rp.round DESC
-            """,
-            (participant["telegram_id"],),
-        ) as cursor:
-            participant["history"] = [dict(row) for row in await cursor.fetchall()]
-    return participants
+
+    return {
+        "season": leaderboard_season,
+        "entries": participants,
+        "rounds": [
+            {
+                **round_info,
+                "short_code": event_short_code(
+                    round_info.get("event_name"),
+                    int(round_info["round"]),
+                ),
+            }
+            for round_info in rounds
+        ],
+    }
 
 
 async def get_notification_state(season: int, round_num: int) -> dict[str, bool]:

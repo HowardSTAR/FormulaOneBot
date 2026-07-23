@@ -60,6 +60,7 @@ from app.handlers.races import build_next_race_payload
 from app.services.admin_feedback_service import send_admin_feedback
 from app.services.prediction_service import (
     PREDICTION_FIELDS,
+    PREDICTION_SCORING_RULES,
     get_prediction_context,
     get_prediction_drivers,
     get_prediction_leaderboard,
@@ -180,6 +181,8 @@ class PredictionProfileRequest(BaseModel):
 
 
 class PredictionRequest(BaseModel):
+    sprint_pole_driver: Optional[str] = None
+    sprint_winner_driver: Optional[str] = None
     pole_driver: str
     winner_driver: str
     second_driver: str
@@ -247,6 +250,7 @@ async def api_prediction_current(user_id: int = Depends(get_current_user_id)):
         "profile": profile,
         "drivers": drivers,
         "prediction": _serialize_prediction(prediction),
+        "scoring_rules": PREDICTION_SCORING_RULES,
     }
 
 
@@ -281,6 +285,7 @@ async def api_prediction_save(
             context["round"],
             data.model_dump(),
             allowed_driver_codes=allowed_codes or None,
+            require_sprint=bool(context.get("has_sprint")),
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -289,7 +294,7 @@ async def api_prediction_save(
 
 @web_app.get("/api/predictions/leaderboard")
 async def api_prediction_leaderboard(_: int = Depends(get_current_user_id)):
-    return {"entries": await get_prediction_leaderboard()}
+    return await get_prediction_leaderboard()
 
 
 @web_app.post("/api/contact-admin")

@@ -10,6 +10,8 @@ from app.f1_data import (
     get_quali_for_round_async,
     get_race_results_async,
     get_season_schedule_short_async,
+    get_sprint_quali_results_async,
+    get_sprint_results_async,
     get_weekend_schedule,
 )
 from app.services.prediction_service import (
@@ -43,11 +45,17 @@ def _prediction_open_trigger(sessions: list[dict]) -> datetime | None:
 async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple]) -> int:
     mini_app_url = os.getenv("MINI_APP_URL", "").strip().rstrip("/")
     link_line = f"\n\n🔗 {mini_app_url}/predictions" if mini_app_url else ""
+    sprint_line = (
+        "\nНа спринт-уикенде также доступны прогнозы на спринт-поул и победителя спринта."
+        if event.get("sprint_start_utc") or event.get("sprint_quali_start_utc")
+        else ""
+    )
     text = (
         "🔮 <b>Открыт приём прогнозов</b>\n\n"
         f"🏁 {html.escape(str(event.get('event_name') or 'Гран-при'))}\n"
         "Укажите поул, первую пятёрку, лучший круг, первый сход и машину безопасности.\n\n"
-        "⏳ Приём закроется строго в момент начала квалификации."
+        f"{sprint_line}\n\n"
+        "⏳ Приём закроется строго в момент начала первой квалификации уикенда."
         f"{link_line}"
     )
     sent = 0
@@ -131,9 +139,15 @@ async def check_and_notify_predictions(bot: Bot) -> None:
             continue
 
         try:
-            race_results, quali_payload = await asyncio.gather(
+            race_results, quali_payload, sprint_quali_results, sprint_results = await asyncio.gather(
                 get_race_results_async(season, round_num),
                 get_quali_for_round_async(season, round_num),
+                get_sprint_quali_results_async(season, round_num)
+                if event.get("sprint_quali_start_utc")
+                else asyncio.sleep(0, result=[]),
+                get_sprint_results_async(season, round_num)
+                if event.get("sprint_start_utc")
+                else asyncio.sleep(0, result=None),
             )
         except Exception:
             logger.exception("Prediction result data failed for %s/%s", season, round_num)
@@ -141,7 +155,12 @@ async def check_and_notify_predictions(bot: Bot) -> None:
         if race_results is None or race_results.empty or len(race_results.index) < 10:
             continue
         qualifying_results = quali_payload[1] if isinstance(quali_payload, tuple) else quali_payload
-        answers = build_actual_answers(race_results, qualifying_results or [])
+        answers = build_actual_answers(
+            race_results,
+            qualifying_results or [],
+            sprint_qualifying_results=sprint_quali_results or [],
+            sprint_results=sprint_results,
+        )
         score_info = await score_prediction_round(
             season,
             round_num,

@@ -1,10 +1,11 @@
 import asyncio
 import logging
+from io import BytesIO
 from typing import Sequence
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramNetworkError, TelegramForbiddenError, TelegramRetryAfter, TelegramBadRequest
-from aiogram.types import Message, CallbackQuery, InputMediaPhoto
+from aiogram.types import BufferedInputFile, Message, CallbackQuery, InputMediaPhoto
 
 
 logger = logging.getLogger(__name__)
