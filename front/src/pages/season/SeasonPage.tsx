@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
 import { apiRequest } from "../../helpers/api";
@@ -22,7 +22,23 @@ type Race = {
 };
 type SeasonResponse = { races?: Race[] };
 type SettingsResponse = { timezone?: string };
-type RaceResultsResponse = { round?: number | null; results?: unknown[]; data_incomplete?: boolean };
+type RaceResult = {
+  position: number;
+  code: string;
+  name: string;
+  team: string;
+  points: number;
+};
+type RaceResultsResponse = {
+  round?: number | null;
+  results?: RaceResult[];
+  data_incomplete?: boolean;
+};
+type PodiumState = {
+  loading: boolean;
+  error: string | null;
+  results: RaceResult[];
+};
 type CalendarRaceStatus = "cancelled" | "live" | "recent" | "next" | "finished" | "future";
 
 const RACE_RESULTS_MIN_AGE_MS = 2 * 60 * 60 * 1000;
@@ -47,6 +63,79 @@ function weekendStartTime(race: Race): number {
   return new Date(race.date).getTime();
 }
 
+function isCompletedStatus(status: CalendarRaceStatus): boolean {
+  return status === "finished" || status === "recent";
+}
+
+function sessionHasStarted(value: string | null | undefined, nowMs: number, fallback = false): boolean {
+  const sessionTime = parseRaceTime(value);
+  return sessionTime === null ? fallback : sessionTime <= nowMs;
+}
+
+function SeasonTrackMap({ eventName }: { eventName: string }) {
+  const [trackSvg, setTrackSvg] = useState<string | null>(null);
+  const [trackError, setTrackError] = useState(false);
+  const trackContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/static/circuit/${eventName}.svg`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Track map not found");
+        const svg = await response.text();
+        if (!cancelled) setTrackSvg(svg);
+      })
+      .catch(() => {
+        if (!cancelled) setTrackError(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventName]);
+
+  useEffect(() => {
+    const container = trackContainerRef.current;
+    if (!trackSvg || !container) return;
+    container.innerHTML = trackSvg;
+    const svg = container.querySelector("svg");
+    if (!svg) return;
+    svg.style.width = "100%";
+    svg.style.height = "100%";
+    const paths = svg.querySelectorAll("path, polyline");
+    const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    outlineGroup.classList.add("track-outline-group");
+    fillGroup.classList.add("track-fill-group");
+    paths.forEach((path) => {
+      const outlinePath = path.cloneNode(true) as SVGElement;
+      outlinePath.removeAttribute("fill");
+      outlinePath.classList.add("track-outline");
+      const length = (outlinePath as SVGPathElement).getTotalLength?.() ?? 0;
+      outlinePath.style.strokeDasharray = String(length);
+      outlinePath.style.strokeDashoffset = String(length);
+      outlineGroup.appendChild(outlinePath);
+      path.classList.add("track-fill");
+      fillGroup.appendChild(path);
+    });
+    svg.innerHTML = "";
+    svg.appendChild(outlineGroup);
+    svg.appendChild(fillGroup);
+    const animationFrame = window.requestAnimationFrame(() => {
+      outlineGroup.querySelectorAll(".track-outline").forEach((path) => path.classList.add("animate"));
+      fillGroup.querySelectorAll(".track-fill").forEach((path) => path.classList.add("animate"));
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [trackSvg]);
+
+  return (
+    <div className="season-desktop-track-map">
+      {!trackSvg && !trackError && <span className="season-track-loading">Загрузка схемы трассы…</span>}
+      {trackError && <span className="season-track-loading">Схема трассы недоступна</span>}
+      <div ref={trackContainerRef} className="season-desktop-track-svg" />
+    </div>
+  );
+}
+
 function SeasonPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -59,10 +148,12 @@ function SeasonPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
-  const [expandedRound, setExpandedRound] = useState<number | null>(null);
+  const [expandedPodiumRound, setExpandedPodiumRound] = useState<number | null>(null);
+  const [expandedFactsRound, setExpandedFactsRound] = useState<number | null>(null);
   const [desktopSelectedRound, setDesktopSelectedRound] = useState<number | null>(null);
   const [calendarNowMs, setCalendarNowMs] = useState(() => Date.now());
   const [latestReadyRound, setLatestReadyRound] = useState<number | null>(null);
+  const [podiums, setPodiums] = useState<Record<number, PodiumState>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -114,7 +205,9 @@ function SeasonPage() {
 
   const updateYear = useCallback((y: number) => {
     setYear(y);
-    setExpandedRound(null);
+    setExpandedPodiumRound(null);
+    setExpandedFactsRound(null);
+    setPodiums({});
     setSearchParams(y === currentRealYear ? {} : { year: String(y) }, { replace: true });
   }, [setSearchParams]);
 
@@ -254,6 +347,106 @@ function SeasonPage() {
       : "--:--";
   const desktopFactTitles = ["Локация", "Ключевой участок", "Непредсказуемость"];
   const timelineRaceName = (name: string): string => name.replace(/Grand Prix/gi, "GP");
+  const loadPodium = useCallback(async (round: number) => {
+    if (podiums[round]?.loading || podiums[round]?.results.length) return;
+    setPodiums((current) => ({
+      ...current,
+      [round]: { loading: true, error: null, results: [] },
+    }));
+    try {
+      const response = await apiRequest<RaceResultsResponse>("/api/race-results", {
+        season: year,
+        round,
+      });
+      const results = (response.results || [])
+        .filter((result) => result.position >= 1 && result.position <= 3)
+        .sort((a, b) => a.position - b.position)
+        .slice(0, 3);
+      setPodiums((current) => ({
+        ...current,
+        [round]: {
+          loading: false,
+          error: results.length ? null : "Результаты этапа ещё обрабатываются",
+          results,
+        },
+      }));
+    } catch (e) {
+      setPodiums((current) => ({
+        ...current,
+        [round]: {
+          loading: false,
+          error: e instanceof Error ? e.message : "Не удалось загрузить результаты",
+          results: [],
+        },
+      }));
+    }
+  }, [podiums, year]);
+
+  const toggleRaceExpansion = useCallback((
+    race: Race,
+    status: CalendarRaceStatus,
+    selectDesktopRace = false,
+  ) => {
+    if (selectDesktopRace) setDesktopSelectedRound(race.round);
+    if (!isCompletedStatus(status)) {
+      setExpandedPodiumRound(null);
+      return;
+    }
+    const shouldOpen = expandedPodiumRound !== race.round;
+    setExpandedPodiumRound(shouldOpen ? race.round : null);
+    if (shouldOpen) void loadPodium(race.round);
+  }, [expandedPodiumRound, loadPodium]);
+
+  const toggleRaceFacts = useCallback((race: Race) => {
+    const shouldOpen = expandedFactsRound !== race.round;
+    setExpandedFactsRound(shouldOpen ? race.round : null);
+  }, [expandedFactsRound]);
+
+  const renderPodium = (race: Race) => {
+    const state = podiums[race.round];
+    return (
+      <div className="season-podium-content">
+        <div className="season-podium-head">
+          <div>
+            <span>Итоги гонки</span>
+            <strong>Топ-3 пилота</strong>
+          </div>
+          <button
+            type="button"
+            className="season-podium-all-results"
+            onClick={() => navigate(`/race-results?mode=archive&season=${year}&round=${race.round}`)}
+          >
+            Полные результаты
+            <span aria-hidden="true">→</span>
+          </button>
+        </div>
+        {state?.loading && (
+          <div className="season-podium-loading" role="status">
+            <span className="spinner" />
+            Загружаем подиум…
+          </div>
+        )}
+        {!state?.loading && state?.error && (
+          <div className="season-podium-message">{state.error}</div>
+        )}
+        {!state?.loading && Boolean(state?.results.length) && (
+          <ol className="season-podium-list">
+            {state.results.map((result) => (
+              <li key={`${race.round}-${result.position}-${result.code}`} className={`position-${result.position}`}>
+                <span className="season-podium-position">{String(result.position).padStart(2, "0")}</span>
+                <span className="season-podium-code">{result.code || "—"}</span>
+                <span className="season-podium-driver">
+                  <strong>{result.name}</strong>
+                  <small>{result.team || "Команда не указана"}</small>
+                </span>
+                <span className="season-podium-points">{result.points} оч.</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -299,6 +492,7 @@ function SeasonPage() {
 
             <article className="season-desktop-main-card season-desktop-hero-card">
               <div className="season-desktop-hero-media">
+                <SeasonTrackMap key={desktopRace.event_name} eventName={desktopRace.event_name} />
                 <div className="season-desktop-hero-next">
                   {desktopRaceStatus === "live"
                     ? "LIVE"
@@ -370,6 +564,7 @@ function SeasonPage() {
               const statusClass = calendarState.statusByRound.get(race.round) || "future";
               const isFinished = statusClass === "finished" || statusClass === "recent";
               const isSelected = desktopRace.round === race.round;
+              const isExpanded = expandedPodiumRound === race.round && isFinished;
               const statusLabel = statusClass === "cancelled"
                 ? "ОТМЕНЕН"
                 : statusClass === "live"
@@ -390,27 +585,44 @@ function SeasonPage() {
                 .replace(".", "")
                 .toUpperCase();
               return (
-                <button
+                <div
                   key={`desktop-${race.round}`}
-                  type="button"
-                  className={`season-desktop-race-item ${statusClass} ${isSelected ? "active" : ""}`}
-                  onClick={() => setDesktopSelectedRound(race.round)}
-                  aria-pressed={isSelected}
+                  className={`season-desktop-stage-shell ${isExpanded ? "expanded" : ""}`}
                 >
-                  <div className="season-desktop-race-info">
-                    <div className="season-desktop-race-topline">
-                      <div className="race-round">
-                        <span className="race-round-prefix">
-                          Этап {String(race.round).padStart(2, "0")} •
+                  <button
+                    type="button"
+                    className={`season-desktop-race-item ${statusClass} ${isSelected ? "active" : ""}`}
+                    onClick={() => toggleRaceExpansion(race, statusClass, true)}
+                    aria-pressed={isSelected}
+                    aria-expanded={isFinished ? isExpanded : undefined}
+                    aria-controls={isFinished ? `season-podium-${race.round}` : undefined}
+                  >
+                    <div className="season-desktop-race-info">
+                      <div className="season-desktop-race-topline">
+                        <div className="race-round">
+                          <span className="race-round-prefix">
+                            Этап {String(race.round).padStart(2, "0")} •
+                          </span>
+                          <span className={`race-round-status ${statusClass}`}>{statusLabel}</span>
+                        </div>
+                        <span className="season-desktop-race-icon" aria-hidden="true">
+                          {isFinished ? (isExpanded ? "−" : "+") : statusClass === "live" ? "●" : "○"}
                         </span>
-                        <span className={`race-round-status ${statusClass}`}>{statusLabel}</span>
                       </div>
-                      <span className="season-desktop-race-icon">{isSelected ? "➤" : statusClass === "live" ? "●" : isFinished ? "▣" : "○"}</span>
+                      <div className="race-name">{timelineRaceName(race.event_name)}</div>
+                      <div className="race-loc">{dateLabel} • {race.location}</div>
                     </div>
-                    <div className="race-name">{timelineRaceName(race.event_name)}</div>
-                    <div className="race-loc">{dateLabel} • {race.location}</div>
+                  </button>
+                  <div
+                    id={`season-podium-${race.round}`}
+                    className={`season-stage-expansion ${isExpanded ? "open" : ""}`}
+                    aria-hidden={!isExpanded}
+                  >
+                    <div className="season-stage-expansion-inner">
+                      {(isExpanded || podiums[race.round]) && renderPodium(race)}
+                    </div>
                   </div>
-                </button>
+                </div>
               );
             })}
           </aside>
@@ -453,97 +665,110 @@ function SeasonPage() {
               country: "",
               location: race.location,
             });
-            const isExpanded = expandedRound === race.round;
-            const hasSprint = Boolean(race.sprint_start_utc);
-            const hasSprintQuali = Boolean(race.sprint_quali_start_utc);
+            const areFactsExpanded = expandedFactsRound === race.round;
+            const completedFallback = isCompletedStatus(statusClass);
+            const resultLinks = [
+              {
+                key: "sprintQuali",
+                label: "Спринт-квала",
+                href: `/sprint-quali-results?mode=archive&season=${year}&round=${race.round}`,
+                visible: Boolean(race.sprint_quali_start_utc)
+                  && sessionHasStarted(race.sprint_quali_start_utc, calendarNowMs),
+              },
+              {
+                key: "sprint",
+                label: "Спринт",
+                href: `/sprint-results?mode=archive&season=${year}&round=${race.round}`,
+                visible: Boolean(race.sprint_start_utc)
+                  && sessionHasStarted(race.sprint_start_utc, calendarNowMs),
+              },
+              {
+                key: "quali",
+                label: "Квалификация",
+                href: `/quali-results?mode=archive&season=${year}&round=${race.round}`,
+                visible: sessionHasStarted(race.quali_start_utc, calendarNowMs, completedFallback),
+              },
+              {
+                key: "race",
+                label: "Гонка",
+                href: `/race-results?mode=archive&season=${year}&round=${race.round}`,
+                visible: sessionHasStarted(race.race_start_utc, calendarNowMs, completedFallback),
+              },
+            ].filter((item) => item.visible);
             return (
               <div key={race.round} className="season-race-item">
                 <div
                   id={statusClass === "next" ? "next-race-card" : undefined}
-                  className={`race-card ${statusClass}`}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/race-details?season=${year}&round=${race.round}`)}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && navigate(`/race-details?season=${year}&round=${race.round}`)
-                  }
+                  className={`race-card ${statusClass} ${areFactsExpanded ? "expanded" : ""}`}
                 >
-                  <div className="race-date-box">
-                    <span className="date-day">{day}</span>
-                    <span className="date-month">{month}</span>
-                  </div>
-                  <div className="race-info">
-                    <div className="race-round">Этап {race.round}</div>
-                    <div className="race-name">{race.event_name}</div>
-                    <div className="race-loc">📍 {race.location}</div>
-                  </div>
-                  <div className="race-status">{statusIcon}</div>
+                  <button
+                    type="button"
+                    className="season-mobile-race-open"
+                    onClick={() => navigate(`/race-details?season=${year}&round=${race.round}`)}
+                    aria-label={`Открыть ${race.event_name}`}
+                  >
+                    <span className="race-date-box">
+                      <span className="date-day">{day}</span>
+                      <span className="date-month">{month}</span>
+                    </span>
+                    <span className="race-info">
+                      <span className="race-round">Этап {race.round}</span>
+                      <span className="race-name">{race.event_name}</span>
+                      <span className="race-loc">📍 {race.location}</span>
+                    </span>
+                    <span className="race-status">{statusIcon}</span>
+                  </button>
                   <button
                     type="button"
                     className="race-insights-toggle"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setExpandedRound((prev) => (prev === race.round ? null : race.round));
-                    }}
+                    onClick={() => toggleRaceFacts(race)}
+                    aria-expanded={areFactsExpanded}
+                    aria-controls={`season-mobile-facts-${race.round}`}
                   >
-                    {isExpanded ? "Скрыть факты ▲" : "Факты ▼"}
+                    Факты
+                    <span aria-hidden="true">{areFactsExpanded ? "−" : "+"}</span>
                   </button>
                 </div>
 
-                {isExpanded && (
-                  <div className="season-race-insights">
-                    <div className="season-results-links">
-                      <button
-                        type="button"
-                        className="season-result-link"
-                        onClick={() => navigate(`/race-results?mode=archive&season=${year}&round=${race.round}`)}
-                      >
-                        🏁 Гонка
-                      </button>
-                      <button
-                        type="button"
-                        className="season-result-link"
-                        onClick={() => navigate(`/quali-results?mode=archive&season=${year}&round=${race.round}`)}
-                      >
-                        ⏱ Квала
-                      </button>
-                      {hasSprint && (
-                        <button
-                          type="button"
-                          className="season-result-link"
-                          onClick={() => navigate(`/sprint-results?mode=archive&season=${year}&round=${race.round}`)}
-                        >
-                          ⚡🏁 Спринт
-                        </button>
-                      )}
-                      {hasSprintQuali && (
-                        <button
-                          type="button"
-                          className="season-result-link"
-                          onClick={() => navigate(`/sprint-quali-results?mode=archive&season=${year}&round=${race.round}`)}
-                        >
-                          ⚡⏱ Спринт-квала
-                        </button>
-                      )}
-                    </div>
-                    <div className="season-race-stats">
-                      {insights.stats.map((item) => (
-                        <div className="season-race-stat-box" key={`${race.round}-${item.label}`}>
-                          <div className="season-race-stat-label">{item.label}</div>
-                          <div className="season-race-stat-value">{item.value}</div>
+                <div
+                  id={`season-mobile-facts-${race.round}`}
+                  className={`season-stage-expansion season-mobile-stage-expansion ${areFactsExpanded ? "open" : ""}`}
+                  aria-hidden={!areFactsExpanded}
+                >
+                  <div className="season-stage-expansion-inner">
+                    <div className="season-race-insights season-mobile-race-facts-panel">
+                      {resultLinks.length > 0 && (
+                        <div className="season-mobile-results">
+                          <div className="season-mobile-results-head">Результаты этапа</div>
+                          <div className="season-mobile-results-links">
+                            {resultLinks.map((item) => (
+                              <Link key={item.key} to={item.href} className="season-mobile-result-link">
+                                {item.label}
+                                <span aria-hidden="true">→</span>
+                              </Link>
+                            ))}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                    <div className="season-race-facts">
-                      {insights.facts.map((fact) => (
-                        <div className="season-race-fact-item" key={`${race.round}-${fact.title}`}>
-                          <div className="season-race-fact-title">{fact.title}</div>
-                          <div className="season-race-fact-text">{fact.text}</div>
-                        </div>
-                      ))}
+                      )}
+                      <div className="season-race-stats">
+                        {insights.stats.map((item) => (
+                          <div className="season-race-stat-box" key={`${race.round}-${item.label}`}>
+                            <div className="season-race-stat-label">{item.label}</div>
+                            <div className="season-race-stat-value">{item.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="season-race-facts">
+                        {insights.facts.map((fact) => (
+                          <div className="season-race-fact-item" key={`${race.round}-${fact.title}`}>
+                            <div className="season-race-fact-title">{fact.title}</div>
+                            <div className="season-race-fact-text">{fact.text}</div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             );
           })}

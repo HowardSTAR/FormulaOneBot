@@ -713,7 +713,10 @@ async def _openf1_get(path: str, **params) -> list | None:
     """GET запрос к OpenF1 API. Возвращает список записей или None при ошибке."""
     url = f"{OPENF1_BASE}/{path}"
     try:
-        async with aiohttp.ClientSession() as session:
+        # На локальных Python-сборках системная цепочка CA часто не видит
+        # сертификат OpenF1. Используем общий клиент с certifi, как для
+        # остальных внешних источников проекта.
+        async with _profile_http_session() as session:
             async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 if resp.status != 200:
                     return None

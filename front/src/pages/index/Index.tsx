@@ -81,6 +81,7 @@ type IndexIconName =
   | "compare"
   | "vote"
   | "predictions"
+  | "wiki"
   | "contact"
   | "calendar"
   | "reaction"
@@ -99,6 +100,7 @@ function IndexIcon({ name }: { name: IndexIconName }) {
     compare: <><path d="M7 4 3 8l4 4M3 8h15M17 20l4-4-4-4M21 16H6" /></>,
     vote: <><path d="M8 3h8v5H8zM5 9h14l2 4v8H3v-8z" /><path d="m9 14 2 2 4-5" /></>,
     predictions: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /><path d="m4 7 6-4 6 7 5-5" /></>,
+    wiki: <><path d="M4 4.5A3.5 3.5 0 0 1 7.5 1H12v19H7.5A3.5 3.5 0 0 0 4 23.5z" /><path d="M20 4.5A3.5 3.5 0 0 0 16.5 1H12v19h4.5a3.5 3.5 0 0 1 3.5 3.5z" /></>,
     contact: <><path d="M4 4h16v13H8l-4 4z" /><path d="M8 9h8M8 13h5" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18M8 14h2M14 14h2M8 18h2" /></>,
     reaction: <><rect x="7" y="2" width="10" height="20" rx="5" /><circle cx="12" cy="7" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="17" r="2" /></>,
@@ -395,6 +397,9 @@ function IndexPage() {
               <Link to="/season">
                 <span>04</span><div><strong>Календарь сезона</strong><small>Все {widgetSeason} этапы и трассы</small></div><b>→</b>
               </Link>
+              <Link to="/wiki">
+                <span>05</span><div><strong>Wiki для новичков</strong><small>Термины и правила F1</small></div><b>→</b>
+              </Link>
             </div>
           </aside>
         </section>
@@ -508,6 +513,16 @@ function IndexPage() {
               <div className="index-wide-link-text">
                 <span className="menu-label index-card-title">Календарь</span>
                 <span className="index-card-desc">Расписание и этапы сезона</span>
+              </div>
+            </div>
+            <IndexArrow />
+          </Link>
+          <Link to="/wiki" className="menu-item full-width index-wide-link">
+            <div className="index-wide-link-left">
+              <IndexIcon name="wiki" />
+              <div className="index-wide-link-text">
+                <span className="menu-label index-card-title">Wiki F1</span>
+                <span className="index-card-desc">Термины и правила для новичков</span>
               </div>
             </div>
             <IndexArrow />

@@ -24,6 +24,7 @@ import ReactionGamePage from "./pages/reaction-game/ReactionGamePage";
 import ReflexGridGamePage from "./pages/reflex-grid-game/ReflexGridGamePage";
 import PredictionsPage from "./pages/predictions/PredictionsPage";
 import ContactAdminPage from "./pages/contact-admin/ContactAdminPage";
+import WikiPage from "./pages/wiki/WikiPage";
 
 export const router = createBrowserRouter([
   {
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
       { path: "/sprint-quali-results", element: <SprintQualiResultsPage /> },
       { path: "/sprint-results", element: <SprintResultsPage /> },
       { path: "/voting", element: <RequirePersonalAccount><VotingPage /></RequirePersonalAccount> },
+      { path: "/wiki", element: <WikiPage /> },
     ],
   },
 ]);
