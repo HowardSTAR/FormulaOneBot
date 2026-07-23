@@ -4303,6 +4303,9 @@
 
 .app-page-main.route-compare .compare-chart-container {
   min-width: 0;
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
   margin-top: 14px;
   padding: 0 16px 14px;
   overflow: hidden;
