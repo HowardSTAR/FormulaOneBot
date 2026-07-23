@@ -1599,10 +1599,8 @@ def _get_passed_races(schedule: list, now: datetime) -> list:
     return passed
 
 
-@web_app.get("/api/compare")
-async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО season!
-    """Сравнение пилотов для Web App"""
-
+async def _build_driver_comparison(driver_codes: list[str], season: int):
+    """Load one season once and build comparable series for any number of drivers."""
     schedule = await get_season_schedule_short_async(season)
     if not schedule:
         return {"error": f"Нет расписания на {season} год"}
@@ -1641,7 +1639,7 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
     if not passed_races:
         return {"error": f"В {season} году еще не было прошедших гонок для сравнения."}
 
-    labels = []
+    labels: list[str] = []
     quali_tasks = []
     rounds: list[int] = []
     missing_race_rounds: list[int] = []
@@ -1663,87 +1661,139 @@ async def api_compare(d1: str, d2: str, season: int = 2026):  # <-- СТРОГО
     race_results = [race_by_round.get(rn, pd.DataFrame()) for rn in rounds]
     quali_results = await asyncio.gather(*quali_tasks, return_exceptions=True)
 
-    d1_history, d2_history = [], []
-    q_score1, q_score2 = 0, 0  # Счет квалификаций
+    histories: dict[str, list[float]] = {code: [] for code in driver_codes}
+    race_wins: dict[str, int] = {code: 0 for code in driver_codes}
+    quali_wins: dict[str, int] = {code: 0 for code in driver_codes}
 
     for df, quali_payload in zip(race_results, quali_results):
-        pts1, pts2 = 0, 0
-        grid1, grid2 = 999, 999
-        qpos1, qpos2 = None, None
+        round_points: dict[str, float] = {code: 0.0 for code in driver_codes}
+        grid_positions: dict[str, int] = {}
 
         if df is not None and not isinstance(df, Exception) and not df.empty:
             if "Abbreviation" in df.columns:
-                df['Abbreviation'] = df['Abbreviation'].fillna("").astype(str).str.upper()
+                df = df.copy()
+                df["Abbreviation"] = df["Abbreviation"].fillna("").astype(str).str.upper()
             else:
-                df['Abbreviation'] = ""
+                df = df.copy()
+                df["Abbreviation"] = ""
 
-            # Обработка первого пилота
-            row1 = df[df['Abbreviation'] == d1.upper()]
-            if not row1.empty:
-                val1 = row1.iloc[0].get('Points', 0)
-                pts1 = 0 if pd.isna(val1) else float(val1)
-                if pts1 == 0:
-                    pos1 = row1.iloc[0].get('Position')
-                    pts1 = points_for_race_position(int(pos1)) if pos1 is not None and not pd.isna(pos1) else 0
+            for code in driver_codes:
+                row = df[df["Abbreviation"] == code]
+                if row.empty:
+                    continue
+                race_row = row.iloc[0]
+                points_value = race_row.get("Points", 0)
+                points = 0.0 if pd.isna(points_value) else float(points_value)
+                if points == 0:
+                    position = race_row.get("Position")
+                    if position is not None and not pd.isna(position):
+                        points = float(points_for_race_position(int(position)))
+                round_points[code] = points
 
-                # Достаем стартовую позицию (Grid) для сравнения квал
-                g1 = row1.iloc[0].get('GridPosition', row1.iloc[0].get('Grid', 999))
-                grid1 = 999 if pd.isna(g1) else float(g1)
+                grid = race_row.get(
+                    "GridPosition",
+                    race_row.get("Grid", None),
+                )
+                if grid is not None and not pd.isna(grid):
+                    try:
+                        grid_positions[code] = int(float(grid))
+                    except (TypeError, ValueError):
+                        pass
 
-            # Обработка второго пилота
-            row2 = df[df['Abbreviation'] == d2.upper()]
-            if not row2.empty:
-                val2 = row2.iloc[0].get('Points', 0)
-                pts2 = 0 if pd.isna(val2) else float(val2)
-                if pts2 == 0:
-                    pos2 = row2.iloc[0].get('Position')
-                    pts2 = points_for_race_position(int(pos2)) if pos2 is not None and not pd.isna(pos2) else 0
+        for code in driver_codes:
+            histories[code].append(round_points[code])
 
-                g2 = row2.iloc[0].get('GridPosition', row2.iloc[0].get('Grid', 999))
-                grid2 = 999 if pd.isna(g2) else float(g2)
+        best_points = max(round_points.values(), default=0)
+        if best_points > 0:
+            for code, points in round_points.items():
+                if points == best_points:
+                    race_wins[code] += 1
 
-        # Сравниваем квалификацию: приоритет у прямых quali-результатов.
+        # Direct qualifying results take precedence over the race grid.
+        qualifying_positions: dict[str, int] = {}
         if not isinstance(quali_payload, Exception):
             q_rows = []
             if isinstance(quali_payload, tuple) and len(quali_payload) >= 2:
                 q_rows = quali_payload[1] or []
             elif isinstance(quali_payload, list):
                 q_rows = quali_payload
-            if q_rows:
-                for q in q_rows:
-                    code = str(q.get("driver", "")).upper()
-                    pos = q.get("position")
-                    if code == d1.upper():
-                        try:
-                            qpos1 = int(pos)
-                        except Exception:
-                            qpos1 = None
-                    elif code == d2.upper():
-                        try:
-                            qpos2 = int(pos)
-                        except Exception:
-                            qpos2 = None
+            for q_row in q_rows:
+                code = str(q_row.get("driver", "")).upper()
+                if code not in histories:
+                    continue
+                try:
+                    qualifying_positions[code] = int(q_row.get("position"))
+                except (TypeError, ValueError):
+                    continue
 
-        if qpos1 is not None and qpos2 is not None:
-            if qpos1 < qpos2:
-                q_score1 += 1
-            elif qpos2 < qpos1:
-                q_score2 += 1
-        elif grid1 != 999 and grid2 != 999:
-            # Фоллбэк: если квалу не удалось получить, используем стартовую позицию гонки.
-            if grid1 < grid2:
-                q_score1 += 1
-            elif grid2 < grid1:
-                q_score2 += 1
-
-        d1_history.append(pts1)
-        d2_history.append(pts2)
+        positions_for_comparison = qualifying_positions or grid_positions
+        if positions_for_comparison:
+            best_position = min(positions_for_comparison.values())
+            for code, position in positions_for_comparison.items():
+                if position == best_position:
+                    quali_wins[code] += 1
 
     return {
         "labels": labels,
-        "q_score": [q_score1, q_score2],  # Передаем счет на фронтенд
-        "data1": {"code": d1.upper(), "history": d1_history, "color": "#ff8700"},
-        "data2": {"code": d2.upper(), "history": d2_history, "color": "#00d2be"}
+        "series": [
+            {
+                "code": code,
+                "history": histories[code],
+                "race_wins": race_wins[code],
+                "quali_wins": quali_wins[code],
+                "total_points": round(sum(histories[code]), 3),
+                "average_points": (
+                    round(sum(histories[code]) / len(histories[code]), 3)
+                    if histories[code]
+                    else 0
+                ),
+            }
+            for code in driver_codes
+        ],
+    }
+
+
+@web_app.get("/api/compare/multi")
+async def api_compare_multi(
+    drivers: str = Query(..., min_length=1),
+    season: int = Query(2026),
+):
+    """Compare one or more season drivers in a single data load."""
+    driver_codes = list(
+        dict.fromkeys(
+            code.strip().upper()
+            for code in drivers.split(",")
+            if code.strip()
+        )
+    )
+    if not driver_codes:
+        raise HTTPException(status_code=400, detail="Выберите хотя бы одного пилота")
+    if len(driver_codes) > 30:
+        raise HTTPException(status_code=400, detail="Слишком много пилотов для сравнения")
+    return await _build_driver_comparison(driver_codes, season)
+
+
+@web_app.get("/api/compare")
+async def api_compare(d1: str, d2: str, season: int = 2026):
+    """Backward-compatible pair comparison for existing clients."""
+    codes = [d1.strip().upper(), d2.strip().upper()]
+    payload = await _build_driver_comparison(codes, season)
+    if payload.get("error"):
+        return payload
+    series = payload["series"]
+    return {
+        "labels": payload["labels"],
+        "q_score": [series[0]["quali_wins"], series[1]["quali_wins"]],
+        "data1": {
+            "code": series[0]["code"],
+            "history": series[0]["history"],
+            "color": "#ff8700",
+        },
+        "data2": {
+            "code": series[1]["code"],
+            "history": series[1]["history"],
+            "color": "#00d2be",
+        },
     }
 
 
@@ -1775,9 +1825,31 @@ def _team_matches(selected: str, row_value: str) -> bool:
     return False
 
 
-@web_app.get("/api/compare/teams")
-async def api_compare_teams(c1: str, c2: str, season: int = Query(...)):
-    """Сравнение команд по очкам за каждую гонку сезона."""
+def _team_points_for_comparison(df: pd.DataFrame, team_name: str) -> float:
+    """Return one constructor's points from a race result table."""
+    if df is None or isinstance(df, Exception) or df.empty:
+        return 0.0
+    col = "TeamName" if "TeamName" in df.columns else "Constructor"
+    if col not in df.columns:
+        return 0.0
+    mask = df[col].apply(lambda value: _team_matches(team_name, value))
+    team_rows = df[mask]
+    if team_rows.empty:
+        return 0.0
+    pts_col = "Points" if "Points" in df.columns else ("points" if "points" in df.columns else None)
+    points = team_rows[pts_col].fillna(0).astype(float).sum() if pts_col else 0
+    if points == 0 and "Position" in team_rows.columns:
+        for position in team_rows["Position"]:
+            if position is not None and pd.notna(position):
+                try:
+                    points += points_for_race_position(int(position))
+                except (TypeError, ValueError):
+                    pass
+    return float(points)
+
+
+async def _build_team_comparison(team_names: list[str], season: int):
+    """Load a season once and build comparison series for any number of teams."""
     schedule = await get_season_schedule_short_async(season)
     if not schedule:
         return {"error": f"Нет расписания на {season} год"}
@@ -1788,7 +1860,7 @@ async def api_compare_teams(c1: str, c2: str, season: int = Query(...)):
     if not passed_races:
         return {"error": f"В {season} году ещё не было прошедших гонок для сравнения."}
 
-    labels = []
+    labels: list[str] = []
     tasks = []
     for race in passed_races:
         round_num = race["round"]
@@ -1796,41 +1868,86 @@ async def api_compare_teams(c1: str, c2: str, season: int = Query(...)):
         tasks.append(get_race_results_async(season, round_num))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    c1_history, c2_history = [], []
-
-    def _team_points(df: pd.DataFrame, team_name: str) -> float:
-        if df is None or isinstance(df, Exception) or df.empty:
-            return 0.0
-        col = "TeamName" if "TeamName" in df.columns else "Constructor"
-        if col not in df.columns:
-            return 0.0
-        mask = df[col].apply(lambda x: _team_matches(team_name, x))
-        team_rows = df[mask]
-        if team_rows.empty:
-            return 0.0
-        pts_col = "Points" if "Points" in df.columns else ("points" if "points" in df.columns else None)
-        pts = team_rows[pts_col].fillna(0).astype(float).sum() if pts_col else 0
-        if pts == 0 and "Position" in team_rows.columns:
-            for pos in team_rows["Position"]:
-                if pos is not None and pd.notna(pos):
-                    try:
-                        pts += points_for_race_position(int(pos))
-                    except (TypeError, ValueError):
-                        pass
-        return float(pts)
+    histories: dict[str, list[float]] = {name: [] for name in team_names}
+    race_wins: dict[str, int] = {name: 0 for name in team_names}
 
     for df in results:
-        pts1 = _team_points(df, c1) if isinstance(df, pd.DataFrame) else 0.0
-        pts2 = _team_points(df, c2) if isinstance(df, pd.DataFrame) else 0.0
-        c1_history.append(pts1)
-        c2_history.append(pts2)
+        round_points = {
+            name: (
+                _team_points_for_comparison(df, name)
+                if isinstance(df, pd.DataFrame)
+                else 0.0
+            )
+            for name in team_names
+        }
+        for name, points in round_points.items():
+            histories[name].append(points)
+        best_points = max(round_points.values(), default=0)
+        if best_points > 0:
+            for name, points in round_points.items():
+                if points == best_points:
+                    race_wins[name] += 1
 
     return {
         "labels": labels,
+        "series": [
+            {
+                "code": name,
+                "history": histories[name],
+                "race_wins": race_wins[name],
+                "quali_wins": 0,
+                "total_points": round(sum(histories[name]), 3),
+                "average_points": (
+                    round(sum(histories[name]) / len(histories[name]), 3)
+                    if histories[name]
+                    else 0
+                ),
+            }
+            for name in team_names
+        ],
+    }
+
+
+@web_app.get("/api/compare/teams/multi")
+async def api_compare_teams_multi(
+    teams: str = Query(..., min_length=1),
+    season: int = Query(...),
+):
+    """Compare one or more constructors in a single data load."""
+    team_names = list(
+        dict.fromkeys(
+            name.strip()
+            for name in teams.split(",")
+            if name.strip()
+        )
+    )
+    if not team_names:
+        raise HTTPException(status_code=400, detail="Выберите хотя бы одну команду")
+    if len(team_names) > 20:
+        raise HTTPException(status_code=400, detail="Слишком много команд для сравнения")
+    return await _build_team_comparison(team_names, season)
+
+
+@web_app.get("/api/compare/teams")
+async def api_compare_teams(c1: str, c2: str, season: int = Query(...)):
+    """Backward-compatible pair constructor comparison."""
+    payload = await _build_team_comparison([c1.strip(), c2.strip()], season)
+    if payload.get("error"):
+        return payload
+    series = payload["series"]
+    return {
+        "labels": payload["labels"],
         "q_score": [0, 0],
-        "data1": {"code": c1, "history": c1_history, "color": "#ff8700"},
-        "data2": {"code": c2, "history": c2_history, "color": "#00d2be"},
+        "data1": {
+            "code": series[0]["code"],
+            "history": series[0]["history"],
+            "color": "#ff8700",
+        },
+        "data2": {
+            "code": series[1]["code"],
+            "history": series[1]["history"],
+            "color": "#00d2be",
+        },
     }
 
 

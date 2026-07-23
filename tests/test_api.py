@@ -442,6 +442,93 @@ async def test_api_compare(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_api_compare_multi_returns_dynamic_driver_series(api_client: AsyncClient):
+    """GET /api/compare/multi загружает сезон один раз для произвольного числа пилотов."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_race_results_async", new_callable=AsyncMock) as m_race, \
+            patch("app.api.miniapp_api.get_quali_for_round_async", new_callable=AsyncMock) as m_quali:
+        m_sched.return_value = [
+            {
+                "round": 1,
+                "event_name": "Bahrain Grand Prix",
+                "date": (now - timedelta(days=7)).date().isoformat(),
+                "race_start_utc": (now - timedelta(days=7, hours=2)).isoformat(),
+            },
+            {
+                "round": 2,
+                "event_name": "Saudi Arabian Grand Prix",
+                "date": (now - timedelta(days=1)).date().isoformat(),
+                "race_start_utc": (now - timedelta(days=1, hours=2)).isoformat(),
+            },
+        ]
+        m_race.side_effect = [
+            pd.DataFrame([
+                {"Abbreviation": "VER", "Points": 25},
+                {"Abbreviation": "NOR", "Points": 18},
+                {"Abbreviation": "LEC", "Points": 15},
+            ]),
+            pd.DataFrame([
+                {"Abbreviation": "VER", "Points": 12},
+                {"Abbreviation": "NOR", "Points": 25},
+                {"Abbreviation": "LEC", "Points": 18},
+            ]),
+        ]
+        m_quali.side_effect = [
+            (1, [
+                {"position": 1, "driver": "LEC"},
+                {"position": 2, "driver": "VER"},
+                {"position": 3, "driver": "NOR"},
+            ]),
+            (2, [
+                {"position": 1, "driver": "NOR"},
+                {"position": 2, "driver": "VER"},
+                {"position": 3, "driver": "LEC"},
+            ]),
+        ]
+
+        response = await api_client.get(
+            "/api/compare/multi",
+            params={"drivers": "VER,NOR,LEC", "season": now.year},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["labels"] == ["Bahrain", "Saudi Arabian"]
+    assert [series["code"] for series in payload["series"]] == ["VER", "NOR", "LEC"]
+    assert payload["series"][0]["history"] == [25.0, 12.0]
+    assert payload["series"][0]["race_wins"] == 1
+    assert payload["series"][1]["race_wins"] == 1
+    assert payload["series"][1]["quali_wins"] == 1
+    assert payload["series"][2]["quali_wins"] == 1
+
+
+@pytest.mark.asyncio
+async def test_api_compare_multi_supports_single_driver(api_client: AsyncClient):
+    """Мультисравнение сохраняет рабочее состояние при одном выбранном пилоте."""
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
+            patch("app.api.miniapp_api.get_race_results_async", new_callable=AsyncMock) as m_race, \
+            patch("app.api.miniapp_api.get_quali_for_round_async", new_callable=AsyncMock) as m_quali:
+        m_sched.return_value = [
+            {"round": 1, "event_name": "Bahrain GP", "date": "2024-03-02"},
+        ]
+        m_race.return_value = pd.DataFrame([
+            {"Abbreviation": "VER", "Points": 25},
+        ])
+        m_quali.return_value = (1, [{"position": 1, "driver": "VER"}])
+
+        response = await api_client.get(
+            "/api/compare/multi",
+            params={"drivers": "VER", "season": 2024},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["series"]) == 1
+    assert payload["series"][0]["total_points"] == 25.0
+
+
+@pytest.mark.asyncio
 async def test_api_compare_prefers_quali_positions_for_q_score(api_client: AsyncClient):
     """GET /api/compare — q_score считается по квалификации, даже если в race-данных нет Grid."""
     now = datetime.now(timezone.utc)
@@ -544,6 +631,55 @@ async def test_api_compare_teams(api_client: AsyncClient):
     data = r.json()
     assert "data1" in data
     assert "data2" in data
+
+
+@pytest.mark.asyncio
+async def test_api_compare_teams_multi_returns_dynamic_series(api_client: AsyncClient):
+    """Multi-team comparison returns one reactive series per selected constructor."""
+    with patch(
+        "app.api.miniapp_api.get_season_schedule_short_async",
+        new_callable=AsyncMock,
+    ) as schedule_mock:
+        schedule_mock.return_value = [
+            {"round": 1, "event_name": "Bahrain GP", "date": "2024-03-02"},
+            {"round": 2, "event_name": "Saudi Arabian GP", "date": "2024-03-09"},
+        ]
+        with patch(
+            "app.api.miniapp_api.get_race_results_async",
+            new_callable=AsyncMock,
+        ) as results_mock:
+            results_mock.side_effect = [
+                pd.DataFrame([
+                    {"TeamName": "Red Bull", "Points": 43},
+                    {"TeamName": "McLaren", "Points": 30},
+                    {"TeamName": "Ferrari", "Points": 27},
+                ]),
+                pd.DataFrame([
+                    {"TeamName": "Red Bull", "Points": 25},
+                    {"TeamName": "McLaren", "Points": 38},
+                    {"TeamName": "Ferrari", "Points": 31},
+                ]),
+            ]
+            response = await api_client.get(
+                "/api/compare/teams/multi",
+                params={
+                    "teams": "Red Bull,McLaren,Ferrari",
+                    "season": 2024,
+                },
+            )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["labels"]) == 2
+    assert [series["code"] for series in data["series"]] == [
+        "Red Bull",
+        "McLaren",
+        "Ferrari",
+    ]
+    assert data["series"][0]["history"] == [43.0, 25.0]
+    assert data["series"][1]["history"] == [30.0, 38.0]
+    assert data["series"][2]["total_points"] == 58.0
+    assert [series["race_wins"] for series in data["series"]] == [1, 1, 0]
 
 
 @pytest.mark.asyncio
