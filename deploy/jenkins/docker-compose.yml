@@ -1,0 +1,46 @@
+name: f1hub-jenkins
+
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: f1hub-jenkins:lts-jdk17
+    container_name: f1hub-jenkins
+    restart: unless-stopped
+    init: true
+    # Jenkins доступен только локально. Публичный HTTPS принимает Nginx.
+    ports:
+      - "127.0.0.1:${JENKINS_HTTP_PORT:-8080}:8080"
+      - "127.0.0.1:${JENKINS_AGENT_PORT:-50000}:50000"
+    environment:
+      JAVA_OPTS: >-
+        -Djenkins.install.runSetupWizard=true
+        -Djava.awt.headless=true
+      JENKINS_OPTS: "--httpPort=8080"
+    # Укажите GID группы docker с Ubuntu-хоста: getent group docker | cut -d: -f3
+    group_add:
+      - "${DOCKER_GID:?Set DOCKER_GID in deploy/jenkins/.env}"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    cpus: "${JENKINS_CPUS:-2.0}"
+    mem_limit: "${JENKINS_MEMORY:-3g}"
+    mem_reservation: "${JENKINS_MEMORY_RESERVATION:-1g}"
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/login >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  jenkins_home:
+    name: f1hub_jenkins_home
