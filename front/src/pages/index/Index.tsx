@@ -282,7 +282,7 @@ function IndexPage() {
       <div className="index-desktop-shell index-dashboard">
         <section className="index-dashboard-top">
           <div className="index-hero-wrap index-desktop-hero-wrap">
-            <Hero nextRace={nextRace} schedule={schedule} userTz={userTz} />
+            <Hero nextRace={nextRace} schedule={schedule} userTz={userTz} showTrackMap />
           </div>
 
           <aside className="index-weekend-board">

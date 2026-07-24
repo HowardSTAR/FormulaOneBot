@@ -1,5 +1,6 @@
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { BackButton } from "../../components/BackButton";
+import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
 import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
@@ -33,10 +34,7 @@ function NextRacePage() {
   const [expandedFactIndex, setExpandedFactIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [trackSvg, setTrackSvg] = useState<string | null>(null);
   const [layoutPhase, setLayoutPhase] = useState<"draw" | "split">("draw");
-  const trackContainerRef = useRef<HTMLDivElement>(null);
-  const desktopTrackContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,108 +140,11 @@ function NextRacePage() {
   }, []);
 
   useEffect(() => {
-    if (!eventName || loading) return;
-    let cancelled = false;
-    async function loadTrack() {
-      try {
-        const trackUrl = `/static/circuit/${eventName}.svg`;
-        const res = await fetch(trackUrl);
-        if (res.ok && !cancelled) {
-          const text = await res.text();
-          setTrackSvg(text);
-        }
-      } catch {
-        // ignore
-      }
-    }
-    loadTrack();
-    return () => { cancelled = true; };
-  }, [eventName, loading]);
-
-  useLayoutEffect(() => {
-    if (!trackSvg) return;
-
-    const animationFrameIds: number[] = [];
-    const completionTimeoutIds: number[] = [];
-
-    const completeOutline = (outline: SVGElement) => {
-      outline.classList.add("animation-complete");
-      outline.style.strokeDasharray = "none";
-      outline.style.strokeDashoffset = "0";
-    };
-
-    const setupAnimatedTrack = (container: HTMLDivElement | null) => {
-      if (!container) return;
-      container.innerHTML = trackSvg;
-      const svg = container.querySelector("svg");
-      if (!svg) return;
-      svg.style.width = "100%";
-      svg.style.height = "100%";
-      svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-      const paths = svg.querySelectorAll("path, polyline");
-      const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      outlineGroup.classList.add("track-outline-group");
-      fillGroup.classList.add("track-fill-group");
-
-      paths.forEach((path) => {
-        // Measure the original geometry while it is still attached to the SVG.
-        // Detached clones return 0 in some desktop browsers, which skips the draw animation.
-        const length = (path as SVGGeometryElement).getTotalLength?.() ?? 0;
-        const outlinePath = path.cloneNode(true) as SVGElement;
-        outlinePath.removeAttribute("fill");
-        outlinePath.classList.add("track-outline");
-        outlinePath.style.strokeDasharray = `${length} ${length}`;
-        outlinePath.style.strokeDashoffset = String(length);
-        outlinePath.addEventListener("transitionend", (event) => {
-          if (event.propertyName === "stroke-dashoffset") {
-            completeOutline(outlinePath);
-          }
-        });
-        outlineGroup.appendChild(outlinePath);
-        path.classList.add("track-fill");
-        fillGroup.appendChild(path);
-      });
-
-      svg.innerHTML = "";
-      svg.appendChild(fillGroup);
-      svg.appendChild(outlineGroup);
-      svg.getBoundingClientRect();
-
-      // Let the completely empty initial state reach the compositor, then draw immediately.
-      const prepareFrame = window.requestAnimationFrame(() => {
-        const startFrame = window.requestAnimationFrame(() => {
-          const outlines = outlineGroup.querySelectorAll<SVGElement>(".track-outline");
-          outlines.forEach((p) => p.classList.add("animate"));
-          fillGroup.querySelectorAll(".track-fill").forEach((p) => p.classList.add("animate"));
-
-          // A closed SVG path can retain a visible dash seam at exactly 100% length.
-          // Remove the dash mask after the transition so the final contour is continuous.
-          const completionTimeout = window.setTimeout(() => {
-            outlines.forEach(completeOutline);
-          }, 3300);
-          completionTimeoutIds.push(completionTimeout);
-        });
-        animationFrameIds.push(startFrame);
-      });
-      animationFrameIds.push(prepareFrame);
-    };
-
-    setupAnimatedTrack(trackContainerRef.current);
-    setupAnimatedTrack(desktopTrackContainerRef.current);
-
-    return () => {
-      animationFrameIds.forEach((frameId) => window.cancelAnimationFrame(frameId));
-      completionTimeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
-    };
-  }, [trackSvg]);
-
-  useEffect(() => {
     if (loading) return;
-    const delay = trackSvg ? 6200 : 800;
+    const delay = eventName ? 3000 : 800;
     const t = setTimeout(() => setLayoutPhase("split"), delay);
     return () => clearTimeout(t);
-  }, [trackSvg, loading]);
+  }, [eventName, loading]);
 
   useEffect(() => {
     setExpandedFactIndex(0);
@@ -286,13 +187,16 @@ function NextRacePage() {
           </div>
           <div className="next-race-dash" aria-hidden />
           <div className="next-race-track-wrap">
-            <div className="track-map-container next-race">
-              {!trackSvg && !loading && <div className="no-map-placeholder">🏁</div>}
-              <div
-                ref={trackContainerRef}
-                style={{ width: "100%", height: "100%", display: trackSvg ? "block" : "none" }}
+            {eventName ? (
+              <AnimatedTrackMap
+                eventName={eventName}
+                className="track-map-container next-race"
+                svgClassName="next-race-mobile-track-svg"
+                loadingClassName="next-race-track-loading"
               />
-            </div>
+            ) : (
+              !loading && <div className="no-map-placeholder">🏁</div>
+            )}
           </div>
         </div>
         )}
@@ -397,18 +301,22 @@ function NextRacePage() {
               </div>
               <div className="next-race-desktop-track">
                 <div
-                  className={`next-race-desktop-track-panel ${trackSvg ? "track-panel-appear" : ""}`}
+                  className={`next-race-desktop-track-panel ${eventName ? "track-panel-appear" : ""}`}
                 >
                   <div className="next-race-desktop-track-caption">
                     <span>Схема трассы</span>
                     <b>{raceCity || eventName}</b>
                   </div>
-                  {!trackSvg && <div className="no-map-placeholder">🏁</div>}
-                  <div
-                    ref={desktopTrackContainerRef}
-                    className="next-race-desktop-track-svg"
-                    style={{ display: trackSvg ? "block" : "none" }}
-                  />
+                  {eventName ? (
+                    <AnimatedTrackMap
+                      eventName={eventName}
+                      className="next-race-desktop-track-map"
+                      svgClassName="next-race-desktop-track-svg"
+                      loadingClassName="next-race-track-loading"
+                    />
+                  ) : (
+                    <div className="no-map-placeholder">🏁</div>
+                  )}
                 </div>
               </div>
             </header>

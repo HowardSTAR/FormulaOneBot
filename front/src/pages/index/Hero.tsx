@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
 import { getDisplayTimezone } from "../../helpers";
 import type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
 
@@ -9,6 +10,7 @@ type HeroProps = {
   nextRace: NextRaceResponse | null;
   schedule: SessionItem[];
   userTz: string;
+  showTrackMap?: boolean;
 };
 
 type HeroView = {
@@ -39,7 +41,7 @@ function formatSessionDate(value: string, timeZone: string): string {
   }).toUpperCase();
 }
 
-function Hero({ nextRace, schedule, userTz }: HeroProps) {
+function Hero({ nextRace, schedule, userTz, showTrackMap = false }: HeroProps) {
   const [now, setNow] = useState(() => Date.now());
   const displayTz = getDisplayTimezone(userTz);
 
@@ -148,6 +150,14 @@ function Hero({ nextRace, schedule, userTz }: HeroProps) {
 
   return (
     <Link to="/next-race" className="btn hero-btn" id="hero-btn">
+      {showTrackMap && nextRace.event_name && (
+        <AnimatedTrackMap
+          eventName={nextRace.event_name}
+          className="index-hero-track-map"
+          svgClassName="index-hero-track-svg"
+          loadingClassName="index-hero-track-loading"
+        />
+      )}
       <div className="hero-sub" id="hero-sub">{subDisplay}</div>
       <div id="hero-title" className="hero-title">
         {nextRace.event_name || "Нет расписания"}
