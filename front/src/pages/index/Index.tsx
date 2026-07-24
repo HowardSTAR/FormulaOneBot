@@ -506,6 +506,11 @@ function IndexPage() {
               <span className="menu-label index-card-title">Прогнозы</span>
               <span className="index-card-desc">Состав этапа и общий зачёт</span>
             </Link>
+            <Link to="/wiki" className="menu-item index-nav-card">
+              <IndexIcon name="wiki" />
+              <span className="menu-label index-card-title">Wiki F1</span>
+              <span className="index-card-desc">Термины и правила для новичков</span>
+            </Link>
           </div>
           <Link to="/season" className="menu-item full-width index-wide-link index-calendar-main-link">
             <div className="index-wide-link-left">
@@ -513,16 +518,6 @@ function IndexPage() {
               <div className="index-wide-link-text">
                 <span className="menu-label index-card-title">Календарь</span>
                 <span className="index-card-desc">Расписание и этапы сезона</span>
-              </div>
-            </div>
-            <IndexArrow />
-          </Link>
-          <Link to="/wiki" className="menu-item full-width index-wide-link">
-            <div className="index-wide-link-left">
-              <IndexIcon name="wiki" />
-              <div className="index-wide-link-text">
-                <span className="menu-label index-card-title">Wiki F1</span>
-                <span className="index-card-desc">Термины и правила для новичков</span>
               </div>
             </div>
             <IndexArrow />
