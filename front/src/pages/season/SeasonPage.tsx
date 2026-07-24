@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
 import { apiRequest } from "../../helpers/api";
@@ -70,70 +71,6 @@ function isCompletedStatus(status: CalendarRaceStatus): boolean {
 function sessionHasStarted(value: string | null | undefined, nowMs: number, fallback = false): boolean {
   const sessionTime = parseRaceTime(value);
   return sessionTime === null ? fallback : sessionTime <= nowMs;
-}
-
-function SeasonTrackMap({ eventName }: { eventName: string }) {
-  const [trackSvg, setTrackSvg] = useState<string | null>(null);
-  const [trackError, setTrackError] = useState(false);
-  const trackContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/static/circuit/${eventName}.svg`)
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Track map not found");
-        const svg = await response.text();
-        if (!cancelled) setTrackSvg(svg);
-      })
-      .catch(() => {
-        if (!cancelled) setTrackError(true);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [eventName]);
-
-  useEffect(() => {
-    const container = trackContainerRef.current;
-    if (!trackSvg || !container) return;
-    container.innerHTML = trackSvg;
-    const svg = container.querySelector("svg");
-    if (!svg) return;
-    svg.style.width = "100%";
-    svg.style.height = "100%";
-    const paths = svg.querySelectorAll("path, polyline");
-    const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    outlineGroup.classList.add("track-outline-group");
-    fillGroup.classList.add("track-fill-group");
-    paths.forEach((path) => {
-      const outlinePath = path.cloneNode(true) as SVGElement;
-      outlinePath.removeAttribute("fill");
-      outlinePath.classList.add("track-outline");
-      const length = (outlinePath as SVGPathElement).getTotalLength?.() ?? 0;
-      outlinePath.style.strokeDasharray = String(length);
-      outlinePath.style.strokeDashoffset = String(length);
-      outlineGroup.appendChild(outlinePath);
-      path.classList.add("track-fill");
-      fillGroup.appendChild(path);
-    });
-    svg.innerHTML = "";
-    svg.appendChild(outlineGroup);
-    svg.appendChild(fillGroup);
-    const animationFrame = window.requestAnimationFrame(() => {
-      outlineGroup.querySelectorAll(".track-outline").forEach((path) => path.classList.add("animate"));
-      fillGroup.querySelectorAll(".track-fill").forEach((path) => path.classList.add("animate"));
-    });
-    return () => window.cancelAnimationFrame(animationFrame);
-  }, [trackSvg]);
-
-  return (
-    <div className="season-desktop-track-map">
-      {!trackSvg && !trackError && <span className="season-track-loading">Загрузка схемы трассы…</span>}
-      {trackError && <span className="season-track-loading">Схема трассы недоступна</span>}
-      <div ref={trackContainerRef} className="season-desktop-track-svg" />
-    </div>
-  );
 }
 
 function SeasonPage() {
@@ -492,7 +429,13 @@ function SeasonPage() {
 
             <article className="season-desktop-main-card season-desktop-hero-card">
               <div className="season-desktop-hero-media">
-                <SeasonTrackMap key={desktopRace.event_name} eventName={desktopRace.event_name} />
+                <AnimatedTrackMap
+                  key={desktopRace.event_name}
+                  eventName={desktopRace.event_name}
+                  className="season-desktop-track-map"
+                  svgClassName="season-desktop-track-svg"
+                  loadingClassName="season-track-loading"
+                />
                 <div className="season-desktop-hero-next">
                   {desktopRaceStatus === "live"
                     ? "LIVE"

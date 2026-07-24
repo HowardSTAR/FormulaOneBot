@@ -306,6 +306,7 @@
 
   .app-page-main.route-home .index-desktop-shell .hero-btn {
     position: relative !important;
+    isolation: isolate !important;
     min-height: 320px !important;
     justify-content: space-between !important;
     align-items: flex-start !important;
@@ -314,9 +315,89 @@
     overflow: hidden !important;
     border: 1px solid rgba(175, 135, 129, 0.22) !important;
     background:
-      linear-gradient(90deg, rgba(225, 6, 0, 0.92) 0%, rgba(225, 6, 0, 0.7) 50%, rgba(18, 19, 20, 0.45) 100%),
-      url("https://lh3.googleusercontent.com/aida-public/AB6AXuBPw3ogNHqxt1hqNDZ2Joq2nPDkPDnEWIoSjabbuc7LMRpGWfvps7wF28kFSuGGBjO6-lCffBvmXrLd6TIV59F6f9QnylVYduJYqugqVBIRuMfYuIlS1NXjTWX0jnx4D9SGl7fiCqpQ5RFzGWy3idpedePRmnnt5iSa6ieu2HzdwywoNNVxI5-_iFmW2tkjJKCflyifU30ZnvHk37w3QAtY5N8JYTfEcIgya-t6l2vx8z-ilZjmdo7w2zaGPBRmutj5x-4EKYsY1iZ6")
-        center/cover no-repeat !important;
+      linear-gradient(90deg, rgba(225, 6, 0, 0.94) 0%, rgba(151, 7, 8, 0.76) 38%, rgba(18, 19, 22, 0.94) 72%),
+      radial-gradient(circle at 75% 46%, rgba(225, 6, 0, 0.2), transparent 36%),
+      #121316 !important;
+  }
+
+  .app-page-main.route-home .index-desktop-shell .hero-btn::after {
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    background:
+      linear-gradient(180deg, transparent 42%, rgba(8, 9, 12, 0.58) 100%),
+      repeating-linear-gradient(90deg, transparent 0 72px, rgba(255, 255, 255, 0.022) 73px 74px);
+    content: "";
+    pointer-events: none;
+  }
+
+  .app-page-main.route-home .index-desktop-shell .hero-btn > :not(.index-hero-track-map) {
+    position: relative;
+    z-index: 2;
+  }
+
+  .app-page-main.route-home .index-hero-track-map {
+    position: absolute;
+    z-index: 0;
+    inset: 24px 22px 28px 40%;
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    pointer-events: none;
+  }
+
+  .app-page-main.route-home .index-hero-track-svg {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .app-page-main.route-home .index-hero-track-svg svg {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+    filter: drop-shadow(0 0 12px rgba(225, 6, 0, 0.34));
+  }
+
+  .app-page-main.route-home .index-hero-track-svg .track-outline {
+    fill: none !important;
+    stroke: #ff4f49 !important;
+    stroke-width: 2px !important;
+    opacity: 0;
+    vector-effect: non-scaling-stroke;
+    transition: stroke-dashoffset 7.43s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .app-page-main.route-home .index-hero-track-svg .track-outline.animate {
+    opacity: 1;
+    stroke-dashoffset: 0 !important;
+  }
+
+  .app-page-main.route-home .index-hero-track-svg .track-outline.animation-complete {
+    opacity: 1 !important;
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+    transition: none !important;
+  }
+
+  .app-page-main.route-home .index-hero-track-svg .track-fill {
+    fill: rgba(25, 26, 30, 0.88) !important;
+    stroke: none !important;
+    opacity: 0;
+    transition: opacity 2.14s ease-in-out 2.71s;
+  }
+
+  .app-page-main.route-home .index-hero-track-svg .track-fill.animate {
+    opacity: 1;
+  }
+
+  .app-page-main.route-home .index-hero-track-loading {
+    position: absolute;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
   .app-page-main.route-home .index-desktop-shell .hero-sub {

@@ -298,8 +298,9 @@
     padding: 23px 25px !important;
     border-radius: 16px !important;
     background:
-      linear-gradient(90deg, rgba(206, 7, 1, 0.98) 0%, rgba(206, 7, 1, 0.82) 42%, rgba(13, 15, 20, 0.2) 100%),
-      url("https://lh3.googleusercontent.com/aida-public/AB6AXuBPw3ogNHqxt1hqNDZ2Joq2nPDkPDnEWIoSjabbuc7LMRpGWfvps7wF28kFSuGGBjO6-lCffBvmXrLd6TIV59F6f9QnylVYduJYqugqVBIRuMfYuIlS1NXjTWX0jnx4D9SGl7fiCqpQ5RFzGWy3idpedePRmnnt5iSa6ieu2HzdwywoNNVxI5-_iFmW2tkjJKCflyifU30ZnvHk37w3QAtY5N8JYTfEcIgya-t6l2vx8z-ilZjmdo7w2zaGPBRmutj5x-4EKYsY1iZ6") center/cover no-repeat !important;
+      linear-gradient(90deg, rgba(206, 7, 1, 0.98) 0%, rgba(142, 7, 9, 0.8) 38%, rgba(13, 15, 20, 0.96) 72%),
+      radial-gradient(circle at 76% 45%, rgba(225, 6, 0, 0.22), transparent 38%),
+      #0d0f14 !important;
     box-shadow: 0 18px 45px rgba(130, 0, 0, 0.2) !important;
   }
 
@@ -4973,12 +4974,19 @@
 
   .app-page-main.route-season .season-desktop-track-svg .track-outline {
     stroke-width: 2px;
-    transition: stroke-dashoffset 5.2s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: stroke-dashoffset 7.43s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .app-page-main.route-season .season-desktop-track-svg .track-outline.animation-complete {
+    opacity: 1;
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+    transition: none;
   }
 
   .app-page-main.route-season .season-desktop-track-svg .track-fill {
     fill: rgba(26, 27, 31, 0.92);
-    transition: opacity 1.5s ease-in-out 1.9s;
+    transition: opacity 2.14s ease-in-out 2.71s;
   }
 
   .app-page-main.route-season .season-track-loading {
@@ -5082,5 +5090,107 @@
 @media (prefers-reduced-motion: reduce) {
   .app-page-main.route-season .season-stage-expansion {
     transition: none;
+  }
+}
+
+/* Keep the circuit drawing identical wherever the shared AnimatedTrackMap is used. */
+@media (min-width: 900px) {
+  .app-page-main:is(.route-home, .route-season, .route-next-race) .animated-track-svg svg {
+    width: 100% !important;
+    height: 100% !important;
+    overflow: visible !important;
+    filter: drop-shadow(0 0 10px rgba(225, 6, 0, 0.28)) !important;
+  }
+
+  .app-page-main:is(.route-home, .route-season, .route-next-race) .animated-track-svg .track-outline {
+    fill: none !important;
+    stroke: #e10600 !important;
+    stroke-width: 1px !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    opacity: 0;
+    vector-effect: non-scaling-stroke !important;
+    filter: drop-shadow(0 0 2px rgba(225, 6, 0, 0.72)) !important;
+    transition: stroke-dasharray 2.5s linear !important;
+  }
+
+  .app-page-main:is(.route-home, .route-season, .route-next-race) .animated-track-svg .track-outline.animate {
+    opacity: 1;
+    stroke-dashoffset: 0 !important;
+  }
+
+  .app-page-main:is(.route-home, .route-season, .route-next-race) .animated-track-svg .track-route-border {
+    stroke: #e10600 !important;
+    stroke-width: 2px !important;
+    vector-effect: none !important;
+  }
+
+  .app-page-main:is(.route-home, .route-season, .route-next-race) .animated-track-svg .track-route-surface {
+    stroke: rgb(26, 27, 31) !important;
+    stroke-width: 1.55px !important;
+    vector-effect: none !important;
+    filter: none !important;
+  }
+
+  .app-page-main:is(.route-home, .route-season, .route-next-race) .animated-track-svg .track-outline.animation-complete {
+    opacity: 1 !important;
+    stroke-dasharray: none !important;
+    stroke-dashoffset: 0 !important;
+    transition: none !important;
+  }
+
+  .app-page-main:is(.route-home, .route-season, .route-next-race) .animated-track-svg .track-fill {
+    fill: none !important;
+    stroke: none !important;
+    opacity: 0 !important;
+    transition: none !important;
+  }
+
+  .app-page-main:is(.route-home, .route-season, .route-next-race) .animated-track-svg .track-fill.animate {
+    opacity: 1 !important;
+  }
+
+  .app-page-main.route-next-race .next-race-desktop-track-map {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+}
+
+@media (max-width: 899px) {
+  .app-page-main.route-next-race .next-race-mobile-track-svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .app-page-main.route-next-race .next-race-mobile-track-svg .track-outline {
+    fill: none !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    opacity: 0;
+    transition: stroke-dasharray 2.5s linear !important;
+  }
+
+  .app-page-main.route-next-race .next-race-mobile-track-svg .track-outline.animate {
+    opacity: 1;
+  }
+
+  .app-page-main.route-next-race .next-race-mobile-track-svg .track-route-border {
+    stroke: #e10600 !important;
+    stroke-width: 2px !important;
+    vector-effect: none !important;
+  }
+
+  .app-page-main.route-next-race .next-race-mobile-track-svg .track-route-surface {
+    stroke: rgb(26, 27, 31) !important;
+    stroke-width: 1.55px !important;
+    vector-effect: none !important;
+    filter: none !important;
+  }
+
+  .app-page-main.route-next-race .next-race-mobile-track-svg .track-fill {
+    fill: none !important;
+    stroke: none !important;
+    opacity: 0 !important;
   }
 }
