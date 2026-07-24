@@ -568,8 +568,12 @@
   }
 
   .wiki-hero {
-    display: block;
-    min-height: 226px;
+    display: flex;
+    min-height: 0;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 0;
     padding: 22px 18px;
     border-radius: 17px;
   }
@@ -585,15 +589,15 @@
   }
 
   .wiki-hero-copy p {
-    max-width: 92%;
+    max-width: 100%;
     margin-top: 18px;
     font-size: 12px;
   }
 
   .wiki-hero-stat {
-    position: absolute;
-    right: 14px;
-    bottom: 14px;
+    position: static;
+    align-self: flex-end;
+    margin-top: 18px;
     padding: 9px 11px;
     border-radius: 11px;
   }
@@ -619,14 +623,37 @@
   }
 
   .wiki-filters {
-    margin-right: -13px;
-    padding-right: 13px;
+    flex-wrap: wrap;
+    overflow: visible;
   }
 
   .wiki-filters button {
     min-height: 38px;
     padding: 0 14px;
     font-size: 11px;
+  }
+
+  .wiki-alphabet-row {
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: start;
+    gap: 8px;
+  }
+
+  .wiki-alphabet-row > span {
+    padding-top: 8px;
+  }
+
+  .wiki-alphabet-row > div {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(25px, 1fr));
+    gap: 5px;
+    width: 100%;
+    overflow: visible;
+  }
+
+  .wiki-alphabet-row button {
+    width: 100%;
+    min-width: 0;
   }
 
   .wiki-results-head {
@@ -654,7 +681,7 @@
 
   .wiki-hero-copy p {
     max-width: 100%;
-    padding-right: 46px;
+    padding-right: 0;
   }
 
   .wiki-controls {
