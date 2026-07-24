@@ -20,7 +20,6 @@ from app.utils.backup import create_backup
 from app.utils.notifications import (
     check_and_send_notifications,
     check_and_send_results,
-    check_and_notify_quali,
     check_and_notify_voting_results,
 )
 from app.services.prediction_notifications import check_and_notify_predictions
