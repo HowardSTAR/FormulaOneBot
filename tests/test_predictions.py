@@ -13,6 +13,8 @@ DRIVERS = ["VER", "NOR", "PIA", "LEC", "HAM", "RUS", "ALO", "SAI"]
 
 def prediction_payload() -> dict:
     return {
+        "sprint_pole_driver": None,
+        "sprint_winner_driver": None,
         "pole_driver": "VER",
         "winner_driver": "VER",
         "second_driver": "NOR",
@@ -107,12 +109,54 @@ async def test_prediction_profile_scoring_and_leaderboard(api_client):
         "safety_car": None,
     }
     score = await score_prediction_round(2030, 4, "Test Grand Prix", answers)
-    assert score["max_points"] == 6
+    assert score["max_points"] == 31
     assert score["scored"] == 1
     leaderboard = await get_prediction_leaderboard()
-    entry = next(item for item in leaderboard if item["display_name"] == "Test Racer")
-    assert entry["total_points"] == 6
-    assert entry["history"][0]["max_points"] == 6
+    entry = next(item for item in leaderboard["entries"] if item["display_name"] == "Test Racer")
+    assert entry["total_points"] == 31
+    assert entry["best_points"] == 31
+    assert entry["average_points"] == 31.0
+    assert entry["wins"] == 1
+    assert entry["history"][0]["max_points"] == 31
+    assert leaderboard["rounds"][0]["short_code"] == "TES"
+
+
+def test_prediction_points_follow_2026_matrix():
+    """Матрица учитывает точные спринты и отклонение финишной позиции до трёх мест."""
+    from app.services.prediction_service import calculate_prediction_points
+
+    prediction = prediction_payload() | {
+        "sprint_pole_driver": "VER",
+        "sprint_winner_driver": "NOR",
+        "winner_driver": "NOR",
+        "second_driver": "VER",
+    }
+    answers = {
+        **prediction_payload(),
+        "sprint_pole_driver": "VER",
+        "sprint_winner_driver": "NOR",
+        "_race_positions": {
+            "VER": 1,
+            "NOR": 2,
+            "PIA": 3,
+            "LEC": 4,
+            "HAM": 5,
+        },
+    }
+    assert calculate_prediction_points(prediction, answers) == 36
+
+
+@pytest.mark.asyncio
+async def test_prediction_schema_contains_optional_sprint_columns(api_client):
+    """Миграция создаёт nullable спринт-поля и в прогнозах, и в итогах этапа."""
+    from app.db import db
+
+    for table_name in ("race_predictions", "prediction_round_results"):
+        async with db.conn.execute(f"PRAGMA table_info({table_name})") as cursor:
+            columns = {row["name"]: row for row in await cursor.fetchall()}
+        assert "sprint_pole_driver" in columns
+        assert "sprint_winner_driver" in columns
+        assert columns["sprint_pole_driver"]["notnull"] == 0
 
 
 @pytest.mark.asyncio

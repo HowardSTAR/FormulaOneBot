@@ -22,6 +22,20 @@ const API_BASE = IS_LOCAL_HOST ? '' : CONFIGURED_API_BASE;
 const PATH_BASE = ((import.meta.env.BASE_URL as string) || '/').replace(/\/$/, '');
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 15000);
 
+export function apiAssetUrl(
+  endpoint: string,
+  params: Record<string, string | number | undefined> = {}
+): string {
+  const path = (PATH_BASE + endpoint).replace(/\/+/g, '/');
+  const url = API_BASE ? new URL(endpoint, API_BASE) : new URL(path, window.location.origin);
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') {
+      url.searchParams.set(key, String(value));
+    }
+  });
+  return url.toString();
+}
+
 export async function apiRequest<T = unknown>(
   endpoint: string,
   params: Record<string, string | number | boolean | undefined> = {},

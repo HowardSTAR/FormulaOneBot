@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuthState } from "../helpers/auth";
 
-type IconName = "home" | "calendar" | "results" | "drivers" | "teams" | "compare" | "predictions" | "contact" | "games" | "star" | "vote" | "settings" | "account";
+type IconName = "home" | "calendar" | "results" | "drivers" | "teams" | "compare" | "predictions" | "wiki" | "contact" | "games" | "star" | "vote" | "settings" | "account";
 
 type NavItem = {
   to: string;
@@ -19,6 +19,7 @@ const PRIMARY_NAV_ITEMS: NavItem[] = [
   { to: "/constructors", label: "Команды", icon: "teams", activePaths: ["/constructors", "/constructor-details", "/team-principal"] },
   { to: "/compare", label: "Сравнение", icon: "compare", activePaths: ["/compare"] },
   { to: "/predictions", label: "Прогнозы", icon: "predictions", activePaths: ["/predictions"] },
+  { to: "/wiki", label: "Wiki F1", icon: "wiki", activePaths: ["/wiki"] },
   { to: "/account", label: "Аккаунт", icon: "account", activePaths: ["/account"] },
   { to: "/contact-admin", label: "Обратная связь", icon: "contact", activePaths: ["/contact-admin"] },
 ];
@@ -32,6 +33,7 @@ function NavIcon({ name }: { name: IconName }) {
     teams: <><circle cx="8" cy="8" r="3" /><circle cx="17" cy="9" r="2.5" /><path d="M2.5 20a5.5 5.5 0 0 1 11 0M13 20a4.5 4.5 0 0 1 8.5-2" /></>,
     compare: <><path d="M7 7h12l-3-3M17 17H5l3 3" /></>,
     predictions: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /><path d="m4 7 6-4 6 7 5-5" /></>,
+    wiki: <><path d="M4 4.5A3.5 3.5 0 0 1 7.5 1H12v19H7.5A3.5 3.5 0 0 0 4 23.5z" /><path d="M20 4.5A3.5 3.5 0 0 0 16.5 1H12v19h4.5a3.5 3.5 0 0 1 3.5 3.5z" /></>,
     contact: <><path d="M4 4h16v13H8l-4 4z" /><path d="M8 9h8M8 13h5" /></>,
     games: <><path d="M8 8h8a5 5 0 0 1 4.72 3.35l1.1 3.15A4.15 4.15 0 0 1 15 18.72L13.8 17h-3.6L9 18.72a4.15 4.15 0 0 1-6.82-4.22l1.1-3.15A5 5 0 0 1 8 8Z" /><path d="M7 11v4M5 13h4M16.5 12.5h.01M18.5 14.5h.01" /></>,
     star: <path d="m12 3 2.75 5.57 6.15.9-4.45 4.33 1.05 6.12L12 17.03l-5.5 2.89 1.05-6.12L3.1 9.47l6.15-.9L12 3Z" />,

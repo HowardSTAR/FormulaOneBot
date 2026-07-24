@@ -1113,28 +1113,45 @@ async def check_and_send_session_results(bot: Bot) -> None:
 # --- ЗАДАЧА 4: ИТОГИ ГОЛОСОВАНИЯ (3 дня после гонки) ---
 
 DRIVER_VOTING_DAYS = 3
-VOTING_RESULTS_SEND_HOUR = 10
 VOTING_RESULTS_NOTIFY_KEY = 10000
 
 
-def _is_voting_results_send_time(tz_name: str, now_utc: datetime) -> bool:
-    """Итоги уже можно отправлять после 10:00 по локальному времени.
+def _voting_closes_at(event: dict) -> datetime | None:
+    """Return the exact UTC deadline for a round's voting window.
 
-    Проверка ``hour == 10`` теряла рассылку, если бот был выключен в этот час
-    или первая попытка доставки завершилась ошибкой. Персональная дедупликация
-    ниже гарантирует, что успешный получатель не увидит сообщение повторно.
+    Modern schedules contain ``race_start_utc``. Using it avoids waiting for
+    the next calendar day (and then 10:00 local time) after the advertised
+    three-day timer has already expired. Date-only legacy rows keep the old
+    conservative behaviour: three complete days plus the race day.
     """
+
+    race_start = event.get("race_start_utc")
+    if race_start:
+        try:
+            race_dt = datetime.fromisoformat(str(race_start).replace("Z", "+00:00"))
+            if race_dt.tzinfo is None:
+                race_dt = race_dt.replace(tzinfo=timezone.utc)
+            return race_dt.astimezone(timezone.utc) + timedelta(days=DRIVER_VOTING_DAYS)
+        except (TypeError, ValueError):
+            logger.warning("Invalid race_start_utc for voting round: %r", race_start)
+
+    date_str = event.get("date")
+    if not date_str:
+        return None
     try:
-        tz = ZoneInfo(tz_name)
-    except ZoneInfoNotFoundError:
-        tz = ZoneInfo("Europe/Moscow")
-    local_now = now_utc.astimezone(tz)
-    return local_now.hour >= VOTING_RESULTS_SEND_HOUR
+        race_date = datetime.fromisoformat(str(date_str)).date()
+    except (TypeError, ValueError):
+        return None
+    return datetime.combine(
+        race_date + timedelta(days=DRIVER_VOTING_DAYS + 1),
+        datetime.min.time(),
+        tzinfo=timezone.utc,
+    )
 
 
 async def check_and_notify_voting_results(bot: Bot) -> None:
     """
-    Через 3 дня после гонки отправляем итоги голосования:
+    Сразу после закрытия трёхдневного окна отправляем итоги голосования:
     «По мнению нашего сообщества этап оценили на: X. Лучшим пилотом стал: Y.»
     """
     season = datetime.now(timezone.utc).year
@@ -1144,8 +1161,6 @@ async def check_and_notify_voting_results(bot: Bot) -> None:
 
     last_notified = await get_last_notified_voting_round(season)
     now_utc = datetime.now(timezone.utc)
-    now = now_utc.date()
-
     users = await get_users_with_settings(notifications_only=True)
     if not users:
         return
@@ -1159,16 +1174,8 @@ async def check_and_notify_voting_results(bot: Bot) -> None:
         if last_notified is not None and round_num <= last_notified:
             continue
 
-        date_str = event.get("date")
-        if not date_str:
-            continue
-        try:
-            race_date = datetime.fromisoformat(date_str).date()
-        except Exception:
-            continue
-
-        voting_closes = race_date + timedelta(days=DRIVER_VOTING_DAYS + 1)
-        if now < voting_closes:
+        voting_closes_at = _voting_closes_at(event)
+        if voting_closes_at is None or now_utc < voting_closes_at:
             continue
 
         event_name = event.get("event_name", "Гран-при")
@@ -1204,8 +1211,6 @@ async def check_and_notify_voting_results(bot: Bot) -> None:
         sent_count = 0
         for tg_id in tz_map:
             tz_name = tz_map[tg_id]
-            if not _is_voting_results_send_time(tz_name, now_utc):
-                continue
             if await was_reminder_sent(tg_id, season, round_num, False, VOTING_RESULTS_NOTIFY_KEY):
                 continue
 

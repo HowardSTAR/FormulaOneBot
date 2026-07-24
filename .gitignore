@@ -12,3 +12,6 @@ f1bot_cache/
 .pytest_cache/
 __pycache__/
 **/__pycache__/
+
+# Распаковывается из app-assets.zip для локальной разработки.
+app/assets/
