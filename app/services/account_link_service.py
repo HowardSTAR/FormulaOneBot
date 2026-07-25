@@ -447,6 +447,30 @@ class AccountLinkService:
             "SELECT ?, season, round, driver_code, created_at FROM driver_votes WHERE user_id = ?",
             (target_id, source_id),
         )
+        await conn.execute(
+            """
+            INSERT OR IGNORE INTO prediction_profiles(
+                user_id, display_name, created_at, updated_at
+            )
+            SELECT ?, display_name, created_at, updated_at
+            FROM prediction_profiles WHERE user_id = ?
+            """,
+            (target_id, source_id),
+        )
+        await conn.execute(
+            "DELETE FROM prediction_profiles WHERE user_id = ?",
+            (source_id,),
+        )
+        # Keep the target account's prediction when both accounts submitted
+        # the same round; otherwise move the source account's history.
+        await conn.execute(
+            "UPDATE OR IGNORE race_predictions SET user_id = ? WHERE user_id = ?",
+            (target_id, source_id),
+        )
+        await conn.execute(
+            "DELETE FROM race_predictions WHERE user_id = ?",
+            (source_id,),
+        )
 
     async def _get_pending_link(self, conn, token: str):
         if not token or len(token) > 256:

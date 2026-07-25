@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
+import { getWebsiteUser, hasTelegramAuth } from "../../helpers/auth";
 import "./predictions.css";
 
 type Driver = { code: string; name: string };
@@ -37,7 +39,7 @@ type HistoryItem = { season: number; round: number; event_name?: string; short_c
 type RoundColumn = { season: number; round: number; event_name: string; short_code: string; max_points: number };
 type LeaderboardEntry = {
   place: number;
-  telegram_id: number;
+  user_id: number;
   display_name: string;
   total_points: number;
   rounds_scored: number;
@@ -106,6 +108,7 @@ export default function PredictionsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [showTelegramReminder, setShowTelegramReminder] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -129,6 +132,15 @@ export default function PredictionsPage() {
   };
 
   useEffect(() => { void load(); }, []);
+
+  useEffect(() => {
+    if (hasTelegramAuth()) return;
+    let active = true;
+    void getWebsiteUser().then((user) => {
+      if (active) setShowTelegramReminder(Boolean(user && !user.telegram_id));
+    });
+    return () => { active = false; };
+  }, []);
 
   const selectedTopFive = useMemo(
     () => new Set([form.winner_driver, form.second_driver, form.third_driver, form.fourth_driver, form.fifth_driver].filter(Boolean)),
@@ -190,6 +202,16 @@ export default function PredictionsPage() {
           </div>
         )}
       </header>
+
+      {showTelegramReminder && (
+        <aside className="predictions-telegram-reminder">
+          <div>
+            <strong>Telegram не привязан</strong>
+            <span>Прогнозы доступны полностью. Привяжите Telegram только если хотите получать уведомления о результатах.</span>
+          </div>
+          <Link to="/account">Привязать Telegram</Link>
+        </aside>
+      )}
 
       <div className="predictions-tabs" role="tablist">
         <button className={tab === "form" ? "active" : ""} onClick={() => setTab("form")}>Мой прогноз</button>
@@ -339,7 +361,7 @@ export default function PredictionsPage() {
                     entry.history.map((item) => [`${item.season}-${item.round}`, item.points]),
                   );
                   return (
-                    <tr key={entry.telegram_id}>
+                    <tr key={entry.user_id}>
                       <td className="is-place"><strong>{String(entry.place).padStart(2, "0")}</strong></td>
                       <th className="is-name">{entry.display_name}</th>
                       <td>{entry.wins}</td>

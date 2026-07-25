@@ -13,7 +13,7 @@ from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, 
 from pydantic import BaseModel, Field
 
 from app.auth import get_current_user_id as get_telegram_user_id
-from app.db import db
+from app.db import db, get_or_create_user
 from app.emailer import EmailDeliveryError, EnvironmentMailer
 from app.services.account_link_service import (
     AccountLinkService,
@@ -221,6 +221,31 @@ async def require_hybrid_telegram_id(
             },
         )
     return int(telegram_id)
+
+
+async def require_hybrid_user_id(
+    request: Request,
+    x_telegram_init_data: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+    x_csrf_token: Annotated[str | None, Header()] = None,
+    cookie_token: Annotated[str | None, Cookie(alias=COOKIE_NAME)] = None,
+) -> int:
+    """Return the canonical users.id for either supported authentication flow.
+
+    Prediction ownership must not depend on Telegram being linked. Telegram
+    Mini App users are resolved to the same internal account ID, while website
+    sessions already carry that canonical ID.
+    """
+    if x_telegram_init_data:
+        telegram_id = await get_telegram_user_id(x_telegram_init_data)
+        return await get_or_create_user(telegram_id)
+    session = await require_web_session(
+        request=request,
+        authorization=authorization,
+        x_csrf_token=x_csrf_token,
+        cookie_token=cookie_token,
+    )
+    return int(session.user["id"])
 
 
 async def get_optional_hybrid_telegram_id(

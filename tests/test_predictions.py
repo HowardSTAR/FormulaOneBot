@@ -94,10 +94,12 @@ async def test_prediction_profile_scoring_and_leaderboard(api_client):
         score_prediction_round,
     )
 
-    telegram_id = 999888
-    await save_prediction_profile(telegram_id, "Test Racer")
+    from app.db import get_or_create_user
+
+    user_id = await get_or_create_user(999888)
+    await save_prediction_profile(user_id, "Test Racer")
     await save_user_prediction(
-        telegram_id,
+        user_id,
         2030,
         4,
         prediction_payload(),
@@ -151,12 +153,54 @@ async def test_prediction_schema_contains_optional_sprint_columns(api_client):
     """Миграция создаёт nullable спринт-поля и в прогнозах, и в итогах этапа."""
     from app.db import db
 
+    async with db.conn.execute("PRAGMA table_info(prediction_profiles)") as cursor:
+        profile_columns = {row["name"]: row for row in await cursor.fetchall()}
+    assert "user_id" in profile_columns
+    assert "telegram_id" not in profile_columns
+
     for table_name in ("race_predictions", "prediction_round_results"):
         async with db.conn.execute(f"PRAGMA table_info({table_name})") as cursor:
             columns = {row["name"]: row for row in await cursor.fetchall()}
         assert "sprint_pole_driver" in columns
         assert "sprint_winner_driver" in columns
         assert columns["sprint_pole_driver"]["notnull"] == 0
+
+
+@pytest.mark.asyncio
+async def test_legacy_telegram_prediction_profile_migrates_to_user_id(temp_db_path):
+    """Существующий Telegram-профиль прогноза сохраняется при переходе на users.id."""
+    from app.db import Database
+
+    database = Database(temp_db_path)
+    await database.connect()
+    await database.init_tables()
+    cursor = await database.conn.execute("INSERT INTO users(telegram_id) VALUES (770077)")
+    user_id = int(cursor.lastrowid)
+    await database.conn.execute("DROP TABLE prediction_profiles")
+    await database.conn.execute(
+        """
+        CREATE TABLE prediction_profiles (
+            telegram_id INTEGER PRIMARY KEY,
+            display_name TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    await database.conn.execute(
+        "INSERT INTO prediction_profiles(telegram_id, display_name) VALUES (770077, 'Legacy Racer')"
+    )
+    await database.conn.commit()
+
+    await database.init_tables()
+
+    async with database.conn.execute(
+        "SELECT user_id, display_name FROM prediction_profiles"
+    ) as rows:
+        migrated = await rows.fetchone()
+    assert migrated["user_id"] == user_id
+    assert migrated["display_name"] == "Legacy Racer"
+    await database.close()
 
 
 @pytest.mark.asyncio

@@ -109,6 +109,12 @@ async def test_linked_web_session_can_use_personalized_api(temp_db_path, monkeyp
         await auth_api.require_hybrid_telegram_id(request, cookie_token=session.token)
     assert exc_info.value.status_code == 403
 
+    canonical_user_id = await auth_api.require_hybrid_user_id(
+        request,
+        cookie_token=session.token,
+    )
+    assert canonical_user_id == session.user["id"]
+
     await database.conn.execute(
         "UPDATE users SET telegram_id = ? WHERE id = ?",
         (987654321, session.user["id"]),
@@ -121,6 +127,111 @@ async def test_linked_web_session_can_use_personalized_api(temp_db_path, monkeyp
     )
     assert telegram_id == 987654321
 
+    await database.close()
+
+
+@pytest.mark.asyncio
+async def test_email_only_session_can_save_and_load_predictions(temp_db_path, monkeypatch):
+    """Email-only account owns predictions by users.id without a Telegram link."""
+    from unittest.mock import AsyncMock
+
+    from app.api import miniapp_api
+    from app.services import prediction_service
+
+    database = Database(temp_db_path)
+    await database.connect()
+    await database.init_tables()
+    mailer = MockMailer()
+    auth = AuthService(database, mailer, pepper="test-pepper-with-enough-entropy")
+    monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
+    monkeypatch.setattr(prediction_service, "db", database)
+    monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
+
+    context = {
+        "status": "ok",
+        "season": 2031,
+        "round": 2,
+        "event_name": "Email Account Grand Prix",
+        "deadline_utc": "2031-03-01T12:00:00+00:00",
+        "has_sprint": False,
+        "is_open": True,
+    }
+    drivers = [
+        {"code": code, "name": code}
+        for code in ("VER", "NOR", "PIA", "LEC", "HAM", "RUS", "ALO", "SAI")
+    ]
+    monkeypatch.setattr(
+        miniapp_api,
+        "get_prediction_context",
+        AsyncMock(return_value=context),
+    )
+    monkeypatch.setattr(
+        miniapp_api,
+        "get_prediction_drivers",
+        AsyncMock(return_value=drivers),
+    )
+
+    transport = httpx.ASGITransport(app=web_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        assert (await client.post(
+            "/api/auth/register",
+            json={"email": "forecast@example.com", "password": "FormulaOne-2031-Secure"},
+        )).status_code == 202
+        code = str(mailer.messages[-1]["code"])
+        verified = await client.post(
+            "/api/auth/verify-email",
+            json={"email": "forecast@example.com", "code": code},
+        )
+        assert verified.status_code == 200
+        auth_payload = verified.json()
+        assert auth_payload["user"]["telegram_id"] is None
+        csrf = auth_payload["csrf_token"]
+        user_id = int(auth_payload["user"]["id"])
+
+        current = await client.get("/api/predictions/current")
+        assert current.status_code == 200
+        assert current.json()["profile"]["completed"] is False
+
+        profile = await client.post(
+            "/api/predictions/profile",
+            headers={"X-CSRF-Token": csrf},
+            json={"display_name": "Email Racer"},
+        )
+        assert profile.status_code == 200
+
+        prediction_payload = {
+            "sprint_pole_driver": None,
+            "sprint_winner_driver": None,
+            "pole_driver": "VER",
+            "winner_driver": "VER",
+            "second_driver": "NOR",
+            "third_driver": "PIA",
+            "fourth_driver": "LEC",
+            "fifth_driver": "HAM",
+            "fastest_lap_driver": "NOR",
+            "first_retirement_driver": "SAI",
+            "safety_car": True,
+        }
+        saved = await client.post(
+            "/api/predictions/current",
+            headers={"X-CSRF-Token": csrf},
+            json=prediction_payload,
+        )
+        assert saved.status_code == 200
+        loaded = await client.get("/api/predictions/current")
+        assert loaded.status_code == 200
+        assert loaded.json()["prediction"]["winner_driver"] == "VER"
+
+        leaderboard = await client.get("/api/predictions/leaderboard")
+        assert leaderboard.status_code == 200
+        assert leaderboard.json()["entries"][0]["user_id"] == user_id
+        assert "telegram_id" not in leaderboard.json()["entries"][0]
+
+    async with database.conn.execute(
+        "SELECT user_id FROM race_predictions WHERE season = 2031 AND round = 2"
+    ) as cursor:
+        row = await cursor.fetchone()
+    assert row["user_id"] == user_id
     await database.close()
 
 
