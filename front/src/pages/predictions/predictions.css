@@ -212,7 +212,7 @@ button:disabled { cursor: not-allowed; opacity: .42; }
 .prediction-leaderboard tbody tr:hover th { background: #161a21; }
 
 @media (max-width: 899px) {
-  .predictions-page { padding: 76px 14px 40px; }
+  .predictions-page { padding: 18px 14px 40px; }
   .predictions-hero { align-items: stretch; flex-direction: column; }
   .predictions-hero h2 { font-size: 48px; }
   .predictions-deadline { min-width: 0; }
