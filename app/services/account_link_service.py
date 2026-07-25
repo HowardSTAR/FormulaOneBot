@@ -387,7 +387,16 @@ class AccountLinkService:
 
         target_id = int(web_user_id if strategy == "keep_web" else telegram_user["id"])
         source_id = int(telegram_user["id"] if strategy == "keep_web" else web_user_id)
+        role_priority = {"user": 0, "admin": 1, "superadmin": 2}
+        merged_role = max(
+            (web_user["role"], telegram_user["role"]),
+            key=lambda value: role_priority.get(value, 0),
+        )
         await self._transfer_related_data(conn, source_id, target_id)
+        await conn.execute(
+            "UPDATE user_activity_events SET user_id = ? WHERE user_id = ?",
+            (target_id, source_id),
+        )
 
         if strategy == "keep_telegram":
             await conn.execute("UPDATE auth_sessions SET user_id = ? WHERE user_id = ?", (target_id, source_id))
@@ -400,18 +409,19 @@ class AccountLinkService:
         await conn.execute("DELETE FROM users WHERE id = ?", (source_id,))
         if strategy == "keep_web":
             await conn.execute(
-                "UPDATE users SET telegram_id = ?, updated_at = ? WHERE id = ?",
-                (int(telegram_id), iso(utc_now()), target_id),
+                "UPDATE users SET telegram_id = ?, role = ?, updated_at = ? WHERE id = ?",
+                (int(telegram_id), merged_role, iso(utc_now()), target_id),
             )
         else:
             await conn.execute(
                 """
-                UPDATE users SET email = ?, password_hash = ?, email_verified = ?, updated_at = ?
+                UPDATE users SET email = ?, password_hash = ?, email_verified = ?,
+                    role = ?, updated_at = ?
                 WHERE id = ?
                 """,
                 (
                     web_user["email"], web_user["password_hash"], web_user["email_verified"],
-                    iso(utc_now()), target_id,
+                    merged_role, iso(utc_now()), target_id,
                 ),
             )
         await conn.execute(

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuthState } from "../helpers/auth";
 
-type IconName = "home" | "calendar" | "results" | "drivers" | "teams" | "compare" | "predictions" | "wiki" | "contact" | "games" | "star" | "vote" | "settings" | "account";
+type IconName = "home" | "calendar" | "results" | "drivers" | "teams" | "compare" | "predictions" | "wiki" | "contact" | "games" | "star" | "vote" | "settings" | "account" | "admin";
 
 type NavItem = {
   to: string;
@@ -40,6 +40,7 @@ function NavIcon({ name }: { name: IconName }) {
     vote: <><path d="M7 3h10v4H7z" /><path d="M5 7h14l2 4v10H3V11z" /><path d="m9 14 2 2 4-5" /></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15 1.7 1.7 0 0 0 3.08 14H3v-4h.08A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88L4.2 7.06l2.83-2.83.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.08V3h4v.08A1.7 1.7 0 0 0 15.03 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9 1.7 1.7 0 0 0 20.92 10H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z" /></>,
     account: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
+    admin: <><path d="M12 3 4.5 6v5.5c0 4.6 3.2 7.9 7.5 9.5 4.3-1.6 7.5-4.9 7.5-9.5V6z" /><path d="M9 12.5 11 14.5 15.5 10" /></>,
   };
 
   return (
@@ -109,6 +110,14 @@ export function AppHeader() {
       </nav>
 
       <div className="app-header-bottom">
+        {(auth.role === "admin" || auth.role === "superadmin") && (
+          <nav className="app-header-nav app-header-nav-secondary" aria-label="Администрирование">
+            <Link to="/admin" className={`app-header-link${pathname === "/admin" ? " active" : ""}`}>
+              <span className="app-header-link-icon"><NavIcon name="admin" /></span>
+              <span className="app-header-link-label">Админ-панель</span>
+            </Link>
+          </nav>
+        )}
         {auth.personalized ? (
           <nav className="app-header-nav app-header-nav-secondary" aria-label="Пользовательское меню">
             <Link to="/voting" className={`app-header-link${pathname === "/voting" ? " active" : ""}`}>

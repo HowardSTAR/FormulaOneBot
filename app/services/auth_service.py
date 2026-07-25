@@ -16,6 +16,7 @@ import bcrypt
 
 from app.db import Database
 from app.emailer import VerificationMailer
+from app.services.activity_service import is_primary_admin
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
@@ -128,8 +129,26 @@ class AuthService:
             "email": row["email"],
             "telegram_id": row["telegram_id"],
             "email_verified": bool(row["email_verified"]),
+            "role": row["role"],
+            "display_name": row["display_name"],
+            "telegram_username": row["telegram_username"],
             "created_at": row["created_at"],
         }
+
+    @staticmethod
+    async def _promote_primary_admin_locked(conn, user_id: int) -> None:
+        async with conn.execute(
+            "SELECT email, telegram_id, role FROM users WHERE id = ?",
+            (int(user_id),),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row and row["role"] != "superadmin" and is_primary_admin(
+            row["email"], row["telegram_id"]
+        ):
+            await conn.execute(
+                "UPDATE users SET role = 'superadmin', updated_at = ? WHERE id = ?",
+                (iso(utc_now()), int(user_id)),
+            )
 
     async def _hash_password(self, password: str) -> str:
         validate_password(password)
@@ -276,6 +295,7 @@ class AuthService:
                     "UPDATE users SET email_verified = 1, updated_at = ? WHERE id = ?",
                     (now, verification["account_id"]),
                 )
+                await self._promote_primary_admin_locked(conn, int(verification["account_id"]))
                 session = await self._create_session_locked(
                     conn, int(verification["account_id"]), user_agent, ip_address
                 )
@@ -314,6 +334,7 @@ class AuthService:
                     await conn.commit()
                     raise EmailNotVerified("Email address is not verified")
                 await self._clear_rate_limit(conn, "login", normalized)
+                await self._promote_primary_admin_locked(conn, int(user["id"]))
                 session = await self._create_session_locked(conn, int(user["id"]), user_agent, ip_address)
                 await conn.commit()
                 return session
@@ -525,6 +546,7 @@ class AuthService:
                 self._hmac("ip", ip_address) if ip_address else None,
             ),
         )
+        await self._promote_primary_admin_locked(conn, user_id)
         async with conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)) as cursor:
             user = await cursor.fetchone()
         return AuthenticatedSession(token, csrf_token, iso(expires_at), self._public_user(user))
@@ -544,6 +566,22 @@ class AuthService:
             row = await cursor.fetchone()
         if not row or datetime.fromisoformat(row["expires_at"]) <= utc_now():
             raise InvalidCredentials("Invalid or expired session")
+        if row["role"] != "superadmin" and is_primary_admin(row["email"], row["telegram_id"]):
+            async with self.database.write_lock:
+                await conn.execute(
+                    "UPDATE users SET role = 'superadmin', updated_at = ? WHERE id = ?",
+                    (iso(utc_now()), int(row["id"])),
+                )
+                await conn.commit()
+            async with conn.execute(
+                """
+                SELECT s.token_hash, s.csrf_hash, s.expires_at, u.* FROM auth_sessions s
+                JOIN users u ON u.id = s.user_id
+                WHERE s.token_hash = ? AND s.revoked_at IS NULL AND u.archived_at IS NULL
+                """,
+                (self._token_hash(token),),
+            ) as cursor:
+                row = await cursor.fetchone()
         result = self._public_user(row)
         result["csrf_hash"] = row["csrf_hash"]
         result["session_token_hash"] = row["token_hash"]

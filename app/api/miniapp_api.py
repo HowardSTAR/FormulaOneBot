@@ -38,6 +38,7 @@ from app.api.auth_api import (
     require_hybrid_user_id as get_prediction_user_id,
     router as auth_router,
 )
+from app.api.admin_api import router as admin_router
 from app.f1_data import (
     points_for_race_position,
     get_season_schedule_short_async,
@@ -118,6 +119,7 @@ web_app.add_middleware(
 )
 
 web_app.include_router(auth_router)
+web_app.include_router(admin_router)
 
 
 @web_app.get("/health", include_in_schema=False)

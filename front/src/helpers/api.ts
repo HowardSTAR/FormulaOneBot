@@ -39,7 +39,7 @@ export function apiAssetUrl(
 export async function apiRequest<T = unknown>(
   endpoint: string,
   params: Record<string, string | number | boolean | undefined> = {},
-  method: 'GET' | 'POST' = 'GET'
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET'
 ): Promise<T> {
   const path = (PATH_BASE + endpoint).replace(/\/+/g, '/');
   const url = API_BASE ? new URL(endpoint, API_BASE) : new URL(path, window.location.origin);
@@ -67,7 +67,7 @@ export async function apiRequest<T = unknown>(
         url.searchParams.append(key, String(val));
       }
     });
-  } else {
+  } else if (method !== 'DELETE' || Object.keys(params).length > 0) {
     (options as RequestInit & { body?: string }).body = JSON.stringify(params);
   }
 

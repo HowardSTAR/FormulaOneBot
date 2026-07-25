@@ -31,8 +31,6 @@ def validate_f1_year(year: int) -> str | None:
 
     return None
 
-OWNER_TELEGRAM_ID = 2099386
-
 # Соответствие кода пилота имени файла с его фотографией
 # Файлы лежат в app/assets/pilots
 DRIVER_CODE_TO_FILE = {

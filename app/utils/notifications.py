@@ -44,8 +44,6 @@ from app.utils.safe_send import safe_send_message, safe_send_photo
 from app.utils.image_render import create_f1_style_classification_image
 
 logger = logging.getLogger(__name__)
-ADMIN_ID = 2099386
-
 
 # --- ХЕЛПЕРЫ ОБЩИЕ ---
 
