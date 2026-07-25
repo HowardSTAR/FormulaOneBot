@@ -55,8 +55,13 @@ async def app_with_overrides(temp_db_path):
     """
     os.environ["DATABASE_PATH"] = str(temp_db_path)
 
-    from app.api.miniapp_api import get_current_user_id, get_optional_user_id, web_app
-    from app.db import db
+    from app.api.miniapp_api import (
+        get_current_user_id,
+        get_optional_user_id,
+        get_prediction_user_id,
+        web_app,
+    )
+    from app.db import db, get_or_create_user
 
     async def fake_get_current_user_id():
         return 999888
@@ -67,6 +72,12 @@ async def app_with_overrides(temp_db_path):
     # Инициализация БД для тестов
     await db.connect()
     await db.init_tables()
+    prediction_user_id = await get_or_create_user(999888)
+
+    async def fake_get_prediction_user_id():
+        return prediction_user_id
+
+    web_app.dependency_overrides[get_prediction_user_id] = fake_get_prediction_user_id
 
     yield web_app
 

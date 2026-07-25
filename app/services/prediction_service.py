@@ -4,7 +4,7 @@ from typing import Any
 
 import pandas as pd
 
-from app.db import db, get_or_create_user
+from app.db import db
 from app.f1_data import get_driver_standings_async, get_season_schedule_short_async
 
 
@@ -181,63 +181,61 @@ async def get_prediction_drivers(season: int) -> list[dict[str, str]]:
     return result
 
 
-async def get_prediction_profile(telegram_id: int) -> dict[str, Any]:
+async def get_prediction_profile(user_id: int) -> dict[str, Any]:
     if not db.conn:
         await db.connect()
     async with db.conn.execute(
-        "SELECT display_name FROM prediction_profiles WHERE telegram_id = ?",
-        (int(telegram_id),),
+        "SELECT display_name FROM prediction_profiles WHERE user_id = ?",
+        (int(user_id),),
     ) as cursor:
         row = await cursor.fetchone()
     return {"display_name": str(row["display_name"]) if row else "", "completed": bool(row)}
 
 
-async def save_prediction_profile(telegram_id: int, display_name: str) -> dict[str, Any]:
+async def save_prediction_profile(user_id: int, display_name: str) -> dict[str, Any]:
     name = " ".join(str(display_name or "").split())
     if not 2 <= len(name) <= 40:
         raise ValueError("Имя участника должно содержать от 2 до 40 символов")
     if not db.conn:
         await db.connect()
-    await get_or_create_user(telegram_id)
     async with db.write_lock:
         await db.conn.execute(
             """
-            INSERT INTO prediction_profiles(telegram_id, display_name)
+            INSERT INTO prediction_profiles(user_id, display_name)
             VALUES(?, ?)
-            ON CONFLICT(telegram_id) DO UPDATE SET
+            ON CONFLICT(user_id) DO UPDATE SET
                 display_name = excluded.display_name,
                 updated_at = CURRENT_TIMESTAMP
             """,
-            (int(telegram_id), name),
+            (int(user_id), name),
         )
         await db.conn.commit()
     return {"display_name": name, "completed": True}
 
 
-async def get_user_prediction(telegram_id: int, season: int, round_num: int) -> dict[str, Any] | None:
+async def get_user_prediction(user_id: int, season: int, round_num: int) -> dict[str, Any] | None:
     if not db.conn:
         await db.connect()
     async with db.conn.execute(
         """
         SELECT rp.* FROM race_predictions rp
-        JOIN users u ON u.id = rp.user_id
-        WHERE u.telegram_id = ? AND rp.season = ? AND rp.round = ?
+        WHERE rp.user_id = ? AND rp.season = ? AND rp.round = ?
         """,
-        (int(telegram_id), int(season), int(round_num)),
+        (int(user_id), int(season), int(round_num)),
     ) as cursor:
         row = await cursor.fetchone()
     return dict(row) if row else None
 
 
 async def save_user_prediction(
-    telegram_id: int,
+    user_id: int,
     season: int,
     round_num: int,
     payload: dict[str, Any],
     allowed_driver_codes: set[str] | None = None,
     require_sprint: bool = False,
 ) -> dict[str, Any]:
-    profile = await get_prediction_profile(telegram_id)
+    profile = await get_prediction_profile(user_id)
     if not profile["completed"]:
         raise ValueError("Сначала укажите имя участника")
 
@@ -257,7 +255,6 @@ async def save_user_prediction(
         raise ValueError("Для машины безопасности выберите Да или Нет")
     normalized["safety_car"] = int(safety_car)
 
-    user_id = await get_or_create_user(telegram_id)
     values = [normalized[field] for field in PREDICTION_FIELDS]
     async with db.write_lock:
         await db.conn.execute(
@@ -469,8 +466,7 @@ async def get_stage_top(season: int, round_num: int, limit: int = 3) -> list[dic
         """
         SELECT pp.display_name, rp.points, rp.max_points
         FROM race_predictions rp
-        JOIN users u ON u.id = rp.user_id
-        JOIN prediction_profiles pp ON pp.telegram_id = u.telegram_id
+        JOIN prediction_profiles pp ON pp.user_id = rp.user_id
         WHERE rp.season = ? AND rp.round = ? AND rp.points IS NOT NULL
         ORDER BY rp.points DESC, rp.updated_at ASC, pp.display_name COLLATE NOCASE
         LIMIT ?
@@ -491,7 +487,7 @@ async def get_prediction_leaderboard() -> dict[str, Any]:
 
     async with db.conn.execute(
         """
-        SELECT telegram_id, display_name
+        SELECT user_id, display_name
         FROM prediction_profiles
         ORDER BY display_name COLLATE NOCASE
         """
@@ -500,10 +496,9 @@ async def get_prediction_leaderboard() -> dict[str, Any]:
 
     async with db.conn.execute(
         """
-        SELECT u.telegram_id, rp.season, rp.round, rp.points, rp.max_points,
+        SELECT rp.user_id, rp.season, rp.round, rp.points, rp.max_points,
                rr.event_name
         FROM race_predictions rp
-        JOIN users u ON u.id = rp.user_id
         LEFT JOIN prediction_round_results rr
           ON rr.season = rp.season AND rr.round = rp.round
         WHERE rp.points IS NOT NULL AND rp.season = ?
@@ -529,10 +524,10 @@ async def get_prediction_leaderboard() -> dict[str, Any]:
     for row in score_rows:
         key = (int(row["season"]), int(row["round"]))
         round_max[key] = max(round_max.get(key, 0), int(row["points"] or 0))
-        by_user.setdefault(int(row["telegram_id"]), []).append(row)
+        by_user.setdefault(int(row["user_id"]), []).append(row)
 
     for participant in participants:
-        history = by_user.get(int(participant["telegram_id"]), [])
+        history = by_user.get(int(participant["user_id"]), [])
         total_points = sum(int(row["points"] or 0) for row in history)
         participant["total_points"] = total_points
         participant["rounds_scored"] = len(history)

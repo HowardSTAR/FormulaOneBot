@@ -4,11 +4,8 @@ from aiogram import Router, types, F, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
+from app.admin_config import get_primary_admin_telegram_id
 from app.utils.safe_send import safe_answer_callback
-
-# Ваш ID (можно вынести в config.py, но пока оставим здесь для простоты)
-# TODO убрать все открытые данные админов
-ADMIN_ID = 2099386
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -60,6 +57,9 @@ async def process_feedback_message(message: Message, state: FSMContext, bot: Bot
         return
 
     try:
+        admin_id = get_primary_admin_telegram_id()
+        if admin_id is None:
+            raise RuntimeError("ADMIN_TELEGRAM_ID не настроен")
         # Формируем информацию о пользователе
         user_info = (
             f"📨 <b>Новое сообщение от пользователя!</b>\n"
@@ -68,11 +68,11 @@ async def process_feedback_message(message: Message, state: FSMContext, bot: Bot
         )
 
         # 1. Сначала отправляем админу "карточку" пользователя
-        await bot.send_message(chat_id=ADMIN_ID, text=user_info, parse_mode="HTML")
+        await bot.send_message(chat_id=admin_id, text=user_info, parse_mode="HTML")
 
         # 2. Затем используем send_copy (копируем сообщение пользователя админу)
         # send_copy работает и для фото, и для видео, и для текста, сохраняя подписи
-        await message.send_copy(chat_id=ADMIN_ID)
+        await message.send_copy(chat_id=admin_id)
 
         # Подтверждение пользователю
         await message.answer("✅ <b>Ваше сообщение отправлено администратору!</b>\nСпасибо за обратную связь.")

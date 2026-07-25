@@ -58,6 +58,31 @@
 .predictions-deadline.is-closed span { color: #ff665f; }
 .predictions-deadline strong { color: #fff; font-size: 15px; }
 
+.predictions-telegram-reminder {
+  display: flex;
+  margin: 14px 0;
+  padding: 15px 17px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(32,156,238,.1), rgba(255,255,255,.025));
+}
+.predictions-telegram-reminder div { display: grid; gap: 4px; }
+.predictions-telegram-reminder strong { color: #fff; font-size: 14px; }
+.predictions-telegram-reminder span { color: rgba(255,255,255,.56); font-size: 12px; line-height: 1.45; }
+.predictions-telegram-reminder a {
+  flex: none;
+  padding: 10px 14px;
+  border: 1px solid rgba(65,174,244,.45);
+  border-radius: 9px;
+  color: #7dcaff;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .predictions-tabs {
   display: grid;
   width: min(100%, 620px);
@@ -187,13 +212,15 @@ button:disabled { cursor: not-allowed; opacity: .42; }
 .prediction-leaderboard tbody tr:hover th { background: #161a21; }
 
 @media (max-width: 899px) {
-  .predictions-page { padding: 76px 14px 40px; }
+  .predictions-page { padding: 18px 14px 40px; }
   .predictions-hero { align-items: stretch; flex-direction: column; }
   .predictions-hero h2 { font-size: 48px; }
   .predictions-deadline { min-width: 0; }
   .prediction-grid { padding: 14px; grid-template-columns: 1fr; }
   .prediction-submit-row,
   .prediction-name-row { align-items: stretch; flex-direction: column; }
+  .predictions-telegram-reminder { align-items: stretch; flex-direction: column; }
+  .predictions-telegram-reminder a { text-align: center; }
   .prediction-submit-row button { width: 100%; }
   .prediction-profile-line { padding: 13px 15px; }
   .prediction-round-title { padding: 18px 16px; }

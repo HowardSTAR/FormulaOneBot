@@ -3,6 +3,7 @@ import os
 
 from aiogram import Bot
 
+from app.admin_config import get_primary_admin_telegram_id
 from app.db import db
 from app.utils.safe_send import safe_send_message
 
@@ -13,8 +14,8 @@ async def send_admin_feedback(
     message: str,
     telegram_id: int | None = None,
 ) -> int:
-    admin_id_raw = os.getenv("ADMIN_TELEGRAM_ID", "").strip()
-    if not admin_id_raw.lstrip("-").isdigit():
+    admin_id = get_primary_admin_telegram_id()
+    if admin_id is None:
         raise RuntimeError("ADMIN_TELEGRAM_ID не настроен")
     token = os.getenv("BOT_TOKEN", "").strip()
     if not token:
@@ -55,7 +56,7 @@ async def send_admin_feedback(
 
     bot = Bot(token=token)
     try:
-        delivered = await safe_send_message(bot, int(admin_id_raw), text, parse_mode="HTML")
+        delivered = await safe_send_message(bot, admin_id, text, parse_mode="HTML")
     finally:
         await bot.session.close()
     if not delivered:

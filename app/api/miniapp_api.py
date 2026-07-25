@@ -35,8 +35,10 @@ from app.db import (
 from app.api.auth_api import (
     get_optional_hybrid_telegram_id as get_optional_user_id,
     require_hybrid_telegram_id as get_current_user_id,
+    require_hybrid_user_id as get_prediction_user_id,
     router as auth_router,
 )
+from app.api.admin_api import router as admin_router
 from app.f1_data import (
     points_for_race_position,
     get_season_schedule_short_async,
@@ -117,6 +119,7 @@ web_app.add_middleware(
 )
 
 web_app.include_router(auth_router)
+web_app.include_router(admin_router)
 
 
 @web_app.get("/health", include_in_schema=False)
@@ -238,7 +241,7 @@ def _serialize_prediction(row: dict | None) -> dict | None:
 
 
 @web_app.get("/api/predictions/current")
-async def api_prediction_current(user_id: int = Depends(get_current_user_id)):
+async def api_prediction_current(user_id: int = Depends(get_prediction_user_id)):
     context = await get_prediction_context()
     profile = await get_prediction_profile(user_id)
     drivers = await get_prediction_drivers(int(context.get("season") or datetime.now(timezone.utc).year))
@@ -257,7 +260,7 @@ async def api_prediction_current(user_id: int = Depends(get_current_user_id)):
 @web_app.post("/api/predictions/profile")
 async def api_prediction_profile(
     data: PredictionProfileRequest,
-    user_id: int = Depends(get_current_user_id),
+    user_id: int = Depends(get_prediction_user_id),
 ):
     try:
         return await save_prediction_profile(user_id, data.display_name)
@@ -268,7 +271,7 @@ async def api_prediction_profile(
 @web_app.post("/api/predictions/current")
 async def api_prediction_save(
     data: PredictionRequest,
-    user_id: int = Depends(get_current_user_id),
+    user_id: int = Depends(get_prediction_user_id),
 ):
     # Дедлайн повторно вычисляется на сервере в момент записи, поэтому обход блокировки UI невозможен.
     context = await get_prediction_context()
@@ -293,7 +296,7 @@ async def api_prediction_save(
 
 
 @web_app.get("/api/predictions/leaderboard")
-async def api_prediction_leaderboard(_: int = Depends(get_current_user_id)):
+async def api_prediction_leaderboard(_: int = Depends(get_prediction_user_id)):
     return await get_prediction_leaderboard()
 
 

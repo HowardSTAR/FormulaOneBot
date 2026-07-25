@@ -5,14 +5,12 @@ from aiogram import BaseMiddleware, Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import TelegramObject, Update
 
+from app.admin_config import get_primary_admin_telegram_id
 from app.utils.safe_send import safe_send_message
+from app.db import db
+from app.services.activity_service import record_telegram_activity
 
 logger = logging.getLogger(__name__)
-
-
-# ID администратора для уведомлений о падениях
-ADMIN_ID = 2099386
-
 
 class ErrorLoggingMiddleware(BaseMiddleware):
     async def __call__(
@@ -22,6 +20,19 @@ class ErrorLoggingMiddleware(BaseMiddleware):
             data: Dict[str, Any],
     ) -> Any:
         try:
+            telegram_user = getattr(event, "from_user", None)
+            if telegram_user is None and isinstance(event, Update):
+                nested_event = event.message or event.callback_query or event.inline_query
+                telegram_user = getattr(nested_event, "from_user", None)
+            if telegram_user is not None:
+                await record_telegram_activity(
+                    db,
+                    int(telegram_user.id),
+                    display_name=" ".join(
+                        part for part in [telegram_user.first_name, telegram_user.last_name] if part
+                    ),
+                    telegram_username=telegram_user.username,
+                )
             return await handler(event, data)
         except Exception as e:
             if isinstance(e, TelegramBadRequest):
@@ -48,9 +59,10 @@ class ErrorLoggingMiddleware(BaseMiddleware):
                 f"CRITICAL ERROR handling update {event.update_id if isinstance(event, Update) else '?'} from user {user_id}")
 
             bot: Bot = data.get("bot")
+            admin_id = get_primary_admin_telegram_id()
 
             # 3. Уведомление АДМИНУ
-            if bot and ADMIN_ID:
+            if bot and admin_id:
                 try:
                     tb_list = traceback.format_exception(type(e), e, e.__traceback__)
                     short_tb = "".join(tb_list[-3:])
@@ -61,7 +73,7 @@ class ErrorLoggingMiddleware(BaseMiddleware):
                         f"💀 Error: {str(e)}\n\n"
                         f"<pre>{short_tb}</pre>"
                     )
-                    await safe_send_message(bot, ADMIN_ID, text_admin)
+                    await safe_send_message(bot, admin_id, text_admin)
                 except Exception as send_err:
                     logger.error(f"Failed to send error notification to admin: {send_err}")
 

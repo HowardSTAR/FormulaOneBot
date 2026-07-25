@@ -13,7 +13,7 @@ from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, 
 from pydantic import BaseModel, Field
 
 from app.auth import get_current_user_id as get_telegram_user_id
-from app.db import db
+from app.db import db, get_or_create_user
 from app.emailer import EmailDeliveryError, EnvironmentMailer
 from app.services.account_link_service import (
     AccountLinkService,
@@ -36,6 +36,7 @@ from app.services.auth_service import (
     RateLimitExceeded,
     VerificationCodeExpired,
 )
+from app.services.activity_service import record_user_activity
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 COOKIE_NAME = "f1hub_session"
@@ -179,13 +180,15 @@ async def require_web_session(
     raw_token = bearer_token or cookie_token
     if not raw_token:
         raise HTTPException(401, detail={"code": "missing_session", "message": "Authentication required"})
+    auth_service = get_auth_service()
     try:
-        user = await get_auth_service().authenticate_session(raw_token)
+        user = await auth_service.authenticate_session(raw_token)
     except AuthError as exc:
         raise _auth_http_error(exc) from exc
+    await record_user_activity(auth_service.database, int(user["id"]), "site")
     from_cookie = bearer_token is None
     if from_cookie and request.method.upper() not in {"GET", "HEAD", "OPTIONS"}:
-        if not get_auth_service().verify_csrf(x_csrf_token, user["csrf_hash"]):
+        if not auth_service.verify_csrf(x_csrf_token, user["csrf_hash"]):
             raise HTTPException(403, detail={"code": "invalid_csrf", "message": "CSRF token is missing or invalid"})
     return WebSessionContext(user=user, raw_token=raw_token, from_cookie=from_cookie)
 
@@ -221,6 +224,26 @@ async def require_hybrid_telegram_id(
             },
         )
     return int(telegram_id)
+
+
+async def require_hybrid_user_id(
+    request: Request,
+    x_telegram_init_data: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+    x_csrf_token: Annotated[str | None, Header()] = None,
+    cookie_token: Annotated[str | None, Cookie(alias=COOKIE_NAME)] = None,
+) -> int:
+    """Return the canonical users.id for Telegram or website authentication."""
+    if x_telegram_init_data:
+        telegram_id = await get_telegram_user_id(x_telegram_init_data)
+        return await get_or_create_user(telegram_id)
+    session = await require_web_session(
+        request=request,
+        authorization=authorization,
+        x_csrf_token=x_csrf_token,
+        cookie_token=cookie_token,
+    )
+    return int(session.user["id"])
 
 
 async def get_optional_hybrid_telegram_id(

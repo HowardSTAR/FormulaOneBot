@@ -10,6 +10,7 @@ from aiogram.filters import Command, CommandObject
 from aiogram.types import InputMediaPhoto, Message
 from aiogram.types import BufferedInputFile
 
+from app.admin_config import get_primary_admin_telegram_id
 from app.config import get_settings
 from app.db import (
     get_all_users,
@@ -47,6 +48,11 @@ router = Router()
 
 _broadcast_album_buffers: dict[str, list[Message]] = {}
 _broadcast_album_commands: set[str] = set()
+
+
+def _is_primary_admin(user_id: int) -> bool:
+    primary_id = get_primary_admin_telegram_id()
+    return primary_id is not None and user_id == primary_id
 
 
 def _broadcast_html_payload(message: Message) -> str:
@@ -111,15 +117,13 @@ def _remember_album_message(message: Message) -> None:
     if all(item.message_id != message.message_id for item in bucket):
         bucket.append(message)
 
-ADMINS = [2099386]
-
 
 @router.message(Command("check_broadcast"))
 async def cmd_check_broadcast(message: Message):
     """
     Симуляция рассылки (Анонс гонки).
     """
-    if message.from_user.id not in ADMINS: return
+    if not _is_primary_admin(message.from_user.id): return
 
     status_msg = await message.answer("🕵️‍♂️ Симуляция рассылки...")
 
@@ -190,7 +194,7 @@ async def cmd_check_results(message: Message):
     """
     Симуляция уведомления о РЕЗУЛЬТАТАХ.
     """
-    if message.from_user.id not in ADMINS: return
+    if not _is_primary_admin(message.from_user.id): return
 
     status = await message.answer("🏁 Ищу результаты последней завершенной гонки...")
 
@@ -268,7 +272,7 @@ async def cmd_check_results(message: Message):
 
 @router.message(Command("force_notify_all"))
 async def cmd_force_notify(message: Message, bot):
-    if message.from_user.id not in ADMINS: return
+    if not _is_primary_admin(message.from_user.id): return
     await message.answer("🚀 Запускаю боевую рассылку...")
     await check_and_send_notifications(bot)
 
@@ -279,7 +283,7 @@ async def cmd_force_race_results(message: Message, bot):
     Принудительно запускает рассылку результатов гонки всем с включенными уведомлениями.
     Команда повторно отправит latest-результат, если он уже был помечен как отправленный.
     """
-    if message.from_user.id not in ADMINS:
+    if not _is_primary_admin(message.from_user.id):
         return
     season = datetime.now(timezone.utc).year
     prev = await get_last_notified_round(season)
@@ -296,7 +300,7 @@ async def cmd_force_quali_results(message: Message, bot):
     Принудительно запускает рассылку результатов квалификации всем с включенными уведомлениями.
     Команда повторно отправит latest-квалу, если она уже была помечена как отправленная.
     """
-    if message.from_user.id not in ADMINS:
+    if not _is_primary_admin(message.from_user.id):
         return
     season = datetime.now(timezone.utc).year
     prev = await get_last_notified_quali_round(season)
@@ -315,7 +319,7 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
     Отправляет ВСЕМ пользователям: 1) перед квалификацией, 2) после квалификации (картинка + все пилоты),
     3) перед гонкой, 4) после гонки (картинка + все пилоты и команды).
     """
-    if message.from_user.id not in ADMINS:
+    if not _is_primary_admin(message.from_user.id):
         return
 
     args = (command.args or "").strip().split()
@@ -583,7 +587,7 @@ async def cmd_test_voting_results(message: Message, command: CommandObject, bot)
     Тест рассылки итогов голосования всем пользователям.
     Использование: /test_voting_results 2025 1
     """
-    if message.from_user.id not in ADMINS:
+    if not _is_primary_admin(message.from_user.id):
         return
 
     args = (command.args or "").strip().split()

@@ -11,6 +11,9 @@ export type WebsiteUser = {
   email: string | null;
   telegram_id: number | null;
   email_verified: boolean;
+  role: "user" | "admin" | "superadmin";
+  display_name: string | null;
+  telegram_username: string | null;
 };
 
 export const AUTH_CHANGED_EVENT = "f1hub-auth-changed";
@@ -34,6 +37,7 @@ export type AuthState = {
   signedIn: boolean;
   personalized: boolean;
   telegramMiniApp: boolean;
+  role: WebsiteUser["role"] | null;
 };
 
 export function useAuthState(): AuthState {
@@ -43,11 +47,12 @@ export function useAuthState(): AuthState {
     signedIn: telegramMiniApp,
     personalized: telegramMiniApp,
     telegramMiniApp,
+    role: null,
   }));
 
   const refresh = useCallback(() => {
     if (telegramMiniApp) {
-      setState({ loaded: true, signedIn: true, personalized: true, telegramMiniApp: true });
+      setState({ loaded: true, signedIn: true, personalized: true, telegramMiniApp: true, role: null });
       return;
     }
     void getWebsiteUser().then((user) => {
@@ -56,6 +61,7 @@ export function useAuthState(): AuthState {
         signedIn: Boolean(user),
         personalized: Boolean(user?.telegram_id),
         telegramMiniApp: false,
+        role: user?.role ?? null,
       });
     });
   }, [telegramMiniApp]);
@@ -67,6 +73,7 @@ export function useAuthState(): AuthState {
         signedIn: Boolean(user),
         personalized: Boolean(user?.telegram_id),
         telegramMiniApp: false,
+        role: user?.role ?? null,
       });
     });
     window.addEventListener(AUTH_CHANGED_EVENT, refresh);

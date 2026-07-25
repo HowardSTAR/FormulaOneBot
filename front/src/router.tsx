@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { createBrowserRouter } from "react-router-dom";
 import { SwipeBackLayout } from "./components/SwipeBackLayout";
 import { RequirePersonalAccount } from "./components/RequirePersonalAccount";
@@ -25,6 +26,9 @@ import ReflexGridGamePage from "./pages/reflex-grid-game/ReflexGridGamePage";
 import PredictionsPage from "./pages/predictions/PredictionsPage";
 import ContactAdminPage from "./pages/contact-admin/ContactAdminPage";
 import WikiPage from "./pages/wiki/WikiPage";
+import { RequireAdmin } from "./components/RequireAdmin";
+
+const AdminPage = lazy(() => import("./pages/admin/AdminPage"));
 
 export const router = createBrowserRouter([
   {
@@ -45,7 +49,7 @@ export const router = createBrowserRouter([
       { path: "/race-results", element: <RaceResultsPage /> },
       { path: "/reaction-game", element: <ReactionGamePage /> },
       { path: "/reflex-grid-game", element: <ReflexGridGamePage /> },
-      { path: "/predictions", element: <RequirePersonalAccount><PredictionsPage /></RequirePersonalAccount> },
+      { path: "/predictions", element: <RequirePersonalAccount requireTelegram={false}><PredictionsPage /></RequirePersonalAccount> },
       { path: "/contact-admin", element: <ContactAdminPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },
       { path: "/settings", element: <RequirePersonalAccount><SettingsPage /></RequirePersonalAccount> },
@@ -54,6 +58,16 @@ export const router = createBrowserRouter([
       { path: "/sprint-results", element: <SprintResultsPage /> },
       { path: "/voting", element: <RequirePersonalAccount><VotingPage /></RequirePersonalAccount> },
       { path: "/wiki", element: <WikiPage /> },
+      {
+        path: "/admin",
+        element: (
+          <RequireAdmin>
+            <Suspense fallback={<div className="admin-route-state">Загружаем панель…</div>}>
+              <AdminPage />
+            </Suspense>
+          </RequireAdmin>
+        ),
+      },
     ],
   },
 ]);

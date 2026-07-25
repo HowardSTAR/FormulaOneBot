@@ -80,6 +80,7 @@ FormulaOneBot/
 ```bash
 BOT_TOKEN=your_telegram_bot_token
 ADMIN_TELEGRAM_ID=123456789
+ADMIN_EMAIL=admin@example.com
 DATABASE_URL=sqlite+aiosqlite:///./bot.db
 WEB_APP_URL=https://your-domain.com
 

@@ -238,13 +238,46 @@ class Database:
         await self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS prediction_profiles (
-                telegram_id INTEGER PRIMARY KEY,
+                user_id INTEGER PRIMARY KEY,
                 display_name TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             );
             """
         )
+        # Legacy prediction profiles were keyed by Telegram ID. Migrate them
+        # to the canonical users.id so email-only accounts can participate and
+        # existing Telegram profiles keep their history.
+        async with self.conn.execute("PRAGMA table_info(prediction_profiles)") as cursor:
+            profile_columns = {row["name"] for row in await cursor.fetchall()}
+        if "user_id" not in profile_columns:
+            await self.conn.execute("DROP TABLE IF EXISTS prediction_profiles_v2")
+            await self.conn.execute(
+                """
+                CREATE TABLE prediction_profiles_v2 (
+                    user_id INTEGER PRIMARY KEY,
+                    display_name TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                """
+            )
+            await self.conn.execute(
+                """
+                INSERT OR IGNORE INTO prediction_profiles_v2(
+                    user_id, display_name, created_at, updated_at
+                )
+                SELECT u.id, pp.display_name, pp.created_at, pp.updated_at
+                FROM prediction_profiles pp
+                JOIN users u ON u.telegram_id = pp.telegram_id
+                """
+            )
+            await self.conn.execute("DROP TABLE prediction_profiles")
+            await self.conn.execute(
+                "ALTER TABLE prediction_profiles_v2 RENAME TO prediction_profiles"
+            )
         await self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS race_predictions (

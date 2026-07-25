@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import aiosqlite
 
+from app.admin_config import get_primary_admin_email, get_primary_admin_telegram_id
+
 
 USER_COLUMNS = {
     "id",
@@ -17,6 +19,9 @@ USER_COLUMNS = {
     "created_at",
     "updated_at",
     "archived_at",
+    "role",
+    "display_name",
+    "telegram_username",
 }
 
 
@@ -26,6 +31,9 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT COLLATE NOCASE UNIQUE,
     password_hash TEXT,
     telegram_id INTEGER UNIQUE,
+    display_name TEXT,
+    telegram_username TEXT,
+    role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin', 'superadmin')),
     email_verified INTEGER NOT NULL DEFAULT 0 CHECK (email_verified IN (0, 1)),
     timezone TEXT NOT NULL DEFAULT 'Europe/Moscow',
     notify_before INTEGER NOT NULL DEFAULT 60,
@@ -69,7 +77,8 @@ async def _rebuild_users(conn: aiosqlite.Connection) -> None:
         await conn.execute(
             f"""
             INSERT INTO users_auth_migration (
-                id, email, password_hash, telegram_id, email_verified,
+                id, email, password_hash, telegram_id, display_name,
+                telegram_username, role, email_verified,
                 timezone, notify_before, notifications_enabled,
                 created_at, updated_at, archived_at
             )
@@ -78,6 +87,9 @@ async def _rebuild_users(conn: aiosqlite.Connection) -> None:
                 {old_or_default('email', 'NULL')},
                 {old_or_default('password_hash', 'NULL')},
                 telegram_id,
+                {old_or_default('display_name', 'NULL')},
+                {old_or_default('telegram_username', 'NULL')},
+                COALESCE({old_or_default('role', "'user'")}, 'user'),
                 {old_or_default('email_verified', '0')},
                 COALESCE({old_or_default('timezone', "'Europe/Moscow'")}, 'Europe/Moscow'),
                 COALESCE({old_or_default('notify_before', '60')}, 60),
@@ -211,6 +223,52 @@ async def ensure_auth_schema(conn: aiosqlite.Connection) -> None:
             strategy TEXT NOT NULL CHECK (strategy IN ('keep_web', 'keep_telegram')),
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS user_activity_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            source TEXT NOT NULL CHECK (source IN ('site', 'bot')),
+            occurred_at TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_user_activity_source_time
+            ON user_activity_events(source, occurred_at);
+        CREATE INDEX IF NOT EXISTS idx_user_activity_user_time
+            ON user_activity_events(user_id, occurred_at DESC);
+
+        CREATE TABLE IF NOT EXISTS admin_audit_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            actor_user_id INTEGER,
+            target_user_id INTEGER,
+            action TEXT NOT NULL,
+            details_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL,
+            FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL,
+            FOREIGN KEY (target_user_id) REFERENCES users(id) ON DELETE SET NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_admin_audit_created
+            ON admin_audit_log(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_admin_audit_actor
+            ON admin_audit_log(actor_user_id, created_at DESC);
         """
     )
+    primary_email = get_primary_admin_email()
+    primary_telegram_id = get_primary_admin_telegram_id()
+    if primary_email is not None or primary_telegram_id is not None:
+        await conn.execute(
+            """
+            UPDATE users
+            SET role = 'superadmin', updated_at = CURRENT_TIMESTAMP
+            WHERE (? IS NOT NULL AND lower(COALESCE(email, '')) = ?)
+               OR (? IS NOT NULL AND telegram_id = ?)
+            """,
+            (
+                primary_email,
+                primary_email,
+                primary_telegram_id,
+                primary_telegram_id,
+            ),
+        )
     await conn.commit()
