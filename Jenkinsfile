@@ -6,21 +6,27 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '30', artifactNumToKeepStr: '10'))
         disableConcurrentBuilds(abortPrevious: true)
         skipDefaultCheckout(true)
-        timeout(time: 30, unit: 'MINUTES')
+        timeout(time: 60, unit: 'MINUTES')
         timestamps()
+    }
+
+    triggers {
+        // Соответствует опции "GitHub hook trigger for GITScm polling".
+        githubPush()
     }
 
     environment {
         FRONTEND_IMAGE = 'node:20-alpine'
-        PYTHON_IMAGE = 'python:3.11-slim'
         APP_IMAGE = "formulaonebot-ci:${BUILD_NUMBER}"
-        // Jenkins credentials IDs; секреты в Git не хранятся.
+        // Jenkins Credentials ID. Секрет хранится только в Jenkins, не в Git.
         GITHUB_STATUS_CREDENTIALS = 'github-status-token'
     }
 
     stages {
         stage('Checkout') {
             steps {
+                // Удаляем файлы предыдущего запуска, включая распакованные ассеты.
+                deleteDir()
                 checkout scm
                 sh 'git log -1 --pretty="format:Building %h — %s"'
             }
@@ -35,94 +41,92 @@ pipeline {
                     test -f front/package-lock.json
                     test -f requirements.txt
                     test -f app-assets.zip
+                    test -f Dockerfile
+                    mkdir -p reports .ci-data
                 '''
             }
         }
 
-        stage('Install Dependencies') {
-            parallel {
-                stage('Frontend dependencies') {
-                    steps {
-                        sh '''
-                            docker run --rm \
-                              -e npm_config_cache=/cache \
-                              -v "$WORKSPACE/front:/workspace" \
-                              -v f1hub_jenkins_npm_cache:/cache \
-                              -w /workspace \
-                              "$FRONTEND_IMAGE" \
-                              npm ci --no-audit --no-fund
-                        '''
-                    }
-                }
-                stage('Python dependencies') {
-                    steps {
-                        sh '''
-                            docker run --rm \
-                              -v "$WORKSPACE:/workspace" \
-                              -v f1hub_jenkins_pip_cache:/root/.cache/pip \
-                              -w /workspace \
-                              "$PYTHON_IMAGE" \
-                              sh -ec 'pip install -r requirements.txt'
-                        '''
-                    }
-                }
+        stage('Frontend Dependencies') {
+            steps {
+                // UID/GID Jenkins предотвращают появление root-owned файлов в workspace.
+                sh '''
+                    docker run --rm \
+                      --user "$(id -u):$(id -g)" \
+                      -e HOME=/tmp \
+                      -e npm_config_cache=/tmp/npm-cache \
+                      -v "$WORKSPACE/front:/workspace" \
+                      -w /workspace \
+                      "$FRONTEND_IMAGE" \
+                      npm ci --no-audit --no-fund
+                '''
             }
         }
 
-        stage('Quality & Tests') {
+        stage('Frontend Quality') {
             parallel {
-                stage('Frontend lint') {
+                stage('Lint') {
                     steps {
                         sh '''
                             docker run --rm \
+                              --user "$(id -u):$(id -g)" \
+                              -e HOME=/tmp \
                               -v "$WORKSPACE/front:/workspace" \
                               -w /workspace \
                               "$FRONTEND_IMAGE" npm run lint
                         '''
                     }
                 }
-                stage('Python tests') {
-                    steps {
-                        sh '''
-                            mkdir -p reports
-                            docker run --rm \
-                              -v "$WORKSPACE:/workspace" \
-                              -v f1hub_jenkins_pip_cache:/root/.cache/pip \
-                              -w /workspace \
-                              "$PYTHON_IMAGE" \
-                              sh -ec 'pip install -r requirements.txt && pytest --junitxml=reports/pytest.xml'
-                        '''
-                    }
-                    post {
-                        always {
-                            junit allowEmptyResults: true, testResults: 'reports/pytest.xml'
-                        }
-                    }
-                }
-            }
-        }
-
-        stage('Build') {
-            parallel {
-                stage('Frontend build') {
+                stage('Production Build') {
                     steps {
                         sh '''
                             docker run --rm \
+                              --user "$(id -u):$(id -g)" \
+                              -e HOME=/tmp \
                               -v "$WORKSPACE/front:/workspace" \
                               -w /workspace \
                               "$FRONTEND_IMAGE" npm run build
                         '''
                     }
                 }
-                stage('Application image') {
-                    steps {
-                        sh 'docker build --pull --tag "$APP_IMAGE" .'
-                    }
+            }
+        }
+
+        stage('Build Application Image') {
+            steps {
+                // Dockerfile распаковывает app-assets.zip. Тесты ниже запускаются
+                // в точном production-образе и видят полный комплект ассетов.
+                sh 'docker build --pull --tag "$APP_IMAGE" .'
+            }
+        }
+
+        stage('Python Tests') {
+            steps {
+                sh '''
+                    docker run --rm \
+                      --user "$(id -u):$(id -g)" \
+                      -e HOME=/tmp \
+                      -e BOT_TOKEN=123456:TEST \
+                      -e ADMIN_EMAIL=ci-admin@example.invalid \
+                      -e ADMIN_TELEGRAM_ID=100000001 \
+                      -e DATABASE_PATH=/app/data/ci.db \
+                      -v "$WORKSPACE/tests:/app/tests:ro" \
+                      -v "$WORKSPACE/pytest.ini:/app/pytest.ini:ro" \
+                      -v "$WORKSPACE/reports:/app/reports" \
+                      -v "$WORKSPACE/.ci-data:/app/data" \
+                      -w /app \
+                      "$APP_IMAGE" \
+                      pytest --junitxml=/app/reports/pytest.xml
+                '''
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: 'reports/pytest.xml'
                 }
             }
         }
 
-        stage('Integration smoke test') {
+        stage('Integration Smoke Test') {
             steps {
                 sh '''
                     set -eu
@@ -152,6 +156,7 @@ pipeline {
             sh 'docker image rm "$APP_IMAGE" >/dev/null 2>&1 || true'
         }
         success {
+            echo 'Все проверки прошли успешно.'
             script {
                 catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                     githubNotify credentialsId: env.GITHUB_STATUS_CREDENTIALS,
@@ -161,28 +166,17 @@ pipeline {
             }
         }
         failure {
+            echo 'Одна или несколько проверок завершились ошибкой.'
             script {
                 catchError(buildResult: 'FAILURE', stageResult: 'UNSTABLE') {
                     githubNotify credentialsId: env.GITHUB_STATUS_CREDENTIALS,
                         description: 'Jenkins pipeline failed',
                         status: 'FAILURE'
                 }
-                // Опционально: создайте Secret text credentials `telegram-bot-token`
-                // и `telegram-chat-id`, затем раскомментируйте этот блок.
-                /*
-                withCredentials([
-                    string(credentialsId: 'telegram-bot-token', variable: 'TG_TOKEN'),
-                    string(credentialsId: 'telegram-chat-id', variable: 'TG_CHAT_ID')
-                ]) {
-                    sh '''
-                        curl --fail --silent --show-error \
-                          --data-urlencode "chat_id=$TG_CHAT_ID" \
-                          --data-urlencode "text=❌ Jenkins: ${JOB_NAME} #${BUILD_NUMBER} — ${BUILD_URL}" \
-                          "https://api.telegram.org/bot${TG_TOKEN}/sendMessage"
-                    '''
-                }
-                */
             }
+        }
+        cleanup {
+            deleteDir()
         }
     }
 }

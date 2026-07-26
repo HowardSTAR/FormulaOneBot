@@ -136,3 +136,9 @@ unzip app-assets.zip
 
 После упаковки каталог `app/assets` можно удалить: он исключён из Git и Docker
 build context и не нужен для сборки контейнера.
+
+## Jenkins CI
+
+Готовые Docker Compose, Nginx, Jenkinsfile, скрипты и пошаговая инструкция по
+GitHub webhook находятся в
+[deploy/jenkins/README.md](deploy/jenkins/README.md).
