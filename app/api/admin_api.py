@@ -222,13 +222,16 @@ async def admin_metrics(
         return int(result["total"] or 0)
 
     cards: dict[str, dict[str, int]] = {}
-    for metric_source in ("site", "bot", "all"):
-        source_value = None if metric_source == "all" else metric_source
+    for metric_source in ("site", "bot"):
         cards[metric_source] = {
-            "dau": await unique_since(24, source_value),
-            "wau": await unique_since(24 * 7, source_value),
-            "mau": await unique_since(24 * 30, source_value),
+            "dau": await unique_since(24, metric_source),
+            "wau": await unique_since(24 * 7, metric_source),
+            "mau": await unique_since(24 * 30, metric_source),
         }
+    cards["all"] = {
+        metric: int(cards["site"].get(metric) or 0) + int(cards["bot"].get(metric) or 0)
+        for metric in ("dau", "wau", "mau")
+    }
 
     clauses = ["datetime(occurred_at) >= datetime(?)"]
     params: list[object] = [start.isoformat()]

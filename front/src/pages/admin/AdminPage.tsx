@@ -79,6 +79,11 @@ function formatDate(value: string | null): string {
   }).format(new Date(value));
 }
 
+function finiteMetric(value: unknown): number {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function AdminChart({ metrics, source }: { metrics: Metrics; source: Source }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -180,7 +185,29 @@ export default function AdminPage() {
   useEffect(() => { if (tab === "users") void loadUsers().catch((reason: Error) => setError(reason.message)); }, [loadUsers, tab]);
   useEffect(() => { if (tab === "audit") void loadAudit().catch((reason: Error) => setError(reason.message)); }, [loadAudit, tab]);
 
-  const selectedCards = metrics?.cards[source] ?? metrics?.cards.all;
+  const normalizedCards = useMemo<Record<Source, MetricCard> | null>(() => {
+    if (!metrics) return null;
+    const site = {
+      dau: finiteMetric(metrics.cards.site?.dau),
+      wau: finiteMetric(metrics.cards.site?.wau),
+      mau: finiteMetric(metrics.cards.site?.mau),
+    };
+    const bot = {
+      dau: finiteMetric(metrics.cards.bot?.dau),
+      wau: finiteMetric(metrics.cards.bot?.wau),
+      mau: finiteMetric(metrics.cards.bot?.mau),
+    };
+    return {
+      site,
+      bot,
+      all: {
+        dau: site.dau + bot.dau,
+        wau: site.wau + bot.wau,
+        mau: site.mau + bot.mau,
+      },
+    };
+  }, [metrics]);
+  const selectedCards = normalizedCards?.[source] ?? normalizedCards?.all;
   const runAction = async (action: () => Promise<unknown>, success: string) => {
     setBusy(true);
     setError("");
@@ -302,9 +329,9 @@ export default function AdminPage() {
             {(["site", "bot", "all"] as Source[]).map((value) => (
               <article key={value}>
                 <span>{value === "site" ? "Сайт" : value === "bot" ? "Telegram-бот" : "Суммарно"}</span>
-                <div><b>{metrics?.cards[value].dau ?? 0}</b> DAU</div>
-                <div><b>{metrics?.cards[value].wau ?? 0}</b> WAU</div>
-                <div><b>{metrics?.cards[value].mau ?? 0}</b> MAU</div>
+                <div><b>{normalizedCards?.[value].dau ?? 0}</b> DAU</div>
+                <div><b>{normalizedCards?.[value].wau ?? 0}</b> WAU</div>
+                <div><b>{normalizedCards?.[value].mau ?? 0}</b> MAU</div>
               </article>
             ))}
           </section>

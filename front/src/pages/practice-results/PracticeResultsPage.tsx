@@ -15,6 +15,9 @@ type PracticeResult = {
   best: string;
   gap: string;
   laps: number;
+  sector1?: string;
+  sector2?: string;
+  sector3?: string;
   is_favorite_driver?: boolean;
 };
 
@@ -165,46 +168,48 @@ export default function PracticeResultsPage() {
             {eventName} · сезон {data?.season || season}
           </p>
         </div>
-        {data?.is_sprint_weekend && (
-          <span className="practice-format-badge">Спринт-уикенд · только FP1</span>
-        )}
+        <div className="practice-hero-aside">
+          {data?.is_sprint_weekend && (
+            <span className="practice-format-badge">Спринт-уикенд · только FP1</span>
+          )}
+          <div className="practice-mode-controls race-results-desktop-controls">
+          <div className="segmented-tabs race-results-desktop-tabs">
+            <div
+              className="segmented-slider"
+              style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
+            />
+            <button
+              type="button"
+              className={`segmented-tab ${mode === "latest" ? "active" : ""}`}
+              onClick={() => setMode("latest")}
+            >
+              Последние
+            </button>
+            <button
+              type="button"
+              className={`segmented-tab ${mode === "archive" ? "active" : ""}`}
+              onClick={() => setMode("archive")}
+            >
+              Архив
+            </button>
+          </div>
+          {mode === "archive" && selectedRound !== null && (
+            <div className="practice-round-select race-results-desktop-round-select">
+              <CustomSelect
+                options={seasonRaces.map((race) => ({
+                  value: race.round,
+                  label: `Этап ${String(race.round).padStart(2, "0")} · ${race.event_name || "Grand Prix"}`,
+                }))}
+                value={selectedRound}
+                onChange={(value) => selectArchiveRound(Number(value))}
+              />
+            </div>
+          )}
+          </div>
+        </div>
       </header>
 
       <section className="practice-controls" aria-label="Выбор сессии практики">
-        <div className="segmented-tabs">
-          <div
-            className="segmented-slider"
-            style={{ transform: mode === "archive" ? "translateX(100%)" : "translateX(0%)" }}
-          />
-          <button
-            type="button"
-            className={`segmented-tab ${mode === "latest" ? "active" : ""}`}
-            onClick={() => setMode("latest")}
-          >
-            Последние
-          </button>
-          <button
-            type="button"
-            className={`segmented-tab ${mode === "archive" ? "active" : ""}`}
-            onClick={() => setMode("archive")}
-          >
-            Архив
-          </button>
-        </div>
-
-        {mode === "archive" && selectedRound !== null && (
-          <div className="practice-round-select">
-            <CustomSelect
-              options={seasonRaces.map((race) => ({
-                value: race.round,
-                label: `Этап ${String(race.round).padStart(2, "0")} · ${race.event_name || "Grand Prix"}`,
-              }))}
-              value={selectedRound}
-              onChange={(value) => selectArchiveRound(Number(value))}
-            />
-          </div>
-        )}
-
         <div className="practice-session-tabs" role="tablist" aria-label="Сессия">
           {availableSessions.map((session) => (
             <button

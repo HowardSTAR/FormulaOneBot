@@ -10,6 +10,7 @@
     width: 216px !important;
     padding: 18px 12px 14px !important;
     gap: 18px !important;
+    overflow: hidden;
     background:
       linear-gradient(180deg, rgba(225, 6, 0, 0.045), transparent 180px),
       #101114 !important;
@@ -49,6 +50,37 @@
 
   .app-header-nav {
     gap: 4px !important;
+  }
+
+  .app-header > .app-header-nav {
+    flex: 1 1 auto;
+    min-height: 0;
+    margin-right: -5px;
+    padding-right: 5px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-color: rgba(255, 70, 62, 0.42) transparent;
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+  }
+
+  .app-header > .app-header-nav::-webkit-scrollbar {
+    display: block;
+    width: 4px;
+  }
+
+  .app-header > .app-header-nav::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .app-header > .app-header-nav::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(255, 70, 62, 0.38);
+  }
+
+  .app-header > .app-header-nav::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 70, 62, 0.62);
   }
 
   .app-header-nav-label {
@@ -222,8 +254,13 @@
 
   .app-header-bottom {
     display: grid;
+    flex: 0 0 auto;
     gap: 10px;
     margin-top: auto;
+  }
+
+  .app-header-bottom .app-header-nav {
+    overflow: visible;
   }
 
   .app-header-nav-secondary {
@@ -1373,7 +1410,13 @@
     min-height: 46px !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-tabs .segmented-tab {
+  .app-page-main.route-practice-results .race-results-desktop-tabs {
+    width: 228px !important;
+    min-height: 46px !important;
+  }
+
+  .app-page-main.route-race-results .race-results-desktop-tabs .segmented-tab,
+  .app-page-main.route-practice-results .race-results-desktop-tabs .segmented-tab {
     min-height: 40px !important;
     font-size: 15px !important;
   }

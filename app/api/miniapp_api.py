@@ -395,6 +395,16 @@ async def api_next_race(
     return data
 
 
+def _is_sprint_weekend_event(event: dict | None) -> bool:
+    if not event:
+        return False
+    return bool(
+        event.get("is_sprint_weekend")
+        or event.get("sprint_start_utc")
+        or event.get("sprint_quali_start_utc")
+    )
+
+
 @web_app.get("/api/season")
 async def api_season(
         season: Optional[int] = Query(None),
@@ -431,6 +441,15 @@ async def api_season(
 
         def _is_passed(r: dict) -> bool:
             st = (session_type or "race").lower()
+            sprint_session = st in {
+                "sprint",
+                "sprint_quali",
+                "sprint-quali",
+                "sprintquali",
+            }
+            if sprint_session and not _is_sprint_weekend_event(r):
+                return False
+
             dt: Optional[datetime] = None
             if st == "quali":
                 dt = _parse_session_dt(r.get("quali_start_utc"))
@@ -1238,12 +1257,16 @@ async def api_sprint_results(
     if round_number is not None:
         round_num = round_number
         race_info = next((r for r in schedule if r.get("round") == round_num), None)
+        if not _is_sprint_weekend_event(race_info):
+            return {"results": [], "race_info": race_info, "season": season, "round": round_num}
         df = await get_sprint_results_async(season, round_num)
         if df is None or df.empty:
             return {"results": [], "race_info": race_info, "season": season, "round": round_num}
     else:
         passed_rounds = []
         for r in schedule:
+            if not _is_sprint_weekend_event(r):
+                continue
             try:
                 if r.get("sprint_start_utc"):
                     sprint_dt = datetime.fromisoformat(r["sprint_start_utc"])
@@ -1273,7 +1296,10 @@ async def api_sprint_results(
         if round_num is None or df.empty:
             return {"results": [], "race_info": None, "season": season, "round": None}
 
-        if _should_reset_previous_results(schedule, now_utc, round_num):
+        sprint_schedule = [
+            event for event in schedule if _is_sprint_weekend_event(event)
+        ]
+        if _should_reset_previous_results(sprint_schedule, now_utc, round_num):
             return _empty_results_payload_during_active_weekend(schedule, now_utc, season)
 
         race_info = next((r for r in schedule if r.get("round") == round_num), None)
@@ -1367,7 +1393,7 @@ def _available_practice_sessions(event: dict | None) -> list[int]:
         })
         if available:
             return available
-    if event.get("is_sprint_weekend") or event.get("sprint_start_utc") or event.get("sprint_quali_start_utc"):
+    if _is_sprint_weekend_event(event):
         return [1]
     return [1, 2, 3]
 
@@ -1451,11 +1477,7 @@ async def api_practice_results(
         "round": round_number,
         "session": session_number,
         "available_sessions": available_sessions,
-        "is_sprint_weekend": bool(
-            event.get("is_sprint_weekend")
-            or event.get("sprint_start_utc")
-            or event.get("sprint_quali_start_utc")
-        ),
+        "is_sprint_weekend": _is_sprint_weekend_event(event),
         "race_info": event,
         "results": [
             {
@@ -1621,13 +1643,17 @@ async def api_sprint_quali_results(
     now_utc = datetime.now(timezone.utc)
     if round_number is not None:
         round_num = round_number
-        sq_results = await get_sprint_quali_results_async(season, round_num, limit=100)
         race_info = next((r for r in schedule if r.get("round") == round_num), None)
+        if not _is_sprint_weekend_event(race_info):
+            return {"results": [], "race_info": race_info, "season": season, "round": round_num}
+        sq_results = await get_sprint_quali_results_async(season, round_num, limit=100)
         if not sq_results:
             return {"results": [], "race_info": race_info, "season": season, "round": round_num}
     else:
         passed_rounds = []
         for r in schedule:
+            if not _is_sprint_weekend_event(r):
+                continue
             try:
                 sq_dt = None
                 if r.get("sprint_quali_start_utc"):
@@ -1661,7 +1687,10 @@ async def api_sprint_quali_results(
         if round_num is None or not sq_results:
             return {"results": [], "race_info": None, "season": season, "round": None}
 
-        if _should_reset_previous_results(schedule, now_utc, round_num):
+        sprint_schedule = [
+            event for event in schedule if _is_sprint_weekend_event(event)
+        ]
+        if _should_reset_previous_results(sprint_schedule, now_utc, round_num):
             return _empty_results_payload_during_active_weekend(schedule, now_utc, season)
 
         race_info = next((r for r in schedule if r.get("round") == round_num), None)

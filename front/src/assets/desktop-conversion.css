@@ -1529,6 +1529,21 @@
     margin: 0;
   }
 
+  .app-page-main.route-practice-results .race-results-desktop-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .app-page-main.route-practice-results .race-results-desktop-round-select {
+    min-width: 300px;
+  }
+
+  .app-page-main.route-practice-results .race-results-desktop-tabs {
+    width: 210px;
+    margin: 0;
+  }
+
   .app-page-main.route-race-results .race-results-desktop-content,
   .app-page-main.route-quali-results .race-results-desktop-content,
   .app-page-main.route-sprint-results .race-results-desktop-content,

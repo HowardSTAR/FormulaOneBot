@@ -522,6 +522,9 @@ def get_practice_results(
             "name": details.get("name") or code,
             "team": details.get("team") or str(fastest_lap.get("Team") or "").strip(),
             "best": _format_quali_time(lap_time) or "—",
+            "sector1": _format_quali_time(fastest_lap.get("Sector1Time")) or "—",
+            "sector2": _format_quali_time(fastest_lap.get("Sector2Time")) or "—",
+            "sector3": _format_quali_time(fastest_lap.get("Sector3Time")) or "—",
             "best_seconds": best_seconds,
             "laps": int(len(driver_laps)),
         })

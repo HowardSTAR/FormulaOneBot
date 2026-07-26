@@ -235,3 +235,46 @@ def test_get_practice_results_returns_empty_when_laps_were_not_loaded():
         results = get_practice_results(2026, 11, 1)
 
     assert results == []
+
+
+def test_get_practice_results_includes_fastest_lap_sector_times():
+    """FastF1-сектора быстрейшего круга безопасно попадают в API-классификацию."""
+
+    class PracticeSession:
+        def __init__(self):
+            self.laps = pd.DataFrame([
+                {
+                    "Driver": "NOR",
+                    "Team": "McLaren",
+                    "LapTime": pd.Timedelta(minutes=1, seconds=30),
+                    "Sector1Time": pd.Timedelta(seconds=29),
+                    "Sector2Time": pd.Timedelta(seconds=31),
+                    "Sector3Time": pd.Timedelta(seconds=30),
+                },
+                {
+                    "Driver": "NOR",
+                    "Team": "McLaren",
+                    "LapTime": pd.Timedelta(minutes=1, seconds=31),
+                    "Sector1Time": pd.Timedelta(seconds=30),
+                    "Sector2Time": pd.Timedelta(seconds=31),
+                    "Sector3Time": pd.Timedelta(seconds=30),
+                },
+            ])
+            self.results = pd.DataFrame([
+                {
+                    "Abbreviation": "NOR",
+                    "FirstName": "Lando",
+                    "LastName": "Norris",
+                    "TeamName": "McLaren",
+                },
+            ])
+
+        def load(self, **_kwargs):
+            return None
+
+    with patch("app.f1_data.fastf1.get_session", return_value=PracticeSession()):
+        results = get_practice_results(2026, 4, 1)
+
+    assert results[0]["sector1"] == "0:29.000"
+    assert results[0]["sector2"] == "0:31.000"
+    assert results[0]["sector3"] == "0:30.000"

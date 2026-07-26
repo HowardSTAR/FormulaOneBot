@@ -21,6 +21,9 @@ type SprintResultsResponse = {
 type SeasonRace = {
   round: number;
   event_name?: string;
+  is_sprint_weekend?: boolean;
+  sprint_start_utc?: string | null;
+  sprint_quali_start_utc?: string | null;
 };
 
 function parseOptionalInt(value: string | null): number | null {
@@ -59,7 +62,11 @@ function SprintResultsPage() {
         });
         if (cancelled) return;
         const races = (seasonData.races || [])
-          .filter((r) => Number.isFinite(r.round) && r.round > 0)
+          .filter((r) => (
+            Number.isFinite(r.round)
+            && r.round > 0
+            && Boolean(r.is_sprint_weekend || r.sprint_start_utc || r.sprint_quali_start_utc)
+          ))
           .sort((a, b) => b.round - a.round);
         setSeasonRaces(races);
         if (races.length > 0) {

@@ -142,7 +142,8 @@ async def test_admin_metrics_split_site_bot_and_total(temp_db_path, monkeypatch)
         cards = response.json()["cards"]
         assert cards["site"]["dau"] == 1
         assert cards["bot"]["dau"] == 2
-        assert cards["all"]["dau"] == 2
+        assert cards["all"]["dau"] == 3
+        assert cards["all"]["dau"] == cards["site"]["dau"] + cards["bot"]["dau"]
         assert response.json()["series"]
 
     await database.close()

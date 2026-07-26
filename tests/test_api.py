@@ -96,6 +96,45 @@ async def test_api_season_completed_only_quali_filters_by_quali_time(api_client:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("session_type", ["sprint", "sprint_quali"])
+async def test_api_season_sprint_archives_exclude_standard_weekends(
+    api_client: AsyncClient,
+    session_type: str,
+):
+    """Архивы спринтов содержат только этапы с официальным спринт-форматом."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as schedule, \
+            patch("app.api.miniapp_api.get_season_schedule_short", return_value=[]):
+        schedule.return_value = [
+            {
+                "round": 1,
+                "event_name": "Standard GP",
+                "date": (now - timedelta(days=8)).date().isoformat(),
+                "quali_start_utc": (now - timedelta(days=9)).isoformat(),
+            },
+            {
+                "round": 2,
+                "event_name": "Sprint GP",
+                "date": (now - timedelta(days=1)).date().isoformat(),
+                "is_sprint_weekend": True,
+                "sprint_quali_start_utc": (now - timedelta(days=2)).isoformat(),
+                "sprint_start_utc": (now - timedelta(days=1, hours=4)).isoformat(),
+            },
+        ]
+        response = await api_client.get(
+            "/api/season",
+            params={
+                "season": now.year,
+                "completed_only": True,
+                "session_type": session_type,
+            },
+        )
+
+    assert response.status_code == 200
+    assert [race["round"] for race in response.json()["races"]] == [2]
+
+
+@pytest.mark.asyncio
 async def test_api_drivers(api_client: AsyncClient):
     """GET /api/drivers — список пилотов."""
     with patch("app.api.miniapp_api.get_driver_standings_async", new_callable=AsyncMock) as m:
@@ -807,7 +846,12 @@ async def test_api_practice_results_returns_standard_fp3(api_client: AsyncClient
 async def test_api_sprint_results(api_client: AsyncClient):
     """GET /api/sprint-results — результаты последнего спринта."""
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
-        m.return_value = [{"round": 1, "event_name": "Bahrain GP", "date": "2024-03-02"}]
+        m.return_value = [{
+            "round": 1,
+            "event_name": "Bahrain GP",
+            "date": "2024-03-02",
+            "is_sprint_weekend": True,
+        }]
         with patch("app.api.miniapp_api.get_sprint_results_async", new_callable=AsyncMock) as m2:
             m2.return_value = pd.DataFrame([
                 {"Position": 1, "Abbreviation": "VER", "FirstName": "Max", "LastName": "Verstappen", "TeamName": "Red Bull", "Points": 8},
@@ -823,7 +867,12 @@ async def test_api_sprint_results(api_client: AsyncClient):
 async def test_api_sprint_quali_results(api_client: AsyncClient):
     """GET /api/sprint-quali-results — результаты последней спринт-квалификации."""
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
-        m.return_value = [{"round": 1, "event_name": "Bahrain GP", "date": "2024-03-02"}]
+        m.return_value = [{
+            "round": 1,
+            "event_name": "Bahrain GP",
+            "date": "2024-03-02",
+            "is_sprint_weekend": True,
+        }]
         with patch("app.api.miniapp_api.get_sprint_quali_results_async", new_callable=AsyncMock) as m2:
             m2.return_value = [
                 {"position": 1, "driver": "VER", "name": "Max Verstappen", "best": "1:29.0"},
@@ -833,6 +882,38 @@ async def test_api_sprint_quali_results(api_client: AsyncClient):
     data = r.json()
     assert "results" in data
     assert data.get("round") == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("endpoint", "provider"),
+    [
+        ("/api/sprint-results", "get_sprint_results_async"),
+        ("/api/sprint-quali-results", "get_sprint_quali_results_async"),
+    ],
+)
+async def test_sprint_result_endpoints_reject_standard_archive_rounds(
+    api_client: AsyncClient,
+    endpoint: str,
+    provider: str,
+):
+    """Прямой запрос обычного этапа не запускает загрузчик спринт-результатов."""
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as schedule, \
+            patch(f"app.api.miniapp_api.{provider}", new_callable=AsyncMock) as loader:
+        schedule.return_value = [{
+            "round": 3,
+            "event_name": "Standard GP",
+            "date": "2024-04-07",
+            "is_sprint_weekend": False,
+        }]
+        response = await api_client.get(
+            endpoint,
+            params={"season": 2024, "round": 3},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["results"] == []
+    loader.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -877,6 +958,89 @@ async def test_api_sprint_quali_results_uses_sq_time_even_if_race_date_future(ap
     data = r.json()
     assert "results" in data
     assert data.get("round") == 7
+
+
+@pytest.mark.asyncio
+async def test_api_sprint_results_latest_ignores_new_standard_weekend(api_client: AsyncClient):
+    """Latest спринт не заменяется более новым обычным этапом без спринта."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as schedule, \
+            patch("app.api.miniapp_api.get_sprint_results_async", new_callable=AsyncMock) as sprint_results:
+        schedule.return_value = [
+            {
+                "round": 9,
+                "event_name": "British GP",
+                "is_sprint_weekend": True,
+                "sprint_start_utc": (now - timedelta(days=14)).isoformat(),
+                "first_session_start_utc": (now - timedelta(days=16)).isoformat(),
+            },
+            {
+                "round": 11,
+                "event_name": "Hungarian GP",
+                "is_sprint_weekend": False,
+                "first_session_start_utc": (now - timedelta(hours=2)).isoformat(),
+                "race_start_utc": (now + timedelta(days=2)).isoformat(),
+            },
+        ]
+        sprint_results.return_value = pd.DataFrame([
+            {
+                "Position": 1,
+                "Abbreviation": "NOR",
+                "FirstName": "Lando",
+                "LastName": "Norris",
+                "TeamName": "McLaren",
+                "Points": 8,
+            },
+        ])
+        response = await api_client.get("/api/sprint-results", params={"season": now.year})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["round"] == 9
+    assert payload["race_info"]["event_name"] == "British GP"
+    assert payload["results"][0]["code"] == "NOR"
+
+
+@pytest.mark.asyncio
+async def test_api_sprint_quali_latest_ignores_new_standard_weekend(api_client: AsyncClient):
+    """Latest спринт-квала не заменяется более новым обычным этапом."""
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as schedule, \
+            patch("app.api.miniapp_api.get_sprint_quali_results_async", new_callable=AsyncMock) as sprint_quali:
+        schedule.return_value = [
+            {
+                "round": 9,
+                "event_name": "British GP",
+                "is_sprint_weekend": True,
+                "sprint_quali_start_utc": (now - timedelta(days=15)).isoformat(),
+                "first_session_start_utc": (now - timedelta(days=16)).isoformat(),
+            },
+            {
+                "round": 11,
+                "event_name": "Hungarian GP",
+                "is_sprint_weekend": False,
+                "first_session_start_utc": (now - timedelta(hours=2)).isoformat(),
+                "quali_start_utc": (now + timedelta(days=1)).isoformat(),
+            },
+        ]
+        sprint_quali.return_value = [
+            {
+                "position": 1,
+                "driver": "NOR",
+                "name": "Lando Norris",
+                "best": "1:25.000",
+            },
+        ]
+        response = await api_client.get(
+            "/api/sprint-quali-results",
+            params={"season": now.year},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["round"] == 9
+    assert payload["race_info"]["event_name"] == "British GP"
+    assert payload["results"][0]["driver"] == "NOR"
 
 
 @pytest.mark.asyncio

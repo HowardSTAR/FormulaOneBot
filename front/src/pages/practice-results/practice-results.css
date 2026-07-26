@@ -62,9 +62,16 @@
   text-transform: uppercase;
 }
 
+.practice-hero-aside {
+  display: grid;
+  min-width: 0;
+  justify-items: end;
+  gap: 10px;
+}
+
 .practice-controls {
   display: grid;
-  grid-template-columns: auto minmax(240px, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   margin-top: 12px;
   padding: 12px;
   align-items: center;
@@ -99,9 +106,22 @@
   min-width: 0;
 }
 
-.practice-controls > .segmented-tabs {
-  width: min(100%, 420px);
-  margin-bottom: 0;
+.practice-mode-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.practice-mode-controls .race-results-desktop-tabs {
+  flex: 0 0 228px;
+  width: 228px;
+  margin: 0;
+}
+
+.practice-mode-controls .race-results-desktop-round-select {
+  min-width: 300px;
+  order: -1;
 }
 
 .practice-archive-note {
@@ -233,8 +253,30 @@
     width: fit-content;
   }
 
+  .practice-hero-aside {
+    width: 100%;
+    justify-items: stretch;
+  }
+
   .practice-controls {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .practice-mode-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .practice-mode-controls .race-results-desktop-tabs {
+    width: 100%;
+    max-width: none;
+    flex-basis: auto;
+  }
+
+  .practice-mode-controls .race-results-desktop-round-select {
+    width: 100%;
+    min-width: 0;
+    order: 0;
   }
 
   .practice-session-tabs {
