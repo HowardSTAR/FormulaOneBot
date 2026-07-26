@@ -1,0 +1,19 @@
+{
+  "name": "f1hub-auto",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright API/UI tests for f1hub.ru",
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:ui": "playwright test --project=chromium",
+    "test:ui:open": "playwright test --project=chromium --ui",
+    "test:ui:debug": "playwright test --project=chromium --debug",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "@types/node": "^24.0.0",
+    "dotenv": "^17.4.2"
+  }
+}
