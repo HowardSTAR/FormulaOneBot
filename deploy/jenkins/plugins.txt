@@ -1,0 +1,17 @@
+workflow-aggregator
+pipeline-stage-view
+git
+github
+github-branch-source
+gitlab-plugin
+cloudbees-bitbucket-branch-source
+credentials-binding
+ssh-credentials
+junit
+htmlpublisher
+allure-jenkins-plugin
+ansicolor
+timestamper
+matrix-auth
+docker-workflow
+ws-cleanup

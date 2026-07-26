@@ -1,0 +1,13 @@
+# Используйте вместе с основным Compose, если 80/443 уже обслуживает
+# Dockerized Nginx FormulaOneBot:
+# docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d --build
+
+services:
+  jenkins:
+    networks:
+      - default
+      - f1hub_edge
+
+networks:
+  f1hub_edge:
+    external: true

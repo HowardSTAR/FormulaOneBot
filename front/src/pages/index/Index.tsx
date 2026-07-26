@@ -5,6 +5,7 @@ import { useAuthState } from "../../helpers/auth";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCountryFlagUrl } from "../../constants/flags";
+import type { SessionItem } from "../../context/HeroDataContext";
 import "./styles.css";
 import Hero from "./Hero";
 

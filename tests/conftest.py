@@ -55,7 +55,12 @@ async def app_with_overrides(temp_db_path):
     """
     os.environ["DATABASE_PATH"] = str(temp_db_path)
 
-    from app.api.miniapp_api import get_current_user_id, get_optional_user_id, web_app
+    from app.api.miniapp_api import (
+        get_current_user_id,
+        get_optional_user_id,
+        get_prediction_user_id,
+        web_app,
+    )
     from app.db import db
 
     async def fake_get_current_user_id():
@@ -63,6 +68,13 @@ async def app_with_overrides(temp_db_path):
 
     web_app.dependency_overrides[get_current_user_id] = fake_get_current_user_id
     web_app.dependency_overrides[get_optional_user_id] = fake_get_current_user_id
+    web_app.dependency_overrides[get_prediction_user_id] = fake_get_current_user_id
+
+    # app.db resolves DATABASE_PATH at import time, so explicitly move the
+    # shared Database object to this test's isolated file.
+    original_db_path = db.db_path
+    await db.close()
+    db.db_path = temp_db_path
 
     # Инициализация БД для тестов
     await db.connect()
@@ -71,6 +83,7 @@ async def app_with_overrides(temp_db_path):
     yield web_app
 
     await db.close()
+    db.db_path = original_db_path
     web_app.dependency_overrides.clear()
     if "DATABASE_PATH" in os.environ:
         del os.environ["DATABASE_PATH"]

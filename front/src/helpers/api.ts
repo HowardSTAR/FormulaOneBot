@@ -38,7 +38,7 @@ export function apiAssetUrl(
 
 export async function apiRequest<T = unknown>(
   endpoint: string,
-  params: Record<string, string | number | boolean | undefined> = {},
+  params: Record<string, string | number | boolean | null | undefined> = {},
   method: 'GET' | 'POST' = 'GET'
 ): Promise<T> {
   const path = (PATH_BASE + endpoint).replace(/\/+/g, '/');

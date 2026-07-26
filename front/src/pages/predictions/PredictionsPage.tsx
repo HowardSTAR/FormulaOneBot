@@ -37,7 +37,7 @@ type HistoryItem = { season: number; round: number; event_name?: string; short_c
 type RoundColumn = { season: number; round: number; event_name: string; short_code: string; max_points: number };
 type LeaderboardEntry = {
   place: number;
-  telegram_id: number;
+  user_id: number;
   display_name: string;
   total_points: number;
   rounds_scored: number;
@@ -339,7 +339,7 @@ export default function PredictionsPage() {
                     entry.history.map((item) => [`${item.season}-${item.round}`, item.points]),
                   );
                   return (
-                    <tr key={entry.telegram_id}>
+                    <tr key={entry.user_id}>
                       <td className="is-place"><strong>{String(entry.place).padStart(2, "0")}</strong></td>
                       <th className="is-name">{entry.display_name}</th>
                       <td>{entry.wins}</td>

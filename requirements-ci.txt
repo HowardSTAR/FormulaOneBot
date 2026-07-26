@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Отдельные зависимости CI: не попадают в production-образ приложения.
+pytest-html>=4.1,<5.0

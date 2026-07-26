@@ -14,6 +14,7 @@ from app.db import Database
 from app.emailer import MockMailer
 from app.services.account_link_service import AccountLinkService
 from app.services.auth_service import AuthService
+from app.services import prediction_service
 
 
 @pytest.mark.asyncio
@@ -26,6 +27,7 @@ async def test_email_session_csrf_and_link_endpoint(temp_db_path, monkeypatch):
     links = AccountLinkService(database, pepper="test-pepper-with-enough-entropy")
     monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
     monkeypatch.setattr(auth_api, "get_link_service", lambda: links)
+    monkeypatch.setattr(prediction_service, "db", database)
     monkeypatch.setenv("TELEGRAM_BOT_USERNAME", "formula_test_bot")
     monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
 
@@ -45,6 +47,19 @@ async def test_email_session_csrf_and_link_endpoint(temp_db_path, monkeypatch):
         payload = verified.json()
         assert client.cookies.get("f1hub_session")
         assert client.cookies.get("f1hub_csrf") == payload["csrf_token"]
+
+        prediction_profile = await client.post(
+            "/api/predictions/profile",
+            headers={"X-CSRF-Token": payload["csrf_token"]},
+            json={"display_name": "Email Racer"},
+        )
+        assert prediction_profile.status_code == 200
+        async with database.conn.execute(
+            "SELECT display_name FROM prediction_profiles WHERE user_id = ?",
+            (payload["user"]["id"],),
+        ) as cursor:
+            stored_profile = await cursor.fetchone()
+        assert stored_profile["display_name"] == "Email Racer"
 
         changed = await client.post(
             "/api/auth/password/change",
@@ -108,6 +123,10 @@ async def test_linked_web_session_can_use_personalized_api(temp_db_path, monkeyp
     with pytest.raises(HTTPException) as exc_info:
         await auth_api.require_hybrid_telegram_id(request, cookie_token=session.token)
     assert exc_info.value.status_code == 403
+    assert (
+        await auth_api.require_hybrid_user_id(request, cookie_token=session.token)
+        == session.user["id"]
+    )
 
     await database.conn.execute(
         "UPDATE users SET telegram_id = ? WHERE id = ?",

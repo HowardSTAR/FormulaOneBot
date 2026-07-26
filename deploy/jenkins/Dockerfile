@@ -17,3 +17,8 @@ RUN apt-get update \
     && docker compose version
 
 USER jenkins
+
+# Плагины устанавливаются при сборке образа, а не вручную после каждого
+# восстановления Jenkins. Зависимости разрешает официальный jenkins-plugin-cli.
+COPY --chown=jenkins:jenkins plugins.txt /usr/share/jenkins/ref/plugins.txt
+RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt

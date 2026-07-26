@@ -93,11 +93,13 @@ async def test_prediction_profile_scoring_and_leaderboard(api_client):
         save_user_prediction,
         score_prediction_round,
     )
+    from app.db import get_or_create_user
 
     telegram_id = 999888
-    await save_prediction_profile(telegram_id, "Test Racer")
+    user_id = await get_or_create_user(telegram_id)
+    await save_prediction_profile(user_id, "Test Racer")
     await save_user_prediction(
-        telegram_id,
+        user_id,
         2030,
         4,
         prediction_payload(),
@@ -150,6 +152,11 @@ def test_prediction_points_follow_2026_matrix():
 async def test_prediction_schema_contains_optional_sprint_columns(api_client):
     """Миграция создаёт nullable спринт-поля и в прогнозах, и в итогах этапа."""
     from app.db import db
+
+    async with db.conn.execute("PRAGMA table_info(prediction_profiles)") as cursor:
+        profile_columns = {row["name"] for row in await cursor.fetchall()}
+    assert "user_id" in profile_columns
+    assert "telegram_id" not in profile_columns
 
     for table_name in ("race_predictions", "prediction_round_results"):
         async with db.conn.execute(f"PRAGMA table_info({table_name})") as cursor:
