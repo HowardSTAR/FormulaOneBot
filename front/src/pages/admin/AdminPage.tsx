@@ -30,6 +30,8 @@ Chart.register(
 type Role = "user" | "admin" | "superadmin";
 type Source = "all" | "site" | "bot";
 type Period = "7d" | "30d" | "90d" | "all";
+type UserSortField = "created_at" | "last_activity" | "role";
+type SortOrder = "asc" | "desc";
 type AdminIdentity = { id: number; role: "admin" | "superadmin"; email: string | null; telegram_id: number | null };
 type MetricCard = { dau: number; wau: number; mau: number };
 type MetricPoint = { day: string; site: number; bot: number };
@@ -50,7 +52,15 @@ type ManagedUser = {
   email_verified: boolean;
   protected: boolean;
 };
-type UserPage = { items: ManagedUser[]; page: number; pages: number; total: number; page_size: number };
+type UserPage = {
+  items: ManagedUser[];
+  page: number;
+  pages: number;
+  total: number;
+  page_size: number;
+  sort_by: UserSortField;
+  sort_order: SortOrder;
+};
 type AuditItem = {
   id: number;
   action: string;
@@ -132,6 +142,8 @@ export default function AdminPage() {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"all" | Role>("all");
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<UserSortField>("last_activity");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [audit, setAudit] = useState<AuditItem[]>([]);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [emailDraft, setEmailDraft] = useState("");
@@ -153,8 +165,10 @@ export default function AdminPage() {
       role: roleFilter,
       page,
       page_size: 25,
+      sortBy,
+      sortOrder,
     }));
-  }, [page, roleFilter, search]);
+  }, [page, roleFilter, search, sortBy, sortOrder]);
 
   const loadAudit = useCallback(async () => {
     const result = await apiRequest<{ items: AuditItem[] }>("/api/admin/audit-log", { limit: 100 });
@@ -216,6 +230,20 @@ export default function AdminPage() {
   const identityLabel = useMemo(
     () => identity?.email || (identity?.telegram_id ? `TG ${identity.telegram_id}` : "Администратор"),
     [identity],
+  );
+  const toggleUserSort = (field: UserSortField) => {
+    setPage(1);
+    if (sortBy === field) {
+      setSortOrder((current) => current === "asc" ? "desc" : "asc");
+      return;
+    }
+    setSortBy(field);
+    setSortOrder(field === "role" ? "asc" : "desc");
+  };
+  const sortIndicator = (field: UserSortField) => (
+    <span className="admin-sort-indicator" aria-hidden>
+      {sortBy === field ? (sortOrder === "asc" ? "▲" : "▼") : "↕"}
+    </span>
   );
 
   return (
@@ -311,11 +339,35 @@ export default function AdminPage() {
           </header>
           <div className="admin-table-wrap">
             <table>
-              <thead><tr><th>ID</th><th>Пользователь</th><th>Telegram</th><th>Регистрация</th><th>Активность</th><th>Роль</th><th>Действия</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>№ участника</th>
+                  <th>Пользователь</th>
+                  <th>Telegram</th>
+                  <th aria-sort={sortBy === "created_at" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>
+                    <button type="button" className="admin-sort-button" onClick={() => toggleUserSort("created_at")}>
+                      Регистрация {sortIndicator("created_at")}
+                    </button>
+                  </th>
+                  <th aria-sort={sortBy === "last_activity" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>
+                    <button type="button" className="admin-sort-button" onClick={() => toggleUserSort("last_activity")}>
+                      Активность {sortIndicator("last_activity")}
+                    </button>
+                  </th>
+                  <th aria-sort={sortBy === "role" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>
+                    <button type="button" className="admin-sort-button" onClick={() => toggleUserSort("role")}>
+                      Роль {sortIndicator("role")}
+                    </button>
+                  </th>
+                  <th>Действия</th>
+                </tr>
+              </thead>
               <tbody>
-                {userPage?.items.map((user) => (
+                {userPage?.items.map((user, index) => (
                   <tr key={user.id}>
-                    <td data-label="ID">#{user.id}</td>
+                    <td data-label="№ участника">
+                      {(userPage.page - 1) * userPage.page_size + index + 1}
+                    </td>
                     <td data-label="Пользователь">
                       <strong>{user.display_name || user.email || "Без имени"}</strong>
                       <small>{user.email || "Email не указан"}</small>

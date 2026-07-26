@@ -17,6 +17,7 @@ import fastf1
 import pandas as pd
 from fastf1._api import SessionNotAvailableError
 from fastf1.ergast import Ergast
+from fastf1.exceptions import DataNotLoadedError
 from lxml import html as lxml_html
 from redis.asyncio import Redis
 
@@ -267,6 +268,7 @@ def get_season_schedule_short(season: int) -> list[dict]:
             sprint_dt_utc = None
             sprint_quali_dt_utc = None
             first_session_dt_utc = None
+            practice_start_utc: dict[int, str] = {}
             for i in range(1, 9):
                 name_col = f"Session{i}"
                 date_col = f"Session{i}DateUtc"
@@ -286,6 +288,9 @@ def get_season_schedule_short(season: int) -> list[dict]:
                             sprint_dt_utc = session_dt_utc
                         if sess_name in ("Sprint Qualifying", "Sprint Shootout"):
                             sprint_quali_dt_utc = session_dt_utc
+                        practice_match = re.fullmatch(r"(?:Free )?Practice ([123])", sess_name)
+                        if practice_match:
+                            practice_start_utc[int(practice_match.group(1))] = session_dt_utc.isoformat()
 
             if race_dt_utc:
                 if race_dt_utc.tzinfo is None:
@@ -332,6 +337,11 @@ def get_season_schedule_short(season: int) -> list[dict]:
                 "quali_start_utc": quali_start_utc,
                 "sprint_start_utc": sprint_start_utc,
                 "sprint_quali_start_utc": sprint_quali_start_utc,
+                "practice1_start_utc": practice_start_utc.get(1),
+                "practice2_start_utc": practice_start_utc.get(2),
+                "practice3_start_utc": practice_start_utc.get(3),
+                "available_practice_sessions": sorted(practice_start_utc),
+                "is_sprint_weekend": bool(sprint_dt_utc or sprint_quali_dt_utc),
                 "is_cancelled": _is_event_cancelled(row),
             })
         except Exception:
@@ -440,6 +450,95 @@ def get_sprint_results_df(season: int, round_number: int) -> pd.DataFrame:
             else:
                 return pd.DataFrame()
     return pd.DataFrame()
+
+
+def get_practice_results(
+    season: int,
+    round_number: int,
+    session_number: int,
+    limit: int = 100,
+) -> list[dict]:
+    """Fastest lap classification for FP1, FP2 or FP3."""
+    if session_number not in {1, 2, 3}:
+        raise ValueError("Practice session must be 1, 2 or 3")
+
+    try:
+        session = fastf1.get_session(season, round_number, f"FP{session_number}")
+        session.load(telemetry=False, laps=True, weather=False, messages=False)
+    except SessionNotAvailableError:
+        return []
+    except Exception as exc:
+        logger.warning(
+            "Practice results unavailable for %s round %s FP%s: %s",
+            season,
+            round_number,
+            session_number,
+            exc,
+        )
+        return []
+
+    try:
+        laps = session.laps
+    except DataNotLoadedError:
+        return []
+    if laps is None or laps.empty or "Driver" not in laps.columns or "LapTime" not in laps.columns:
+        return []
+
+    driver_details: dict[str, dict[str, str]] = {}
+    try:
+        session_results = session.results
+    except DataNotLoadedError:
+        session_results = None
+    if session_results is not None and not session_results.empty:
+        for _, driver_row in session_results.iterrows():
+            code = str(driver_row.get("Abbreviation") or "").strip().upper()
+            if not code:
+                continue
+            first_name = str(driver_row.get("FirstName") or "").strip()
+            last_name = str(driver_row.get("LastName") or "").strip()
+            driver_details[code] = {
+                "name": f"{first_name} {last_name}".strip() or code,
+                "team": str(driver_row.get("TeamName") or "").strip(),
+            }
+
+    timed_rows: list[dict] = []
+    for raw_code, driver_laps in laps.groupby("Driver"):
+        code = str(raw_code or "").strip().upper()
+        if not code:
+            continue
+        valid_laps = driver_laps[driver_laps["LapTime"].notna()]
+        if valid_laps.empty:
+            continue
+        fastest_index = valid_laps["LapTime"].idxmin()
+        fastest_lap = valid_laps.loc[fastest_index]
+        lap_time = fastest_lap.get("LapTime")
+        try:
+            best_seconds = float(pd.to_timedelta(lap_time).total_seconds())
+        except (TypeError, ValueError):
+            continue
+        details = driver_details.get(code, {})
+        timed_rows.append({
+            "driver": code,
+            "name": details.get("name") or code,
+            "team": details.get("team") or str(fastest_lap.get("Team") or "").strip(),
+            "best": _format_quali_time(lap_time) or "—",
+            "best_seconds": best_seconds,
+            "laps": int(len(driver_laps)),
+        })
+
+    timed_rows.sort(key=lambda row: row["best_seconds"])
+    if not timed_rows:
+        return []
+    leader_seconds = timed_rows[0]["best_seconds"]
+    results: list[dict] = []
+    for position, row in enumerate(timed_rows[:limit], start=1):
+        best_seconds = row.pop("best_seconds")
+        results.append({
+            **row,
+            "position": position,
+            "gap": row["best"] if position == 1 else f"+{best_seconds - leader_seconds:.3f}",
+        })
+    return results
 
 
 def get_qualifying_results(season: int, round_number: int, limit: int = 100) -> list[dict]:
@@ -1471,6 +1570,22 @@ async def get_race_results_async(season: int, round_number: int):
 @cache_result(ttl=86400, key_prefix="sprint_res")
 async def get_sprint_results_async(season: int, round_number: int) -> pd.DataFrame:
     return await _run_sync(get_sprint_results_df, season, round_number)
+
+
+@cache_result(ttl=600, key_prefix="practice_results_v1")
+async def get_practice_results_async(
+    season: int,
+    round_number: int,
+    session_number: int,
+    limit: int = 100,
+) -> list[dict]:
+    return await _run_sync(
+        get_practice_results,
+        season,
+        round_number,
+        session_number,
+        limit,
+    )
 
 
 @cache_result(ttl=86400, key_prefix="quali_res")

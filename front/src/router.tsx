@@ -24,6 +24,7 @@ import ResetPasswordPage from "./pages/reset-password/ResetPasswordPage";
 import ReactionGamePage from "./pages/reaction-game/ReactionGamePage";
 import ReflexGridGamePage from "./pages/reflex-grid-game/ReflexGridGamePage";
 import PredictionsPage from "./pages/predictions/PredictionsPage";
+import PracticeResultsPage from "./pages/practice-results/PracticeResultsPage";
 import ContactAdminPage from "./pages/contact-admin/ContactAdminPage";
 import WikiPage from "./pages/wiki/WikiPage";
 import { RequireAdmin } from "./components/RequireAdmin";
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
       { path: "/reaction-game", element: <ReactionGamePage /> },
       { path: "/reflex-grid-game", element: <ReflexGridGamePage /> },
       { path: "/predictions", element: <RequirePersonalAccount requireTelegram={false}><PredictionsPage /></RequirePersonalAccount> },
+      { path: "/practice-results", element: <PracticeResultsPage /> },
       { path: "/contact-admin", element: <ContactAdminPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },
       { path: "/settings", element: <RequirePersonalAccount><SettingsPage /></RequirePersonalAccount> },

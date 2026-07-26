@@ -300,6 +300,32 @@
   text-transform: uppercase;
 }
 
+.admin-sort-button {
+  display: inline-flex;
+  padding: 0;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.admin-sort-button:hover,
+.admin-sort-button:focus-visible {
+  color: #fff;
+}
+
+.admin-sort-indicator {
+  min-width: 10px;
+  color: #ff514c;
+  font-size: 9px;
+  text-align: center;
+}
+
 .admin-users-card td {
   font-size: 13px;
 }

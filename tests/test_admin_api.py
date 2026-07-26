@@ -146,3 +146,79 @@ async def test_admin_metrics_split_site_bot_and_total(temp_db_path, monkeypatch)
         assert response.json()["series"]
 
     await database.close()
+
+
+@pytest.mark.asyncio
+async def test_admin_users_supports_server_side_sorting(temp_db_path, monkeypatch):
+    """Пагинация пользователей сортируется на сервере по разрешённым колонкам."""
+    primary_email, _ = configured_primary_admin()
+    database = Database(temp_db_path)
+    await database.connect()
+    await database.init_tables()
+    mailer = MockMailer()
+    auth = AuthService(database, mailer, pepper="admin-sort-test-pepper")
+    monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
+    monkeypatch.setattr(admin_api, "get_auth_service", lambda: auth)
+    monkeypatch.setattr(admin_api, "db", database)
+
+    primary = await create_verified_session(auth, mailer, primary_email)
+    regular = await create_verified_session(auth, mailer, "regular-sort@example.com")
+    delegated = await create_verified_session(auth, mailer, "delegated-sort@example.com")
+    await database.conn.executemany(
+        "UPDATE users SET created_at = ?, role = ? WHERE id = ?",
+        [
+            ("2024-01-01T10:00:00+00:00", "superadmin", primary.user["id"]),
+            ("2024-01-02T10:00:00+00:00", "user", regular.user["id"]),
+            ("2024-01-03T10:00:00+00:00", "admin", delegated.user["id"]),
+        ],
+    )
+    await database.conn.executemany(
+        "INSERT INTO user_activity_events(user_id, source, occurred_at) VALUES (?, 'site', ?)",
+        [
+            (primary.user["id"], "2024-03-01T10:00:00+00:00"),
+            (delegated.user["id"], "2024-02-01T10:00:00+00:00"),
+        ],
+    )
+    await database.conn.commit()
+
+    transport = httpx.ASGITransport(app=web_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        client.cookies.set("f1hub_session", primary.token)
+        client.cookies.set("f1hub_csrf", primary.csrf_token)
+
+        created = await client.get(
+            "/api/admin/users",
+            params={"sortBy": "created_at", "sortOrder": "asc", "page_size": 10},
+        )
+        assert created.status_code == 200
+        assert [user["email"] for user in created.json()["items"]] == [
+            primary_email,
+            "regular-sort@example.com",
+            "delegated-sort@example.com",
+        ]
+        assert created.json()["sort_by"] == "created_at"
+        assert created.json()["sort_order"] == "asc"
+
+        active = await client.get(
+            "/api/admin/users",
+            params={"sortBy": "last_activity", "sortOrder": "desc", "page_size": 10},
+        )
+        assert active.status_code == 200
+        assert [user["email"] for user in active.json()["items"]] == [
+            primary_email,
+            "delegated-sort@example.com",
+            "regular-sort@example.com",
+        ]
+
+        roles = await client.get(
+            "/api/admin/users",
+            params={"sortBy": "role", "sortOrder": "asc", "page_size": 10},
+        )
+        assert roles.status_code == 200
+        assert [user["role"] for user in roles.json()["items"]] == [
+            "admin",
+            "superadmin",
+            "user",
+        ]
+
+    await database.close()

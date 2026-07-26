@@ -33,6 +33,8 @@ AdminRole = Literal["admin", "superadmin"]
 ManagedRole = Literal["user", "admin"]
 MetricSource = Literal["all", "site", "bot"]
 MetricPeriod = Literal["7d", "30d", "90d", "all"]
+UserSortField = Literal["created_at", "last_activity", "role"]
+SortOrder = Literal["asc", "desc"]
 
 
 class AdminContext(BaseModel):
@@ -265,6 +267,8 @@ async def admin_users(
     role: Literal["all", "user", "admin", "superadmin"] = Query("all"),
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=10, le=100),
+    sort_by: UserSortField = Query("last_activity", alias="sortBy"),
+    sort_order: SortOrder = Query("desc", alias="sortOrder"),
     _: AdminContext = Depends(require_admin_session),
 ):
     assert db.conn is not None
@@ -289,6 +293,13 @@ async def admin_users(
         count_row = await cursor.fetchone()
     total = int(count_row["total"])
     offset = (page - 1) * page_size
+    sort_expressions = {
+        "created_at": "datetime(u.created_at)",
+        "last_activity": "datetime(COALESCE(MAX(a.occurred_at), u.created_at))",
+        "role": "u.role COLLATE NOCASE",
+    }
+    order_expression = sort_expressions[sort_by]
+    order_direction = "ASC" if sort_order == "asc" else "DESC"
     async with db.conn.execute(
         f"""
         SELECT
@@ -299,7 +310,7 @@ async def admin_users(
         LEFT JOIN user_activity_events a ON a.user_id = u.id
         WHERE {where}
         GROUP BY u.id
-        ORDER BY COALESCE(MAX(a.occurred_at), u.created_at) DESC, u.id DESC
+        ORDER BY {order_expression} {order_direction}, u.id {order_direction}
         LIMIT ? OFFSET ?
         """,
         [*params, page_size, offset],
@@ -316,6 +327,8 @@ async def admin_users(
         "page_size": page_size,
         "total": total,
         "pages": max(1, math.ceil(total / page_size)),
+        "sort_by": sort_by,
+        "sort_order": sort_order,
     }
 
 

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
+from fastf1.exceptions import DataNotLoadedError
 
 from app.f1_data import (
     _extract_team_principal_from_html,
@@ -12,6 +13,7 @@ from app.f1_data import (
     _openf1_get_drivers_for_session,
     _shorten_wiki_bio,
     get_driver_details_async,
+    get_practice_results,
     get_season_schedule_short,
     get_sprint_quali_results_async,
     sort_standings_zero_last,
@@ -216,3 +218,20 @@ def test_get_season_schedule_short_marks_cancelled_event():
     assert len(schedule) == 1
     assert schedule[0]["round"] == 3
     assert schedule[0]["is_cancelled"] is True
+
+
+def test_get_practice_results_returns_empty_when_laps_were_not_loaded():
+    """Неполная сессия FastF1 не должна превращаться в HTTP 500."""
+
+    class IncompleteSession:
+        def load(self, **_kwargs):
+            return None
+
+        @property
+        def laps(self):
+            raise DataNotLoadedError("laps are unavailable")
+
+    with patch("app.f1_data.fastf1.get_session", return_value=IncompleteSession()):
+        results = get_practice_results(2026, 11, 1)
+
+    assert results == []

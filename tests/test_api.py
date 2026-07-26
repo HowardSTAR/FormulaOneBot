@@ -709,19 +709,98 @@ async def test_api_race_details_404(api_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_api_quali_results(api_client: AsyncClient):
     """GET /api/quali-results — результаты квалификации."""
-    with patch("app.api.miniapp_api._get_latest_quali_async", new_callable=AsyncMock) as m:
+    now = datetime.now(timezone.utc)
+    with patch("app.api.miniapp_api._get_latest_quali_async", new_callable=AsyncMock) as m, \
+            patch("app.api.miniapp_api.get_quali_for_round_async", new_callable=AsyncMock) as m_round:
         m.return_value = (
             1,
             [
                 {"position": 1, "driver": "VER", "name": "Max Verstappen", "best": "1:29.0"},
             ],
         )
+        m_round.return_value = m.return_value
         with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m2:
-            m2.return_value = [{"round": 1, "event_name": "Bahrain GP"}]
+            m2.return_value = [{
+                "round": 1,
+                "event_name": "Bahrain GP",
+                "quali_start_utc": (now - timedelta(hours=2)).isoformat(),
+            }]
             r = await api_client.get("/api/quali-results")
     assert r.status_code == 200
     data = r.json()
     assert "results" in data
+    assert data["round"] == 1
+    m_round.assert_awaited_once_with(now.year, 1, limit=100)
+    m.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_api_practice_results_hides_fp2_fp3_on_sprint_weekend(api_client: AsyncClient):
+    """Спринт-этап возвращает только FP1 и не запрашивает отсутствующую FP2."""
+    now = datetime.now(timezone.utc)
+    event = {
+        "round": 2,
+        "event_name": "Chinese GP",
+        "date": now.date().isoformat(),
+        "practice1_start_utc": (now - timedelta(hours=4)).isoformat(),
+        "available_practice_sessions": [1],
+        "is_sprint_weekend": True,
+        "sprint_start_utc": (now + timedelta(hours=3)).isoformat(),
+    }
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as schedule, \
+            patch("app.api.miniapp_api.get_practice_results_async", new_callable=AsyncMock) as practice:
+        schedule.return_value = [event]
+        response = await api_client.get(
+            "/api/practice-results",
+            params={"season": now.year, "round": 2, "session": 2},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["available_sessions"] == [1]
+    assert payload["is_sprint_weekend"] is True
+    assert payload["results"] == []
+    practice.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_api_practice_results_returns_standard_fp3(api_client: AsyncClient):
+    """Обычный этап поддерживает P1/P2/P3 и возвращает классификацию FP3."""
+    now = datetime.now(timezone.utc)
+    event = {
+        "round": 4,
+        "event_name": "Miami GP",
+        "date": now.date().isoformat(),
+        "practice1_start_utc": (now - timedelta(days=2)).isoformat(),
+        "practice2_start_utc": (now - timedelta(days=1)).isoformat(),
+        "practice3_start_utc": (now - timedelta(hours=2)).isoformat(),
+        "available_practice_sessions": [1, 2, 3],
+        "is_sprint_weekend": False,
+    }
+    rows = [{
+        "position": 1,
+        "driver": "NOR",
+        "name": "Lando Norris",
+        "team": "McLaren",
+        "best": "1:28.500",
+        "gap": "1:28.500",
+        "laps": 21,
+    }]
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as schedule, \
+            patch("app.api.miniapp_api.get_practice_results_async", new_callable=AsyncMock) as practice:
+        schedule.return_value = [event]
+        practice.return_value = rows
+        response = await api_client.get(
+            "/api/practice-results",
+            params={"season": now.year, "round": 4, "session": 3},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["session"] == 3
+    assert payload["available_sessions"] == [1, 2, 3]
+    assert payload["results"][0]["driver"] == "NOR"
+    practice.assert_awaited_once_with(now.year, 4, 3, limit=100)
 
 
 @pytest.mark.asyncio
@@ -929,6 +1008,48 @@ async def test_api_quali_results_resets_previous_round_when_new_weekend_started(
     assert data["round"] == 2
     assert len(data["results"]) == 1
     assert data["results"][0]["driver"] == "NOR"
+
+
+@pytest.mark.asyncio
+async def test_api_quali_latest_replaces_stale_cached_round(api_client: AsyncClient):
+    """Latest перепроверяет новый этап через тот же round-provider, что и Архив."""
+    now = datetime.now(timezone.utc)
+    cached = {
+        "season": now.year,
+        "round": 9,
+        "race_info": {"event_name": "British GP"},
+        "results": [{"position": 1, "driver": "OLD", "name": "Old Result", "best": "1:30.000"}],
+    }
+    latest_rows = [{"position": 1, "driver": "LEC", "name": "Charles Leclerc", "best": "1:28.100"}]
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as schedule, \
+            patch("app.api.miniapp_api.get_cached_quali_results", new_callable=AsyncMock) as cache, \
+            patch("app.api.miniapp_api._get_latest_quali_async", new_callable=AsyncMock) as latest, \
+            patch("app.api.miniapp_api.get_quali_for_round_async", new_callable=AsyncMock) as exact, \
+            patch("app.api.miniapp_api.set_cached_quali_results", new_callable=AsyncMock):
+        schedule.return_value = [
+            {
+                "round": 9,
+                "event_name": "British GP",
+                "quali_start_utc": (now - timedelta(days=7)).isoformat(),
+            },
+            {
+                "round": 10,
+                "event_name": "Belgian GP",
+                "quali_start_utc": (now - timedelta(hours=2)).isoformat(),
+            },
+        ]
+        cache.return_value = cached
+        latest.return_value = (10, latest_rows)
+        exact.return_value = (10, latest_rows)
+
+        response = await api_client.get("/api/quali-results", params={"season": now.year})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["round"] == 10
+    assert payload["race_info"]["event_name"] == "Belgian GP"
+    assert payload["results"][0]["driver"] == "LEC"
+    exact.assert_awaited_once_with(now.year, 10, limit=100)
 
 
 @pytest.mark.asyncio

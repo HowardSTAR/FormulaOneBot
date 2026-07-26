@@ -11,17 +11,60 @@ type NavItem = {
   activePaths: string[];
 };
 
+type NavGroup = {
+  id: string;
+  label: string;
+  icon: IconName;
+  items: Array<Omit<NavItem, "icon">>;
+};
+
 const PRIMARY_NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Обзор", icon: "home", activePaths: ["/"] },
   { to: "/season", label: "Календарь", icon: "calendar", activePaths: ["/season", "/next-race", "/race-details"] },
-  { to: "/race-results", label: "Результаты", icon: "results", activePaths: ["/race-results", "/quali-results", "/sprint-results", "/sprint-quali-results"] },
-  { to: "/drivers", label: "Пилоты", icon: "drivers", activePaths: ["/drivers", "/driver-details"] },
-  { to: "/constructors", label: "Команды", icon: "teams", activePaths: ["/constructors", "/constructor-details", "/team-principal"] },
-  { to: "/compare", label: "Сравнение", icon: "compare", activePaths: ["/compare"] },
-  { to: "/predictions", label: "Прогнозы", icon: "predictions", activePaths: ["/predictions"] },
   { to: "/wiki", label: "Wiki F1", icon: "wiki", activePaths: ["/wiki"] },
   { to: "/account", label: "Аккаунт", icon: "account", activePaths: ["/account"] },
   { to: "/contact-admin", label: "Обратная связь", icon: "contact", activePaths: ["/contact-admin"] },
+];
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    id: "results",
+    label: "Результаты",
+    icon: "results",
+    items: [
+      { to: "/practice-results", label: "Свободные заезды", activePaths: ["/practice-results"] },
+      { to: "/sprint-quali-results", label: "Спринт-квала", activePaths: ["/sprint-quali-results"] },
+      { to: "/sprint-results", label: "Спринт-гонка", activePaths: ["/sprint-results"] },
+      { to: "/quali-results", label: "Квала", activePaths: ["/quali-results"] },
+      { to: "/race-results", label: "Гонка", activePaths: ["/race-results"] },
+    ],
+  },
+  {
+    id: "peloton",
+    label: "Пелотон",
+    icon: "drivers",
+    items: [
+      { to: "/drivers", label: "Пилоты", activePaths: ["/drivers", "/driver-details"] },
+      { to: "/constructors", label: "Команды", activePaths: ["/constructors", "/constructor-details", "/team-principal"] },
+    ],
+  },
+  {
+    id: "analytics",
+    label: "Аналитика",
+    icon: "compare",
+    items: [
+      { to: "/compare", label: "Сравнение", activePaths: ["/compare"] },
+      { to: "/predictions", label: "Прогнозы", activePaths: ["/predictions"] },
+    ],
+  },
+  {
+    id: "games",
+    label: "Игры",
+    icon: "games",
+    items: [
+      { to: "/reaction-game", label: "Тест реакции", activePaths: ["/reaction-game"] },
+    ],
+  },
 ];
 
 function NavIcon({ name }: { name: IconName }) {
@@ -50,13 +93,51 @@ function NavIcon({ name }: { name: IconName }) {
   );
 }
 
+function SidebarAccordion({ group, pathname }: { group: NavGroup; pathname: string }) {
+  const active = group.items.some((item) => item.activePaths.includes(pathname));
+  const [open, setOpen] = useState(active);
+
+  const expanded = open || active;
+  const submenuId = `app-header-${group.id}-menu`;
+
+  return (
+    <div className={`app-header-menu${expanded ? " is-open" : ""}${active ? " active" : ""}`}>
+      <button
+        type="button"
+        className={`app-header-link app-header-menu-trigger${active ? " active" : ""}`}
+        aria-expanded={expanded}
+        aria-controls={submenuId}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className="app-header-link-icon"><NavIcon name={group.icon} /></span>
+        <span className="app-header-link-label">{group.label}</span>
+        <span className="app-header-link-arrow" aria-hidden>›</span>
+      </button>
+      <div id={submenuId} className="app-header-submenu" aria-hidden={!expanded}>
+        {group.items.map((item) => {
+          const itemActive = item.activePaths.includes(pathname);
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              className={`app-header-submenu-link${itemActive ? " active" : ""}`}
+              aria-current={itemActive ? "page" : undefined}
+              tabIndex={expanded ? 0 : -1}
+            >
+              <span aria-hidden />
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function AppHeader() {
   const auth = useAuthState();
   const { pathname } = useLocation();
   const isActive = (paths: string[]) => paths.includes(pathname);
-  const gamesActive = pathname === "/reaction-game";
-  const [gamesOpen, setGamesOpen] = useState(gamesActive);
-  const gamesExpanded = gamesOpen || gamesActive;
 
   return (
     <header className="app-header">
@@ -69,7 +150,7 @@ export function AppHeader() {
 
       <nav className="app-header-nav" aria-label="Главное меню">
         <span className="app-header-nav-label">Навигация</span>
-        {PRIMARY_NAV_ITEMS.map((item) => {
+        {PRIMARY_NAV_ITEMS.slice(0, 2).map((item) => {
           const active = isActive(item.activePaths);
           return (
             <Link
@@ -84,29 +165,25 @@ export function AppHeader() {
             </Link>
           );
         })}
-        <div className={`app-header-menu${gamesExpanded ? " is-open" : ""}${gamesActive ? " active" : ""}`}>
-          <button
-            type="button"
-            className={`app-header-link app-header-menu-trigger${gamesActive ? " active" : ""}`}
-            aria-expanded={gamesExpanded}
-            aria-controls="app-header-games-menu"
-            onClick={() => setGamesOpen((open) => !open)}
-          >
-            <span className="app-header-link-icon"><NavIcon name="games" /></span>
-            <span className="app-header-link-label">Игры</span>
-            <span className="app-header-link-arrow" aria-hidden>›</span>
-          </button>
-          <div id="app-header-games-menu" className="app-header-submenu" hidden={!gamesExpanded}>
+        {NAV_GROUPS.slice(0, 3).map((group) => (
+          <SidebarAccordion key={group.id} group={group} pathname={pathname} />
+        ))}
+        {PRIMARY_NAV_ITEMS.slice(2).map((item) => {
+          const active = isActive(item.activePaths);
+          return (
             <Link
-              to="/reaction-game"
-              className={`app-header-submenu-link${gamesActive ? " active" : ""}`}
-              aria-current={gamesActive ? "page" : undefined}
+              key={item.to}
+              to={item.to}
+              className={`app-header-link${active ? " active" : ""}`}
+              aria-current={active ? "page" : undefined}
             >
-              <span aria-hidden />
-              Тест реакции
+              <span className="app-header-link-icon"><NavIcon name={item.icon} /></span>
+              <span className="app-header-link-label">{item.label}</span>
+              <span className="app-header-link-arrow" aria-hidden>›</span>
             </Link>
-          </div>
-        </div>
+          );
+        })}
+        <SidebarAccordion group={NAV_GROUPS[3]} pathname={pathname} />
       </nav>
 
       <div className="app-header-bottom">
