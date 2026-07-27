@@ -7,6 +7,7 @@ import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCountryFlagUrl } from "../../constants/flags";
 import "./styles.css";
 import Hero from "./Hero";
+import type { SessionItem } from "../../context/HeroDataContext";
 
 export type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
 

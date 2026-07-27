@@ -323,8 +323,13 @@ class Database:
                 first_retirement_driver TEXT,
                 safety_car INTEGER CHECK (safety_car IN (0, 1) OR safety_car IS NULL),
                 max_points INTEGER NOT NULL DEFAULT 0,
+                calculation_source TEXT NOT NULL DEFAULT 'scheduler',
+                calculation_revision INTEGER NOT NULL DEFAULT 1,
+                calculated_by_user_id INTEGER,
+                answers_hash TEXT,
                 calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (season, round)
+                PRIMARY KEY (season, round),
+                FOREIGN KEY (calculated_by_user_id) REFERENCES users(id) ON DELETE SET NULL
             );
             """
         )
@@ -341,6 +346,47 @@ class Database:
                 await self.conn.execute(
                     f"ALTER TABLE {table_name} ADD COLUMN sprint_winner_driver TEXT"
                 )
+        async with self.conn.execute("PRAGMA table_info(prediction_round_results)") as cursor:
+            result_columns = {row["name"] for row in await cursor.fetchall()}
+        result_migrations = {
+            "calculation_source": (
+                "ALTER TABLE prediction_round_results "
+                "ADD COLUMN calculation_source TEXT NOT NULL DEFAULT 'scheduler'"
+            ),
+            "calculation_revision": (
+                "ALTER TABLE prediction_round_results "
+                "ADD COLUMN calculation_revision INTEGER NOT NULL DEFAULT 1"
+            ),
+            "calculated_by_user_id": (
+                "ALTER TABLE prediction_round_results "
+                "ADD COLUMN calculated_by_user_id INTEGER"
+            ),
+            "answers_hash": (
+                "ALTER TABLE prediction_round_results ADD COLUMN answers_hash TEXT"
+            ),
+        }
+        for column_name, statement in result_migrations.items():
+            if column_name not in result_columns:
+                await self.conn.execute(statement)
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS prediction_score_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                season INTEGER NOT NULL,
+                round INTEGER NOT NULL,
+                revision INTEGER NOT NULL,
+                source TEXT NOT NULL,
+                actor_user_id INTEGER,
+                answers_json TEXT NOT NULL,
+                answers_hash TEXT NOT NULL,
+                max_points INTEGER NOT NULL CHECK (max_points >= 0),
+                predictions_scored INTEGER NOT NULL CHECK (predictions_scored >= 0),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (season, round, revision),
+                FOREIGN KEY (actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+            """
+        )
         await self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS prediction_notification_state (
@@ -357,6 +403,12 @@ class Database:
         )
         await self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_predictions_user ON race_predictions(user_id)"
+        )
+        await self.conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_prediction_score_runs_round
+            ON prediction_score_runs(season, round, revision)
+            """
         )
 
         # 10. Журнал сообщений формы обратной связи (доставка в Telegram отмечается отдельно).

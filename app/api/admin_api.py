@@ -25,8 +25,10 @@ from app.api.auth_api import (
 from app.auth import get_current_user_id as get_telegram_user_id
 from app.db import db
 from app.emailer import EmailDeliveryError
+from app.f1_data import get_season_schedule_short_async
 from app.services.activity_service import is_primary_admin, record_user_activity, utc_iso
 from app.services.auth_service import AuthError, normalize_email
+from app.services.prediction_service import recalculate_prediction_round
 
 router = APIRouter(prefix="/api/admin", tags=["administration"])
 AdminRole = Literal["admin", "superadmin"]
@@ -50,6 +52,18 @@ class RoleUpdateRequest(BaseModel):
 
 class EmailUpdateRequest(BaseModel):
     email: str = Field(min_length=3, max_length=254)
+
+
+class PredictionRecalculationRequest(BaseModel):
+    season: int = Field(ge=1950, le=2100)
+    round: int = Field(ge=1, le=40)
+    race_positions: dict[str, int] | None = None
+    pole_driver: str | None = Field(default=None, min_length=2, max_length=4)
+    sprint_pole_driver: str | None = Field(default=None, min_length=2, max_length=4)
+    sprint_winner_driver: str | None = Field(default=None, min_length=2, max_length=4)
+    safety_car: bool | None = None
+    first_retirement_driver: str | None = Field(default=None, min_length=2, max_length=4)
+    fastest_lap_driver: str | None = Field(default=None, min_length=2, max_length=4)
 
 
 async def require_admin_session(
@@ -466,6 +480,103 @@ async def send_user_password_reset(
         await _audit(admin.id, "user.password_reset_sent", user_id, {"email": user["email"]})
         await db.conn.commit()
     return {"message": "Письмо для сброса пароля отправлено"}
+
+
+@router.post("/predictions/recalculate")
+async def recalculate_predictions(
+    data: PredictionRecalculationRequest,
+    admin: AdminContext = Depends(require_superadmin),
+):
+    """Rebuild one round from fresh official classifications.
+
+    Manual overrides are intentionally limited to facts that may be absent from
+    the result feed. Every execution is revisioned in ``prediction_score_runs``.
+    """
+    schedule = await get_season_schedule_short_async(data.season) or []
+    event = next(
+        (item for item in schedule if int(item.get("round") or 0) == data.round),
+        None,
+    )
+    if not event:
+        raise HTTPException(
+            404,
+            detail={"code": "round_not_found", "message": "Этап не найден в календаре"},
+        )
+    if event.get("is_cancelled"):
+        raise HTTPException(
+            409,
+            detail={"code": "round_cancelled", "message": "Отменённый этап нельзя рассчитать"},
+        )
+
+    extra_facts = {
+        key: value
+        for key, value in {
+            "_race_positions": data.race_positions,
+            "pole_driver": data.pole_driver,
+            "sprint_pole_driver": data.sprint_pole_driver,
+            "sprint_winner_driver": data.sprint_winner_driver,
+            "safety_car": data.safety_car,
+            "first_retirement_driver": data.first_retirement_driver,
+            "fastest_lap_driver": data.fastest_lap_driver,
+        }.items()
+        if value is not None
+    }
+    try:
+        result = await recalculate_prediction_round(
+            data.season,
+            data.round,
+            str(event.get("event_name") or "Гран-при"),
+            has_sprint=bool(
+                event.get("sprint_start_utc")
+                or event.get("sprint_quali_start_utc")
+            ),
+            extra_facts=extra_facts,
+            actor_user_id=admin.id,
+            calculation_source="admin",
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            409,
+            detail={"code": "official_results_unavailable", "message": str(exc)},
+        ) from exc
+
+    assert db.conn is not None
+    async with db.write_lock:
+        await _audit(
+            admin.id,
+            "predictions.round_recalculated",
+            None,
+            {
+                "season": data.season,
+                "round": data.round,
+                "revision": result["revision"],
+                "answers_hash": result["answers_hash"],
+                "scored": result["scored"],
+                "overrides": sorted(extra_facts),
+            },
+        )
+        await db.conn.commit()
+    return result
+
+
+@router.get("/predictions/score-runs")
+async def prediction_score_runs(
+    season: int = Query(..., ge=1950, le=2100),
+    round_num: int = Query(..., ge=1, le=40, alias="round"),
+    _: AdminContext = Depends(require_admin_session),
+):
+    assert db.conn is not None
+    async with db.conn.execute(
+        """
+        SELECT id, season, round, revision, source, actor_user_id, answers_hash,
+               max_points, predictions_scored, created_at
+        FROM prediction_score_runs
+        WHERE season = ? AND round = ?
+        ORDER BY revision DESC
+        """,
+        (season, round_num),
+    ) as cursor:
+        return {"items": [dict(row) for row in await cursor.fetchall()]}
 
 
 @router.get("/audit-log")

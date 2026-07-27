@@ -7,20 +7,15 @@ from datetime import datetime, timedelta, timezone
 from aiogram import Bot
 
 from app.f1_data import (
-    get_quali_for_round_async,
-    get_race_results_async,
     get_season_schedule_short_async,
-    get_sprint_quali_results_async,
-    get_sprint_results_async,
     get_weekend_schedule,
 )
 from app.services.prediction_service import (
-    build_actual_answers,
     get_notification_state,
     get_stage_top,
     mark_notification_state,
     parse_utc,
-    score_prediction_round,
+    recalculate_prediction_round,
 )
 from app.utils.notifications import get_users_with_settings, is_quiet_hours
 from app.utils.safe_send import safe_send_message
@@ -139,34 +134,30 @@ async def check_and_notify_predictions(bot: Bot) -> None:
             continue
 
         try:
-            race_results, quali_payload, sprint_quali_results, sprint_results = await asyncio.gather(
-                get_race_results_async(season, round_num),
-                get_quali_for_round_async(season, round_num),
-                get_sprint_quali_results_async(season, round_num)
-                if event.get("sprint_quali_start_utc")
-                else asyncio.sleep(0, result=[]),
-                get_sprint_results_async(season, round_num)
-                if event.get("sprint_start_utc")
-                else asyncio.sleep(0, result=None),
+            # Scoring deliberately bypasses OpenF1 live positions and the
+            # 24-hour application cache. FastF1's post-session classification
+            # includes statuses, laps and fastest-lap facts needed by the matrix.
+            score_info = await recalculate_prediction_round(
+                season,
+                round_num,
+                str(event.get("event_name") or "Гран-при"),
+                has_sprint=bool(
+                    event.get("sprint_start_utc")
+                    or event.get("sprint_quali_start_utc")
+                ),
+                calculation_source="scheduler",
             )
+        except (ValueError, ArithmeticError):
+            logger.warning(
+                "Official prediction facts are not ready for %s/%s",
+                season,
+                round_num,
+                exc_info=True,
+            )
+            continue
         except Exception:
             logger.exception("Prediction result data failed for %s/%s", season, round_num)
             continue
-        if race_results is None or race_results.empty or len(race_results.index) < 10:
-            continue
-        qualifying_results = quali_payload[1] if isinstance(quali_payload, tuple) else quali_payload
-        answers = build_actual_answers(
-            race_results,
-            qualifying_results or [],
-            sprint_qualifying_results=sprint_quali_results or [],
-            sprint_results=sprint_results,
-        )
-        score_info = await score_prediction_round(
-            season,
-            round_num,
-            str(event.get("event_name") or "Гран-при"),
-            answers,
-        )
         top = await get_stage_top(season, round_num)
         sent = await _send_prediction_results(bot, event, top, notification_users)
         if sent or not notification_users:

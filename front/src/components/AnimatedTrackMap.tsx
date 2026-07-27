@@ -69,7 +69,7 @@ export function AnimatedTrackMap({
     svg.style.height = "100%";
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
-    const paths = svg.querySelectorAll("path, polyline");
+    const paths = svg.querySelectorAll<SVGElement>("path, polyline");
     const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     outlineGroup.classList.add("track-outline-group");

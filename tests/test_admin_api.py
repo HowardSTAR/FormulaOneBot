@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -222,4 +223,98 @@ async def test_admin_users_supports_server_side_sorting(temp_db_path, monkeypatc
             "user",
         ]
 
+    await database.close()
+
+
+@pytest.mark.asyncio
+async def test_superadmin_can_force_prediction_recalculation(temp_db_path, monkeypatch):
+    """Критический перерасчёт защищён CSRF/ролью и передаёт ручные факты в сервис."""
+    primary_email, _ = configured_primary_admin()
+    database = Database(temp_db_path)
+    await database.connect()
+    await database.init_tables()
+    mailer = MockMailer()
+    auth = AuthService(database, mailer, pepper="prediction-admin-pepper")
+    monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
+    monkeypatch.setattr(admin_api, "get_auth_service", lambda: auth)
+    monkeypatch.setattr(admin_api, "db", database)
+
+    primary = await create_verified_session(auth, mailer, primary_email)
+    schedule = AsyncMock(
+        return_value=[
+            {
+                "season": 2035,
+                "round": 6,
+                "event_name": "Admin Grand Prix",
+                "sprint_start_utc": None,
+                "sprint_quali_start_utc": None,
+                "is_cancelled": False,
+            }
+        ]
+    )
+    recalculate = AsyncMock(
+        return_value={
+            "max_points": 37,
+            "available_fields": [],
+            "scored": 4,
+            "revision": 2,
+            "changed": True,
+            "answers_hash": "a" * 64,
+            "answers": {},
+        }
+    )
+    monkeypatch.setattr(admin_api, "get_season_schedule_short_async", schedule)
+    monkeypatch.setattr(admin_api, "recalculate_prediction_round", recalculate)
+
+    transport = httpx.ASGITransport(app=web_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        client.cookies.set("f1hub_session", primary.token)
+        client.cookies.set("f1hub_csrf", primary.csrf_token)
+        missing_csrf = await client.post(
+            "/api/admin/predictions/recalculate",
+            json={"season": 2035, "round": 6},
+        )
+        assert missing_csrf.status_code == 403
+
+        response = await client.post(
+            "/api/admin/predictions/recalculate",
+            headers={"X-CSRF-Token": primary.csrf_token},
+            json={
+                "season": 2035,
+                "round": 6,
+                "race_positions": {
+                    "VER": 1,
+                    "NOR": 2,
+                    "PIA": 3,
+                    "LEC": 4,
+                    "HAM": 5,
+                },
+                "pole_driver": "VER",
+                "safety_car": True,
+                "first_retirement_driver": "NOR",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["revision"] == 2
+
+        audit = await client.get("/api/admin/audit-log")
+        assert audit.status_code == 200
+        assert audit.json()["items"][0]["action"] == "predictions.round_recalculated"
+
+    recalculate.assert_awaited_once()
+    kwargs = recalculate.await_args.kwargs
+    assert kwargs["calculation_source"] == "admin"
+    assert kwargs["actor_user_id"] == primary.user["id"]
+    assert kwargs["extra_facts"] == {
+        "_race_positions": {
+            "VER": 1,
+            "NOR": 2,
+            "PIA": 3,
+            "LEC": 4,
+            "HAM": 5,
+        },
+        "pole_driver": "VER",
+        "safety_car": True,
+        "first_retirement_driver": "NOR",
+    }
     await database.close()

@@ -62,6 +62,7 @@ async def app_with_overrides(temp_db_path):
         web_app,
     )
     from app.db import db, get_or_create_user
+    original_db_path = db.db_path
 
     async def fake_get_current_user_id():
         return 999888
@@ -70,6 +71,12 @@ async def app_with_overrides(temp_db_path):
     web_app.dependency_overrides[get_optional_user_id] = fake_get_current_user_id
 
     # Инициализация БД для тестов
+    # The application uses one process-wide Database instance. A previous test
+    # module may have left it connected to its own temporary file, so reconnect
+    # explicitly before initializing this fixture's isolated database.
+    if db.conn:
+        await db.close()
+    db.db_path = temp_db_path
     await db.connect()
     await db.init_tables()
     prediction_user_id = await get_or_create_user(999888)
@@ -82,6 +89,7 @@ async def app_with_overrides(temp_db_path):
     yield web_app
 
     await db.close()
+    db.db_path = original_db_path
     web_app.dependency_overrides.clear()
     if "DATABASE_PATH" in os.environ:
         del os.environ["DATABASE_PATH"]
