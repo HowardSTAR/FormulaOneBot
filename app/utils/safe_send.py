@@ -58,9 +58,9 @@ async def safe_send_photo(bot: Bot, chat_id: int, photo, caption: str = "", **kw
     try:
         normalized_photo = photo
         if isinstance(photo, BytesIO):
-            normalized_photo = BufferedInputFile(photo.getvalue(), filename="f1hub-results.png")
+            normalized_photo = BufferedInputFile(photo.getvalue(), filename="turbotears-results.png")
         elif isinstance(photo, (bytes, bytearray, memoryview)):
-            normalized_photo = BufferedInputFile(bytes(photo), filename="f1hub-results.png")
+            normalized_photo = BufferedInputFile(bytes(photo), filename="turbotears-results.png")
         await bot.send_photo(chat_id=chat_id, photo=normalized_photo, caption=caption or None, **kwargs)
         return True
     except TelegramForbiddenError:

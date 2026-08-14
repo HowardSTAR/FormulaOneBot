@@ -38,7 +38,7 @@ export default function ContactAdminPage() {
         <section className="contact-admin-intro">
           <span>Direct line</span>
           <h2>Связаться<br />с админом</h2>
-          <p>Сообщение уйдёт напрямую администратору F1Hub в Telegram.</p>
+          <p>Сообщение уйдёт напрямую администратору TurboTears в Telegram. Здесь также принимаются privacy- и IP-запросы.</p>
           <div className="contact-admin-route" aria-hidden>
             <i>01</i><b /><i>02</i><b /><i>03</i>
           </div>

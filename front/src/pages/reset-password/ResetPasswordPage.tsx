@@ -41,7 +41,7 @@ export default function ResetPasswordPage() {
     <main className="account-page reset-password-page">
       <BackButton>← <span>Назад</span></BackButton>
       <header className="account-hero">
-        <span>БЕЗОПАСНОСТЬ F1 HUB</span>
+        <span>БЕЗОПАСНОСТЬ TURBOTEARS</span>
         <h1>НОВЫЙ ПАРОЛЬ</h1>
         <p>Придумайте новый пароль для входа в аккаунт.</p>
       </header>

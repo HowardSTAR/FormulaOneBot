@@ -71,11 +71,11 @@ class SMTPMailer:
 
     async def send_verification_code(self, email: str, code: str, expires_minutes: int) -> None:
         message = EmailMessage()
-        message["Subject"] = "FormulaOne Hub: подтверждение email"
+        message["Subject"] = "TurboTears: подтверждение email"
         message["From"] = self.config.from_email
         message["To"] = email
         message.set_content(
-            "Код подтверждения FormulaOne Hub: "
+            "Код подтверждения TurboTears: "
             f"{code}\n\nКод действует {expires_minutes} минут. "
             "Если вы не запрашивали код, проигнорируйте это письмо."
         )
@@ -83,11 +83,11 @@ class SMTPMailer:
 
     async def send_password_reset(self, email: str, reset_url: str, expires_minutes: int) -> None:
         message = EmailMessage()
-        message["Subject"] = "FormulaOne Hub: восстановление пароля"
+        message["Subject"] = "TurboTears: восстановление пароля"
         message["From"] = self.config.from_email
         message["To"] = email
         message.set_content(
-            "Вы запросили смену пароля FormulaOne Hub.\n\n"
+            "Вы запросили смену пароля TurboTears.\n\n"
             f"Откройте ссылку: {reset_url}\n\n"
             f"Ссылка действует {expires_minutes} минут и может быть использована один раз. "
             "Если вы не запрашивали восстановление, проигнорируйте это письмо."
@@ -167,8 +167,8 @@ class YandexPostboxAPIMailer:
     async def send_verification_code(self, email: str, code: str, expires_minutes: int) -> None:
         await self._send_simple(
             email,
-            "FormulaOne Hub: подтверждение email",
-            "Код подтверждения FormulaOne Hub: "
+            "TurboTears: подтверждение email",
+            "Код подтверждения TurboTears: "
             f"{code}\n\nКод действует {expires_minutes} минут. "
             "Если вы не запрашивали код, проигнорируйте это письмо.",
         )
@@ -176,8 +176,8 @@ class YandexPostboxAPIMailer:
     async def send_password_reset(self, email: str, reset_url: str, expires_minutes: int) -> None:
         await self._send_simple(
             email,
-            "FormulaOne Hub: восстановление пароля",
-            "Вы запросили смену пароля FormulaOne Hub.\n\n"
+            "TurboTears: восстановление пароля",
+            "Вы запросили смену пароля TurboTears.\n\n"
             f"Откройте ссылку: {reset_url}\n\n"
             f"Ссылка действует {expires_minutes} минут и может быть использована один раз. "
             "Если вы не запрашивали восстановление, проигнорируйте это письмо.",

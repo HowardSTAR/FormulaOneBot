@@ -47,7 +47,7 @@ async def send_admin_feedback(
 
     telegram_line = f"\n<b>Telegram ID:</b> <code>{telegram_id}</code>" if telegram_id else ""
     text = (
-        "📨 <b>Обратная связь с F1Hub</b>\n\n"
+        "📨 <b>Обратная связь с TurboTears</b>\n\n"
         f"<b>Имя:</b> {html.escape(name)}\n"
         f"<b>Контакт:</b> {html.escape(contact)}"
         f"{telegram_line}\n\n"

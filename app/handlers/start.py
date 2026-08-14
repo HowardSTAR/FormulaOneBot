@@ -38,7 +38,7 @@ async def cmd_start(message: Message, state: FSMContext):
     )
 
     welcome_text = (
-        "🏎 **Добро пожаловать в FormulaOne Hub!**\n\n"
+        "🏎 **Добро пожаловать в TurboTears!**\n\n"
         "Я твой персональный паддок в Telegram. Здесь есть всё для фаната F1:\n\n"
         "🏁 **Календарь и Гонки**\n"
         "Расписание этапов, время старта и обратный отсчет до зеленых огней.\n\n"

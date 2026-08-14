@@ -113,7 +113,7 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
     notif_status = "🟢 Вкл" if notifications_enabled else "🔴 Выкл"
 
     text = (
-        "⚙️ <b>Настройки F1 Hub</b>\n\n"
+        "⚙️ <b>Настройки TurboTears</b>\n\n"
         f"🌍 <b>Часовой пояс:</b> {tz_label}\n"
         f"⏰ <b>Напоминать за:</b> {notify_str} до гонки\n"
         f"🔔 <b>Статус уведомлений:</b> {notif_status}\n\n"

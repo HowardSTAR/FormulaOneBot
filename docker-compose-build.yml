@@ -8,6 +8,10 @@ x-app-common: &app-common
     args:
       APP_VERSION: ${APP_VERSION:-latest}
       VITE_API_URL: ""
+      VITE_LEGAL_OPERATOR_NAME: ${LEGAL_OPERATOR_NAME:-}
+      VITE_LEGAL_OPERATOR_ADDRESS: ${LEGAL_OPERATOR_ADDRESS:-}
+      VITE_LEGAL_CONTACT_EMAIL: ${LEGAL_CONTACT_EMAIL:-}
+      VITE_DATA_STORAGE_LOCATION: ${DATA_STORAGE_LOCATION:-}
   env_file:
     - .env
   environment:

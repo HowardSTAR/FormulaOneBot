@@ -219,7 +219,7 @@ def _profile_http_session() -> aiohttp.ClientSession:
     ssl_context = ssl.create_default_context(cafile=certifi.where())
     return aiohttp.ClientSession(
         connector=aiohttp.TCPConnector(ssl=ssl_context),
-        headers={"User-Agent": "F1Hub/1.0 (Formula One statistics app; f1hub.ru) aiohttp"},
+        headers={"User-Agent": "TurboTears/1.0 (independent non-commercial motorsport statistics service) aiohttp"},
     )
 
 

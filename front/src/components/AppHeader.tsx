@@ -21,7 +21,7 @@ type NavGroup = {
 const PRIMARY_NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Обзор", icon: "home", activePaths: ["/"] },
   { to: "/season", label: "Календарь", icon: "calendar", activePaths: ["/season", "/next-race", "/race-details"] },
-  { to: "/wiki", label: "Wiki F1", icon: "wiki", activePaths: ["/wiki"] },
+  { to: "/wiki", label: "Wiki Formula 1™", icon: "wiki", activePaths: ["/wiki"] },
   { to: "/account", label: "Аккаунт", icon: "account", activePaths: ["/account"] },
   { to: "/contact-admin", label: "Обратная связь", icon: "contact", activePaths: ["/contact-admin"] },
 ];
@@ -142,8 +142,8 @@ export function AppHeader() {
   return (
     <header className="app-header">
       <div className="app-header-brand-wrap">
-        <Link to="/" className="app-header-brand" aria-label="F1Hub — главная">
-          <span className="app-header-brand-f1">F1</span><span>Hub</span>
+        <Link to="/" className="app-header-brand" aria-label="TurboTears — главная">
+          <span className="app-header-brand-accent">Turbo</span><span>Tears</span>
         </Link>
         <span className="app-header-brand-caption">Race intelligence</span>
       </div>
@@ -218,8 +218,8 @@ export function AppHeader() {
         ) : null}
 
         <div className="app-header-status">
-          <span><i aria-hidden />API online</span>
-          <small>Данные Formula 1</small>
+          <span><i aria-hidden />Сервис данных онлайн</span>
+          <small>Неофициальные данные автоспорта</small>
         </div>
       </div>
     </header>

@@ -362,7 +362,7 @@ async def test_safe_send_photo_wraps_bytes_for_aiogram():
     assert sent is True
     photo = bot.send_photo.await_args.kwargs["photo"]
     assert isinstance(photo, BufferedInputFile)
-    assert photo.filename == "f1hub-results.png"
+    assert photo.filename == "turbotears-results.png"
 
 
 @pytest.mark.asyncio

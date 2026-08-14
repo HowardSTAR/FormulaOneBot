@@ -277,7 +277,7 @@ export default function AdminPage() {
     <div className="admin-page">
       <header className="admin-hero">
         <div>
-          <span className="admin-eyebrow">F1Hub Control Center</span>
+          <span className="admin-eyebrow">TurboTears Control Center</span>
           <h1>Администрирование</h1>
           <p>Активность, пользователи, роли и журнал критических действий.</p>
         </div>
