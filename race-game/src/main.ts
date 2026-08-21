@@ -11,6 +11,19 @@ type RaceState = 'ready' | 'countdown' | 'racing' | 'paused' | 'finished'
 
 type TouchControl = 'left' | 'right' | 'throttle' | 'brake'
 
+type LeaderboardEntry = {
+  place: number
+  telegram_id: number
+  name: string
+  time_ms: number
+  is_me: boolean
+}
+
+type LeaderboardResponse = {
+  entries: LeaderboardEntry[]
+  me: LeaderboardEntry | null
+}
+
 const touchState: Record<TouchControl, boolean> = {
   left: false,
   right: false,
@@ -78,6 +91,18 @@ const ui = {
   resultTime: $('#result-time'),
   bestTime: $('#best-time'),
   start: $('#start-button') as HTMLButtonElement,
+  menu: $('#game-menu'),
+  menuButton: $('#menu-button') as HTMLButtonElement,
+  menuClose: $('#menu-close-button') as HTMLButtonElement,
+  menuBackdrop: $('#menu-backdrop') as HTMLButtonElement,
+  menuContinue: $('#menu-continue-button') as HTMLButtonElement,
+  menuLeaderboard: $('#menu-leaderboard-button') as HTMLButtonElement,
+  introLeaderboard: $('#intro-leaderboard-button') as HTMLButtonElement,
+  menuMainView: $('#menu-main-view'),
+  leaderboardView: $('#menu-leaderboard-view'),
+  leaderboardBack: $('#leaderboard-back-button') as HTMLButtonElement,
+  leaderboardList: $('#leaderboard-list'),
+  leaderboardMyPlace: $('#leaderboard-my-place'),
   reset: $('#reset-button') as HTMLButtonElement,
   pause: $('#pause-button') as HTMLButtonElement,
 }
@@ -88,6 +113,114 @@ const formatTime = (milliseconds: number): string => {
   const seconds = Math.floor((safeMilliseconds % 60_000) / 1_000)
   const millis = Math.floor(safeMilliseconds % 1_000)
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`
+}
+
+const assetUrl = (filename: string): string => new URL(`./assets/${filename}`, window.location.href).toString()
+
+const readCookie = (name: string): string | null => {
+  const prefix = `${encodeURIComponent(name)}=`
+  const item = document.cookie.split('; ').find((value) => value.startsWith(prefix))
+  return item ? decodeURIComponent(item.slice(prefix.length)) : null
+}
+
+const getTelegramInitData = (): string => {
+  type TelegramWindow = Window & { Telegram?: { WebApp?: { initData?: string } } }
+  const current = (window as TelegramWindow).Telegram?.WebApp?.initData
+  if (current) return current
+  try {
+    return ((window.parent as TelegramWindow).Telegram?.WebApp?.initData) ?? ''
+  } catch {
+    return ''
+  }
+}
+
+const apiRequest = async <T>(endpoint: string, body?: Record<string, number>): Promise<T> => {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const initData = getTelegramInitData()
+  const csrf = readCookie('turbotears_csrf')
+  if (initData) headers['X-Telegram-Init-Data'] = initData
+  if (csrf) headers['X-CSRF-Token'] = csrf
+
+  const response = await fetch(endpoint, {
+    method: body ? 'POST' : 'GET',
+    headers,
+    credentials: 'include',
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (!response.ok) {
+    let message = response.status === 401
+      ? 'Войдите в аккаунт, чтобы сохранить результат.'
+      : `Не удалось загрузить рейтинг (${response.status}).`
+    try {
+      const payload = await response.json() as { detail?: string | { message?: string } }
+      message = typeof payload.detail === 'string' ? payload.detail : payload.detail?.message || message
+    } catch { /* ответ без JSON */ }
+    throw new Error(message)
+  }
+  return await response.json() as T
+}
+
+const showMenuView = (view: 'main' | 'leaderboard'): void => {
+  ui.menuMainView.hidden = view !== 'main'
+  ui.leaderboardView.hidden = view !== 'leaderboard'
+}
+
+const renderLeaderboard = (data: LeaderboardResponse): void => {
+  ui.leaderboardList.replaceChildren()
+  ui.leaderboardMyPlace.textContent = data.me ? `Ваше место: #${data.me.place}` : 'Нет результата'
+
+  if (data.entries.length === 0) {
+    const message = document.createElement('div')
+    message.className = 'leaderboard-message'
+    message.textContent = 'Пока нет результатов. Станьте первым на трассе!'
+    ui.leaderboardList.append(message)
+    return
+  }
+
+  data.entries.forEach((entry) => {
+    const row = document.createElement('div')
+    row.className = `leaderboard-row${entry.is_me ? ' is-me' : ''}${entry.place <= 3 ? ' is-top' : ''}`
+
+    const place = document.createElement('span')
+    place.className = 'leaderboard-place'
+    place.textContent = `#${entry.place}`
+
+    const name = document.createElement('span')
+    name.className = 'leaderboard-name'
+    name.textContent = entry.name
+
+    const time = document.createElement('span')
+    time.className = 'leaderboard-time'
+    time.textContent = formatTime(entry.time_ms)
+
+    row.append(place, name, time)
+    ui.leaderboardList.append(row)
+  })
+}
+
+const loadLeaderboard = async (): Promise<void> => {
+  ui.leaderboardList.innerHTML = '<div class="leaderboard-message">Загрузка результатов…</div>'
+  try {
+    renderLeaderboard(await apiRequest<LeaderboardResponse>('/api/race-game-leaderboard'))
+  } catch (error) {
+    ui.leaderboardMyPlace.textContent = '—'
+    ui.leaderboardList.innerHTML = ''
+    const message = document.createElement('div')
+    message.className = 'leaderboard-message'
+    message.textContent = error instanceof Error ? error.message : 'Не удалось загрузить таблицу лидеров.'
+    ui.leaderboardList.append(message)
+  }
+}
+
+const submitRaceTime = async (timeMs: number): Promise<boolean> => {
+  try {
+    const response = await apiRequest<{ saved: boolean }>('/api/race-game-leaderboard/score', {
+      time_ms: Math.round(timeMs),
+    })
+    return response.saved
+  } catch {
+    return false
+  }
 }
 
 const distanceToSegment = (
@@ -137,14 +270,15 @@ class RaceScene extends Phaser.Scene {
   private currentLap = 1
   private nextCheckpoint = 1
   private onRoad = true
+  private stateBeforeMenu: RaceState | null = null
 
   constructor() {
     super('race')
   }
 
   preload(): void {
-    this.load.image('track', '/assets/emerald-loop-track.png')
-    this.load.image('car', '/assets/open-wheel-car.png')
+    this.load.image('track', assetUrl('emerald-loop-track.png'))
+    this.load.image('car', assetUrl('open-wheel-car.png'))
   }
 
   create(): void {
@@ -152,15 +286,16 @@ class RaceScene extends Phaser.Scene {
 
     const dustPixel = this.make.graphics({ x: 0, y: 0 })
     dustPixel.fillStyle(0xd2b77d, 1)
-    dustPixel.fillCircle(4, 4, 4)
-    dustPixel.generateTexture('dust-pixel', 8, 8)
+    dustPixel.fillStyle(0xe0c48c, 0.92)
+    dustPixel.fillCircle(9, 9, 9)
+    dustPixel.generateTexture('dust-pixel', 18, 18)
     dustPixel.destroy()
 
     this.dust = this.add.particles(0, 0, 'dust-pixel', {
-      speed: { min: 8, max: 36 },
-      lifespan: { min: 240, max: 520 },
-      scale: { start: 0.9, end: 0 },
-      alpha: { start: 0.45, end: 0 },
+      speed: { min: 22, max: 72 },
+      lifespan: { min: 520, max: 980 },
+      scale: { start: 1.25, end: 0.18 },
+      alpha: { start: 0.78, end: 0 },
       quantity: 0,
       frequency: -1,
       blendMode: Phaser.BlendModes.NORMAL,
@@ -257,6 +392,25 @@ class RaceScene extends Phaser.Scene {
     this.countdownRemaining = 3000
     this.goFlashRemaining = 0
     ui.pause.textContent = 'Ⅱ'
+  }
+
+  openGameMenu(showLeaderboard = false): void {
+    if (!ui.menu.classList.contains('is-visible')) {
+      this.stateBeforeMenu = this.raceState
+      if (this.raceState === 'racing' || this.raceState === 'countdown') this.raceState = 'paused'
+    }
+    this.clearTouchState()
+    showMenuView(showLeaderboard ? 'leaderboard' : 'main')
+    ui.menu.classList.add('is-visible')
+    ui.menu.setAttribute('aria-hidden', 'false')
+    if (showLeaderboard) void loadLeaderboard()
+  }
+
+  closeGameMenu(): void {
+    ui.menu.classList.remove('is-visible')
+    ui.menu.setAttribute('aria-hidden', 'true')
+    if (this.stateBeforeMenu) this.raceState = this.stateBeforeMenu
+    this.stateBeforeMenu = null
   }
 
   togglePause(): void {
@@ -369,10 +523,10 @@ class RaceScene extends Phaser.Scene {
       this.velocity.y *= -0.25
     }
 
-    if (!this.onRoad && this.velocity.lengthSq() > 4_000 && Math.random() < delta * 18) {
+    if (!this.onRoad && this.velocity.lengthSq() > 2_500 && Math.random() < delta * 26) {
       const backX = this.car.x - Math.cos(this.heading) * 24
       const backY = this.car.y - Math.sin(this.heading) * 24
-      this.dust.emitParticleAt(backX, backY, 1)
+      this.dust.emitParticleAt(backX, backY, Phaser.Math.Between(2, 4))
     }
 
     this.updateCarRotation()
@@ -415,6 +569,12 @@ class RaceScene extends Phaser.Scene {
     ui.start.textContent = 'ЕЩЁ ОДИН ЗАЕЗД'
     ui.modal.classList.add('is-visible')
     this.clearTouchState()
+    const finishedTime = this.elapsedTime
+    void submitRaceTime(finishedTime).then((saved) => {
+      if (saved && this.raceState === 'finished' && this.elapsedTime === finishedTime) {
+        ui.modalCopy.textContent = 'Три круга завершены. Результат сохранён в браузере и таблице лидеров.'
+      }
+    })
   }
 
   private setSurfaceState(onRoad: boolean): void {
@@ -437,8 +597,8 @@ class RaceScene extends Phaser.Scene {
     const height = this.scale.height
     const portrait = height > width
     const zoom = portrait
-      ? Phaser.Math.Clamp(width / 430, 0.78, 1.04)
-      : Phaser.Math.Clamp(height / 650, 0.92, 1.28)
+      ? Phaser.Math.Clamp(width / 310, 1.1, 1.55)
+      : Phaser.Math.Clamp(height / 480, 1.18, 1.6)
     this.cameras.main.setZoom(zoom)
   }
 }
@@ -472,6 +632,16 @@ ui.start.addEventListener('click', () => {
 })
 ui.reset.addEventListener('click', () => activeScene?.resetToTrack())
 ui.pause.addEventListener('click', () => activeScene?.togglePause())
+ui.menuButton.addEventListener('click', () => activeScene?.openGameMenu())
+ui.menuClose.addEventListener('click', () => activeScene?.closeGameMenu())
+ui.menuBackdrop.addEventListener('click', () => activeScene?.closeGameMenu())
+ui.menuContinue.addEventListener('click', () => activeScene?.closeGameMenu())
+ui.menuLeaderboard.addEventListener('click', () => {
+  showMenuView('leaderboard')
+  void loadLeaderboard()
+})
+ui.introLeaderboard.addEventListener('click', () => activeScene?.openGameMenu(true))
+ui.leaderboardBack.addEventListener('click', () => showMenuView('main'))
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) activeScene?.togglePause()
