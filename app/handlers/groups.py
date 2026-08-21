@@ -33,7 +33,7 @@ async def bot_added_to_group(event: ChatMemberUpdated, bot: Bot):
     logger.info(f"Bot added to group {chat_id}, subscribed to notifications.")
     await bot.send_message(
         chat_id,
-        "🏎 <b>FormulaOne Hub</b> в чате!\n\n"
+        "🏎 <b>TurboTears</b> в чате!\n\n"
         "Используйте команды:\n"
         "• <code>/drivers</code> — личный зачёт\n"
         "• <code>/teams</code> — кубок конструкторов\n"
@@ -58,7 +58,7 @@ async def bot_removed_from_group(event: ChatMemberUpdated):
 async def cmd_f1_help_group(message: Message):
     """Справка по командам бота в группе."""
     await message.answer(
-        "🏎 <b>Команды FormulaOne Hub</b>\n\n"
+        "🏎 <b>Команды TurboTears</b>\n\n"
         "<code>/drivers</code> [год] — личный зачёт пилотов\n"
         "<code>/teams</code> [год] — кубок конструкторов\n"
         "<code>/next_race</code> — следующая гонка\n"

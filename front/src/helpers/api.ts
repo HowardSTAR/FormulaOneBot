@@ -51,7 +51,7 @@ export async function apiRequest<T = unknown>(
   if (initData) {
     headers['X-Telegram-Init-Data'] = initData;
   }
-  const csrf = readCookie('f1hub_csrf');
+  const csrf = readCookie('turbotears_csrf');
   if (csrf) {
     headers['X-CSRF-Token'] = csrf;
   }

@@ -27,6 +27,13 @@ import PredictionsPage from "./pages/predictions/PredictionsPage";
 import PracticeResultsPage from "./pages/practice-results/PracticeResultsPage";
 import ContactAdminPage from "./pages/contact-admin/ContactAdminPage";
 import WikiPage from "./pages/wiki/WikiPage";
+import {
+  DataDeletionPage,
+  DataSourcesPage,
+  IntellectualPropertyPage,
+  PrivacyPage,
+  TermsPage,
+} from "./pages/legal/LegalPages";
 import { RequireAdmin } from "./components/RequireAdmin";
 
 const AdminPage = lazy(() => import("./pages/admin/AdminPage"));
@@ -60,6 +67,11 @@ export const router = createBrowserRouter([
       { path: "/sprint-results", element: <SprintResultsPage /> },
       { path: "/voting", element: <RequirePersonalAccount><VotingPage /></RequirePersonalAccount> },
       { path: "/wiki", element: <WikiPage /> },
+      { path: "/privacy", element: <PrivacyPage /> },
+      { path: "/terms", element: <TermsPage /> },
+      { path: "/legal/ip", element: <IntellectualPropertyPage /> },
+      { path: "/about/data", element: <DataSourcesPage /> },
+      { path: "/account/delete", element: <DataDeletionPage /> },
       {
         path: "/admin",
         element: (

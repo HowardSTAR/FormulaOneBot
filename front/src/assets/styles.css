@@ -88,7 +88,7 @@ body {
     white-space: nowrap;
 }
 
-.app-header-brand-f1 {
+.app-header-brand-accent {
     color: var(--primary);
 }
 
@@ -151,7 +151,7 @@ body {
         text-transform: uppercase;
     }
 
-    .app-header-brand-f1 {
+    .app-header-brand-accent {
         margin-right: 2px;
     }
 
@@ -353,6 +353,80 @@ body {
 
 @keyframes fadeIn {
     to { opacity: 1; }
+}
+
+/* --- Обязательная правовая информация --- */
+.legal-footer {
+    display: grid;
+    gap: 12px;
+    margin: 36px auto 8px;
+    padding: 22px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: rgba(15, 17, 22, 0.88);
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.legal-footer-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.legal-footer-heading strong {
+    color: var(--text-primary);
+    font-family: "Space Grotesk", "Inter", sans-serif;
+    font-size: 18px;
+    text-transform: uppercase;
+}
+
+.legal-footer-heading span {
+    color: #ff8e89;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.legal-footer p {
+    max-width: 980px;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.legal-footer-trademark {
+    color: #777b83;
+}
+
+.legal-footer nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+}
+
+.legal-footer a {
+    color: #d9dbe0;
+    text-underline-offset: 3px;
+}
+
+.legal-footer a:hover {
+    color: #ffb4a8;
+}
+
+.legal-footer small {
+    color: #686c74;
+}
+
+@media (max-width: 899px) {
+    .legal-footer {
+        margin-top: 24px;
+        padding: 16px;
+    }
+
+    .legal-footer-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
 }
 
 /* --- Типография --- */

@@ -43,8 +43,8 @@ async def test_email_session_csrf_and_link_endpoint(temp_db_path, monkeypatch):
         )
         assert verified.status_code == 200
         payload = verified.json()
-        assert client.cookies.get("f1hub_session")
-        assert client.cookies.get("f1hub_csrf") == payload["csrf_token"]
+        assert client.cookies.get("turbotears_session")
+        assert client.cookies.get("turbotears_csrf") == payload["csrf_token"]
 
         changed = await client.post(
             "/api/auth/password/change",
@@ -81,6 +81,94 @@ async def test_email_session_csrf_and_link_endpoint(temp_db_path, monkeypatch):
         )
         assert logged_out.status_code == 204
         assert (await client.get("/api/auth/me")).status_code == 401
+
+    await database.close()
+
+
+@pytest.mark.asyncio
+async def test_account_deletion_removes_linked_personal_data(temp_db_path, monkeypatch):
+    """Authenticated deletion removes the account and Telegram-keyed personal records."""
+    database = Database(temp_db_path)
+    await database.connect()
+    await database.init_tables()
+    mailer = MockMailer()
+    auth = AuthService(database, mailer, pepper="test-pepper-with-enough-entropy")
+    monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
+    monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
+
+    transport = httpx.ASGITransport(app=web_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        await client.post(
+            "/api/auth/register",
+            json={"email": "delete@example.com", "password": "TurboTears-2026-Secure"},
+        )
+        verified = await client.post(
+            "/api/auth/verify-email",
+            json={"email": "delete@example.com", "code": str(mailer.messages[-1]["code"])},
+        )
+        assert verified.status_code == 200
+        payload = verified.json()
+        user_id = int(payload["user"]["id"])
+        telegram_id = 99887766
+
+        await database.conn.execute(
+            "UPDATE users SET telegram_id = ?, display_name = ?, telegram_username = ? WHERE id = ?",
+            (telegram_id, "Delete Me", "delete_me", user_id),
+        )
+        await database.conn.execute(
+            "INSERT INTO favorite_drivers(user_id, driver_code) VALUES (?, 'NOR')",
+            (user_id,),
+        )
+        await database.conn.execute(
+            "INSERT INTO event_reminder_sent(telegram_id, season, round, is_quali, notify_before_min) VALUES (?, 2026, 1, 0, 60)",
+            (telegram_id,),
+        )
+        await database.conn.execute(
+            "INSERT INTO reaction_leaderboard_profiles(telegram_id, display_name) VALUES (?, 'Delete Me')",
+            (telegram_id,),
+        )
+        await database.conn.execute(
+            "INSERT INTO reaction_leaderboard_scores(telegram_id, time_ms) VALUES (?, 250)",
+            (telegram_id,),
+        )
+        await database.conn.execute(
+            "INSERT INTO reflex_grid_scores(telegram_id, mode, difficulty, score, time_ms) VALUES (?, 'timed', 'easy', 10, 1000)",
+            (telegram_id,),
+        )
+        await database.conn.commit()
+
+        rejected = await client.request(
+            "DELETE",
+            "/api/auth/account",
+            headers={"X-CSRF-Token": payload["csrf_token"]},
+            json={"confirmation": "DELETE", "current_password": "Wrong-Password-2026"},
+        )
+        assert rejected.status_code == 401
+
+        deleted = await client.request(
+            "DELETE",
+            "/api/auth/account",
+            headers={"X-CSRF-Token": payload["csrf_token"]},
+            json={"confirmation": "DELETE", "current_password": "TurboTears-2026-Secure"},
+        )
+        assert deleted.status_code == 204
+        assert client.cookies.get("turbotears_session") is None
+        assert (await client.get("/api/auth/me")).status_code == 401
+
+        for table, column, value in (
+            ("users", "id", user_id),
+            ("favorite_drivers", "user_id", user_id),
+            ("event_reminder_sent", "telegram_id", telegram_id),
+            ("reaction_leaderboard_profiles", "telegram_id", telegram_id),
+            ("reaction_leaderboard_scores", "telegram_id", telegram_id),
+            ("reflex_grid_scores", "telegram_id", telegram_id),
+        ):
+            async with database.conn.execute(
+                f'SELECT COUNT(*) AS count FROM "{table}" WHERE "{column}" = ?',
+                (value,),
+            ) as cursor:
+                row = await cursor.fetchone()
+            assert int(row["count"]) == 0
 
     await database.close()
 
@@ -244,7 +332,7 @@ async def test_forgot_password_email_link_resets_password_via_http(temp_db_path,
     auth = AuthService(database, mailer, pepper="test-pepper-with-enough-entropy")
     monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
     monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
-    monkeypatch.setenv("PUBLIC_WEB_URL", "https://f1hub.example")
+    monkeypatch.setenv("PUBLIC_WEB_URL", "https://turbotears.example")
 
     transport = httpx.ASGITransport(app=web_app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -264,7 +352,7 @@ async def test_forgot_password_email_link_resets_password_via_http(temp_db_path,
             "/api/auth/password/forgot", json={"email": "recover-api@example.com"}
         )).status_code == 202
         reset_url = str(mailer.messages[-1]["reset_url"])
-        assert reset_url.startswith("https://f1hub.example/reset-password?token=")
+        assert reset_url.startswith("https://turbotears.example/reset-password?token=")
         token = parse_qs(urlparse(reset_url).query)["token"][0]
 
         reset = await client.post(

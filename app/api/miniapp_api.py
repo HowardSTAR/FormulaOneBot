@@ -100,7 +100,11 @@ async def lifespan(app: FastAPI):
         await db.close()
 
 
-web_app = FastAPI(title="FormulaOneBot Mini App API", lifespan=lifespan)
+web_app = FastAPI(
+    title="TurboTears API",
+    description="API независимого некоммерческого сервиса данных об автоспорте.",
+    lifespan=lifespan,
+)
 
 web_origins = [
     origin.strip()

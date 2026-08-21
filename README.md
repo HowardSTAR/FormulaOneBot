@@ -1,144 +1,113 @@
-# 🏎️ FormulaOneBot: Your Ultimate F1 Companion
+# TurboTears
 
-**[FormulaOneBot](t.me/@turbotearsbot)** — это продвинутая экосистема для фанатов Формулы-1, объединяющая мощь Telegram-бота и интерактивность современного Mini App. Проект позволяет отслеживать результаты гонок, сравнивать пилотов и получать актуальную информацию о сезоне в реальном времени.
-<img width="2653" height="3040" alt="image" src="https://github.com/user-attachments/assets/36160bf7-b30b-4221-a586-c2e8d4b3ce7f" />
+Open-source motorsport statistics and race companion.
 
+[TurboTears](https://t.me/turbotearsbot) — независимый неофициальный некоммерческий проект с Telegram-ботом и Web/Mini App. Он показывает расписания, результаты, сравнения и аналитику автоспорта.
 
----
+Проект не является официальным продуктом и не связан с Formula One Group, FIA, командами, гонщиками или организаторами этапов.
 
-## ✨ Основные возможности
+## Возможности
 
-* **📅 Расписание и результаты:** Полный календарь Гран-при с обратным отсчетом до следующей гонки.
-* **📊 Сравнение пилотов:** Уникальный функционал сопоставления статистики гонщиков для анализа их формы.
-* **🏆 Таблицы чемпионата:** Актуальные данные личного зачета и Кубка конструкторов.
-* **📍 Интерактивные трассы:** Встроенные карты автодромов для каждого этапа.
-* **📱 Telegram Mini App:** Полноценный веб-интерфейс прямо внутри мессенджера для максимально удобного UX.
-* **⭐ Избранное:** Возможность подписываться на любимых пилотов и команды.
+- календарь этапов и расписание сессий;
+- результаты практик, квалификаций, спринтов и гонок;
+- зачёты пилотов и команд;
+- сравнение статистики;
+- избранное, уведомления, голосования и прогнозы;
+- независимые игры «Тест реакции» и Reflex Grid;
+- единый профиль сайта и Telegram.
 
----
+## Статус проекта
 
-## 🛠 Технологический стек
+TurboTears распространяется как бесплатный некоммерческий фан-проект. До получения отдельных разрешений в проекте не должны появляться подписки, реклама, платные уровни, спонсорская интеграция или продажа доступа к данным.
 
-Проект построен на базе современной микросервисной архитектуры:
+Гоночные данные агрегируются через независимые сторонние интеграции, включая OpenF1, FastF1 и Jolpica-совместимые API. MIT-лицензия FastF1 относится к коду библиотеки и сама по себе не лицензирует результаты, статистику или timing data.
 
-### **Backend**
+## Правовая информация
 
-* **Python 3.10+**: Основной язык разработки.
-* **Aiogram 3.x**: Асинхронный фреймворк для Telegram-бота.
-* **FastAPI**: Высокопроизводительный API для связи Mini App с данными.
-* **SQLAlchemy**: ORM для работы с базой данных (PostgreSQL/SQLite).
+В Web/Mini App доступны публичные маршруты:
 
-### **Frontend (Mini App)**
+- `/privacy` — политика конфиденциальности;
+- `/terms` — условия использования;
+- `/legal/ip` — уведомление об интеллектуальной собственности и takedown-процедура;
+- `/about/data` — источники и ограничения данных;
+- `/account/delete` — порядок удаления аккаунта и персональных данных.
 
-* **React + TypeScript**: Надежная и типизированная фронтенд-логика.
-* **Vite**: Быстрая сборка и горячая перезагрузка.
-* **CSS-in-JS / Tailwind**: Современная стилизация интерфейса.
+Перед production-сборкой заполните фактические реквизиты оператора из `front/.env.example`, проверьте `LEGAL_COMPLIANCE.md` и зарегистрируйте URL собственной Privacy Policy через BotFather.
 
-### **Infrastructure**
+### Trademark notice
 
-* **Docker & Docker Compose**: Контейнеризация для быстрого развертывания.
-* **Nginx**: Обратный прокси для обслуживания веб-части.
+F1, FORMULA ONE, FORMULA 1, FIA FORMULA ONE WORLD CHAMPIONSHIP, GRAND PRIX and related marks are trade marks of Formula One Licensing B.V. This project is independent and is not affiliated with or endorsed by Formula One Group.
 
----
+Текстовые названия чемпионата, этапов, команд и гонщиков используются только в информационном контексте. Лицензия репозитория не распространяется на сторонние товарные знаки, данные или материалы: см. `LICENSE`, `THIRD_PARTY_NOTICES.md` и `ASSET_LICENSES.md`.
 
-## 📸 Интерфейс приложения
-<img width="454" height="1000" alt="image" src="https://github.com/user-attachments/assets/64de71cc-4114-4c85-a0b8-e25938e81b97" />
+## Технологии
 
-<img width="463" height="823" alt="image" src="https://github.com/user-attachments/assets/f75dd5bd-cafe-4832-9995-c09cc3630ce8" />
+- Python 3.11, FastAPI, Aiogram 3, aiosqlite;
+- React 19, TypeScript, Vite;
+- Redis, Docker Compose, Nginx;
+- FastF1, OpenF1 и Jolpica-интеграции.
 
-<img width="460" height="601" alt="image" src="https://github.com/user-attachments/assets/e14cd7eb-eb76-4729-b612-fb98e0622a11" />
-
-<img width="450" height="821" alt="image" src="https://github.com/user-attachments/assets/27fcdf98-7e86-4178-9161-5be148b828b8" />
-
----
-
-## 📂 Структура проекта
+## Структура
 
 ```text
-FormulaOneBot/
-├── app/                # Backend логика (Python)
-│   ├── api/            # FastAPI эндпоинты для Mini App
-│   ├── handlers/       # Обработчики команд Telegram бота
-│   ├── utils/          # Вспомогательные инструменты (рендеринг, время)
-│   └── bot.py          # Точка входа в бота
-├── front/              # Исходный код Mini App (React)
-│   └── src/            # Страницы (compare, drivers, next-race)
-├── web/                # Статические файлы и шаблоны (возможно уже ушел от этог)
-├── assets/             # Изображения пилотов, команд и трасс (2025/2026)
-└── docker-compose.yml  # Оркестрация контейнеров
-
+TurboTears/
+├── app/                  # bot, API, auth, database and services
+├── front/                # React Web / Telegram Mini App
+├── tests/                # backend integration and unit tests
+├── deploy/jenkins/       # CI deployment configuration
+├── LICENSE
+├── THIRD_PARTY_NOTICES.md
+├── ASSET_LICENSES.md
+└── LEGAL_COMPLIANCE.md
 ```
 
----
+## Локальный запуск
 
-## 🚀 Быстрый старт
-
-### 1. Подготовка окружения
-
-Клонируйте репозиторий и создайте файл `.env` в корне проекта:
+Backend:
 
 ```bash
-BOT_TOKEN=your_telegram_bot_token
-ADMIN_TELEGRAM_ID=123456789
-ADMIN_EMAIL=admin@example.com
-DATABASE_URL=sqlite+aiosqlite:///./bot.db
-WEB_APP_URL=https://your-domain.com
-
-```
-
-### 2. Запуск через Docker
-
-Самый простой способ запустить весь стек (бот + API + фронтенд):
-
-```bash
-docker-compose up -d --build
-
-```
-
-### 3. Ручная установка (Dev)
-
-**Backend:**
-
-```bash
+python -m venv .venv
 pip install -r requirements.txt
 python run_web.py
-
 ```
 
-**Frontend:**
+Frontend:
 
 ```bash
 cd front
-npm install
+npm ci
 npm run dev
-
 ```
 
----
+Подробности находятся в `LOCAL_WEB_GUIDE.md`.
 
-## 🔧 Настройка
-
-Данные о пилотах и командах на сезон 2026 уже интегрированы в проект.
-
-### Медиа-ассеты
-
-Изображения, шрифты и остальные файлы из `app/assets` хранятся в корневом
-архиве `app-assets.zip`. Во время сборки Docker архив автоматически
-распаковывается в `/app/app/assets`.
-
-Чтобы обновить ассеты локально:
+## Docker
 
 ```bash
-unzip app-assets.zip
-# внесите изменения в app/assets
-./scripts/pack_assets.sh
+docker compose -f docker-compose-build.yml up -d --build
 ```
 
-После упаковки каталог `app/assets` можно удалить: он исключён из Git и Docker
-build context и не нужен для сборки контейнера.
+Production-сборка получает публичные юридические реквизиты через build args:
 
-## Jenkins CI
+```dotenv
+LEGAL_OPERATOR_NAME=
+LEGAL_OPERATOR_ADDRESS=
+LEGAL_CONTACT_EMAIL=
+DATA_STORAGE_LOCATION=
+```
 
-Готовые Docker Compose, Nginx, Jenkinsfile, скрипты и пошаговая инструкция по
-GitHub webhook находятся в
-[deploy/jenkins/README.md](deploy/jenkins/README.md).
+## Интерфейс приложения
+
+Существующие демонстрационные изображения сохранены без изменения в рамках текущей задачи. Их публикацию и содержимое необходимо проверить вместе с остальными визуальными материалами в отдельном asset-аудите.
+
+<img width="2653" height="3040" alt="TurboTears interface" src="https://github.com/user-attachments/assets/36160bf7-b30b-4221-a586-c2e8d4b3ce7f" />
+
+<img width="454" height="1000" alt="TurboTears interface" src="https://github.com/user-attachments/assets/64de71cc-4114-4c85-a0b8-e25938e81b97" />
+
+## Assets
+
+`app-assets.zip`, фотографии, логотипы и схемы трасс не изменялись в рамках текущего юридического обновления. До завершения отдельной проверки происхождения и лицензий они не считаются очищенными для публичного распространения или production-использования.
+
+## Лицензия
+
+Собственный исходный код лицензирован по MIT. Сторонние имена, товарные знаки, данные, фотографии, шрифты, графика и другие материалы не входят в эту лицензию, если это прямо не указано отдельно.

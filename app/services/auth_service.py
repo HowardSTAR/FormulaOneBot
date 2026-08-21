@@ -599,6 +599,80 @@ class AuthService:
             )
             await conn.commit()
 
+    async def delete_account(self, user_id: int, current_password: str | None) -> None:
+        """Permanently delete a user and records keyed outside users.id cascades."""
+        conn = await self._conn()
+        async with self.database.write_lock:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                async with conn.execute(
+                    "SELECT * FROM users WHERE id = ? AND archived_at IS NULL",
+                    (int(user_id),),
+                ) as cursor:
+                    user = await cursor.fetchone()
+                if not user:
+                    raise InvalidCredentials("Аккаунт не найден или уже удалён")
+                if user["role"] != "user" or is_primary_admin(user["email"], user["telegram_id"]):
+                    raise InvalidInput("Административный аккаунт нельзя удалить через пользовательский интерфейс")
+                if user["password_hash"]:
+                    if not current_password or not await self._verify_password(
+                        current_password, user["password_hash"]
+                    ):
+                        raise InvalidCredentials("Текущий пароль указан неверно")
+
+                telegram_id = int(user["telegram_id"]) if user["telegram_id"] is not None else None
+                if telegram_id is not None:
+                    for table in (
+                        "event_reminder_sent",
+                        "reaction_leaderboard_scores",
+                        "reaction_leaderboard_profiles",
+                        "reflex_grid_scores",
+                        "telegram_login_codes",
+                        "admin_feedback_messages",
+                    ):
+                        await conn.execute(
+                            f'DELETE FROM "{table}" WHERE telegram_id = ?',
+                            (telegram_id,),
+                        )
+                    await conn.execute(
+                        "DELETE FROM telegram_link_sessions WHERE telegram_id = ?",
+                        (telegram_id,),
+                    )
+                    await conn.execute(
+                        "DELETE FROM account_merge_log WHERE telegram_id = ?",
+                        (telegram_id,),
+                    )
+
+                await conn.execute(
+                    "DELETE FROM account_merge_log WHERE source_user_id = ? OR target_user_id = ?",
+                    (int(user_id), int(user_id)),
+                )
+                await conn.execute(
+                    "DELETE FROM admin_audit_log WHERE actor_user_id = ? OR target_user_id = ?",
+                    (int(user_id), int(user_id)),
+                )
+
+                rate_limit_keys = {
+                    self._hmac("rate-limit", str(user_id)),
+                }
+                if user["email"]:
+                    rate_limit_keys.add(self._hmac("rate-limit", str(user["email"]).lower()))
+                for key in rate_limit_keys:
+                    await conn.execute(
+                        "DELETE FROM auth_rate_limits WHERE identifier_hash = ?",
+                        (key,),
+                    )
+
+                # All tables with a users.id foreign key are removed by ON DELETE CASCADE.
+                await conn.execute("DELETE FROM users WHERE id = ?", (int(user_id),))
+                await conn.commit()
+            except (InvalidCredentials, InvalidInput):
+                await conn.rollback()
+                raise
+            except Exception:
+                await conn.rollback()
+                raise
+
     async def cleanup_expired(self) -> None:
         now = iso(utc_now())
         conn = await self._conn()

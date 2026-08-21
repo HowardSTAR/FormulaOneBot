@@ -50,7 +50,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--public-url",
-        default="https://f1hub.ru",
+        default="https://turbotears.example",
         help="Public website origin used in the reset smoke link",
     )
     args = parser.parse_args()

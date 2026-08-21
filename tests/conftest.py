@@ -1,5 +1,5 @@
 """
-Pytest fixtures for FormulaOneBot tests.
+Pytest fixtures for TurboTears tests.
 """
 import os
 import tempfile

@@ -33,7 +33,7 @@ function readCookie(name: string): string | null {
 async function authFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("Content-Type", "application/json");
-  const csrf = sessionStorage.getItem("f1hub_csrf") || readCookie("f1hub_csrf");
+  const csrf = sessionStorage.getItem("turbotears_csrf") || readCookie("turbotears_csrf");
   if (csrf) headers.set("X-CSRF-Token", csrf);
   const response = await fetch(path, { ...init, headers, credentials: "include" });
   if (!response.ok) {
@@ -62,6 +62,9 @@ export default function AccountPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deletePanelOpen, setDeletePanelOpen] = useState(false);
 
   useEffect(() => {
     authFetch<User>("/api/auth/me")
@@ -119,7 +122,7 @@ export default function AccountPage() {
         const result = await authFetch<{ csrf_token: string; user: User }>("/api/auth/verify-email", {
           method: "POST", body: JSON.stringify({ email, code }),
         });
-        sessionStorage.setItem("f1hub_csrf", result.csrf_token);
+        sessionStorage.setItem("turbotears_csrf", result.csrf_token);
         setUser(result.user);
         notifyAuthChanged();
       } else if (mode === "forgot") {
@@ -131,7 +134,7 @@ export default function AccountPage() {
         const result = await authFetch<{ csrf_token: string; user: User }>("/api/auth/login", {
           method: "POST", body: JSON.stringify({ email, password }),
         });
-        sessionStorage.setItem("f1hub_csrf", result.csrf_token);
+        sessionStorage.setItem("turbotears_csrf", result.csrf_token);
         setUser(result.user);
         notifyAuthChanged();
       }
@@ -184,16 +187,37 @@ export default function AccountPage() {
 
   const logout = async () => {
     await authFetch("/api/auth/logout", { method: "POST" });
-    sessionStorage.removeItem("f1hub_csrf");
+    sessionStorage.removeItem("turbotears_csrf");
     setUser(null); setLinkSession(null); setMode("login");
     notifyAuthChanged();
+  };
+
+  const deleteAccount = async (event: FormEvent) => {
+    event.preventDefault();
+    setBusy(true); setError(""); setMessage("");
+    try {
+      await authFetch<void>("/api/auth/account", {
+        method: "DELETE",
+        body: JSON.stringify({
+          confirmation: deleteConfirmation,
+          current_password: deletePassword || null,
+        }),
+      });
+      sessionStorage.removeItem("turbotears_csrf");
+      setUser(null); setLinkSession(null); setMode("login");
+      setDeletePassword(""); setDeleteConfirmation(""); setDeletePanelOpen(false);
+      setMessage("Аккаунт и связанные персональные данные удалены.");
+      notifyAuthChanged();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Не удалось удалить аккаунт");
+    } finally { setBusy(false); }
   };
 
   return (
     <main className="account-page">
       <BackButton>← <span>Главное меню</span></BackButton>
       <header className="account-hero">
-        <span>ПРОФИЛЬ F1 HUB</span>
+        <span>ПРОФИЛЬ TURBOTEARS</span>
         <h1>{user?.telegram_id ? "АККАУНТ" : "АККАУНТ И TELEGRAM"}</h1>
         <p>{user?.telegram_id
           ? "Управляйте профилем, избранным и персональными настройками."
@@ -238,7 +262,7 @@ export default function AccountPage() {
           {user.telegram_id ? (
             <section className="account-card account-personal-card">
               <span className="account-kicker">ПЕРСОНАЛИЗАЦИЯ</span>
-              <h2>Ваш F1 HUB</h2>
+              <h2>Ваш TurboTears</h2>
               <p>Сохраняйте любимых пилотов и команды, настраивайте часовой пояс и уведомления о событиях.</p>
               <nav className="account-quick-links" aria-label="Персональные разделы">
                 <Link to="/favorites"><strong>Избранное</strong><span>Пилоты и команды</span><b aria-hidden>→</b></Link>
@@ -284,6 +308,40 @@ export default function AccountPage() {
               </form>
             </section>
           )}
+          <section className="account-card account-danger-card">
+            <div className="account-security-copy">
+              <span className="account-kicker">УДАЛЕНИЕ ДАННЫХ</span>
+              <h2>Удалить аккаунт</h2>
+              <p>
+                Будут удалены профиль, Telegram-привязка, email, сессии, избранное,
+                настройки, голоса, прогнозы и персональные игровые данные.
+              </p>
+              <Link to="/account/delete">Подробнее о процедуре</Link>
+            </div>
+            {!deletePanelOpen ? (
+              <button className="account-danger-button" type="button" onClick={() => setDeletePanelOpen(true)}>
+                Перейти к удалению
+              </button>
+            ) : (
+              <form onSubmit={deleteAccount}>
+                {user.email && (
+                  <label>Текущий пароль<input type="password" autoComplete="current-password" required value={deletePassword} onChange={e => setDeletePassword(e.target.value)} /></label>
+                )}
+                <label>
+                  Для подтверждения введите DELETE
+                  <input required value={deleteConfirmation} onChange={e => setDeleteConfirmation(e.target.value.toUpperCase())} />
+                </label>
+                <div className="account-danger-actions">
+                  <button className="account-secondary" type="button" onClick={() => { setDeletePanelOpen(false); setDeletePassword(""); setDeleteConfirmation(""); }}>
+                    Отмена
+                  </button>
+                  <button className="account-danger-button" disabled={busy || deleteConfirmation !== "DELETE"}>
+                    Удалить безвозвратно
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
         </div>
       )}
       {message && <div className="account-notice success">{message}</div>}

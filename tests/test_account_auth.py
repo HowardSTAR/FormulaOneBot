@@ -122,7 +122,7 @@ async def test_password_reset_is_one_time_and_revokes_sessions(temp_db_path, str
 
     await service.register("reset@example.com", strong_password)
     session = await service.verify_email("reset@example.com", str(mailer.messages[-1]["code"]))
-    await service.request_password_reset("reset@example.com", "https://f1hub.example")
+    await service.request_password_reset("reset@example.com", "https://turbotears.example")
     reset_url = str(mailer.messages[-1]["reset_url"])
     token = parse_qs(urlparse(reset_url).query)["token"][0]
 

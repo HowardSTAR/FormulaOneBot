@@ -80,7 +80,7 @@ async def main():
             raise RuntimeError("MINI_APP_URL must use HTTPS for Telegram Mini Apps")
         await bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(
-                text="Открыть F1 Hub",
+                text="Открыть TurboTears",
                 web_app=WebAppInfo(url=mini_app_url),
             )
         )

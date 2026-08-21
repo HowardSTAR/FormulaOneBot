@@ -39,8 +39,8 @@ from app.services.auth_service import (
 from app.services.activity_service import record_user_activity
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
-COOKIE_NAME = "f1hub_session"
-CSRF_COOKIE_NAME = "f1hub_csrf"
+COOKIE_NAME = "turbotears_session"
+CSRF_COOKIE_NAME = "turbotears_csrf"
 
 
 class RegisterRequest(BaseModel):
@@ -72,6 +72,11 @@ class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
     new_password: str = Field(min_length=12, max_length=128)
     password_confirmation: str = Field(min_length=12, max_length=128)
+
+
+class DeleteAccountRequest(BaseModel):
+    confirmation: Literal["DELETE"]
+    current_password: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class LinkCodeRequest(BaseModel):
@@ -380,6 +385,23 @@ async def change_password(
 @router.post("/logout", status_code=204)
 async def logout(response: Response, session: WebSessionContext = Depends(require_web_session)):
     await get_auth_service().logout(session.raw_token)
+    response.delete_cookie(COOKIE_NAME, path="/")
+    response.delete_cookie(CSRF_COOKIE_NAME, path="/")
+
+
+@router.delete("/account", status_code=204)
+async def delete_account(
+    data: DeleteAccountRequest,
+    response: Response,
+    session: WebSessionContext = Depends(require_web_session),
+):
+    try:
+        await get_auth_service().delete_account(
+            int(session.user["id"]),
+            data.current_password,
+        )
+    except AuthError as exc:
+        raise _auth_http_error(exc) from exc
     response.delete_cookie(COOKIE_NAME, path="/")
     response.delete_cookie(CSRF_COOKIE_NAME, path="/")
 

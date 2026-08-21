@@ -1,4 +1,4 @@
-# Локальный запуск сайта FormulaOneBot
+# Локальный запуск сайта TurboTears
 
 Эта инструкция запускает только сайт и API с данными Formula 1. Telegram-бот,
 `BOT_TOKEN`, Docker и Redis для этого не нужны.
@@ -187,8 +187,8 @@ docker compose -f docker-compose-build.yml ps
 Проверка после запуска:
 
 ```bash
-curl -fsS https://f1hub.ru/health
-curl -fsS https://f1hub.ru/api/auth/me -o /dev/null -w '%{http_code}\n'
+curl -fsS https://your-neutral-domain.example/health
+curl -fsS https://your-neutral-domain.example/api/auth/me -o /dev/null -w '%{http_code}\n'
 docker compose -f docker-compose-build.yml logs --tail=100 web bot nginx
 ```
 
@@ -201,7 +201,7 @@ docker compose -f docker-compose-build.yml logs --tail=100 web bot nginx
 ```bash
 docker compose -f docker-compose-build.yml run --rm web \
   python scripts/test_email.py your-email@example.com --kind both \
-  --public-url https://f1hub.ru
+  --public-url https://your-neutral-domain.example
 ```
 
 Команда должна завершиться текстом `accepted`, после чего проверьте входящие,

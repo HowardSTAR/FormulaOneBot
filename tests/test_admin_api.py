@@ -57,7 +57,7 @@ async def test_admin_endpoints_require_role_and_protect_primary_superadmin(temp_
     monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
     monkeypatch.setattr(admin_api, "get_auth_service", lambda: auth)
     monkeypatch.setattr(admin_api, "db", database)
-    monkeypatch.setenv("PUBLIC_WEB_URL", "https://f1hub.example")
+    monkeypatch.setenv("PUBLIC_WEB_URL", "https://turbotears.example")
 
     primary = await create_verified_session(auth, mailer, primary_email.upper())
     regular = await create_verified_session(auth, mailer, "fan@example.com")
@@ -69,13 +69,13 @@ async def test_admin_endpoints_require_role_and_protect_primary_superadmin(temp_
         assert (await anonymous.get("/api/admin/me")).status_code == 401
 
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as regular_client:
-        regular_client.cookies.set("f1hub_session", regular.token)
-        regular_client.cookies.set("f1hub_csrf", regular.csrf_token)
+        regular_client.cookies.set("turbotears_session", regular.token)
+        regular_client.cookies.set("turbotears_csrf", regular.csrf_token)
         assert (await regular_client.get("/api/admin/me")).status_code == 403
 
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as admin_client:
-        admin_client.cookies.set("f1hub_session", primary.token)
-        admin_client.cookies.set("f1hub_csrf", primary.csrf_token)
+        admin_client.cookies.set("turbotears_session", primary.token)
+        admin_client.cookies.set("turbotears_csrf", primary.csrf_token)
         me = await admin_client.get("/api/admin/me")
         assert me.status_code == 200
         assert me.json()["role"] == "superadmin"
@@ -135,8 +135,8 @@ async def test_admin_metrics_split_site_bot_and_total(temp_db_path, monkeypatch)
 
     transport = httpx.ASGITransport(app=web_app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        client.cookies.set("f1hub_session", primary.token)
-        client.cookies.set("f1hub_csrf", primary.csrf_token)
+        client.cookies.set("turbotears_session", primary.token)
+        client.cookies.set("turbotears_csrf", primary.csrf_token)
         response = await client.get("/api/admin/metrics", params={"period": "7d", "source": "all"})
         assert response.status_code == 200
         cards = response.json()["cards"]
@@ -184,8 +184,8 @@ async def test_admin_users_supports_server_side_sorting(temp_db_path, monkeypatc
 
     transport = httpx.ASGITransport(app=web_app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
-        client.cookies.set("f1hub_session", primary.token)
-        client.cookies.set("f1hub_csrf", primary.csrf_token)
+        client.cookies.set("turbotears_session", primary.token)
+        client.cookies.set("turbotears_csrf", primary.csrf_token)
 
         created = await client.get(
             "/api/admin/users",

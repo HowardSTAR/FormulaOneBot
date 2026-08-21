@@ -123,7 +123,7 @@ def _generate_placeholder_avatar(text: str, size: int = 90) -> Image.Image:
 def _download_image(url: str) -> Image.Image | None:
     """Универсальный скачиватель картинок в оперативную память"""
     try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'FormulaOneBot/1.0 (Contact: admin@example.com)'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'TurboTears/1.0 (independent motorsport service)'})
         with urllib.request.urlopen(req, timeout=4) as response:
             img_data = response.read()
             return Image.open(BytesIO(img_data)).convert("RGBA")
@@ -138,7 +138,7 @@ def _get_wiki_image_url(query: str) -> str | None:
         safe_query = urllib.parse.quote(query)
         url = f"https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&titles={safe_query}&pithumbsize=400&format=json"
 
-        req = urllib.request.Request(url, headers={'User-Agent': 'FormulaOneBot/1.0'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'TurboTears/1.0'})
         with urllib.request.urlopen(req, timeout=3) as response:
             data = json.loads(response.read().decode())
             pages = data.get("query", {}).get("pages", {})

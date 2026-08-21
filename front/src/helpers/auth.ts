@@ -16,7 +16,7 @@ export type WebsiteUser = {
   telegram_username: string | null;
 };
 
-export const AUTH_CHANGED_EVENT = "f1hub-auth-changed";
+export const AUTH_CHANGED_EVENT = "turbotears-auth-changed";
 
 export async function getWebsiteUser(): Promise<WebsiteUser | null> {
   try {

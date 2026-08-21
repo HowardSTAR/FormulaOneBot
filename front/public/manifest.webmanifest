@@ -1,0 +1,11 @@
+{
+  "name": "TurboTears — Race Intelligence",
+  "short_name": "TurboTears",
+  "description": "Независимый некоммерческий сервис статистики и аналитики автоспорта.",
+  "lang": "ru",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12"
+}

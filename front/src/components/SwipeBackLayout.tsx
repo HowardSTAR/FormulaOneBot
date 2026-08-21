@@ -2,6 +2,7 @@ import { useRef, useCallback, useLayoutEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { hapticImpact } from "../helpers/telegram";
 import { AppHeader } from "./AppHeader";
+import { LegalFooter } from "./LegalFooter";
 
 const EDGE_THRESHOLD = 30;
 const SWIPE_THRESHOLD = 60;
@@ -79,11 +80,12 @@ export function SwipeBackLayout() {
   return (
     <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className="app-shell">
       <AppHeader />
-      <main className="app-content">
+      <div className="app-content">
         <section className={`app-page-main route-${routeKey}`}>
           <Outlet />
         </section>
-      </main>
+        <LegalFooter />
+      </div>
     </div>
   );
 }
