@@ -384,8 +384,8 @@ async def test_api_votes_me(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_game_profile_is_shared_by_both_leaderboards(api_client: AsyncClient):
-    """POST/GET игрового профиля сохраняет одно имя для обеих мини-игр."""
+async def test_game_profile_is_shared_by_all_leaderboards(api_client: AsyncClient):
+    """POST/GET игрового профиля сохраняет одно имя для всех мини-игр."""
     saved = await api_client.post(
         "/api/reaction-leaderboard/profile",
         json={"display_name": "Admin", "participate": True, "prompt_seen": True},
@@ -407,6 +407,18 @@ async def test_game_profile_is_shared_by_both_leaderboards(api_client: AsyncClie
     )
     assert reaction_score.status_code == 200
     assert reaction_score.json()["saved"] is True
+
+    race_score = await api_client.post(
+        "/api/race-game-leaderboard/score",
+        json={"time_ms": 82_450},
+    )
+    assert race_score.status_code == 200
+    assert race_score.json()["saved"] is True
+
+    race = await api_client.get("/api/race-game-leaderboard")
+    assert race.status_code == 200
+    assert race.json()["me"]["name"] == "Admin"
+    assert race.json()["me"]["time_ms"] == 82_450
 
     reflex_score = await api_client.post(
         "/api/reflex-grid-leaderboard/score",
