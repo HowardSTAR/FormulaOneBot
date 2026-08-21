@@ -213,7 +213,25 @@ class Database:
             "CREATE INDEX IF NOT EXISTS idx_reaction_scores_time ON reaction_leaderboard_scores(time_ms)"
         )
 
-        # 8. Результаты игры Reflex Grid (лидерборд по режимам и сложности)
+        # 8. Лучшие времена браузерной гонки Emerald Loop.
+        await self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS race_game_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_id INTEGER NOT NULL,
+                time_ms INTEGER NOT NULL CHECK (time_ms >= 15000 AND time_ms <= 3600000),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_race_game_scores_telegram ON race_game_scores(telegram_id)"
+        )
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_race_game_scores_time ON race_game_scores(time_ms)"
+        )
+
+        # 9. Результаты игры Reflex Grid (лидерборд по режимам и сложности)
         await self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS reflex_grid_scores (
@@ -234,7 +252,7 @@ class Database:
             "CREATE INDEX IF NOT EXISTS idx_reflex_grid_telegram ON reflex_grid_scores(telegram_id)"
         )
 
-        # 9. Прогнозы на этапы Formula 1 и история начисления баллов.
+        # 10. Прогнозы на этапы Formula 1 и история начисления баллов.
         await self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS prediction_profiles (
@@ -919,6 +937,74 @@ async def get_reaction_leaderboard(telegram_id: int | None = None) -> dict:
             MIN(s.time_ms) AS best_time_ms
         FROM reaction_leaderboard_profiles p
         JOIN reaction_leaderboard_scores s ON s.telegram_id = p.telegram_id
+        WHERE p.leaderboard_opt_in = 1
+        GROUP BY p.telegram_id, p.display_name
+        ORDER BY best_time_ms ASC, p.telegram_id ASC
+        """
+    ) as cursor:
+        rows = await cursor.fetchall()
+
+    entries: list[dict] = []
+    me: dict | None = None
+    current_place = 0
+    last_time: int | None = None
+
+    for index, row in enumerate(rows, start=1):
+        best_time = int(row["best_time_ms"])
+        if last_time is None or best_time != last_time:
+            current_place = index
+            last_time = best_time
+        name = (row["display_name"] or "").strip() or f"Pilot #{str(row['telegram_id'])[-4:]}"
+        item = {
+            "place": current_place,
+            "telegram_id": int(row["telegram_id"]),
+            "name": name,
+            "time_ms": best_time,
+            "is_me": bool(telegram_id is not None and int(row["telegram_id"]) == int(telegram_id)),
+        }
+        entries.append(item)
+        if item["is_me"]:
+            me = item
+
+    return {"entries": entries, "me": me}
+
+
+# --- Emerald Loop: сохранение результатов и лидерборд ---
+
+async def save_race_game_score(telegram_id: int, time_ms: int) -> bool:
+    """Сохраняет время трёх кругов для участника общего игрового рейтинга."""
+    if not db.conn:
+        await db.connect()
+    tg_id = int(telegram_id)
+    profile = await get_reaction_profile(tg_id)
+    if not profile["participate"]:
+        return False
+
+    normalized_time = int(time_ms)
+    if normalized_time < 15_000 or normalized_time > 3_600_000:
+        return False
+
+    await db.conn.execute(
+        "INSERT INTO race_game_scores (telegram_id, time_ms) VALUES (?, ?)",
+        (tg_id, normalized_time),
+    )
+    await db.conn.commit()
+    return True
+
+
+async def get_race_game_leaderboard(telegram_id: int | None = None) -> dict:
+    """Возвращает лучшее время каждого участника Emerald Loop."""
+    if not db.conn:
+        await db.connect()
+
+    async with db.conn.execute(
+        """
+        SELECT
+            p.telegram_id AS telegram_id,
+            p.display_name AS display_name,
+            MIN(s.time_ms) AS best_time_ms
+        FROM reaction_leaderboard_profiles p
+        JOIN race_game_scores s ON s.telegram_id = p.telegram_id
         WHERE p.leaderboard_opt_in = 1
         GROUP BY p.telegram_id, p.display_name
         ORDER BY best_time_ms ASC, p.telegram_id ASC

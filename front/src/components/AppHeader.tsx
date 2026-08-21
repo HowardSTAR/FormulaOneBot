@@ -63,6 +63,8 @@ const NAV_GROUPS: NavGroup[] = [
     icon: "games",
     items: [
       { to: "/reaction-game", label: "Тест реакции", activePaths: ["/reaction-game"] },
+      { to: "/reflex-grid-game", label: "Reflex Grid", activePaths: ["/reflex-grid-game"] },
+      { to: "/race-game", label: "Emerald Loop", activePaths: ["/race-game"] },
     ],
   },
 ];

@@ -30,6 +30,7 @@ from app.db import (
     get_driver_vote_round_winners,
     get_reaction_profile, upsert_reaction_profile,
     save_reaction_score, get_reaction_leaderboard,
+    save_race_game_score, get_race_game_leaderboard,
     save_reflex_grid_score, get_reflex_grid_leaderboard,
 )
 from app.api.auth_api import (
@@ -565,6 +566,22 @@ async def api_reaction_leaderboard_score(
     user_id: int = Depends(get_current_user_id),
 ):
     saved = await save_reaction_score(user_id, body.time_ms)
+    return {"status": "ok", "saved": saved}
+
+
+@web_app.get("/api/race-game-leaderboard")
+async def api_race_game_leaderboard(
+    user_id: Optional[int] = Depends(get_optional_user_id),
+):
+    return await get_race_game_leaderboard(user_id)
+
+
+@web_app.post("/api/race-game-leaderboard/score")
+async def api_race_game_leaderboard_score(
+    body: ReactionScoreRequest,
+    user_id: int = Depends(get_current_user_id),
+):
+    saved = await save_race_game_score(user_id, body.time_ms)
     return {"status": "ok", "saved": saved}
 
 

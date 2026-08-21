@@ -626,6 +626,7 @@ class AuthService:
                         "event_reminder_sent",
                         "reaction_leaderboard_scores",
                         "reaction_leaderboard_profiles",
+                        "race_game_scores",
                         "reflex_grid_scores",
                         "telegram_login_codes",
                         "admin_feedback_messages",
