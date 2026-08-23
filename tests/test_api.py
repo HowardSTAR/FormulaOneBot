@@ -410,7 +410,14 @@ async def test_game_profile_is_shared_by_all_leaderboards(api_client: AsyncClien
 
     race_score = await api_client.post(
         "/api/race-game-leaderboard/score",
-        json={"time_ms": 82_450},
+        json={
+            "time_ms": 82_450,
+            "track_id": "emerald-loop-v1",
+            "telemetry": [
+                {"t": 0, "x": 875, "y": 660, "rotation": 0},
+                {"t": 82_450, "x": 875, "y": 660, "rotation": 0},
+            ],
+        },
     )
     assert race_score.status_code == 200
     assert race_score.json()["saved"] is True
@@ -419,6 +426,9 @@ async def test_game_profile_is_shared_by_all_leaderboards(api_client: AsyncClien
     assert race.status_code == 200
     assert race.json()["me"]["name"] == "Admin"
     assert race.json()["me"]["time_ms"] == 82_450
+    assert race.json()["ghost"]["name"] == "Admin"
+    assert race.json()["ghost"]["time_ms"] == 82_450
+    assert len(race.json()["ghost"]["samples"]) == 2
 
     reflex_score = await api_client.post(
         "/api/reflex-grid-leaderboard/score",
@@ -444,6 +454,22 @@ async def test_game_profile_save_no_longer_returns_method_not_allowed(api_client
         json={"display_name": "Pilot", "participate": False, "prompt_seen": True},
     )
     assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_race_game_rejects_invalid_ghost_telemetry(api_client: AsyncClient):
+    """Ghost telemetry is bounded and must have a strictly increasing timeline."""
+    response = await api_client.post(
+        "/api/race-game-leaderboard/score",
+        json={
+            "time_ms": 80_000,
+            "telemetry": [
+                {"t": 100, "x": 875, "y": 660, "rotation": 0},
+                {"t": 100, "x": 900, "y": 660, "rotation": 0},
+            ],
+        },
+    )
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -852,6 +878,55 @@ async def test_api_practice_results_returns_standard_fp3(api_client: AsyncClient
     assert payload["available_sessions"] == [1, 2, 3]
     assert payload["results"][0]["driver"] == "NOR"
     practice.assert_awaited_once_with(now.year, 4, 3, limit=100)
+
+
+@pytest.mark.asyncio
+async def test_api_latest_practice_falls_back_to_previous_available_round(api_client: AsyncClient):
+    """Latest mode remains useful while the current round's provider is temporarily blocked."""
+    now = datetime.now(timezone.utc)
+    events = [
+        {
+            "round": 1,
+            "event_name": "Previous GP",
+            "date": (now - timedelta(days=14)).date().isoformat(),
+            "practice1_start_utc": (now - timedelta(days=16)).isoformat(),
+            "available_practice_sessions": [1, 2, 3],
+        },
+        {
+            "round": 2,
+            "event_name": "Current GP",
+            "date": now.date().isoformat(),
+            "practice1_start_utc": (now - timedelta(hours=4)).isoformat(),
+            "available_practice_sessions": [1],
+            "is_sprint_weekend": True,
+        },
+    ]
+    rows = [{
+        "position": 1,
+        "driver": "VER",
+        "name": "Max Verstappen",
+        "team": "Red Bull Racing",
+        "best": "1:30.000",
+        "gap": "—",
+        "laps": 20,
+    }]
+    with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as schedule, \
+            patch("app.api.miniapp_api.get_practice_results_async", new_callable=AsyncMock) as practice:
+        schedule.return_value = events
+        practice.side_effect = [[], rows]
+        response = await api_client.get(
+            "/api/practice-results",
+            params={"season": now.year, "session": 1},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["round"] == 1
+    assert payload["requested_round"] == 2
+    assert payload["data_fallback"] is True
+    assert payload["race_info"]["event_name"] == "Previous GP"
+    assert payload["results"][0]["driver"] == "VER"
+    assert practice.await_count == 2
 
 
 @pytest.mark.asyncio

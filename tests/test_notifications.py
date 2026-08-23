@@ -519,8 +519,8 @@ async def test_quali_sends_generic_image_and_separate_favorites_message():
 
 
 @pytest.mark.asyncio
-async def test_session_results_are_checked_in_required_order_and_stop_on_failure():
-    """Следующая сессия не обгоняет предыдущую, если её данные/доставка ещё не готовы."""
+async def test_session_result_workers_are_independent_when_one_feed_fails():
+    """One unavailable classification cannot block other completed-session notifications."""
     order = []
 
     async def sprint_quali(_bot):
@@ -537,6 +537,90 @@ async def test_session_results_are_checked_in_required_order_and_stop_on_failure
             patch("app.utils.notifications.check_and_send_results", new_callable=AsyncMock) as race:
         await check_and_send_session_results(bot=object())
 
-    assert order == ["sprint_quali"]
-    quali.assert_not_awaited()
-    race.assert_not_awaited()
+    assert order == ["sprint_quali", "sprint"]
+    quali.assert_awaited_once()
+    race.assert_awaited_once()
+
+
+def test_all_result_event_bindings_are_registered():
+    """Every required ingestion event has a notification handler binding."""
+    from app.utils.notifications import RESULT_NOTIFICATION_HANDLERS
+
+    assert set(RESULT_NOTIFICATION_HANDLERS) == {
+        "sprint_qualifying_results",
+        "sprint_results",
+        "qualifying_results",
+        "race_results",
+    }
+
+
+def test_results_ready_status_bypasses_elapsed_time_debounce():
+    """An explicit results_ready transition is eligible immediately."""
+    from app.utils.notifications import _latest_finished_session
+
+    now = datetime.now(timezone.utc)
+    event = {
+        "round": 7,
+        "quali_start_utc": (now - timedelta(minutes=1)).isoformat(),
+        "qualifying_status": "results_ready",
+    }
+    assert _latest_finished_session(
+        [event],
+        "quali_start_utc",
+        60,
+        "qualifying_status",
+    ) == event
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("event_kind", ["sprint_qualifying", "sprint"])
+async def test_completed_sprint_session_dispatches_to_mock_telegram_immediately(event_kind: str):
+    """Both sprint result feeds dispatch on an explicit results_ready transition."""
+    from app.utils.notifications import check_and_notify_sprint, check_and_notify_sprint_quali
+
+    now = datetime.now(timezone.utc)
+    schedule_key = "sprint_quali_start_utc" if event_kind == "sprint_qualifying" else "sprint_start_utc"
+    status_key = "sprint_qualifying_status" if event_kind == "sprint_qualifying" else "sprint_status"
+    event = {
+        "round": 12,
+        "event_name": "Immediate Sprint GP",
+        schedule_key: (now - timedelta(minutes=1)).isoformat(),
+        status_key: "results_ready",
+    }
+    driver_codes = ["VER", "NOR", "PIA", "LEC", "HAM", "RUS", "ALO", "SAI", "GAS", "TSU"]
+    quali_rows = [
+        {"position": index, "driver": code, "name": f"Driver {index}", "best": f"1:2{index}.000", "gap": f"+{index}.000"}
+        for index, code in enumerate(driver_codes, start=1)
+    ]
+    sprint_rows = pd.DataFrame([
+        {
+            "Position": index,
+            "Abbreviation": code,
+            "FirstName": "Driver",
+            "LastName": str(index),
+            "TeamName": "Test Team",
+            "Points": max(0, 9 - index),
+        }
+        for index, code in enumerate(driver_codes, start=1)
+    ])
+    bot = AsyncMock()
+    with patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock, return_value=[event]), \
+            patch("app.utils.notifications.get_last_notified_sprint_quali_round", new_callable=AsyncMock, return_value=None), \
+            patch("app.utils.notifications.get_last_notified_sprint_round", new_callable=AsyncMock, return_value=None), \
+            patch("app.utils.notifications.get_sprint_quali_results_async", new_callable=AsyncMock, return_value=quali_rows), \
+            patch("app.utils.notifications.get_sprint_results_async", new_callable=AsyncMock, return_value=sprint_rows), \
+            patch("app.utils.notifications.get_driver_standings_async", new_callable=AsyncMock, return_value=pd.DataFrame()), \
+            patch("app.utils.notifications.get_users_favorites_for_notifications", new_callable=AsyncMock, return_value={}), \
+            patch("app.utils.notifications.get_all_group_chats", new_callable=AsyncMock, return_value=[]), \
+            patch("app.utils.notifications.get_users_with_settings", new_callable=AsyncMock, return_value=[(777, "UTC", 60, 1)]), \
+            patch("app.utils.notifications.create_f1_style_classification_image", return_value=io.BytesIO(b"image")), \
+            patch("app.utils.notifications.set_last_notified_sprint_quali_round", new_callable=AsyncMock), \
+            patch("app.utils.notifications.set_last_notified_sprint_round", new_callable=AsyncMock):
+        delivered = await (
+            check_and_notify_sprint_quali(bot)
+            if event_kind == "sprint_qualifying"
+            else check_and_notify_sprint(bot)
+        )
+
+    assert delivered is True
+    bot.send_photo.assert_awaited_once()
