@@ -1693,6 +1693,7 @@
     display: flex;
     justify-content: space-between;
     align-items: baseline;
+    gap: 12px;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -1709,6 +1710,7 @@
     font-family: "Space Grotesk", sans-serif;
     font-size: 16px;
     letter-spacing: -0.01em;
+    text-align: right;
   }
 
   .app-page-main.route-race-results .race-results-desktop-table,
@@ -1837,20 +1839,20 @@
     color: #ffb4a8;
   }
 
-  .app-page-main.route-quali-results .race-results-desktop-winner {
+  :is(.app-page-main.route-quali-results, .app-page-main.route-sprint-quali-results) .race-results-desktop-winner {
     background: linear-gradient(180deg, rgba(18, 19, 20, 0.18) 0%, rgba(18, 19, 20, 0.86) 100%);
   }
 
-  .app-page-main.route-quali-results .race-results-desktop-hero-grid {
+  :is(.app-page-main.route-quali-results, .app-page-main.route-sprint-quali-results) .race-results-desktop-hero-grid {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     width: 100%;
   }
 
-  .app-page-main.route-quali-results .race-results-desktop-summary {
+  :is(.app-page-main.route-quali-results, .app-page-main.route-sprint-quali-results) .race-results-desktop-summary {
     width: 100%;
   }
 
-  .app-page-main.route-quali-results .race-results-desktop-winner-portrait {
+  :is(.app-page-main.route-quali-results, .app-page-main.route-sprint-quali-results) .race-results-desktop-winner-portrait {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -1861,26 +1863,26 @@
     filter: saturate(1.02) contrast(1.03);
   }
 
-  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-table-head,
-  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-row {
+  :is(.app-page-main.route-quali-results, .app-page-main.route-sprint-quali-results) .quali-results-table .race-results-desktop-table-head,
+  :is(.app-page-main.route-quali-results, .app-page-main.route-sprint-quali-results) .quali-results-table .race-results-desktop-row {
     grid-template-columns: 66px minmax(180px, 1fr) 88px 140px 92px;
   }
 
-  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-table-head span,
-  .app-page-main.route-quali-results .quali-results-table .race-results-desktop-row span {
+  :is(.app-page-main.route-quali-results, .app-page-main.route-sprint-quali-results) .quali-results-table .race-results-desktop-table-head span,
+  :is(.app-page-main.route-quali-results, .app-page-main.route-sprint-quali-results) .quali-results-table .race-results-desktop-row span {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .app-page-main.route-quali-results .race-results-desktop-winner-name {
+  :is(.app-page-main.route-quali-results, .app-page-main.route-sprint-quali-results) .race-results-desktop-winner-name {
     max-width: min(62%, 640px);
     overflow-wrap: anywhere;
     word-break: break-word;
   }
 
-  .app-page-main.route-quali-results .race-results-desktop-winner-meta {
+  :is(.app-page-main.route-quali-results, .app-page-main.route-sprint-quali-results) .race-results-desktop-winner-meta {
     max-width: min(62%, 640px);
     overflow: hidden;
     text-overflow: ellipsis;

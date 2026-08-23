@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { ResultsFeedback } from "../../components/SessionResultsUI";
 
 type Result = {
   position: number;
@@ -231,30 +232,18 @@ function RaceResultsPage() {
         )}
 
         <div id="race-content">
-          {loading && (
-            <div className="loading full-width">
-              <div className="spinner" />
-              <div>Загружаю результаты...</div>
-            </div>
-          )}
-          {error && (
-            <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>
-          )}
-          {!loading && !error && (!data?.results || data.results.length === 0) && (
-            <div className="empty-state">
-              <span className="empty-icon">🏁</span>
-              <div className="empty-title">
-                {data?.data_incomplete ? "Результаты обрабатываются" : "Нет данных"}
-              </div>
-              <div className="empty-desc">
-                {data?.data_incomplete
-                  ? "Данные скоро появятся. Обновите страницу через несколько минут."
-                  : mode === "archive"
-                    ? "За выбранный этап результаты пока недоступны."
-                    : "Гонки в этом сезоне еще не проводились или результаты обрабатываются. Попробуйте режим Архив."}
-              </div>
-            </div>
-          )}
+          <ResultsFeedback
+            loading={loading}
+            error={error}
+            empty={!loading && !error && (!data?.results || data.results.length === 0)}
+            icon="🏁"
+            title={data?.data_incomplete ? "Результаты обрабатываются" : "Нет данных"}
+            description={data?.data_incomplete
+              ? "Данные скоро появятся. Обновите страницу через несколько минут."
+              : mode === "archive"
+                ? "За выбранный этап результаты пока недоступны."
+                : "Гонки в этом сезоне еще не проводились или результаты обрабатываются. Попробуйте режим Архив."}
+          />
           {!loading && !error && data?.results && data.results.length > 0 && (
             <div className="standings-list" style={{ marginTop: 16 }}>
               {data.results.map((r, i) => {
@@ -336,28 +325,18 @@ function RaceResultsPage() {
         </header>
 
         <div className="race-results-desktop-content">
-          {loading && (
-            <div className="loading full-width">
-              <div className="spinner" />
-              <div>Загружаю результаты...</div>
-            </div>
-          )}
-          {error && <div className="page-error">{error}</div>}
-          {!loading && !error && desktopRows.length === 0 && (
-            <div className="empty-state race-results-desktop-empty" role="status">
-              <span className="empty-icon" aria-hidden>🏁</span>
-              <div className="empty-title">
-                {data?.data_incomplete ? "Результаты обрабатываются" : "Гонка ещё не прошла"}
-              </div>
-              <div className="empty-desc">
-                {data?.data_incomplete
-                  ? "Данные скоро появятся. Обновите страницу через несколько минут."
-                  : mode === "archive"
-                    ? "За выбранный этап результаты пока недоступны."
-                    : "После финиша здесь появятся победитель, команды и полная таблица результатов."}
-              </div>
-            </div>
-          )}
+          <ResultsFeedback
+            loading={loading}
+            error={error}
+            empty={!loading && !error && desktopRows.length === 0}
+            icon="🏁"
+            title={data?.data_incomplete ? "Результаты обрабатываются" : "Гонка ещё не прошла"}
+            description={data?.data_incomplete
+              ? "Данные скоро появятся. Обновите страницу через несколько минут."
+              : mode === "archive"
+                ? "За выбранный этап результаты пока недоступны."
+                : "После финиша здесь появятся победитель, команды и полная таблица результатов."}
+          />
           {!loading && !error && desktopWinner && (
             <div className="race-results-desktop-hero-grid">
               <div className="race-results-desktop-winner">

@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { ResultsFeedback } from "../../components/SessionResultsUI";
 
 type Result = {
   position: number;
@@ -177,26 +178,15 @@ function QualiResultsPage() {
         )}
 
         <div id="quali-content">
-          {loading && (
-            <div className="loading full-width">
-              <div className="spinner" />
-              <div>Загружаю результаты...</div>
-            </div>
-          )}
-          {error && (
-            <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>
-          )}
-          {!loading && !error && (!data?.results || data.results.length === 0) && (
-            <div className="empty-state">
-              <span className="empty-icon">⏱</span>
-              <div className="empty-title">Нет данных</div>
-              <div className="empty-desc">
-                {mode === "archive"
-                  ? "За выбранный этап результаты квалификации пока недоступны."
-                  : "Результаты квалификации пока недоступны. Попробуйте режим Архив."}
-              </div>
-            </div>
-          )}
+          <ResultsFeedback
+            loading={loading}
+            error={error}
+            empty={!loading && !error && (!data?.results || data.results.length === 0)}
+            icon="⏱"
+            description={mode === "archive"
+              ? "За выбранный этап результаты квалификации пока недоступны."
+              : "Результаты квалификации пока недоступны. Попробуйте режим Архив."}
+          />
           {!loading && !error && data?.results && data.results.length > 0 && (
             <div className="standings-list" style={{ marginTop: 16 }}>
               {data.results.map((r, i) => {
@@ -306,8 +296,14 @@ function QualiResultsPage() {
         </header>
 
         <div className="race-results-desktop-content">
-          {loading && <div className="loading full-width"><div className="spinner" /><div>Загружаю результаты...</div></div>}
-          {error && <div className="page-error">{error}</div>}
+          <ResultsFeedback
+            loading={loading}
+            error={error}
+            empty={!loading && !error && desktopRows.length === 0}
+            icon="⏱"
+            title="Квалификация ещё не завершена"
+            description={mode === "archive" ? "За выбранный этап результаты пока недоступны." : "После завершения сессии здесь появится полная классификация."}
+          />
           {!loading && !error && desktopWinner && (
             <div className="race-results-desktop-hero-grid">
               <div className="race-results-desktop-winner">

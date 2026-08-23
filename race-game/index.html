@@ -22,6 +22,7 @@
           <div><small>СКОРОСТЬ</small><strong><span id="speed-value">0</span> <em>км/ч</em></strong></div>
         </div>
         <div class="hud-actions">
+          <button id="ghost-hud-toggle" class="ghost-hud-toggle" type="button" aria-pressed="true" title="Показать или скрыть Ghost Racer">GHOST ON</button>
           <button id="menu-button" class="icon-button" type="button" aria-label="Открыть меню" title="Меню">☰</button>
           <button id="reset-button" class="icon-button" type="button" aria-label="Вернуть болид на трассу" title="Вернуть на трассу (R)">↺</button>
           <button id="pause-button" class="icon-button" type="button" aria-label="Пауза" title="Пауза (P)">Ⅱ</button>
@@ -68,6 +69,9 @@
           <div id="menu-main-view" class="game-menu-view">
             <button id="menu-continue-button" class="menu-action is-primary" type="button">
               <span aria-hidden>▶</span><b>Продолжить</b><small>Вернуться к заезду</small>
+            </button>
+            <button id="menu-ghost-toggle" class="menu-action ghost-menu-toggle" type="button" aria-pressed="true">
+              <span aria-hidden>◌</span><b id="menu-ghost-label">Ghost Racer: ON</b><small id="menu-ghost-copy">Загрузка лучшего заезда…</small>
             </button>
             <button id="menu-leaderboard-button" class="menu-action" type="button">
               <span aria-hidden>♛</span><b>Таблица лидеров</b><small>Лучшие времена трёх кругов</small>

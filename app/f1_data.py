@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import logging
+import os
 import pathlib
 import time
 import pickle
@@ -818,9 +819,25 @@ async def _openf1_get(path: str, **params) -> list | None:
         # На локальных Python-сборках системная цепочка CA часто не видит
         # сертификат OpenF1. Используем общий клиент с certifi, как для
         # остальных внешних источников проекта.
+        access_token = (
+            os.getenv("OPENF1_ACCESS_TOKEN")
+            or os.getenv("OPENF1_API_KEY")
+            or ""
+        ).strip()
+        headers = {"Authorization": f"Bearer {access_token}"} if access_token else None
         async with _profile_http_session() as session:
-            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+            async with session.get(
+                url,
+                params=params,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as resp:
                 if resp.status != 200:
+                    if resp.status == 401:
+                        logger.info(
+                            "OpenF1 %s requires authentication while a live session is active",
+                            path,
+                        )
                     return None
                 return await resp.json()
     except Exception as e:
@@ -990,6 +1007,246 @@ async def _openf1_get_best_lap_per_driver(session_key: int) -> dict[int, float]:
             if dn not in best or duration_ms < best[dn]:
                 best[dn] = duration_ms
     return best
+
+
+def _openf1_practice_session_matches(
+    session: dict,
+    event: dict,
+    session_number: int,
+) -> bool:
+    """Match an OpenF1 practice session to one calendar round without guessing another event."""
+    session_name = str(session.get("session_name") or "").strip().lower()
+    session_type = str(session.get("session_type") or "").strip().lower()
+    expected_names = {
+        f"practice {session_number}",
+        f"free practice {session_number}",
+        f"fp{session_number}",
+    }
+    if session_type != "practice" or session_name not in expected_names:
+        return False
+
+    raw_start = str(event.get(f"practice{session_number}_start_utc") or "")
+    if raw_start and str(session.get("date_start") or "")[:10] == raw_start[:10]:
+        return True
+
+    event_location = str(event.get("location") or "").strip().lower()
+    session_location = " ".join(
+        str(session.get(key) or "").strip().lower()
+        for key in ("location", "circuit_short_name")
+    )
+    if not event_location or not session_location:
+        return False
+    if event_location not in session_location and session_location not in event_location:
+        return False
+
+    # Some schedule providers omit individual practice timestamps. In that case,
+    # a location match plus a date within the same race weekend is sufficiently strict.
+    try:
+        race_date = datetime.fromisoformat(str(event.get("date") or "")[:10]).date()
+        session_date = datetime.fromisoformat(str(session.get("date_start") or "")[:10]).date()
+    except ValueError:
+        return False
+    return 0 <= (race_date - session_date).days <= 4
+
+
+def _format_openf1_sector(raw_seconds: Any) -> str:
+    try:
+        seconds = float(raw_seconds)
+    except (TypeError, ValueError):
+        return "—"
+    if seconds <= 0:
+        return "—"
+    minutes = int(seconds // 60)
+    return f"{minutes}:{seconds % 60:06.3f}"
+
+
+async def openf1_get_practice_for_round(
+    season: int,
+    round_num: int,
+    session_number: int,
+    limit: int = 100,
+) -> list[dict]:
+    """Return an FP classification from OpenF1, including gaps, sectors and lap counts."""
+    if session_number not in {1, 2, 3}:
+        raise ValueError("Practice session must be 1, 2 or 3")
+
+    schedule = await get_season_schedule_short_async(season)
+    event = next((row for row in (schedule or []) if row.get("round") == round_num), None)
+    if not event:
+        return []
+
+    sessions = await _openf1_get("sessions", year=season)
+    practice_session = next(
+        (
+            row
+            for row in (sessions or [])
+            if _openf1_practice_session_matches(row, event, session_number)
+        ),
+        None,
+    )
+    if not practice_session or practice_session.get("session_key") is None:
+        return []
+
+    session_key = int(practice_session["session_key"])
+    laps = await _openf1_get("laps", session_key=session_key)
+    if not laps:
+        return []
+    raw_drivers = await _openf1_get("drivers", session_key=session_key)
+    drivers: dict[int, dict] = {}
+    for driver in raw_drivers or []:
+        try:
+            number = int(driver.get("driver_number"))
+        except (TypeError, ValueError):
+            continue
+        drivers[number] = driver
+
+    lap_counts: dict[int, int] = {}
+    fastest_by_driver: dict[int, tuple[float, dict]] = {}
+    for lap in laps:
+        try:
+            driver_number = int(lap.get("driver_number"))
+        except (TypeError, ValueError):
+            continue
+        lap_counts[driver_number] = lap_counts.get(driver_number, 0) + 1
+        if lap.get("is_pit_out_lap") is True:
+            continue
+        duration_ms = _lap_duration_to_ms(lap)
+        if duration_ms is None or duration_ms <= 0:
+            continue
+        current = fastest_by_driver.get(driver_number)
+        if current is None or duration_ms < current[0]:
+            fastest_by_driver[driver_number] = (duration_ms, lap)
+
+    if not fastest_by_driver:
+        return []
+
+    ordered = sorted(fastest_by_driver.items(), key=lambda item: item[1][0])[:limit]
+    leader_ms = ordered[0][1][0]
+    results: list[dict] = []
+    for position, (driver_number, (best_ms, lap)) in enumerate(ordered, start=1):
+        driver = drivers.get(driver_number, {})
+        code = str(driver.get("name_acronym") or "").strip().upper()
+        name = str(
+            driver.get("full_name")
+            or driver.get("broadcast_name")
+            or code
+            or driver_number
+        ).strip()
+        gap = _format_quali_time_ms(best_ms) if position == 1 else f"+{(best_ms - leader_ms) / 1000:.3f}"
+        results.append({
+            "position": position,
+            "driver": code or str(driver_number),
+            "name": name,
+            "team": str(driver.get("team_name") or "").strip(),
+            "best": _format_quali_time_ms(best_ms),
+            "gap": gap,
+            "laps": lap_counts.get(driver_number, 0),
+            "sector1": _format_openf1_sector(lap.get("duration_sector_1")),
+            "sector2": _format_openf1_sector(lap.get("duration_sector_2")),
+            "sector3": _format_openf1_sector(lap.get("duration_sector_3")),
+        })
+    return results
+
+
+async def _formula1_get_text(url: str) -> str | None:
+    """Load one public Formula 1 results page without exposing it to the browser."""
+    try:
+        async with _profile_http_session() as session:
+            async with session.get(
+                url,
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as response:
+                if response.status != 200:
+                    return None
+                return await response.text()
+    except Exception as exc:
+        logger.debug("Formula1 results page error: %s", exc)
+        return None
+
+
+def _parse_formula1_practice_table(page_html: str, limit: int = 100) -> list[dict]:
+    """Convert the official practice classification table to the shared API shape."""
+    if not page_html:
+        return []
+    try:
+        document = lxml_html.fromstring(page_html)
+    except (TypeError, ValueError):
+        return []
+
+    for table in document.xpath("//table"):
+        headers = [" ".join(cell.text_content().split()) for cell in table.xpath(".//th")]
+        if not {"Pos.", "Driver", "Team", "Time / Gap"}.issubset(headers):
+            continue
+        results: list[dict] = []
+        for table_row in table.xpath(".//tbody/tr"):
+            cells = [" ".join(cell.text_content().split()) for cell in table_row.xpath("./td")]
+            if len(cells) < 5 or not cells[0].isdigit():
+                continue
+            position = int(cells[0])
+            driver_label = cells[2]
+            code_match = re.search(r"([A-Z]{3})$", driver_label)
+            driver_code = code_match.group(1) if code_match else ""
+            driver_name = (
+                driver_label[: code_match.start()].strip()
+                if code_match
+                else driver_label.strip()
+            )
+            timing = cells[4] or "—"
+            laps_raw = cells[5] if len(cells) > 5 else "0"
+            try:
+                laps = int(laps_raw)
+            except (TypeError, ValueError):
+                laps = 0
+            results.append({
+                "position": position,
+                "driver": driver_code or driver_name[:3].upper(),
+                "name": driver_name or driver_code,
+                "team": cells[3],
+                "best": timing if position == 1 else "—",
+                "gap": "—" if position == 1 else timing,
+                "laps": laps,
+                "sector1": "—",
+                "sector2": "—",
+                "sector3": "—",
+            })
+        if results:
+            return results[:limit]
+    return []
+
+
+async def formula1_get_practice_for_round(
+    season: int,
+    round_number: int,
+    session_number: int,
+    limit: int = 100,
+) -> list[dict]:
+    """Fallback to the official results table when timing APIs are unavailable."""
+    if session_number not in {1, 2, 3} or round_number < 1:
+        return []
+    index_url = f"https://www.formula1.com/en/results/{season}/races"
+    index_html = await _formula1_get_text(index_url)
+    if not index_html:
+        return []
+
+    event_links: list[tuple[str, str]] = []
+    pattern = re.compile(
+        rf"/en/results/{season}/races/(\d+)/([a-z0-9-]+)/race-result"
+    )
+    for match in pattern.finditer(index_html):
+        event_link = (match.group(1), match.group(2))
+        if event_link not in event_links:
+            event_links.append(event_link)
+    if round_number > len(event_links):
+        return []
+
+    race_id, slug = event_links[round_number - 1]
+    results_url = (
+        f"https://www.formula1.com/en/results/{season}/races/"
+        f"{race_id}/{slug}/practice/{session_number}"
+    )
+    results_html = await _formula1_get_text(results_url)
+    return _parse_formula1_practice_table(results_html or "", limit)
 
 
 async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[int | None, list[dict]]:
@@ -1575,13 +1832,29 @@ async def get_sprint_results_async(season: int, round_number: int) -> pd.DataFra
     return await _run_sync(get_sprint_results_df, season, round_number)
 
 
-@cache_result(ttl=600, key_prefix="practice_results_v1")
+@cache_result(ttl=600, key_prefix="practice_results_v3")
 async def get_practice_results_async(
     season: int,
     round_number: int,
     session_number: int,
     limit: int = 100,
 ) -> list[dict]:
+    openf1_results = await openf1_get_practice_for_round(
+        season,
+        round_number,
+        session_number,
+        limit,
+    )
+    if openf1_results:
+        return openf1_results
+    official_results = await formula1_get_practice_for_round(
+        season,
+        round_number,
+        session_number,
+        limit,
+    )
+    if official_results:
+        return official_results
     return await _run_sync(
         get_practice_results,
         season,

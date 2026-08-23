@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
-import { apiRequest } from "../../helpers/api";
+import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { ResultsFeedback, ResultsMobileRow, SessionBadge } from "../../components/SessionResultsUI";
 
 type Result = {
   position: number;
@@ -25,6 +26,14 @@ type SeasonRace = {
   sprint_start_utc?: string | null;
   sprint_quali_start_utc?: string | null;
 };
+
+function pilotPortraitUrl(code: string, fullName: string, season: number): string {
+  return apiAssetUrl("/api/pilot-portrait", {
+    season,
+    code,
+    name: fullName,
+  });
+}
 
 function parseOptionalInt(value: string | null): number | null {
   if (value === null) return null;
@@ -176,86 +185,28 @@ function SprintQualiResultsPage() {
         )}
 
         <div id="sprint-quali-content">
-          {loading && (
-            <div className="loading full-width">
-              <div className="spinner" />
-              <div>Загружаю результаты...</div>
-            </div>
-          )}
-          {error && <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>}
-          {!loading && !error && (!data?.results || data.results.length === 0) && (
-            <div className="empty-state">
-              <span className="empty-icon">⏱</span>
-              <div className="empty-title">Нет данных</div>
-              <div className="empty-desc">
-                {mode === "archive"
-                  ? "За выбранный этап результаты спринт-квалификации пока недоступны."
-                  : "Результаты спринт-квалификации пока недоступны. Попробуйте режим Архив."}
-              </div>
-            </div>
-          )}
+          <ResultsFeedback
+            loading={loading}
+            error={error}
+            empty={!loading && !error && (!data?.results || data.results.length === 0)}
+            icon="⏱"
+            description={mode === "archive"
+              ? "За выбранный этап результаты спринт-квалификации пока недоступны."
+              : "Результаты спринт-квалификации пока недоступны. Попробуйте режим Архив."}
+          />
           {!loading && !error && data?.results && data.results.length > 0 && (
             <div className="standings-list" style={{ marginTop: 16 }}>
               {data.results.map((r, i) => {
-                const emoji =
-                  r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : r.position;
                 return (
-                  <div key={i} className="standings-item">
-                    <div
-                      className="standings-position"
-                      style={{
-                        width: 35,
-                        color: r.position <= 3 ? "var(--text-primary)" : undefined,
-                      }}
-                    >
-                      {emoji}
-                    </div>
-                    <div className="standings-info">
-                      <div className="standings-name">
-                        {r.is_favorite_driver ? "⭐️ " : ""}
-                        {r.name || r.driver}
-                      </div>
-                      <div className="standings-code" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        {r.driver}
-                        {r.segment && (
-                          <span
-                            style={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              padding: "2px 6px",
-                              borderRadius: 4,
-                              background:
-                                r.segment === "Q3"
-                                  ? "rgba(34, 197, 94, 0.25)"
-                                  : r.segment === "Q2"
-                                    ? "rgba(59, 130, 246, 0.25)"
-                                    : "rgba(156, 163, 175, 0.25)",
-                              color:
-                                r.segment === "Q3"
-                                  ? "rgb(34, 197, 94)"
-                                  : r.segment === "Q2"
-                                    ? "rgb(96, 165, 250)"
-                                    : "rgb(156, 163, 175)",
-                            }}
-                          >
-                            {r.segment}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div
-                      className="standings-time"
-                      style={{
-                        fontFamily: "monospace",
-                        fontSize: 14,
-                        background: "rgba(255,255,255,0.05)",
-                        padding: "4px 8px",
-                        borderRadius: 6,
-                      }}
-                    >
-                      {r.best || "—"}
-                    </div>
-                  </div>
+                  <ResultsMobileRow
+                    key={i}
+                    position={r.position}
+                    name={r.name || r.driver || "—"}
+                    code={r.driver}
+                    favorite={r.is_favorite_driver}
+                    badge={r.segment ? <SessionBadge tone={r.segment === "Q3" ? "green" : r.segment === "Q2" ? "blue" : "neutral"}>{r.segment}</SessionBadge> : null}
+                    value={r.best || "—"}
+                  />
                 );
               })}
             </div>
@@ -296,12 +247,30 @@ function SprintQualiResultsPage() {
         </header>
 
         <div className="race-results-desktop-content">
-          {loading && <div className="loading full-width"><div className="spinner" /><div>Загружаю результаты...</div></div>}
-          {error && <div className="page-error">{error}</div>}
+          <ResultsFeedback
+            loading={loading}
+            error={error}
+            empty={!loading && !error && desktopRows.length === 0}
+            icon="⏱"
+            title="Сессия ещё не завершена"
+            description={mode === "archive" ? "За выбранный этап результаты пока недоступны." : "После клетчатого флага здесь появится классификация спринт-квалификации."}
+          />
           {!loading && !error && desktopWinner && (
             <div className="race-results-desktop-hero-grid">
               <div className="race-results-desktop-winner">
                 <div className="race-results-desktop-winner-overlay" />
+                <img
+                  className="race-results-desktop-winner-portrait"
+                  src={pilotPortraitUrl(
+                    (desktopWinner.driver || "").toUpperCase(),
+                    desktopWinner.name || desktopWinner.driver || "",
+                    data?.season || season,
+                  )}
+                  alt={desktopWinner.name || desktopWinner.driver || "Пилот"}
+                  onError={(event) => {
+                    event.currentTarget.style.display = "none";
+                  }}
+                />
                 <div className="race-results-desktop-winner-badge">SQ Pole</div>
                 <div className="race-results-desktop-winner-name">{desktopWinner.name || desktopWinner.driver}</div>
                 <div className="race-results-desktop-winner-meta">{(desktopWinner.driver || "—").toUpperCase()} • {desktopWinner.best || "—"}</div>
@@ -315,19 +284,20 @@ function SprintQualiResultsPage() {
             </div>
           )}
           {!loading && !error && desktopRows.length > 0 && (
-            <div className="race-results-desktop-table">
+            <div className="race-results-desktop-table quali-results-table">
               <div className="race-results-desktop-table-head">
-                <span>Поз</span><span>Пилот</span><span>Код</span><span>Время/статус</span><span>Сегмент</span><span>Очки</span><span>Избр</span>
+                <span>Поз</span><span>Пилот</span><span>Код</span><span>Время/статус</span><span>Сегмент</span>
               </div>
               {desktopRows.map((row) => (
-                <div key={`${row.position}-${row.name || row.driver}`} className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}>
+                <div
+                  key={`${row.position}-${row.name || row.driver}`}
+                  className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}
+                >
                   <span>{String(row.position).padStart(2, "0")}</span>
-                  <span>{row.name || row.driver}</span>
+                  <span>{row.is_favorite_driver ? "★ " : ""}{row.name || row.driver || "—"}</span>
                   <span>{(row.driver || "—").toUpperCase()}</span>
                   <span>{row.best || "—"}</span>
                   <span>{row.segment || "Q1"}</span>
-                  <span>—</span>
-                  <span>{row.is_favorite_driver ? "★" : "☆"}</span>
                 </div>
               ))}
             </div>

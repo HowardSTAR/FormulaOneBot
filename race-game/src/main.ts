@@ -6,6 +6,10 @@ const WORLD_HEIGHT = 1024
 const TOTAL_LAPS = 3
 const ROAD_HALF_WIDTH = 54
 const BEST_TIME_KEY = 'emerald-loop-best-time'
+const GHOST_ENABLED_KEY = 'emerald-loop-ghost-enabled'
+const TRACK_ID = 'emerald-loop-v1'
+const TELEMETRY_SAMPLE_INTERVAL_MS = 100
+const MAX_TELEMETRY_SAMPLES = 6000
 
 type RaceState = 'ready' | 'countdown' | 'racing' | 'paused' | 'finished'
 
@@ -22,6 +26,21 @@ type LeaderboardEntry = {
 type LeaderboardResponse = {
   entries: LeaderboardEntry[]
   me: LeaderboardEntry | null
+  ghost: GhostRun | null
+  track_id: string
+}
+
+type GhostSample = {
+  t: number
+  x: number
+  y: number
+  rotation: number
+}
+
+type GhostRun = {
+  name: string
+  time_ms: number
+  samples: GhostSample[]
 }
 
 const touchState: Record<TouchControl, boolean> = {
@@ -105,6 +124,39 @@ const ui = {
   leaderboardMyPlace: $('#leaderboard-my-place'),
   reset: $('#reset-button') as HTMLButtonElement,
   pause: $('#pause-button') as HTMLButtonElement,
+  ghostHudToggle: $('#ghost-hud-toggle') as HTMLButtonElement,
+  ghostMenuToggle: $('#menu-ghost-toggle') as HTMLButtonElement,
+  ghostMenuLabel: $('#menu-ghost-label'),
+  ghostMenuCopy: $('#menu-ghost-copy'),
+}
+
+const readGhostPreference = (): boolean => {
+  try {
+    return localStorage.getItem(GHOST_ENABLED_KEY) !== 'false'
+  } catch {
+    return true
+  }
+}
+
+let ghostEnabled = readGhostPreference()
+
+const persistGhostPreference = (): void => {
+  try {
+    localStorage.setItem(GHOST_ENABLED_KEY, String(ghostEnabled))
+  } catch { /* localStorage can be unavailable in privacy mode */ }
+}
+
+const syncGhostControls = (ghost: GhostRun | null): void => {
+  const available = Boolean(ghost?.samples?.length)
+  const pressed = String(ghostEnabled)
+  ui.ghostHudToggle.setAttribute('aria-pressed', pressed)
+  ui.ghostMenuToggle.setAttribute('aria-pressed', pressed)
+  ui.ghostHudToggle.classList.toggle('is-unavailable', !available)
+  ui.ghostHudToggle.textContent = `GHOST ${ghostEnabled ? 'ON' : 'OFF'}`
+  ui.ghostMenuLabel.textContent = `Ghost Racer: ${ghostEnabled ? 'ON' : 'OFF'}`
+  ui.ghostMenuCopy.textContent = available && ghost
+    ? `#1 ${ghost.name} · ${formatTime(ghost.time_ms)}`
+    : 'Лучший заезд с телеметрией пока недоступен'
 }
 
 const formatTime = (milliseconds: number): string => {
@@ -134,7 +186,7 @@ const getTelegramInitData = (): string => {
   }
 }
 
-const apiRequest = async <T>(endpoint: string, body?: Record<string, number>): Promise<T> => {
+const apiRequest = async <T>(endpoint: string, body?: unknown): Promise<T> => {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   const initData = getTelegramInitData()
   const csrf = readCookie('turbotears_csrf')
@@ -212,10 +264,21 @@ const loadLeaderboard = async (): Promise<void> => {
   }
 }
 
-const submitRaceTime = async (timeMs: number): Promise<boolean> => {
+const loadGhost = async (): Promise<void> => {
+  try {
+    const data = await apiRequest<LeaderboardResponse>(`/api/race-game-leaderboard?track_id=${encodeURIComponent(TRACK_ID)}`)
+    activeScene?.setGhost(data.ghost)
+  } catch {
+    activeScene?.setGhost(null)
+  }
+}
+
+const submitRaceTime = async (timeMs: number, telemetry: GhostSample[]): Promise<boolean> => {
   try {
     const response = await apiRequest<{ saved: boolean }>('/api/race-game-leaderboard/score', {
       time_ms: Math.round(timeMs),
+      track_id: TRACK_ID,
+      telemetry,
     })
     return response.saved
   } catch {
@@ -259,6 +322,7 @@ const nearestTrackPoint = (x: number, y: number) => {
 
 class RaceScene extends Phaser.Scene {
   private car!: Phaser.GameObjects.Image
+  private ghostCar!: Phaser.GameObjects.Image
   private dust!: Phaser.GameObjects.Particles.ParticleEmitter
   private keys!: Record<'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd' | 'space' | 'p' | 'r', Phaser.Input.Keyboard.Key>
   private velocity = new Phaser.Math.Vector2()
@@ -271,6 +335,10 @@ class RaceScene extends Phaser.Scene {
   private nextCheckpoint = 1
   private onRoad = true
   private stateBeforeMenu: RaceState | null = null
+  private ghost: GhostRun | null = null
+  private ghostSampleIndex = 0
+  private telemetry: GhostSample[] = []
+  private lastTelemetrySampleAt = -TELEMETRY_SAMPLE_INTERVAL_MS
 
   constructor() {
     super('race')
@@ -304,6 +372,13 @@ class RaceScene extends Phaser.Scene {
     this.car = this.add.image(centerLine[0].x, centerLine[0].y, 'car')
       .setDisplaySize(46, 69)
       .setDepth(10)
+
+    this.ghostCar = this.add.image(centerLine[0].x, centerLine[0].y, 'car')
+      .setDisplaySize(46, 69)
+      .setDepth(9)
+      .setTint(0x79e9ff)
+      .setAlpha(0.45)
+      .setVisible(false)
 
     this.keys = this.input.keyboard!.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.UP,
@@ -340,6 +415,8 @@ class RaceScene extends Phaser.Scene {
     this.resetRace()
     this.updateCameraZoom()
     activeScene = this
+    syncGhostControls(null)
+    void loadGhost()
   }
 
   update(_time: number, deltaMilliseconds: number): void {
@@ -361,11 +438,15 @@ class RaceScene extends Phaser.Scene {
         this.goFlashRemaining = 720
         ui.countdown.textContent = 'СТАРТ!'
         ui.countdown.classList.add('is-go')
+        this.recordTelemetry(true)
+        this.updateGhost()
       }
     } else if (this.raceState === 'racing') {
       this.elapsedTime += deltaMilliseconds
       this.updateDriving(delta)
       this.updateCheckpoints()
+      this.recordTelemetry()
+      this.updateGhost()
     }
 
     if (this.goFlashRemaining > 0) {
@@ -392,6 +473,20 @@ class RaceScene extends Phaser.Scene {
     this.countdownRemaining = 3000
     this.goFlashRemaining = 0
     ui.pause.textContent = 'Ⅱ'
+  }
+
+  setGhost(ghost: GhostRun | null): void {
+    this.ghost = ghost?.samples?.length && ghost.samples.length >= 2 ? ghost : null
+    this.ghostSampleIndex = 0
+    syncGhostControls(this.ghost)
+    this.updateGhost()
+  }
+
+  setGhostEnabled(enabled: boolean): void {
+    ghostEnabled = enabled
+    persistGhostPreference()
+    syncGhostControls(this.ghost)
+    this.updateGhost()
   }
 
   openGameMenu(showLeaderboard = false): void {
@@ -451,6 +546,9 @@ class RaceScene extends Phaser.Scene {
     this.car.setPosition(centerLine[0].x, centerLine[0].y)
     this.updateCarRotation()
     this.clearTouchState()
+    this.telemetry = []
+    this.lastTelemetrySampleAt = -TELEMETRY_SAMPLE_INTERVAL_MS
+    this.ghostSampleIndex = 0
 
     ui.lap.textContent = `1 / ${TOTAL_LAPS}`
     ui.time.textContent = formatTime(0)
@@ -464,6 +562,7 @@ class RaceScene extends Phaser.Scene {
     ui.countdown.classList.remove('is-go')
     ui.pause.textContent = 'Ⅱ'
     this.setSurfaceState(true)
+    this.updateGhost()
   }
 
   private updateDriving(delta: number): void {
@@ -555,6 +654,7 @@ class RaceScene extends Phaser.Scene {
   }
 
   private finishRace(): void {
+    this.recordTelemetry(true)
     this.raceState = 'finished'
     this.velocity.scale(0.4)
     const previousBest = Number(localStorage.getItem(BEST_TIME_KEY)) || Number.POSITIVE_INFINITY
@@ -570,11 +670,55 @@ class RaceScene extends Phaser.Scene {
     ui.modal.classList.add('is-visible')
     this.clearTouchState()
     const finishedTime = this.elapsedTime
-    void submitRaceTime(finishedTime).then((saved) => {
+    const finishedTelemetry = this.telemetry.slice()
+    void submitRaceTime(finishedTime, finishedTelemetry).then((saved) => {
       if (saved && this.raceState === 'finished' && this.elapsedTime === finishedTime) {
         ui.modalCopy.textContent = 'Три круга завершены. Результат сохранён в браузере и таблице лидеров.'
+        void loadGhost()
       }
     })
+  }
+
+  private recordTelemetry(force = false): void {
+    if (this.telemetry.length >= MAX_TELEMETRY_SAMPLES) return
+    if (!force && this.elapsedTime - this.lastTelemetrySampleAt < TELEMETRY_SAMPLE_INTERVAL_MS) return
+    const t = Math.round(this.elapsedTime)
+    if (this.telemetry.length && this.telemetry[this.telemetry.length - 1].t >= t) return
+    this.telemetry.push({
+      t,
+      x: Number(this.car.x.toFixed(2)),
+      y: Number(this.car.y.toFixed(2)),
+      rotation: Number(Phaser.Math.Angle.Normalize(this.car.rotation).toFixed(4)),
+    })
+    this.lastTelemetrySampleAt = this.elapsedTime
+  }
+
+  private updateGhost(): void {
+    const samples = this.ghost?.samples
+    if (!ghostEnabled || !samples || samples.length < 2 || this.elapsedTime > (this.ghost?.time_ms ?? 0) + 200) {
+      this.ghostCar?.setVisible(false)
+      return
+    }
+    while (
+      this.ghostSampleIndex < samples.length - 2
+      && samples[this.ghostSampleIndex + 1].t <= this.elapsedTime
+    ) {
+      this.ghostSampleIndex += 1
+    }
+    if (samples[this.ghostSampleIndex].t > this.elapsedTime) this.ghostSampleIndex = 0
+    const start = samples[this.ghostSampleIndex]
+    const end = samples[Math.min(this.ghostSampleIndex + 1, samples.length - 1)]
+    const duration = Math.max(1, end.t - start.t)
+    const progress = Phaser.Math.Clamp((this.elapsedTime - start.t) / duration, 0, 1)
+    this.ghostCar
+      .setVisible(true)
+      .setPosition(
+        Phaser.Math.Linear(start.x, end.x, progress),
+        Phaser.Math.Linear(start.y, end.y, progress),
+      )
+      .setRotation(Phaser.Math.Angle.Wrap(
+        start.rotation + Phaser.Math.Angle.Wrap(end.rotation - start.rotation) * progress,
+      ))
   }
 
   private setSurfaceState(onRoad: boolean): void {
@@ -632,6 +776,9 @@ ui.start.addEventListener('click', () => {
 })
 ui.reset.addEventListener('click', () => activeScene?.resetToTrack())
 ui.pause.addEventListener('click', () => activeScene?.togglePause())
+const toggleGhost = (): void => activeScene?.setGhostEnabled(!ghostEnabled)
+ui.ghostHudToggle.addEventListener('click', toggleGhost)
+ui.ghostMenuToggle.addEventListener('click', toggleGhost)
 ui.menuButton.addEventListener('click', () => activeScene?.openGameMenu())
 ui.menuClose.addEventListener('click', () => activeScene?.closeGameMenu())
 ui.menuBackdrop.addEventListener('click', () => activeScene?.closeGameMenu())

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pandas as pd
@@ -73,15 +73,102 @@ def test_prediction_fallback_excludes_unavailable_api_categories():
     assert answers["fastest_lap_driver"] is None
 
 
-def test_prediction_open_trigger_after_fp2():
-    """Открытие прогнозов планируется после FP2, даже если FP3 ещё не началась."""
+def test_prediction_open_trigger_at_fp1():
+    """Prediction invitations use FP1, never the old post-FP2 delay."""
     from app.services.prediction_notifications import _prediction_open_trigger
 
     trigger = _prediction_open_trigger([
+        {"name": "Practice 1", "utc_iso": "2030-05-10T08:00:00+00:00"},
         {"name": "Practice 2", "utc_iso": "2030-05-10T12:00:00+00:00"},
         {"name": "Practice 3", "utc_iso": "2030-05-11T10:00:00+00:00"},
     ])
-    assert trigger == datetime(2030, 5, 10, 13, 30, tzinfo=timezone.utc)
+    assert trigger == datetime(2030, 5, 10, 8, 0, tzinfo=timezone.utc)
+
+
+@pytest.mark.asyncio
+async def test_prediction_window_boundaries_are_fp1_inclusive_and_quali_exclusive():
+    """The server is closed before FP1, open at FP1, and closed exactly at qualifying."""
+    from app.services.prediction_service import get_prediction_context
+
+    fp1 = datetime(2030, 5, 10, 8, 0, tzinfo=timezone.utc)
+    quali = datetime(2030, 5, 11, 12, 0, tzinfo=timezone.utc)
+    event = {
+        "round": 4,
+        "event_name": "Boundary Grand Prix",
+        "practice1_start_utc": fp1.isoformat(),
+        "first_session_start_utc": fp1.isoformat(),
+        "quali_start_utc": quali.isoformat(),
+        "race_start_utc": (quali + timedelta(days=1)).isoformat(),
+    }
+    with patch(
+        "app.services.prediction_service.get_season_schedule_short_async",
+        new_callable=AsyncMock,
+        return_value=[event],
+    ):
+        before = await get_prediction_context(fp1 - timedelta(microseconds=1))
+        opened = await get_prediction_context(fp1)
+        during = await get_prediction_context(quali - timedelta(microseconds=1))
+        closed = await get_prediction_context(quali)
+
+    assert before["is_open"] is False
+    assert opened["is_open"] is True
+    assert during["is_open"] is True
+    assert closed["is_open"] is False
+    assert opened["opens_at_utc"] == fp1.isoformat()
+    assert opened["deadline_utc"] == quali.isoformat()
+
+
+def test_sprint_prediction_window_uses_fp1_and_sprint_qualifying_cutoff():
+    """Sprint weekends share the FP1 opening and lock at Sprint Qualifying."""
+    from app.services.prediction_service import get_prediction_window
+
+    opens_at, deadline = get_prediction_window({
+        "practice1_start_utc": "2030-05-10T10:00:00+03:00",
+        "first_session_start_utc": "2030-05-10T07:00:00Z",
+        "sprint_quali_start_utc": "2030-05-10T15:30:00+03:00",
+        "sprint_start_utc": "2030-05-11T12:00:00Z",
+        "quali_start_utc": "2030-05-11T16:00:00Z",
+    })
+    assert opens_at == datetime(2030, 5, 10, 7, 0, tzinfo=timezone.utc)
+    assert deadline == datetime(2030, 5, 10, 12, 30, tzinfo=timezone.utc)
+
+
+@pytest.mark.asyncio
+async def test_prediction_open_notification_dispatches_at_fp1():
+    """The polling worker sends the invitation on its first tick inside the FP1 window."""
+    from app.services.prediction_notifications import check_and_notify_predictions
+
+    now = datetime.now(timezone.utc)
+    event = {
+        "round": 8,
+        "event_name": "Invitation Grand Prix",
+        "practice1_start_utc": (now - timedelta(seconds=1)).isoformat(),
+        "first_session_start_utc": (now - timedelta(seconds=1)).isoformat(),
+        "quali_start_utc": (now + timedelta(hours=2)).isoformat(),
+        "race_start_utc": (now + timedelta(days=2)).isoformat(),
+    }
+    bot = AsyncMock()
+    with patch(
+        "app.services.prediction_notifications.get_season_schedule_short_async",
+        new_callable=AsyncMock,
+        return_value=[event],
+    ), patch(
+        "app.services.prediction_notifications.get_notification_state",
+        new_callable=AsyncMock,
+        return_value={"opened_sent": False, "results_sent": False},
+    ), patch(
+        "app.services.prediction_notifications.get_users_with_settings",
+        new_callable=AsyncMock,
+        return_value=[(12345, "UTC", 60, 1)],
+    ), patch(
+        "app.services.prediction_notifications.mark_notification_state",
+        new_callable=AsyncMock,
+    ) as mark_state:
+        await check_and_notify_predictions(bot)
+
+    bot.send_message.assert_awaited_once()
+    assert "Открыт приём прогнозов" in bot.send_message.await_args.kwargs["text"]
+    mark_state.assert_awaited_once_with(now.year, 8, "opened_sent")
 
 
 @pytest.mark.asyncio
