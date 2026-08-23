@@ -459,6 +459,58 @@ async def test_game_profile_save_no_longer_returns_method_not_allowed(api_client
 
 
 @pytest.mark.asyncio
+async def test_first_race_finish_auto_enrolls_missing_game_profile(api_client: AsyncClient):
+    """A first-time Emerald Loop player must not lose a completed race to a missing profile."""
+    score = await api_client.post(
+        "/api/race-game-leaderboard/score",
+        json={"time_ms": 81_250, "track_id": "emerald-loop-v1", "telemetry": []},
+    )
+    assert score.status_code == 200
+    payload = score.json()
+    assert payload["saved"] is True
+    assert payload["auto_enrolled"] is True
+    assert payload["reason"] is None
+    assert payload["leaderboard"]["me"]["time_ms"] == 81_250
+
+    profile = await api_client.get("/api/reaction-leaderboard/profile")
+    assert profile.status_code == 200
+    assert profile.json()["participate"] is True
+    assert profile.json()["prompt_seen"] is True
+    assert profile.json()["display_name"] == "Pilot #9888"
+
+
+@pytest.mark.asyncio
+async def test_race_finish_respects_explicit_leaderboard_opt_out(api_client: AsyncClient):
+    """Automatic enrollment must never override a profile that explicitly disabled participation."""
+    profile = await api_client.post(
+        "/api/reaction-leaderboard/profile",
+        json={"display_name": "Private Pilot", "participate": False, "prompt_seen": True},
+    )
+    assert profile.status_code == 200
+
+    score = await api_client.post(
+        "/api/race-game-leaderboard/score",
+        json={"time_ms": 79_500, "track_id": "emerald-loop-v1", "telemetry": []},
+    )
+    assert score.status_code == 200
+    payload = score.json()
+    assert payload["saved"] is False
+    assert payload["auto_enrolled"] is False
+    assert payload["reason"] == "leaderboard_opted_out"
+    assert "отключено" in payload["message"].lower()
+    assert payload["leaderboard"] is None
+
+    enabled = await api_client.post(
+        "/api/reaction-leaderboard/profile",
+        json={"participate": True, "prompt_seen": True},
+    )
+    assert enabled.status_code == 200
+    leaderboard = await api_client.get("/api/race-game-leaderboard")
+    assert leaderboard.status_code == 200
+    assert leaderboard.json()["entries"] == []
+
+
+@pytest.mark.asyncio
 async def test_race_game_rejects_invalid_ghost_telemetry(api_client: AsyncClient):
     """Ghost telemetry is bounded and must have a strictly increasing timeline."""
     response = await api_client.post(

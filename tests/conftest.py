@@ -69,6 +69,12 @@ async def app_with_overrides(temp_db_path):
     web_app.dependency_overrides[get_current_user_id] = fake_get_current_user_id
     web_app.dependency_overrides[get_optional_user_id] = fake_get_current_user_id
 
+    # app.db may already be imported during test collection (for example by
+    # admin API tests), so changing DATABASE_PATH alone is too late. Rebind
+    # the shared Database object explicitly to keep API tests away from bot.db.
+    original_db_path = db.db_path
+    db.db_path = temp_db_path.resolve()
+
     # Инициализация БД для тестов
     await db.connect()
     await db.init_tables()
@@ -82,6 +88,7 @@ async def app_with_overrides(temp_db_path):
     yield web_app
 
     await db.close()
+    db.db_path = original_db_path
     web_app.dependency_overrides.clear()
     if "DATABASE_PATH" in os.environ:
         del os.environ["DATABASE_PATH"]

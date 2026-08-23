@@ -30,7 +30,7 @@ from app.db import (
     get_driver_vote_round_winners,
     get_reaction_profile, upsert_reaction_profile,
     save_reaction_score, get_reaction_leaderboard,
-    save_race_game_score, get_race_game_leaderboard,
+    ensure_race_game_profile, save_race_game_score, get_race_game_leaderboard,
     save_reflex_grid_score, get_reflex_grid_leaderboard,
 )
 from app.api.auth_api import (
@@ -610,6 +610,7 @@ async def api_race_game_leaderboard_score(
     body: RaceGameScoreRequest,
     user_id: int = Depends(get_current_user_id),
 ):
+    profile, auto_enrolled = await ensure_race_game_profile(user_id)
     saved = await save_race_game_score(
         user_id,
         body.time_ms,
@@ -621,7 +622,22 @@ async def api_race_game_leaderboard_score(
         if saved
         else None
     )
-    return {"status": "ok", "saved": saved, "leaderboard": leaderboard}
+    reason = None if saved else (
+        "leaderboard_opted_out" if not profile["participate"] else "invalid_score"
+    )
+    message = None if saved else (
+        "Участие в общей таблице отключено. Включите его в настройках игрового профиля."
+        if not profile["participate"]
+        else "Результат не прошёл проверку и не был сохранён."
+    )
+    return {
+        "status": "ok",
+        "saved": saved,
+        "leaderboard": leaderboard,
+        "auto_enrolled": auto_enrolled,
+        "reason": reason,
+        "message": message,
+    }
 
 
 @web_app.get("/api/reflex-grid-leaderboard")

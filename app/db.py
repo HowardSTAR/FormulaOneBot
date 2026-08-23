@@ -910,6 +910,47 @@ async def upsert_reaction_profile(
     return {"display_name": next_name, "participate": next_participate, "prompt_seen": next_prompt_seen}
 
 
+async def ensure_race_game_profile(telegram_id: int) -> tuple[dict, bool]:
+    """Create an opted-in profile on the first completed Emerald Loop race.
+
+    An existing profile is never changed, so a user's explicit opt-out remains
+    authoritative. The boolean return value tells the API whether this call
+    created the profile automatically.
+    """
+    if not db.conn:
+        await db.connect()
+    tg_id = int(telegram_id)
+    await get_or_create_user(tg_id)
+
+    async with db.conn.execute(
+        "SELECT 1 FROM reaction_leaderboard_profiles WHERE telegram_id = ?",
+        (tg_id,),
+    ) as cursor:
+        if await cursor.fetchone():
+            return await get_reaction_profile(tg_id), False
+
+    async with db.conn.execute(
+        "SELECT display_name, telegram_username FROM users WHERE telegram_id = ?",
+        (tg_id,),
+    ) as cursor:
+        user = await cursor.fetchone()
+    suggested_name = _normalize_reaction_name(
+        (user["display_name"] if user else None)
+        or (user["telegram_username"] if user else None)
+        or f"Pilot #{str(tg_id)[-4:]}"
+    )
+    insert = await db.conn.execute(
+        """
+        INSERT OR IGNORE INTO reaction_leaderboard_profiles(
+            telegram_id, display_name, leaderboard_opt_in, prompt_seen
+        ) VALUES (?, ?, 1, 1)
+        """,
+        (tg_id, suggested_name),
+    )
+    await db.conn.commit()
+    return await get_reaction_profile(tg_id), bool(insert.rowcount)
+
+
 async def save_reaction_score(telegram_id: int, time_ms: int) -> bool:
     """
     Сохраняет результат реакции в мс, если пользователь участвует в лидерборде.
@@ -994,7 +1035,7 @@ async def save_race_game_score(
     if not db.conn:
         await db.connect()
     tg_id = int(telegram_id)
-    profile = await get_reaction_profile(tg_id)
+    profile, _ = await ensure_race_game_profile(tg_id)
     if not profile["participate"]:
         return False
 

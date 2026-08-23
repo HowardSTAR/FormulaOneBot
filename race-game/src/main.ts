@@ -33,7 +33,9 @@ type LeaderboardResponse = {
 type ScoreSubmissionResult = {
   saved: boolean
   leaderboard: LeaderboardResponse | null
-  error?: string
+  auto_enrolled?: boolean
+  reason?: 'leaderboard_opted_out' | 'invalid_score' | string | null
+  message?: string | null
 }
 
 type GhostSample = {
@@ -258,10 +260,40 @@ const renderLeaderboard = (data: LeaderboardResponse): void => {
   })
 }
 
+let localBestSyncAttempted = false
+
 const loadLeaderboard = async (): Promise<void> => {
   ui.leaderboardList.innerHTML = '<div class="leaderboard-message">Загрузка результатов…</div>'
   try {
-    renderLeaderboard(await apiRequest<LeaderboardResponse>('/api/race-game-leaderboard'))
+    const data = await apiRequest<LeaderboardResponse>('/api/race-game-leaderboard')
+    const localBest = Number(localStorage.getItem(BEST_TIME_KEY))
+    if (
+      !data.me
+      && !localBestSyncAttempted
+      && Number.isFinite(localBest)
+      && localBest >= 15_000
+      && localBest <= 3_600_000
+    ) {
+      localBestSyncAttempted = true
+      const restored = await submitRaceTime(localBest, [])
+      if (restored.saved && restored.leaderboard) {
+        renderLeaderboard(restored.leaderboard)
+        activeScene?.setGhost(restored.leaderboard.ghost)
+        return
+      }
+      renderLeaderboard(data)
+      ui.leaderboardMyPlace.textContent = restored.reason === 'leaderboard_opted_out'
+        ? 'Участие выключено'
+        : 'Не синхронизировано'
+      if (data.entries.length === 0) {
+        const message = ui.leaderboardList.querySelector('.leaderboard-message')
+        if (message) {
+          message.textContent = restored.message || 'Не удалось синхронизировать локальный результат.'
+        }
+      }
+      return
+    }
+    renderLeaderboard(data)
   } catch (error) {
     ui.leaderboardMyPlace.textContent = '—'
     ui.leaderboardList.innerHTML = ''
@@ -281,7 +313,7 @@ const loadGhost = async (): Promise<void> => {
   }
 }
 
-const submitRaceTime = async (timeMs: number, telemetry: GhostSample[]): Promise<ScoreSubmissionResult> => {
+async function submitRaceTime(timeMs: number, telemetry: GhostSample[]): Promise<ScoreSubmissionResult> {
   try {
     return await apiRequest<ScoreSubmissionResult>('/api/race-game-leaderboard/score', {
       time_ms: Math.round(timeMs),
@@ -292,7 +324,7 @@ const submitRaceTime = async (timeMs: number, telemetry: GhostSample[]): Promise
     return {
       saved: false,
       leaderboard: null,
-      error: error instanceof Error ? error.message : 'Не удалось сохранить результат в таблице лидеров.',
+      message: error instanceof Error ? error.message : 'Не удалось сохранить результат в таблице лидеров.',
     }
   }
 }
@@ -709,8 +741,8 @@ class RaceScene extends Phaser.Scene {
           ui.modalCopy.textContent = 'Три круга завершены. Результат сохранён в браузере и таблице лидеров.'
         }
       } else if (this.raceState === 'finished' && this.elapsedTime === finishedTime) {
-        ui.modalCopy.textContent = result.error
-          ? `Результат сохранён только в браузере. ${result.error}`
+        ui.modalCopy.textContent = result.message
+          ? `Результат сохранён только в браузере. ${result.message}`
           : 'Результат сохранён только в браузере. Включите участие в общей таблице лидеров.'
       }
     })
