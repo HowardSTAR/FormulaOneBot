@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import "./styles.css";
 
+function isPhoneDevice() {
+  const userAgent = navigator.userAgent || "";
+  const mobileUserAgent = /Android.+Mobile|iPhone|iPod|IEMobile|Windows Phone|Opera Mini/i.test(userAgent);
+  const compactTouchScreen = window.matchMedia("(pointer: coarse)").matches
+    && Math.min(window.screen.width, window.screen.height) <= 520;
+  return mobileUserAgent || compactTouchScreen;
+}
+
 function RaceGamePage() {
   const [orientationPromptDismissed, setOrientationPromptDismissed] = useState(false);
+  const [showOrientationPrompt] = useState(isPhoneDevice);
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
@@ -17,7 +26,7 @@ function RaceGamePage() {
 
   return (
     <main className="race-game-host">
-      {!orientationPromptDismissed ? (
+      {showOrientationPrompt && !orientationPromptDismissed ? (
         <section
           className="race-game-orientation-prompt"
           role="dialog"
