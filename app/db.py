@@ -1,6 +1,7 @@
 import logging
 import os
 import asyncio
+import json
 import aiosqlite
 from pathlib import Path
 from typing import List, Tuple, Any, Optional
@@ -229,6 +230,18 @@ class Database:
         )
         await self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_race_game_scores_time ON race_game_scores(time_ms)"
+        )
+        async with self.conn.execute("PRAGMA table_info(race_game_scores)") as cursor:
+            race_game_columns = {row["name"] for row in await cursor.fetchall()}
+        if "track_id" not in race_game_columns:
+            await self.conn.execute(
+                "ALTER TABLE race_game_scores ADD COLUMN track_id TEXT NOT NULL DEFAULT 'emerald-loop-v1'"
+            )
+        if "telemetry_json" not in race_game_columns:
+            await self.conn.execute("ALTER TABLE race_game_scores ADD COLUMN telemetry_json TEXT")
+        await self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_race_game_track_time "
+            "ON race_game_scores(track_id, time_ms)"
         )
 
         # 9. Результаты игры Reflex Grid (лидерборд по режимам и сложности)
@@ -971,7 +984,12 @@ async def get_reaction_leaderboard(telegram_id: int | None = None) -> dict:
 
 # --- Emerald Loop: сохранение результатов и лидерборд ---
 
-async def save_race_game_score(telegram_id: int, time_ms: int) -> bool:
+async def save_race_game_score(
+    telegram_id: int,
+    time_ms: int,
+    telemetry: list[dict] | None = None,
+    track_id: str = "emerald-loop-v1",
+) -> bool:
     """Сохраняет время трёх кругов для участника общего игрового рейтинга."""
     if not db.conn:
         await db.connect()
@@ -984,15 +1002,29 @@ async def save_race_game_score(telegram_id: int, time_ms: int) -> bool:
     if normalized_time < 15_000 or normalized_time > 3_600_000:
         return False
 
+    normalized_track = str(track_id or "").strip()
+    if normalized_track != "emerald-loop-v1":
+        return False
+    telemetry_json = (
+        json.dumps(telemetry, ensure_ascii=False, separators=(",", ":"))
+        if telemetry
+        else None
+    )
     await db.conn.execute(
-        "INSERT INTO race_game_scores (telegram_id, time_ms) VALUES (?, ?)",
-        (tg_id, normalized_time),
+        """
+        INSERT INTO race_game_scores (telegram_id, time_ms, track_id, telemetry_json)
+        VALUES (?, ?, ?, ?)
+        """,
+        (tg_id, normalized_time, normalized_track, telemetry_json),
     )
     await db.conn.commit()
     return True
 
 
-async def get_race_game_leaderboard(telegram_id: int | None = None) -> dict:
+async def get_race_game_leaderboard(
+    telegram_id: int | None = None,
+    track_id: str = "emerald-loop-v1",
+) -> dict:
     """Возвращает лучшее время каждого участника Emerald Loop."""
     if not db.conn:
         await db.connect()
@@ -1005,10 +1037,11 @@ async def get_race_game_leaderboard(telegram_id: int | None = None) -> dict:
             MIN(s.time_ms) AS best_time_ms
         FROM reaction_leaderboard_profiles p
         JOIN race_game_scores s ON s.telegram_id = p.telegram_id
-        WHERE p.leaderboard_opt_in = 1
+        WHERE p.leaderboard_opt_in = 1 AND s.track_id = ?
         GROUP BY p.telegram_id, p.display_name
         ORDER BY best_time_ms ASC, p.telegram_id ASC
-        """
+        """,
+        (track_id,),
     ) as cursor:
         rows = await cursor.fetchall()
 
@@ -1034,7 +1067,32 @@ async def get_race_game_leaderboard(telegram_id: int | None = None) -> dict:
         if item["is_me"]:
             me = item
 
-    return {"entries": entries, "me": me}
+    ghost: dict | None = None
+    async with db.conn.execute(
+        """
+        SELECT p.display_name, s.time_ms, s.telemetry_json
+        FROM race_game_scores s
+        JOIN reaction_leaderboard_profiles p ON p.telegram_id = s.telegram_id
+        WHERE p.leaderboard_opt_in = 1 AND s.track_id = ?
+        ORDER BY s.time_ms ASC, s.id ASC
+        LIMIT 1
+        """,
+        (track_id,),
+    ) as cursor:
+        fastest = await cursor.fetchone()
+    if fastest is not None and fastest["telemetry_json"]:
+        try:
+            samples = json.loads(fastest["telemetry_json"])
+            if isinstance(samples, list) and len(samples) >= 2:
+                ghost = {
+                    "name": (fastest["display_name"] or "").strip() or "Ghost Racer",
+                    "time_ms": int(fastest["time_ms"]),
+                    "samples": samples,
+                }
+        except (TypeError, ValueError, json.JSONDecodeError):
+            logger.warning("Invalid Emerald Loop ghost telemetry ignored")
+
+    return {"entries": entries, "me": me, "ghost": ghost, "track_id": track_id}
 
 
 # --- Reflex Grid: сохранение результатов и лидерборд ---
