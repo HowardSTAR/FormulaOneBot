@@ -56,12 +56,14 @@ async def safe_answer(
 async def safe_send_photo(bot: Bot, chat_id: int, photo, caption: str = "", **kwargs) -> bool:
     """Безопасная отправка фото (BytesIO, bytes или file_id)."""
     try:
+        logger.info("[Telegram API Dispatch] method=send_photo chat_id=%s", chat_id)
         normalized_photo = photo
         if isinstance(photo, BytesIO):
             normalized_photo = BufferedInputFile(photo.getvalue(), filename="turbotears-results.png")
         elif isinstance(photo, (bytes, bytearray, memoryview)):
             normalized_photo = BufferedInputFile(bytes(photo), filename="turbotears-results.png")
         await bot.send_photo(chat_id=chat_id, photo=normalized_photo, caption=caption or None, **kwargs)
+        logger.info("[Delivery Confirmation] method=send_photo chat_id=%s", chat_id)
         return True
     except TelegramForbiddenError:
         logger.warning(f"User {chat_id} blocked the bot.")
@@ -123,7 +125,9 @@ async def safe_send_message(bot: Bot, chat_id: int, text: str, **kwargs) -> bool
     Возвращает True, если отправлено успешно.
     """
     try:
+        logger.info("[Telegram API Dispatch] method=send_message chat_id=%s", chat_id)
         await bot.send_message(chat_id=chat_id, text=text, **kwargs)
+        logger.info("[Delivery Confirmation] method=send_message chat_id=%s", chat_id)
         return True
     except TelegramForbiddenError:
         logger.warning(f"User {chat_id} blocked the bot. Removing from DB recommended.")

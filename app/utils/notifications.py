@@ -399,10 +399,17 @@ def _latest_finished_session(
     schedule: list[dict],
     datetime_key: str,
     elapsed_minutes: int,
+    status_key: str | None = None,
 ) -> dict | None:
     now = datetime.now(timezone.utc)
     finished = None
     for event in schedule or []:
+        status = str(event.get(status_key) or "").strip().lower() if status_key else ""
+        if status in {"completed", "results_ready"}:
+            finished = event
+            continue
+        if status and status not in {"completed", "results_ready"}:
+            continue
         raw = event.get(datetime_key)
         if not raw:
             continue
@@ -569,6 +576,14 @@ async def _deliver_session_classification(
         )
 
     photo_bytes = (await asyncio.to_thread(_render)).getvalue()
+    logger.info(
+        "[Notification Trigger] session=%s season=%s round=%s recipients=%s groups=%s",
+        image_session_type,
+        season,
+        round_num,
+        len(notification_users),
+        len(group_chats),
+    )
     sent_count = 0
     all_succeeded = True
     recipient_ids = set()
@@ -641,6 +656,12 @@ async def check_and_send_results(bot: Bot):
 
     for r in schedule:
         if not r.get("race_start_utc"): continue
+        race_status = str(r.get("race_status") or "").strip().lower()
+        if race_status in {"completed", "results_ready"}:
+            finished_event = r
+            continue
+        if race_status and race_status not in {"completed", "results_ready"}:
+            continue
         try:
             race_dt = datetime.fromisoformat(r["race_start_utc"])
             if race_dt.tzinfo is None: race_dt = race_dt.replace(tzinfo=timezone.utc)
@@ -709,6 +730,7 @@ async def check_and_send_results(bot: Bot):
         return
 
     # === ЛОГИКА ДЛЯ ГОНОК: картинка + текст по избранным под спойлером ===
+    logger.info("[Result Ingestion] event=race_results season=%s round=%s", season, round_num)
     results_df = await get_race_results_async(season, round_num)
 
     # Проверяем, что данные полные (нет ??)
@@ -843,6 +865,13 @@ async def check_and_send_results(bot: Bot):
         )
         return
 
+    logger.info(
+        "[Notification Trigger] event=race_results season=%s round=%s rows=%s",
+        season,
+        round_num,
+        len(rows_for_image),
+    )
+
     event_name = race_info.get("event_name", "Гран-при") or "Гран-при"
 
     def _render_race_image(fav_codes: set[str] | None = None):
@@ -961,6 +990,12 @@ async def check_and_send_results(bot: Bot):
 
     if sent_count > 0:
         await set_last_notified_round(season, round_num)
+        logger.info(
+            "[Delivery Confirmation] event=race_results season=%s round=%s delivered=%s",
+            season,
+            round_num,
+            sent_count,
+        )
     else:
         logger.warning(f"⚠️ Race results delivery failed for round {round_num}, will retry.")
 
@@ -970,6 +1005,7 @@ async def check_and_send_results(bot: Bot):
 async def check_and_notify_quali(bot: Bot) -> bool:
     """Отправляет полную квалификацию и отдельное сообщение по избранному."""
     season = datetime.now(timezone.utc).year
+    logger.info("[Result Ingestion] event=qualifying_results season=%s", season)
     data = await _get_latest_quali_async(season)
     if not data or data[0] is None:
         return True
@@ -982,7 +1018,12 @@ async def check_and_notify_quali(bot: Bot) -> bool:
     schedule = await get_season_schedule_short_async(season)
     race_info = next((r for r in schedule if r["round"] == round_num), None) if schedule else None
     if race_info and race_info.get("quali_start_utc"):
-        finished = _latest_finished_session([race_info], "quali_start_utc", 75)
+        finished = _latest_finished_session(
+            [race_info],
+            "quali_start_utc",
+            60,
+            "qualifying_status",
+        )
         if finished is None:
             return True
 
@@ -1036,7 +1077,12 @@ async def check_and_notify_quali(bot: Bot) -> bool:
 async def check_and_notify_sprint_quali(bot: Bot) -> bool:
     season = datetime.now(timezone.utc).year
     schedule = await get_season_schedule_short_async(season)
-    event = _latest_finished_session(schedule, "sprint_quali_start_utc", 45)
+    event = _latest_finished_session(
+        schedule,
+        "sprint_quali_start_utc",
+        45,
+        "sprint_qualifying_status",
+    )
     if event is None:
         return True
     round_num = int(event["round"])
@@ -1044,6 +1090,11 @@ async def check_and_notify_sprint_quali(bot: Bot) -> bool:
     if last_notified is not None and last_notified >= round_num:
         return True
 
+    logger.info(
+        "[Result Ingestion] event=sprint_qualifying_results season=%s round=%s",
+        season,
+        round_num,
+    )
     results = await get_sprint_quali_results_async(season, round_num, limit=100)
     code_to_team = await _load_code_to_team(season, round_num)
     normalized_rows = _normalize_qualifying_results(results, code_to_team)
@@ -1068,7 +1119,7 @@ async def check_and_notify_sprint_quali(bot: Bot) -> bool:
 async def check_and_notify_sprint(bot: Bot) -> bool:
     season = datetime.now(timezone.utc).year
     schedule = await get_season_schedule_short_async(season)
-    event = _latest_finished_session(schedule, "sprint_start_utc", 60)
+    event = _latest_finished_session(schedule, "sprint_start_utc", 30, "sprint_status")
     if event is None:
         return True
     round_num = int(event["round"])
@@ -1076,6 +1127,7 @@ async def check_and_notify_sprint(bot: Bot) -> bool:
     if last_notified is not None and last_notified >= round_num:
         return True
 
+    logger.info("[Result Ingestion] event=sprint_results season=%s round=%s", season, round_num)
     results_df = await get_sprint_results_async(season, round_num)
     code_to_team = await _load_code_to_team(season, round_num)
     normalized_rows = _normalize_sprint_results(results_df, code_to_team)
@@ -1097,15 +1149,23 @@ async def check_and_notify_sprint(bot: Bot) -> bool:
     return delivered
 
 
+RESULT_NOTIFICATION_HANDLERS = {
+    "sprint_qualifying_results": "check_and_notify_sprint_quali",
+    "sprint_results": "check_and_notify_sprint",
+    "qualifying_results": "check_and_notify_quali",
+    "race_results": "check_and_send_results",
+}
+
+
 async def check_and_send_session_results(bot: Bot) -> None:
-    """Строго последовательная пост-сессионная рассылка одного гоночного уикенда."""
-    if not await check_and_notify_sprint_quali(bot):
-        return
-    if not await check_and_notify_sprint(bot):
-        return
-    if not await check_and_notify_quali(bot):
-        return
-    await check_and_send_results(bot)
+    """Poll every result event independently so one unavailable feed cannot block another."""
+    for event_type, handler_name in RESULT_NOTIFICATION_HANDLERS.items():
+        try:
+            logger.info("[Result Ingestion] pipeline_poll event=%s", event_type)
+            handler = globals()[handler_name]
+            await handler(bot)
+        except Exception:
+            logger.exception("Result notification pipeline failed for event=%s", event_type)
 
 
 # --- ЗАДАЧА 4: ИТОГИ ГОЛОСОВАНИЯ (3 дня после гонки) ---

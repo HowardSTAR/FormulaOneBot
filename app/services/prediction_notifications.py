@@ -12,11 +12,11 @@ from app.f1_data import (
     get_season_schedule_short_async,
     get_sprint_quali_results_async,
     get_sprint_results_async,
-    get_weekend_schedule,
 )
 from app.services.prediction_service import (
     build_actual_answers,
     get_notification_state,
+    get_prediction_window,
     get_stage_top,
     mark_notification_state,
     parse_utc,
@@ -34,11 +34,15 @@ def _prediction_open_trigger(sessions: list[dict]) -> datetime | None:
         str(item.get("name") or "").strip().lower(): parse_utc(item.get("utc_iso"))
         for item in sessions
     }
-    fp2 = by_name.get("practice 2")
-    fp3 = by_name.get("practice 3")
-    # FP2 считается завершённой через 90 минут; при наличии FP3 рассылка также
-    # разрешена с момента её старта.
-    candidates = [value for value in (fp2 + timedelta(minutes=90) if fp2 else None, fp3) if value]
+    preferred_names = (
+        "practice 1",
+        "free practice 1",
+        "sprint practice",
+        "sprint fp1",
+        "sprint shootout",
+        "sprint qualifying",
+    )
+    candidates = [by_name.get(name) for name in preferred_names if by_name.get(name)]
     return min(candidates) if candidates else None
 
 
@@ -108,7 +112,7 @@ async def _send_prediction_results(
 
 
 async def check_and_notify_predictions(bot: Bot) -> None:
-    """Открывает приём после FP2/во время FP3 и считает этап после гонки."""
+    """Invites at FP1 and scores the stage after race results become ready."""
     now = datetime.now(timezone.utc)
     season = now.year
     schedule = await get_season_schedule_short_async(season) or []
@@ -121,19 +125,28 @@ async def check_and_notify_predictions(bot: Bot) -> None:
             continue
         round_num = int(event["round"])
         state = await get_notification_state(season, round_num)
-        quali_at = parse_utc(event.get("quali_start_utc"))
+        opens_at, deadline = get_prediction_window(event)
         race_at = parse_utc(event.get("race_start_utc"))
 
-        if not state["opened_sent"] and quali_at and now < quali_at:
-            sessions = await asyncio.to_thread(get_weekend_schedule, season, round_num)
-            trigger_at = _prediction_open_trigger(sessions)
-            if trigger_at and now >= trigger_at:
+        if not state["opened_sent"] and opens_at and deadline and opens_at <= now < deadline:
+            logger.info(
+                "[Notification Trigger] event=prediction_window_open season=%s round=%s opens_at=%s",
+                season,
+                round_num,
+                opens_at.isoformat(),
+            )
+            if now >= opens_at:
                 sent = await _send_prediction_opened(bot, event, notification_users)
                 # Если получатели есть, но Telegram не принял ни одного сообщения,
                 # не закрываем событие: следующий запуск планировщика повторит доставку.
                 if sent or not notification_users:
                     await mark_notification_state(season, round_num, "opened_sent")
-                logger.info("Prediction opened notification %s/%s delivered to %s users", season, round_num, sent)
+                logger.info(
+                    "[Delivery Confirmation] event=prediction_window_open season=%s round=%s delivered=%s",
+                    season,
+                    round_num,
+                    sent,
+                )
 
         if state["results_sent"] or not race_at or now < race_at + timedelta(hours=3):
             continue

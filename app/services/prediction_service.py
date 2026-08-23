@@ -121,13 +121,30 @@ def parse_utc(value: str | None) -> datetime | None:
         return None
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
     except (TypeError, ValueError):
         return None
 
 
+def get_prediction_window(event: dict[str, Any]) -> tuple[datetime | None, datetime | None]:
+    """Return the single UTC source of truth for prediction open/cutoff times."""
+    has_sprint = bool(event.get("sprint_start_utc") or event.get("sprint_quali_start_utc"))
+    opens_at = parse_utc(
+        event.get("practice1_start_utc")
+        or event.get("first_session_start_utc")
+    )
+    deadline = parse_utc(
+        event.get("sprint_quali_start_utc") if has_sprint else event.get("quali_start_utc")
+    )
+    if opens_at and deadline and deadline <= opens_at:
+        return None, None
+    return opens_at, deadline
+
+
 async def get_prediction_context(now_utc: datetime | None = None) -> dict[str, Any]:
-    now = now_utc or datetime.now(timezone.utc)
+    now = (now_utc or datetime.now(timezone.utc)).astimezone(timezone.utc)
     season = now.year
     schedule = await get_season_schedule_short_async(season) or []
     candidates = []
@@ -148,18 +165,17 @@ async def get_prediction_context(now_utc: datetime | None = None) -> dict[str, A
 
     _, event = min(candidates, key=lambda item: item[0])
     has_sprint = bool(event.get("sprint_start_utc") or event.get("sprint_quali_start_utc"))
-    deadline = parse_utc(
-        event.get("sprint_quali_start_utc") if has_sprint else event.get("quali_start_utc")
-    )
+    opens_at, deadline = get_prediction_window(event)
     return {
         "status": "ok",
         "season": season,
         "round": int(event["round"]),
         "event_name": event.get("event_name") or "Гран-при",
+        "opens_at_utc": opens_at.isoformat() if opens_at else None,
         "deadline_utc": deadline.isoformat() if deadline else None,
         "race_start_utc": event.get("race_start_utc"),
         "has_sprint": has_sprint,
-        "is_open": bool(deadline and now < deadline),
+        "is_open": bool(opens_at and deadline and opens_at <= now < deadline),
     }
 
 
