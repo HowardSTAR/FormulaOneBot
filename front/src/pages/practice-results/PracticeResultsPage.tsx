@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
 import { apiRequest } from "../../helpers/api";
+import { ResultsDesktopTable, ResultsFeedback, ResultsMobileRow } from "../../components/SessionResultsUI";
 import "./practice-results.css";
 
 type PracticeSession = 1 | 2 | 3;
@@ -24,9 +25,11 @@ type PracticeResult = {
 type PracticeResponse = {
   season: number;
   round: number | null;
+  requested_round?: number | null;
   session: PracticeSession;
   available_sessions: PracticeSession[];
   is_sprint_weekend: boolean;
+  data_fallback?: boolean;
   race_info?: { event_name?: string; location?: string } | null;
   results: PracticeResult[];
 };
@@ -169,6 +172,14 @@ export default function PracticeResultsPage() {
           </p>
         </div>
         <div className="practice-hero-aside">
+          {data?.data_fallback && (
+            <span
+              className="practice-format-badge"
+              title={data.requested_round ? `Данные этапа ${data.requested_round} ещё недоступны` : undefined}
+            >
+              Показан последний доступный этап
+            </span>
+          )}
           {data?.is_sprint_weekend && (
             <span className="practice-format-badge">Спринт-уикенд · только FP1</span>
           )}
@@ -240,41 +251,45 @@ export default function PracticeResultsPage() {
           <small>{data?.results.length || 0} пилотов</small>
         </div>
 
-        {loading && (
-          <div className="practice-state">
-            <div className="spinner" />
-            Загружаем результаты…
-          </div>
-        )}
-        {!loading && error && <div className="practice-state error">{error}</div>}
-        {!loading && !error && (!data || data.results.length === 0) && (
-          <div className="practice-state">
-            Результаты P{selectedSession} пока недоступны.
-          </div>
-        )}
+        <ResultsFeedback
+          loading={loading}
+          error={error}
+          empty={!loading && !error && (!data || data.results.length === 0)}
+          icon="⏱"
+          title={`Нет данных P${selectedSession}`}
+          description={`Результаты практики ${selectedSession} пока недоступны.`}
+        />
         {!loading && !error && data && data.results.length > 0 && (
-          <div className="practice-table">
-            <div className="practice-table-row practice-table-head">
-              <span>Поз</span><span>Пилот</span><span>Команда</span>
-              <span>Лучший круг</span><span>Отставание</span><span>Круги</span>
+          <>
+            <div className="practice-mobile-results standings-list">
+              {data.results.map((result) => (
+                <ResultsMobileRow
+                  key={`${result.position}-${result.driver}`}
+                  position={result.position}
+                  name={result.name || result.driver}
+                  code={result.driver}
+                  team={result.team}
+                  favorite={result.is_favorite_driver}
+                  value={result.position === 1 ? (result.best || "—") : (result.gap || "—")}
+                />
+              ))}
             </div>
-            {data.results.map((result) => (
-              <div
-                className={`practice-table-row${result.position === 1 ? " leader" : ""}`}
-                key={`${result.position}-${result.driver}`}
-              >
-                <span className="practice-position">{String(result.position).padStart(2, "0")}</span>
-                <span className="practice-driver">
-                  <b>{result.is_favorite_driver ? "★ " : ""}{result.name || result.driver}</b>
-                  <small>{result.driver}</small>
-                </span>
-                <span className="practice-team">{result.team || "—"}</span>
-                <span className="practice-time">{result.best || "—"}</span>
-                <span className="practice-gap">{result.gap || "—"}</span>
-                <span className="practice-laps">{result.laps}</span>
-              </div>
-            ))}
-          </div>
+            <ResultsDesktopTable
+              className="practice-unified-table"
+              columns={["Поз", "Пилот", "Команда", "Лучший круг / Gap", "Круги"]}
+              rows={data.results.map((result) => ({
+                key: `${result.position}-${result.driver}`,
+                winner: result.position === 1,
+                values: [
+                  String(result.position).padStart(2, "0"),
+                  `${result.is_favorite_driver ? "★ " : ""}${result.name || result.driver} · ${result.driver}`,
+                  result.team || "—",
+                  result.position === 1 ? (result.best || "—") : (result.gap || "—"),
+                  result.laps,
+                ],
+              }))}
+            />
+          </>
         )}
       </section>
     </div>

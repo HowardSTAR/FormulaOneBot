@@ -1,14 +1,19 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
-import { apiRequest } from "../../helpers/api";
+import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { ResultsFeedback, ResultsMobileRow } from "../../components/SessionResultsUI";
 
 type Result = {
   position: number;
+  code?: string;
   name: string;
   team: string;
   points: number;
+  time?: string;
+  gap?: string;
+  status?: string;
   is_favorite_driver?: boolean;
   is_favorite_team?: boolean;
 };
@@ -25,6 +30,29 @@ type SeasonRace = {
   sprint_start_utc?: string | null;
   sprint_quali_start_utc?: string | null;
 };
+type DriverTeamInfo = {
+  code: string;
+  driverId?: string;
+  constructorId?: string;
+  constructorName?: string;
+};
+type DriversResponse = { drivers?: DriverTeamInfo[] };
+
+function pilotPortraitUrl(code: string, fullName: string, season: number): string {
+  return apiAssetUrl("/api/pilot-portrait", {
+    season,
+    code,
+    name: fullName,
+  });
+}
+
+function teamLogoUrl(teamId: string, teamName: string, season: number): string {
+  return apiAssetUrl("/api/team-logo", {
+    team: teamId || teamName,
+    name: teamName,
+    season,
+  });
+}
 
 function parseOptionalInt(value: string | null): number | null {
   if (value === null) return null;
@@ -33,6 +61,7 @@ function parseOptionalInt(value: string | null): number | null {
 }
 
 function SprintResultsPage() {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const seasonFromQuery = parseOptionalInt(searchParams.get("season"));
   const roundFromQuery = parseOptionalInt(searchParams.get("round"));
@@ -48,8 +77,38 @@ function SprintResultsPage() {
   const [season] = useState<number>(initialSeason);
   const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
   const [selectedRound, setSelectedRound] = useState<number | null>(initialRound);
+  const [driverTeams, setDriverTeams] = useState<Record<string, DriverTeamInfo>>({});
   const desktopWinner = data?.results?.[0] ?? null;
   const desktopRows = data?.results ?? [];
+  const resultSeason = data?.season || season;
+  const driverInfo = (driver: Result) => driverTeams[(driver.code || "").toUpperCase()];
+  const teamName = (driver: Result) => driver.team || driverInfo(driver)?.constructorName || "Команда не указана";
+  const openDriver = (driver: Result) => {
+    const details = driverInfo(driver);
+    const driverId = details?.driverId ? `&driverId=${encodeURIComponent(details.driverId)}` : "";
+    navigate(`/driver-details?code=${encodeURIComponent(driver.code || "")}&season=${resultSeason}${driverId}`);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadDriverTeams() {
+      try {
+        const response = await apiRequest<DriversResponse>("/api/drivers", { season: resultSeason });
+        if (cancelled) return;
+        setDriverTeams(Object.fromEntries(
+          (response.drivers || [])
+            .filter((driver) => driver.code)
+            .map((driver) => [driver.code.toUpperCase(), driver]),
+        ));
+      } catch {
+        if (!cancelled) setDriverTeams({});
+      }
+    }
+    loadDriverTeams();
+    return () => {
+      cancelled = true;
+    };
+  }, [resultSeason]);
 
   useEffect(() => {
     let cancelled = false;
@@ -180,46 +239,29 @@ function SprintResultsPage() {
         )}
 
         <div id="sprint-content">
-          {loading && (
-            <div className="loading full-width">
-              <div className="spinner" />
-              <div>Загружаю результаты...</div>
-            </div>
-          )}
-          {error && <div style={{ color: "red", textAlign: "center", padding: 20 }}>{error}</div>}
-          {!loading && !error && (!data?.results || data.results.length === 0) && (
-            <div className="empty-state">
-              <span className="empty-icon">⚡</span>
-              <div className="empty-title">Нет данных</div>
-              <div className="empty-desc">
-                {mode === "archive"
-                  ? "За выбранный этап результаты спринта пока недоступны."
-                  : "Результаты спринта пока недоступны. Попробуйте режим Архив."}
-              </div>
-            </div>
-          )}
+          <ResultsFeedback
+            loading={loading}
+            error={error}
+            empty={!loading && !error && (!data?.results || data.results.length === 0)}
+            icon="⚡"
+            description={mode === "archive"
+              ? "За выбранный этап результаты спринта пока недоступны."
+              : "Результаты спринта пока недоступны. Попробуйте режим Архив."}
+          />
           {!loading && !error && data?.results && data.results.length > 0 && (
             <div className="standings-list" style={{ marginTop: 16 }}>
               {data.results.map((r, i) => {
-                const emoji =
-                  r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : r.position;
                 const isFavorite = Boolean(r.is_favorite_driver || r.is_favorite_team);
                 return (
-                  <div key={i} className="standings-item">
-                    <div className={`standings-position ${r.position <= 3 ? "podium" : ""}`} style={{ width: 35 }}>
-                      {emoji}
-                    </div>
-                    <div className="standings-info">
-                      <div className="standings-name">
-                        {isFavorite ? "⭐️ " : ""}
-                        {r.name}
-                      </div>
-                      <div className="standings-code">{r.team}</div>
-                    </div>
-                    <div className="standings-points" style={{ minWidth: 40, textAlign: "center" }}>
-                      {r.points > 0 ? r.points : ""}
-                    </div>
-                  </div>
+                  <ResultsMobileRow
+                    key={i}
+                    position={r.position}
+                    name={r.name}
+                    code={r.code}
+                    team={r.team}
+                    favorite={isFavorite}
+                    value={r.position === 1 ? (r.time || r.status || "—") : (r.gap || r.status || "—")}
+                  />
                 );
               })}
             </div>
@@ -260,40 +302,124 @@ function SprintResultsPage() {
         </header>
 
         <div className="race-results-desktop-content">
-          {loading && <div className="loading full-width"><div className="spinner" /><div>Загружаю результаты...</div></div>}
-          {error && <div className="page-error">{error}</div>}
+          <ResultsFeedback
+            loading={loading}
+            error={error}
+            empty={!loading && !error && desktopRows.length === 0}
+            icon="⚡"
+            title="Спринт ещё не завершён"
+            description={mode === "archive" ? "За выбранный этап результаты пока недоступны." : "После финиша здесь появится полная классификация спринта."}
+          />
           {!loading && !error && desktopWinner && (
             <div className="race-results-desktop-hero-grid">
               <div className="race-results-desktop-winner">
                 <div className="race-results-desktop-winner-overlay" />
-                <div className="race-results-desktop-winner-badge">Победитель спринта</div>
-                <div className="race-results-desktop-winner-name">{desktopWinner.name}</div>
-                <div className="race-results-desktop-winner-meta">{desktopWinner.team} • Классификация спринта</div>
+                <div className="race-results-desktop-winner-copy">
+                  <div className="race-results-desktop-winner-badge">Победитель спринта</div>
+                  <button
+                    type="button"
+                    className="race-results-desktop-winner-name"
+                    onClick={() => openDriver(desktopWinner)}
+                    title={`Открыть профиль: ${desktopWinner.name}`}
+                  >
+                    {desktopWinner.name}
+                  </button>
+                  <div className="race-results-desktop-winner-meta">
+                    {desktopWinner.time || desktopWinner.status || "Классификация спринта"}
+                  </div>
+                </div>
+                <div className="race-results-desktop-winner-team">
+                  <img
+                    src={teamLogoUrl(
+                      driverInfo(desktopWinner)?.constructorId || "",
+                      teamName(desktopWinner),
+                      resultSeason,
+                    )}
+                    alt=""
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                  <span>Команда-победитель</span>
+                  <strong>{teamName(desktopWinner)}</strong>
+                </div>
+                <button
+                  type="button"
+                  className="race-results-desktop-winner-portrait-link"
+                  onClick={() => openDriver(desktopWinner)}
+                  aria-label={`Открыть профиль пилота ${desktopWinner.name}`}
+                >
+                  <img
+                    className="race-results-desktop-winner-portrait"
+                    src={pilotPortraitUrl(desktopWinner.code || "", desktopWinner.name, resultSeason)}
+                    alt={desktopWinner.name || "Пилот"}
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                </button>
               </div>
               <aside className="race-results-desktop-summary">
                 <div className="race-results-desktop-summary-points">{desktopWinner.points || 0}</div>
                 <div className="race-results-desktop-summary-label">Набрано очков</div>
-                <div className="race-results-desktop-summary-row"><span>Средняя скорость</span><b>229.8 km/h</b></div>
-                <div className="race-results-desktop-summary-row"><span>Статус</span><b>Финишировал</b></div>
+                <div className="race-results-desktop-summary-row"><span>Время победителя</span><b>{desktopWinner.time || "—"}</b></div>
+                <div className="race-results-desktop-summary-row"><span>Статус</span><b>{desktopWinner.status || "Финишировал"}</b></div>
               </aside>
             </div>
           )}
           {!loading && !error && desktopRows.length > 0 && (
-            <div className="race-results-desktop-table">
+            <div className="race-results-desktop-table race-results-table-compact">
               <div className="race-results-desktop-table-head">
-                <span>Поз</span><span>Пилот</span><span>Команда</span><span>Время/статус</span><span>Gap</span><span>Очки</span><span>Избр</span>
+                <span>Поз</span>
+                <span>Пилот</span>
+                <span>Команда</span>
+                <span>Время / Gap</span>
+                <span>Очки</span>
               </div>
-              {desktopRows.map((row) => (
-                <div key={`${row.position}-${row.name}`} className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}>
-                  <span>{String(row.position).padStart(2, "0")}</span>
-                  <span>{row.name}</span>
-                  <span>{row.team}</span>
-                  <span>{`0:${String(29 + row.position).padStart(2, "0")}.${String(100 + row.position * 12).slice(0, 3)}`}</span>
-                  <span>{row.position === 1 ? "-" : `+${(row.position * 2.3).toFixed(3)}s`}</span>
-                  <span>{row.points}</span>
-                  <span>{(row.is_favorite_driver || row.is_favorite_team) ? "★" : "☆"}</span>
-                </div>
-              ))}
+              {desktopRows.map((row) => {
+                const rowDriverInfo = driverInfo(row);
+                const rowTeam = teamName(row);
+                return (
+                  <div
+                    key={`${row.position}-${row.name}`}
+                    className={`race-results-desktop-row ${row.position === 1 ? "winner" : ""}`}
+                  >
+                    <span className="race-results-position">{String(row.position).padStart(2, "0")}</span>
+                    <button
+                      type="button"
+                      className="race-results-driver-cell"
+                      onClick={() => openDriver(row)}
+                      title={`Открыть профиль: ${row.name}`}
+                    >
+                      <img
+                        src={pilotPortraitUrl(row.code || "", row.name, resultSeason)}
+                        alt=""
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                      <span>
+                        <strong>{(row.is_favorite_driver || row.is_favorite_team) ? "★ " : ""}{row.name}</strong>
+                        <small>{row.code || "F1"}</small>
+                      </span>
+                    </button>
+                    <div className="race-results-team-cell">
+                      <img
+                        src={teamLogoUrl(rowDriverInfo?.constructorId || "", rowTeam, resultSeason)}
+                        alt=""
+                        onError={(event) => {
+                          event.currentTarget.style.display = "none";
+                        }}
+                      />
+                      <span>{rowTeam}</span>
+                    </div>
+                    <span className="race-results-time">
+                      {row.position === 1 ? (row.time || row.status || "—") : (row.gap || row.status || "—")}
+                    </span>
+                    <span className="race-results-points">{row.points}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
