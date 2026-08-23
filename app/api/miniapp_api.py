@@ -616,7 +616,12 @@ async def api_race_game_leaderboard_score(
         telemetry=[sample.model_dump() for sample in body.telemetry],
         track_id=body.track_id,
     )
-    return {"status": "ok", "saved": saved}
+    leaderboard = (
+        await get_race_game_leaderboard(user_id, track_id=body.track_id)
+        if saved
+        else None
+    )
+    return {"status": "ok", "saved": saved, "leaderboard": leaderboard}
 
 
 @web_app.get("/api/reflex-grid-leaderboard")

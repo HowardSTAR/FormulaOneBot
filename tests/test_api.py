@@ -421,6 +421,8 @@ async def test_game_profile_is_shared_by_all_leaderboards(api_client: AsyncClien
     )
     assert race_score.status_code == 200
     assert race_score.json()["saved"] is True
+    assert race_score.json()["leaderboard"]["me"]["time_ms"] == 82_450
+    assert race_score.json()["leaderboard"]["entries"][0]["name"] == "Admin"
 
     race = await api_client.get("/api/race-game-leaderboard")
     assert race.status_code == 200

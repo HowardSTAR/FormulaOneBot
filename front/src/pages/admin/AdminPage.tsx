@@ -32,6 +32,7 @@ type Source = "all" | "site" | "bot";
 type Period = "7d" | "30d" | "90d" | "all";
 type UserSortField = "created_at" | "last_activity" | "role";
 type SortOrder = "asc" | "desc";
+type GameRecordScope = "all" | "reaction" | "race" | "reflex";
 type AdminIdentity = { id: number; role: "admin" | "superadmin"; email: string | null; telegram_id: number | null };
 type MetricCard = { dau: number; wau: number; mau: number };
 type MetricPoint = { day: string; site: number; bot: number };
@@ -69,6 +70,17 @@ type AuditItem = {
   actor_email: string | null;
   actor_telegram_id: number | null;
   details: Record<string, unknown>;
+};
+type GameRecordStat = {
+  key: Exclude<GameRecordScope, "all">;
+  label: string;
+  records: number;
+  players: number;
+};
+type GameRecordStats = {
+  games: GameRecordStat[];
+  total_records: number;
+  total_players: number;
 };
 
 function formatDate(value: string | null): string {
@@ -137,7 +149,7 @@ function AdminChart({ metrics, source }: { metrics: Metrics; source: Source }) {
 }
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<"overview" | "users" | "audit">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "games" | "audit">("overview");
   const [identity, setIdentity] = useState<AdminIdentity | null>(null);
   const [period, setPeriod] = useState<Period>("30d");
   const [source, setSource] = useState<Source>("all");
@@ -150,6 +162,7 @@ export default function AdminPage() {
   const [sortBy, setSortBy] = useState<UserSortField>("last_activity");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [audit, setAudit] = useState<AuditItem[]>([]);
+  const [gameRecords, setGameRecords] = useState<GameRecordStats | null>(null);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [emailDraft, setEmailDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -180,9 +193,14 @@ export default function AdminPage() {
     setAudit(result.items);
   }, []);
 
+  const loadGameRecords = useCallback(async () => {
+    setGameRecords(await apiRequest<GameRecordStats>("/api/admin/game-records"));
+  }, []);
+
   useEffect(() => { void loadIdentity().catch((reason: Error) => setError(reason.message)); }, [loadIdentity]);
   useEffect(() => { if (tab === "overview") void loadMetrics().catch((reason: Error) => setError(reason.message)); }, [loadMetrics, tab]);
   useEffect(() => { if (tab === "users") void loadUsers().catch((reason: Error) => setError(reason.message)); }, [loadUsers, tab]);
+  useEffect(() => { if (tab === "games") void loadGameRecords().catch((reason: Error) => setError(reason.message)); }, [loadGameRecords, tab]);
   useEffect(() => { if (tab === "audit") void loadAudit().catch((reason: Error) => setError(reason.message)); }, [loadAudit, tab]);
 
   const normalizedCards = useMemo<Record<Source, MetricCard> | null>(() => {
@@ -214,7 +232,7 @@ export default function AdminPage() {
     try {
       await action();
       setMessage(success);
-      await Promise.all([loadUsers(), loadAudit()]);
+      await Promise.all([loadUsers(), loadGameRecords(), loadAudit()]);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Не удалось выполнить действие");
     } finally {
@@ -243,6 +261,26 @@ export default function AdminPage() {
     void runAction(
       () => apiRequest(`/api/admin/users/${user.id}/password-reset`, {}, "POST"),
       "Письмо для сброса пароля отправлено",
+    );
+  };
+
+  const deleteUserGameRecords = (user: ManagedUser) => {
+    const label = user.display_name || user.email || `#${user.id}`;
+    if (!window.confirm(`Удалить все игровые результаты пользователя «${label}»? Это действие нельзя отменить.`)) return;
+    void runAction(
+      () => apiRequest(`/api/admin/users/${user.id}/game-records/all`, {}, "DELETE"),
+      "Игровые результаты пользователя удалены",
+    );
+  };
+
+  const deleteGameRecords = (scope: GameRecordScope, label: string) => {
+    const confirmation = window.prompt(
+      `Будут навсегда удалены ${label}. Профили игроков сохранятся. Для подтверждения введите УДАЛИТЬ`,
+    );
+    if (confirmation !== "УДАЛИТЬ") return;
+    void runAction(
+      () => apiRequest(`/api/admin/game-records/${scope}`, {}, "DELETE"),
+      scope === "all" ? "Все игровые результаты удалены" : `Результаты «${label}» удалены`,
     );
   };
 
@@ -290,6 +328,7 @@ export default function AdminPage() {
       <nav className="admin-tabs" aria-label="Разделы администрирования">
         <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Аналитика</button>
         <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Пользователи</button>
+        <button className={tab === "games" ? "active" : ""} onClick={() => setTab("games")}>Игры</button>
         <button className={tab === "audit" ? "active" : ""} onClick={() => setTab("audit")}>Audit log</button>
       </nav>
 
@@ -410,6 +449,13 @@ export default function AdminPage() {
                         <button disabled={busy || user.protected} onClick={() => { setEditingUser(user); setEmailDraft(user.email || ""); }}>Email</button>
                         <button disabled={busy || user.protected || !user.telegram_id} onClick={() => unlinkTelegram(user)}>Отвязать TG</button>
                         <button disabled={busy || user.protected || !user.email} onClick={() => sendReset(user)}>Сброс пароля</button>
+                        <button
+                          className="admin-danger-button"
+                          disabled={busy || user.protected || !user.telegram_id}
+                          onClick={() => deleteUserGameRecords(user)}
+                        >
+                          Удалить рекорды
+                        </button>
                         {identity?.role === "superadmin" && !user.protected && (
                           <button disabled={busy} onClick={() => changeRole(user, user.role === "admin" ? "user" : "admin")}>
                             {user.role === "admin" ? "Отозвать admin" : "Назначить admin"}
@@ -427,6 +473,55 @@ export default function AdminPage() {
             <span>{userPage?.page ?? page} / {userPage?.pages ?? 1}</span>
             <button disabled={page >= (userPage?.pages ?? 1)} onClick={() => setPage((value) => value + 1)}>Дальше</button>
           </footer>
+        </section>
+      )}
+
+      {tab === "games" && (
+        <section className="admin-games-card">
+          <header className="admin-games-header">
+            <div>
+              <span className="admin-eyebrow">Таблицы лидеров</span>
+              <h2>Игровые результаты</h2>
+              <p>Удаляются только результаты. Имена, настройки участия и аккаунты игроков сохраняются.</p>
+            </div>
+            <div className="admin-games-total">
+              <strong>{gameRecords?.total_records ?? "—"}</strong>
+              <span>результатов · {gameRecords?.total_players ?? 0} игроков</span>
+            </div>
+          </header>
+
+          <div className="admin-games-grid">
+            {gameRecords?.games.map((game) => (
+              <article key={game.key}>
+                <span>{game.label}</span>
+                <strong>{game.records}</strong>
+                <small>{game.players} игроков</small>
+                <button
+                  className="admin-danger-button"
+                  disabled={busy || identity?.role !== "superadmin" || game.records === 0}
+                  onClick={() => deleteGameRecords(game.key, `все результаты игры «${game.label}»`)}
+                >
+                  Очистить результаты
+                </button>
+              </article>
+            ))}
+            {!gameRecords && <div className="admin-skeleton admin-games-skeleton" />}
+          </div>
+
+          <aside className="admin-danger-zone">
+            <div>
+              <strong>Удалить результаты всех игр</strong>
+              <p>Будут очищены таблицы «Игра на реакцию», Emerald Loop и Reflex Grid.</p>
+              {identity?.role !== "superadmin" && <small>Действие доступно только superadmin.</small>}
+            </div>
+            <button
+              className="admin-danger-button"
+              disabled={busy || identity?.role !== "superadmin" || !gameRecords?.total_records}
+              onClick={() => deleteGameRecords("all", "все результаты во всех играх")}
+            >
+              Удалить всё
+            </button>
+          </aside>
         </section>
       )}
 

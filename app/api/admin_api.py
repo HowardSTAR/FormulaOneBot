@@ -35,6 +35,18 @@ MetricSource = Literal["all", "site", "bot"]
 MetricPeriod = Literal["7d", "30d", "90d", "all"]
 UserSortField = Literal["created_at", "last_activity", "role"]
 SortOrder = Literal["asc", "desc"]
+GameRecordScope = Literal["all", "reaction", "race", "reflex"]
+
+GAME_RECORD_TABLES = {
+    "reaction": "reaction_leaderboard_scores",
+    "race": "race_game_scores",
+    "reflex": "reflex_grid_scores",
+}
+GAME_RECORD_LABELS = {
+    "reaction": "Игра на реакцию",
+    "race": "Emerald Loop",
+    "reflex": "Reflex Grid",
+}
 
 
 class AdminContext(BaseModel):
@@ -167,6 +179,31 @@ async def _audit(
             utc_iso(),
         ),
     )
+
+
+def _game_tables(scope: GameRecordScope) -> dict[str, str]:
+    if scope == "all":
+        return GAME_RECORD_TABLES
+    return {scope: GAME_RECORD_TABLES[scope]}
+
+
+async def _game_record_counts(
+    scope: GameRecordScope = "all",
+    telegram_id: int | None = None,
+) -> dict[str, int]:
+    """Return record counts for the allow-listed game score tables."""
+    assert db.conn is not None
+    counts: dict[str, int] = {}
+    for game, table in _game_tables(scope).items():
+        where = " WHERE telegram_id = ?" if telegram_id is not None else ""
+        params = (int(telegram_id),) if telegram_id is not None else ()
+        async with db.conn.execute(
+            f'SELECT COUNT(*) AS total FROM "{table}"{where}',
+            params,
+        ) as cursor:
+            row = await cursor.fetchone()
+        counts[game] = int(row["total"] or 0)
+    return counts
 
 
 def _public_web_url(request: Request) -> str:
@@ -332,6 +369,115 @@ async def admin_users(
         "pages": max(1, math.ceil(total / page_size)),
         "sort_by": sort_by,
         "sort_order": sort_order,
+    }
+
+
+@router.get("/game-records")
+async def get_game_record_stats(
+    _: AdminContext = Depends(require_admin_session),
+):
+    """Summary of stored score rows and distinct players for every mini-game."""
+    assert db.conn is not None
+    games = []
+    player_ids: set[int] = set()
+    for game, table in GAME_RECORD_TABLES.items():
+        async with db.conn.execute(
+            f'SELECT COUNT(*) AS records, COUNT(DISTINCT telegram_id) AS players FROM "{table}"'
+        ) as cursor:
+            row = await cursor.fetchone()
+        async with db.conn.execute(
+            f'SELECT DISTINCT telegram_id FROM "{table}"'
+        ) as cursor:
+            player_ids.update(int(item["telegram_id"]) for item in await cursor.fetchall())
+        games.append(
+            {
+                "key": game,
+                "label": GAME_RECORD_LABELS[game],
+                "records": int(row["records"] or 0),
+                "players": int(row["players"] or 0),
+            }
+        )
+    return {
+        "games": games,
+        "total_records": sum(game["records"] for game in games),
+        "total_players": len(player_ids),
+    }
+
+
+@router.delete("/game-records/{scope}")
+async def delete_game_records(
+    scope: GameRecordScope,
+    admin: AdminContext = Depends(require_superadmin),
+):
+    """Delete score rows globally; profiles and participation preferences are preserved."""
+    assert db.conn is not None
+    async with db.write_lock:
+        try:
+            await db.conn.execute("BEGIN IMMEDIATE")
+            deleted = await _game_record_counts(scope)
+            for table in _game_tables(scope).values():
+                await db.conn.execute(f'DELETE FROM "{table}"')
+            await _audit(
+                admin.id,
+                "game_records.cleared",
+                None,
+                {"scope": scope, "deleted": deleted, "total": sum(deleted.values())},
+            )
+            await db.conn.commit()
+        except Exception:
+            await db.conn.rollback()
+            raise
+    return {"scope": scope, "deleted": deleted, "total": sum(deleted.values())}
+
+
+@router.delete("/users/{user_id}/game-records/{scope}")
+async def delete_user_game_records(
+    user_id: int,
+    scope: GameRecordScope,
+    admin: AdminContext = Depends(require_admin_session),
+):
+    """Delete one linked user's score rows from one or every mini-game."""
+    assert db.conn is not None
+    async with db.write_lock:
+        try:
+            await db.conn.execute("BEGIN IMMEDIATE")
+            user = await _get_user(user_id)
+            _ensure_mutable_target(user)
+            telegram_id = user["telegram_id"]
+            if telegram_id is None:
+                raise HTTPException(
+                    422,
+                    detail={
+                        "code": "telegram_link_required",
+                        "message": "У пользователя нет привязанного Telegram и игровых рекордов",
+                    },
+                )
+            deleted = await _game_record_counts(scope, int(telegram_id))
+            for table in _game_tables(scope).values():
+                await db.conn.execute(
+                    f'DELETE FROM "{table}" WHERE telegram_id = ?',
+                    (int(telegram_id),),
+                )
+            await _audit(
+                admin.id,
+                "game_records.user_cleared",
+                user_id,
+                {
+                    "scope": scope,
+                    "telegram_id": int(telegram_id),
+                    "deleted": deleted,
+                    "total": sum(deleted.values()),
+                },
+            )
+            await db.conn.commit()
+        except Exception:
+            await db.conn.rollback()
+            raise
+    return {
+        "user_id": user_id,
+        "scope": scope,
+        "deleted": deleted,
+        "total": sum(deleted.values()),
     }
 
 

@@ -30,6 +30,12 @@ type LeaderboardResponse = {
   track_id: string
 }
 
+type ScoreSubmissionResult = {
+  saved: boolean
+  leaderboard: LeaderboardResponse | null
+  error?: string
+}
+
 type GhostSample = {
   t: number
   x: number
@@ -275,16 +281,19 @@ const loadGhost = async (): Promise<void> => {
   }
 }
 
-const submitRaceTime = async (timeMs: number, telemetry: GhostSample[]): Promise<boolean> => {
+const submitRaceTime = async (timeMs: number, telemetry: GhostSample[]): Promise<ScoreSubmissionResult> => {
   try {
-    const response = await apiRequest<{ saved: boolean }>('/api/race-game-leaderboard/score', {
+    return await apiRequest<ScoreSubmissionResult>('/api/race-game-leaderboard/score', {
       time_ms: Math.round(timeMs),
       track_id: TRACK_ID,
       telemetry,
     })
-    return response.saved
-  } catch {
-    return false
+  } catch (error) {
+    return {
+      saved: false,
+      leaderboard: null,
+      error: error instanceof Error ? error.message : 'Не удалось сохранить результат в таблице лидеров.',
+    }
   }
 }
 
@@ -688,10 +697,21 @@ class RaceScene extends Phaser.Scene {
     this.clearTouchState()
     const finishedTime = this.elapsedTime
     const finishedTelemetry = this.telemetry.slice()
-    void submitRaceTime(finishedTime, finishedTelemetry).then((saved) => {
-      if (saved && this.raceState === 'finished' && this.elapsedTime === finishedTime) {
-        ui.modalCopy.textContent = 'Три круга завершены. Результат сохранён в браузере и таблице лидеров.'
-        void loadGhost()
+    void submitRaceTime(finishedTime, finishedTelemetry).then((result) => {
+      if (result.saved) {
+        if (result.leaderboard) {
+          renderLeaderboard(result.leaderboard)
+          this.setGhost(result.leaderboard.ghost)
+        } else {
+          void Promise.all([loadLeaderboard(), loadGhost()])
+        }
+        if (this.raceState === 'finished' && this.elapsedTime === finishedTime) {
+          ui.modalCopy.textContent = 'Три круга завершены. Результат сохранён в браузере и таблице лидеров.'
+        }
+      } else if (this.raceState === 'finished' && this.elapsedTime === finishedTime) {
+        ui.modalCopy.textContent = result.error
+          ? `Результат сохранён только в браузере. ${result.error}`
+          : 'Результат сохранён только в браузере. Включите участие в общей таблице лидеров.'
       }
     })
   }

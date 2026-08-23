@@ -223,3 +223,121 @@ async def test_admin_users_supports_server_side_sorting(temp_db_path, monkeypatc
         ]
 
     await database.close()
+
+
+@pytest.mark.asyncio
+async def test_admin_can_clear_all_game_records_or_only_one_users_records(temp_db_path, monkeypatch):
+    """Game cleanup preserves profiles and never removes another player's rows by accident."""
+    primary_email, _ = configured_primary_admin()
+    database = Database(temp_db_path)
+    await database.connect()
+    await database.init_tables()
+    mailer = MockMailer()
+    auth = AuthService(database, mailer, pepper="admin-game-records-test-pepper")
+    monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
+    monkeypatch.setattr(admin_api, "get_auth_service", lambda: auth)
+    monkeypatch.setattr(admin_api, "db", database)
+
+    primary = await create_verified_session(auth, mailer, primary_email)
+    regular = await create_verified_session(auth, mailer, "game-player@example.com")
+    delegated = await create_verified_session(auth, mailer, "game-admin@example.com")
+    player_telegram_id = 710_001
+    other_telegram_id = 710_002
+    await database.conn.executemany(
+        "UPDATE users SET telegram_id = ?, role = ? WHERE id = ?",
+        [
+            (player_telegram_id, "user", regular.user["id"]),
+            (710_003, "admin", delegated.user["id"]),
+        ],
+    )
+    await database.conn.executemany(
+        "INSERT INTO reaction_leaderboard_profiles(telegram_id, display_name, leaderboard_opt_in) VALUES (?, ?, 1)",
+        [
+            (player_telegram_id, "Player One"),
+            (other_telegram_id, "Player Two"),
+        ],
+    )
+    await database.conn.executemany(
+        "INSERT INTO reaction_leaderboard_scores(telegram_id, time_ms) VALUES (?, ?)",
+        [
+            (player_telegram_id, 250),
+            (player_telegram_id, 230),
+            (other_telegram_id, 240),
+        ],
+    )
+    await database.conn.executemany(
+        "INSERT INTO race_game_scores(telegram_id, time_ms, track_id) VALUES (?, ?, 'emerald-loop-v1')",
+        [
+            (player_telegram_id, 80_000),
+            (other_telegram_id, 79_000),
+        ],
+    )
+    await database.conn.executemany(
+        "INSERT INTO reflex_grid_scores(telegram_id, mode, difficulty, score, time_ms) VALUES (?, 'timed', 'easy', ?, ?)",
+        [
+            (player_telegram_id, 8, 10_000),
+            (other_telegram_id, 9, 9_000),
+        ],
+    )
+    await database.conn.commit()
+
+    transport = httpx.ASGITransport(app=web_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        client.cookies.set("turbotears_session", primary.token)
+        client.cookies.set("turbotears_csrf", primary.csrf_token)
+
+        stats = await client.get("/api/admin/game-records")
+        assert stats.status_code == 200
+        assert stats.json()["total_records"] == 7
+        assert stats.json()["total_players"] == 2
+
+        client.cookies.set("turbotears_session", delegated.token)
+        client.cookies.set("turbotears_csrf", delegated.csrf_token)
+        deleted_user = await client.delete(
+            f"/api/admin/users/{regular.user['id']}/game-records/all",
+            headers={"X-CSRF-Token": delegated.csrf_token},
+        )
+        assert deleted_user.status_code == 200
+        assert deleted_user.json()["deleted"] == {"reaction": 2, "race": 1, "reflex": 1}
+        assert deleted_user.json()["total"] == 4
+
+        for table in (
+            "reaction_leaderboard_scores",
+            "race_game_scores",
+            "reflex_grid_scores",
+        ):
+            async with database.conn.execute(
+                f'SELECT telegram_id FROM "{table}" ORDER BY id'
+            ) as cursor:
+                assert [row["telegram_id"] for row in await cursor.fetchall()] == [other_telegram_id]
+        async with database.conn.execute(
+            "SELECT display_name FROM reaction_leaderboard_profiles WHERE telegram_id = ?",
+            (player_telegram_id,),
+        ) as cursor:
+            assert (await cursor.fetchone())["display_name"] == "Player One"
+
+        forbidden = await client.delete(
+            "/api/admin/game-records/all",
+            headers={"X-CSRF-Token": delegated.csrf_token},
+        )
+        assert forbidden.status_code == 403
+
+        client.cookies.set("turbotears_session", primary.token)
+        client.cookies.set("turbotears_csrf", primary.csrf_token)
+        deleted_all = await client.delete(
+            "/api/admin/game-records/all",
+            headers={"X-CSRF-Token": primary.csrf_token},
+        )
+        assert deleted_all.status_code == 200
+        assert deleted_all.json()["deleted"] == {"reaction": 1, "race": 1, "reflex": 1}
+        assert deleted_all.json()["total"] == 3
+
+        after = await client.get("/api/admin/game-records")
+        assert after.json()["total_records"] == 0
+        audit = await client.get("/api/admin/audit-log")
+        assert [item["action"] for item in audit.json()["items"][:2]] == [
+            "game_records.cleared",
+            "game_records.user_cleared",
+        ]
+
+    await database.close()
