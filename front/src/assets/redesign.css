@@ -1421,42 +1421,42 @@
     font-size: 15px !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-content {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-content {
     padding: 13px !important;
     border-radius: 14px !important;
     background: rgba(24, 26, 32, 0.92) !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-hero-grid {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-hero-grid {
     grid-template-columns: minmax(0, 1.35fr) minmax(330px, 0.65fr) !important;
     gap: 10px !important;
     margin-bottom: 10px !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner {
     min-height: 190px !important;
     padding: 15px !important;
     border-radius: 11px !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-badge {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-badge {
     margin-bottom: 7px !important;
     padding: 5px 9px !important;
     font-size: 13px !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-name {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-name {
     max-width: min(68%, 650px) !important;
     font-size: clamp(34px, 3vw, 44px) !important;
     line-height: 0.94 !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-meta {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-meta {
     margin-top: 7px !important;
     font-size: 14px !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-summary {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-summary {
     min-height: 190px !important;
     padding: 14px 16px !important;
     gap: 8px !important;
@@ -1465,11 +1465,11 @@
     background: rgba(255, 255, 255, 0.045) !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-summary-points {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-summary-points {
     font-size: 42px !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-summary-label {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-summary-label {
     margin-top: -3px !important;
     font-size: 13px !important;
   }
@@ -2564,11 +2564,11 @@
 
 /* Race results: richer winner card and navigable visual standings. */
 @media (min-width: 900px) {
-  .app-page-main.route-race-results .race-results-desktop-hero-grid {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-hero-grid {
     grid-template-columns: minmax(0, 1.5fr) minmax(330px, 0.62fr) !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner {
     display: grid !important;
     grid-template-columns: minmax(0, 1fr) minmax(150px, 0.42fr) 150px;
     align-items: center !important;
@@ -2578,25 +2578,25 @@
       linear-gradient(110deg, #121314 0%, #18191b 100%) !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-overlay {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-overlay {
     background: linear-gradient(90deg, rgba(18, 19, 20, 0.12), rgba(18, 19, 20, 0.42)) !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-copy,
-  .app-page-main.route-race-results .race-results-desktop-winner-team,
-  .app-page-main.route-race-results .race-results-desktop-winner-portrait-link {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-copy,
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-team,
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-portrait-link {
     position: relative;
     z-index: 1;
     min-width: 0;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-copy {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-copy {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
   }
 
-  .app-page-main.route-race-results button.race-results-desktop-winner-name {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) button.race-results-desktop-winner-name {
     max-width: 100% !important;
     margin: 0;
     padding: 0;
@@ -2608,14 +2608,14 @@
     transition: color 160ms ease, transform 160ms ease;
   }
 
-  .app-page-main.route-race-results button.race-results-desktop-winner-name:hover,
-  .app-page-main.route-race-results button.race-results-desktop-winner-name:focus-visible {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) button.race-results-desktop-winner-name:hover,
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) button.race-results-desktop-winner-name:focus-visible {
     color: #ffb4aa;
     transform: translateX(3px);
     outline: none;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-team {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-team {
     display: grid;
     justify-items: center;
     gap: 5px;
@@ -2626,13 +2626,13 @@
     text-align: center;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-team img {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-team img {
     width: 44px;
     height: 44px;
     object-fit: contain;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-team span {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-team span {
     color: rgba(227, 226, 227, 0.48);
     font-size: 11px;
     font-weight: 700;
@@ -2640,7 +2640,7 @@
     text-transform: uppercase;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-team strong {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-team strong {
     max-width: 100%;
     overflow: hidden;
     color: #f2eeec;
@@ -2651,7 +2651,7 @@
     white-space: nowrap;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-portrait-link {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-portrait-link {
     align-self: stretch;
     width: 150px;
     margin: -15px -15px -15px 0;
@@ -2662,7 +2662,7 @@
     cursor: pointer;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-portrait {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-portrait {
     position: static !important;
     width: 100% !important;
     height: 100% !important;
@@ -2671,30 +2671,30 @@
     transition: transform 180ms ease, filter 180ms ease;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner-portrait-link:hover .race-results-desktop-winner-portrait,
-  .app-page-main.route-race-results .race-results-desktop-winner-portrait-link:focus-visible .race-results-desktop-winner-portrait {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-portrait-link:hover .race-results-desktop-winner-portrait,
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner-portrait-link:focus-visible .race-results-desktop-winner-portrait {
     filter: saturate(1.08) contrast(1.04);
     transform: scale(1.035);
   }
 
-  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-table-head,
-  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-row {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-table-compact .race-results-desktop-table-head,
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-table-compact .race-results-desktop-row {
     grid-template-columns: 58px minmax(250px, 1.25fr) minmax(190px, 0.9fr) 160px 110px !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-row {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-row {
     min-height: 60px;
   }
 
-  .app-page-main.route-race-results .race-results-driver-cell,
-  .app-page-main.route-race-results .race-results-team-cell {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-driver-cell,
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-team-cell {
     display: flex;
     align-items: center;
     min-width: 0;
     gap: 10px;
   }
 
-  .app-page-main.route-race-results .race-results-driver-cell {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-driver-cell {
     width: fit-content;
     max-width: 100%;
     padding: 2px 8px 2px 2px;
@@ -2707,14 +2707,14 @@
     transition: background 160ms ease, transform 160ms ease;
   }
 
-  .app-page-main.route-race-results .race-results-driver-cell:hover,
-  .app-page-main.route-race-results .race-results-driver-cell:focus-visible {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-driver-cell:hover,
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-driver-cell:focus-visible {
     background: rgba(255, 255, 255, 0.06);
     transform: translateX(2px);
     outline: none;
   }
 
-  .app-page-main.route-race-results .race-results-driver-cell > img {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-driver-cell > img {
     flex: 0 0 auto;
     width: 40px;
     height: 40px;
@@ -2725,13 +2725,13 @@
     object-position: center bottom;
   }
 
-  .app-page-main.route-race-results .race-results-driver-cell > span {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-driver-cell > span {
     display: grid;
     min-width: 0;
     gap: 2px;
   }
 
-  .app-page-main.route-race-results .race-results-driver-cell strong {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-driver-cell strong {
     overflow: hidden;
     color: #f0eeec;
     font-family: "Space Grotesk", sans-serif;
@@ -2743,21 +2743,21 @@
     white-space: nowrap;
   }
 
-  .app-page-main.route-race-results .race-results-driver-cell small {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-driver-cell small {
     color: rgba(227, 226, 227, 0.45);
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.09em;
   }
 
-  .app-page-main.route-race-results .race-results-team-cell img {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-team-cell img {
     flex: 0 0 auto;
     width: 28px;
     height: 28px;
     object-fit: contain;
   }
 
-  .app-page-main.route-race-results .race-results-team-cell span {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-team-cell span {
     min-width: 0;
     overflow: hidden;
     color: rgba(237, 234, 232, 0.72);
@@ -2768,23 +2768,24 @@
     white-space: nowrap;
   }
 
-  .app-page-main.route-race-results .race-results-time,
-  .app-page-main.route-race-results .race-results-gap {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-time,
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-gap,
+  .app-page-main.route-sprint-results .race-results-points {
     font-size: 15px !important;
   }
 }
 
 @media (min-width: 900px) and (max-width: 1180px) {
-  .app-page-main.route-race-results .race-results-desktop-hero-grid {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-hero-grid {
     grid-template-columns: minmax(0, 1fr) !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-winner {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-winner {
     grid-template-columns: minmax(0, 1fr) minmax(140px, 0.4fr) 140px;
   }
 
-  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-table-head,
-  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-row {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-table-compact .race-results-desktop-table-head,
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-table-compact .race-results-desktop-row {
     grid-template-columns: 54px minmax(180px, 1fr) minmax(130px, 0.72fr) 135px 82px !important;
   }
 }

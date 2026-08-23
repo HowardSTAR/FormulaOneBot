@@ -177,6 +177,37 @@ button {
   pointer-events: auto;
 }
 
+.ghost-hud-toggle {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(111, 231, 255, 0.5);
+  border-radius: 11px;
+  color: #9cefff;
+  background: rgba(4, 25, 29, 0.82);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: inset 0 0 16px rgba(50, 208, 235, 0.08);
+}
+
+.ghost-hud-toggle[aria-pressed="false"] {
+  border-color: var(--line);
+  color: rgba(245, 236, 210, 0.62);
+  background: transparent;
+  box-shadow: none;
+}
+
+.ghost-hud-toggle.is-unavailable {
+  border-color: var(--line);
+  color: rgba(245, 236, 210, 0.5);
+}
+
+.ghost-menu-toggle[aria-pressed="true"] > span {
+  color: #8cecff;
+  text-shadow: 0 0 12px rgba(72, 219, 245, 0.7);
+}
+
 .icon-button {
   display: grid;
   width: 44px;
@@ -813,6 +844,16 @@ button {
   .hud-actions {
     padding: 3px;
     border-radius: 13px;
+  }
+
+  .ghost-hud-toggle {
+    position: fixed;
+    top: 70px;
+    right: max(8px, env(safe-area-inset-right));
+    min-height: 30px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 8px;
   }
 
   .icon-button {

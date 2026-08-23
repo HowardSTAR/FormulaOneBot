@@ -5,7 +5,7 @@ import unicodedata
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Optional, List
+from typing import Literal, Optional, List
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 # run_web.py imports this module directly, so load local configuration before
 # app.db and authentication services read environment variables.
@@ -510,6 +510,34 @@ class ReactionScoreRequest(BaseModel):
     time_ms: int
 
 
+class RaceTelemetrySample(BaseModel):
+    t: int = Field(ge=0, le=3_600_000)
+    x: float = Field(ge=0, le=1536)
+    y: float = Field(ge=0, le=1024)
+    rotation: float = Field(ge=-3.142, le=3.142)
+
+
+class RaceGameScoreRequest(BaseModel):
+    time_ms: int = Field(ge=15_000, le=3_600_000)
+    track_id: Literal["emerald-loop-v1"] = "emerald-loop-v1"
+    telemetry: list[RaceTelemetrySample] = Field(default_factory=list, max_length=6000)
+
+    @model_validator(mode="after")
+    def validate_telemetry_timeline(self):
+        if not self.telemetry:
+            return self
+        if len(self.telemetry) < 2:
+            raise ValueError("Telemetry must contain at least two samples")
+        previous = -1
+        for sample in self.telemetry:
+            if sample.t <= previous:
+                raise ValueError("Telemetry timestamps must be strictly increasing")
+            previous = sample.t
+        if self.telemetry[-1].t > self.time_ms + 250:
+            raise ValueError("Telemetry exceeds recorded race time")
+        return self
+
+
 class ReflexGridScoreRequest(BaseModel):
     mode: str
     difficulty: str
@@ -571,17 +599,23 @@ async def api_reaction_leaderboard_score(
 
 @web_app.get("/api/race-game-leaderboard")
 async def api_race_game_leaderboard(
+    track_id: Literal["emerald-loop-v1"] = Query("emerald-loop-v1"),
     user_id: Optional[int] = Depends(get_optional_user_id),
 ):
-    return await get_race_game_leaderboard(user_id)
+    return await get_race_game_leaderboard(user_id, track_id=track_id)
 
 
 @web_app.post("/api/race-game-leaderboard/score")
 async def api_race_game_leaderboard_score(
-    body: ReactionScoreRequest,
+    body: RaceGameScoreRequest,
     user_id: int = Depends(get_current_user_id),
 ):
-    saved = await save_race_game_score(user_id, body.time_ms)
+    saved = await save_race_game_score(
+        user_id,
+        body.time_ms,
+        telemetry=[sample.model_dump() for sample in body.telemetry],
+        track_id=body.track_id,
+    )
     return {"status": "ok", "saved": saved}
 
 
@@ -1335,6 +1369,40 @@ async def api_sprint_results(
     if "Position" in df.columns:
         df = df.sort_values("Position")
 
+    def _duration_text(value) -> str:
+        if value is None:
+            return "—"
+        try:
+            if pd.isna(value):
+                return "—"
+        except (TypeError, ValueError):
+            pass
+        if isinstance(value, (pd.Timedelta, timedelta)):
+            total = value.total_seconds()
+            if total < 0:
+                return "—"
+            hours = int(total // 3600)
+            minutes = int((total % 3600) // 60)
+            seconds = total % 60
+            return f"{hours}:{minutes:02d}:{seconds:06.3f}" if hours else f"{minutes}:{seconds:06.3f}"
+        text = str(value).replace("0 days ", "").strip()
+        return text if text and text.lower() not in {"nan", "nat"} else "—"
+
+    def _gap_text(value, position: int) -> str:
+        if position == 1:
+            return "—"
+        try:
+            if isinstance(value, (pd.Timedelta, timedelta)):
+                return f"+{value.total_seconds():.3f}"
+        except (TypeError, ValueError):
+            return "—"
+        text = _duration_text(value)
+        if text == "—":
+            return text
+        if text.startswith("0:"):
+            text = text[2:]
+        return text if text.startswith("+") else f"+{text}"
+
     for row in df.itertuples(index=False):
         try:
             pos = int(getattr(row, "Position", 0))
@@ -1344,6 +1412,9 @@ async def api_sprint_results(
             full_name = f"{given} {family}".strip() or code
             team = getattr(row, "TeamName", "")
             points = float(getattr(row, "Points", 0))
+            raw_time = getattr(row, "Time", None)
+            time_text = _duration_text(raw_time)
+            status = str(getattr(row, "Status", "") or "").strip() or "Классифицирован"
             if points == 0:
                 points = points_for_race_position(pos)
             results.append({
@@ -1352,6 +1423,9 @@ async def api_sprint_results(
                 "name": full_name,
                 "team": team,
                 "points": points,
+                "time": time_text,
+                "gap": _gap_text(raw_time, pos),
+                "status": status,
                 "is_favorite_driver": code in fav_drivers,
                 "is_favorite_team": team in fav_teams
             })
@@ -1448,26 +1522,33 @@ async def api_practice_results(
     now_utc = datetime.now(timezone.utc)
 
     event = None
+    latest_candidates: list[dict] = []
+    is_latest_request = round_number is None
     if round_number is not None:
         event = next((race for race in (schedule or []) if race.get("round") == round_number), None)
     else:
-        candidates = [
+        latest_candidates = [
             race
             for race in (schedule or [])
             if 1 in _available_practice_sessions(race)
             and _session_has_started(race, 1, now_utc)
         ]
-        if candidates:
-            event = max(candidates, key=lambda race: int(race.get("round") or 0))
+        if latest_candidates:
+            event = max(latest_candidates, key=lambda race: int(race.get("round") or 0))
             round_number = int(event["round"])
+
+    requested_round = round_number
+    data_fallback = False
 
     if not event or round_number is None:
         return {
             "season": season,
             "round": round_number,
+            "requested_round": requested_round,
             "session": session_number,
             "available_sessions": [],
             "is_sprint_weekend": False,
+            "data_fallback": False,
             "race_info": event,
             "results": [],
         }
@@ -1485,6 +1566,35 @@ async def api_practice_results(
             session_number,
             limit=100,
         )
+        if is_latest_request and not results:
+            previous_events = sorted(
+                latest_candidates,
+                key=lambda race: int(race.get("round") or 0),
+                reverse=True,
+            )
+            for fallback_event in previous_events:
+                fallback_round = int(fallback_event.get("round") or 0)
+                if fallback_round <= 0 or fallback_round >= round_number:
+                    continue
+                fallback_sessions = _available_practice_sessions(fallback_event)
+                if (
+                    session_number not in fallback_sessions
+                    or not _session_has_started(fallback_event, session_number, now_utc)
+                ):
+                    continue
+                fallback_results = await get_practice_results_async(
+                    season,
+                    fallback_round,
+                    session_number,
+                    limit=100,
+                )
+                if fallback_results:
+                    event = fallback_event
+                    round_number = fallback_round
+                    available_sessions = fallback_sessions
+                    results = fallback_results
+                    data_fallback = True
+                    break
 
     favorite_drivers: set[str] = set()
     if user_id:
@@ -1496,9 +1606,11 @@ async def api_practice_results(
     return {
         "season": season,
         "round": round_number,
+        "requested_round": requested_round,
         "session": session_number,
         "available_sessions": available_sessions,
         "is_sprint_weekend": _is_sprint_weekend_event(event),
+        "data_fallback": data_fallback,
         "race_info": event,
         "results": [
             {

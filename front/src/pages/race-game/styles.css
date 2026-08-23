@@ -16,3 +16,113 @@
   border: 0;
   background: #07100d;
 }
+
+.race-game-orientation-prompt {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  background:
+    radial-gradient(circle at 50% 32%, rgba(49, 180, 143, 0.24), transparent 42%),
+    linear-gradient(145deg, #07100d, #0b1b17 58%, #07100d);
+  color: #f5ecd2;
+}
+
+.race-game-orientation-card {
+  width: min(460px, 100%);
+  padding: clamp(28px, 7vw, 48px);
+  border: 1px solid rgba(230, 239, 213, 0.18);
+  border-radius: 28px;
+  background: rgba(7, 15, 13, 0.86);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+  text-align: center;
+  backdrop-filter: blur(18px);
+}
+
+.race-game-orientation-icon {
+  position: relative;
+  width: 104px;
+  height: 78px;
+  margin: 0 auto 22px;
+}
+
+.race-game-orientation-phone {
+  position: absolute;
+  top: 7px;
+  left: 17px;
+  width: 44px;
+  height: 68px;
+  border: 4px solid #61d9bc;
+  border-radius: 11px;
+  box-shadow: 0 0 24px rgba(97, 217, 188, 0.25);
+  transform: rotate(-18deg);
+}
+
+.race-game-orientation-phone::after {
+  content: "";
+  position: absolute;
+  right: 13px;
+  bottom: 4px;
+  width: 10px;
+  height: 3px;
+  border-radius: 999px;
+  background: #61d9bc;
+}
+
+.race-game-orientation-arrow {
+  position: absolute;
+  right: 7px;
+  bottom: 2px;
+  color: #ff755f;
+  font-size: 46px;
+  font-weight: 800;
+  transform: rotate(-28deg);
+}
+
+.race-game-orientation-kicker {
+  margin: 0 0 8px !important;
+  color: #61d9bc !important;
+  font-size: 11px !important;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+}
+
+.race-game-orientation-card h1 {
+  margin: 0;
+  color: #f5ecd2;
+  font-size: clamp(28px, 7vw, 42px);
+  line-height: 1.04;
+}
+
+.race-game-orientation-card > p:not(.race-game-orientation-kicker) {
+  margin: 18px 0 26px;
+  color: rgba(245, 236, 210, 0.74);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.race-game-orientation-card > p span {
+  display: block;
+  margin-top: 6px;
+  color: rgba(245, 236, 210, 0.5);
+  font-size: 13px;
+}
+
+.race-game-orientation-card button {
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-radius: 15px;
+  color: #06100d;
+  background: linear-gradient(135deg, #75e5c8, #3dbda2);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(61, 189, 162, 0.22);
+}
+
+.race-game-orientation-card button:focus-visible {
+  outline: 3px solid #f5ecd2;
+  outline-offset: 3px;
+}
