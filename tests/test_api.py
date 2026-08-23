@@ -473,6 +473,46 @@ async def test_race_game_rejects_invalid_ghost_telemetry(api_client: AsyncClient
 
 
 @pytest.mark.asyncio
+async def test_race_game_ghost_falls_back_to_fastest_score_with_telemetry(api_client: AsyncClient):
+    """A legacy top score without telemetry must not hide the next replayable ghost."""
+    profile = await api_client.post(
+        "/api/reaction-leaderboard/profile",
+        json={"display_name": "Ghost Pilot", "participate": True, "prompt_seen": True},
+    )
+    assert profile.status_code == 200
+
+    legacy_best = await api_client.post(
+        "/api/race-game-leaderboard/score",
+        json={"time_ms": 70_000, "track_id": "emerald-loop-v1", "telemetry": []},
+    )
+    assert legacy_best.status_code == 200
+    assert legacy_best.json()["saved"] is True
+
+    replayable = await api_client.post(
+        "/api/race-game-leaderboard/score",
+        json={
+            "time_ms": 75_000,
+            "track_id": "emerald-loop-v1",
+            "telemetry": [
+                {"t": 0, "x": 875, "y": 660, "rotation": 0},
+                {"t": 75_000, "x": 875, "y": 660, "rotation": 0},
+            ],
+        },
+    )
+    assert replayable.status_code == 200
+    assert replayable.json()["saved"] is True
+
+    leaderboard = await api_client.get("/api/race-game-leaderboard")
+    assert leaderboard.status_code == 200
+    payload = leaderboard.json()
+    assert payload["entries"][0]["time_ms"] == 70_000
+    assert payload["ghost"]["name"] == "Ghost Pilot"
+    assert payload["ghost"]["time_ms"] == 75_000
+    assert payload["ghost"]["leaderboard_place"] == 1
+    assert payload["ghost"]["is_global_best"] is False
+
+
+@pytest.mark.asyncio
 async def test_api_votes_stats(api_client: AsyncClient):
     """GET /api/votes/stats — статистика оценок гонок."""
     with patch("app.api.miniapp_api.get_race_vote_stats", new_callable=AsyncMock) as m:

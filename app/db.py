@@ -1070,10 +1070,13 @@ async def get_race_game_leaderboard(
     ghost: dict | None = None
     async with db.conn.execute(
         """
-        SELECT p.display_name, s.time_ms, s.telemetry_json
+        SELECT p.telegram_id, p.display_name, s.time_ms, s.telemetry_json
         FROM race_game_scores s
         JOIN reaction_leaderboard_profiles p ON p.telegram_id = s.telegram_id
-        WHERE p.leaderboard_opt_in = 1 AND s.track_id = ?
+        WHERE p.leaderboard_opt_in = 1
+          AND s.track_id = ?
+          AND s.telemetry_json IS NOT NULL
+          AND s.telemetry_json <> ''
         ORDER BY s.time_ms ASC, s.id ASC
         LIMIT 1
         """,
@@ -1084,10 +1087,21 @@ async def get_race_game_leaderboard(
         try:
             samples = json.loads(fastest["telemetry_json"])
             if isinstance(samples, list) and len(samples) >= 2:
+                ghost_time = int(fastest["time_ms"])
+                leaderboard_place = next(
+                    (
+                        entry["place"]
+                        for entry in entries
+                        if entry["telegram_id"] == int(fastest["telegram_id"])
+                    ),
+                    None,
+                )
                 ghost = {
                     "name": (fastest["display_name"] or "").strip() or "Ghost Racer",
-                    "time_ms": int(fastest["time_ms"]),
+                    "time_ms": ghost_time,
                     "samples": samples,
+                    "leaderboard_place": leaderboard_place,
+                    "is_global_best": bool(entries and ghost_time == entries[0]["time_ms"]),
                 }
         except (TypeError, ValueError, json.JSONDecodeError):
             logger.warning("Invalid Emerald Loop ghost telemetry ignored")

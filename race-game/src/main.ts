@@ -41,6 +41,8 @@ type GhostRun = {
   name: string
   time_ms: number
   samples: GhostSample[]
+  leaderboard_place?: number | null
+  is_global_best?: boolean
 }
 
 const touchState: Record<TouchControl, boolean> = {
@@ -155,7 +157,7 @@ const syncGhostControls = (ghost: GhostRun | null): void => {
   ui.ghostHudToggle.textContent = `GHOST ${ghostEnabled ? 'ON' : 'OFF'}`
   ui.ghostMenuLabel.textContent = `Ghost Racer: ${ghostEnabled ? 'ON' : 'OFF'}`
   ui.ghostMenuCopy.textContent = available && ghost
-    ? `#1 ${ghost.name} · ${formatTime(ghost.time_ms)}`
+    ? `${ghost.is_global_best ? '#1' : 'Лучший доступный'} ${ghost.name} · ${formatTime(ghost.time_ms)}`
     : 'Лучший заезд с телеметрией пока недоступен'
 }
 
@@ -323,6 +325,7 @@ const nearestTrackPoint = (x: number, y: number) => {
 class RaceScene extends Phaser.Scene {
   private car!: Phaser.GameObjects.Image
   private ghostCar!: Phaser.GameObjects.Image
+  private ghostLabel!: Phaser.GameObjects.Text
   private dust!: Phaser.GameObjects.Particles.ParticleEmitter
   private keys!: Record<'up' | 'down' | 'left' | 'right' | 'w' | 'a' | 's' | 'd' | 'space' | 'p' | 'r', Phaser.Input.Keyboard.Key>
   private velocity = new Phaser.Math.Vector2()
@@ -374,10 +377,23 @@ class RaceScene extends Phaser.Scene {
       .setDepth(10)
 
     this.ghostCar = this.add.image(centerLine[0].x, centerLine[0].y, 'car')
-      .setDisplaySize(46, 69)
-      .setDepth(9)
+      .setDisplaySize(50, 75)
+      .setDepth(11)
       .setTint(0x79e9ff)
-      .setAlpha(0.45)
+      .setAlpha(0.5)
+      .setVisible(false)
+
+    this.ghostLabel = this.add.text(centerLine[0].x, centerLine[0].y - 44, '', {
+      color: '#b9f6ff',
+      backgroundColor: 'rgba(2, 20, 25, 0.78)',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontSize: '11px',
+      fontStyle: 'bold',
+      padding: { x: 6, y: 3 },
+    })
+      .setOrigin(0.5, 1)
+      .setDepth(12)
+      .setAlpha(0.9)
       .setVisible(false)
 
     this.keys = this.input.keyboard!.addKeys({
@@ -478,6 +494,7 @@ class RaceScene extends Phaser.Scene {
   setGhost(ghost: GhostRun | null): void {
     this.ghost = ghost?.samples?.length && ghost.samples.length >= 2 ? ghost : null
     this.ghostSampleIndex = 0
+    this.ghostLabel?.setText(this.ghost ? `GHOST · ${this.ghost.name}` : '')
     syncGhostControls(this.ghost)
     this.updateGhost()
   }
@@ -697,6 +714,7 @@ class RaceScene extends Phaser.Scene {
     const samples = this.ghost?.samples
     if (!ghostEnabled || !samples || samples.length < 2 || this.elapsedTime > (this.ghost?.time_ms ?? 0) + 200) {
       this.ghostCar?.setVisible(false)
+      this.ghostLabel?.setVisible(false)
       return
     }
     while (
@@ -710,15 +728,17 @@ class RaceScene extends Phaser.Scene {
     const end = samples[Math.min(this.ghostSampleIndex + 1, samples.length - 1)]
     const duration = Math.max(1, end.t - start.t)
     const progress = Phaser.Math.Clamp((this.elapsedTime - start.t) / duration, 0, 1)
+    const ghostX = Phaser.Math.Linear(start.x, end.x, progress)
+    const ghostY = Phaser.Math.Linear(start.y, end.y, progress)
     this.ghostCar
       .setVisible(true)
-      .setPosition(
-        Phaser.Math.Linear(start.x, end.x, progress),
-        Phaser.Math.Linear(start.y, end.y, progress),
-      )
+      .setPosition(ghostX, ghostY)
       .setRotation(Phaser.Math.Angle.Wrap(
         start.rotation + Phaser.Math.Angle.Wrap(end.rotation - start.rotation) * progress,
       ))
+    this.ghostLabel
+      .setVisible(true)
+      .setPosition(ghostX, ghostY - 42)
   }
 
   private setSurfaceState(onRoad: boolean): void {
