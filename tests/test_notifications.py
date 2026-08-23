@@ -18,6 +18,7 @@ from app.utils.notifications import (
     check_and_notify_quali,
     check_and_notify_voting_results,
     get_notification_text,
+    initialize_result_notification_state,
 )
 from app.utils.safe_send import safe_send_photo
 
@@ -235,6 +236,91 @@ async def test_check_and_notify_quali_does_not_mark_round_when_delivery_failed()
 
     assert m_send_photo.await_count >= 1
     assert m_set_notified.await_count == 0
+
+
+@pytest.mark.asyncio
+async def test_quali_marks_round_when_one_recipient_fails_after_another_succeeds():
+    """A blocked recipient must not cause duplicate delivery to successful users."""
+    results = [{"position": 1, "driver": "VER", "name": "Max Verstappen", "best": "1:29.0", "gap": "1:29.0"}]
+
+    async def users_side_effect(notifications_only: bool = False):
+        return [
+            (111, "Europe/Moscow", 60, 1),
+            (222, "Europe/Moscow", 60, 1),
+        ]
+
+    with patch("app.utils.notifications._get_latest_quali_async", new_callable=AsyncMock, return_value=(4, results)), \
+            patch("app.utils.notifications.get_last_notified_quali_round", new_callable=AsyncMock, return_value=None), \
+            patch("app.utils.notifications.get_users_favorites_for_notifications", new_callable=AsyncMock, return_value={}), \
+            patch("app.utils.notifications.get_all_group_chats", new_callable=AsyncMock, return_value=[]), \
+            patch("app.utils.notifications.get_users_with_settings", side_effect=users_side_effect), \
+            patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock, return_value=[{"round": 4, "event_name": "Bahrain GP"}]), \
+            patch("app.utils.notifications.get_driver_standings_async", new_callable=AsyncMock, return_value=pd.DataFrame()), \
+            patch("app.utils.notifications.SESSION_RESULTS_MIN_ROWS", 1), \
+            patch("app.utils.notifications.safe_send_photo", new_callable=AsyncMock, side_effect=[True, False]) as send_photo, \
+            patch("app.utils.notifications.set_cached_quali_results", new_callable=AsyncMock), \
+            patch("app.utils.notifications.create_f1_style_classification_image", return_value=io.BytesIO(b"image")), \
+            patch("app.utils.notifications.set_last_notified_quali_round", new_callable=AsyncMock) as set_notified:
+        delivered = await check_and_notify_quali(bot=object())
+
+    assert delivered is True
+    assert send_photo.await_count == 2
+    set_notified.assert_awaited_once_with(datetime.now(timezone.utc).year, 4)
+
+
+@pytest.mark.asyncio
+async def test_startup_baseline_skips_completed_sessions_but_not_future_rounds():
+    """A restart advances all result watermarks without dispatching old sessions."""
+    now = datetime.now(timezone.utc)
+    past = (now - timedelta(hours=3)).isoformat()
+    future = (now + timedelta(hours=3)).isoformat()
+    schedule = [
+        {
+            "round": 11,
+            "event_name": "Completed GP",
+            "sprint_quali_start_utc": past,
+            "sprint_start_utc": past,
+            "quali_start_utc": past,
+            "race_start_utc": past,
+        },
+        {
+            "round": 12,
+            "event_name": "Future GP",
+            "sprint_quali_start_utc": future,
+            "sprint_start_utc": future,
+            "quali_start_utc": future,
+            "race_start_utc": future,
+        },
+    ]
+    season = now.year
+
+    with patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock, return_value=schedule), \
+            patch("app.utils.notifications.get_last_notified_sprint_quali_round", new_callable=AsyncMock, return_value=None), \
+            patch("app.utils.notifications.get_last_notified_sprint_round", new_callable=AsyncMock, return_value=10), \
+            patch("app.utils.notifications.get_last_notified_quali_round", new_callable=AsyncMock, return_value=10), \
+            patch("app.utils.notifications.get_last_notified_round", new_callable=AsyncMock, return_value=10), \
+            patch("app.utils.notifications.set_last_notified_sprint_quali_round", new_callable=AsyncMock) as set_sprint_quali, \
+            patch("app.utils.notifications.set_last_notified_sprint_round", new_callable=AsyncMock) as set_sprint, \
+            patch("app.utils.notifications.set_last_notified_quali_round", new_callable=AsyncMock) as set_quali, \
+            patch("app.utils.notifications.set_last_notified_round", new_callable=AsyncMock) as set_race:
+        ready = await initialize_result_notification_state()
+
+    assert ready is True
+    set_sprint_quali.assert_awaited_once_with(season, 11)
+    set_sprint.assert_awaited_once_with(season, 11)
+    set_quali.assert_awaited_once_with(season, 11)
+    set_race.assert_awaited_once_with(season, 11)
+
+
+@pytest.mark.asyncio
+async def test_startup_baseline_fails_closed_when_schedule_is_unavailable():
+    """No result dispatcher is enabled until startup can establish safe watermarks."""
+    with patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock, return_value=[]), \
+            patch("app.utils.notifications.set_last_notified_round", new_callable=AsyncMock) as set_race:
+        ready = await initialize_result_notification_state()
+
+    assert ready is False
+    set_race.assert_not_awaited()
 
 
 @pytest.mark.asyncio

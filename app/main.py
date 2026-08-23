@@ -21,6 +21,7 @@ from app.utils.notifications import (
     check_and_send_notifications,
     check_and_send_session_results,
     check_and_notify_voting_results,
+    initialize_result_notification_state,
 )
 from app.services.prediction_notifications import check_and_notify_predictions
 
@@ -129,11 +130,21 @@ async def main():
         id="warmup_sessions",
         replace_existing=True,
     )
+    result_notification_state_ready = False
+
+    async def check_session_results_after_startup_baseline():
+        nonlocal result_notification_state_ready
+        if not result_notification_state_ready:
+            result_notification_state_ready = await initialize_result_notification_state()
+            # A successful baseline only advances watermarks. Dispatch begins on
+            # the following poll, so a delayed startup cannot replay old results.
+            return
+        await check_and_send_session_results(bot)
+
     scheduler.add_job(
-        check_and_send_session_results,
+        check_session_results_after_startup_baseline,
         "interval",
         seconds=30,
-        args=[bot],
         id="results_job",
         replace_existing=True,
         max_instances=1,
@@ -159,10 +170,15 @@ async def main():
         max_instances=1,
         coalesce=True,
     )
-    scheduler.start()
+    async def start_background_jobs_after_database(**_kwargs):
+        nonlocal result_notification_state_ready
+        result_notification_state_ready = await initialize_result_notification_state()
+        scheduler.start()
+        # Запускаем прогрев кэша в фоне сразу после подключения БД и baseline.
+        asyncio.create_task(warmup_cache())
 
-    # Запускаем прогрев кэша в фоне сразу при старте скрипта
-    asyncio.create_task(warmup_cache())
+    # on_startup подключает БД первым; только затем разрешаем планировщик.
+    dp.startup.register(start_background_jobs_after_database)
 
     # 5. Сбрасываем старые апдейты (чтобы бот не обрабатывал клики, сделанные пока он лежал)
     await bot.delete_webhook(drop_pending_updates=True)
@@ -177,7 +193,8 @@ async def main():
         logger.info("Остановка бота пользователем")
     finally:
         # 7. Корректное закрытие всех процессов
-        scheduler.shutdown(wait=False)
+        if scheduler.running:
+            scheduler.shutdown(wait=False)
         try:
             await bot.session.close()
         except Exception as exc:

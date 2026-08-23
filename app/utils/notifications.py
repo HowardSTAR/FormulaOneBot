@@ -403,25 +403,126 @@ def _latest_finished_session(
 ) -> dict | None:
     now = datetime.now(timezone.utc)
     finished = None
+    finished_round = -1
     for event in schedule or []:
+        if event.get("is_cancelled"):
+            continue
         status = str(event.get(status_key) or "").strip().lower() if status_key else ""
+        is_finished = False
         if status in {"completed", "results_ready"}:
-            finished = event
+            is_finished = True
+        elif status:
             continue
-        if status and status not in {"completed", "results_ready"}:
-            continue
-        raw = event.get(datetime_key)
-        if not raw:
-            continue
-        try:
-            started = datetime.fromisoformat(raw)
-            if started.tzinfo is None:
-                started = started.replace(tzinfo=timezone.utc)
-            if now >= started + timedelta(minutes=elapsed_minutes):
+        else:
+            raw = event.get(datetime_key)
+            if not raw:
+                continue
+            try:
+                started = datetime.fromisoformat(raw)
+                if started.tzinfo is None:
+                    started = started.replace(tzinfo=timezone.utc)
+                is_finished = now >= started + timedelta(minutes=elapsed_minutes)
+            except (TypeError, ValueError):
+                continue
+
+        if is_finished:
+            try:
+                round_num = int(event.get("round"))
+            except (TypeError, ValueError):
+                round_num = finished_round + 1
+            if finished is None or round_num > finished_round:
                 finished = event
-        except (TypeError, ValueError):
-            continue
+                finished_round = round_num
     return finished
+
+
+async def initialize_result_notification_state() -> bool:
+    """Skip result-session backlog that already exists when the bot starts.
+
+    Result notifications are live events, not a historical digest. Advancing each
+    per-session watermark before the scheduler starts prevents a restart or a new
+    deployment from replaying the latest completed weekend. A failed schedule
+    lookup is reported as not ready so the guarded scheduler can retry this
+    initialization without dispatching anything.
+    """
+    season = datetime.now(timezone.utc).year
+    try:
+        schedule = await get_season_schedule_short_async(season)
+    except Exception:
+        logger.exception(
+            "[Startup Result Baseline] schedule lookup failed season=%s; result dispatch remains disabled",
+            season,
+        )
+        return False
+
+    if not schedule:
+        logger.error(
+            "[Startup Result Baseline] empty schedule season=%s; result dispatch remains disabled",
+            season,
+        )
+        return False
+
+    session_states = (
+        (
+            "sprint_qualifying_results",
+            "sprint_quali_start_utc",
+            45,
+            "sprint_qualifying_status",
+            get_last_notified_sprint_quali_round,
+            set_last_notified_sprint_quali_round,
+        ),
+        (
+            "sprint_results",
+            "sprint_start_utc",
+            30,
+            "sprint_status",
+            get_last_notified_sprint_round,
+            set_last_notified_sprint_round,
+        ),
+        (
+            "qualifying_results",
+            "quali_start_utc",
+            60,
+            "qualifying_status",
+            get_last_notified_quali_round,
+            set_last_notified_quali_round,
+        ),
+        (
+            "race_results",
+            "race_start_utc",
+            120,
+            "race_status",
+            get_last_notified_round,
+            set_last_notified_round,
+        ),
+    )
+
+    try:
+        for event_type, datetime_key, elapsed, status_key, getter, setter in session_states:
+            event = _latest_finished_session(schedule, datetime_key, elapsed, status_key)
+            if event is None:
+                continue
+            round_num = int(event["round"])
+            previous_round = await getter(season)
+            if previous_round is not None and previous_round >= round_num:
+                continue
+            await setter(season, round_num)
+            logger.info(
+                "[Startup Result Baseline] event=%s season=%s skipped_backlog_through_round=%s previous=%s",
+                event_type,
+                season,
+                round_num,
+                previous_round,
+            )
+    except Exception:
+        logger.exception(
+            "[Startup Result Baseline] state update failed season=%s; result dispatch remains disabled",
+            season,
+        )
+        return False
+
+    logger.info("[Startup Result Baseline] ready season=%s", season)
+    return True
 
 
 def _normalize_qualifying_results(results: list[dict], code_to_team: dict[str, str]) -> list[dict]:
@@ -585,7 +686,7 @@ async def _deliver_session_classification(
         len(group_chats),
     )
     sent_count = 0
-    all_succeeded = True
+    failed_count = 0
     recipient_ids = set()
     for user in notification_users:
         tg_id, tz = user[0], user[1] or "Europe/Moscow"
@@ -600,7 +701,7 @@ async def _deliver_session_classification(
             disable_notification=is_quiet_hours(tz),
         )
         sent_count += int(delivered)
-        all_succeeded = all_succeeded and delivered
+        failed_count += int(not delivered)
         await asyncio.sleep(0.05)
 
     settings = await get_users_with_settings()
@@ -625,7 +726,7 @@ async def _deliver_session_classification(
             disable_notification=is_quiet_hours(tz_map.get(tg_id, "Europe/Moscow")),
         )
         sent_count += int(delivered)
-        all_succeeded = all_succeeded and delivered
+        failed_count += int(not delivered)
         await asyncio.sleep(0.05)
 
     group_caption = f"🏁 {session_label} — этап {round_num:02d}, сезон {season}\n\n📊 Результаты на картинке."
@@ -639,10 +740,30 @@ async def _deliver_session_classification(
             disable_notification=is_quiet_hours(GROUP_TIMEZONE),
         )
         sent_count += int(delivered)
-        all_succeeded = all_succeeded and delivered
+        failed_count += int(not delivered)
         await asyncio.sleep(0.05)
 
-    return sent_count > 0 and all_succeeded
+    if sent_count > 0:
+        if failed_count:
+            logger.warning(
+                "[Delivery Confirmation] session=%s season=%s round=%s delivered=%s failed=%s; "
+                "marking the event complete to prevent duplicate delivery",
+                image_session_type,
+                season,
+                round_num,
+                sent_count,
+                failed_count,
+            )
+        return True
+
+    logger.warning(
+        "[Delivery Confirmation] session=%s season=%s round=%s delivered=0 failed=%s; will retry",
+        image_session_type,
+        season,
+        round_num,
+        failed_count,
+    )
+    return False
 
 
 async def check_and_send_results(bot: Bot):
