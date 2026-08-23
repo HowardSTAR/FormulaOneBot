@@ -1474,41 +1474,41 @@
     font-size: 13px !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-summary-row {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-summary-row {
     min-height: 38px;
     padding-top: 9px !important;
     font-size: 14px !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-summary-row b {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-summary-row b {
     font-size: 17px !important;
   }
 
-  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-table-head,
-  .app-page-main.route-race-results .race-results-table-compact .race-results-desktop-row {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-table-compact .race-results-desktop-table-head,
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-table-compact .race-results-desktop-row {
     grid-template-columns: 58px minmax(220px, 1.2fr) minmax(180px, 1fr) 160px 110px !important;
     gap: 12px !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-table-head {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-table-head {
     min-height: 40px;
     padding: 8px 12px !important;
     font-size: 13px !important;
     background: rgba(8, 9, 12, 0.72) !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-row {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-row {
     min-height: 55px;
     padding: 7px 12px !important;
     font-size: 16px !important;
     background: rgba(255, 255, 255, 0.025) !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-row:hover {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-row:hover {
     background: rgba(255, 255, 255, 0.055) !important;
   }
 
-  .app-page-main.route-race-results .race-results-desktop-row.winner {
+  :is(.app-page-main.route-race-results, .app-page-main.route-sprint-results) .race-results-desktop-row.winner {
     background: linear-gradient(90deg, rgba(225, 6, 0, 0.11), rgba(255, 255, 255, 0.045)) !important;
     box-shadow: inset 3px 0 0 #ff706a;
   }

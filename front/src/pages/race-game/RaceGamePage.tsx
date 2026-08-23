@@ -3,10 +3,11 @@ import "./styles.css";
 
 function isPhoneDevice() {
   const userAgent = navigator.userAgent || "";
+  const userAgentData = (navigator as Navigator & { userAgentData?: { mobile?: boolean } }).userAgentData;
   const mobileUserAgent = /Android.+Mobile|iPhone|iPod|IEMobile|Windows Phone|Opera Mini/i.test(userAgent);
   const compactTouchScreen = window.matchMedia("(pointer: coarse)").matches
     && Math.min(window.screen.width, window.screen.height) <= 520;
-  return mobileUserAgent || compactTouchScreen;
+  return Boolean(userAgentData?.mobile) || mobileUserAgent || compactTouchScreen;
 }
 
 function RaceGamePage() {
