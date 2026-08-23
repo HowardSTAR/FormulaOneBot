@@ -23,6 +23,7 @@ import AccountPage from "./pages/account/AccountPage";
 import ResetPasswordPage from "./pages/reset-password/ResetPasswordPage";
 import ReactionGamePage from "./pages/reaction-game/ReactionGamePage";
 import ReflexGridGamePage from "./pages/reflex-grid-game/ReflexGridGamePage";
+import RaceGamePage from "./pages/race-game/RaceGamePage";
 import PredictionsPage from "./pages/predictions/PredictionsPage";
 import PracticeResultsPage from "./pages/practice-results/PracticeResultsPage";
 import ContactAdminPage from "./pages/contact-admin/ContactAdminPage";
@@ -39,6 +40,7 @@ import { RequireAdmin } from "./components/RequireAdmin";
 const AdminPage = lazy(() => import("./pages/admin/AdminPage"));
 
 export const router = createBrowserRouter([
+  { path: "/race-game", element: <RaceGamePage /> },
   {
     element: <SwipeBackLayout />,
     children: [

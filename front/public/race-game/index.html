@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#07100d" />
+    <meta name="description" content="Emerald Loop — пиксельная браузерная гонка на вымышленном болиде с открытыми колёсами." />
+    <title>Emerald Loop — браузерная гонка</title>
+    <script type="module" crossorigin src="./assets/index-BKPTiSpk.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-5Bz8X6dO.css">
+  </head>
+  <body>
+    <main id="app" aria-label="Игра Emerald Loop">
+      <div id="game-canvas" aria-hidden="true"></div>
+
+      <section class="hud" aria-label="Показатели заезда">
+        <div class="brand-card">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span><strong>EMERALD LOOP</strong><small>ARCADE CIRCUIT</small></span>
+        </div>
+        <div class="telemetry-card">
+          <div><small>КРУГ</small><strong id="lap-value">1 / 3</strong></div>
+          <div><small>ВРЕМЯ</small><strong id="time-value">00:00.000</strong></div>
+          <div><small>СКОРОСТЬ</small><strong><span id="speed-value">0</span> <em>км/ч</em></strong></div>
+        </div>
+        <div class="hud-actions">
+          <button id="menu-button" class="icon-button" type="button" aria-label="Открыть меню" title="Меню">☰</button>
+          <button id="reset-button" class="icon-button" type="button" aria-label="Вернуть болид на трассу" title="Вернуть на трассу (R)">↺</button>
+          <button id="pause-button" class="icon-button" type="button" aria-label="Пауза" title="Пауза (P)">Ⅱ</button>
+        </div>
+      </section>
+
+      <div class="surface-chip" id="surface-chip"><span></span><b>НА ТРАССЕ</b></div>
+      <div class="countdown" id="countdown" aria-live="polite"></div>
+
+      <section class="modal is-visible" id="race-modal" aria-live="polite">
+        <div class="modal-card">
+          <p class="eyebrow">ПИКСЕЛЬНЫЙ ЗАЕЗД</p>
+          <h1 id="modal-title">Emerald Loop</h1>
+          <p id="modal-copy">Три круга по оригинальной трассе. Удерживайте скорость, аккуратно проходите повороты и не теряйте время на траве.</p>
+          <div class="control-guide">
+            <div><span>↑</span><b>Газ</b><small>W / ↑ / пробел</small></div>
+            <div><span>← →</span><b>Поворот</b><small>A D / стрелки</small></div>
+            <div><span>↓</span><b>Тормоз</b><small>S / ↓</small></div>
+          </div>
+          <div class="result-row" id="result-row" hidden>
+            <span>Результат<strong id="result-time">—</strong></span>
+            <span>Лучшее<strong id="best-time">—</strong></span>
+          </div>
+          <button id="start-button" class="primary-button" type="button">НАЧАТЬ ЗАЕЗД</button>
+          <div class="modal-quick-links">
+            <a href="/" target="_top">На главную</a>
+            <button id="intro-leaderboard-button" type="button">Таблица лидеров</button>
+          </div>
+          <p class="mobile-note">На телефоне доступны кнопки под большими пальцами. Игра работает и в портретном режиме.</p>
+        </div>
+      </section>
+
+      <section class="game-menu" id="game-menu" aria-hidden="true">
+        <button class="game-menu-backdrop" id="menu-backdrop" type="button" aria-label="Закрыть меню"></button>
+        <aside class="game-menu-panel" role="dialog" aria-modal="true" aria-labelledby="game-menu-title">
+          <div class="game-menu-header">
+            <div>
+              <p class="eyebrow">EMERALD LOOP</p>
+              <h2 id="game-menu-title">Меню заезда</h2>
+            </div>
+            <button id="menu-close-button" class="menu-close-button" type="button" aria-label="Закрыть меню">×</button>
+          </div>
+
+          <div id="menu-main-view" class="game-menu-view">
+            <button id="menu-continue-button" class="menu-action is-primary" type="button">
+              <span aria-hidden>▶</span><b>Продолжить</b><small>Вернуться к заезду</small>
+            </button>
+            <button id="menu-leaderboard-button" class="menu-action" type="button">
+              <span aria-hidden>♛</span><b>Таблица лидеров</b><small>Лучшие времена трёх кругов</small>
+            </button>
+            <a href="/" target="_top" class="menu-action">
+              <span aria-hidden>⌂</span><b>На главную</b><small>Вернуться на сайт TurboTears</small>
+            </a>
+          </div>
+
+          <div id="menu-leaderboard-view" class="game-menu-view leaderboard-view" hidden>
+            <button id="leaderboard-back-button" class="leaderboard-back" type="button">← Назад в меню</button>
+            <div class="leaderboard-heading">
+              <div><small>EMERALD LOOP</small><h3>Таблица лидеров</h3></div>
+              <span id="leaderboard-my-place">—</span>
+            </div>
+            <div id="leaderboard-list" class="leaderboard-list">
+              <div class="leaderboard-message">Загрузка результатов…</div>
+            </div>
+            <p class="leaderboard-note">В рейтинг попадает лучшее время участников общего игрового профиля.</p>
+            <a class="leaderboard-settings-link" href="/reaction-game" target="_top">Настроить имя и участие на сайте</a>
+          </div>
+        </aside>
+      </section>
+
+      <section class="touch-controls" aria-label="Сенсорное управление">
+        <div class="steering-controls">
+          <button id="touch-left" class="touch-button steering" type="button" aria-label="Повернуть налево">←</button>
+          <button id="touch-right" class="touch-button steering" type="button" aria-label="Повернуть направо">→</button>
+        </div>
+        <div class="pedal-controls">
+          <button id="touch-brake" class="touch-button brake" type="button" aria-label="Тормоз">ТОРМОЗ</button>
+          <button id="touch-throttle" class="touch-button throttle" type="button" aria-label="Газ">ГАЗ</button>
+        </div>
+      </section>
+
+      <div class="desktop-hint">WASD / СТРЕЛКИ — УПРАВЛЕНИЕ · R — НА ТРАССУ · P — ПАУЗА</div>
+    </main>
+  </body>
+</html>
