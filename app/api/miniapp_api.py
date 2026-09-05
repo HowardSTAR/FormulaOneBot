@@ -1,5 +1,6 @@
 import asyncio
 import io
+import math
 import os
 import unicodedata
 from contextlib import asynccontextmanager
@@ -14,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 
 # run_web.py imports this module directly, so load local configuration before
 # app.db and authentication services read environment variables.
@@ -514,7 +515,14 @@ class RaceTelemetrySample(BaseModel):
     t: int = Field(ge=0, le=3_600_000)
     x: float = Field(ge=0, le=1536)
     y: float = Field(ge=0, le=1024)
-    rotation: float = Field(ge=-3.142, le=3.142)
+    # Older game bundles used Phaser.Normalize (0..2pi). Accept both
+    # representations and store the signed angle used by ghost playback.
+    rotation: float = Field(ge=-3.142, le=6.284, allow_inf_nan=False)
+
+    @field_validator("rotation")
+    @classmethod
+    def normalize_rotation(cls, value: float) -> float:
+        return round(math.atan2(math.sin(value), math.cos(value)), 4)
 
 
 class RaceGameScoreRequest(BaseModel):
@@ -533,8 +541,10 @@ class RaceGameScoreRequest(BaseModel):
             if sample.t <= previous:
                 raise ValueError("Telemetry timestamps must be strictly increasing")
             previous = sample.t
-        if self.telemetry[-1].t > self.time_ms + 250:
-            raise ValueError("Telemetry exceeds recorded race time")
+        if self.telemetry[0].t != 0:
+            raise ValueError("Telemetry must start at race time zero")
+        if abs(self.telemetry[-1].t - self.time_ms) > 250:
+            raise ValueError("Telemetry duration must match recorded race time")
         return self
 
 
@@ -603,6 +613,17 @@ async def api_race_game_leaderboard(
     user_id: Optional[int] = Depends(get_optional_user_id),
 ):
     return await get_race_game_leaderboard(user_id, track_id=track_id)
+
+
+@web_app.get("/api/race-game/ghost")
+async def api_public_race_game_ghost(
+    response: Response,
+    track_id: Literal["emerald-loop-v1"] = Query("emerald-loop-v1"),
+):
+    """Public replay, independent of the viewer's account or session."""
+    response.headers["Cache-Control"] = "no-store"
+    leaderboard = await get_race_game_leaderboard(track_id=track_id)
+    return {"track_id": track_id, "ghost": leaderboard["ghost"]}
 
 
 @web_app.post("/api/race-game-leaderboard/score")

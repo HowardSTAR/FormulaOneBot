@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import './style.css'
+import { createTelemetrySample, interpolateGhost, type GhostSample } from './ghostTelemetry'
 
 const WORLD_WIDTH = 1536
 const WORLD_HEIGHT = 1024
@@ -36,13 +37,6 @@ type ScoreSubmissionResult = {
   auto_enrolled?: boolean
   reason?: 'leaderboard_opted_out' | 'invalid_score' | string | null
   message?: string | null
-}
-
-type GhostSample = {
-  t: number
-  x: number
-  y: number
-  rotation: number
 }
 
 type GhostRun = {
@@ -163,10 +157,13 @@ const syncGhostControls = (ghost: GhostRun | null): void => {
   ui.ghostMenuToggle.setAttribute('aria-pressed', pressed)
   ui.ghostHudToggle.classList.toggle('is-unavailable', !available)
   ui.ghostHudToggle.textContent = `GHOST ${ghostEnabled ? 'ON' : 'OFF'}`
+  ui.ghostHudToggle.title = available && ghost
+    ? `Призрак: ${ghost.name} · ${formatTime(ghost.time_ms)}`
+    : 'Пока нет записанного пути. Завершите новый заезд с сохранением результата.'
   ui.ghostMenuLabel.textContent = `Ghost Racer: ${ghostEnabled ? 'ON' : 'OFF'}`
   ui.ghostMenuCopy.textContent = available && ghost
     ? `${ghost.is_global_best ? '#1' : 'Лучший доступный'} ${ghost.name} · ${formatTime(ghost.time_ms)}`
-    : 'Лучший заезд с телеметрией пока недоступен'
+    : 'Пока нет записанного пути. Завершите новый заезд с сохранением результата.'
 }
 
 const formatTime = (milliseconds: number): string => {
@@ -260,39 +257,13 @@ const renderLeaderboard = (data: LeaderboardResponse): void => {
   })
 }
 
-let localBestSyncAttempted = false
-
 const loadLeaderboard = async (): Promise<void> => {
   ui.leaderboardList.innerHTML = '<div class="leaderboard-message">Загрузка результатов…</div>'
   try {
     const data = await apiRequest<LeaderboardResponse>('/api/race-game-leaderboard')
-    const localBest = Number(localStorage.getItem(BEST_TIME_KEY))
-    if (
-      !data.me
-      && !localBestSyncAttempted
-      && Number.isFinite(localBest)
-      && localBest >= 15_000
-      && localBest <= 3_600_000
-    ) {
-      localBestSyncAttempted = true
-      const restored = await submitRaceTime(localBest, [])
-      if (restored.saved && restored.leaderboard) {
-        renderLeaderboard(restored.leaderboard)
-        activeScene?.setGhost(restored.leaderboard.ghost)
-        return
-      }
-      renderLeaderboard(data)
-      ui.leaderboardMyPlace.textContent = restored.reason === 'leaderboard_opted_out'
-        ? 'Участие выключено'
-        : 'Не синхронизировано'
-      if (data.entries.length === 0) {
-        const message = ui.leaderboardList.querySelector('.leaderboard-message')
-        if (message) {
-          message.textContent = restored.message || 'Не удалось синхронизировать локальный результат.'
-        }
-      }
-      return
-    }
+    activeScene?.setGhost(data.ghost)
+    // Loading the ranking must be read-only. Re-uploading localBest here
+    // resurrected scores after an admin wipe (without their trajectory).
     renderLeaderboard(data)
   } catch (error) {
     ui.leaderboardMyPlace.textContent = '—'
@@ -304,12 +275,18 @@ const loadLeaderboard = async (): Promise<void> => {
   }
 }
 
+let ghostRequestVersion = 0
 const loadGhost = async (): Promise<void> => {
+  const version = ++ghostRequestVersion
   try {
-    const data = await apiRequest<LeaderboardResponse>(`/api/race-game-leaderboard?track_id=${encodeURIComponent(TRACK_ID)}`)
-    activeScene?.setGhost(data.ghost)
+    const response = await fetch(`/api/race-game/ghost?track_id=${encodeURIComponent(TRACK_ID)}`, {
+      credentials: 'omit', cache: 'no-store', signal: AbortSignal.timeout(15000),
+    })
+    if (!response.ok) throw new Error(`Ghost request failed: ${response.status}`)
+    const data = await response.json() as { ghost: GhostRun | null }
+    if (version === ghostRequestVersion) activeScene?.setGhost(data.ghost)
   } catch {
-    activeScene?.setGhost(null)
+    // A temporary network failure must not remove an already loaded replay.
   }
 }
 
@@ -380,7 +357,6 @@ class RaceScene extends Phaser.Scene {
   private onRoad = true
   private stateBeforeMenu: RaceState | null = null
   private ghost: GhostRun | null = null
-  private ghostSampleIndex = 0
   private telemetry: GhostSample[] = []
   private lastTelemetrySampleAt = -TELEMETRY_SAMPLE_INTERVAL_MS
 
@@ -474,6 +450,13 @@ class RaceScene extends Phaser.Scene {
     activeScene = this
     syncGhostControls(null)
     void loadGhost()
+    const refreshGhost = window.setInterval(() => {
+      if (!document.hidden) void loadGhost()
+    }, 30_000)
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      window.clearInterval(refreshGhost)
+      ghostRequestVersion += 1
+    })
   }
 
   update(_time: number, deltaMilliseconds: number): void {
@@ -523,6 +506,7 @@ class RaceScene extends Phaser.Scene {
   startRace(): void {
     if (this.raceState === 'racing' || this.raceState === 'countdown') return
     if (this.raceState === 'finished') this.resetRace()
+    void loadGhost()
 
     ui.modal.classList.remove('is-visible')
     ui.countdown.classList.remove('is-go')
@@ -534,7 +518,6 @@ class RaceScene extends Phaser.Scene {
 
   setGhost(ghost: GhostRun | null): void {
     this.ghost = ghost?.samples?.length && ghost.samples.length >= 2 ? ghost : null
-    this.ghostSampleIndex = 0
     this.ghostLabel?.setText(this.ghost ? `GHOST · ${this.ghost.name}` : '')
     syncGhostControls(this.ghost)
     this.updateGhost()
@@ -545,6 +528,7 @@ class RaceScene extends Phaser.Scene {
     persistGhostPreference()
     syncGhostControls(this.ghost)
     this.updateGhost()
+    if (enabled) void loadGhost()
   }
 
   openGameMenu(showLeaderboard = false): void {
@@ -606,7 +590,6 @@ class RaceScene extends Phaser.Scene {
     this.clearTouchState()
     this.telemetry = []
     this.lastTelemetrySampleAt = -TELEMETRY_SAMPLE_INTERVAL_MS
-    this.ghostSampleIndex = 0
 
     ui.lap.textContent = `1 / ${TOTAL_LAPS}`
     ui.time.textContent = formatTime(0)
@@ -732,6 +715,7 @@ class RaceScene extends Phaser.Scene {
     void submitRaceTime(finishedTime, finishedTelemetry).then((result) => {
       if (result.saved) {
         if (result.leaderboard) {
+          ghostRequestVersion += 1
           renderLeaderboard(result.leaderboard)
           this.setGhost(result.leaderboard.ghost)
         } else {
@@ -753,12 +737,7 @@ class RaceScene extends Phaser.Scene {
     if (!force && this.elapsedTime - this.lastTelemetrySampleAt < TELEMETRY_SAMPLE_INTERVAL_MS) return
     const t = Math.round(this.elapsedTime)
     if (this.telemetry.length && this.telemetry[this.telemetry.length - 1].t >= t) return
-    this.telemetry.push({
-      t,
-      x: Number(this.car.x.toFixed(2)),
-      y: Number(this.car.y.toFixed(2)),
-      rotation: Number(Phaser.Math.Angle.Normalize(this.car.rotation).toFixed(4)),
-    })
+    this.telemetry.push(createTelemetrySample(t, this.car.x, this.car.y, this.car.rotation))
     this.lastTelemetrySampleAt = this.elapsedTime
   }
 
@@ -769,25 +748,13 @@ class RaceScene extends Phaser.Scene {
       this.ghostLabel?.setVisible(false)
       return
     }
-    while (
-      this.ghostSampleIndex < samples.length - 2
-      && samples[this.ghostSampleIndex + 1].t <= this.elapsedTime
-    ) {
-      this.ghostSampleIndex += 1
-    }
-    if (samples[this.ghostSampleIndex].t > this.elapsedTime) this.ghostSampleIndex = 0
-    const start = samples[this.ghostSampleIndex]
-    const end = samples[Math.min(this.ghostSampleIndex + 1, samples.length - 1)]
-    const duration = Math.max(1, end.t - start.t)
-    const progress = Phaser.Math.Clamp((this.elapsedTime - start.t) / duration, 0, 1)
-    const ghostX = Phaser.Math.Linear(start.x, end.x, progress)
-    const ghostY = Phaser.Math.Linear(start.y, end.y, progress)
+    const pose = interpolateGhost(samples, this.elapsedTime)
+    if (!pose) return
+    const { x: ghostX, y: ghostY, rotation } = pose
     this.ghostCar
       .setVisible(true)
       .setPosition(ghostX, ghostY)
-      .setRotation(Phaser.Math.Angle.Wrap(
-        start.rotation + Phaser.Math.Angle.Wrap(end.rotation - start.rotation) * progress,
-      ))
+      .setRotation(rotation)
     this.ghostLabel
       .setVisible(true)
       .setPosition(ghostX, ghostY - 42)
