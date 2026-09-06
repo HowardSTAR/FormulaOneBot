@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { getWebsiteUser, hasTelegramAuth } from "../../helpers/auth";
@@ -97,7 +97,11 @@ function pointsLabel(points: number) {
 }
 
 export default function PredictionsPage() {
-  const [tab, setTab] = useState<"form" | "leaderboard">("form");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "leaderboard" ? "leaderboard" : "form";
+  const setTab = (value: "form" | "leaderboard") => {
+    setSearchParams((params) => { params.set("tab", value); return params; }, { replace: true });
+  };
   const [current, setCurrent] = useState<CurrentResponse | null>(null);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [rounds, setRounds] = useState<RoundColumn[]>([]);

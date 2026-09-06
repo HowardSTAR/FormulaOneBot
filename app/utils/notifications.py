@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from aiogram import Bot
+from app.utils.mini_app_links import mini_app_button
 
 from app.db import (
     db,
@@ -876,12 +877,15 @@ async def check_and_send_results(bot: Bot):
                 f"🗳 <b>Приглашаем на голосование!</b>\n\n"
                 f"🏁 {event_name}.\n\n"
                 f"Оцените этап по 5-балльной шкале и выберите пилота дня — "
-                f"откройте раздел <b>Голосование</b> в MiniWebApp слева по кнопке."
+                f"нажмите кнопку ниже, чтобы открыть голосование в Mini App."
+            )
+            voting_keyboard = await mini_app_button(
+                bot, "🗳 Оценить этап", "/voting", season=season, round=round_num,
             )
             for u in voting_users:
                 tg_id, tz = u[0], u[1] or "Europe/Moscow"
                 quiet = is_quiet_hours(tz)
-                await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet)
+                await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet, reply_markup=voting_keyboard)
                 await asyncio.sleep(0.05)
             await set_last_notified_voting_invite_round(season, round_num)
             logger.info(f"🗳 Sent voting invite for {event_name} (no results yet)")
@@ -1088,12 +1092,15 @@ async def check_and_send_results(bot: Bot):
             f"🗳 <b>Приглашаем на голосование!</b>\n\n"
             f"🏁 {event_name}.\n\n"
             f"Оцените этап по 5-балльной шкале и выберите пилота дня — "
-            f"откройте раздел <b>Голосование</b> в MiniWebApp слева по кнопке."
+            f"нажмите кнопку ниже, чтобы открыть голосование в Mini App."
+        )
+        voting_keyboard = await mini_app_button(
+            bot, "🗳 Оценить этап", "/voting", season=season, round=round_num,
         )
         for u in voting_users:
             tg_id, tz = u[0], u[1] or "Europe/Moscow"
             quiet = is_quiet_hours(tz)
-            await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet)
+            await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet, reply_markup=voting_keyboard)
             await asyncio.sleep(0.05)
         await set_last_notified_voting_invite_round(season, round_num)
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
@@ -26,15 +27,21 @@ function ChartIcon() {
 }
 
 function VotingPage() {
+  const [searchParams] = useSearchParams();
+  const linkedSeason = Number(searchParams.get("season"));
+  const linkedRound = Number(searchParams.get("round"));
+  const targetRound = Number.isInteger(linkedRound) && linkedRound > 0 && linkedRound <= 30 ? linkedRound : null;
   const [tab, setTab] = useState<"race" | "driver">("race");
-  const year = currentRealYear;
+  const year = Number.isInteger(linkedSeason) && linkedSeason >= 1950 && linkedSeason <= currentRealYear
+    ? linkedSeason : currentRealYear;
   const [races, setRaces] = useState<Race[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [raceVotes, setRaceVotes] = useState<Record<number, number>>({});
   const [driverVotes, setDriverVotes] = useState<Record<number, string>>({});
   const [stats, setStats] = useState<StatsResponse["stats"]>([]);
   const [driverStats, setDriverStats] = useState<DriverStatsResponse["stats"]>([]);
-  const [expandedRound, setExpandedRound] = useState<number | null>(null);
+  const [expandedRound, setExpandedRound] = useState<number | null>(targetRound);
+  const scrolledTarget = useRef<string | null>(null);
   const [chartExpanded, setChartExpanded] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches
   );
@@ -91,6 +98,16 @@ function VotingPage() {
   useEffect(() => {
     loadData(year);
   }, [year, loadData]);
+
+  useEffect(() => {
+    if (loading || !targetRound) return;
+    const key = `${year}-${targetRound}`;
+    if (scrolledTarget.current === key) return;
+    const item = document.getElementById(`voting-round-${targetRound}`);
+    if (!item) return;
+    item.scrollIntoView({ block: "center", behavior: "instant" });
+    scrolledTarget.current = key;
+  }, [loading, races, targetRound, year]);
 
   // График гонок: линия с точками (средняя оценка по этапам)
   useEffect(() => {
@@ -337,7 +354,7 @@ function VotingPage() {
               const driverVotingClosed = now >= driverVotingEnds;
 
               return (
-                <div key={race.round} className="voting-accordion-item">
+                <div key={race.round} id={`voting-round-${race.round}`} className="voting-accordion-item">
                   <button
                     type="button"
                     className={`voting-accordion-header ${isExpanded ? "expanded" : ""}`}

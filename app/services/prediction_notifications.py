@@ -1,7 +1,6 @@
 import asyncio
 import html
 import logging
-import os
 from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot
@@ -24,6 +23,7 @@ from app.services.prediction_service import (
 )
 from app.utils.notifications import get_users_with_settings, is_quiet_hours
 from app.utils.safe_send import safe_send_message
+from app.utils.mini_app_links import mini_app_button
 
 
 logger = logging.getLogger(__name__)
@@ -47,8 +47,7 @@ def _prediction_open_trigger(sessions: list[dict]) -> datetime | None:
 
 
 async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple]) -> int:
-    mini_app_url = os.getenv("MINI_APP_URL", "").strip().rstrip("/")
-    link_line = f"\n\n🔗 {mini_app_url}/predictions" if mini_app_url else ""
+    keyboard = await mini_app_button(bot, "🔮 Сделать прогноз", "/predictions", tab="form")
     sprint_line = (
         "\nНа спринт-уикенде также доступны прогнозы на спринт-поул и победителя спринта."
         if event.get("sprint_start_utc") or event.get("sprint_quali_start_utc")
@@ -57,10 +56,9 @@ async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple]) -> 
     text = (
         "🔮 <b>Открыт приём прогнозов</b>\n\n"
         f"🏁 {html.escape(str(event.get('event_name') or 'Гран-при'))}\n"
-        "Укажите поул, первую пятёрку, лучший круг, первый сход и машину безопасности.\n\n"
+        "Укажите поул, первую пятёрку, лучший круг, первый сход и машину безопасности."
         f"{sprint_line}\n\n"
         "⏳ Приём закроется строго в момент начала первой квалификации уикенда."
-        f"{link_line}"
     )
     sent = 0
     for telegram_id, tz, *_ in users:
@@ -69,6 +67,7 @@ async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple]) -> 
             telegram_id,
             text,
             parse_mode="HTML",
+            reply_markup=keyboard,
             disable_notification=is_quiet_hours(tz or "Europe/Moscow"),
         ):
             sent += 1
@@ -82,6 +81,9 @@ async def _send_prediction_results(
     top: list[dict],
     users: list[tuple],
 ) -> int:
+    keyboard = await mini_app_button(
+        bot, "🏆 Таблица прогнозов", "/predictions", tab="leaderboard",
+    )
     if top:
         medals = ("🥇", "🥈", "🥉")
         lines = [
@@ -95,7 +97,7 @@ async def _send_prediction_results(
         "🏆 <b>Итоги прогнозов этапа</b>\n\n"
         f"🏁 {html.escape(str(event.get('event_name') or 'Гран-при'))}\n\n"
         + "\n".join(lines)
-        + "\n\nОбщая таблица доступна в разделе «Прогнозы»."
+        + "\n\nОткройте общую таблицу прогнозов по кнопке ниже."
     )
     sent = 0
     for telegram_id, tz, *_ in users:
@@ -104,6 +106,7 @@ async def _send_prediction_results(
             telegram_id,
             text,
             parse_mode="HTML",
+            reply_markup=keyboard,
             disable_notification=is_quiet_hours(tz or "Europe/Moscow"),
         ):
             sent += 1
@@ -136,7 +139,7 @@ async def check_and_notify_predictions(bot: Bot) -> None:
                 opens_at.isoformat(),
             )
             if now >= opens_at:
-                sent = await _send_prediction_opened(bot, event, notification_users)
+                sent = await _send_prediction_opened(bot, {**event, "season": season}, notification_users)
                 # Если получатели есть, но Telegram не принял ни одного сообщения,
                 # не закрываем событие: следующий запуск планировщика повторит доставку.
                 if sent or not notification_users:
@@ -181,7 +184,7 @@ async def check_and_notify_predictions(bot: Bot) -> None:
             answers,
         )
         top = await get_stage_top(season, round_num)
-        sent = await _send_prediction_results(bot, event, top, notification_users)
+        sent = await _send_prediction_results(bot, {**event, "season": season}, top, notification_users)
         if sent or not notification_users:
             await mark_notification_state(season, round_num, "results_sent")
         logger.info(
