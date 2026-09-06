@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import './style.css'
 import { createTelemetrySample, interpolateGhost, type GhostSample } from './ghostTelemetry'
+import { finishCrossing, type TrackPoint } from './finishLine'
 
 const WORLD_WIDTH = 1536
 const WORLD_HEIGHT = 1024
@@ -114,6 +115,8 @@ const ui = {
   resultTime: $('#result-time'),
   bestTime: $('#best-time'),
   start: $('#start-button') as HTMLButtonElement,
+  restart: $('#restart-button') as HTMLButtonElement,
+  menuRestart: $('#menu-restart-button') as HTMLButtonElement,
   menu: $('#game-menu'),
   menuButton: $('#menu-button') as HTMLButtonElement,
   menuClose: $('#menu-close-button') as HTMLButtonElement,
@@ -482,9 +485,10 @@ class RaceScene extends Phaser.Scene {
         this.updateGhost()
       }
     } else if (this.raceState === 'racing') {
+      const previousPosition = { x: this.car.x, y: this.car.y }
       this.elapsedTime += deltaMilliseconds
       this.updateDriving(delta)
-      this.updateCheckpoints()
+      this.updateCheckpoints(previousPosition, deltaMilliseconds)
       this.recordTelemetry()
       this.updateGhost()
     }
@@ -523,6 +527,14 @@ class RaceScene extends Phaser.Scene {
     this.updateGhost()
   }
 
+  restartRace(): void {
+    this.closeGameMenu()
+    this.resetRace()
+    this.input.keyboard?.resetKeys()
+    this.cameras.main.centerOn(this.car.x, this.car.y)
+    this.startRace()
+  }
+
   setGhostEnabled(enabled: boolean): void {
     ghostEnabled = enabled
     persistGhostPreference()
@@ -556,6 +568,7 @@ class RaceScene extends Phaser.Scene {
       ui.modalTitle.textContent = 'Пауза'
       ui.modalCopy.textContent = 'Заезд остановлен. Продолжите, когда будете готовы.'
       ui.start.textContent = 'ПРОДОЛЖИТЬ'
+      ui.restart.hidden = false
       ui.resultRow.hidden = true
       ui.modal.classList.add('is-visible')
       ui.pause.textContent = '▶'
@@ -597,6 +610,7 @@ class RaceScene extends Phaser.Scene {
     ui.modalTitle.textContent = 'Emerald Loop'
     ui.modalCopy.textContent = 'Три круга по оригинальной трассе. Удерживайте скорость, аккуратно проходите повороты и не теряйте время на траве.'
     ui.start.textContent = 'НАЧАТЬ ЗАЕЗД'
+    ui.restart.hidden = true
     ui.resultRow.hidden = true
     ui.modal.classList.add('is-visible')
     ui.countdown.textContent = ''
@@ -676,13 +690,20 @@ class RaceScene extends Phaser.Scene {
     this.car.setRotation(this.heading - Math.PI / 2)
   }
 
-  private updateCheckpoints(): void {
+  private updateCheckpoints(previous: TrackPoint, deltaMilliseconds: number): void {
     const target = checkpoints[this.nextCheckpoint]
-    if (Phaser.Math.Distance.Between(this.car.x, this.car.y, target.x, target.y) > 88) return
 
     if (this.nextCheckpoint === checkpoints.length - 1) {
+      const crossing = finishCrossing(previous, this.car)
+      if (crossing === null) return
       this.currentLap += 1
       if (this.currentLap > TOTAL_LAPS) {
+        // Final timer and telemetry end at the actual crossing, between ticks.
+        this.elapsedTime -= deltaMilliseconds * (1 - crossing)
+        this.car.setPosition(
+          previous.x + (this.car.x - previous.x) * crossing,
+          previous.y + (this.car.y - previous.y) * crossing,
+        )
         this.finishRace()
         return
       }
@@ -690,6 +711,7 @@ class RaceScene extends Phaser.Scene {
       ui.lap.textContent = `${this.currentLap} / ${TOTAL_LAPS}`
       this.nextCheckpoint = 1
     } else {
+      if (Phaser.Math.Distance.Between(this.car.x, this.car.y, target.x, target.y) > 88) return
       this.nextCheckpoint += 1
     }
   }
@@ -708,6 +730,7 @@ class RaceScene extends Phaser.Scene {
     ui.bestTime.textContent = formatTime(best)
     ui.resultRow.hidden = false
     ui.start.textContent = 'ЕЩЁ ОДИН ЗАЕЗД'
+    ui.restart.hidden = true
     ui.modal.classList.add('is-visible')
     this.clearTouchState()
     const finishedTime = this.elapsedTime
@@ -814,6 +837,8 @@ ui.start.addEventListener('click', () => {
   else activeScene.startRace()
 })
 ui.reset.addEventListener('click', () => activeScene?.resetToTrack())
+ui.restart.addEventListener('click', () => activeScene?.restartRace())
+ui.menuRestart.addEventListener('click', () => activeScene?.restartRace())
 ui.pause.addEventListener('click', () => activeScene?.togglePause())
 const toggleGhost = (): void => activeScene?.setGhostEnabled(!ghostEnabled)
 ui.ghostHudToggle.addEventListener('click', toggleGhost)
@@ -833,7 +858,7 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) activeScene?.togglePause()
 })
 
-new Phaser.Game({
+const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game-canvas',
   backgroundColor: '#07100d',
@@ -844,9 +869,34 @@ new Phaser.Game({
     powerPreference: 'high-performance',
   },
   scale: {
-    mode: Phaser.Scale.RESIZE,
+    mode: Phaser.Scale.NONE,
     width: window.innerWidth,
     height: window.innerHeight,
   },
   scene: RaceScene,
+})
+
+// Match drawing-buffer and CSS pixels on Android iframe/browser resizes.
+const canvasHost = $('#game-canvas')
+let resizeFrame = 0
+const resizeGame = (): void => {
+  cancelAnimationFrame(resizeFrame)
+  resizeFrame = requestAnimationFrame(() => {
+    const width = Math.round(canvasHost.clientWidth)
+    const height = Math.round(canvasHost.clientHeight)
+    if (width > 0 && height > 0 && (game.scale.width !== width || game.scale.height !== height)) {
+      game.scale.resize(width, height)
+    }
+  })
+}
+const viewportObserver = new ResizeObserver(resizeGame)
+viewportObserver.observe(canvasHost)
+window.addEventListener('resize', resizeGame)
+window.visualViewport?.addEventListener('resize', resizeGame)
+game.events.once(Phaser.Core.Events.READY, resizeGame)
+game.events.once(Phaser.Core.Events.DESTROY, () => {
+  cancelAnimationFrame(resizeFrame)
+  viewportObserver.disconnect()
+  window.removeEventListener('resize', resizeGame)
+  window.visualViewport?.removeEventListener('resize', resizeGame)
 })

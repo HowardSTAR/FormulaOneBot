@@ -49,15 +49,16 @@ button {
   user-select: none;
 }
 
-#game-canvas,
-#game-canvas canvas {
+#game-canvas {
   position: absolute;
   inset: 0;
-  width: 100% !important;
-  height: 100% !important;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
 #game-canvas canvas {
+  display: block;
   image-rendering: pixelated;
 }
 
@@ -289,6 +290,8 @@ button {
   z-index: 20;
   inset: 0;
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  touch-action: pan-y;
   padding: max(76px, env(safe-area-inset-top)) 20px max(26px, env(safe-area-inset-bottom));
   place-items: center;
   background: rgba(3, 9, 7, 0.48);
@@ -304,6 +307,8 @@ button {
 }
 
 .modal-card {
+  min-height: 0;
+  overscroll-behavior: contain;
   width: min(540px, 100%);
   max-height: 100%;
   overflow: auto;
@@ -416,6 +421,13 @@ button {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: 10px;
+}
+
+.modal-quick-links .restart-button {
+  grid-column: 1 / -1;
+  min-height: 44px;
+  color: var(--mint);
+  border-color: rgba(97, 217, 188, 0.45);
 }
 
 .modal-quick-links a,
@@ -936,7 +948,7 @@ button {
   }
 
   .control-guide {
-    margin-bottom: 12px;
+    display: none;
   }
 
   .mobile-note {

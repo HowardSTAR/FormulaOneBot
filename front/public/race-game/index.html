@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#07100d" />
     <meta name="description" content="Emerald Loop — пиксельная браузерная гонка на вымышленном болиде с открытыми колёсами." />
     <title>Emerald Loop — браузерная гонка</title>
-    <script type="module" crossorigin src="./assets/index-Sv_bG4l_.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-D-43qmmG.css">
+    <script type="module" crossorigin src="./assets/index-D6rPOzdw.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-DJ0MwMmq.css">
   </head>
   <body>
     <main id="app" aria-label="Игра Emerald Loop">
@@ -50,6 +50,7 @@
           </div>
           <button id="start-button" class="primary-button" type="button">НАЧАТЬ ЗАЕЗД</button>
           <div class="modal-quick-links">
+            <button id="restart-button" class="restart-button" type="button" hidden>Начать заново</button>
             <a href="/" target="_top">На главную</a>
             <button id="intro-leaderboard-button" type="button">Таблица лидеров</button>
           </div>
@@ -69,6 +70,9 @@
           </div>
 
           <div id="menu-main-view" class="game-menu-view">
+            <button id="menu-restart-button" class="menu-action" type="button">
+              <span aria-hidden="true">↻</span><b>Начать заново</b><small>Сбросить заезд и вернуться на старт</small>
+            </button>
             <button id="menu-continue-button" class="menu-action is-primary" type="button">
               <span aria-hidden>▶</span><b>Продолжить</b><small>Вернуться к заезду</small>
             </button>
