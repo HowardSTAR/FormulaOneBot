@@ -7,6 +7,7 @@ import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCountryFlagUrl } from "../../constants/flags";
 import "./styles.css";
 import Hero from "./Hero";
+import IndexIcon from "./IndexIcon";
 
 export type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
 
@@ -72,47 +73,6 @@ const TEAM_FLAG_BY_ID: Record<string, string> = {
   cadillac: "us",
 };
 
-type IndexIconName =
-  | "quali"
-  | "race"
-  | "sprint"
-  | "drivers"
-  | "teams"
-  | "compare"
-  | "vote"
-  | "predictions"
-  | "wiki"
-  | "contact"
-  | "calendar"
-  | "reaction"
-  | "grid"
-  | "arcade"
-  | "favorite"
-  | "settings"
-  | "account";
-
-function IndexIcon({ name }: { name: IndexIconName }) {
-  const paths: Record<IndexIconName, React.ReactNode> = {
-    quali: <><circle cx="12" cy="13" r="8" /><path d="M12 9v4l3 2M9 2h6M12 5V2" /></>,
-    race: <><path d="M5 21V4M5 5c5-3 8 3 14 0v9c-6 3-9-3-14 0" /><path d="M9 5v4M13 6v4M17 6v4M5 10h4M9 9h4M13 10h4" /></>,
-    sprint: <path d="m13 2-8 12h6l-1 8 9-13h-6z" />,
-    drivers: <><circle cx="12" cy="8" r="4" /><path d="M4 21c.8-5 3.5-7 8-7s7.2 2 8 7" /></>,
-    teams: <><path d="M3 15h18l-2-6H8L5 12H3zM5 15v3M19 15v3" /><circle cx="7" cy="18" r="2" /><circle cx="17" cy="18" r="2" /></>,
-    compare: <><path d="M7 4 3 8l4 4M3 8h15M17 20l4-4-4-4M21 16H6" /></>,
-    vote: <><path d="M8 3h8v5H8zM5 9h14l2 4v8H3v-8z" /><path d="m9 14 2 2 4-5" /></>,
-    predictions: <><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /><path d="m4 7 6-4 6 7 5-5" /></>,
-    wiki: <><path d="M4 4.5A3.5 3.5 0 0 1 7.5 1H12v19H7.5A3.5 3.5 0 0 0 4 23.5z" /><path d="M20 4.5A3.5 3.5 0 0 0 16.5 1H12v19h4.5a3.5 3.5 0 0 1 3.5 3.5z" /></>,
-    contact: <><path d="M4 4h16v13H8l-4 4z" /><path d="M8 9h8M8 13h5" /></>,
-    calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18M8 14h2M14 14h2M8 18h2" /></>,
-    reaction: <><rect x="7" y="2" width="10" height="20" rx="5" /><circle cx="12" cy="7" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="17" r="2" /></>,
-    grid: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
-    arcade: <><path d="M5 15h14l-1.5-5h-11z" /><path d="m8 10 1.5-3h5L16 10M7 15v3M17 15v3" /><circle cx="7" cy="19" r="2" /><circle cx="17" cy="19" r="2" /><path d="M3 13h3M18 13h3" /></>,
-    favorite: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-2.9-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z" />,
-    settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" /></>,
-    account: <><circle cx="9" cy="8" r="4" /><path d="M2 21c.7-4.6 3-7 7-7 2 0 3.6.6 4.8 1.7M16 19l2 2 4-5" /></>,
-  };
-  return <span className={`menu-icon index-menu-icon is-${name}`} aria-hidden><svg viewBox="0 0 24 24">{paths[name]}</svg></span>;
-}
 
 function IndexArrow() {
   return <svg className="index-link-arrow" viewBox="0 0 24 24" aria-hidden><path d="m9 5 7 7-7 7" /></svg>;
