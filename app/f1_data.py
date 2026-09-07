@@ -1446,9 +1446,27 @@ async def openf1_get_sprint_quali_for_round(season: int, round_num: int, limit: 
 
 async def get_quali_for_round_async(season: int, round_num: int, limit: int = 100) -> tuple[int | None, list[dict]]:
     """Результаты квалификации для конкретного этапа: OpenF1, при отсутствии — FastF1. Возвращает (round_num, results)."""
-    r, results = await openf1_get_quali_for_round(season, round_num, limit=limit)
-    if results:
-        return (r if r is not None else round_num), results
+    try:
+        r, results = await openf1_get_quali_for_round(season, round_num, limit=limit)
+        positions = [int(row.get("position", 0)) for row in results]
+        valid = (
+            r == round_num and len(results) >= min(10, limit)
+            and sorted(positions) == list(range(1, len(results) + 1))
+            and all(
+                2 <= len(str(row.get("driver") or "").strip()) <= 4
+                and str(row.get("driver") or "").strip().isalpha()
+                and str(row.get("name") or "").strip() not in {
+                    "", "?", str(row.get("driver") or "").strip(),
+                }
+                and "?" not in str(row.get("name") or "")
+                for row in results
+            )
+        )
+        if valid:
+            return r, results
+    except Exception:
+        logger.exception("OpenF1 qualifying unavailable for %s/%s; trying FastF1", season, round_num)
+    # Partial classifications and transient API errors must not mask the fallback.
     fastf1_list = await _get_quali_async(season, round_num, limit)
     return round_num, fastf1_list if fastf1_list else []
 

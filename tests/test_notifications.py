@@ -23,6 +23,14 @@ from app.utils.notifications import (
 from app.utils.safe_send import safe_send_photo
 
 
+@pytest.fixture(autouse=True)
+def isolated_delivery_receipts():
+    with patch("app.utils.notifications.was_reminder_sent", AsyncMock(return_value=False)), patch(
+        "app.utils.notifications.set_reminder_sent", AsyncMock()
+    ):
+        yield
+
+
 def _emit_preview(request: pytest.FixtureRequest, label: str, text: str) -> None:
     """Always show rendered message preview in pytest output."""
     tr = request.config.pluginmanager.getplugin("terminalreporter")
@@ -162,7 +170,7 @@ async def test_check_and_send_results_does_not_mark_round_when_delivery_failed()
     now = datetime.now(timezone.utc)
     schedule = [{
         "round": 5,
-        "event_name": "Bahrain GP",
+        "qualifying_status": "results_ready", "event_name": "Bahrain GP",
         "race_start_utc": (now - timedelta(hours=2)).isoformat(),
     }]
     results_df = pd.DataFrame([
@@ -212,7 +220,7 @@ async def test_check_and_notify_quali_does_not_mark_round_when_delivery_failed()
             return [(111, "Europe/Moscow", 60, 1)]
         return [(111, "Europe/Moscow", 60, 1)]
 
-    with patch("app.utils.notifications._get_latest_quali_async", new_callable=AsyncMock) as m_latest, \
+    with patch("app.utils.notifications.get_quali_for_round_async", new_callable=AsyncMock) as m_latest, \
             patch("app.utils.notifications.get_last_notified_quali_round", new_callable=AsyncMock) as m_last, \
             patch("app.utils.notifications.get_users_favorites_for_notifications", new_callable=AsyncMock) as m_favs, \
             patch("app.utils.notifications.get_all_group_chats", new_callable=AsyncMock) as m_groups, \
@@ -227,7 +235,7 @@ async def test_check_and_notify_quali_does_not_mark_round_when_delivery_failed()
         m_last.return_value = None
         m_favs.return_value = {}
         m_groups.return_value = []
-        m_sched.return_value = [{"round": 4, "event_name": "Bahrain GP"}]
+        m_sched.return_value = [{"round": 4, "qualifying_status": "results_ready", "event_name": "Bahrain GP"}]
         m_driver_st.return_value = pd.DataFrame()
         m_send_photo.return_value = False
         m_set_cache.return_value = None
@@ -239,8 +247,8 @@ async def test_check_and_notify_quali_does_not_mark_round_when_delivery_failed()
 
 
 @pytest.mark.asyncio
-async def test_quali_marks_round_when_one_recipient_fails_after_another_succeeds():
-    """A blocked recipient must not cause duplicate delivery to successful users."""
+async def test_quali_retries_when_one_recipient_fails_after_another_succeeds():
+    """A transient failure must not permanently lose that recipient's notification."""
     results = [{"position": 1, "driver": "VER", "name": "Max Verstappen", "best": "1:29.0", "gap": "1:29.0"}]
 
     async def users_side_effect(notifications_only: bool = False):
@@ -249,12 +257,12 @@ async def test_quali_marks_round_when_one_recipient_fails_after_another_succeeds
             (222, "Europe/Moscow", 60, 1),
         ]
 
-    with patch("app.utils.notifications._get_latest_quali_async", new_callable=AsyncMock, return_value=(4, results)), \
+    with patch("app.utils.notifications.get_quali_for_round_async", new_callable=AsyncMock, return_value=(4, results)), \
             patch("app.utils.notifications.get_last_notified_quali_round", new_callable=AsyncMock, return_value=None), \
             patch("app.utils.notifications.get_users_favorites_for_notifications", new_callable=AsyncMock, return_value={}), \
             patch("app.utils.notifications.get_all_group_chats", new_callable=AsyncMock, return_value=[]), \
             patch("app.utils.notifications.get_users_with_settings", side_effect=users_side_effect), \
-            patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock, return_value=[{"round": 4, "event_name": "Bahrain GP"}]), \
+            patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock, return_value=[{"round": 4, "qualifying_status": "results_ready", "event_name": "Bahrain GP"}]), \
             patch("app.utils.notifications.get_driver_standings_async", new_callable=AsyncMock, return_value=pd.DataFrame()), \
             patch("app.utils.notifications.SESSION_RESULTS_MIN_ROWS", 1), \
             patch("app.utils.notifications.safe_send_photo", new_callable=AsyncMock, side_effect=[True, False]) as send_photo, \
@@ -263,9 +271,9 @@ async def test_quali_marks_round_when_one_recipient_fails_after_another_succeeds
             patch("app.utils.notifications.set_last_notified_quali_round", new_callable=AsyncMock) as set_notified:
         delivered = await check_and_notify_quali(bot=object())
 
-    assert delivered is True
+    assert delivered is False
     assert send_photo.await_count == 2
-    set_notified.assert_awaited_once_with(datetime.now(timezone.utc).year, 4)
+    set_notified.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -372,7 +380,7 @@ async def test_check_and_notify_quali_does_not_mark_round_when_no_rows():
             return [(111, "Europe/Moscow", 60, 1)]
         return [(111, "Europe/Moscow", 60, 1)]
 
-    with patch("app.utils.notifications._get_latest_quali_async", new_callable=AsyncMock) as m_latest, \
+    with patch("app.utils.notifications.get_quali_for_round_async", new_callable=AsyncMock) as m_latest, \
             patch("app.utils.notifications.get_last_notified_quali_round", new_callable=AsyncMock) as m_last, \
             patch("app.utils.notifications.get_users_favorites_for_notifications", new_callable=AsyncMock) as m_favs, \
             patch("app.utils.notifications.get_all_group_chats", new_callable=AsyncMock) as m_groups, \
@@ -385,7 +393,7 @@ async def test_check_and_notify_quali_does_not_mark_round_when_no_rows():
         m_last.return_value = None
         m_favs.return_value = {}
         m_groups.return_value = []
-        m_sched.return_value = [{"round": 4, "event_name": "Bahrain GP"}]
+        m_sched.return_value = [{"round": 4, "qualifying_status": "results_ready", "event_name": "Bahrain GP"}]
         m_driver_st.return_value = pd.DataFrame()
         m_set_cache.return_value = None
 
@@ -400,7 +408,7 @@ async def test_check_and_send_results_fallbacks_to_all_users_when_notifications_
     now = datetime.now(timezone.utc)
     schedule = [{
         "round": 7,
-        "event_name": "Monaco GP",
+        "qualifying_status": "results_ready", "event_name": "Monaco GP",
         "race_start_utc": (now - timedelta(hours=2)).isoformat(),
     }]
     results_df = pd.DataFrame([
@@ -527,7 +535,7 @@ async def test_check_and_notify_quali_fallbacks_to_all_users_when_notifications_
             return []
         return [(111, "Europe/Moscow", 60, 0)]
 
-    with patch("app.utils.notifications._get_latest_quali_async", new_callable=AsyncMock) as m_latest, \
+    with patch("app.utils.notifications.get_quali_for_round_async", new_callable=AsyncMock) as m_latest, \
             patch("app.utils.notifications.get_last_notified_quali_round", new_callable=AsyncMock) as m_last, \
             patch("app.utils.notifications.get_users_favorites_for_notifications", new_callable=AsyncMock) as m_favs, \
             patch("app.utils.notifications.get_all_group_chats", new_callable=AsyncMock) as m_groups, \
@@ -543,7 +551,7 @@ async def test_check_and_notify_quali_fallbacks_to_all_users_when_notifications_
         m_last.return_value = None
         m_favs.return_value = {}
         m_groups.return_value = []
-        m_sched.return_value = [{"round": 8, "event_name": "Monaco GP"}]
+        m_sched.return_value = [{"round": 8, "qualifying_status": "results_ready", "event_name": "Monaco GP"}]
         m_driver_st.return_value = pd.DataFrame()
         m_render.return_value = io.BytesIO(b"test-image")
         m_send_photo.return_value = True
@@ -569,7 +577,7 @@ async def test_quali_sends_generic_image_and_separate_favorites_message():
         {"driverCode": "VER", "constructorName": "Red Bull"},
         {"driverCode": "NOR", "constructorName": "McLaren"},
     ])
-    with patch("app.utils.notifications._get_latest_quali_async", new_callable=AsyncMock) as latest, \
+    with patch("app.utils.notifications.get_quali_for_round_async", new_callable=AsyncMock) as latest, \
             patch("app.utils.notifications.get_last_notified_quali_round", new_callable=AsyncMock) as last, \
             patch("app.utils.notifications.get_users_favorites_for_notifications", new_callable=AsyncMock) as favorites, \
             patch("app.utils.notifications.get_all_group_chats", new_callable=AsyncMock) as groups, \
@@ -586,7 +594,7 @@ async def test_quali_sends_generic_image_and_separate_favorites_message():
         last.return_value = None
         favorites.return_value = {111: {"drivers": ["VER"], "teams": ["Red Bull"]}}
         groups.return_value = []
-        schedule.return_value = [{"round": 10, "event_name": "Belgian Grand Prix"}]
+        schedule.return_value = [{"round": 10, "qualifying_status": "results_ready", "event_name": "Belgian Grand Prix"}]
         driver_standings.return_value = standings
         render.return_value = io.BytesIO(b"test-image")
         send_photo.return_value = True

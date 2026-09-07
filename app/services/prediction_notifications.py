@@ -114,7 +114,7 @@ async def _send_prediction_results(
     return sent
 
 
-async def check_and_notify_predictions(bot: Bot) -> None:
+async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None = None) -> None:
     """Invites at FP1 and scores the stage after race results become ready."""
     now = datetime.now(timezone.utc)
     season = now.year
@@ -139,10 +139,13 @@ async def check_and_notify_predictions(bot: Bot) -> None:
                 opens_at.isoformat(),
             )
             if now >= opens_at:
-                sent = await _send_prediction_opened(bot, {**event, "season": season}, notification_users)
+                skipped_open = not_before is not None and opens_at < not_before
+                sent = 0 if skipped_open else await _send_prediction_opened(
+                    bot, {**event, "season": season}, notification_users,
+                )
                 # Если получатели есть, но Telegram не принял ни одного сообщения,
                 # не закрываем событие: следующий запуск планировщика повторит доставку.
-                if sent or not notification_users:
+                if skipped_open or sent or not notification_users:
                     await mark_notification_state(season, round_num, "opened_sent")
                 logger.info(
                     "[Delivery Confirmation] event=prediction_window_open season=%s round=%s delivered=%s",
@@ -184,8 +187,12 @@ async def check_and_notify_predictions(bot: Bot) -> None:
             answers,
         )
         top = await get_stage_top(season, round_num)
-        sent = await _send_prediction_results(bot, {**event, "season": season}, top, notification_users)
-        if sent or not notification_users:
+        # Keep historical scoring intact, but never replay old broadcasts on boot.
+        skipped_result = not_before is not None and race_at + timedelta(hours=3) < not_before
+        sent = 0 if skipped_result else await _send_prediction_results(
+            bot, {**event, "season": season}, top, notification_users,
+        )
+        if skipped_result or sent or not notification_users:
             await mark_notification_state(season, round_num, "results_sent")
         logger.info(
             "Prediction results %s/%s: scored=%s max=%s delivered=%s",

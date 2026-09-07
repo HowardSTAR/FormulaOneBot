@@ -34,7 +34,7 @@ from app.f1_data import (
     get_season_schedule_short_async,
     get_race_results_async,
     get_driver_standings_async,
-    _get_latest_quali_async,
+    get_quali_for_round_async,
     get_sprint_quali_results_async,
     get_sprint_results_async,
     get_testing_results_async,
@@ -678,6 +678,23 @@ async def _deliver_session_classification(
         )
 
     photo_bytes = (await asyncio.to_thread(_render)).getvalue()
+
+    # Durable, per-recipient receipts: retry failed recipients without replaying
+    # photos or favorites already delivered successfully. Keys don't overlap reminders.
+    receipt_base = {
+        "QUALIFYING CLASSIFICATION": 20000,
+        "SPRINT QUALIFYING CLASSIFICATION": 20010,
+        "SPRINT CLASSIFICATION": 20020,
+    }[image_session_type]
+
+    async def send_once(sender, chat_id, payload, *, receipt_part=0, **kwargs):
+        key = receipt_base + receipt_part
+        if await was_reminder_sent(chat_id, season, round_num, False, key):
+            return True
+        delivered = await sender(bot, chat_id, payload, **kwargs)
+        if delivered:
+            await set_reminder_sent(chat_id, season, round_num, False, key)
+        return delivered
     logger.info(
         "[Notification Trigger] session=%s season=%s round=%s recipients=%s groups=%s",
         image_session_type,
@@ -692,8 +709,8 @@ async def _deliver_session_classification(
     for user in notification_users:
         tg_id, tz = user[0], user[1] or "Europe/Moscow"
         recipient_ids.add(tg_id)
-        delivered = await safe_send_photo(
-            bot,
+        delivered = await send_once(
+            safe_send_photo,
             tg_id,
             photo_bytes,
             caption=f"🏁 {session_label}: результаты на картинке.",
@@ -719,10 +736,11 @@ async def _deliver_session_classification(
         )
         if not text:
             continue
-        delivered = await safe_send_message(
-            bot,
+        delivered = await send_once(
+            safe_send_message,
             tg_id,
             text,
+            receipt_part=1,
             parse_mode="HTML",
             disable_notification=is_quiet_hours(tz_map.get(tg_id, "Europe/Moscow")),
         )
@@ -732,8 +750,8 @@ async def _deliver_session_classification(
 
     group_caption = f"🏁 {session_label} — этап {round_num:02d}, сезон {season}\n\n📊 Результаты на картинке."
     for chat_id in group_chats:
-        delivered = await safe_send_photo(
-            bot,
+        delivered = await send_once(
+            safe_send_photo,
             chat_id,
             photo_bytes,
             caption=group_caption,
@@ -744,27 +762,11 @@ async def _deliver_session_classification(
         failed_count += int(not delivered)
         await asyncio.sleep(0.05)
 
-    if sent_count > 0:
-        if failed_count:
-            logger.warning(
-                "[Delivery Confirmation] session=%s season=%s round=%s delivered=%s failed=%s; "
-                "marking the event complete to prevent duplicate delivery",
-                image_session_type,
-                season,
-                round_num,
-                sent_count,
-                failed_count,
-            )
-        return True
-
-    logger.warning(
-        "[Delivery Confirmation] session=%s season=%s round=%s delivered=0 failed=%s; will retry",
-        image_session_type,
-        season,
-        round_num,
-        failed_count,
+    logger.info(
+        "[Delivery Confirmation] session=%s season=%s round=%s delivered=%s failed=%s",
+        image_session_type, season, round_num, sent_count, failed_count,
     )
-    return False
+    return failed_count == 0
 
 
 async def check_and_send_results(bot: Bot):
@@ -1134,26 +1136,22 @@ async def check_and_notify_quali(bot: Bot) -> bool:
     """Отправляет полную квалификацию и отдельное сообщение по избранному."""
     season = datetime.now(timezone.utc).year
     logger.info("[Result Ingestion] event=qualifying_results season=%s", season)
-    data = await _get_latest_quali_async(season)
-    if not data or data[0] is None:
+    schedule = await get_season_schedule_short_async(season)
+    race_info = _latest_finished_session(schedule, "quali_start_utc", 60, "qualifying_status")
+    if race_info is None:
         return True
+    expected_round = int(race_info["round"])
+    last_notified = await get_last_notified_quali_round(season)
+    if last_notified is not None and last_notified >= expected_round:
+        return True
+    data = await get_quali_for_round_async(season, expected_round)
+    if not data or data[0] is None:
+        return False
 
     round_num, results = data
-    last_notified = await get_last_notified_quali_round(season)
-    if last_notified is not None and last_notified >= round_num:
-        return True
-
-    schedule = await get_season_schedule_short_async(season)
-    race_info = next((r for r in schedule if r["round"] == round_num), None) if schedule else None
-    if race_info and race_info.get("quali_start_utc"):
-        finished = _latest_finished_session(
-            [race_info],
-            "quali_start_utc",
-            60,
-            "qualifying_status",
-        )
-        if finished is None:
-            return True
+    if round_num != expected_round:
+        logger.warning("Qualifying feed returned round %s, expected %s; will retry", round_num, expected_round)
+        return False
 
     code_to_team = await _load_code_to_team(season, round_num)
     normalized_rows = _normalize_qualifying_results(results, code_to_team)
@@ -1335,7 +1333,7 @@ def _voting_closes_at(event: dict) -> datetime | None:
     )
 
 
-async def check_and_notify_voting_results(bot: Bot) -> None:
+async def check_and_notify_voting_results(bot: Bot, *, not_before: datetime | None = None) -> None:
     """
     Сразу после закрытия трёхдневного окна отправляем итоги голосования:
     «По мнению нашего сообщества этап оценили на: X. Лучшим пилотом стал: Y.»
@@ -1362,6 +1360,10 @@ async def check_and_notify_voting_results(bot: Bot) -> None:
 
         voting_closes_at = _voting_closes_at(event)
         if voting_closes_at is None or now_utc < voting_closes_at:
+            continue
+        if not_before is not None and voting_closes_at < not_before:
+            # Old voting results are not a startup digest.
+            await set_last_notified_voting_round(season, round_num)
             continue
 
         event_name = event.get("event_name", "Гран-при")

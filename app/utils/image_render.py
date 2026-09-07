@@ -691,166 +691,29 @@ def create_f1_style_classification_image(
     season: int,
     favorite_driver_codes: set[str] | None = None,
 ) -> BytesIO:
-    """
-    Создаёт изображение в стиле официальной таблицы F1 (Practice/Qualifying/Race Classification).
-    rows: list of dict с ключами pos, driver, team, gap_or_time, points (для гонки), driver_code (опционально).
-    Столбцы: POS | DRIVER (имя + лого) | FASTEST (квалификация) или PTS (гонка).
-    Квалификация: Q1 (1-10), Q2 (11-16), Q3 (17-22) — разные цвета строк.
-    Гонка: топ 3 — золото/серебро/бронза, топ 4-10 — выделение, остальные — без выделения.
-    Избранные пилоты — звёздочка ⭐ в колонке DRIVER.
-    """
-    HEADER_BG = (55, 60, 70)
-    ROW_ALT = (35, 38, 45)
-    ROW_BG = (28, 30, 38)
-    HEADER_TEXT = (200, 200, 210)
-    # Цвета квалификации: Q1 (1-10), Q2 (11-16), Q3 (17-22)
-    ROW_Q1 = (30, 55, 45)  # тёмно-зелёный для топ-10
-    ROW_Q1_ALT = (25, 48, 38)
-    ROW_Q2 = (30, 40, 55)  # синеватый для 11-16
-    ROW_Q2_ALT = (25, 35, 48)
-    ROW_Q3 = (35, 35, 40)  # нейтральный для 17-22
-    ROW_Q3_ALT = (30, 30, 35)
-    # Цвета гонки: топ 3 и топ 4-10
-    ROW_GOLD = (55, 48, 25)
-    ROW_SILVER = (50, 50, 55)
-    ROW_BRONZE = (55, 40, 30)
-    ROW_TOP10 = (38, 42, 50)
-    ROW_TOP10_ALT = (35, 38, 45)
-    FAV_BORDER = (255, 215, 0)  # золотая рамка для избранных
+    """Render race and qualifying results in the shared TurboTears visual style."""
+    from app.utils.classification_card import render_classification
 
-    LOGO_SIZE = 36
-    ROW_HEIGHT = 48
-    PADDING = 40
-    CELL_PAD = 16
-    fav_codes = {str(c).upper() for c in (favorite_driver_codes or set())}
+    def portrait(code, name, year):
+        # Season-specific local artwork avoids network delays and wrong-year photos.
+        path = get_asset_path(year, "pilots", name) or get_asset_path(year, "pilots", code)
+        if path is None and name:
+            path = get_asset_path(year, "pilots", name.split()[-1])
+        if path:
+            with Image.open(path) as source:
+                portrait_image = source.convert("RGBA")
+                bounds = portrait_image.getbbox()
+                if bounds:
+                    portrait_image = portrait_image.crop(bounds)
+                # Full-body assets become close-up portraits, like the website cards.
+                portrait_image = portrait_image.crop((0, 0, portrait_image.width,
+                    min(portrait_image.height, int(portrait_image.width * 1.4))))
+                return portrait_image
+        return None
 
-    if not rows:
-        rows = [{"pos": "-", "driver": "Нет данных", "team": "", "gap_or_time": "-"}]
-
-    temp_img = Image.new("RGB", (100, 100))
-    draw_tmp = ImageDraw.Draw(temp_img)
-
-    event_upper = (event_name or "GRAND PRIX").upper()
-    session_upper = (session_type or "CLASSIFICATION").upper()
-
-    title_w, title_h = _text_size(draw_tmp, event_upper, FONT_SUBTITLE)
-    sub_w, sub_h = _text_size(draw_tmp, session_upper, FONT_TABLE)
-
-    is_qualifying = "QUALIFYING" in (session_type or "").upper()
-
-    # Столбцы: POS | DRIVER (имя + лого) | FASTEST (квалиф) или PTS (гонка)
-    pos_w = 55
-    driver_w = 320
-    # Для квалиф — время длиннее (1:18.518), нужна ширина и отступ от лого; для гонки — очки 0-26
-    right_col_w = 110 if is_qualifying else 70
-    driver_right_gap = 20 if is_qualifying else CELL_PAD  # отступ между логотипом и временем
-    table_width = pos_w + driver_w + right_col_w + 2 * CELL_PAD + driver_right_gap
-    img_width = table_width + 2 * PADDING
-
-    header_h = 50
-    table_h = len(rows) * ROW_HEIGHT
-    img_height = PADDING + title_h + 20 + sub_h + 20 + header_h + table_h + PADDING
-
-    img = Image.new("RGB", (img_width, img_height), (25, 27, 35))
-    draw = ImageDraw.Draw(img)
-
-    x_pos = PADDING
-    x_driver = x_pos + pos_w + CELL_PAD
-    x_right = x_driver + driver_w + driver_right_gap
-
-    cur_y = PADDING
-    draw.text(((img_width - title_w) // 2, cur_y), event_upper, font=FONT_SUBTITLE, fill=(255, 255, 255))
-    cur_y += title_h + 20
-    draw.text(((img_width - sub_w) // 2, cur_y), session_upper, font=FONT_TABLE, fill=HEADER_TEXT)
-    cur_y += sub_h + 20
-
-    # Заголовки — чётко по своим колонкам
-    draw.rectangle((PADDING, cur_y, img_width - PADDING, cur_y + header_h), fill=HEADER_BG)
-    right_label = "PTS" if not is_qualifying else "FASTEST"
-    draw.text((x_pos + (pos_w - _text_size(draw, "POS", FONT_TABLE)[0]) // 2, cur_y + (header_h - _text_size(draw, "1", FONT_TABLE)[1]) // 2 - 2), "POS", font=FONT_TABLE, fill=HEADER_TEXT)
-    draw.text((x_driver, cur_y + (header_h - _text_size(draw, "A", FONT_TABLE)[1]) // 2 - 2), "DRIVER", font=FONT_TABLE, fill=HEADER_TEXT)
-    draw.text((x_right + right_col_w - _text_size(draw, right_label, FONT_TABLE)[0] - CELL_PAD, cur_y + (header_h - _text_size(draw, "A", FONT_TABLE)[1]) // 2 - 2), right_label, font=FONT_TABLE, fill=HEADER_TEXT)
-    cur_y += header_h
-
-    for i, r in enumerate(rows):
-        row_y = cur_y + i * ROW_HEIGHT
-        pos_val = r.get("pos", 0)
-        try:
-            pos_int = int(pos_val) if pos_val not in ("-", "?", "", None) else 999
-        except (TypeError, ValueError):
-            pos_int = 999
-
-        # Выбор цвета строки
-        if is_qualifying:
-            if pos_int <= 10:
-                fill = ROW_Q1_ALT if i % 2 == 1 else ROW_Q1
-            elif pos_int <= 16:
-                fill = ROW_Q2_ALT if i % 2 == 1 else ROW_Q2
-            else:
-                fill = ROW_Q3_ALT if i % 2 == 1 else ROW_Q3
-        else:
-            if pos_int == 1:
-                fill = ROW_GOLD
-            elif pos_int == 2:
-                fill = ROW_SILVER
-            elif pos_int == 3:
-                fill = ROW_BRONZE
-            elif pos_int <= 10:
-                fill = ROW_TOP10_ALT if i % 2 == 1 else ROW_TOP10
-            else:
-                fill = ROW_ALT if i % 2 == 1 else ROW_BG
-
-        draw.rectangle((PADDING, row_y, img_width - PADDING, row_y + ROW_HEIGHT), fill=fill)
-
-        # Рамка для избранного пилота
-        code = str(r.get("driver_code", "") or "").strip().upper()
-        is_fav = code and code in fav_codes
-        if is_fav:
-            draw.rectangle(
-                (PADDING + 2, row_y + 2, img_width - PADDING - 2, row_y + ROW_HEIGHT - 2),
-                outline=FAV_BORDER,
-                width=2,
-            )
-
-        pos = str(r.get("pos", ""))
-        driver = str(r.get("driver", ""))[:22]
-        team = str(r.get("team", ""))
-        if is_qualifying:
-            right_val = str(r.get("gap_or_time", "-"))
-        else:
-            pts = r.get("points")
-            try:
-                right_val = str(int(float(pts))) if pts is not None and pts != "" else "0"
-            except (TypeError, ValueError):
-                right_val = "0"
-
-        draw.text((x_pos + (pos_w - _text_size(draw, pos, FONT_TABLE)[0]) // 2, row_y + (ROW_HEIGHT - _text_size(draw, pos, FONT_TABLE)[1]) // 2 - 2), pos, font=FONT_TABLE, fill=TEXT_COLOR)
-
-        # DRIVER: [⭐] имя [логотип справа]
-        driver_x = x_driver
-        if is_fav:
-            _draw_star(draw, x_driver + 14, row_y + ROW_HEIGHT // 2, 10, FAV_BORDER)
-            driver_x += 28
-        draw.text((driver_x, row_y + (ROW_HEIGHT - _text_size(draw, driver[:18], FONT_TABLE)[1]) // 2 - 2), driver[:18], font=FONT_TABLE, fill=TEXT_COLOR)
-
-        logo_img = _get_team_logo(team, team, season) if team else None
-        logo_x = x_driver + driver_w - LOGO_SIZE - 4
-        if logo_img:
-            logo_img = logo_img.resize((LOGO_SIZE, LOGO_SIZE), Image.LANCZOS)
-            paste_x = int(logo_x)
-            paste_y = row_y + (ROW_HEIGHT - LOGO_SIZE) // 2
-            mask = logo_img.split()[3] if logo_img.mode == "RGBA" else None
-            img.paste(logo_img, (paste_x, paste_y), mask)
-        elif team:
-            draw.text((logo_x, row_y + (ROW_HEIGHT - _text_size(draw, team[:6], FONT_TABLE)[1]) // 2 - 2), team[:6], font=FONT_TABLE, fill=TEXT_COLOR)
-
-        right_x = x_right + right_col_w - _text_size(draw, right_val, FONT_TABLE)[0] - CELL_PAD
-        draw.text((right_x, row_y + (ROW_HEIGHT - _text_size(draw, right_val, FONT_TABLE)[1]) // 2 - 2), right_val, font=FONT_TABLE, fill=TEXT_COLOR)
-
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return buf
+    return render_classification(
+        event_name, session_type, rows, season, favorite_driver_codes, portrait,
+    )
 
 
 def create_season_image(season: int, races: list[dict]) -> BytesIO:

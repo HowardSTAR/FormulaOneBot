@@ -4,6 +4,7 @@ import os
 import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from datetime import datetime, timezone
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
@@ -131,6 +132,7 @@ async def main():
         replace_existing=True,
     )
     result_notification_state_ready = False
+    notification_started_at = datetime.now(timezone.utc)
 
     async def check_session_results_after_startup_baseline():
         nonlocal result_notification_state_ready
@@ -156,6 +158,7 @@ async def main():
         minutes=5,
         args=[bot],
         id="voting_results_job",
+        kwargs={"not_before": notification_started_at},
         replace_existing=True,
         max_instances=1,
         coalesce=True,
@@ -166,6 +169,7 @@ async def main():
         seconds=30,
         args=[bot],
         id="prediction_notifications_job",
+        kwargs={"not_before": notification_started_at},
         replace_existing=True,
         max_instances=1,
         coalesce=True,
