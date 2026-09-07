@@ -4,7 +4,7 @@ import { useAuthState } from "../helpers/auth";
 import IndexIcon, { type IndexIconName } from "../pages/index/IndexIcon";
 import "./SidebarIcons.css";
 
-type IconName = "home" | "calendar" | "results" | "drivers" | "teams" | "compare" | "predictions" | "wiki" | "contact" | "games" | "star" | "vote" | "settings" | "account" | "admin";
+type IconName = "notifications" | "home" | "calendar" | "results" | "drivers" | "teams" | "compare" | "predictions" | "wiki" | "contact" | "games" | "star" | "vote" | "settings" | "account" | "admin";
 
 type NavItem = {
   to: string;
@@ -25,6 +25,7 @@ const PRIMARY_NAV_ITEMS: NavItem[] = [
   { to: "/season", label: "Календарь", icon: "calendar", activePaths: ["/season", "/next-race", "/race-details"] },
   { to: "/wiki", label: "Wiki Formula 1™", icon: "wiki", activePaths: ["/wiki"] },
   { to: "/account", label: "Аккаунт", icon: "account", activePaths: ["/account"] },
+  { to: "/notifications", label: "Уведомления", icon: "notifications", activePaths: ["/notifications"] },
   { to: "/contact-admin", label: "Обратная связь", icon: "contact", activePaths: ["/contact-admin"] },
 ];
 
@@ -73,6 +74,7 @@ const NAV_GROUPS: NavGroup[] = [
 
 function NavIcon({ name }: { name: IconName }) {
   const shared: Partial<Record<IconName, IndexIconName>> = {
+    notifications: "notifications",
     home: "home",
     calendar: "calendar", results: "race", drivers: "drivers", teams: "teams",
     compare: "compare", predictions: "predictions", wiki: "wiki", contact: "contact",
@@ -81,6 +83,7 @@ function NavIcon({ name }: { name: IconName }) {
   const icon = shared[name];
   if (icon) return <IndexIcon name={icon} />;
   const paths: Record<IconName, React.ReactNode> = {
+    notifications: <path d="M5 18h14l-2-3V9a5 5 0 0 0-10 0v6zM10 21h4" />,
     home: <><path d="M3 10.5 12 3l9 7.5" /><path d="M5.5 9.5V21h13V9.5" /><path d="M9.5 21v-6h5v6" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></>,
     results: <><path d="M5 4h14v16H5z" /><path d="M8 8h8M8 12h8M8 16h5" /></>,

@@ -1,3 +1,4 @@
+import { GlossaryText } from "../../components/GlossaryText";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -259,7 +260,7 @@ function DriverDetailsPage() {
         {tab === "bio" && (
           <div className="driver-bio-block">
             {data.bio ? (
-              <p className="driver-bio-text">{data.bio}</p>
+              <p className="driver-bio-text"><GlossaryText>{data.bio}</GlossaryText></p>
             ) : (
               <p className="driver-bio-empty">Биография пока недоступна.</p>
             )}
@@ -349,7 +350,7 @@ function DriverDetailsPage() {
         <section className="driver-profile-desktop-bio driver-profile-desktop-bio-bottom">
           <h3 className="driver-profile-title">Биография</h3>
           <div className="driver-profile-bio-card">
-            <p>{data.bio || "Биография пока недоступна."}</p>
+            <p><GlossaryText>{data.bio || "Биография пока недоступна."}</GlossaryText></p>
             <div className="driver-profile-bio-meta">
               <div>
                 <span>Гражданство</span>

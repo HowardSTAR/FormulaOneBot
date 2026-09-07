@@ -1,3 +1,4 @@
+import { GlossaryText } from "../../components/GlossaryText";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
@@ -459,18 +460,18 @@ function SeasonPage() {
                 <div className="season-desktop-session-grid">
                   {desktopRace.sprint_quali_start_utc && (
                     <div className="season-desktop-session-item">
-                      <span>Спринт-квалификация</span>
+                      <span><GlossaryText>Спринт-квалификация</GlossaryText></span>
                       <b>{formatSessionTime(desktopRace.sprint_quali_start_utc)}</b>
                     </div>
                   )}
                   {desktopRace.sprint_start_utc && (
                     <div className="season-desktop-session-item">
-                      <span>Спринт</span>
+                      <span><GlossaryText>Спринт</GlossaryText></span>
                       <b>{formatSessionTime(desktopRace.sprint_start_utc)}</b>
                     </div>
                   )}
                   <div className="season-desktop-session-item">
-                    <span>Квалификация</span>
+                    <span><GlossaryText>Квалификация</GlossaryText></span>
                     <b>{formatSessionTime(desktopRace.quali_start_utc)}</b>
                   </div>
                   <div className="season-desktop-session-item focus">

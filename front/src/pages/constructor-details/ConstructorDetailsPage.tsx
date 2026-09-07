@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import { GlossaryText } from "../../components/GlossaryText";
 import { BackButton } from "../../components/BackButton";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
 import { getFlagUrlForNationality } from "../../constants/flags";
@@ -314,7 +315,7 @@ function ConstructorDetailsPage() {
         {tab === "bio" && (
           <div className="driver-bio-block">
             {data.bio ? (
-              <p className="driver-bio-text">{data.bio}</p>
+              <p className="driver-bio-text"><GlossaryText>{data.bio}</GlossaryText></p>
             ) : (
               <p className="driver-bio-empty">Биография пока недоступна.</p>
             )}
@@ -460,7 +461,7 @@ function ConstructorDetailsPage() {
           <h3 className="driver-profile-title">Биография команды</h3>
           <div className="driver-bio-block">
             {data.bio ? (
-              <p className="driver-bio-text">{data.bio}</p>
+              <p className="driver-bio-text"><GlossaryText>{data.bio}</GlossaryText></p>
             ) : (
               <p className="driver-bio-empty">Биография пока недоступна.</p>
             )}

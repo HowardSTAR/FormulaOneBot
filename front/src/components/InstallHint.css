@@ -1,0 +1,10 @@
+.install-hint { position: fixed; z-index: 900; left: 12px; right: 12px; bottom: max(16px, env(safe-area-inset-bottom)); max-width: 420px; margin: auto; padding: 20px; box-sizing: border-box; border: 1px solid #ff62594d; border-radius: 20px; background: linear-gradient(135deg,#302025,#15171f 65%); color: #f5f5f7; box-shadow: 0 12px 40px #0009; max-height: calc(100dvh - 32px); overflow: auto; }
+.install-hint strong { display: block; padding-right: 24px; font-size: 18px; }
+.install-hint p { font-size: 14px; line-height: 1.5; color: #c7c7d0; margin: 10px 0 16px; }
+.install-hint .install-hint-steps { padding: 12px; background: #ffffff08; border-radius: 10px; }
+.install-hint button { cursor: pointer; font: inherit; }
+.install-hint-close { position: absolute; right: 10px; top: 8px; background: none; border: 0; color: #ccc; font-size: 26px !important; width: 32px; height: 32px; }
+.install-hint-actions { display: flex; gap: 12px; align-items: center; }
+.install-hint-actions button { border: 0; border-radius: 12px; padding: 12px; font-size: 13px; }
+.install-hint-actions button:first-child { background: #e10600; color: white; font-weight: 700; }
+.install-hint-actions button:last-child { background: none; color: #aaa; }

@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from aiogram import Bot
 from app.utils.mini_app_links import mini_app_button
+from app.services.web_notifications import classification as web_classification, publish_safely as publish_web, has_members as has_web_members
 
 from app.db import (
     db,
@@ -652,6 +653,9 @@ async def _deliver_session_classification(
         logger.warning("%s round %s is incomplete: %s rows", session_label, round_num, len(rows))
         return False
 
+    web_route = {"QUALIFYING CLASSIFICATION": "quali-results", "SPRINT QUALIFYING CLASSIFICATION": "sprint-quali-results", "SPRINT CLASSIFICATION": "sprint-results"}[image_session_type]
+    await web_classification(season, round_num, f"{event_name} · {session_label}", web_route, rows)
+
     users_favorites = await get_users_favorites_for_notifications()
     group_chats = list(dict.fromkeys(await get_all_group_chats() or []))
     notification_users = await get_users_with_settings(notifications_only=True)
@@ -900,7 +904,7 @@ async def check_and_send_results(bot: Bot):
     if not notifications_users:
         # Legacy fallback: старые пользователи могли остаться с notifications_enabled=0 после миграции.
         notifications_users = await get_users_with_settings(notifications_only=False)
-    if not users_favorites and not group_chats and not notifications_users:
+    if not users_favorites and not group_chats and not notifications_users and not await has_web_members():
         await set_last_notified_round(season, round_num)
         return
 
@@ -1013,6 +1017,12 @@ async def check_and_send_results(bot: Bot):
 
     # Общая картинка для групп (без избранных)
     photo_bytes_generic = (await asyncio.to_thread(_render_race_image, None)).getvalue()
+    await web_classification(season, round_num, f"{race_info.get('event_name', 'Гран-при')} · Итоги гонки", "race-results", [
+        {"position": str(row.get("Position", "—")), "code": str(row.get("Abbreviation", "")),
+         "name": str(row.get("FullName", row.get("Abbreviation", ""))), "team": str(row.get("TeamName", "")),
+         "points": str(row.get("Points", ""))} for _, row in results_df.iterrows()
+    ])
+    await publish_web(f"voting-invite:{season}:{round_num}", "Приглашаем на голосование", "Оцените этап и выберите пилота дня.", f"/voting?season={season}&round={round_num}")
 
     res_map = {}
     for _, row in results_df.iterrows():
@@ -1338,7 +1348,7 @@ async def check_and_notify_voting_results(bot: Bot, *, not_before: datetime | No
             # Old voting results are not a startup digest.
             await set_last_notified_voting_round(season, round_num)
             continue
-        if not tz_map:
+        if not tz_map and not await has_web_members():
             continue
 
         event_name = event.get("event_name", "Гран-при")
@@ -1372,6 +1382,7 @@ async def check_and_notify_voting_results(bot: Bot, *, not_before: datetime | No
             f"Оценок гонки: {race_count} · Голосов за победителя: {driver_count}"
         )
 
+        await publish_web(f"voting-results:{season}:{round_num}", "Итоги голосования", text, f"/voting?season={season}&round={round_num}")
         sent_count = 0
         for tg_id in tz_map:
             tz_name = tz_map[tg_id]

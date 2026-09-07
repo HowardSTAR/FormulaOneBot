@@ -1,3 +1,4 @@
+import { GlossaryText } from "../../components/GlossaryText";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -328,7 +329,7 @@ function QualiResultsPage() {
               </div>
               <aside className="race-results-desktop-summary">
                 <div className="race-results-desktop-summary-points">{desktopWinner.best || "—"}</div>
-                <div className="race-results-desktop-summary-label">Время поула</div>
+                <div className="race-results-desktop-summary-label"><GlossaryText>Время поула</GlossaryText></div>
                 <div className="race-results-desktop-summary-row"><span>Сегмент</span><b>{desktopWinner.segment || "Q3"}</b></div>
                 <div className="race-results-desktop-summary-row"><span>Статус</span><b>Классифицирован</b></div>
               </aside>

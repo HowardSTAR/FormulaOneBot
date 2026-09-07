@@ -25,6 +25,7 @@ from app.utils.notifications import (
     initialize_result_notification_state,
 )
 from app.services.prediction_notifications import check_and_notify_predictions
+from app.services.web_notifications import poll_web_notifications
 
 
 # --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
@@ -133,6 +134,11 @@ async def main():
     )
     result_notification_state_ready = False
     notification_started_at = datetime.now(timezone.utc)
+    scheduler.add_job(
+        poll_web_notifications, "interval", seconds=30,
+        kwargs={"not_before": notification_started_at.timestamp()},
+        id="web_notifications_job", replace_existing=True, max_instances=1, coalesce=True,
+    )
 
     async def check_session_results_after_startup_baseline():
         nonlocal result_notification_state_ready

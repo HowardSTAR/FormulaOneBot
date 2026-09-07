@@ -28,6 +28,7 @@ import PredictionsPage from "./pages/predictions/PredictionsPage";
 import PracticeResultsPage from "./pages/practice-results/PracticeResultsPage";
 import ContactAdminPage from "./pages/contact-admin/ContactAdminPage";
 import WikiPage from "./pages/wiki/WikiPage";
+import NotificationsPage from "./pages/notifications/NotificationsPage";
 import {
   DataDeletionPage,
   DataSourcesPage,
@@ -69,6 +70,7 @@ export const router = createBrowserRouter([
       { path: "/sprint-results", element: <SprintResultsPage /> },
       { path: "/voting", element: <RequirePersonalAccount><VotingPage /></RequirePersonalAccount> },
       { path: "/wiki", element: <WikiPage /> },
+      { path: "/notifications", element: <RequirePersonalAccount requireTelegram={false}><NotificationsPage /></RequirePersonalAccount> },
       { path: "/privacy", element: <PrivacyPage /> },
       { path: "/terms", element: <TermsPage /> },
       { path: "/legal/ip", element: <IntellectualPropertyPage /> },

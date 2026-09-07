@@ -524,6 +524,12 @@ function IndexPage() {
 
         <div className="index-my-section index-panel">
             <div className="section-title">Моё</div>
+            <Link to="/notifications" className="menu-item full-width index-wide-link">
+              <div className="index-wide-link-left"><IndexIcon name="notifications" /><div className="index-wide-link-text">
+                <span className="menu-label index-card-title">Уведомления</span>
+                <span className="index-card-desc">История событий и push</span>
+              </div></div><IndexArrow />
+            </Link>
             <Link to="/favorites" className="menu-item full-width index-wide-link index-favorites-link">
               <div className="index-wide-link-left">
                 <IndexIcon name="favorite" />

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { GlossaryText } from "../../components/GlossaryText";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
@@ -239,7 +240,7 @@ function RaceDetailsPage() {
                   <span className="circuit-fact-chevron">{expanded ? "▲" : "▼"}</span>
                 </button>
                 <div className={`circuit-fact-body ${expanded ? "expanded" : ""}`}>
-                  <div className="circuit-fact-text">{fact.text}</div>
+                  <div className="circuit-fact-text"><GlossaryText>{fact.text}</GlossaryText></div>
                 </div>
               </div>
             );

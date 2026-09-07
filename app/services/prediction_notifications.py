@@ -24,6 +24,7 @@ from app.services.prediction_service import (
 from app.utils.notifications import get_users_with_settings, is_quiet_hours
 from app.utils.safe_send import safe_send_message
 from app.utils.mini_app_links import mini_app_button
+from app.services.web_notifications import publish_safely as publish_web
 
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,7 @@ async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple]) -> 
         f"{sprint_line}\n\n"
         "⏳ Приём закроется строго в момент начала первой квалификации уикенда."
     )
+    await publish_web(f"prediction-open:{event.get('season')}:{event.get('round')}", "Открыт приём прогнозов", text, "/predictions?tab=form")
     sent = 0
     for telegram_id, tz, *_ in users:
         if await safe_send_message(
@@ -99,6 +101,7 @@ async def _send_prediction_results(
         + "\n".join(lines)
         + "\n\nОткройте общую таблицу прогнозов по кнопке ниже."
     )
+    await publish_web(f"prediction-results:{event.get('season')}:{event.get('round')}", "Итоги прогнозов", text, "/predictions?tab=leaderboard")
     sent = 0
     for telegram_id, tz, *_ in users:
         if await safe_send_message(

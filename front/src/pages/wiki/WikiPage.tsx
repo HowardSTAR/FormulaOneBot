@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { GlossaryText } from "../../components/GlossaryText";
 import { BackButton } from "../../components/BackButton";
 import {
   GLOSSARY_ITEMS,
@@ -73,6 +75,14 @@ function BulbIcon() {
 }
 
 export default function WikiPage() {
+  const [searchParams] = useSearchParams();
+  const requestedTerm = searchParams.get("term");
+  useEffect(() => {
+    if (!requestedTerm || !GLOSSARY_ITEMS.some(item => item.id === requestedTerm)) return;
+    const card = document.getElementById(`glossary-${requestedTerm}`);
+    card?.scrollIntoView({ block: "center" });
+    card?.focus({ preventScroll: true });
+  }, [requestedTerm]);
   const [selected, setSelected] = useState<{ item: GlossaryItem; index: number } | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
@@ -157,8 +167,7 @@ export default function WikiPage() {
           <span className="wiki-kicker">F1 Academy · сезон 2026</span>
           <h1>Wiki для<br /><em>новичков</em></h1>
           <p>
-            Термины Формулы-1 без сложных формулировок — от андерката
-            до активной аэродинамики.
+            <GlossaryText>Термины Формулы-1 без сложных формулировок — от андерката до активной аэродинамики.</GlossaryText>
           </p>
         </div>
         <div className="wiki-hero-stat" aria-label={`${GLOSSARY_ITEMS.length} терминов`}>

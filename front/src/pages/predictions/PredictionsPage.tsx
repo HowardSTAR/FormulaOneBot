@@ -1,3 +1,4 @@
+import { GlossaryText } from "../../components/GlossaryText";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -197,7 +198,7 @@ export default function PredictionsPage() {
         <div>
           <span className="predictions-kicker">F1 Forecast</span>
           <h2>Прогнозы</h2>
-          <p>Прогноз закрывается перед первой квалификацией. Чем точнее позиция — тем больше баллов.</p>
+          <p><GlossaryText>Прогноз закрывается перед первой квалификацией. Чем точнее позиция — тем больше баллов.</GlossaryText></p>
         </div>
         {current?.status === "ok" && (
           <div className={`predictions-deadline ${current.is_open ? "is-open" : "is-closed"}`}>
@@ -241,7 +242,7 @@ export default function PredictionsPage() {
             <tbody>
               {(current?.scoring_rules || []).map((rule) => (
                 <tr key={rule.key}>
-                  <th>{rule.label}</th>
+                  <th><GlossaryText>{rule.label}</GlossaryText></th>
                   <td>{pointsLabel(rule.exact)}</td>
                   {rule.offsets.map((points, index) => (
                     <td key={index} className={points ? "" : "is-zero"}>{pointsLabel(points)}</td>
@@ -311,7 +312,7 @@ export default function PredictionsPage() {
 
                 <fieldset className="prediction-field prediction-safety-car" disabled={!current.is_open}>
                   <span className="prediction-field-marker">SC</span>
-                  <legend>Машина безопасности</legend>
+                  <legend><GlossaryText>Машина безопасности</GlossaryText></legend>
                   <div>
                     <button type="button" className={form.safety_car ? "active" : ""} onClick={() => setForm({ ...form, safety_car: true })}>Да</button>
                     <button type="button" className={!form.safety_car ? "active" : ""} onClick={() => setForm({ ...form, safety_car: false })}>Нет</button>

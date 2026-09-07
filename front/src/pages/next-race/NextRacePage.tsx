@@ -1,3 +1,4 @@
+import { GlossaryText } from "../../components/GlossaryText";
 import { useState, useEffect } from "react";
 import { BackButton } from "../../components/BackButton";
 import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
@@ -353,7 +354,7 @@ function NextRacePage() {
               <article className="next-race-desktop-overview">
                 <div>
                   <h3>Обзор трассы</h3>
-                  <p>{insights.facts[0]?.text || "Подробности трассы появятся позже."}</p>
+                  <p><GlossaryText>{insights.facts[0]?.text || "Подробности трассы появятся позже."}</GlossaryText></p>
                 </div>
               </article>
               <div className="next-race-desktop-facts-list">
@@ -363,7 +364,7 @@ function NextRacePage() {
                       <h6>{fact.title}</h6>
                       <span>⌄</span>
                     </div>
-                    <p>{fact.text}</p>
+                    <p><GlossaryText>{fact.text}</GlossaryText></p>
                   </div>
                 ))}
               </div>
