@@ -9,4 +9,4 @@ draw.polygon([(92,145),(436,145),(414,213),(295,213),(241,375),(163,375),(217,21
 draw.polygon([(317,244),(413,244),(393,304),(297,304)], fill="white")
 draw.polygon([(294,320),(367,320),(349,375),(276,375)], fill="white")
 for size in (180,192,512):
-    image.resize((size,size), Image.Resampling.LANCZOS).save(root / f"app-icon-{size}.png")
+    image.resize((size,size), Image.Resampling.LANCZOS).save(root / f"app-icon-{size}-v2.png")

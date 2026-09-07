@@ -4,7 +4,7 @@ self.addEventListener("push", event => {
   try { data = event.data ? event.data.json() : {}; } catch { /* Show safe fallback. */ }
   event.waitUntil(self.registration.showNotification(String(data.title || "TurboTears"), {
     body: String(data.body || "Новое уведомление"),
-    icon: "/app-icon-192.png", tag: String(data.tag || "turbotears"),
+    icon: "/app-icon-192-v2.png", tag: String(data.tag || "turbotears"),
     data: { url: typeof data.url === "string" ? data.url : "/notifications" },
   }));
 });

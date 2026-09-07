@@ -32,7 +32,7 @@ export function InstallHint() {
       if (installed() || !shouldShowInstallHint(state, Date.now())) return;
       saveState({ ...state, count: (state.count ?? 0) + 1, lastShown: Date.now() });
       setPlatform(device);
-    }, 8000);
+    }, 1500);
     return () => {
       clearTimeout(timer);
       window.removeEventListener("beforeinstallprompt", before);

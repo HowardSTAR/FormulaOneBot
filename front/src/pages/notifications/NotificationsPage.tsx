@@ -17,6 +17,13 @@ export default function NotificationsPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
+    supported() ? Notification.permission : "unsupported",
+  );
+  const standalone = window.matchMedia("(display-mode: standalone)").matches
+    || !!(navigator as Navigator & { standalone?: boolean }).standalone;
+  const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
   const refresh = useCallback(async () => {
     try { setData(await apiRequest<Inbox>("/api/web-notifications")); }
     catch (e) { setError(e instanceof Error ? e.message : "Не удалось загрузить уведомления"); }
@@ -24,12 +31,20 @@ export default function NotificationsPage() {
   useEffect(() => {
     void refresh();
     let alive = true;
+    const syncPermission = () => { if (supported()) setPermission(Notification.permission); };
     if (supported()) void navigator.serviceWorker.getRegistration("/").then(async reg => {
       const sub = await reg?.pushManager.getSubscription();
       if (alive) setSubscribed(!!sub);
     }).catch(() => {});
     const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 60000);
-    return () => { alive = false; clearInterval(timer); };
+    window.addEventListener("focus", syncPermission);
+    document.addEventListener("visibilitychange", syncPermission);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      window.removeEventListener("focus", syncPermission);
+      document.removeEventListener("visibilitychange", syncPermission);
+    };
   }, [refresh]);
   const togglePush = async () => {
     if (!supported()) return;
@@ -45,9 +60,15 @@ export default function NotificationsPage() {
         setSubscribed(false); return;
       }
       // Permission is requested only from this explicit user gesture.
-      const permission = await Notification.requestPermission();
-      if (permission !== "granted") throw new Error("Разрешите уведомления в настройках браузера, если хотите получать push.");
-      await navigator.serviceWorker.register("/notifications-sw.js", { scope: "/" });
+      if (Notification.permission === "denied") {
+        setPermission("denied");
+        throw new Error("Уведомления заблокированы в браузере. Разрешите их для f1hub.ru по инструкции ниже.");
+      }
+      const nextPermission = await Notification.requestPermission();
+      setPermission(nextPermission);
+      if (nextPermission !== "granted") throw new Error("Браузер не разрешил уведомления. Проверьте разрешения сайта по инструкции ниже.");
+      try { await navigator.serviceWorker.register("/notifications-sw.js", { scope: "/" }); }
+      catch { throw new Error("Не удалось запустить push-службу. Обновите страницу; если ошибка останется, переустановите приложение TurboTears."); }
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription() || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(data!.push.public_key) });
       const keys = sub.toJSON().keys!;
@@ -78,6 +99,18 @@ export default function NotificationsPage() {
       <button disabled={busy || !supported() || (!subscribed && !data?.push.enabled)} onClick={togglePush}>{subscribed ? "Отключить push" : "Включить push"}</button>
       {!supported() ? <p>В этом режиме браузера push недоступен. История уведомлений продолжает работать.</p>
         : data && !data.push.enabled && <p>Push ещё не настроен на сервере.</p>}
+      {permission === "denied" && <div className="notifications-help" role="status">
+        <strong>Уведомления заблокированы браузером</strong>
+        <p>На компьютере нажмите значок настроек слева от адреса f1hub.ru → «Разрешения для этого сайта» → «Уведомления» → «Разрешить». Затем обновите страницу.</p>
+      </div>}
+      {ios && !standalone && <div className="notifications-help">
+        <strong>Сначала установите приложение на iPhone</strong>
+        <p>Откройте f1hub.ru именно в Safari → «Поделиться» → «На экран Домой» → «Добавить». Затем откройте TurboTears с новой иконки и вернитесь сюда.</p>
+      </div>}
+      {(ios || /Android/i.test(navigator.userAgent)) && !standalone && <details className="notifications-install-guide">
+        <summary>Как установить TurboTears на телефон</summary>
+        <p>{ios ? "Safari → Поделиться → На экран Домой → Добавить." : "Chrome → меню ⋮ → Установить приложение или Добавить на главный экран."}</p>
+      </details>}
     </section>
     {error && <p role="alert">{error}</p>}
     {!data ? <p>Загружаем уведомления…</p> : <>

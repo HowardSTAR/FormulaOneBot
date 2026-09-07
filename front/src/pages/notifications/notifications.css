@@ -12,3 +12,7 @@
 .notifications-page button:disabled { opacity: .45; cursor: default; }
 .notifications-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .notifications-empty { padding: 24px 0; }
+.notifications-help { margin-top: 16px; padding: 14px; border: 1px solid #ff62594d; border-radius: 12px; background: #ff62590d; }
+.notifications-help p { margin: 7px 0 0; }
+.notifications-install-guide { margin-top: 14px; color: #d8d8df; }
+.notifications-install-guide summary { cursor: pointer; font-weight: 700; }
