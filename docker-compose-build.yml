@@ -26,6 +26,7 @@ x-app-common: &app-common
     - ./data:/app/data
     - ./logs:/app/logs
     - ./fastf1_cache:/app/fastf1_cache
+    - ./secrets:/app/secrets:ro
   restart: unless-stopped
   init: true
   stop_grace_period: 30s
