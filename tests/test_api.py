@@ -527,8 +527,8 @@ async def test_race_game_rejects_invalid_ghost_telemetry(api_client: AsyncClient
 
 
 @pytest.mark.asyncio
-async def test_race_game_ghost_falls_back_to_fastest_score_with_telemetry(api_client: AsyncClient):
-    """A legacy top score without telemetry must not hide the next replayable ghost."""
+async def test_race_game_ghost_never_substitutes_a_slower_replay(api_client: AsyncClient):
+    """The global-best toggle must not play a slower run under a leader's name."""
     profile = await api_client.post(
         "/api/reaction-leaderboard/profile",
         json={"display_name": "Ghost Pilot", "participate": True, "prompt_seen": True},
@@ -560,10 +560,7 @@ async def test_race_game_ghost_falls_back_to_fastest_score_with_telemetry(api_cl
     assert leaderboard.status_code == 200
     payload = leaderboard.json()
     assert payload["entries"][0]["time_ms"] == 70_000
-    assert payload["ghost"]["name"] == "Ghost Pilot"
-    assert payload["ghost"]["time_ms"] == 75_000
-    assert payload["ghost"]["leaderboard_place"] == 1
-    assert payload["ghost"]["is_global_best"] is False
+    assert payload["ghost"] is None
 
 
 @pytest.mark.asyncio

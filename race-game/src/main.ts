@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import './style.css'
 import { createTelemetrySample, interpolateGhost, type GhostSample } from './ghostTelemetry'
 import { finishCrossing, type TrackPoint } from './finishLine'
+import { simulationSteps } from './raceClock'
 
 const WORLD_WIDTH = 1536
 const WORLD_HEIGHT = 1024
@@ -12,6 +13,7 @@ const GHOST_ENABLED_KEY = 'emerald-loop-ghost-enabled'
 const TRACK_ID = 'emerald-loop-v1'
 const TELEMETRY_SAMPLE_INTERVAL_MS = 100
 const MAX_TELEMETRY_SAMPLES = 6000
+let joystickSteer = 0
 
 type RaceState = 'ready' | 'countdown' | 'racing' | 'paused' | 'finished'
 
@@ -463,7 +465,6 @@ class RaceScene extends Phaser.Scene {
   }
 
   update(_time: number, deltaMilliseconds: number): void {
-    const delta = Math.min(deltaMilliseconds / 1000, 0.034)
 
     if (Phaser.Input.Keyboard.JustDown(this.keys.r)) this.resetToTrack()
     if (Phaser.Input.Keyboard.JustDown(this.keys.p)) this.togglePause()
@@ -485,11 +486,15 @@ class RaceScene extends Phaser.Scene {
         this.updateGhost()
       }
     } else if (this.raceState === 'racing') {
-      const previousPosition = { x: this.car.x, y: this.car.y }
-      this.elapsedTime += deltaMilliseconds
-      this.updateDriving(delta)
-      this.updateCheckpoints(previousPosition, deltaMilliseconds)
-      this.recordTelemetry()
+      // Movement, stopwatch and replay must use the same time at every frame rate.
+      for (const step of simulationSteps(deltaMilliseconds)) {
+        if (this.raceState !== 'racing') break
+        const previousPosition = { x: this.car.x, y: this.car.y }
+        this.elapsedTime += step
+        this.updateDriving(step / 1000)
+        this.updateCheckpoints(previousPosition, step)
+        this.recordTelemetry()
+      }
       this.updateGhost()
     }
 
@@ -521,8 +526,10 @@ class RaceScene extends Phaser.Scene {
   }
 
   setGhost(ghost: GhostRun | null): void {
+    // Do not switch opponents mid-race when a background request completes.
+    if (ghost && this.ghost && (this.raceState === 'racing' || this.raceState === 'paused')) return
     this.ghost = ghost?.samples?.length && ghost.samples.length >= 2 ? ghost : null
-    this.ghostLabel?.setText(this.ghost ? `GHOST · ${this.ghost.name}` : '')
+    this.ghostLabel?.setText(this.ghost ? `GHOST · ${this.ghost.name} · ${formatTime(this.ghost.time_ms)} / 3 круга` : '')
     syncGhostControls(this.ghost)
     this.updateGhost()
   }
@@ -580,6 +587,13 @@ class RaceScene extends Phaser.Scene {
     }
   }
 
+  pauseWhenHidden(): void {
+    this.clearTouchState()
+    this.input.keyboard?.resetKeys()
+    if (this.raceState === 'racing') this.togglePause()
+    else if (this.raceState === 'countdown') this.openGameMenu()
+  }
+
   resetToTrack(): void {
     if (!this.car) return
     const nearest = nearestTrackPoint(this.car.x, this.car.y)
@@ -625,7 +639,7 @@ class RaceScene extends Phaser.Scene {
     const brakePressed = this.keys.down.isDown || this.keys.s.isDown || touchState.brake
     const leftPressed = this.keys.left.isDown || this.keys.a.isDown || touchState.left
     const rightPressed = this.keys.right.isDown || this.keys.d.isDown || touchState.right
-    const steer = Number(rightPressed) - Number(leftPressed)
+    const steer = Phaser.Math.Clamp(Number(rightPressed) - Number(leftPressed) + joystickSteer, -1, 1)
 
     const nearest = nearestTrackPoint(this.car.x, this.car.y)
     this.setSurfaceState(nearest.distance <= ROAD_HALF_WIDTH)
@@ -792,6 +806,7 @@ class RaceScene extends Phaser.Scene {
   }
 
   private clearTouchState(): void {
+    resetJoystick()
     Object.keys(touchState).forEach((key) => {
       touchState[key as TouchControl] = false
     })
@@ -826,12 +841,47 @@ const bindHoldButton = (id: string, control: TouchControl): void => {
   button.addEventListener('lostpointercapture', () => setPressed(false))
 }
 
-bindHoldButton('#touch-left', 'left')
-bindHoldButton('#touch-right', 'right')
+const joystick = $('#touch-joystick')
+const joystickKnob = $('#joystick-knob')
+let steeringPointer: number | null = null
+function resetJoystick(): void {
+  steeringPointer = null
+  joystickSteer = 0
+  joystickKnob.style.transform = 'translate(0px, 0px)'
+}
+const moveJoystick = (event: PointerEvent): void => {
+  if (event.pointerId !== steeringPointer) return
+  event.preventDefault()
+  const rect = joystick.getBoundingClientRect()
+  const radius = rect.width * 0.3
+  const dx = event.clientX - rect.left - rect.width / 2
+  const dy = event.clientY - rect.top - rect.height / 2
+  const scale = Math.min(1, radius / Math.max(1, Math.hypot(dx, dy)))
+  const x = dx * scale
+  joystickSteer = Math.abs(x / radius) < 0.08 ? 0 : x / radius
+  joystickKnob.style.transform = `translate(${x}px, ${dy * scale}px)`
+}
+joystick.addEventListener('pointerdown', (event) => {
+  if (steeringPointer !== null) return
+  steeringPointer = event.pointerId
+  joystick.setPointerCapture(event.pointerId)
+  moveJoystick(event)
+})
+joystick.addEventListener('pointermove', moveJoystick)
+for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
+  joystick.addEventListener(type, (event) => {
+    if ((event as PointerEvent).pointerId === steeringPointer) resetJoystick()
+  })
+}
+window.addEventListener('blur', resetJoystick)
 bindHoldButton('#touch-throttle', 'throttle')
 bindHoldButton('#touch-brake', 'brake')
 
 ui.start.addEventListener('click', () => {
+  const root = window.parent.document.documentElement
+  if (window.matchMedia('(pointer: coarse)').matches && root.requestFullscreen && !window.parent.document.fullscreenElement) {
+    void root.requestFullscreen().catch(() => {})
+  }
   if (!activeScene) return
   if (ui.modalTitle.textContent === 'Пауза') activeScene.togglePause()
   else activeScene.startRace()
@@ -855,7 +905,7 @@ ui.introLeaderboard.addEventListener('click', () => activeScene?.openGameMenu(tr
 ui.leaderboardBack.addEventListener('click', () => showMenuView('main'))
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) activeScene?.togglePause()
+  if (document.hidden) activeScene?.pauseWhenHidden()
 })
 
 const game = new Phaser.Game({

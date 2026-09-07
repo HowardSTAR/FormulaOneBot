@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#07100d" />
     <meta name="description" content="Emerald Loop — пиксельная браузерная гонка на вымышленном болиде с открытыми колёсами." />
     <title>Emerald Loop — браузерная гонка</title>
-    <script type="module" crossorigin src="./assets/index-D6rPOzdw.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-DJ0MwMmq.css">
+    <script type="module" crossorigin src="./assets/index-Dup--5qn.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-5clc3475.css">
   </head>
   <body>
     <main id="app" aria-label="Игра Emerald Loop">
@@ -54,7 +54,8 @@
             <a href="/" target="_top">На главную</a>
             <button id="intro-leaderboard-button" type="button">Таблица лидеров</button>
           </div>
-          <p class="mobile-note">На телефоне доступны кнопки под большими пальцами. Игра работает и в портретном режиме.</p>
+          <p class="mobile-note">Слева — джойстик руля, справа — газ и тормоз. Призрак повторяет рекордный заезд из трёх кругов.</p>
+          <details class="fullscreen-help"><summary>Как убрать панель браузера?</summary><p>На iPhone: Safari → Поделиться → На экран «Домой». Запустите TurboTears с иконки. На Android полноэкранный режим включается при нажатии «Начать заезд», если браузер его поддерживает.</p></details>
         </div>
       </section>
 
@@ -104,16 +105,15 @@
 
       <section class="touch-controls" aria-label="Сенсорное управление">
         <div class="steering-controls">
-          <button id="touch-left" class="touch-button steering" type="button" aria-label="Повернуть налево">←</button>
-          <button id="touch-right" class="touch-button steering" type="button" aria-label="Повернуть направо">→</button>
+          <div id="touch-joystick" class="touch-joystick" aria-label="Джойстик руля: тяните влево или вправо"><span id="joystick-knob"></span></div>
         </div>
         <div class="pedal-controls">
-          <button id="touch-brake" class="touch-button brake" type="button" aria-label="Тормоз">ТОРМОЗ</button>
           <button id="touch-throttle" class="touch-button throttle" type="button" aria-label="Газ">ГАЗ</button>
+          <button id="touch-brake" class="touch-button brake" type="button" aria-label="Тормоз">ТОРМОЗ</button>
         </div>
       </section>
 
       <div class="desktop-hint">WASD / СТРЕЛКИ — УПРАВЛЕНИЕ · R — НА ТРАССУ · P — ПАУЗА</div>
-    </main>
+    </main>
   </body>
 </html>

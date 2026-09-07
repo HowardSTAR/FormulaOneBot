@@ -41,6 +41,7 @@ from app.api.auth_api import (
     router as auth_router,
 )
 from app.api.admin_api import router as admin_router
+from app.api.site_analytics import router as site_analytics_router
 from app.api.web_notifications_api import router as web_notifications_router
 from app.f1_data import (
     points_for_race_position,
@@ -149,6 +150,7 @@ if ASSETS_DIR.exists():
     web_app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 
 # --- МОДЕЛИ ДАННЫХ ---
+web_app.include_router(site_analytics_router)
 
 class NextRaceResponse(BaseModel):
     status: str
@@ -611,9 +613,11 @@ async def api_reaction_leaderboard_score(
 
 @web_app.get("/api/race-game-leaderboard")
 async def api_race_game_leaderboard(
+    response: Response,
     track_id: Literal["emerald-loop-v1"] = Query("emerald-loop-v1"),
     user_id: Optional[int] = Depends(get_optional_user_id),
 ):
+    response.headers["Cache-Control"] = "no-store"
     return await get_race_game_leaderboard(user_id, track_id=track_id)
 
 

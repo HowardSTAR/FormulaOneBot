@@ -429,6 +429,8 @@ button {
   color: var(--mint);
   border-color: rgba(97, 217, 188, 0.45);
 }
+.fullscreen-help { margin-top: 12px; font-size: 11px; line-height: 1.5; color: #b6c9c2; }
+.fullscreen-help summary { cursor: pointer; }
 
 .modal-quick-links a,
 .modal-quick-links button {
@@ -755,6 +757,18 @@ button {
   transition: background 80ms linear, border-color 80ms linear, transform 80ms linear;
 }
 
+.pedal-controls { flex-direction: column; gap: 7px; }
+.touch-joystick {
+  width: clamp(100px, 24vh, 140px); height: clamp(100px, 24vh, 140px);
+  border: 2px solid #8ddac066; border-radius: 50%; background: #071c19b8;
+  display: grid; place-items: center; touch-action: none; user-select: none;
+}
+.touch-joystick span {
+  width: 42%; height: 42%; border-radius: 50%; background: #168c81;
+  border: 2px solid #c1fff0a6; pointer-events: none;
+}
+.pedal-controls .touch-button { height: clamp(44px, 14vh, 70px); border-radius: 18px; }
+
 .touch-button.is-pressed {
   border-color: rgba(97, 217, 188, 0.78);
   background: rgba(7, 152, 143, 0.8);
@@ -767,6 +781,7 @@ button {
   font-size: 9px;
   letter-spacing: 0.1em;
 }
+.pedal-controls .touch-button.brake { height: clamp(44px, 12vh, 56px); }
 
 .touch-button.brake {
   height: clamp(60px, 16vw, 78px);

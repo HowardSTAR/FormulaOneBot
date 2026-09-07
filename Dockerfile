@@ -1,3 +1,12 @@
+FROM node:20-alpine AS race-builder
+WORKDIR /race-game
+COPY race-game/package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY race-game/index.html race-game/tsconfig.json race-game/vite.config.ts ./
+COPY race-game/src ./src
+COPY race-game/public ./public
+RUN npm run build
+
 FROM node:20-alpine AS front-builder
 
 WORKDIR /front
@@ -8,6 +17,7 @@ RUN npm ci --no-audit --no-fund
 # Копируем исходники явно (без node_modules/dist из .dockerignore)
 COPY front/index.html front/vite.config.ts front/tsconfig*.json ./
 COPY front/public ./public
+COPY --from=race-builder /race-game/dist ./public/race-game
 COPY front/src ./src
 
 ARG VITE_API_URL=""
@@ -21,7 +31,7 @@ ENV VITE_LEGAL_OPERATOR_NAME=${VITE_LEGAL_OPERATOR_NAME} \
     VITE_LEGAL_CONTACT_EMAIL=${VITE_LEGAL_CONTACT_EMAIL} \
     VITE_DATA_STORAGE_LOCATION=${VITE_DATA_STORAGE_LOCATION}
 
-RUN npm run build
+RUN npm run build:front
 
 FROM python:3.11-slim
 

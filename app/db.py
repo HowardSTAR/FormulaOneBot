@@ -58,6 +58,16 @@ class Database:
         # 1. Таблица пользователей
         from app.auth_schema import ensure_auth_schema
         await ensure_auth_schema(self.conn)
+        await self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS site_visits (
+                visitor_id TEXT NOT NULL,
+                user_id INTEGER,
+                path TEXT NOT NULL,
+                bucket INTEGER NOT NULL,
+                PRIMARY KEY(visitor_id, path, bucket)
+            )
+        """)
+        await self.conn.execute("CREATE INDEX IF NOT EXISTS idx_site_visits_bucket ON site_visits(bucket)")
 
         # Проверка и добавление колонок (миграции "на лету")
         # 2. Таблицы избранного
@@ -1051,14 +1061,15 @@ async def save_race_game_score(
         if telemetry
         else None
     )
-    await db.conn.execute(
-        """
-        INSERT INTO race_game_scores (telegram_id, time_ms, track_id, telemetry_json)
-        VALUES (?, ?, ?, ?)
-        """,
-        (tg_id, normalized_time, normalized_track, telemetry_json),
-    )
-    await db.conn.commit()
+    async with db.write_lock:
+        await db.conn.execute(
+            """
+            INSERT INTO race_game_scores (telegram_id, time_ms, track_id, telemetry_json)
+            VALUES (?, ?, ?, ?)
+            """,
+            (tg_id, normalized_time, normalized_track, telemetry_json),
+        )
+        await db.conn.commit()
     return True
 
 
@@ -1124,7 +1135,9 @@ async def get_race_game_leaderboard(
         (track_id,),
     ) as cursor:
         fastest = await cursor.fetchone()
-    if fastest is not None and fastest["telemetry_json"]:
+    # Never show a slower available replay as the current record holder.
+    if (fastest is not None and fastest["telemetry_json"] and entries
+            and int(fastest["time_ms"]) == entries[0]["time_ms"]):
         try:
             samples = json.loads(fastest["telemetry_json"])
             if isinstance(samples, list) and len(samples) >= 2:

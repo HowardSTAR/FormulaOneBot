@@ -37,6 +37,7 @@ type AdminIdentity = { id: number; role: "admin" | "superadmin"; email: string |
 type MetricCard = { dau: number; wau: number; mau: number };
 type MetricPoint = { day: string; site: number; bot: number };
 type Metrics = {
+  visits?: { visitors: number; guests: number; signed_in: number; page_visits: number; top_pages: { path: string; visitors: number }[] };
   cards: Record<Source, MetricCard>;
   series: MetricPoint[];
   generated_at: string;
@@ -375,6 +376,18 @@ export default function AdminPage() {
             ))}
           </section>
           <section className="admin-chart-card">
+            <header><h2>Посещения сайта, включая гостей</h2><span>за выбранный период</span></header>
+            <div className="admin-metric-grid">
+              <article><span>Уникальные браузеры</span><strong>{metrics?.visits?.visitors ?? 0}</strong></article>
+              <article><span>Гости без входа</span><strong>{metrics?.visits?.guests ?? 0}</strong></article>
+              <article><span>Авторизованные аккаунты</span><strong>{metrics?.visits?.signed_in ?? 0}</strong></article>
+              <article><span>Посещения страниц</span><strong>{metrics?.visits?.page_visits ?? 0}</strong></article>
+            </div>
+            <p>Повторы одной страницы в течение 5 минут объединяются. Уникальность определяется по cookie браузера; разные устройства и очистка cookie создают нового посетителя. Данные хранятся до года.</p>
+            <h3>Популярные страницы</h3>
+            {metrics?.visits?.top_pages.map(page => <p key={page.path}>{page.path} — {page.visitors}</p>)}
+          </section>
+          <section className="admin-chart-card">
             <header><h2>Динамика уникальных пользователей</h2><span>по дням</span></header>
             <div className="admin-chart-wrap">
               {metrics ? <AdminChart metrics={metrics} source={source} /> : <div className="admin-skeleton" />}
@@ -451,7 +464,7 @@ export default function AdminPage() {
                         <button disabled={busy || user.protected || !user.email} onClick={() => sendReset(user)}>Сброс пароля</button>
                         <button
                           className="admin-danger-button"
-                          disabled={busy || user.protected || !user.telegram_id}
+                          disabled={busy || (user.protected && user.id !== identity?.id) || !user.telegram_id}
                           onClick={() => deleteUserGameRecords(user)}
                         >
                           Удалить рекорды

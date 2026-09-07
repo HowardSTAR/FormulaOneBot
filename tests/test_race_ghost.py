@@ -8,6 +8,45 @@ from app.api.miniapp_api import get_current_user_id
 
 
 @pytest.mark.asyncio
+async def test_superadmin_can_clear_own_scores_and_improve_own_record(api_client, app_with_overrides):
+    from app.api.admin_api import AdminContext, require_admin_session
+    from app.db import db, get_or_create_user
+    user_id = await get_or_create_user(999888)
+    await db.conn.execute("UPDATE users SET role = 'superadmin' WHERE id = ?", (user_id,))
+    await db.conn.commit()
+    app_with_overrides.dependency_overrides[require_admin_session] = lambda: AdminContext(id=user_id, role='superadmin')
+    for duration in [80000, 75000]:
+        result = await api_client.post('/api/race-game-leaderboard/score', json={
+            'time_ms': duration, 'telemetry': [
+                {'t': 0, 'x': 875, 'y': 660, 'rotation': 0},
+                {'t': duration, 'x': 875, 'y': 660, 'rotation': 0},
+            ],
+        })
+        assert result.status_code == 200, result.text
+        assert result.json()['leaderboard']['me']['time_ms'] == duration
+        assert result.json()['leaderboard']['ghost']['time_ms'] == duration
+    wiped = await api_client.delete(f'/api/admin/users/{user_id}/game-records/race')
+    assert wiped.status_code == 200, wiped.text
+    board = (await api_client.get('/api/race-game-leaderboard')).json()
+    assert board['entries'] == []
+    assert board['ghost'] is None
+
+
+@pytest.mark.asyncio
+async def test_slower_replay_is_not_presented_as_global_record(api_client):
+    await api_client.post('/api/race-game-leaderboard/score', json={'time_ms': 70000})
+    await api_client.post('/api/race-game-leaderboard/score', json={
+        'time_ms': 75000, 'telemetry': [
+            {'t': 0, 'x': 875, 'y': 660, 'rotation': 0},
+            {'t': 75000, 'x': 875, 'y': 660, 'rotation': 0},
+        ],
+    })
+    board = (await api_client.get('/api/race-game-leaderboard')).json()
+    assert board['entries'][0]['time_ms'] == 70000
+    assert board['ghost'] is None
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("legacy_angles", [False, True])
 async def test_recorded_trajectory_is_saved_and_available_to_guests(api_client, app_with_overrides, legacy_angles):
     await api_client.post("/api/reaction-leaderboard/profile", json={

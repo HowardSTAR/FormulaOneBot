@@ -234,11 +234,14 @@ async def admin_metrics(
     period_days = {"7d": 7, "30d": 30, "90d": 90}.get(period)
     if period_days is None:
         async with db.conn.execute(
-            "SELECT MIN(occurred_at) AS started_at FROM user_activity_events"
+            """SELECT MIN(occurred_at) AS started_at FROM (
+                SELECT occurred_at FROM user_activity_events
+                UNION ALL SELECT datetime(bucket * 300, 'unixepoch') FROM site_visits
+            )"""
         ) as cursor:
             row = await cursor.fetchone()
         try:
-            start = datetime.fromisoformat(row["started_at"]) if row and row["started_at"] else now
+            start = datetime.fromisoformat(row["started_at"]).replace(tzinfo=timezone.utc) if row and row["started_at"] else now
         except ValueError:
             start = now
     else:
@@ -291,7 +294,23 @@ async def admin_metrics(
     for row in rows:
         point = daily.setdefault(row["day"], {"day": row["day"], "site": 0, "bot": 0})
         point[row["source"]] = int(row["users"])
+    visit_start = int(start.timestamp()) // 300
+    async with db.conn.execute("""
+        SELECT COUNT(DISTINCT visitor_id) AS visitors,
+            COUNT(DISTINCT CASE WHEN user_id IS NULL THEN visitor_id END) AS guests,
+            COUNT(DISTINCT user_id) AS signed_in,
+            COUNT(*) AS page_visits
+        FROM site_visits WHERE bucket >= ?
+    """, (visit_start,)) as cursor:
+        visits = dict(await cursor.fetchone())
+    async with db.conn.execute("""
+        SELECT path, COUNT(DISTINCT visitor_id) AS visitors
+        FROM site_visits WHERE bucket >= ?
+        GROUP BY path ORDER BY visitors DESC, path LIMIT 10
+    """, (visit_start,)) as cursor:
+        visits["top_pages"] = [dict(row) for row in await cursor.fetchall()]
     return {
+        "visits": visits,
         "period": period,
         "source": source,
         "cards": cards,
@@ -442,8 +461,9 @@ async def delete_user_game_records(
         try:
             await db.conn.execute("BEGIN IMMEDIATE")
             user = await _get_user(user_id)
-            _ensure_mutable_target(user)
             telegram_id = user["telegram_id"]
+            if admin.id != user_id:
+                _ensure_mutable_target(user)
             if telegram_id is None:
                 raise HTTPException(
                     422,

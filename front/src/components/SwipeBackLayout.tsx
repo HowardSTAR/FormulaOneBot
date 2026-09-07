@@ -1,4 +1,5 @@
-import { useRef, useCallback, useLayoutEffect } from "react";
+import { useRef, useCallback, useLayoutEffect, useEffect } from "react";
+import { apiRequest } from "../helpers/api";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { hapticImpact } from "../helpers/telegram";
 import { AppHeader } from "./AppHeader";
@@ -14,6 +15,13 @@ export function SwipeBackLayout() {
   const startX = useRef(0);
   const startY = useRef(0);
   const tracking = useRef(false);
+  useEffect(() => {
+    // Only the route is sent: no query parameters, search text or personal data.
+    const timer = window.setTimeout(() => {
+      void apiRequest("/api/analytics/visit", { path: location.pathname }, "POST").catch(() => {});
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [location.pathname]);
 
   useLayoutEffect(() => {
     const resetScroll = () => {

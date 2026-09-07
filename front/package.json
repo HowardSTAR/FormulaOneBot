@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "npm --prefix ../race-game run build && node ../scripts/sync-race-build.mjs && vite build",
+    "build:front": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
