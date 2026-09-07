@@ -1,3 +1,4 @@
+import html
 import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
@@ -1301,37 +1302,8 @@ VOTING_RESULTS_NOTIFY_KEY = 10000
 
 
 def _voting_closes_at(event: dict) -> datetime | None:
-    """Return the exact UTC deadline for a round's voting window.
-
-    Modern schedules contain ``race_start_utc``. Using it avoids waiting for
-    the next calendar day (and then 10:00 local time) after the advertised
-    three-day timer has already expired. Date-only legacy rows keep the old
-    conservative behaviour: three complete days plus the race day.
-    """
-
-    race_start = event.get("race_start_utc")
-    if race_start:
-        try:
-            race_dt = datetime.fromisoformat(str(race_start).replace("Z", "+00:00"))
-            if race_dt.tzinfo is None:
-                race_dt = race_dt.replace(tzinfo=timezone.utc)
-            return race_dt.astimezone(timezone.utc) + timedelta(days=DRIVER_VOTING_DAYS)
-        except (TypeError, ValueError):
-            logger.warning("Invalid race_start_utc for voting round: %r", race_start)
-
-    date_str = event.get("date")
-    if not date_str:
-        return None
-    try:
-        race_date = datetime.fromisoformat(str(date_str)).date()
-    except (TypeError, ValueError):
-        return None
-    return datetime.combine(
-        race_date + timedelta(days=DRIVER_VOTING_DAYS + 1),
-        datetime.min.time(),
-        tzinfo=timezone.utc,
-    )
-
+    from app.utils.voting_window import voting_closes_at
+    return voting_closes_at(event)
 
 async def check_and_notify_voting_results(bot: Bot, *, not_before: datetime | None = None) -> None:
     """
@@ -1346,12 +1318,13 @@ async def check_and_notify_voting_results(bot: Bot, *, not_before: datetime | No
     last_notified = await get_last_notified_voting_round(season)
     now_utc = datetime.now(timezone.utc)
     users = await get_users_with_settings(notifications_only=True)
-    if not users:
-        return
-
     tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users}
+    for chat_id in await get_all_group_chats() or []:
+        tz_map.setdefault(chat_id, GROUP_TIMEZONE)
 
-    for event in schedule:
+    for event in sorted(schedule, key=lambda row: int(row.get("round") or 0)):
+        if event.get("is_cancelled"):
+            continue
         round_num = event.get("round")
         if not round_num:
             continue
@@ -1364,6 +1337,8 @@ async def check_and_notify_voting_results(bot: Bot, *, not_before: datetime | No
         if not_before is not None and voting_closes_at < not_before:
             # Old voting results are not a startup digest.
             await set_last_notified_voting_round(season, round_num)
+            continue
+        if not tz_map:
             continue
 
         event_name = event.get("event_name", "Гран-при")
@@ -1391,9 +1366,10 @@ async def check_and_notify_voting_results(bot: Bot, *, not_before: datetime | No
 
         text = (
             f"🗳 <b>Итоги голосования</b>\n\n"
-            f"🏁 {event_name} (этап {round_num})\n\n"
+            f"🏁 {html.escape(str(event_name))} (этап {round_num})\n\n"
             f"По мнению нашего сообщества этап оценили на: <b>{rating_str}</b>\n"
-            f"Лучшим пилотом стал: <b>{driver_str}</b>"
+            f"Лучшим пилотом стал: <b>{html.escape(str(driver_str))}</b>\n\n"
+            f"Оценок гонки: {race_count} · Голосов за победителя: {driver_count}"
         )
 
         sent_count = 0

@@ -347,10 +347,10 @@ function VotingPage() {
               const myRaceVote = raceVotes[race.round];
               const myDriverVote = driverVotes[race.round];
               const isSaving = saving === race.round;
-              const raceDate = new Date(race.date);
-              raceDate.setHours(0, 0, 0, 0);
-              const driverVotingEnds = new Date(raceDate);
-              driverVotingEnds.setDate(driverVotingEnds.getDate() + 3);
+              // Same Moscow calendar deadline as the API and notification worker.
+              const driverVotingEnds = new Date(
+                Date.parse(race.date.slice(0, 10) + "T00:00:00+03:00") + 3 * 86400000,
+              );
               const driverVotingClosed = now >= driverVotingEnds;
 
               return (
@@ -395,7 +395,7 @@ function VotingPage() {
                         <div className="voting-drivers">
                           {driverVotingClosed && (
                             <div className="voting-closed-msg">
-                              Голосование закрыто (3 дня после гонки)
+                              Голосование закрыто (00:00 МСК, третий день после гонки)
                             </div>
                           )}
                           {!driverVotingClosed &&

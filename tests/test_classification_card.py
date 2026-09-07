@@ -82,7 +82,9 @@ async def test_qualifying_uses_finished_round_and_retries_wrong_round():
 async def test_old_voting_results_are_skipped_without_telegram():
     from app.utils.notifications import check_and_notify_voting_results
     now = datetime.now(timezone.utc)
-    with patch("app.utils.notifications.get_season_schedule_short_async", AsyncMock(return_value=[{"round": 1}])), patch(
+    with patch("app.utils.notifications.get_all_group_chats", AsyncMock(return_value=[])), patch(
+        "app.utils.notifications.get_season_schedule_short_async", AsyncMock(return_value=[{"round": 1}])
+    ), patch(
         "app.utils.notifications.get_last_notified_voting_round", AsyncMock(return_value=None)
     ), patch("app.utils.notifications.get_users_with_settings", AsyncMock(return_value=[(42, "UTC")])), patch(
         "app.utils.notifications._voting_closes_at", return_value=now - timedelta(days=5)
@@ -146,4 +148,3 @@ async def test_startup_does_not_send_old_predictions_but_still_scores():
     mocks["score_prediction_round"].assert_awaited_once()
     mocks["_send_prediction_results"].assert_not_awaited()
     mocks["mark_notification_state"].assert_awaited_once_with(now.year, 1, "results_sent")
-

@@ -27,6 +27,8 @@ from app.utils.safe_send import safe_send_photo
 def isolated_delivery_receipts():
     with patch("app.utils.notifications.was_reminder_sent", AsyncMock(return_value=False)), patch(
         "app.utils.notifications.set_reminder_sent", AsyncMock()
+    ), patch(
+        "app.utils.notifications.get_all_group_chats", AsyncMock(return_value=[])
     ):
         yield
 
@@ -89,13 +91,13 @@ def test_notification_text_contains_local_date(request: pytest.FixtureRequest):
     assert "02.03.2026" in text
 
 
-def test_voting_results_deadline_uses_exact_race_start():
-    """Трёхдневный таймер считается от времени старта, а не от календарной даты."""
+def test_voting_results_deadline_matches_moscow_wednesday():
+    """Sunday's voting closes on Wednesday at midnight Moscow time."""
     closes_at = _voting_closes_at({
         "date": "2026-07-19",
         "race_start_utc": "2026-07-19T13:00:00+00:00",
     })
-    assert closes_at == datetime(2026, 7, 22, 13, 0, tzinfo=timezone.utc)
+    assert closes_at == datetime(2026, 7, 21, 21, 0, tzinfo=timezone.utc)
 
 
 @pytest.mark.asyncio

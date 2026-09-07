@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BackButton } from "../../components/BackButton";
 import {
   GLOSSARY_ITEMS,
@@ -73,6 +73,21 @@ function BulbIcon() {
 }
 
 export default function WikiPage() {
+  const [selected, setSelected] = useState<{ item: GlossaryItem; index: number } | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!selected) return;
+    const dialog = dialogRef.current;
+    const previousOverflow = document.body.style.overflow;
+    dialog?.showModal();
+    document.body.style.overflow = "hidden";
+    return () => {
+      dialog?.close();
+      document.body.style.overflow = previousOverflow;
+      triggerRef.current?.focus({ preventScroll: true });
+    };
+  }, [selected]);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const normalizedQuery = normalizeSearch(query);
@@ -207,6 +222,21 @@ export default function WikiPage() {
               id={`glossary-${item.id}`}
               className={`wiki-card category-${item.category}`}
               key={item.id}
+              role="button"
+              tabIndex={0}
+              aria-haspopup="dialog"
+              aria-label={`Открыть: ${item.termRu}`}
+              onClick={(event) => {
+                triggerRef.current = event.currentTarget;
+                setSelected({ item, index });
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  triggerRef.current = event.currentTarget;
+                  setSelected({ item, index });
+                }
+              }}
             >
               <div className="wiki-card-top">
                 <span className="wiki-card-index">{String(index + 1).padStart(2, "0")}</span>
@@ -232,6 +262,33 @@ export default function WikiPage() {
           <p>Проверьте написание или верните все категории.</p>
           <button type="button" onClick={resetFilters}>Сбросить фильтры</button>
         </section>
+      )}
+      {selected && (
+        <dialog
+          ref={dialogRef}
+          className="wiki-detail-dialog"
+          aria-labelledby="wiki-detail-title"
+          onCancel={() => setSelected(null)}
+          onClose={() => setSelected(null)}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) setSelected(null);
+          }}
+        >
+          <article className={`wiki-card wiki-detail-card category-${selected.item.category}`}>
+            <button type="button" className="wiki-detail-close" autoFocus
+              aria-label="Закрыть карточку" onClick={() => setSelected(null)}>×</button>
+            <span className="wiki-category">{CATEGORY_LABELS[selected.item.category]}</span>
+            <h2 id="wiki-detail-title">{selected.item.termRu}</h2>
+            <span className="wiki-term-en">{selected.item.termEn}</span>
+            <p>{selected.item.definition}</p>
+            {selected.item.example && (
+              <div className="wiki-example">
+                <span><BulbIcon /></span>
+                <div><strong>Простой пример</strong><p>{selected.item.example}</p></div>
+              </div>
+            )}
+          </article>
+        </dialog>
       )}
     </div>
   );

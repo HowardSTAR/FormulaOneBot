@@ -711,15 +711,12 @@ async def api_votes_driver(
     """Сохранить голос за пилота дня. Голосование закрывается через 3 дня после гонки."""
     schedule = await get_season_schedule_short_async(body.season)
     event = next((r for r in (schedule or []) if r.get("round") == body.round), None)
-    if event and event.get("date"):
-        try:
-            race_date = datetime.fromisoformat(event["date"]).date()
-            if datetime.now(timezone.utc).date() > race_date + timedelta(days=3):
-                raise HTTPException(400, "Голосование за пилота дня закрыто (3 дня после гонки)")
-        except HTTPException:
-            raise
-        except Exception:
-            pass
+    from app.utils.voting_window import voting_closes_at
+    deadline = voting_closes_at(event or {})
+    if deadline is None:
+        raise HTTPException(503, "Не удалось проверить срок голосования. Попробуйте позже.")
+    if datetime.now(timezone.utc) >= deadline:
+        raise HTTPException(400, "Голосование за пилота дня закрыто (00:00 МСК, третий день после гонки)")
     await save_driver_vote(user_id, body.season, body.round, body.driver_code)
     return {"status": "ok"}
 

@@ -6,6 +6,50 @@
   padding-bottom: 72px;
 }
 
+.wiki-grid .wiki-card { cursor: pointer; }
+.wiki-grid .wiki-card:focus-visible { outline: 2px solid var(--category-color); outline-offset: 4px; }
+.wiki-detail-dialog {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
+}
+.wiki-detail-dialog[open] { animation: wiki-card-expand 240ms cubic-bezier(.2,.8,.2,1) both; }
+.wiki-detail-dialog::backdrop { background: rgb(0 0 0 / 72%); backdrop-filter: blur(7px); }
+.wiki-card.wiki-detail-card {
+  --wiki-surface: #15171e;
+  --wiki-border: #343640;
+  padding: clamp(24px, 5vw, 48px);
+  box-shadow: 0 24px 90px #0008;
+}
+.wiki-card.wiki-detail-card:hover { transform: none; }
+.wiki-card.wiki-detail-card h2 { font-size: clamp(28px, 5vw, 44px); margin-top: 24px; }
+.wiki-card.wiki-detail-card > p { font-size: 19px; line-height: 1.7; }
+.wiki-detail-card .wiki-example p { font-size: 16px; line-height: 1.6; }
+.wiki-detail-close {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #ffffff30;
+  border-radius: 50%;
+  background: #24262e;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+}
+@keyframes wiki-card-expand {
+  from { opacity: 0; transform: translateY(24px) scale(.86); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wiki-detail-dialog[open] { animation: none; }
+}
+
 .wiki-page > .btn-back {
   margin-bottom: 18px;
 }
