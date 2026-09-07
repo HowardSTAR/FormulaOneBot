@@ -1,6 +1,8 @@
 import { useId, type ReactNode } from "react";
+import "../../components/MenuIcon.css";
 
-type IndexIconName =
+export type IndexIconName =
+  | "home"
   | "quali"
   | "race"
   | "sprint"
@@ -30,6 +32,7 @@ export default function IndexIcon({ name }: { name: IndexIconName }) {
   const car = <><rect x="7" y="14" width="8" height="12" rx="3" fill={ink}/><rect x="33" y="14" width="8" height="12" rx="3" fill={ink}/><rect x="7" y="32" width="8" height="10" rx="3" fill={ink}/><rect x="33" y="32" width="8" height="10" rx="3" fill={ink}/><path d="M12 9h24v5H12zM17 17l4-11h6l4 11-2 17H19zM11 35h26v5H11z" fill={paint}/><path d="M20 22q4-7 8 0l-1 9h-6z" fill={glass}/><path d="M24 8v8M14 11h20M14 37h20" {...details}/></>;
   const portraits = <><path d="M7 42c0-10 7-15 17-15s17 5 17 15" fill={paint}/><circle cx="24" cy="17" r="10" fill={metal}/><path d="M17 14c2-5 9-6 13-2" {...details}/><path d="m17 29 7 8 7-8" fill={ink} opacity=".55"/></>;
   const shapes: Record<IndexIconName, ReactNode> = {
+    home: <><path d="M9 22 24 9l15 13v20H9z" fill={metal}/><path d="m32 18 7 4v20h-7z" fill="#8b6470"/><path d="M33 7h6v12l-6-5z" fill={paint}/><path d="M3 22 24 4l21 18-4 5L24 12 7 27z" fill={paint}/><path d="M7 21 24 7l16 14" {...details}/><path d="M19 28h10v14H19z" fill={glass}/><rect x="13" y="23" width="6" height="6" rx="1" fill={paint}/><circle cx="26" cy="35" r="1" fill="#fff2e8"/><path d="M8 42h32" stroke={metal} strokeWidth="2" strokeLinecap="round"/></>,
     quali: <><path d="M20 4h8v6h-8z" fill={metal}/><path d="m35 12 3-3 4 4-3 3" fill={paint}/><circle cx="24" cy="27" r="17" fill={paint}/><circle cx="24" cy="26" r="13" fill={glass} stroke="#ffcab8" strokeWidth="1.4"/><path d="M24 15v11l7 4" {...details}/><circle cx="24" cy="26" r="2.4" fill="#fff2e8"/><path d="M13 21a12 12 0 0 1 8-7" {...details}/></>,
     race: <><path d="M10 8v34" stroke={metal} strokeWidth="4" strokeLinecap="round"/><path d="M12 8c11-7 16 8 29 1v22c-13 7-18-8-29-1z" fill={metal}/><path d="M12 8v7l7-1V7zm7 6v7l7 3v-8zm7-5v7l7 2v-7zm7 9v7l8-2v-7zm-21 4v8l7-1v-8zm14 2v8l7 2v-9zm7-13v7l8-2V9z" fill={ink}/><path d="M12 8c11-7 16 8 29 1" {...details}/></>,
     sprint: <><path d="m27 3-19 25h14l-3 17 22-28H27z" fill={paint}/><path d="m27 3-5 20H8m14 5-3 17 10-23h12" fill="#fff5cc" opacity=".4"/></>,

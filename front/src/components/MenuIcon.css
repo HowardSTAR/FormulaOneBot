@@ -1,0 +1,54 @@
+.index-menu-icon { isolation: isolate; }
+
+/* Sculpted menu symbols: warm enamel, metal edges and recessed badges. */
+.index-menu-icon {
+    --icon-light: #ffd1af;
+    --icon-color: #ff6259;
+    --icon-dark: #a9132d;
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 15px;
+    background: radial-gradient(ellipse at 25% 0%, #ff8b6830, transparent 65%), linear-gradient(145deg, #362329, #18191f 75%);
+    border: 1px solid #ef766938;
+    box-shadow: inset 0 1px 0 #ffd6b82b, inset 0 -2px 3px #0005, 0 5px 9px #0004;
+}
+.index-menu-icon svg {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    overflow: visible;
+    fill: none;
+    stroke: none;
+}
+.index-icon-object {
+    filter: drop-shadow(0 2px 0 #080a1270) drop-shadow(0 3px 2px #0005);
+    transform-origin: center;
+    transition: transform 180ms ease;
+}
+.menu-item:hover .index-icon-object,
+.menu-item:focus-visible .index-icon-object {
+    transform: translateY(-1px) rotate(-4deg);
+}
+.index-menu-icon.is-favorite,
+.index-menu-icon.is-grid {
+    --icon-light: #fff6ad;
+    --icon-color: #ffc940;
+    --icon-dark: #a96912;
+    background: radial-gradient(ellipse at 25% 0%, #ffdf6230, transparent 65%), linear-gradient(145deg, #363126, #1c1b1b);
+    border-color: #edc24f40;
+}
+.index-menu-icon.is-reaction,
+.index-menu-icon.is-arcade {
+    --icon-light: #baffdf;
+    --icon-color: #4dd6ab;
+    --icon-dark: #12765e;
+    background: radial-gradient(ellipse at 25% 0%, #7dfac530, transparent 65%), linear-gradient(145deg, #20382f, #141e20);
+    border-color: #75deb440;
+}
+@media (prefers-reduced-motion: reduce) {
+    .index-icon-object { transition: none; }
+    .menu-item:hover .index-icon-object,
+    .menu-item:focus-visible .index-icon-object { transform: none; }
+}
+.index-menu-icon { display: inline-grid; place-items: center; flex-shrink: 0; }

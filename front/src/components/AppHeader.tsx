@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuthState } from "../helpers/auth";
+import IndexIcon, { type IndexIconName } from "../pages/index/IndexIcon";
+import "./SidebarIcons.css";
 
 type IconName = "home" | "calendar" | "results" | "drivers" | "teams" | "compare" | "predictions" | "wiki" | "contact" | "games" | "star" | "vote" | "settings" | "account" | "admin";
 
@@ -70,6 +72,14 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 function NavIcon({ name }: { name: IconName }) {
+  const shared: Partial<Record<IconName, IndexIconName>> = {
+    home: "home",
+    calendar: "calendar", results: "race", drivers: "drivers", teams: "teams",
+    compare: "compare", predictions: "predictions", wiki: "wiki", contact: "contact",
+    games: "arcade", star: "favorite", vote: "vote", settings: "settings", account: "account",
+  };
+  const icon = shared[name];
+  if (icon) return <IndexIcon name={icon} />;
   const paths: Record<IconName, React.ReactNode> = {
     home: <><path d="M3 10.5 12 3l9 7.5" /><path d="M5.5 9.5V21h13V9.5" /><path d="M9.5 21v-6h5v6" /></>,
     calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M16 3v4M8 3v4M3 10h18" /></>,
@@ -96,6 +106,12 @@ function NavIcon({ name }: { name: IconName }) {
 }
 
 function SidebarAccordion({ group, pathname }: { group: NavGroup; pathname: string }) {
+  const icons: Record<string, IndexIconName> = {
+    "/practice-results": "quali", "/sprint-quali-results": "quali", "/sprint-results": "sprint",
+    "/quali-results": "quali", "/race-results": "race", "/drivers": "drivers",
+    "/constructors": "teams", "/compare": "compare", "/predictions": "predictions",
+    "/reaction-game": "reaction", "/reflex-grid-game": "grid", "/race-game": "arcade",
+  };
   const active = group.items.some((item) => item.activePaths.includes(pathname));
   const [open, setOpen] = useState(active);
 
@@ -126,7 +142,9 @@ function SidebarAccordion({ group, pathname }: { group: NavGroup; pathname: stri
               aria-current={itemActive ? "page" : undefined}
               tabIndex={expanded ? 0 : -1}
             >
-              <span aria-hidden />
+              <span className="app-header-submenu-icon" aria-hidden>
+                <IndexIcon name={icons[item.to]} />
+              </span>
               {item.label}
             </Link>
           );

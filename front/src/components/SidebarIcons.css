@@ -1,0 +1,22 @@
+@media (min-width: 1024px) {
+  .app-header .app-header-link-icon {
+    width: 32px !important;
+    height: 32px;
+    flex: 0 0 32px;
+  }
+  .app-header .index-menu-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+  .app-header .index-menu-icon svg { width: 24px; height: 24px; stroke: none; }
+  .app-header .app-header-submenu-link > .app-header-submenu-icon {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border-radius: 9px;
+    background: transparent;
+  }
+  .app-header .app-header-submenu-icon .index-menu-icon { width: 28px; height: 28px; }
+  .app-header .app-header-submenu-icon svg { width: 21px; height: 21px; }
+}
