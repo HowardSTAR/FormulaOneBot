@@ -58,6 +58,8 @@ class Database:
         # 1. Таблица пользователей
         from app.auth_schema import ensure_auth_schema
         await ensure_auth_schema(self.conn)
+        from app.services.prediction_analytics import ensure_schema
+        await ensure_schema(self.conn)
         await self.conn.execute("""
             CREATE TABLE IF NOT EXISTS site_visits (
                 visitor_id TEXT NOT NULL,

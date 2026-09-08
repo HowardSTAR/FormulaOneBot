@@ -41,6 +41,7 @@ from app.api.auth_api import (
     router as auth_router,
 )
 from app.api.admin_api import router as admin_router
+from app.api.prediction_analytics_api import router as prediction_analytics_router
 from app.api.site_analytics import router as site_analytics_router
 from app.api.web_notifications_api import router as web_notifications_router
 from app.f1_data import (
@@ -129,6 +130,7 @@ web_app.add_middleware(
 
 web_app.include_router(auth_router)
 web_app.include_router(admin_router)
+web_app.include_router(prediction_analytics_router)
 web_app.include_router(web_notifications_router)
 
 

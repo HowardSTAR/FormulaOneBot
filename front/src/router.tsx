@@ -39,6 +39,7 @@ import {
 import { RequireAdmin } from "./components/RequireAdmin";
 
 const AdminPage = lazy(() => import("./pages/admin/AdminPage"));
+const PredictionAnalyticsPage = lazy(() => import("./pages/prediction-analytics/PredictionAnalyticsPage"));
 
 export const router = createBrowserRouter([
   { path: "/race-game", element: <RaceGamePage /> },
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
       { path: "/", element: <IndexPage /> },
       { path: "/account", element: <AccountPage /> },
       { path: "/compare", element: <ComparePage /> },
+      { path: "/prediction-analytics", element: <RequireAdmin><Suspense fallback={<div role="status">Загрузка аналитики…</div>}><PredictionAnalyticsPage /></Suspense></RequireAdmin> },
       { path: "/constructor-details", element: <ConstructorDetailsPage /> },
       { path: "/team-principal", element: <TeamPrincipalPage /> },
       { path: "/constructors", element: <ConstructorsPage /> },

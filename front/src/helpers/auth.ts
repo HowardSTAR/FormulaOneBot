@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { apiRequest } from "./api";
 
 export function hasTelegramAuth(): boolean {
   const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
@@ -52,7 +53,9 @@ export function useAuthState(): AuthState {
 
   const refresh = useCallback(() => {
     if (telegramMiniApp) {
-      setState({ loaded: true, signedIn: true, personalized: true, telegramMiniApp: true, role: null });
+      void apiRequest<{ role: "admin" | "superadmin" }>("/api/admin/me")
+        .then(({ role }) => setState({ loaded: true, signedIn: true, personalized: true, telegramMiniApp: true, role }))
+        .catch(() => setState({ loaded: true, signedIn: true, personalized: true, telegramMiniApp: true, role: null }));
       return;
     }
     void getWebsiteUser().then((user) => {
@@ -67,6 +70,7 @@ export function useAuthState(): AuthState {
   }, [telegramMiniApp]);
 
   useEffect(() => {
+    if (telegramMiniApp) refresh();
     if (!telegramMiniApp) void getWebsiteUser().then((user) => {
       setState({
         loaded: true,

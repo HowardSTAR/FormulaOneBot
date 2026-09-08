@@ -26,6 +26,7 @@ from app.utils.notifications import (
 )
 from app.services.prediction_notifications import check_and_notify_predictions
 from app.services.web_notifications import poll_web_notifications
+from app.services.prediction_analytics import settle_forecasts
 
 
 # --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
@@ -113,6 +114,8 @@ async def main():
 
     # 4. Настраиваем ОДИН планировщик задач
     scheduler = AsyncIOScheduler(timezone="UTC")
+    scheduler.add_job(settle_forecasts, "interval", minutes=10,
+                      id="prediction_analytics_settlement", max_instances=1, coalesce=True)
 
     scheduler.add_job(create_backup, 'interval', hours=24)
     scheduler.add_job(

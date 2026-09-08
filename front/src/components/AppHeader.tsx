@@ -113,6 +113,7 @@ function SidebarAccordion({ group, pathname }: { group: NavGroup; pathname: stri
     "/practice-results": "quali", "/sprint-quali-results": "quali", "/sprint-results": "sprint",
     "/quali-results": "quali", "/race-results": "race", "/drivers": "drivers",
     "/constructors": "teams", "/compare": "compare", "/predictions": "predictions",
+    "/prediction-analytics": "predictions",
     "/reaction-game": "reaction", "/reflex-grid-game": "grid", "/race-game": "arcade",
   };
   const active = group.items.some((item) => item.activePaths.includes(pathname));
@@ -189,7 +190,9 @@ export function AppHeader() {
           );
         })}
         {NAV_GROUPS.slice(0, 3).map((group) => (
-          <SidebarAccordion key={group.id} group={group} pathname={pathname} />
+          <SidebarAccordion key={group.id} group={group.id === "analytics" && (auth.role === "admin" || auth.role === "superadmin")
+            ? { ...group, items: [...group.items, { to: "/prediction-analytics", label: "Аналитика предсказаний", activePaths: ["/prediction-analytics"] }] }
+            : group} pathname={pathname} />
         ))}
         {PRIMARY_NAV_ITEMS.slice(2).map((item) => {
           const active = isActive(item.activePaths);
