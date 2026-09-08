@@ -19,6 +19,11 @@ const path = require('node:path');
         scenarios: ['Победа фаворита', 'Победа преследователя', 'Неожиданный победитель'].map((label, i) => ({ label, probability: [.55, .3, .15][i], why: 'Синтетический сценарий для проверки вёрстки. Не реальный прогноз.', top5: drivers })) },
       inputs: { history: [{ name: 'Прошлый этап', season: 2025, round: 4 }], weather: { available: true, rain: .3, temperature: 23, wind: 9, hour: '2026-09-09T14:00' }, news_available: false, news: [] },
     } };
+    snapshot.payload.inputs.coverage = { requested_years: [2022,2023,2024,2025,2026], loaded_years: [2022,2023,2024,2025,2026], races: 104, qualifying: 104, observations: 4160, unavailable: [] };
+    for (const d of snapshot.payload.model.drivers) {
+      d.factors = [{ key: 'long', label: 'Долгосрочная форма', value: .7, weight: .2, contribution: .04, samples: 92, effective_samples: 25 }, { key: 'recent', label: 'Последние 6 выступлений', value: .8, weight: .22, contribution: .066, samples: 6, effective_samples: 4 }];
+      d.timeline = [{ season: 2026, round: 9, name: 'Тестовая гонка', position: 2, dnf: false, team: d.team }];
+    }
     let admin = true;
     await page.route('**/api/**', route => {
       const url = new URL(route.request().url());
@@ -31,11 +36,16 @@ const path = require('node:path');
     await page.goto('http://127.0.0.1:5173/prediction-analytics');
     await page.getByRole('button', { name: /Этап 10/ }).click();
     await page.getByRole('heading', { name: 'Вероятности по пилотам' }).waitFor();
+    await page.getByRole('heading', { name: 'Глубина истории' }).waitFor();
+    await page.locator('.pa-driver-select select').selectOption('D1');
+    assert.equal(await page.locator('.pa-factors article').count(), 2);
     await page.locator('summary').filter({ hasText: 'Lando Norris' }).click();
     await page.getByText('Проверка пояснения модели').first().waitFor();
-    await page.screenshot({ path: path.resolve('artifacts/prediction-analytics-desktop.png'), fullPage: true });
+    await page.locator('.pa-factors').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.resolve('artifacts/prediction-analytics-v2-desktop.png') });
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.screenshot({ path: path.resolve('artifacts/prediction-analytics-mobile.png'), fullPage: true });
+    await page.locator('.pa-factors').scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.resolve('artifacts/prediction-analytics-v2-mobile.png') });
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'No viewport horizontal overflow');
     admin = false;
     await page.reload();

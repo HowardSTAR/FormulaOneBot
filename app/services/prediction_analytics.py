@@ -15,6 +15,7 @@ import httpx
 from app.db import db
 from app.f1_data import get_season_schedule_short_async, get_practice_results_async
 from app.services.prediction_model import simulate, evaluate
+from app.services.prediction_history import load_history
 
 logger = logging.getLogger(__name__)
 RESULTS_URL = "https://api.jolpi.ca/ergast/f1"
@@ -41,6 +42,7 @@ def timestamp(value) -> float:
 
 
 async def ensure_schema(conn):
+    await conn.execute("CREATE TABLE IF NOT EXISTS prediction_history_cache (key TEXT PRIMARY KEY, payload TEXT NOT NULL, fetched_at REAL NOT NULL)")
     await conn.execute("""CREATE TABLE IF NOT EXISTS prediction_analytics (
         id TEXT PRIMARY KEY, season INTEGER NOT NULL, round INTEGER NOT NULL,
         session TEXT NOT NULL, created_at REAL NOT NULL, created_by INTEGER NOT NULL,
@@ -60,6 +62,10 @@ async def classification(client, season, round_number, session):
     race = races[0]
     if int(race.get("season", 0)) != season or int(race.get("round", 0)) != round_number:
         return []
+    return normalize_classification(race, session)
+
+
+def normalize_classification(race, session):
     rows = []
     for r in race.get("Results" if session == "race" else "QualifyingResults", []):
         driver = r.get("Driver", {})
@@ -74,7 +80,8 @@ async def classification(client, season, round_number, session):
         rows.append({"code": code, "name": f"{driver.get('givenName', '')} {driver.get('familyName', '')}".strip(),
                      "team": r.get("Constructor", {}).get("name", ""), "position": position,
                      "dnf": session == "race" and status != "Finished" and not status.startswith("+"),
-                     "status": status})
+                     "status": status, "grid": int(r.get("grid") or 0),
+                     "driver_id": driver.get("driverId"), "team_id": r.get("Constructor", {}).get("constructorId")})
     # Never settle a live/partial top-ten table.
     if len(rows) < 18 or len({r["code"] for r in rows}) != len(rows):
         return []
@@ -131,26 +138,12 @@ async def build_forecast(season, round_number, session):
     start = timestamp(event.get("race_start_utc" if session == "race" else "quali_start_utc"))
     if start <= cutoff:
         raise ValueError("Сессия началась или время старта неизвестно. Новый прогноз запрещён")
-    previous = await get_season_schedule_short_async(season - 1)
-    candidates = [(season, e) for e in schedule if timestamp(e.get("race_start_utc")) and timestamp(e["race_start_utc"]) < cutoff - 4 * 3600]
-    candidates += [(season - 1, e) for e in previous if timestamp(e.get("race_start_utc")) and timestamp(e["race_start_utc"]) < cutoff - 4 * 3600]
-    candidates = sorted((x for x in candidates if not x[1].get("is_cancelled")), key=lambda x: timestamp(x[1]["race_start_utc"]), reverse=True)
-    selected = candidates[:6]
-    circuit = next((x for x in candidates if x[1].get("location") == event.get("location") and x not in selected), None)
-    if circuit:
-        selected.append(circuit)
     warnings, history = [], []
     async with httpx.AsyncClient(timeout=12, follow_redirects=True) as client:
-        for age, (year, past) in enumerate(selected):
-            try:
-                rows = await classification(client, year, int(past["round"]), session)
-            except (httpx.HTTPError, ValueError):
-                rows = []
-            if rows:
-                history.append({"season": year, "round": past["round"], "name": past["event_name"],
-                                "weight": .85 ** age * (1 if year == season else .65), "rows": rows,
-                                "circuit": past.get("location") == event.get("location")})
-        if len(history) < 3:
+        history, coverage = await load_history(client, season, event, cutoff, normalize_classification, timestamp)
+        if coverage["unavailable"]:
+            warnings.append("Часть архива недоступна. Фактическое покрытие показано ниже; отсутствующие данные не выдумываются")
+        if sum(h["session"] == session for h in history) < 3:
             raise ValueError("Нужно хотя бы 3 полные прошлые классификации. Источник пока не вернул достаточно данных")
         # Roster from an explicitly current-year entry list, never previous year's finishers.
         response = await client.get(f"{RESULTS_URL}/{season}/{round_number}/drivers/", params={"limit": 100})
@@ -161,12 +154,14 @@ async def build_forecast(season, round_number, session):
             recent = next((h for h in history if h["season"] == season), None)
             if not recent:
                 raise ValueError("Нет подтверждённого состава текущего сезона; прогноз пока недоступен")
-            roster = [{k: r[k] for k in ("code", "name", "team")} for r in recent["rows"]]
+            roster = [{k: r.get(k) for k in ("code", "name", "team", "driver_id", "team_id")} for r in recent["rows"]]
             warnings.append("Состав взят из последней сессии сезона: возможные замены пилотов ещё не учтены")
         else:
-            teams = {r["code"]: r["team"] for h in reversed(history) for r in h["rows"]}
+            teams = {r["code"]: r for h in reversed(history) for r in h["rows"]}
             roster = [{"code": d.get("code") or d["driverId"], "name": f"{d['givenName']} {d['familyName']}",
-                       "team": teams.get(d.get("code") or d["driverId"], "Неизвестно")} for d in entrants]
+                       "driver_id": d["driverId"],
+                       "team": teams.get(d.get("code") or d["driverId"], {}).get("team", "Неизвестно"),
+                       "team_id": teams.get(d.get("code") or d["driverId"], {}).get("team_id")} for d in entrants]
         current, current_label = [], "Недоступна"
         if session == "race" and 0 < timestamp(event.get("quali_start_utc")) < cutoff - 2 * 3600:
             try:
@@ -188,7 +183,7 @@ async def build_forecast(season, round_number, session):
         context = await context_data(client, event, start, cutoff)
     if time.time() >= start:
         raise ValueError("Во время расчёта сессия началась. Прогноз не сохранён")
-    inputs = {"roster": roster, "history": history, "current": current, **context}
+    inputs = {"roster": roster, "history": history, "current": current, "coverage": coverage, **context}
     seed = int(hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()[:8], 16)
     model = simulate(roster, history, session, current, context["weather"].get("rain"), seed, news=context["news"])
     return {"event": event, "season": season, "session": session, "start_at": start, "cutoff": cutoff,

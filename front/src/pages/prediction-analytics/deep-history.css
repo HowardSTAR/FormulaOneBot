@@ -1,0 +1,13 @@
+.pa-driver-select { display:flex;align-items:center;gap:14px;flex-wrap:wrap }
+.pa-driver-select select { background:#1c1d25;color:#fff;border:1px solid #434450;border-radius:9px;padding:12px;font:inherit;max-width:100% }
+.pa-factors { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:22px 0 }
+.pa-factors article { background:#1c1e26;border:1px solid #33343e;padding:16px;border-radius:12px }
+.pa-factors article>div { display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px }
+.pa-factors small { display:block;font-size:11px;color:#a6a7b3;line-height:1.6 }
+.pa-factors meter { width:100%;height:8px;margin:12px 0 }
+.pa-positive { color:#79dcb0 }.pa-negative { color:#ff9185 }
+.pa-timeline { display:flex;gap:10px;overflow-x:auto;padding-bottom:12px }
+.pa-timeline>div { flex:0 0 135px;background:#1c1e26;border-top:2px solid #f35c55;padding:12px }
+.pa-timeline strong { display:block;font-size:22px }.pa-timeline small,.pa-timeline span { display:block;color:#a6a7b3;font-size:11px;margin-top:8px }
+.pa-archive { max-height:320px;overflow:auto }.pa-archive li { padding:5px 0 }
+@media(max-width:760px) { .pa-factors { grid-template-columns:1fr } }

@@ -3,8 +3,9 @@ from __future__ import annotations
 
 import numpy as np
 import re
+from app.services.prediction_factors import features
 
-MODEL_VERSION = "rank-monte-carlo-v1"
+MODEL_VERSION = "deep-history-monte-carlo-v2"
 
 
 def simulate(roster: list[dict], history: list[dict], session: str,
@@ -17,30 +18,14 @@ def simulate(roster: list[dict], history: list[dict], session: str,
         raise ValueError("Повторяющиеся участники")
     n = len(codes)
     ratings, reliability, explanations, news_noise = [], [], [], []
-    current_map = {r["code"]: r["position"] for r in current}
+    diagnostics = []
     for driver in roster:
-        personal, team, circuit = [], [], []
-        failures, starts = 0, 0
-        for event in history:
-            for row in event["rows"]:
-                value = 1 - (row["position"] - 1) / max(1, len(event["rows"]) - 1)
-                weight = event["weight"]
-                if row["team"] == driver["team"]:
-                    team.append((value, weight))
-                if row["code"] == driver["code"]:
-                    personal.append((value, weight))
-                    if event.get("circuit"):
-                        circuit.append((value, weight))
-                    if session == "race":
-                        starts += 1
-                        failures += int(row.get("dnf", False))
-        def average(values):
-            # Two neutral pseudo-observations shrink sparse/new-driver samples.
-            return (1 + sum(v * w for v, w in values)) / (2 + sum(w for _, w in values))
-        p, t, c = average(personal), average(team), average(circuit)
-        rating = .60 * p + .30 * t + .10 * c
-        reasons = [f"Форма пилота {p:.2f}, команды {t:.2f}, трассы {c:.2f} (шкала 0–1)",
-                   f"Исторических выступлений: {len(personal)}; малые выборки сглажены"]
+        diagnostic = features(driver, history, session, current)
+        diagnostics.append(diagnostic)
+        rating = diagnostic["rating"]
+        strongest = sorted(diagnostic["factors"], key=lambda f: abs(f["contribution"]), reverse=True)[:3]
+        reasons = [f"{f['label']}: {f['value']:.2f}/1; вес {f['weight']:.0%}, наблюдений {f['samples']}" for f in strongest]
+        reasons.append(f"Выступлений в архиве: {diagnostic['starts']}. Недостающие факторы сглажены к нейтральной оценке")
         surname = driver["name"].split()[-1]
         mentions = [item for item in (news or [])
                     if re.search(r"\b" + re.escape(surname) + r"\b", item["title"], re.I)
@@ -48,17 +33,10 @@ def simulate(roster: list[dict], history: list[dict], session: str,
         # Headlines cannot establish facts or direction of performance. A disclosed,
         # capped sensitivity heuristic broadens uncertainty, never assigns penalties.
         multiplier = 1 + .05 * min(3, len({item["url"] for item in mentions}))
-        news_noise.append(multiplier)
+        news_noise.append(multiplier * diagnostic["noise"])
         if mentions:
             reasons.append(f"Новостные упоминания риска: {len(mentions)}; разброс +{(multiplier - 1):.0%}. Это сигнал заголовка, не подтверждённый штраф или поломка")
-        if driver["code"] in current_map:
-            position = current_map[driver["code"]]
-            strength = 1 - (position - 1) / max(1, len(current) - 1)
-            weight = .30 if session == "race" else .12
-            rating = (1 - weight) * rating + weight * strength
-            reasons.append(f"Последняя доступная сессия уикенда: P{position}, вес {weight:.0%}")
-        # Beta(1,9) prior: 10% before observations. Includes all non-finishes.
-        reliability.append((failures + 1) / (starts + 10) if session == "race" else 0)
+        reliability.append(diagnostic["reliability"])
         ratings.append(rating)
         explanations.append(reasons)
     rng = np.random.default_rng(seed)
@@ -78,7 +56,9 @@ def simulate(roster: list[dict], history: list[dict], session: str,
                        "top10": float(np.mean(positions[:, i] <= 10)),
                        "expected": float(np.mean(positions[:, i])),
                        "range": np.quantile(positions[:, i], [.1, .9]).astype(int).tolist(),
-                       "dnf": float(np.mean(dnf[:, i])), "reasons": explanations[i]})
+                       "dnf": float(np.mean(dnf[:, i])), "reasons": explanations[i],
+                       "factors": diagnostics[i]["factors"], "timeline": diagnostics[i]["timeline"],
+                       "consistency": diagnostics[i]["consistency"]})
     favorites = np.argsort(-ratings)
     scenarios = []
     # Disjoint winner groups. A sample top-five is not an exact-order probability.

@@ -96,6 +96,8 @@ async def test_build_uses_only_past_sessions_and_preserves_sources(monkeypatch):
     roster, rows, _ = sample()
     classify = AsyncMock(return_value=rows)
     monkeypatch.setattr(service, "classification", classify)
+    histories = [{"season": 2026, "round": e["round"], "name": e["event_name"], "session": "race", "weight": 1, "rows": rows} for e in past]
+    monkeypatch.setattr(service, "load_history", AsyncMock(return_value=(histories, {"unavailable": [], "races": 4, "qualifying": 0})))
     context = {"weather": {"available": False}, "news": [], "news_available": False}
     monkeypatch.setattr(service, "context_data", AsyncMock(return_value=context))
     client = AsyncMock()
