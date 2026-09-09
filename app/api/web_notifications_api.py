@@ -13,9 +13,11 @@ async def inbox(before: int = Query(0, ge=0), user_id: int = Depends(require_hyb
         await initialize(conn)
         await conn.execute("INSERT OR IGNORE INTO web_notification_members VALUES(?,?)", (user_id,time.time()))
         await conn.commit()
-        rows = await (await conn.execute("SELECT id,title,body,url,created_at,read_at FROM web_notifications WHERE user_id=? AND (?=0 OR id<?) ORDER BY id DESC LIMIT 31", (user_id,before,before))).fetchall()
-        unread = await (await conn.execute("SELECT COUNT(*) FROM web_notifications WHERE user_id=? AND read_at IS NULL", (user_id,))).fetchone()
-        return {"items":[dict(r) for r in rows[:30]], "next_before":rows[29]["id"] if len(rows)>30 else None, "unread":unread[0], "push":push_config()}
+        visible = "(event_key NOT LIKE 'admin-error:%' OR EXISTS(SELECT 1 FROM users u WHERE u.id=web_notifications.user_id AND u.role IN ('admin','superadmin') AND u.archived_at IS NULL))"
+        rows = await (await conn.execute(f"SELECT id,title,body,url,created_at,read_at,event_key FROM web_notifications WHERE user_id=? AND (?=0 OR id<?) AND {visible} ORDER BY id DESC LIMIT 31", (user_id,before,before))).fetchall()
+        unread = await (await conn.execute(f"SELECT COUNT(*) FROM web_notifications WHERE user_id=? AND read_at IS NULL AND {visible}", (user_id,))).fetchone()
+        items = [{**{k:r[k] for k in r.keys() if k != 'event_key'}, "priority": r["event_key"].split(":")[1] if r["event_key"].startswith("admin-error:") else None} for r in rows[:30]]
+        return {"items":items, "next_before":rows[29]["id"] if len(rows)>30 else None, "unread":unread[0], "push":push_config()}
 
 class ReadBody(BaseModel):
     through_id: int = Field(ge=1)

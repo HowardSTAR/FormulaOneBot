@@ -116,7 +116,7 @@ async def dispatch_push(*, not_before: float):
         # Drop old pending pushes on restart; inbox history remains available.
         await conn.execute("UPDATE web_push_outbox SET done=1 WHERE notification_id IN (SELECT id FROM web_notifications WHERE created_at<?)", (max(not_before, now-3600),))
         await conn.commit()
-        jobs = await (await conn.execute("""SELECT o.notification_id,o.subscription_id,o.attempts,s.subscription,n.title,n.body,n.url
+        jobs = await (await conn.execute("""SELECT o.notification_id,o.subscription_id,o.attempts,s.subscription,n.title,n.body,n.url,n.event_key,n.user_id
           FROM web_push_outbox o JOIN web_push_subscriptions s ON s.id=o.subscription_id
           JOIN web_notifications n ON n.id=o.notification_id
           WHERE o.done=0 AND o.attempts<4 AND o.next_attempt<=? ORDER BY n.id LIMIT 30""", (now,))).fetchall()
@@ -127,6 +127,12 @@ async def dispatch_push(*, not_before: float):
 
             if not claim.rowcount:
                 continue
+            if job["event_key"].startswith("admin-error:"):
+                allowed = await (await conn.execute("SELECT 1 FROM users WHERE id=? AND role IN ('admin','superadmin') AND archived_at IS NULL", (job["user_id"],))).fetchone()
+                if not allowed:
+                    await conn.execute("UPDATE web_push_outbox SET done=1 WHERE notification_id=? AND subscription_id=?", (job[0], job[1]))
+                    await conn.commit()
+                    continue
             done = False
             try:
                 subscription = json.loads(job["subscription"])

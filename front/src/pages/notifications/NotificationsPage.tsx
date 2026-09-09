@@ -4,7 +4,8 @@ import { apiRequest } from "../../helpers/api";
 import { BackButton } from "../../components/BackButton";
 import "./notifications.css";
 
-type Item = { id: number; title: string; body: string; url: string; created_at: number; read_at: number | null };
+type Item = { id: number; title: string; body: string; url: string; created_at: number; read_at: number | null; priority?: "minimal" | "low" | "medium" | "critical" | "blocking" | null };
+const priorityNames = { minimal: "Минимальный", low: "Низкий", medium: "Средний", critical: "Критический", blocking: "Блокирующий" };
 type Inbox = { items: Item[]; unread: number; next_before: number | null; push: { enabled: boolean; public_key: string } };
 function keyBytes(key: string) {
   const value = atob(key.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4-key.length%4)%4));
@@ -117,6 +118,7 @@ export default function NotificationsPage() {
       <div className="notifications-toolbar"><span>Непрочитанных: {data.unread}</span><button disabled={!data.unread} onClick={markRead}>Прочитать все</button></div>
       {!data.items.length && <p className="notifications-empty">Здесь появятся новые события. Прошедшие уведомления не рассылаются повторно.</p>}
       {data.items.map(item => <article key={item.id} className={item.read_at ? "" : "is-unread"}>
+        {item.priority && <span className={`notification-priority priority-${item.priority}`}>{priorityNames[item.priority]} приоритет</span>}
         <time>{new Date(item.created_at*1000).toLocaleString("ru-RU")}</time><h2>{item.title}</h2><p>{item.body}</p>
         <Link to={item.url}>Открыть →</Link>
       </article>)}

@@ -16,8 +16,8 @@ def subscription(endpoint="https://fcm.googleapis.com/fcm/send/test"):
 async def store(tmp_path, monkeypatch):
     monkeypatch.setattr(service, "db", SimpleNamespace(db_path=tmp_path/"notifications.db"))
     async with service.connection() as conn:
-        await conn.executescript("""CREATE TABLE users(id INTEGER PRIMARY KEY,archived_at TEXT);
-        INSERT INTO users VALUES(1,NULL),(2,NULL);
+        await conn.executescript("""CREATE TABLE users(id INTEGER PRIMARY KEY,archived_at TEXT,role TEXT DEFAULT 'user');
+        INSERT INTO users(id,archived_at) VALUES(1,NULL),(2,NULL);
         CREATE TABLE favorite_drivers(user_id INTEGER,driver_code TEXT);
         CREATE TABLE favorite_teams(user_id INTEGER,constructor_name TEXT);
         INSERT INTO favorite_drivers VALUES(1,'NOR');""")

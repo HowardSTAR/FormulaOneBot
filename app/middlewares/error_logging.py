@@ -1,11 +1,9 @@
 import logging
-import traceback
 from typing import Callable, Dict, Any, Awaitable
 from aiogram import BaseMiddleware, Bot
-from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import TelegramObject, Update
 
-from app.admin_config import get_primary_admin_telegram_id
+from app.services.error_alerts import report_error, priority_for
 from app.utils.safe_send import safe_send_message
 from app.db import db
 from app.services.activity_service import record_telegram_activity
@@ -35,55 +33,33 @@ class ErrorLoggingMiddleware(BaseMiddleware):
                 )
             return await handler(event, data)
         except Exception as e:
-            if isinstance(e, TelegramBadRequest):
-                msg = str(e).lower()
-                if "query is too old" in msg or "query id is invalid" in msg:
-                    logger.warning("Ignored stale callback query error: %s", e)
-                    return None
+            priority = priority_for(e)
             # 1. Получаем информацию о пользователе и чате
-            user_id = "unknown"
             chat_id = None
 
             if isinstance(event, Update):
                 if event.message:
-                    user_id = event.message.from_user.username
                     chat_id = event.message.chat.id
                 elif event.callback_query:
-                    user_id = event.callback_query.from_user.username
                     # Если это callback, сообщение может быть старым, но чат тот же
                     if event.callback_query.message:
                         chat_id = event.callback_query.message.chat.id
 
             # 2. Логируем ошибку в файл
-            logger.exception(
-                f"CRITICAL ERROR handling update {event.update_id if isinstance(event, Update) else '?'} from user {user_id}")
+            logger.log(logging.CRITICAL if priority == "blocking" else logging.ERROR if priority in ("medium", "critical") else logging.WARNING,
+                       "Bot update failed: priority=%s type=%s", priority, type(e).__name__, exc_info=True)
 
             bot: Bot = data.get("bot")
-            admin_id = get_primary_admin_telegram_id()
 
             # 3. Уведомление АДМИНУ
-            if bot and admin_id:
-                try:
-                    tb_list = traceback.format_exception(type(e), e, e.__traceback__)
-                    short_tb = "".join(tb_list[-3:])
-
-                    text_admin = (
-                        f"🚨 <b>BOT CRITICAL ERROR!</b>\n\n"
-                        f"👤 User: @{user_id}\n"
-                        f"💀 Error: {str(e)}\n\n"
-                        f"<pre>{short_tb}</pre>"
-                    )
-                    await safe_send_message(bot, admin_id, text_admin)
-                except Exception as send_err:
-                    logger.error(f"Failed to send error notification to admin: {send_err}")
+            await report_error(e, bot=bot, priority=priority)
 
             # 4. Уведомление ПОЛЬЗОВАТЕЛЮ (Новая часть)
-            if bot and chat_id:
+            if bot and chat_id and priority != "minimal":
                 try:
                     text_user = (
                         "😔 <b>Произошла ошибка.</b>\n\n"
-                        "Я уже отправил автоматический отчет администратору.\n"
-                        "Мы скоро всё починим!"
+                        "Не удалось выполнить запрос. Попробуйте немного позже."
                     )
                     await safe_send_message(bot, chat_id, text_user)
                 except Exception:

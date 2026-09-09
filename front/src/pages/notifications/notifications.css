@@ -16,3 +16,5 @@
 .notifications-help p { margin: 7px 0 0; }
 .notifications-install-guide { margin-top: 14px; color: #d8d8df; }
 .notifications-install-guide summary { cursor: pointer; font-weight: 700; }
+.notification-priority { display:block;width:fit-content;padding:6px 10px;border:1px solid currentColor;border-radius:8px;font-size:12px;font-weight:700;margin-bottom:12px }
+.priority-minimal { color:#a9b2c3 }.priority-low { color:#e5cf77 }.priority-medium { color:#ffad67 }.priority-critical { color:#ff7777 }.priority-blocking { color:#ffd2f6;background:#642646 }
