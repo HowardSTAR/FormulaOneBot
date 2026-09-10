@@ -1,4 +1,5 @@
 import { GlossaryText } from "../../components/GlossaryText";
+import { DriverPicker, type PickerDriver } from "../../components/DriverPicker";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -6,7 +7,7 @@ import { apiRequest } from "../../helpers/api";
 import { getWebsiteUser, hasTelegramAuth } from "../../helpers/auth";
 import "./predictions.css";
 
-type Driver = { code: string; name: string };
+type Driver = PickerDriver;
 type Prediction = {
   sprint_pole_driver: string;
   sprint_winner_driver: string;
@@ -292,22 +293,19 @@ export default function PredictionsPage() {
 
               <div className="prediction-grid">
                 {driverFields.map(({ key, label, marker }) => (
-                  <label key={key} className="prediction-field">
+                  <div key={key} className="prediction-field">
                     <span className="prediction-field-marker">{marker}</span>
                     <span className="prediction-field-copy">{label}</span>
-                    <select
+                    <DriverPicker label={label} season={current.season}
                       value={String(form[key] ?? "")}
                       disabled={!current.is_open}
-                      onChange={(event) => setForm({ ...form, [key]: event.target.value })}
-                    >
-                      <option value="">Выберите пилота</option>
-                      {current.drivers.map((driver) => {
+                      onChange={(code) => setForm({ ...form, [key]: code })}
+                      drivers={current.drivers.map((driver) => {
                         const isPlacement = ["winner_driver", "second_driver", "third_driver", "fourth_driver", "fifth_driver"].includes(key);
                         const disabled = isPlacement && selectedTopFive.has(driver.code) && form[key] !== driver.code;
-                        return <option key={driver.code} value={driver.code} disabled={disabled}>{driver.name} · {driver.code}</option>;
-                      })}
-                    </select>
-                  </label>
+                        return { ...driver, disabled };
+                      })} />
+                  </div>
                 ))}
 
                 <fieldset className="prediction-field prediction-safety-car" disabled={!current.is_open}>

@@ -193,7 +193,8 @@ async def get_prediction_drivers(season: int) -> list[dict[str, str]]:
         family = str(row.get("familyName") or row.get("LastName") or "").strip()
         name = f"{given} {family}".strip() or code
         seen.add(code)
-        result.append({"code": code, "name": name})
+        result.append({"code": code, "name": name,
+                       "constructorName": str(row.get("constructorName") or row.get("TeamName") or "")})
     return result
 
 

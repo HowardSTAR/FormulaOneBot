@@ -1,0 +1,32 @@
+.driver-picker { min-width: 0; width: 100%; grid-column: 2; }
+.voting-drivers > .driver-picker { grid-column: 1 / -1; }
+.driver-picker-trigger { width: 100%; min-height: 54px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid #42454f; border-radius: 12px; background: #191c23; color: #f5f5f7; text-align: left; font: inherit; cursor: pointer; }
+.driver-picker-trigger > span:nth-last-child(2) { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.driver-picker-trigger:disabled { opacity: .5; cursor: default; }
+.driver-picker-avatar { display: grid; place-items: center; flex: 0 0 46px; width: 46px; height: 48px; overflow: hidden; border-radius: 9px; background: #30333d; font-size: 12px; color: #ccc; }
+.driver-picker-avatar img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.driver-picker-overlay { position: fixed; inset: 0; z-index: 10000; background: #0005; }
+.driver-picker-panel { position: fixed; display: flex; flex-direction: column; box-sizing: border-box; padding: 16px; border: 1px solid #444650; border-radius: 18px; color: #f5f5f7; background: #1b1e25; box-shadow: 0 20px 65px #0009; animation: driver-picker-in .16s ease-out; }
+.driver-picker-panel header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.driver-picker-panel h2 { margin: 0 0 4px; font-size: 20px; }
+.driver-picker-panel small { color: #b2b6c1; font-size: 12px; }
+.driver-picker-panel header button { border: 0; background: transparent; color: #ddd; width: 44px; height: 44px; font-size: 28px; cursor: pointer; }
+.driver-picker-search { flex-shrink: 0; min-width: 0; padding: 12px; border-radius: 10px; border: 1px solid #535763; background: #15171d; color: white; font-size: 16px; margin-bottom: 12px; }
+.driver-picker-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.driver-picker-option { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px; margin-bottom: 6px; border: 1px solid #343740; border-radius: 12px; background: #22252d; color: white; text-align: left; cursor: pointer; }
+.driver-picker-option.is-selected { border-color: #ff2922; background: #361e24; }
+.driver-picker-option:disabled { opacity: .4; cursor: not-allowed; }
+.driver-picker-name { flex: 1; min-width: 0; }
+.driver-picker-name strong, .driver-picker-name small { display: block; overflow-wrap: anywhere; }
+.driver-picker-name small { margin-top: 4px; }
+.driver-picker-code { font-size: 12px; color: #bac0cf; }
+.driver-picker-option > span:last-child { width: 14px; color: #ff342b; }
+.driver-picker-option:focus-visible, .driver-picker-trigger:focus-visible { outline: 2px solid #ff5b53; outline-offset: -2px; }
+.driver-picker-handle { display: none; }
+@keyframes driver-picker-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 700px) {
+  .driver-picker-panel { top: auto !important; left: 0 !important; bottom: 0; width: 100% !important; max-height: 85dvh !important; padding-bottom: max(16px, env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; }
+  .driver-picker-handle { display: block; width: 38px; height: 4px; border-radius: 4px; background: #727781; margin: 0 auto 14px; flex-shrink: 0; }
+  .driver-picker-option { min-height: 68px; }
+}
+@media (prefers-reduced-motion: reduce) { .driver-picker-panel { animation: none; } }

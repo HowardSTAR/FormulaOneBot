@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
+import { DriverPicker, type PickerDriver } from "../../components/DriverPicker";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
 import { hapticSelection } from "../../helpers/telegram";
@@ -11,7 +12,7 @@ Chart.register(...registerables);
 const currentRealYear = new Date().getFullYear();
 
 type Race = { round: number; event_name: string; location: string; date: string; race_start_utc?: string };
-type DriverOption = { code: string; name: string };
+type DriverOption = PickerDriver;
 type SeasonResponse = { races?: Race[] };
 type DriversResponse = { drivers?: DriverOption[] };
 type VotesResponse = { race_votes: Record<number, number>; driver_votes: Record<number, string> };
@@ -398,18 +399,9 @@ function VotingPage() {
                               Голосование закрыто (00:00 МСК, третий день после гонки)
                             </div>
                           )}
-                          {!driverVotingClosed &&
-                            drivers.map((d) => (
-                              <button
-                                key={d.code}
-                                type="button"
-                                className={`driver-vote-btn ${myDriverVote === d.code ? "active" : ""}`}
-                                onClick={() => handleDriverVote(race.round, d.code)}
-                                disabled={isSaving}
-                              >
-                                {d.code} — {d.name}
-                              </button>
-                            ))}
+                          {!driverVotingClosed && <DriverPicker label="Пилот дня" season={year} drivers={drivers}
+                            value={myDriverVote || ""} disabled={isSaving}
+                            onChange={code => { void handleDriverVote(race.round, code); }} />}
                         </div>
                       )}
                     </div>
