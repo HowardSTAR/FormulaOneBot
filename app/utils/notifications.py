@@ -85,12 +85,17 @@ def format_time_left(minutes_left: int) -> str:
     return f"Через {' '.join(parts)}"
 
 
+from app.session_reminders import session_enabled
+
+
 def _event_reminder_key(event_kind: str, notify_before: int) -> tuple[bool, int]:
     """
     Возвращает (is_quali, notify_key) для дедупликации.
     В БД есть только is_quali + notify_before_min, поэтому для спринт-событий используем смещение.
     """
     base = int(notify_before)
+    if event_kind in ("practice1", "practice2", "practice3"):
+        return False, base + 2000 * (int(event_kind[-1]) + 1)
     if event_kind == "quali":
         return True, base
     if event_kind == "sprint":
@@ -117,6 +122,9 @@ def get_notification_text(
         "quali": "quali_start_utc",
         "sprint": "sprint_start_utc",
         "sprint_quali": "sprint_quali_start_utc",
+        "practice1": "practice1_start_utc",
+        "practice2": "practice2_start_utc",
+        "practice3": "practice3_start_utc",
     }
     dt_key = dt_key_map.get(event_kind, "race_start_utc")
     dt_str = race.get(dt_key) or race.get("race_start_utc")
@@ -133,6 +141,11 @@ def get_notification_text(
 
     time_suffix = " (UTC)" if user_tz_name == "UTC" else " (по вашему времени)"
     time_line = "" if for_group else f"⏰ Начало в {start_time_str}{time_suffix}\n"
+    if event_kind in ("practice1", "practice2", "practice3"):
+        return (f"🏎 Скоро свободные заезды — FP{event_kind[-1]}!\n\n"
+                f"{format_time_left(minutes_left)} старт: {event_name}\n"
+                f"📍 Трасса: {race.get('location', '')}\n"
+                f"📅 Дата: {start_date_str}\n{time_line}")
 
     if event_kind == "quali":
         return (
@@ -172,14 +185,14 @@ async def get_users_with_settings(notifications_only: bool = False):
     if not db.conn: await db.connect()
     try:
         q = (
-            "SELECT telegram_id, timezone, notify_before, notifications_enabled "
-            "FROM users WHERE telegram_id IS NOT NULL"
+            "SELECT telegram_id, timezone, notify_before, notifications_enabled, reminder_sessions "
+            "FROM users WHERE telegram_id IS NOT NULL AND archived_at IS NULL"
         )
         if notifications_only:
             q += " AND notifications_enabled = 1"
         async with db.conn.execute(q) as cursor:
             rows = await cursor.fetchall()
-            return [(r[0], r[1], r[2], r[3] if len(r) > 3 else False) for r in rows]
+            return [tuple(r) for r in rows]
     except Exception as e:
         logger.error(f"Error fetching settings: {e}")
         return []
@@ -196,6 +209,19 @@ async def check_and_send_notifications(bot: Bot):
     upcoming_event = []  # (race_dict, minutes_left, event_kind)
 
     for r in schedule:
+        if r.get("is_cancelled"):
+            continue
+        if not r.get("is_testing"):
+            for kind in ("practice1", "practice2", "practice3"):
+                try:
+                    start = datetime.fromisoformat(r.get(f"{kind}_start_utc") or "")
+                    if start.tzinfo is None:
+                        start = start.replace(tzinfo=timezone.utc)
+                    minutes_left = (start - now).total_seconds() / 60
+                    if 0 < minutes_left <= 30 * 60:
+                        upcoming_event.append((r, minutes_left, kind))
+                except (ValueError, TypeError):
+                    pass
         # Напоминание перед ГОНКОЙ
         if r.get("race_start_utc"):
             try:
@@ -256,6 +282,8 @@ async def check_and_send_notifications(bot: Bot):
             notify_min = user[2] or 1440
 
             for race, mins, event_kind in upcoming_event:
+                if not session_enabled(user[4] if len(user) > 4 else None, event_kind):
+                    continue
                 if abs(mins - notify_min) <= half_window:
                     round_num = race.get("round")
                     is_quali_key, notify_key = _event_reminder_key(event_kind, notify_min)
@@ -287,6 +315,8 @@ async def check_and_send_notifications(bot: Bot):
     group_chats = list(dict.fromkeys(group_chats_raw)) if group_chats_raw else []
     if group_chats:
         for race, mins, event_kind in upcoming_event:
+            if event_kind.startswith("practice"):
+                continue  # Individual preferences do not change group broadcasts.
             if abs(mins - GROUP_NOTIFY_BEFORE) <= half_window:
                 round_num_g = race.get("round")
                 is_quali_key, notify_key = _event_reminder_key(event_kind, GROUP_NOTIFY_BEFORE)

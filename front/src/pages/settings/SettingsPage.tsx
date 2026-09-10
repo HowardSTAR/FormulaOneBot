@@ -5,7 +5,14 @@ import { CustomSelect } from "../../components/CustomSelect";
 import { hapticSelection, hapticImpact } from "../../helpers/telegram";
 import "../../assets/personal-pages.css";
 
-type SettingsResponse = { timezone?: string; notify_before?: number; notifications_enabled?: boolean };
+type SettingsResponse = { timezone?: string; notify_before?: number; notifications_enabled?: boolean; reminder_sessions?: number };
+const SESSION_OPTIONS = [
+  { bit: 1, label: "Свободные заезды", detail: "FP1, FP2 и FP3" },
+  { bit: 2, label: "Квалификация", detail: "Борьба за стартовую решётку" },
+  { bit: 4, label: "Гонка", detail: "Главная гонка уик-энда" },
+  { bit: 8, label: "Спринт-квалификация", detail: "Стартовая решётка спринта" },
+  { bit: 16, label: "Спринт", detail: "Короткая гонка" },
+];
 
 const TIMEZONES = [
   { value: "Etc/GMT+12", label: "UTC-12 (Паго-Паго, Нуук)" },
@@ -46,6 +53,8 @@ function SettingsPage() {
   const [timezone, setTimezone] = useState("Etc/GMT-3");
   const [notifyBefore, setNotifyBefore] = useState(60);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [reminderSessions, setReminderSessions] = useState(31);
+  const [loaded, setLoaded] = useState(false);
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [toast, setToast] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -71,14 +80,16 @@ function SettingsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    apiRequest<SettingsResponse>("/api/settings")
+    apiRequest<SettingsResponse>("/api/account/settings")
       .then((s) => {
         if (cancelled) return;
         if (s?.timezone) setTimezone(s.timezone);
         if (s?.notify_before != null) setNotifyBefore(s.notify_before);
         if (s?.notifications_enabled !== undefined) setNotificationsEnabled(Boolean(s.notifications_enabled));
+        setReminderSessions(s.reminder_sessions ?? 31);
+        setLoaded(true);
       })
-      .catch(() => {});
+      .catch(() => { if (!cancelled) setError("Не удалось загрузить настройки. Обновите страницу."); });
     return () => {
       cancelled = true;
     };
@@ -89,8 +100,8 @@ function SettingsPage() {
     setError("");
     try {
       await apiRequest(
-        "/api/settings",
-        { timezone, notify_before: notifyBefore, notifications_enabled: notificationsEnabled },
+        "/api/account/settings",
+        { timezone, notify_before: notifyBefore, notifications_enabled: notificationsEnabled, reminder_sessions: reminderSessions },
         "POST"
       );
       setToast(true);
@@ -115,7 +126,7 @@ function SettingsPage() {
           <p>Управляйте локальным временем и уведомлениями о событиях гоночного уик-энда.</p>
         </div>
         <div className={`personal-status-badge ${notificationsEnabled ? "is-on" : ""}`}>
-          <i aria-hidden />{notificationsEnabled ? "Уведомления включены" : "Уведомления выключены"}
+          <i aria-hidden />{notificationsEnabled ? "Уведомления бота включены" : "Уведомления бота выключены"}
         </div>
       </header>
 
@@ -150,6 +161,17 @@ function SettingsPage() {
               <span className="slider round" />
             </label>
           </div>
+          <fieldset className="session-reminder-options" disabled={!loaded || saving}>
+            <legend>О каких сессиях напоминать</legend>
+            <p>По умолчанию выбраны все. Выбор действует в боте и на сайте; результаты сессий не меняются. Push включается отдельно в разделе «Уведомления».</p>
+            {SESSION_OPTIONS.map(({ bit, label, detail }) => (
+              <label key={bit} className={`session-reminder-option ${reminderSessions & bit ? "is-selected" : ""}`}>
+                <input type="checkbox" checked={Boolean(reminderSessions & bit)} onChange={() => { hapticSelection(); setReminderSessions((current) => current ^ bit); }} />
+                <span><strong>{label}</strong><small>{detail}</small></span>
+              </label>
+            ))}
+            {reminderSessions === 0 && <p role="status">Напоминания о начале сессий отключены. Остальные уведомления остаются без изменений.</p>}
+          </fieldset>
         </section>
 
         <aside className="personal-surface settings-summary-panel">
@@ -161,13 +183,13 @@ function SettingsPage() {
             <div><dt>Напоминание</dt><dd>За {notifyLabel}</dd></div>
             <div><dt>Статус</dt><dd>{notificationsEnabled ? "Активно" : "Отключено"}</dd></div>
           </dl>
-          <p>Настройки синхронизируются с Telegram Mini App и применяются ко всем сессиям.</p>
+          <p>Выбрано категорий сессий: {SESSION_OPTIONS.filter(({ bit }) => reminderSessions & bit).length} из 5. Настройки синхронизируются с ботом для связанного аккаунта.</p>
         </aside>
       </div>
 
       <div className="settings-save-bar">
         <div>{error ? <span className="personal-error" role="alert">{error}</span> : <span>Изменения применятся на сайте и в боте</span>}</div>
-        <button type="button" className="btn-save" disabled={saving} onClick={() => { hapticImpact("medium"); void saveSettings(); }}>
+        <button type="button" className="btn-save" disabled={saving || !loaded} onClick={() => { hapticImpact("medium"); void saveSettings(); }}>
           {saving ? "Сохранение…" : "Сохранить настройки"}
         </button>
       </div>

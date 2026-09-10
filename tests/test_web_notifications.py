@@ -16,7 +16,7 @@ def subscription(endpoint="https://fcm.googleapis.com/fcm/send/test"):
 async def store(tmp_path, monkeypatch):
     monkeypatch.setattr(service, "db", SimpleNamespace(db_path=tmp_path/"notifications.db"))
     async with service.connection() as conn:
-        await conn.executescript("""CREATE TABLE users(id INTEGER PRIMARY KEY,archived_at TEXT,role TEXT DEFAULT 'user');
+        await conn.executescript("""CREATE TABLE users(id INTEGER PRIMARY KEY,archived_at TEXT,role TEXT DEFAULT 'user',timezone TEXT DEFAULT 'UTC',notify_before INTEGER DEFAULT 60,reminder_sessions INTEGER DEFAULT 31);
         INSERT INTO users(id,archived_at) VALUES(1,NULL),(2,NULL);
         CREATE TABLE favorite_drivers(user_id INTEGER,driver_code TEXT);
         CREATE TABLE favorite_teams(user_id INTEGER,constructor_name TEXT);
@@ -35,6 +35,46 @@ def test_validates_key_sizes():
     service.validate_subscription(subscription())
     data = subscription(); data["keys"]["auth"] = "a"
     with pytest.raises(ValueError): service.validate_subscription(data)
+
+
+@pytest.mark.asyncio
+async def test_session_reminders_filter_and_no_backfill(store, monkeypatch):
+    from datetime import datetime, timezone
+    from unittest.mock import AsyncMock
+    import app.f1_data as f1
+    now = time.time()
+    async with store.connection() as conn:
+        await conn.execute("UPDATE users SET reminder_sessions=CASE id WHEN 1 THEN 1 ELSE 0 END")
+        await conn.execute("UPDATE web_notification_members SET joined_at=?", (now-600,))
+        await conn.commit()
+    start = datetime.fromtimestamp(now+3600-10, timezone.utc).isoformat()
+    old = datetime.fromtimestamp(now-86400, timezone.utc).isoformat()
+    schedule = [{"round": 1, "event_name": "Test", "practice1_start_utc": start, "quali_start_utc": start, "race_start_utc": old}]
+    monkeypatch.setattr(f1, "get_season_schedule_short_async", AsyncMock(return_value=schedule))
+    monkeypatch.setattr(store, "dispatch_push", AsyncMock())
+    await store.poll_web_notifications(not_before=now-60)
+    await store.poll_web_notifications(not_before=now-60)
+    async with store.connection() as conn:
+        rows = await (await conn.execute("SELECT user_id,event_key FROM web_notifications")).fetchall()
+    assert len(rows) == 1
+    assert rows[0][0] == 1 and ":practice1:" in rows[0][1]
+
+
+@pytest.mark.asyncio
+async def test_disabled_session_drops_pending_push(store, monkeypatch):
+    sent = []
+    monkeypatch.setenv("WEB_PUSH_PUBLIC_KEY", "test")
+    monkeypatch.setenv("WEB_PUSH_PRIVATE_KEY", "test")
+    monkeypatch.setenv("WEB_PUSH_SUBJECT", "mailto:test@example.com")
+    monkeypatch.setitem(sys.modules, "pywebpush", SimpleNamespace(webpush=lambda **kw: sent.append(kw), WebPushException=type("WebPushException", (Exception,), {})))
+    await store.publish("reminder:2026:1:quali:60", "Soon", "Soon", "/notifications", user_id=1)
+    async with store.connection() as conn:
+        await conn.execute("UPDATE users SET reminder_sessions=0 WHERE id=1")
+        await conn.commit()
+    await store.dispatch_push(not_before=time.time()-60)
+    assert sent == []
+    async with store.connection() as conn:
+        assert (await (await conn.execute("SELECT done FROM web_push_outbox")).fetchone())[0] == 1
 
 @pytest.mark.asyncio
 async def test_deduplication_personalization_and_queue(store):

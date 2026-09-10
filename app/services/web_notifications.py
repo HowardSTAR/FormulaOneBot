@@ -108,6 +108,7 @@ async def publish(event_key: str, title: str, body: str, url: str, *, user_id=No
         await conn.commit()
 
 async def dispatch_push(*, not_before: float):
+    from app.session_reminders import session_enabled
     if not push_config()["enabled"] or not await has_members():
         return
     from pywebpush import webpush, WebPushException
@@ -127,6 +128,13 @@ async def dispatch_push(*, not_before: float):
 
             if not claim.rowcount:
                 continue
+            if job["event_key"].startswith("reminder:"):
+                owner = await (await conn.execute("SELECT reminder_sessions FROM users WHERE id=? AND archived_at IS NULL", (job["user_id"],))).fetchone()
+                parts = job["event_key"].split(":")
+                if not owner or len(parts) != 5 or not session_enabled(owner[0], parts[3]):
+                    await conn.execute("UPDATE web_push_outbox SET done=1 WHERE notification_id=? AND subscription_id=?", (job[0], job[1]))
+                    await conn.commit()
+                    continue
             if job["event_key"].startswith("admin-error:"):
                 allowed = await (await conn.execute("SELECT 1 FROM users WHERE id=? AND role IN ('admin','superadmin') AND archived_at IS NULL", (job["user_id"],))).fetchone()
                 if not allowed:
@@ -178,11 +186,14 @@ async def poll_web_notifications(*, not_before: float):
     season = datetime.now(timezone.utc).year
     schedule = await get_season_schedule_short_async(season) or []
     async with connection() as conn:
-        members = await (await conn.execute("SELECT u.id,u.timezone,u.notify_before,m.joined_at FROM web_notification_members m JOIN users u ON u.id=m.user_id WHERE u.archived_at IS NULL")).fetchall()
+        members = await (await conn.execute("SELECT u.id,u.timezone,u.notify_before,u.reminder_sessions,m.joined_at FROM web_notification_members m JOIN users u ON u.id=m.user_id WHERE u.archived_at IS NULL")).fetchall()
     for event in schedule:
         if event.get("is_cancelled") or not event.get("round"):
             continue
-        for kind in ("race", "quali", "sprint", "sprint_quali"):
+        from app.session_reminders import SESSION_BITS, session_enabled
+        for kind in SESSION_BITS:
+            if event.get("is_testing") and kind != "race":
+                continue
             value = event.get(f"{kind}_start_utc")
             if not value:
                 continue
@@ -193,6 +204,8 @@ async def poll_web_notifications(*, not_before: float):
             except (ValueError, TypeError):
                 continue
             for user in members:
+                if not session_enabled(user["reminder_sessions"], kind):
+                    continue
                 minutes = int(user["notify_before"] or 60)
                 due = start.timestamp() - minutes * 60
                 if due < max(not_before,user["joined_at"]) or not 0 <= now-due <= 90:

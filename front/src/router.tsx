@@ -66,7 +66,7 @@ export const router = createBrowserRouter([
       { path: "/practice-results", element: <PracticeResultsPage /> },
       { path: "/contact-admin", element: <ContactAdminPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },
-      { path: "/settings", element: <RequirePersonalAccount><SettingsPage /></RequirePersonalAccount> },
+      { path: "/settings", element: <RequirePersonalAccount requireTelegram={false}><SettingsPage /></RequirePersonalAccount> },
       { path: "/season", element: <SeasonPage /> },
       { path: "/sprint-quali-results", element: <SprintQualiResultsPage /> },
       { path: "/sprint-results", element: <SprintResultsPage /> },

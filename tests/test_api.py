@@ -260,7 +260,7 @@ async def test_api_settings_get_guest_returns_defaults():
         r = await client.get("/api/settings")
 
     assert r.status_code == 200
-    assert r.json() == {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False}
+    assert r.json() == {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False, "reminder_sessions": 31}
 
 
 @pytest.mark.asyncio

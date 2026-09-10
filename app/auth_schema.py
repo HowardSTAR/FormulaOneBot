@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS users (
     timezone TEXT NOT NULL DEFAULT 'Europe/Moscow',
     notify_before INTEGER NOT NULL DEFAULT 60,
     notifications_enabled INTEGER NOT NULL DEFAULT 0 CHECK (notifications_enabled IN (0, 1)),
+    reminder_sessions INTEGER NOT NULL DEFAULT 31 CHECK (reminder_sessions BETWEEN 0 AND 31),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     archived_at TEXT,
@@ -79,7 +80,7 @@ async def _rebuild_users(conn: aiosqlite.Connection) -> None:
             INSERT INTO users_auth_migration (
                 id, email, password_hash, telegram_id, display_name,
                 telegram_username, role, email_verified,
-                timezone, notify_before, notifications_enabled,
+                timezone, notify_before, notifications_enabled, reminder_sessions,
                 created_at, updated_at, archived_at
             )
             SELECT
@@ -94,6 +95,7 @@ async def _rebuild_users(conn: aiosqlite.Connection) -> None:
                 COALESCE({old_or_default('timezone', "'Europe/Moscow'")}, 'Europe/Moscow'),
                 COALESCE({old_or_default('notify_before', '60')}, 60),
                 COALESCE({old_or_default('notifications_enabled', '0')}, 0),
+                COALESCE({old_or_default('reminder_sessions', '31')}, 31),
                 COALESCE({old_or_default('created_at', 'CURRENT_TIMESTAMP')}, CURRENT_TIMESTAMP),
                 COALESCE({old_or_default('updated_at', old_or_default('created_at', 'CURRENT_TIMESTAMP'))}, CURRENT_TIMESTAMP),
                 {old_or_default('archived_at', 'NULL')}
@@ -116,6 +118,8 @@ async def ensure_auth_schema(conn: aiosqlite.Connection) -> None:
     await conn.execute(CREATE_USERS_SQL)
     if await _users_need_rebuild(conn):
         await _rebuild_users(conn)
+    if "reminder_sessions" not in {row["name"] for row in await _table_info(conn, "users")}:
+        await conn.execute("ALTER TABLE users ADD COLUMN reminder_sessions INTEGER NOT NULL DEFAULT 31 CHECK (reminder_sessions BETWEEN 0 AND 31)")
 
     await conn.executescript(
         """

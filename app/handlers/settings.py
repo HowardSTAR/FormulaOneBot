@@ -7,6 +7,8 @@ from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.db import get_user_settings, update_user_setting
+from app.db import db
+from app.session_reminders import SESSION_OPTIONS
 from app.utils.safe_send import safe_answer_callback
 
 settings_router = Router()
@@ -16,6 +18,7 @@ class SettingsSG(StatesGroup):
     main_menu = State()
     choosing_timezone = State()
     choosing_notify = State()
+    choosing_sessions = State()
 
 
 # --- ГЕНЕРАЦИЯ СПИСКА ЧАСОВЫХ ПОЯСОВ (UTC) ---
@@ -115,7 +118,7 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
     text = (
         "⚙️ <b>Настройки TurboTears</b>\n\n"
         f"🌍 <b>Часовой пояс:</b> {tz_label}\n"
-        f"⏰ <b>Напоминать за:</b> {notify_str} до гонки\n"
+        f"⏰ <b>Напоминать за:</b> {notify_str} до выбранных сессий\n"
         f"🔔 <b>Статус уведомлений:</b> {notif_status}\n\n"
         "<i>С 21:00 до 10:00 по вашему времени уведомления приходят в тихом режиме (без звука).</i>\n\n"
         "<i>Выбери параметр для изменения:</i>"
@@ -126,6 +129,7 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
     kb.button(text=f"⏰ Напоминать за ({notify_str})", callback_data="change_notify")
     kb.button(text=f"🌍 Часовой пояс ({tz_label})", callback_data="change_tz")
     kb.button(text="❌ Закрыть", callback_data="close_settings")
+    kb.button(text="🏁 Выбрать сессии для напоминаний", callback_data="change_sessions")
     kb.adjust(1)  # Кнопки в один столбец
 
     await state.update_data(settings=user_settings)
@@ -159,6 +163,40 @@ def get_notify_keyboard(current_val: int):
     kb.button(text="« Назад", callback_data="back_to_settings")
     kb.adjust(2)
     return kb.as_markup()
+
+
+async def show_session_settings(callback, state):
+    settings = await get_user_settings(callback.from_user.id)
+    mask = settings["reminder_sessions"]
+    kb = InlineKeyboardBuilder()
+    for bit, label in SESSION_OPTIONS:
+        kb.button(text=f"{'✅' if mask & bit else '⬜'} {label}", callback_data=f"session_toggle:{bit}")
+    kb.button(text="« Назад", callback_data="back_to_settings")
+    kb.adjust(1)
+    await callback.message.edit_text(
+        "🏁 Напоминания о сессиях\n\nВыберите нужные сессии. Изменения сохраняются сразу и действуют в боте и на сайте.\n"
+        "По умолчанию выбраны все. Push включается отдельно на странице уведомлений.", reply_markup=kb.as_markup())
+    await state.set_state(SettingsSG.choosing_sessions)
+
+
+@settings_router.callback_query(F.data == "change_sessions", SettingsSG.main_menu)
+async def cb_change_sessions(callback: types.CallbackQuery, state: FSMContext):
+    await safe_answer_callback(callback)
+    await show_session_settings(callback, state)
+
+
+@settings_router.callback_query(F.data.startswith("session_toggle:"), SettingsSG.choosing_sessions)
+async def cb_toggle_session(callback: types.CallbackQuery, state: FSMContext):
+    await safe_answer_callback(callback)
+    value = callback.data.split(":", 1)[1]
+    if value not in {str(bit) for bit, _ in SESSION_OPTIONS}:
+        return
+    bit = int(value)
+    async with db.write_lock:
+        await db.conn.execute("UPDATE users SET reminder_sessions=(reminder_sessions | ?) - (reminder_sessions & ?) WHERE telegram_id=?",
+                              (bit, bit, callback.from_user.id))
+        await db.conn.commit()
+    await show_session_settings(callback, state)
 
 
 @settings_router.message(F.text == "⚙️ Настройки")
@@ -212,7 +250,7 @@ async def cb_change_notify(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
     current_not = data.get("settings", {}).get("notify_before", 60)
 
-    text = "⏰ <b>За сколько времени предупреждать о гонке?</b>"
+    text = "⏰ <b>За сколько времени предупреждать о выбранных сессиях?</b>"
     await callback.message.edit_text(text, reply_markup=get_notify_keyboard(current_not), parse_mode="HTML")
     await state.set_state(SettingsSG.choosing_notify)
 

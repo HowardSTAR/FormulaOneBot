@@ -458,23 +458,24 @@ async def get_user_settings(telegram_id) -> dict:
     await get_or_create_user(tg_id)
 
     # Ищем по telegram_id и достаем новый столбец notifications_enabled
-    async with db.conn.execute("SELECT timezone, notify_before, notifications_enabled FROM users WHERE telegram_id = ?",
+    async with db.conn.execute("SELECT timezone, notify_before, notifications_enabled, reminder_sessions FROM users WHERE telegram_id = ?",
                                (tg_id,)) as cursor:
         row = await cursor.fetchone()
         if row:
             keys = row.keys() if hasattr(row, 'keys') else []
             return {
+                "reminder_sessions": row[3],
                 "timezone": row['timezone'] if 'timezone' in keys else row[0] or "Europe/Moscow",
                 "notify_before": row['notify_before'] if 'notify_before' in keys else (
                     row[1] if row[1] is not None else 60),
                 "notifications_enabled": bool(
                     row['notifications_enabled'] if 'notifications_enabled' in keys else row[2])
             }
-        return {"timezone": "Europe/Moscow", "notify_before": 60, "notifications_enabled": False}
+        return {"timezone": "Europe/Moscow", "notify_before": 60, "notifications_enabled": False, "reminder_sessions": 31}
 
 
 async def update_user_setting(telegram_id, key: str, value: Any) -> None:
-    if key not in {"timezone", "notify_before", "notifications_enabled"}:
+    if key not in {"timezone", "notify_before", "notifications_enabled", "reminder_sessions"}:
         return
 
     tg_id = int(telegram_id)

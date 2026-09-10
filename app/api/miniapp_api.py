@@ -190,6 +190,7 @@ class SettingsRequest(BaseModel):
     timezone: str
     notify_before: int
     notifications_enabled: bool = False
+    reminder_sessions: Optional[int] = Field(default=None, ge=0, le=31, strict=True)
 
 
 class PredictionProfileRequest(BaseModel):
@@ -222,7 +223,7 @@ class AdminFeedbackRequest(BaseModel):
 async def api_get_settings(user_id: Optional[int] = Depends(get_optional_user_id)):
     """Получить текущие настройки пользователя. Для гостя возвращает дефолт."""
     if user_id is None:
-        return {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False}
+        return {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False, "reminder_sessions": 31}
     return await get_user_settings(user_id)
 
 
@@ -237,6 +238,26 @@ async def api_save_settings(
 
     # ДОБАВИТЬ СОХРАНЕНИЕ НОВОГО ПОЛЯ В БД:
     await update_user_setting(user_id, "notifications_enabled", int(settings.notifications_enabled))
+    if settings.reminder_sessions is not None:
+        await update_user_setting(user_id, "reminder_sessions", settings.reminder_sessions)
+    return {"status": "ok"}
+
+
+@web_app.get("/api/account/settings")
+async def api_account_settings(user_id: int = Depends(get_prediction_user_id)):
+    async with db.conn.execute("SELECT timezone,notify_before,notifications_enabled,reminder_sessions FROM users WHERE id=?", (user_id,)) as cursor:
+        row = await cursor.fetchone()
+    if row is None:
+        raise HTTPException(404, "Account not found")
+    return dict(row)
+
+
+@web_app.post("/api/account/settings")
+async def api_save_account_settings(settings: SettingsRequest, user_id: int = Depends(get_prediction_user_id)):
+    async with db.write_lock:
+        await db.conn.execute("UPDATE users SET timezone=?,notify_before=?,notifications_enabled=?,reminder_sessions=COALESCE(?,reminder_sessions) WHERE id=?",
+                              (settings.timezone,settings.notify_before,int(settings.notifications_enabled),settings.reminder_sessions,user_id))
+        await db.conn.commit()
     return {"status": "ok"}
 
 
