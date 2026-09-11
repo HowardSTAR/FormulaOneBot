@@ -1,0 +1,52 @@
+/* The split animation must not squeeze the date and circuit into half a phone. */
+@media (max-width: 899px) {
+  .app-page-main.route-next-race .next-race-hero.split {
+    flex-direction: column;
+    padding: 18px;
+    gap: 14px;
+  }
+
+  .app-page-main.route-next-race .next-race-hero.split .next-race-start-block,
+  .app-page-main.route-next-race .next-race-hero.split .next-race-track-wrap {
+    flex: none;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .app-page-main.route-next-race .next-race-hero.split .next-race-start-block {
+    padding: 4px 0;
+  }
+
+  .app-page-main.route-next-race .next-race-hero.split .next-race-date {
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: clamp(26px, 7.2vw, 40px);
+    line-height: 1.15;
+    letter-spacing: 0;
+  }
+
+  .app-page-main.route-next-race .next-race-hero.split .next-race-dash {
+    display: none;
+  }
+
+  .app-page-main.route-next-race .track-map-container.next-race {
+    box-sizing: border-box;
+    width: 100%;
+    height: clamp(200px, 60vw, 320px);
+    min-height: 200px;
+    padding: 8px;
+  }
+
+  .app-page-main.route-next-race .next-race-mobile-track-svg .track-route-border {
+    vector-effect: non-scaling-stroke !important;
+    stroke-width: 4px !important;
+  }
+
+  .app-page-main.route-next-race .next-race-mobile-track-svg .track-route-surface {
+    vector-effect: non-scaling-stroke !important;
+    stroke-width: 2px !important;
+  }
+}

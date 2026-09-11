@@ -5,6 +5,7 @@ import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
 import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
+import "./next-race-mobile.css";
 
 type NextRaceResponse = {
   status: string;
