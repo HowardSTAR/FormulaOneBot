@@ -113,19 +113,20 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
     notify_str = format_notify_time(notify_before)
 
     # 4. Форматируем статус уведомлений
-    notif_status = "🟢 Вкл" if notifications_enabled else "🔴 Выкл"
+    notif_status = "🔔 Со звуком" if notifications_enabled else "🔕 Без звука"
 
     text = (
         "⚙️ <b>Настройки TurboTears</b>\n\n"
         f"🌍 <b>Часовой пояс:</b> {tz_label}\n"
         f"⏰ <b>Напоминать за:</b> {notify_str} до выбранных сессий\n"
-        f"🔔 <b>Статус уведомлений:</b> {notif_status}\n\n"
+        f"<b>Звук сообщений Telegram:</b> {notif_status}\n\n"
+        "Сообщения приходят в обоих режимах. «Без звука» отключает только звук в Telegram.\n\n"
         "<i>С 21:00 до 10:00 по вашему времени уведомления приходят в тихом режиме (без звука).</i>\n\n"
         "<i>Выбери параметр для изменения:</i>"
     )
 
     kb = InlineKeyboardBuilder()
-    kb.button(text=f"🔔 Уведомления: {notif_status}", callback_data="toggle_notifications")
+    kb.button(text=f"Звук: {notif_status}", callback_data="toggle_notifications")
     kb.button(text=f"⏰ Напоминать за ({notify_str})", callback_data="change_notify")
     kb.button(text=f"🌍 Часовой пояс ({tz_label})", callback_data="change_tz")
     kb.button(text="❌ Закрыть", callback_data="close_settings")

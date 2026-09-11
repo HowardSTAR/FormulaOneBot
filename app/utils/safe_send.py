@@ -11,6 +11,29 @@ from aiogram.types import BufferedInputFile, Message, CallbackQuery, InputMediaP
 logger = logging.getLogger(__name__)
 
 
+async def _apply_sound_preference(chat_id: int, kwargs: dict) -> None:
+    """Legacy notifications_enabled=0 means silent delivery, not opt-out.
+
+    Keep explicitly silent sends (including quiet hours) silent. Group settings
+    are independent. Database failures must not prevent message delivery.
+    """
+    if chat_id <= 0 or kwargs.get("disable_notification") is True:
+        return
+    from app.db import db
+    try:
+        if not db.conn:
+            await db.connect()
+        async with db.conn.execute(
+            "SELECT notifications_enabled FROM users WHERE telegram_id=?", (chat_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row is not None and not bool(row[0]):
+            kwargs["disable_notification"] = True
+    except Exception:
+        logger.warning("Cannot read Telegram sound preference; sending silently", exc_info=True)
+        kwargs["disable_notification"] = True
+
+
 async def safe_answer(
     message: Message,
     text: str,
@@ -25,6 +48,7 @@ async def safe_answer(
     delay — пауза между попытками в секундах.
     **kwargs — всё, что ты обычно передаёшь в message.answer(...).
     """
+    await _apply_sound_preference(message.chat.id, kwargs)
     last_exc: Exception | None = None
 
     for attempt in range(1, retries + 1):
@@ -55,6 +79,7 @@ async def safe_answer(
 
 async def safe_send_photo(bot: Bot, chat_id: int, photo, caption: str = "", **kwargs) -> bool:
     """Безопасная отправка фото (BytesIO, bytes или file_id)."""
+    await _apply_sound_preference(chat_id, kwargs)
     try:
         logger.info("[Telegram API Dispatch] method=send_photo chat_id=%s", chat_id)
         normalized_photo = photo
@@ -92,6 +117,8 @@ async def safe_send_media_group(
         logger.error("Media group for %s must contain 2..10 items, got %s", chat_id, len(media))
         return False
 
+    await _apply_sound_preference(chat_id, kwargs)
+
     for attempt in range(1, retries + 1):
         try:
             await bot.send_media_group(chat_id=chat_id, media=list(media), **kwargs)
@@ -124,6 +151,7 @@ async def safe_send_message(bot: Bot, chat_id: int, text: str, **kwargs) -> bool
     Безопасная отправка сообщения с обработкой ошибок и FloodWait.
     Возвращает True, если отправлено успешно.
     """
+    await _apply_sound_preference(chat_id, kwargs)
     try:
         logger.info("[Telegram API Dispatch] method=send_message chat_id=%s", chat_id)
         await bot.send_message(chat_id=chat_id, text=text, **kwargs)

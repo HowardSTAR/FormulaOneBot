@@ -181,15 +181,16 @@ def get_notification_text(
 
 
 async def get_users_with_settings(notifications_only: bool = False):
-    """Возвращает (telegram_id, timezone, notify_before[, notifications_enabled])."""
+    """Active recipients; notifications_enabled controls sound, not delivery.
+
+    notifications_only is retained for compatibility with existing callers.
+    """
     if not db.conn: await db.connect()
     try:
         q = (
             "SELECT telegram_id, timezone, notify_before, notifications_enabled, reminder_sessions "
             "FROM users WHERE telegram_id IS NOT NULL AND archived_at IS NULL"
         )
-        if notifications_only:
-            q += " AND notifications_enabled = 1"
         async with db.conn.execute(q) as cursor:
             rows = await cursor.fetchall()
             return [tuple(r) for r in rows]

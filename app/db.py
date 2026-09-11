@@ -547,7 +547,8 @@ async def get_users_favorites_for_notifications(notifications_only: bool = True)
     Используется для рассылки результатов гонок и квалификации.
     """
     if not db.conn: await db.connect()
-    notif_filter = " AND u.notifications_enabled = 1" if notifications_only else ""
+    # The legacy flag controls Telegram sound, never membership of a broadcast.
+    notif_filter = " AND u.archived_at IS NULL"
     result: dict = {}
     async with db.conn.execute(
         "SELECT u.telegram_id, fd.driver_code FROM users u "

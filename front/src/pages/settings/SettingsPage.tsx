@@ -153,10 +153,10 @@ function SettingsPage() {
           </div>
           <div className="setting-card notification-setting-card">
             <div>
-              <strong>Уведомления бота</strong>
-              <p>С 21:00 до 10:00 по вашему времени сообщения приходят без звука.</p>
+              <strong>Звук сообщений в Telegram: {notificationsEnabled ? "включён" : "без звука"}</strong>
+              <p>Сообщения приходят в обоих режимах. Выключенный переключатель отключает только звук. С 21:00 до 10:00 по вашему времени всегда действует тихий режим.</p>
             </div>
-            <label className="switch" aria-label="Включить уведомления">
+            <label className="switch" aria-label="Включить звук сообщений в Telegram">
               <input type="checkbox" checked={notificationsEnabled} onChange={(e) => { hapticSelection(); setNotificationsEnabled(e.target.checked); }} />
               <span className="slider round" />
             </label>
