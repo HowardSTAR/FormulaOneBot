@@ -34,6 +34,9 @@ def validate_f1_year(year: int) -> str | None:
 # Соответствие кода пилота имени файла с его фотографией
 # Файлы лежат в app/assets/pilots
 DRIVER_CODE_TO_FILE = {
+    "BOT": "Valtteri Bottas.png",
+    "PER": "Sergio Perez.png",
+    "LIN": "Arvid Lindblad.png",
     "ALB": "Alexander Albon.png",
     "ANT": "Andrea Kimi Antonelli.png",
     "SAI": "Carlos Sainz.png",

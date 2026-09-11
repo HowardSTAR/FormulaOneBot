@@ -3,6 +3,7 @@ import io
 import json
 import math
 import urllib
+import unicodedata
 from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
@@ -12,6 +13,7 @@ import matplotlib
 import pandas as pd
 from PIL import Image, ImageDraw, ImageFont
 from matplotlib import pyplot as plt, ticker
+from app.utils.default import DRIVER_CODE_TO_FILE
 
 matplotlib.use('Agg')
 
@@ -245,6 +247,22 @@ def get_asset_path(year: int, category: str, target_name: str) -> Path | None:
 
     search_name = target_name.replace("⭐️", "").replace("⭐", "").strip().lower()
 
+    if category == "pilots":
+        def normalize(value):
+            return "".join(c for c in unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode().lower() if c.isalnum())
+        identity = next((code for code, filename in DRIVER_CODE_TO_FILE.items()
+                         if normalize(search_name) in {normalize(code), normalize(Path(filename).stem)}), None)
+        candidates = {normalize(search_name)}
+        if identity:
+            for suffix in (".webp", ".jpg"):
+                verified = base_dir / f"{identity}{suffix}"
+                if verified.is_file():
+                    return verified
+            candidates.add(normalize(Path(DRIVER_CODE_TO_FILE[identity]).stem))
+        return next((file for file in sorted(base_dir.iterdir())
+                     if file.is_file() and file.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".avif"}
+                     and normalize(file.stem) in candidates), None)
+
     for file_path in base_dir.iterdir():
         if file_path.is_file() and search_name in file_path.stem.strip().lower():
             return file_path
@@ -281,7 +299,11 @@ def _get_online_driver_url(code: str, name: str) -> str | None:
 
 
 def _get_driver_photo(code: str, name: str, season: int) -> Image.Image | None:
-    """Мастер-функция: скачивает онлайн или берет из папки для любого года."""
+    """Local season portraits take precedence over online images and their cache."""
+    local = get_asset_path(season, "pilots", code) or get_asset_path(season, "pilots", name)
+    if local:
+        with Image.open(local) as image:
+            return image.convert("RGBA")
     cache_key = f"{season}_{code}_{name}"
     if cache_key in _DRIVER_PHOTOS_CACHE:
         return _DRIVER_PHOTOS_CACHE[cache_key]
@@ -696,7 +718,7 @@ def create_f1_style_classification_image(
 
     def portrait(code, name, year):
         # Season-specific local artwork avoids network delays and wrong-year photos.
-        path = get_asset_path(year, "pilots", name) or get_asset_path(year, "pilots", code)
+        path = get_asset_path(year, "pilots", code) or get_asset_path(year, "pilots", name)
         if path is None and name:
             path = get_asset_path(year, "pilots", name.split()[-1])
         if path:

@@ -10,6 +10,7 @@ venv
 .pytest_cache
 .ruff_cache
 app/assets
+artifacts/portrait-migration-*
 
 # Git
 .git

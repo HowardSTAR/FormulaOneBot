@@ -15,3 +15,4 @@ __pycache__/
 
 # Распаковывается из app-assets.zip для локальной разработки.
 app/assets/
+artifacts/portrait-migration-*/

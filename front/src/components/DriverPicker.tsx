@@ -8,7 +8,7 @@ export type PickerDriver = { code: string; name: string; constructorName?: strin
 function Portrait({ driver, season }: { driver: PickerDriver; season: number }) {
   const [failed, setFailed] = useState(false);
   return <span className="driver-picker-avatar">{failed ? driver.code : <img
-    src={apiAssetUrl("/api/pilot-portrait", { code: driver.code, name: driver.name, season })}
+    src={apiAssetUrl("/api/pilot-portrait", { code: driver.code, name: driver.name, season, strict: true, v: 3 })}
     alt="" loading="lazy" onError={() => setFailed(true)} />}</span>;
 }
 

@@ -992,12 +992,24 @@ def _normalize_key(text: str) -> str:
 
 
 def _find_local_pilot_portrait_path(season: int, code: str | None, name: str | None) -> Path | None:
+    # A verified identity-keyed set takes precedence over legacy, sometimes mislabeled files.
+    identity = (code or "").upper()
+    if identity and not (identity.isascii() and identity.isalpha() and len(identity) == 3):
+        return None
+    if not identity and name:
+        identity = next((key for key, filename in DRIVER_CODE_TO_FILE.items()
+                         if _normalize_key(Path(filename).stem) == _normalize_key(name)), "")
+    if identity.isascii() and identity.isalpha() and len(identity) == 3:
+        for suffix in (".webp", ".jpg"):
+            verified = PROJECT_ROOT / "app" / "assets" / str(season) / "pilots" / f"{identity}{suffix}"
+            if verified.is_file():
+                return verified
     pilots_dir = PROJECT_ROOT / "app" / "assets" / str(season) / "pilots"
     if not pilots_dir.exists():
         return None
 
     candidates = []
-    if name:
+    if name and not DRIVER_CODE_TO_FILE.get((code or "").upper()):
         candidates.append(name)
     if code:
         mapped = DRIVER_CODE_TO_FILE.get(code.upper(), "")
@@ -1009,13 +1021,13 @@ def _find_local_pilot_portrait_path(season: int, code: str | None, name: str | N
     if not norm_candidates:
         return None
 
-    for file_path in pilots_dir.iterdir():
+    for file_path in sorted(pilots_dir.iterdir()):
         if not file_path.is_file():
             continue
         if file_path.suffix.lower() not in {".png", ".jpg", ".jpeg", ".webp", ".avif"}:
             continue
         file_norm = _normalize_key(file_path.stem.strip())
-        if any(c and (c in file_norm or file_norm in c) for c in norm_candidates):
+        if file_norm in norm_candidates:
             return file_path
     return None
 
@@ -1026,7 +1038,17 @@ def _render_head_crop_png_bytes(path: Path) -> bytes:
         w, h = base.size
         alpha_extrema = base.getchannel("A").getextrema()
         is_transparent_square_portrait = h <= int(w * 1.25) and alpha_extrema[0] < 255
-        if is_transparent_square_portrait:
+        if path.stem in DRIVER_CODE_TO_FILE and (path.parent / "sources.json").is_file():
+            # The verified studio set uses a uniform top square: head + shoulders,
+            # independent of full-body image height. Never stretch a narrow crop.
+            side = min(w, h)
+            if path.stem == "TSU":
+                # Reviewed profile photo differs from the uniform studio set.
+                head = base.crop((int(w * .25), 0, int(w * .25) + int(w * .533333), int(w * .533333)))
+            else:
+                head = base.crop((0, 0, side, side))
+            head.thumbnail((256, 256), Image.Resampling.LANCZOS)
+        elif is_transparent_square_portrait:
             # Готовые квадратные headshot-ассеты уже скомпонованы вокруг лица.
             # Повторный кроп срезал подбородок и форму у портретов 2025 года.
             head = base
@@ -1045,6 +1067,7 @@ async def api_pilot_portrait(
     season: Optional[int] = Query(None),
     code: Optional[str] = Query(None),
     name: Optional[str] = Query(None),
+    strict: bool = Query(False),
 ):
     """Портрет пилота: local assets/{season}/pilots с кропом головы, fallback на дефолтный."""
     if season is None:
@@ -1058,6 +1081,8 @@ async def api_pilot_portrait(
         except Exception:
             pass
 
+    if strict:
+        raise HTTPException(status_code=404, detail="Verified portrait unavailable")
     if PILOT_FALLBACK_PATH.exists():
         return FileResponse(str(PILOT_FALLBACK_PATH), media_type="image/png")
     raise HTTPException(status_code=404, detail="Default portrait not found")
