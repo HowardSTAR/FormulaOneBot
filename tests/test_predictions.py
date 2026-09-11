@@ -144,7 +144,7 @@ async def test_prediction_open_notification_dispatches_at_fp1():
         "event_name": "Invitation Grand Prix",
         "practice1_start_utc": (now - timedelta(seconds=1)).isoformat(),
         "first_session_start_utc": (now - timedelta(seconds=1)).isoformat(),
-        "quali_start_utc": (now + timedelta(hours=2)).isoformat(),
+        "quali_start_utc": (now + timedelta(hours=3)).isoformat(),
         "race_start_utc": (now + timedelta(days=2)).isoformat(),
     }
     bot = AsyncMock()

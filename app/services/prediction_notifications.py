@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot
+from app.db import was_reminder_sent, set_reminder_sent
 
 from app.f1_data import (
     get_quali_for_round_async,
@@ -117,6 +118,31 @@ async def _send_prediction_results(
     return sent
 
 
+async def _send_prediction_closing(bot: Bot, event: dict, users: list[tuple]) -> bool:
+    keyboard = await mini_app_button(bot, "🔮 Сделать прогноз", "/predictions", tab="form")
+    text = (
+        "⏳ <b>До закрытия прогнозов осталось 2 часа!</b>\n\n"
+        f"🏁 {html.escape(str(event.get('event_name') or 'Гран-при'))}\n\n"
+        "Времени осталось мало! Укажите поул, первую пятёрку, лучший круг, первый сход "
+        "и машину безопасности. Если прогноз уже сделан — ещё можно его проверить и изменить.\n\n"
+        "🔒 Приём закроется строго в момент начала первой квалификации уикенда."
+    )
+    season, round_num = event['season'], int(event['round'])
+    await publish_web(f"prediction-closing:{season}:{round_num}", "До закрытия прогнозов осталось 2 часа", text, "/predictions?tab=form")
+    complete = True
+    for telegram_id, tz, *_ in users:
+        if await was_reminder_sent(telegram_id, season, round_num, False, 21000):
+            continue
+        delivered = await safe_send_message(bot, telegram_id, text, parse_mode="HTML",
+            reply_markup=keyboard, disable_notification=is_quiet_hours(tz or "Europe/Moscow"))
+        if delivered:
+            await set_reminder_sent(telegram_id, season, round_num, False, 21000)
+        else:
+            complete = False
+        await asyncio.sleep(0.05)
+    return complete
+
+
 async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None = None) -> None:
     """Invites at FP1 and scores the stage after race results become ready."""
     now = datetime.now(timezone.utc)
@@ -133,6 +159,20 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
         state = await get_notification_state(season, round_num)
         opens_at, deadline = get_prediction_window(event)
         race_at = parse_utc(event.get("race_start_utc"))
+
+        closing_at = deadline - timedelta(hours=2) if deadline else None
+        if closing_at and now >= closing_at and not state.get("closing_sent", False):
+            # A short scheduler window prevents late reminders and restart spam.
+            stale = now >= min(deadline, closing_at + timedelta(minutes=5)) or (
+                not_before is not None and closing_at < not_before
+            )
+            if not stale:
+                # The closing invitation replaces an unsent opening invitation.
+                if not state["opened_sent"]:
+                    await mark_notification_state(season, round_num, "opened_sent")
+                    state["opened_sent"] = True
+            if stale or await _send_prediction_closing(bot, {**event, "season": season}, notification_users):
+                await mark_notification_state(season, round_num, "closing_sent")
 
         if not state["opened_sent"] and opens_at and deadline and opens_at <= now < deadline:
             logger.info(

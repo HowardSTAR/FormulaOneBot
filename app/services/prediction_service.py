@@ -596,18 +596,19 @@ async def get_notification_state(season: int, round_num: int) -> dict[str, bool]
     if not db.conn:
         await db.connect()
     async with db.conn.execute(
-        "SELECT opened_sent, results_sent FROM prediction_notification_state WHERE season=? AND round=?",
+        "SELECT opened_sent, results_sent, closing_sent FROM prediction_notification_state WHERE season=? AND round=?",
         (int(season), int(round_num)),
     ) as cursor:
         row = await cursor.fetchone()
     return {
         "opened_sent": bool(row["opened_sent"]) if row else False,
+        "closing_sent": bool(row["closing_sent"]) if row else False,
         "results_sent": bool(row["results_sent"]) if row else False,
     }
 
 
 async def mark_notification_state(season: int, round_num: int, field: str) -> None:
-    if field not in {"opened_sent", "results_sent"}:
+    if field not in {"opened_sent", "results_sent", "closing_sent"}:
         raise ValueError("Некорректное поле состояния уведомления")
     if not db.conn:
         await db.connect()

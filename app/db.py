@@ -390,11 +390,16 @@ class Database:
                 season INTEGER NOT NULL,
                 round INTEGER NOT NULL,
                 opened_sent INTEGER NOT NULL DEFAULT 0,
+                closing_sent INTEGER NOT NULL DEFAULT 0,
                 results_sent INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (season, round)
             );
             """
         )
+        async with self.conn.execute("PRAGMA table_info(prediction_notification_state)") as cursor:
+            notification_columns = {row[1] for row in await cursor.fetchall()}
+        if "closing_sent" not in notification_columns:
+            await self.conn.execute("ALTER TABLE prediction_notification_state ADD COLUMN closing_sent INTEGER NOT NULL DEFAULT 0")
         await self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_predictions_round ON race_predictions(season, round)"
         )
