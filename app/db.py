@@ -380,6 +380,8 @@ class Database:
         for table_name in ("race_predictions", "prediction_round_results"):
             async with self.conn.execute(f"PRAGMA table_info({table_name})") as cursor:
                 prediction_cols = {row["name"] for row in await cursor.fetchall()}
+            if table_name == "race_predictions" and "breakdown_json" not in prediction_cols:
+                await self.conn.execute("ALTER TABLE race_predictions ADD COLUMN breakdown_json TEXT")
             if "sprint_pole_driver" not in prediction_cols:
                 await self.conn.execute(
                     f"ALTER TABLE {table_name} ADD COLUMN sprint_pole_driver TEXT"

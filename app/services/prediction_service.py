@@ -456,7 +456,9 @@ async def get_personal_prediction_review(user_id: int, season: int, round_num: i
     if not row:
         return None
     actual = await (await db.conn.execute("SELECT * FROM prediction_round_results WHERE season=? AND round=?", (season,round_num))).fetchone()
-    snapshot = row["breakdown_json"]
+    # A rolling deployment may read a database not yet migrated by the new worker.
+    # Missing snapshots use the same read-only fallback as historic NULL values.
+    snapshot = dict(row).get("breakdown_json")
     items = json.loads(snapshot) if snapshot else prediction_breakdown(row,dict(actual) if actual else {},historical=True)
     complete = bool(snapshot) or (row["points"] is not None and all(i["points"] is not None for i in items) and sum(i["points"] for i in items) == row["points"])
     # Never present a reconstructed sum as the historic award when it differs.

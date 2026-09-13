@@ -53,6 +53,31 @@ async def test_private_review_snapshot_and_old_history(temp_db_path, monkeypatch
         legacy = await service.get_personal_prediction_review(1,2026,14)
         assert not legacy['complete']
         assert next(i for i in legacy['items'] if i['key']=='winner_driver')['points'] is None
+        # Reproduce the production schema, not just a NULL in the new column.
+        await database.conn.execute("ALTER TABLE race_predictions DROP COLUMN breakdown_json")
+        await database.conn.commit()
+        before = [dict(row) for row in await (await database.conn.execute(
+            "SELECT * FROM race_predictions ORDER BY user_id,round"
+        )).fetchall()]
+        web_app.dependency_overrides[get_prediction_user_id] = lambda:1
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=web_app),base_url='http://test') as client:
+            response = await client.get('/api/predictions/mine/2026/14')
+            assert response.status_code == 200
+            assert response.json() == legacy
+            assert response.headers['cache-control'] == 'private, no-store'
+            assert (await client.get('/api/predictions/mine/2026/15?user_id=2')).status_code == 404
+        # Startup migration must be repeatable and preserve all existing choices/scores.
+        await database.init_tables()
+        await database.init_tables()
+        after = [dict(row) for row in await (await database.conn.execute(
+            "SELECT * FROM race_predictions ORDER BY user_id,round"
+        )).fetchall()]
+        for row in after:
+            assert row.pop('breakdown_json') is None
+        assert after == before
+        assert await service.get_personal_prediction_review(1,2026,14) == legacy
+        await service.score_prediction_round(2026,14,'Test Grand Prix',answers)
+        assert (await service.get_personal_prediction_review(1,2026,14))['complete']
     finally:
         web_app.dependency_overrides.pop(get_prediction_user_id,None)
         await database.close()
