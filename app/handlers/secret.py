@@ -1,13 +1,15 @@
 import asyncio
 import logging
 import re
+import secrets
+import time
 import pandas as pd
 from datetime import datetime, timezone
 from io import BytesIO
 
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
-from aiogram.types import InputMediaPhoto, Message
+from aiogram.types import InputMediaPhoto, Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types import BufferedInputFile
 
 from app.admin_config import get_primary_admin_telegram_id
@@ -42,12 +44,15 @@ from app.utils.notifications import (
     is_quiet_hours,
 )
 from app.utils.safe_send import safe_send_media_group, safe_send_message, safe_send_photo
+from app.utils.mini_app_links import mini_app_button
+from app.utils.broadcast_draft import parse_button
 
 logger = logging.getLogger(__name__)
 router = Router()
 
 _broadcast_album_buffers: dict[str, list[Message]] = {}
 _broadcast_album_commands: set[str] = set()
+_broadcast_drafts: dict[str, dict] = {}
 
 
 def _is_primary_admin(user_id: int) -> bool:
@@ -86,6 +91,7 @@ async def _send_broadcast_text(
     plain_text: str,
     *,
     disable_notification: bool,
+    reply_markup=None,
 ) -> bool:
     """Отправляет текст целиком; сверх лимита Telegram делит plain-text на части."""
     if len(plain_text) <= 4096:
@@ -95,15 +101,17 @@ async def _send_broadcast_text(
             html_text,
             parse_mode="HTML",
             disable_notification=disable_notification,
+            reply_markup=reply_markup,
         )
 
     chunks = [plain_text[start:start + 4000] for start in range(0, len(plain_text), 4000)]
-    for chunk in chunks:
+    for index, chunk in enumerate(chunks):
         if not await safe_send_message(
             bot,
             chat_id,
             chunk,
             disable_notification=disable_notification,
+            reply_markup=reply_markup if index == len(chunks)-1 else None,
         ):
             return False
     return True
@@ -660,12 +668,16 @@ async def cmd_test_voting_results(message: Message, command: CommandObject, bot)
 @router.message(Command("broadcast"))
 async def admin_silent_broadcast(message: Message, command: CommandObject):
     """
-    Рассылка всем пользователям в обход тумблера уведомлений.
+    Предпросмотр и подтверждаемая рассылка всем активным пользователям.
     С 21:00 до 10:00 по времени каждого пользователя — в тихом режиме (без звука).
-    Поддержка: текст, одиночное фото и Telegram-альбом с общей подписью.
+    Поддержка: текст, фото, альбом и последняя строка /button для Mini App.
     """
     settings = get_settings()
-    if message.from_user.id not in settings.admin_ids:
+    if not message.from_user or message.from_user.id not in settings.admin_ids:
+        return
+
+    if message.chat.type != "private":
+        await message.answer("Подготовьте рассылку в личном чате с ботом: кнопка Mini App предназначена для личных сообщений.")
         return
 
     # Текст/подпись: из аргумента команды, из caption (если есть фото) или из ответа на сообщение с фото
@@ -699,87 +711,137 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
     if not photo_file_ids and not text_to_send:
         await message.answer(
             "⚠️ Использование:\n"
-            "• <code>/broadcast Ваш текст</code> — рассылка текста всем.\n"
+            "• <code>/broadcast Ваш текст</code> — предпросмотр перед рассылкой.\n"
             "• Прикрепите одно или несколько фото к <code>/broadcast текст</code> — фото или альбом с подписью.\n"
             "• Можно ответить командой на одиночное фото.\n\n"
-            "Сообщение уходит <b>всем</b> пользователям (игнорируя отключение уведомлений). "
+            "Добавьте последней строкой без форматирования:\n"
+            "<code>/button 🏆 Таблица прогнозов | /predictions?tab=leaderboard</code>\n\n"
+            "После подтверждения сообщение уходит <b>всем</b> активным пользователям. "
             "С 21:00 до 10:00 по времени получателя — в тихом режиме (без звука).",
             parse_mode="HTML"
         )
         return
 
-    # Все пользователи с таймзоной для тихого режима по их времени
+    try:
+        text_to_send, plain_text_to_send, button = parse_button(text_to_send, plain_text_to_send)
+    except ValueError as exc:
+        await message.answer(str(exc), parse_mode=None)
+        return
+    keyboard = None
+    if button:
+        label, path, params = button
+        keyboard = await mini_app_button(message.bot, label, path, **params)
+        if keyboard is None:
+            await message.answer("Кнопка не создана: настройте MINI_APP_URL с публичным HTTPS-адресом. Рассылка не подготовлена.")
+            return
     users = await get_users_with_settings(notifications_only=False)
     if not users:
-        await message.answer("В базе нет пользователей.")
+        await message.answer("В базе нет получателей.")
         return
-
-    # (tg_id, tz, notify_before, notifications_enabled)
-    await message.answer(f"🏁 Рассылка для {len(users)} пользователей (в обход настроек уведомлений)...")
-
-    success_count = 0
-    batch_size = 20
-    for batch_start in range(0, len(users), batch_size):
-        for user in users[batch_start:batch_start + batch_size]:
-            tg_id = user[0]
-            tz = user[1] or "Europe/Moscow"
-            quiet = is_quiet_hours(tz)
-            try:
-                caption_fits_media = bool(text_to_send) and len(plain_text_to_send) <= 1024
-                send_text_separately = bool(photo_file_ids and text_to_send and not caption_fits_media)
-                if len(photo_file_ids) > 1:
-                    media = [
-                        InputMediaPhoto(
-                            media=file_id,
-                            caption=text_to_send if index == 0 and caption_fits_media else None,
-                            parse_mode="HTML" if index == 0 and caption_fits_media else None,
-                        )
-                        for index, file_id in enumerate(photo_file_ids[:10])
-                    ]
-                    ok = await safe_send_media_group(
-                        message.bot,
-                        tg_id,
-                        media,
-                        disable_notification=quiet,
-                    )
-                elif photo_file_ids:
-                    ok = await safe_send_photo(
-                        message.bot,
-                        tg_id,
-                        photo_file_ids[0],
-                        caption=text_to_send if caption_fits_media else None,
-                        parse_mode="HTML" if caption_fits_media else None,
-                        disable_notification=quiet,
-                    )
-                else:
-                    ok = await _send_broadcast_text(
-                        message.bot,
-                        tg_id,
-                        text_to_send,
-                        plain_text_to_send,
-                        disable_notification=quiet,
-                    )
-                if ok and send_text_separately:
-                    ok = await _send_broadcast_text(
-                        message.bot,
-                        tg_id,
-                        text_to_send,
-                        plain_text_to_send,
-                        disable_notification=quiet,
-                    )
-                if ok:
-                    success_count += 1
-            except Exception:
-                logger.exception("Broadcast delivery failed for %s", tg_id)
-            await asyncio.sleep(0.06)
-        if batch_start + batch_size < len(users):
-            await asyncio.sleep(1.0)
-
+    # New preview invalidates the author's previous unconfirmed draft.
+    for key, draft in list(_broadcast_drafts.items()):
+        if draft["owner"] == message.from_user.id or draft["expires"] < time.monotonic():
+            _broadcast_drafts.pop(key, None)
+    draft = dict(owner=message.from_user.id, chat_id=message.chat.id,
+                 text=text_to_send, plain=plain_text_to_send, photos=photo_file_ids,
+                 keyboard=keyboard, targets={u[0] for u in users}, expires=time.monotonic()+600)
+    await message.answer("👁 Предпросмотр — пока только вам. Проверьте текст и кнопку Mini App.")
+    try:
+        ok = await _deliver_broadcast(message.bot, message.chat.id, draft, quiet=True)
+    except Exception:
+        logger.exception("Broadcast preview failed")
+        ok = False
+    if not ok:
+        await message.answer("Предпросмотр не доставлен. Рассылка не создана; повторите подготовку.")
+        return
+    token = secrets.token_hex(12)
+    _broadcast_drafts[token] = draft
     await message.answer(
-        f"✅ <b>Рассылка завершена</b>\n"
-        f"Доставлено: {success_count} из {len(users)}",
-        parse_mode="HTML"
+        f"Получателей: {len(draft['targets'])}. Отправка всем активным пользователям бота. "
+        "С 21:00 до 10:00 по времени получателя — без звука.\n"
+        "Подтверждение действует 10 минут. После перезапуска бота создайте предпросмотр заново.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="✅ Отправить всем", callback_data=f"bc:send:{token}"),
+            InlineKeyboardButton(text="Отмена", callback_data=f"bc:cancel:{token}"),
+        ]]),
     )
+
+
+async def _deliver_broadcast(bot, chat_id: int, draft: dict, *, quiet: bool) -> bool:
+    photos, text, plain, keyboard = draft["photos"], draft["text"], draft["plain"], draft["keyboard"]
+    # Telegram albums cannot carry an inline keyboard: send the text and its
+    # button separately after the album. The preview uses this exact same path.
+    separate = bool(photos and text and (len(plain) > 1024 or (len(photos) > 1 and keyboard)))
+    caption = text if text and not separate else None
+    if len(photos) > 1:
+        ok = await safe_send_media_group(bot, chat_id, [
+            InputMediaPhoto(media=p, caption=caption if i == 0 else None, parse_mode="HTML")
+            for i, p in enumerate(photos[:10])
+        ], disable_notification=quiet)
+    elif photos:
+        ok = await safe_send_photo(bot, chat_id, photos[0], caption=caption,
+            parse_mode="HTML", disable_notification=quiet,
+            reply_markup=keyboard if not separate else None)
+    else:
+        return await _send_broadcast_text(bot, chat_id, text, plain,
+            disable_notification=quiet, reply_markup=keyboard)
+    if ok and separate:
+        return await _send_broadcast_text(bot, chat_id, text, plain,
+            disable_notification=quiet, reply_markup=keyboard)
+    return bool(ok)
+
+
+@router.callback_query(F.data.startswith("bc:"))
+async def confirm_broadcast(callback: CallbackQuery):
+    if callback.from_user.id not in get_settings().admin_ids:
+        await callback.answer("Нет доступа", show_alert=True)
+        return
+    parts = (callback.data or "").split(":")
+    if len(parts) != 3 or parts[1] not in {"send", "cancel"}:
+        await callback.answer("Некорректная команда", show_alert=True)
+        return
+    token = parts[2]
+    draft = _broadcast_drafts.get(token)
+    if (not draft or draft["owner"] != callback.from_user.id or not callback.message
+            or callback.message.chat.id != draft["chat_id"]):
+        await callback.answer("Подтверждение недоступно или уже использовано", show_alert=True)
+        return
+    # Claim synchronously before the first await: concurrent double clicks
+    # cannot send twice. Restart drops pending drafts, never auto-replays them.
+    _broadcast_drafts.pop(token, None)
+    if draft["expires"] < time.monotonic():
+        await callback.answer("Предпросмотр устарел. Создайте новый.", show_alert=True)
+        return
+    if parts[1] == "cancel":
+        await callback.answer("Отменено")
+        await callback.message.edit_text("Рассылка отменена.")
+        return
+    await callback.answer("Рассылка запускается")
+    try:
+        await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        logger.warning("Could not remove used broadcast confirmation keyboard")
+    count = 0
+    attempted = 0
+    try:
+        users = [u for u in await get_users_with_settings(notifications_only=False) if u[0] in draft["targets"]]
+        await callback.message.answer(f"🏁 Начинаю рассылку: {len(users)} получателей.")
+        for user in users:
+            attempted += 1
+            try:
+                if await _deliver_broadcast(callback.bot, user[0], draft, quiet=is_quiet_hours(user[1] or "Europe/Moscow")):
+                    count += 1
+            except Exception:
+                logger.exception("Confirmed broadcast delivery failed")
+            await asyncio.sleep(0.06)
+            if attempted % 20 == 0:
+                await asyncio.sleep(1)
+        await callback.message.answer(f"✅ Рассылка завершена. Успешно: {count}/{len(users)}. "
+            "Автоматических повторов не будет; повторная новая рассылка может создать дубликаты.")
+    except Exception:
+        logger.exception("Confirmed broadcast interrupted owner=%s successful=%s attempted=%s", draft["owner"], count, attempted)
+        await callback.message.answer(f"Рассылка прервана. Успешно: {count}, попыток: {attempted}. "
+            "Не запускайте заново вслепую — возможны дубликаты.")
 
 
 @router.message(F.media_group_id)
