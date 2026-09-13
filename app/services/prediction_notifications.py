@@ -22,6 +22,7 @@ from app.services.prediction_service import (
     parse_utc,
     score_prediction_round,
 )
+from app.services.prediction_race_facts import get_prediction_race_facts
 from app.utils.notifications import get_users_with_settings, is_quiet_hours
 from app.utils.safe_send import safe_send_message
 from app.utils.mini_app_links import mini_app_button
@@ -217,11 +218,13 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
         if race_results is None or race_results.empty or len(race_results.index) < 10:
             continue
         qualifying_results = quali_payload[1] if isinstance(quali_payload, tuple) else quali_payload
+        race_facts = await get_prediction_race_facts(season, round_num)
         answers = build_actual_answers(
             race_results,
             qualifying_results or [],
             sprint_qualifying_results=sprint_quali_results or [],
             sprint_results=sprint_results,
+            extra_facts=race_facts,
         )
         score_info = await score_prediction_round(
             season,

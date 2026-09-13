@@ -34,10 +34,11 @@ async def test_private_review_snapshot_and_old_history(temp_db_path, monkeypatch
         for uid, rnd in [(1,14),(2,14),(2,15)]:
             await database.conn.execute(f"INSERT INTO race_predictions(user_id,season,round,{fields}) VALUES(?,?,?,{marks})",(uid,2026,rnd,*p.values()))
         await database.conn.commit()
-        answers = {**p,'_race_positions':{'LEC':4}}
+        answers = {**p,'_race_positions':{'LEC':4}, '_race_facts': {'source': 'FastF1', 'safety_car': 0}}
         await service.score_prediction_round(2026,14,'Test Grand Prix',answers)
         review = await service.get_personal_prediction_review(1,2026,14)
         assert review['complete']
+        assert review['race_facts'] == answers['_race_facts']
         assert sum(i['points'] for i in review['items']) == review['points']
         web_app.dependency_overrides[get_prediction_user_id] = lambda:1
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=web_app),base_url='http://test') as client:

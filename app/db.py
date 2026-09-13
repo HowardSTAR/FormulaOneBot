@@ -382,6 +382,8 @@ class Database:
                 prediction_cols = {row["name"] for row in await cursor.fetchall()}
             if table_name == "race_predictions" and "breakdown_json" not in prediction_cols:
                 await self.conn.execute("ALTER TABLE race_predictions ADD COLUMN breakdown_json TEXT")
+            if table_name == "prediction_round_results" and "race_facts_json" not in prediction_cols:
+                await self.conn.execute("ALTER TABLE prediction_round_results ADD COLUMN race_facts_json TEXT")
             if "sprint_pole_driver" not in prediction_cols:
                 await self.conn.execute(
                     f"ALTER TABLE {table_name} ADD COLUMN sprint_pole_driver TEXT"

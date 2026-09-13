@@ -381,6 +381,10 @@ def build_actual_answers(
     for key, value in (extra_facts or {}).items():
         if key in answers and value is not None:
             answers[key] = normalize_driver_code(value) if key != "safety_car" else int(bool(value))
+    if extra_facts is not None:
+        # Do not retain the classification-based guess when chronology is unknown.
+        answers["first_retirement_driver"] = extra_facts.get("first_retirement_driver")
+        answers["_race_facts"] = extra_facts
     return answers
 
 
@@ -469,7 +473,8 @@ async def get_personal_prediction_review(user_id: int, season: int, round_num: i
             item["reason"] = "Старый расчёт не содержит сохранённой разбивки. Итоговые очки сохранены, детализация не подтверждена."
     return {"season":season,"round":round_num,"event_name":actual["event_name"] if actual else f"Этап {round_num}",
             "points":row["points"],"max_points":row["max_points"],"scored_at":row["scored_at"],
-            "complete":complete,"items":items}
+            "complete":complete,"items":items,
+            "race_facts": json.loads(dict(actual).get("race_facts_json") or "null") if actual else None}
 
 
 async def score_prediction_round(
@@ -510,6 +515,10 @@ async def score_prediction_round(
                 calculated_at=CURRENT_TIMESTAMP
             """,
             (int(season), int(round_num), event_name, *result_values, max_points),
+        )
+        await db.conn.execute(
+            "UPDATE prediction_round_results SET race_facts_json=? WHERE season=? AND round=?",
+            (json.dumps(answers.get("_race_facts"), ensure_ascii=False), int(season), int(round_num)),
         )
         async with db.conn.execute(
             "SELECT user_id, " + ", ".join(PREDICTION_FIELDS) +
