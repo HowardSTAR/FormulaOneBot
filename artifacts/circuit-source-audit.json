@@ -1,0 +1,226 @@
+[
+  {
+    "event": "Abu Dhabi Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Abu%20Dhabi%20Grand%20Prix",
+    "maps": [],
+    "status": "error",
+    "error": "500 Server Error: Internal Server Error for url: https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Abu%20Dhabi%20Grand%20Prix"
+  },
+  {
+    "event": "Australian Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Australian%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_australian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_quarantine_zone.pdf",
+        "title": "Doc 5 - Competition Notes - Circuit Map, Pit Lane Drawing, Emergency Exits Map and Quarantine Zone \n   \n \n  \n  \n  \n   \n   Published on  05.03.26 07:30  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "Austrian Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Austrian%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_austrian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+        "title": "Doc 7 - Competition Notes - Circuit Map, Pit Lane Drawing, Emergency Exits Map and Red Zone \n   \n \n  \n  \n  \n   \n   Published on  25.06.26 17:25  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "Azerbaijan Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Azerbaijan%20Grand%20Prix",
+    "maps": [],
+    "status": "error",
+    "error": "500 Server Error: Internal Server Error for url: https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Azerbaijan%20Grand%20Prix"
+  },
+  {
+    "event": "Bahrain Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Bahrain%20Grand%20Prix",
+    "maps": [],
+    "status": "error",
+    "error": "500 Server Error: Internal Server Error for url: https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Bahrain%20Grand%20Prix"
+  },
+  {
+    "event": "Barcelona Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Barcelona%20Grand%20Prix",
+    "maps": [],
+    "status": "error",
+    "error": "500 Server Error: Internal Server Error for url: https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Barcelona%20Grand%20Prix"
+  },
+  {
+    "event": "Belgian Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Belgian%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_belgian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+        "title": "Doc 7 - Competition Notes - Circuit Map, Pit Lane Drawing, Emergency Exits Map and Red Zone \n   \n \n  \n  \n  \n   \n   Published on  16.07.26 17:50  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "British Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/British%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_british_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+        "title": "Doc 6 - Competition Notes - Circuit Map, Pit Lane Drawing, Emergency Exits Map and Red Zone \n   \n \n  \n  \n  \n   \n   Published on  02.07.26 17:38  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "Canadian Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Canadian%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_canadian_grand_prix_-_competition_notes_-_circuit_map_v2.pdf",
+        "title": "Doc 9 - Competition Notes - Circuit Map V2 \n   \n \n  \n  \n  \n   \n   Published on  22.05.26 15:04  CET"
+      },
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_canadian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+        "title": "Doc 8 - Competition Notes - Circuit Map, Pit Lane Drawing and Emergency Exits Map \n   \n \n  \n  \n  \n   \n   Published on  22.05.26 00:12  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "Chinese Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Chinese%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_chinese_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_battery_containment_area_and_red_zone.pdf",
+        "title": "Doc 7 - Competition Notes - Circuit Map, Pit Lane Drawing, Emergency Exits Map, Battery Containment Area and Red Zone \n   \n \n  \n  \n  \n   \n   Published on  12.03.26 09:59  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "Dutch Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Dutch%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_dutch_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+        "title": "Doc 6 - Competition Notes - Circuit Map, Pit Lane Drawing and Emergency Exits Map \n   \n \n  \n  \n  \n   \n   Published on  20.08.26 16:57  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "Hungarian Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Hungarian%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_hungarian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+        "title": "Doc 5 - Competition Notes - Circuit Map, Pit Lane Drawing, Emergency Exits Map and Red Zone \n   \n \n  \n  \n  \n   \n   Published on  23.07.26 17:14  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "Italian Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Italian%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_italian_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+        "title": "Doc 6 - Competition Notes - Circuit Map, Pit Lane Drawing, Emergency Exits Map and Red Zone\n   \n\n  \n  \n  \n   \n  Published on  03.09.26 17:04  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "Japanese Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Japanese%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_japanese_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_battery_containment_area_and_red_zone.pdf",
+        "title": "Doc 6 - Competition Notes - Circuit Map, Pit Lane Drawing, Emergency Exits Map, Battery Containment Area and Red Zone \n   \n \n  \n  \n  \n   \n   Published on  26.03.26 07:52  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "Las Vegas Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Las%20Vegas%20Grand%20Prix",
+    "maps": [],
+    "status": "error",
+    "error": "500 Server Error: Internal Server Error for url: https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Las%20Vegas%20Grand%20Prix"
+  },
+  {
+    "event": "Mexico City Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Mexico%20City%20Grand%20Prix",
+    "maps": [],
+    "status": "error",
+    "error": "500 Server Error: Internal Server Error for url: https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Mexico%20City%20Grand%20Prix"
+  },
+  {
+    "event": "Miami Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Miami%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_miami_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+        "title": "Doc 5 - Competition Notes - Circuit Map, Pit Lane Drawing, Emergency Exits Map and Red Zone \n   \n \n  \n  \n  \n   \n   Published on  01.05.26 00:09  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "Monaco Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Monaco%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_monaco_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_emergency_exits_map_and_red_zone.pdf",
+        "title": "Doc 7 - Competition Notes - Circuit Map, Pit Lane Drawing, Emergency Exits Map and Red Zone \n   \n \n  \n  \n  \n   \n   Published on  04.06.26 16:33  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "Qatar Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Qatar%20Grand%20Prix",
+    "maps": [],
+    "status": "error",
+    "error": "500 Server Error: Internal Server Error for url: https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Qatar%20Grand%20Prix"
+  },
+  {
+    "event": "Saudi Arabian Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Saudi%20Arabian%20Grand%20Prix",
+    "maps": [],
+    "status": "error",
+    "error": "500 Server Error: Internal Server Error for url: https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Saudi%20Arabian%20Grand%20Prix"
+  },
+  {
+    "event": "Singapore Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Singapore%20Grand%20Prix",
+    "maps": [],
+    "status": "error",
+    "error": "500 Server Error: Internal Server Error for url: https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Singapore%20Grand%20Prix"
+  },
+  {
+    "event": "Spanish Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/Spanish%20Grand%20Prix",
+    "maps": [
+      {
+        "url": "https://www.fia.com/system/files/decision-document/2026_spanish_grand_prix_-_competition_notes_-_circuit_map_pit_lane_drawing_and_emergency_exits_map.pdf",
+        "title": "Doc 6 - Competition Notes - Circuit Map, Pit Lane Drawing and Emergency Exits Map\n   \n\n  \n  \n  \n   \n  Published on  10.09.26 19:25  CET"
+      }
+    ],
+    "status": "found"
+  },
+  {
+    "event": "São Paulo Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/S%C3%A3o%20Paulo%20Grand%20Prix",
+    "maps": [],
+    "status": "error",
+    "error": "500 Server Error: Internal Server Error for url: https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/S%C3%A3o%20Paulo%20Grand%20Prix"
+  },
+  {
+    "event": "United States Grand Prix",
+    "index": "https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/United%20States%20Grand%20Prix",
+    "maps": [],
+    "status": "error",
+    "error": "500 Server Error: Internal Server Error for url: https://www.fia.com/documents/championships/fia-formula-one-world-championship-14/season/season-2026-2072/event/United%20States%20Grand%20Prix"
+  }
+]

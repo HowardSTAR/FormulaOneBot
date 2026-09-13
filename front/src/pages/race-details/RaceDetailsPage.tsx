@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { GlossaryText } from "../../components/GlossaryText";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
+import { DetailedTrackMap } from "../../components/DetailedTrackMap";
+import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
 
 type Session = { name: string; utc_iso?: string; local?: string };
 type RaceDetailsResponse = {
@@ -24,9 +26,7 @@ function RaceDetailsPage() {
   const [settings, setSettings] = useState<SettingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [trackSvg, setTrackSvg] = useState<string | null>(null);
   const [expandedFactIndex, setExpandedFactIndex] = useState(0);
-  const trackContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!season || !round) {
@@ -45,12 +45,6 @@ function RaceDetailsPage() {
         setData(raceData);
         setSettings(settingsData);
 
-        const trackUrl = `/static/circuit/${raceData.event_name}.svg`;
-        const res = await fetch(trackUrl);
-        if (res.ok) {
-          const text = await res.text();
-          if (!cancelled) setTrackSvg(text);
-        }
       } catch (e) {
         if (!cancelled) {
           console.error(e);
@@ -65,40 +59,6 @@ function RaceDetailsPage() {
       cancelled = true;
     };
   }, [season, round]);
-
-  useEffect(() => {
-    if (!trackSvg || !trackContainerRef.current) return;
-    const container = trackContainerRef.current;
-    container.innerHTML = trackSvg;
-    const svg = container.querySelector("svg");
-    if (!svg) return;
-    svg.style.width = "100%";
-    svg.style.height = "100%";
-    const paths = svg.querySelectorAll("path, polyline");
-    const outlineGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    const fillGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    outlineGroup.classList.add("track-outline-group");
-    fillGroup.classList.add("track-fill-group");
-    paths.forEach((path) => {
-      const outlinePath = path.cloneNode(true) as SVGElement;
-      outlinePath.removeAttribute("fill");
-      outlinePath.classList.add("track-outline");
-      const length = (outlinePath as SVGPathElement).getTotalLength?.() ?? 0;
-      outlinePath.style.strokeDasharray = String(length);
-      outlinePath.style.strokeDashoffset = String(length);
-      outlineGroup.appendChild(outlinePath);
-      path.classList.add("track-fill");
-      fillGroup.appendChild(path);
-    });
-    svg.innerHTML = "";
-    svg.appendChild(outlineGroup);
-    svg.appendChild(fillGroup);
-    svg.getBoundingClientRect();
-    setTimeout(() => {
-      outlineGroup.querySelectorAll(".track-outline").forEach((p) => p.classList.add("animate"));
-      fillGroup.querySelectorAll(".track-fill").forEach((p) => p.classList.add("animate"));
-    }, 100);
-  }, [trackSvg]);
 
   if (error || (!season && !round)) {
     return (
@@ -182,10 +142,9 @@ function RaceDetailsPage() {
         </div>
       </div>
 
-      <div className="track-map-container race-details">
-        {!trackSvg && !loading && <div className="no-map-placeholder">🏁</div>}
-        <div ref={trackContainerRef} style={{ width: "100%", height: "100%", display: trackSvg ? "block" : "none" }} />
-      </div>
+      <DetailedTrackMap key={`${season}:${data.event_name}`} eventName={data.event_name} season={Number(season)} preview={
+        <AnimatedTrackMap eventName={data.event_name} className="track-map-container race-details" svgClassName="race-details-track-svg" loadingClassName="circuit-data-pending" />
+      } />
 
       <div className="schedule-card">{sessionsHtml}</div>
 

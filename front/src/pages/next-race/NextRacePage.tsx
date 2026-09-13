@@ -2,6 +2,7 @@ import { GlossaryText } from "../../components/GlossaryText";
 import { useState, useEffect } from "react";
 import { BackButton } from "../../components/BackButton";
 import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
+import { DetailedTrackMap } from "../../components/DetailedTrackMap";
 import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
@@ -32,6 +33,7 @@ function NextRacePage() {
   const [raceTimeText, setRaceTimeText] = useState("--:--");
   const [displayTimezone, setDisplayTimezone] = useState("Локальное время");
   const [raceRound, setRaceRound] = useState<number | null>(null);
+  const [raceSeason, setRaceSeason] = useState<number | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [expandedFactIndex, setExpandedFactIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -65,6 +67,7 @@ function NextRacePage() {
         setRaceCountry(raceData.country || "");
         setRaceCity(raceData.location || "");
         setRaceRound(raceData.round ?? null);
+        setRaceSeason(raceData.season ?? null);
         setLocation(`${raceData.country || ""}, ${raceData.location || ""}`);
 
         const scheduleData = await apiRequest<ScheduleResponse>("/api/weekend-schedule", {
@@ -190,12 +193,12 @@ function NextRacePage() {
           <div className="next-race-dash" aria-hidden />
           <div className="next-race-track-wrap">
             {eventName ? (
-              <AnimatedTrackMap
+              <DetailedTrackMap key={`${eventName}:${raceSeason}`} eventName={eventName} season={raceSeason ?? 0} preview={<AnimatedTrackMap
                 eventName={eventName}
                 className="track-map-container next-race"
                 svgClassName="next-race-mobile-track-svg"
                 loadingClassName="next-race-track-loading"
-              />
+              />} />
             ) : (
               !loading && <div className="no-map-placeholder">🏁</div>
             )}
@@ -310,12 +313,12 @@ function NextRacePage() {
                     <b>{raceCity || eventName}</b>
                   </div>
                   {eventName ? (
-                    <AnimatedTrackMap
+                    <DetailedTrackMap key={`${eventName}:${raceSeason}`} eventName={eventName} season={raceSeason ?? 0} preview={<AnimatedTrackMap
                       eventName={eventName}
                       className="next-race-desktop-track-map"
                       svgClassName="next-race-desktop-track-svg"
                       loadingClassName="next-race-track-loading"
-                    />
+                    />} />
                   ) : (
                     <div className="no-map-placeholder">🏁</div>
                   )}
