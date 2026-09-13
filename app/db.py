@@ -58,6 +58,10 @@ class Database:
         # 1. Таблица пользователей
         from app.auth_schema import ensure_auth_schema
         await ensure_auth_schema(self.conn)
+        from app.admin_notifications_schema import SCHEMA as admin_notifications_schema
+        from app.services.web_notifications import initialize as initialize_web_notifications
+        await self.conn.executescript(admin_notifications_schema)
+        await initialize_web_notifications(self.conn)
         from app.services.prediction_analytics import ensure_schema
         await ensure_schema(self.conn)
         await self.conn.execute("""

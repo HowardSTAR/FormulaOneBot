@@ -14,6 +14,7 @@ import {
 } from "chart.js";
 import { apiRequest } from "../../helpers/api";
 import "./admin.css";
+import { AdminInsights, AdminNotifications, AdminToolDirectory } from "./AdminTools";
 
 Chart.register(
   BarController,
@@ -150,7 +151,7 @@ function AdminChart({ metrics, source }: { metrics: Metrics; source: Source }) {
 }
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<"overview" | "users" | "games" | "audit">("overview");
+  const [tab, setTab] = useState<"overview" | "users" | "games" | "audit" | "notifications" | "tools">("overview");
   const [identity, setIdentity] = useState<AdminIdentity | null>(null);
   const [period, setPeriod] = useState<Period>("30d");
   const [source, setSource] = useState<Source>("all");
@@ -327,6 +328,8 @@ export default function AdminPage() {
       </header>
 
       <nav className="admin-tabs" aria-label="Разделы администрирования">
+        <button className={tab === "notifications" ? "active" : ""} onClick={() => setTab("notifications")}>Уведомления</button>
+        <button className={tab === "tools" ? "active" : ""} onClick={() => setTab("tools")}>Инструменты</button>
         <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Аналитика</button>
         <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Пользователи</button>
         <button className={tab === "games" ? "active" : ""} onClick={() => setTab("games")}>Игры</button>
@@ -342,6 +345,7 @@ export default function AdminPage() {
 
       {tab === "overview" && (
         <>
+          <AdminInsights />
           <section className="admin-toolbar">
             <div>
               {(["7d", "30d", "90d", "all"] as Period[]).map((value) => (
@@ -396,6 +400,8 @@ export default function AdminPage() {
         </>
       )}
 
+      {tab === "notifications" && <AdminNotifications adminId={identity?.id} />}
+      {tab === "tools" && <AdminToolDirectory />}
       {tab === "users" && (
         <section className="admin-users-card">
           <header className="admin-users-tools">
