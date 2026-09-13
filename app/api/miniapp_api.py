@@ -332,8 +332,21 @@ async def api_prediction_save(
 
 
 @web_app.get("/api/predictions/leaderboard")
-async def api_prediction_leaderboard(_: int = Depends(get_prediction_user_id)):
-    return await get_prediction_leaderboard()
+async def api_prediction_leaderboard(user_id: int = Depends(get_prediction_user_id)):
+    return {**await get_prediction_leaderboard(), "current_user_id": user_id}
+
+
+@web_app.get("/api/predictions/mine/{season}/{round_num}")
+async def api_personal_prediction_review(season: int, round_num: int, response: Response,
+                                        user_id: int = Depends(get_prediction_user_id)):
+    from app.services.prediction_service import get_personal_prediction_review
+    response.headers["Cache-Control"] = "private, no-store"
+    if not 1950 <= season <= 2100 or not 1 <= round_num <= 40:
+        raise HTTPException(422, "Некорректный сезон или этап")
+    review = await get_personal_prediction_review(user_id,season,round_num)
+    if review is None:
+        raise HTTPException(404, "У вас нет прогноза на этот этап")
+    return review
 
 
 @web_app.post("/api/contact-admin")

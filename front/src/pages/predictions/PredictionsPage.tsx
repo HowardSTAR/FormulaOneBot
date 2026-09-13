@@ -6,6 +6,7 @@ import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { getWebsiteUser, hasTelegramAuth } from "../../helpers/auth";
 import "./predictions.css";
+import { PersonalReview } from "./PersonalReview";
 
 type Driver = PickerDriver;
 type Prediction = {
@@ -50,7 +51,7 @@ type LeaderboardEntry = {
   average_points: number;
   history: HistoryItem[];
 };
-type LeaderboardResponse = { season: number; entries: LeaderboardEntry[]; rounds: RoundColumn[] };
+type LeaderboardResponse = { season: number; entries: LeaderboardEntry[]; rounds: RoundColumn[]; current_user_id: number };
 
 const EMPTY_PREDICTION: Prediction = {
   sprint_pole_driver: "",
@@ -106,6 +107,8 @@ export default function PredictionsPage() {
   };
   const [current, setCurrent] = useState<CurrentResponse | null>(null);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [reviewRound, setReviewRound] = useState<RoundColumn | null>(null);
   const [rounds, setRounds] = useState<RoundColumn[]>([]);
   const [leaderboardSeason, setLeaderboardSeason] = useState<number | null>(null);
   const [form, setForm] = useState<Prediction>(EMPTY_PREDICTION);
@@ -128,6 +131,7 @@ export default function PredictionsPage() {
       setDisplayName(currentData.profile.display_name || "");
       setForm(currentData.prediction ? { ...EMPTY_PREDICTION, ...currentData.prediction } : EMPTY_PREDICTION);
       setEntries(leaderboardData.entries || []);
+      setCurrentUserId(leaderboardData.current_user_id);
       setRounds(leaderboardData.rounds || []);
       setLeaderboardSeason(leaderboardData.season || null);
     } catch (e) {
@@ -341,6 +345,7 @@ export default function PredictionsPage() {
             <p>Прокрутите таблицу вправо, чтобы увидеть результаты каждого этапа.</p>
           </div>
           <div className="prediction-leaderboard-scroll">
+            <p>Нажмите на очки в своей строке, чтобы открыть личный разбор прогноза. Другие участники его не видят.</p>
             <table>
               <thead>
                 <tr>
@@ -376,7 +381,9 @@ export default function PredictionsPage() {
                         const points = stagePoints.get(`${roundInfo.season}-${roundInfo.round}`);
                         return (
                           <td key={`${roundInfo.season}-${roundInfo.round}`} title={roundInfo.event_name}>
-                            {points ?? "—"}
+                            {entry.user_id === currentUserId && points !== undefined
+                              ? <button className="prediction-own-score" aria-label={`Мой прогноз: ${roundInfo.event_name}, этап ${roundInfo.round}, ${points} баллов`} onClick={() => setReviewRound(roundInfo)}>{points}</button>
+                              : points ?? "—"}
                           </td>
                         );
                       })}
@@ -389,6 +396,7 @@ export default function PredictionsPage() {
           {!entries.length && <div className="predictions-loading">Турнирная таблица пока пуста.</div>}
         </section>
       )}
+      {reviewRound && <PersonalReview key={`${reviewRound.season}-${reviewRound.round}`} season={reviewRound.season} round={reviewRound.round} onClose={() => setReviewRound(null)} />}
     </main>
   );
 }

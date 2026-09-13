@@ -1,4 +1,5 @@
 import re
+import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -417,6 +418,58 @@ def calculate_prediction_points(prediction: Any, answers: dict[str, Any]) -> int
     return points
 
 
+def prediction_breakdown(prediction, answers, *, historical=False):
+    positions = answers.get("_race_positions") or {
+        str(answers[f]): pos for f, pos in PLACEMENT_TARGETS.items() if answers.get(f)
+    }
+    items = []
+    for rule in PREDICTION_SCORING_RULES:
+        field = rule["key"]
+        predicted, actual = prediction[field], answers.get(field)
+        if field.startswith("sprint_") and predicted is None and actual is None:
+            continue
+        position = positions.get(str(predicted)) if field in PLACEMENT_TARGETS else None
+        unknown = historical and field in PLACEMENT_TARGETS and actual is not None and position is None
+        partial = {f: answers.get(f) if f == field else None for f in PREDICTION_FIELDS}
+        partial["_race_positions"] = positions
+        points = None if unknown else calculate_prediction_points(prediction, partial)
+        if actual is None:
+            status, reason = "unavailable", "Фактический результат пока не установлен; пункт не учитывается в максимуме."
+        elif unknown:
+            status, reason = "unknown", "Полная классификация при старом расчёте не сохранена; баллы этого пункта нельзя достоверно восстановить."
+        elif predicted == actual:
+            status, reason = "exact", f"Точное совпадение: +{points}."
+        elif points:
+            status, reason = "partial", f"Ваш пилот финишировал P{position}; отклонение от P{PLACEMENT_TARGETS[field]}: {abs(position-PLACEMENT_TARGETS[field])}. +{points}."
+        else:
+            status, reason = "miss", "Нет совпадения в пределах начисления баллов: +0."
+        items.append({"key":field,"label":rule["label"],"predicted":predicted,"actual":actual,
+                      "position":position,"points":points,"maximum":rule["exact"] if actual is not None else 0,
+                      "status":status,"reason":reason,"rule":rule})
+    return items
+
+
+async def get_personal_prediction_review(user_id: int, season: int, round_num: int):
+    if not db.conn:
+        await db.connect()
+    row = await (await db.conn.execute("SELECT * FROM race_predictions WHERE user_id=? AND season=? AND round=?", (user_id,season,round_num))).fetchone()
+    if not row:
+        return None
+    actual = await (await db.conn.execute("SELECT * FROM prediction_round_results WHERE season=? AND round=?", (season,round_num))).fetchone()
+    snapshot = row["breakdown_json"]
+    items = json.loads(snapshot) if snapshot else prediction_breakdown(row,dict(actual) if actual else {},historical=True)
+    complete = bool(snapshot) or (row["points"] is not None and all(i["points"] is not None for i in items) and sum(i["points"] for i in items) == row["points"])
+    # Never present a reconstructed sum as the historic award when it differs.
+    if not snapshot and not complete and all(i["points"] is not None for i in items) and row["points"] is not None:
+        for item in items:
+            item["points"] = None
+            item["status"] = "unknown"
+            item["reason"] = "Старый расчёт не содержит сохранённой разбивки. Итоговые очки сохранены, детализация не подтверждена."
+    return {"season":season,"round":round_num,"event_name":actual["event_name"] if actual else f"Этап {round_num}",
+            "points":row["points"],"max_points":row["max_points"],"scored_at":row["scored_at"],
+            "complete":complete,"items":items}
+
+
 async def score_prediction_round(
     season: int,
     round_num: int,
@@ -466,10 +519,10 @@ async def score_prediction_round(
             points = calculate_prediction_points(prediction, answers)
             await db.conn.execute(
                 """
-                UPDATE race_predictions SET points = ?, max_points = ?, scored_at = CURRENT_TIMESTAMP
+                UPDATE race_predictions SET points = ?, max_points = ?, breakdown_json = ?, scored_at = CURRENT_TIMESTAMP
                 WHERE user_id = ? AND season = ? AND round = ?
                 """,
-                (points, max_points, prediction["user_id"], int(season), int(round_num)),
+                (points, max_points, json.dumps(prediction_breakdown(prediction, answers), ensure_ascii=False), prediction["user_id"], int(season), int(round_num)),
             )
         await db.conn.commit()
 
