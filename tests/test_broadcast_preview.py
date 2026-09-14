@@ -93,7 +93,9 @@ def callback(msg, token, action='send', owner=1):
 
 
 @pytest.mark.asyncio
-async def test_preview_only_then_double_click_sends_once(mock_broadcast):
+async def test_preview_only_then_double_click_sends_once(mock_broadcast, monkeypatch):
+    queue = AsyncMock()
+    monkeypatch.setattr('app.services.delivery_adapters.queue_actions', queue)
     msg, deliver = mock_broadcast
     await secret.admin_silent_broadcast(msg,SimpleNamespace(args=''))
     assert deliver.await_count == 1 and deliver.call_args.args[1] == 1
@@ -101,7 +103,9 @@ async def test_preview_only_then_double_click_sends_once(mock_broadcast):
     draft = secret._broadcast_drafts[token]
     assert draft['plain'] == 'Hello' and draft['keyboard'] is not None
     await asyncio.gather(secret.confirm_broadcast(callback(msg,token)),secret.confirm_broadcast(callback(msg,token)))
-    assert [call.args[1] for call in deliver.await_args_list] == [1,2,3]
+    assert [call.args[1] for call in deliver.await_args_list] == [1,1]  # preview + inert payload capture
+    queue.assert_awaited_once()
+    assert queue.call_args.args[2] == [(2,'UTC'),(3,'UTC')]
     assert token not in secret._broadcast_drafts
 
 

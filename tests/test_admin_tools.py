@@ -35,6 +35,19 @@ async def workspace(temp_db_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_telegram_delivery_log_is_admin_only(workspace):
+    database, app, client = workspace
+    await database.conn.execute("INSERT INTO telegram_delivery_batches VALUES('test','Body',NULL,?,?)", (time.time()+60,time.time()))
+    await database.conn.execute("INSERT INTO telegram_deliveries(event_key,telegram_id,timezone,updated,status) VALUES('test',900001,'UTC',?,'unknown')", (time.time(),))
+    await database.conn.commit()
+    result = await client.get('/api/admin/tools/telegram-deliveries')
+    assert result.status_code == 200
+    assert result.json()[0]['counts'] == {'unknown':1}
+    app.dependency_overrides.clear()
+    assert (await client.get('/api/admin/tools/telegram-deliveries')).status_code in {401,403}
+
+
+@pytest.mark.asyncio
 async def test_preview_is_inert_and_send_is_idempotent(workspace):
     database, _, client = workspace
     draft = {"title":"Test", "body":"Only test DB", "user_ids":"2, 2, 3"}

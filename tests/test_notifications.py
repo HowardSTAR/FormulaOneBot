@@ -670,9 +670,14 @@ def test_results_ready_status_bypasses_elapsed_time_debounce():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("event_kind", ["sprint_qualifying", "sprint"])
-async def test_completed_sprint_session_dispatches_to_mock_telegram_immediately(event_kind: str):
+async def test_completed_sprint_session_dispatches_to_mock_telegram_immediately(event_kind: str, api_client, monkeypatch):
     """Both sprint result feeds dispatch on an explicit results_ready transition."""
     from app.utils.notifications import check_and_notify_sprint, check_and_notify_sprint_quali
+    from app.db import db
+    from app.services.telegram_outbox import drain
+    monkeypatch.setattr('app.services.telegram_outbox.db', db)
+    await db.conn.execute('INSERT INTO users(telegram_id) VALUES(777)')
+    await db.conn.commit()
 
     now = datetime.now(timezone.utc)
     schedule_key = "sprint_quali_start_utc" if event_kind == "sprint_qualifying" else "sprint_start_utc"
@@ -719,4 +724,6 @@ async def test_completed_sprint_session_dispatches_to_mock_telegram_immediately(
         )
 
     assert delivered is True
+    bot.send_photo.assert_not_awaited()
+    await drain(bot)
     bot.send_photo.assert_awaited_once()

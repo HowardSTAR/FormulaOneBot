@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS web_push_outbox (
  PRIMARY KEY(notification_id,subscription_id)
 );
 CREATE INDEX IF NOT EXISTS web_push_pending ON web_push_outbox(done,next_attempt);
+CREATE TABLE IF NOT EXISTS web_notification_expirations (
+ notification_id INTEGER PRIMARY KEY REFERENCES web_notifications(id) ON DELETE CASCADE,
+ expires REAL NOT NULL
+);
 """
 
 @asynccontextmanager
@@ -77,7 +81,7 @@ async def has_members():
         except aiosqlite.OperationalError:
             return False
 
-async def publish(event_key: str, title: str, body: str, url: str, *, user_id=None, rows=None):
+async def publish(event_key: str, title: str, body: str, url: str, *, user_id=None, rows=None, expires=None):
     """Called only by live event triggers; existing startup watermarks stay authoritative."""
     if not await has_members():
         return
@@ -104,63 +108,32 @@ async def publish(event_key: str, title: str, body: str, url: str, *, user_id=No
                     personalized += "\n\n⭐ Ваше избранное\n" + "\n".join(f"P{r.get('position', '—')} · {r.get('name', '')} · {r.get('team', '')}" for r in favorites)
             cursor = await conn.execute("INSERT OR IGNORE INTO web_notifications(user_id,event_key,title,body,url,created_at) VALUES(?,?,?,?,?,?)", (uid,event_key,title,personalized,url,now))
             if cursor.rowcount:
+                if expires is not None:
+                    await conn.execute('INSERT INTO web_notification_expirations VALUES(?,?)', (cursor.lastrowid, expires))
                 await conn.execute("INSERT OR IGNORE INTO web_push_outbox(notification_id,subscription_id,next_attempt) SELECT ?,id,? FROM web_push_subscriptions WHERE user_id=?", (cursor.lastrowid,now,uid))
         await conn.commit()
 
-async def dispatch_push(*, not_before: float):
-    from app.session_reminders import session_enabled
-    if not push_config()["enabled"] or not await has_members():
-        return
-    from pywebpush import webpush, WebPushException
-    now = time.time()
-    async with connection() as conn:
-        # Drop old pending pushes on restart; inbox history remains available.
-        await conn.execute("UPDATE web_push_outbox SET done=1 WHERE notification_id IN (SELECT id FROM web_notifications WHERE created_at<?)", (max(not_before, now-3600),))
-        await conn.commit()
-        jobs = await (await conn.execute("""SELECT o.notification_id,o.subscription_id,o.attempts,s.subscription,n.title,n.body,n.url,n.event_key,n.user_id
-          FROM web_push_outbox o JOIN web_push_subscriptions s ON s.id=o.subscription_id
-          JOIN web_notifications n ON n.id=o.notification_id
-          WHERE o.done=0 AND o.attempts<4 AND o.next_attempt<=? ORDER BY n.id LIMIT 30""", (now,))).fetchall()
-        for job in jobs:
-            # Atomic lease prevents duplicate dispatch by multiple workers.
-            claim = await conn.execute("UPDATE web_push_outbox SET next_attempt=?,attempts=attempts+1 WHERE notification_id=? AND subscription_id=? AND done=0 AND next_attempt<=?", (now+120,job[0],job[1],now))
-            await conn.commit()
 
-            if not claim.rowcount:
-                continue
-            if job["event_key"].startswith("reminder:"):
-                owner = await (await conn.execute("SELECT reminder_sessions FROM users WHERE id=? AND archived_at IS NULL", (job["user_id"],))).fetchone()
-                parts = job["event_key"].split(":")
-                if not owner or len(parts) != 5 or not session_enabled(owner[0], parts[3]):
-                    await conn.execute("UPDATE web_push_outbox SET done=1 WHERE notification_id=? AND subscription_id=?", (job[0], job[1]))
-                    await conn.commit()
-                    continue
-            if job["event_key"].startswith("admin-error:"):
-                allowed = await (await conn.execute("SELECT 1 FROM users WHERE id=? AND role IN ('admin','superadmin') AND archived_at IS NULL", (job["user_id"],))).fetchone()
-                if not allowed:
-                    await conn.execute("UPDATE web_push_outbox SET done=1 WHERE notification_id=? AND subscription_id=?", (job[0], job[1]))
-                    await conn.commit()
-                    continue
-            done = False
-            try:
-                subscription = json.loads(job["subscription"])
-                validate_subscription(subscription)
-                await asyncio.to_thread(webpush, subscription_info=subscription,
-                    data=json.dumps({"title":job["title"], "body":job["body"][:600], "url":job["url"], "tag":f"notification-{job[0]}"}, ensure_ascii=False),
-                    vapid_private_key=os.environ["WEB_PUSH_PRIVATE_KEY"], vapid_claims={"sub":os.environ["WEB_PUSH_SUBJECT"]}, ttl=3600, timeout=15)
-                done = True
-            except WebPushException as exc:
-                status = exc.response.status_code if exc.response is not None else None
-                if status in (404,410):
-                    await conn.execute("DELETE FROM web_push_subscriptions WHERE id=?", (job[1],))
-                done = status is not None and 400 <= status < 500 and status != 429
-                logger.warning("Web Push delivery failed status=%s", status)
-            except ValueError:
-                done = True
-            except Exception:
-                logger.warning("Web Push delivery unavailable; retry scheduled")
-            await conn.execute("UPDATE web_push_outbox SET done=?,next_attempt=? WHERE notification_id=? AND subscription_id=?", (int(done),time.time()+min(1800,60*2**job[2]),job[0],job[1]))
+
+async def dispatch_push(*, not_before: float):
+    """Bridge existing transactional producers into the common delivery engine."""
+    from app.services.telegram_outbox import enqueue, drain
+    async with connection() as conn:
+        jobs = await (await conn.execute('''SELECT o.notification_id,o.subscription_id,o.attempts,n.title,n.body,n.url,n.event_key,n.created_at,e.expires
+            FROM web_push_outbox o JOIN web_notifications n ON n.id=o.notification_id
+            LEFT JOIN web_notification_expirations e ON e.notification_id=n.id
+            WHERE o.done=0 ORDER BY n.id LIMIT 100''')).fetchall()
+    for job in jobs:
+        # Existing queued work survives restart, but not its original TTL.
+        payload = {'event_key':job['event_key'], 'data':{'title':job['title'],'body':job['body'][:600],
+                    'url':job['url'],'tag':f"notification-{job['notification_id']}"}}
+        await enqueue(f"webpush:{job['notification_id']}:{job['subscription_id']}", '', None,
+                      [(job['subscription_id'],'UTC')],min(job['expires'] or job['created_at']+3600,job['created_at']+3600),channel='webpush',payload=payload,
+                      initial_status='unknown' if job['attempts'] else 'pending')
+        async with connection() as conn:
+            await conn.execute('UPDATE web_push_outbox SET done=1 WHERE notification_id=? AND subscription_id=?', (job['notification_id'],job['subscription_id']))
             await conn.commit()
+    await drain(limit=30)
 
 
 async def publish_safely(*args, **kwargs):
@@ -212,4 +185,4 @@ async def poll_web_notifications(*, not_before: float):
                     continue
                 text = get_notification_text(event,user["timezone"] or "Europe/Moscow",(start.timestamp()-now)/60,event_kind=kind)
                 await publish_safely(f"reminder:{season}:{event['round']}:{kind}:{minutes}", "Скоро сессия", text,
-                    f"/race-details?season={season}&round={event['round']}", user_id=user["id"])
+                    f"/race-details?season={season}&round={event['round']}", user_id=user["id"], expires=start.timestamp())

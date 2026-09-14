@@ -35,9 +35,16 @@ def test_sensitive_values_are_redacted():
 async def store(tmp_path, monkeypatch):
     monkeypatch.setattr(web, "db", SimpleNamespace(db_path=tmp_path / "alerts.db"))
     monkeypatch.setattr(alerts, "get_primary_admin_telegram_id", lambda: 123)
+    monkeypatch.setattr('app.services.telegram_outbox.db', web.db)
+    sender = AsyncMock(return_value=True)
+    monkeypatch.setattr('app.services.delivery_adapters.queued_message', sender)
+    monkeypatch.setattr(web, 'test_sender', sender, raising=False)
     async with web.connection() as conn:
         await conn.execute("CREATE TABLE users(id INTEGER PRIMARY KEY,role TEXT,archived_at TEXT)")
         await conn.executemany("INSERT INTO users VALUES(?,?,NULL)", [(1,"admin"),(2,"superadmin"),(3,"user")])
+        await conn.execute('ALTER TABLE users ADD COLUMN telegram_id INTEGER')
+        await conn.execute('ALTER TABLE users ADD COLUMN reminder_sessions INTEGER DEFAULT 31')
+        await conn.execute('CREATE TABLE group_chats(chat_id INTEGER PRIMARY KEY)')
         await web.initialize(conn)
         await conn.commit()
     return web
@@ -49,7 +56,8 @@ async def test_admin_inbox_without_push_enrollment_dedup_and_escalation(store):
     bot = SimpleNamespace(send_message=AsyncMock())
     for _ in range(6):
         await alerts.report_error(TimeoutError("timed out"), bot=bot)
-    assert bot.send_message.await_count == 2  # Initial low + escalation, not six messages.
+    assert store.test_sender.await_count == 2  # Initial low + escalation enqueued.
+    bot.send_message.assert_not_awaited()
     admin = await inbox(before=0, user_id=1)
     assert [i["priority"] for i in admin["items"]] == ["medium", "low"]
     assert "Повторов в серии: 6" in admin["items"][0]["body"]
@@ -71,14 +79,16 @@ async def test_parallel_incidents_are_deduplicated(store):
 
 @pytest.mark.asyncio
 async def test_database_failure_falls_back_without_recursive_alerts(monkeypatch):
+    sender = AsyncMock(return_value=True)
+    monkeypatch.setattr('app.services.delivery_adapters.queued_message', sender)
     monkeypatch.setattr(alerts, "record_incident", AsyncMock(side_effect=sqlite3.OperationalError("offline")))
     monkeypatch.setattr(alerts, "get_primary_admin_telegram_id", lambda: 123)
     monkeypatch.setattr(alerts, "_fallback", {})
     bot = SimpleNamespace(send_message=AsyncMock())
     await alerts.report_error(ValueError("same"), bot=bot)
     await alerts.report_error(ValueError("same"), bot=bot)
-    assert bot.send_message.await_count == 1
-    assert "Не удалось сохранить" in bot.send_message.call_args.args[1]
+    assert sender.await_count == 1
+    assert "Не удалось сохранить" in sender.call_args.args[2]
 
 
 @pytest.mark.asyncio
@@ -96,7 +106,7 @@ async def test_middleware_reports_stale_callback_without_reply(monkeypatch):
 async def test_telegram_failure_does_not_lose_website_alert(store):
     bot = SimpleNamespace(send_message=AsyncMock(side_effect=TimeoutError()))
     await alerts.report_error(ValueError("<unsafe>"), bot=bot)
-    assert "&lt;unsafe&gt;" in bot.send_message.call_args.args[1]
+    assert "&lt;unsafe&gt;" in store.test_sender.call_args.args[2]
     async with store.connection() as conn:
         assert (await (await conn.execute("SELECT COUNT(*) FROM web_notifications")).fetchone())[0] == 2
 

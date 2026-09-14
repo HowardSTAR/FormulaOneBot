@@ -58,6 +58,8 @@ class Database:
         # 1. Таблица пользователей
         from app.auth_schema import ensure_auth_schema
         await ensure_auth_schema(self.conn)
+        from app.services.telegram_outbox import SCHEMA as telegram_outbox_schema
+        await self.conn.executescript(telegram_outbox_schema)
         from app.admin_notifications_schema import SCHEMA as admin_notifications_schema
         from app.services.web_notifications import initialize as initialize_web_notifications
         await self.conn.executescript(admin_notifications_schema)

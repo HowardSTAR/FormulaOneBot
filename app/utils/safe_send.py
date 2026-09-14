@@ -79,6 +79,9 @@ async def safe_answer(
 
 async def safe_send_photo(bot: Bot, chat_id: int, photo, caption: str = "", **kwargs) -> bool:
     """Безопасная отправка фото (BytesIO, bytes или file_id)."""
+    from app.services.delivery_adapters import captured
+    if captured('send_photo', dict(photo=photo,caption=caption,**kwargs)):
+        return True
     await _apply_sound_preference(chat_id, kwargs)
     try:
         logger.info("[Telegram API Dispatch] method=send_photo chat_id=%s", chat_id)
@@ -117,6 +120,10 @@ async def safe_send_media_group(
         logger.error("Media group for %s must contain 2..10 items, got %s", chat_id, len(media))
         return False
 
+    from app.services.delivery_adapters import captured
+    if captured('send_media_group', dict(media=list(media),**kwargs)):
+        return True
+
     await _apply_sound_preference(chat_id, kwargs)
 
     for attempt in range(1, retries + 1):
@@ -151,6 +158,9 @@ async def safe_send_message(bot: Bot, chat_id: int, text: str, **kwargs) -> bool
     Безопасная отправка сообщения с обработкой ошибок и FloodWait.
     Возвращает True, если отправлено успешно.
     """
+    from app.services.delivery_adapters import captured
+    if captured('send_message', dict(text=text,**kwargs)):
+        return True
     await _apply_sound_preference(chat_id, kwargs)
     try:
         logger.info("[Telegram API Dispatch] method=send_message chat_id=%s", chat_id)

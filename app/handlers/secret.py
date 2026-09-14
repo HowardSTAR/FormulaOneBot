@@ -830,18 +830,13 @@ async def confirm_broadcast(callback: CallbackQuery):
     try:
         users = [u for u in await get_users_with_settings(notifications_only=False) if u[0] in draft["targets"]]
         await callback.message.answer(f"🏁 Начинаю рассылку: {len(users)} получателей.")
-        for user in users:
-            attempted += 1
-            try:
-                if await _deliver_broadcast(callback.bot, user[0], draft, quiet=is_quiet_hours(user[1] or "Europe/Moscow")):
-                    count += 1
-            except Exception:
-                logger.exception("Confirmed broadcast delivery failed")
-            await asyncio.sleep(0.06)
-            if attempted % 20 == 0:
-                await asyncio.sleep(1)
-        await callback.message.answer(f"✅ Рассылка завершена. Успешно: {count}/{len(users)}. "
-            "Автоматических повторов не будет; повторная новая рассылка может создать дубликаты.")
+        from app.services.delivery_adapters import capture, queue_actions
+        with capture() as actions:
+            await _deliver_broadcast(callback.bot, draft['owner'], draft, quiet=False)
+        await queue_actions(f'broadcast:{token}', actions, users, time.time()+86400)
+        count = len(users)
+        await callback.message.answer(f"✅ В очередь добавлено: {count} получателей. "
+            "Статусы доставки доступны в админке. Не создавайте ту же рассылку повторно.")
     except Exception:
         logger.exception("Confirmed broadcast interrupted owner=%s successful=%s attempted=%s", draft["owner"], count, attempted)
         await callback.message.answer(f"Рассылка прервана. Успешно: {count}, попыток: {attempted}. "

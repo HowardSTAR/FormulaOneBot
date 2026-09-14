@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot
-from app.db import was_reminder_sent, set_reminder_sent
+from app.db import was_reminder_sent
 
 from app.f1_data import (
     get_quali_for_round_async,
@@ -23,13 +23,26 @@ from app.services.prediction_service import (
     score_prediction_round,
 )
 from app.services.prediction_race_facts import get_prediction_race_facts
-from app.utils.notifications import get_users_with_settings, is_quiet_hours
-from app.utils.safe_send import safe_send_message
+from app.services.telegram_outbox import enqueue, drain
+from app.utils.notifications import get_users_with_settings
 from app.utils.mini_app_links import mini_app_button
 from app.services.web_notifications import publish_safely as publish_web
 
 
 logger = logging.getLogger(__name__)
+
+
+async def _queue_prediction(bot, event, kind, text, keyboard, users):
+    now = datetime.now(timezone.utc)
+    _, deadline = get_prediction_window(event)
+    expires = deadline or now + timedelta(hours=2 if kind == 'closing' else 24)
+    if kind == 'results':
+        expires = now + timedelta(days=7)
+    key = f"prediction:{kind}:{event.get('season', now.year)}:{event['round']}"
+    await enqueue(key, text, keyboard, users, expires.timestamp())
+    # The separate worker will finish queued recipients after a restart/failure.
+    await drain(bot, event_key=key)
+    return len(users)
 
 
 def _prediction_open_trigger(sessions: list[dict]) -> datetime | None:
@@ -64,19 +77,7 @@ async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple]) -> 
         "⏳ Приём закроется строго в момент начала первой квалификации уикенда."
     )
     await publish_web(f"prediction-open:{event.get('season')}:{event.get('round')}", "Открыт приём прогнозов", text, "/predictions?tab=form")
-    sent = 0
-    for telegram_id, tz, *_ in users:
-        if await safe_send_message(
-            bot,
-            telegram_id,
-            text,
-            parse_mode="HTML",
-            reply_markup=keyboard,
-            disable_notification=is_quiet_hours(tz or "Europe/Moscow"),
-        ):
-            sent += 1
-        await asyncio.sleep(0.05)
-    return sent
+    return await _queue_prediction(bot, event, 'open', text, keyboard, users)
 
 
 async def _send_prediction_results(
@@ -104,19 +105,7 @@ async def _send_prediction_results(
         + "\n\nОткройте общую таблицу прогнозов по кнопке ниже."
     )
     await publish_web(f"prediction-results:{event.get('season')}:{event.get('round')}", "Итоги прогнозов", text, "/predictions?tab=leaderboard")
-    sent = 0
-    for telegram_id, tz, *_ in users:
-        if await safe_send_message(
-            bot,
-            telegram_id,
-            text,
-            parse_mode="HTML",
-            reply_markup=keyboard,
-            disable_notification=is_quiet_hours(tz or "Europe/Moscow"),
-        ):
-            sent += 1
-        await asyncio.sleep(0.05)
-    return sent
+    return await _queue_prediction(bot, event, 'results', text, keyboard, users)
 
 
 async def _send_prediction_closing(bot: Bot, event: dict, users: list[tuple]) -> bool:
@@ -130,18 +119,13 @@ async def _send_prediction_closing(bot: Bot, event: dict, users: list[tuple]) ->
     )
     season, round_num = event['season'], int(event['round'])
     await publish_web(f"prediction-closing:{season}:{round_num}", "До закрытия прогнозов осталось 2 часа", text, "/predictions?tab=form")
-    complete = True
+    remaining = []
     for telegram_id, tz, *_ in users:
         if await was_reminder_sent(telegram_id, season, round_num, False, 21000):
             continue
-        delivered = await safe_send_message(bot, telegram_id, text, parse_mode="HTML",
-            reply_markup=keyboard, disable_notification=is_quiet_hours(tz or "Europe/Moscow"))
-        if delivered:
-            await set_reminder_sent(telegram_id, season, round_num, False, 21000)
-        else:
-            complete = False
-        await asyncio.sleep(0.05)
-    return complete
+        remaining.append((telegram_id, tz))
+    await _queue_prediction(bot, event, 'closing', text, keyboard, remaining)
+    return True  # Safely enqueued, not a claim that every recipient received it.
 
 
 async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None = None) -> None:
@@ -187,12 +171,11 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
                 sent = 0 if skipped_open else await _send_prediction_opened(
                     bot, {**event, "season": season}, notification_users,
                 )
-                # Если получатели есть, но Telegram не принял ни одного сообщения,
-                # не закрываем событие: следующий запуск планировщика повторит доставку.
+                # The flag prevents re-enqueueing. Individual delivery is in the outbox.
                 if skipped_open or sent or not notification_users:
                     await mark_notification_state(season, round_num, "opened_sent")
                 logger.info(
-                    "[Delivery Confirmation] event=prediction_window_open season=%s round=%s delivered=%s",
+                    "[Delivery Queued] event=prediction_window_open season=%s round=%s queued=%s",
                     season,
                     round_num,
                     sent,
@@ -241,7 +224,7 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
         if skipped_result or sent or not notification_users:
             await mark_notification_state(season, round_num, "results_sent")
         logger.info(
-            "Prediction results %s/%s: scored=%s max=%s delivered=%s",
+            "Prediction results %s/%s: scored=%s max=%s queued=%s",
             season,
             round_num,
             score_info["scored"],

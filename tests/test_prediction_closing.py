@@ -20,18 +20,15 @@ async def test_closing_window(monkeypatch, offset, restarted, already, expected)
 
 
 @pytest.mark.asyncio
-async def test_retry_only_failed_recipients(monkeypatch):
+async def test_closing_queues_only_recipients_without_legacy_receipts(monkeypatch):
     from app.services import prediction_notifications as n
-    receipts = set()
+    receipts = {1}
     async def seen(tg, *args): return tg in receipts
-    async def mark(tg, *args): receipts.add(tg)
     monkeypatch.setattr(n, 'was_reminder_sent', seen)
-    monkeypatch.setattr(n, 'set_reminder_sent', mark)
     monkeypatch.setattr(n, 'publish_web', AsyncMock())
     monkeypatch.setattr(n, 'mini_app_button', AsyncMock(return_value=None))
-    sender = AsyncMock(side_effect=[True,False,True])
-    monkeypatch.setattr(n, 'safe_send_message', sender)
+    sender = AsyncMock()
+    monkeypatch.setattr(n, '_queue_prediction', sender)
     args = (AsyncMock(), {'season':2026,'round':1,'event_name':'Test GP'}, [(1,'UTC'),(2,'UTC')])
-    assert not await n._send_prediction_closing(*args)
     assert await n._send_prediction_closing(*args)
-    assert [call.args[1] for call in sender.await_args_list] == [1,2,2]
+    assert sender.call_args.args[-1] == [(2,'UTC')]

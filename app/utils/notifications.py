@@ -43,7 +43,7 @@ from app.f1_data import (
     get_driver_full_name_async,
     set_cached_quali_results,
 )
-from app.utils.safe_send import safe_send_message, safe_send_photo
+from app.services.delivery_adapters import queued_message as safe_send_message, queued_photo as safe_send_photo
 from app.utils.image_render import create_f1_style_classification_image
 
 logger = logging.getLogger(__name__)
@@ -303,7 +303,7 @@ async def check_and_send_notifications(bot: Bot):
                         text = get_notification_text(race, tz, mins, event_kind=event_kind)
 
                     quiet = is_quiet_hours(tz)
-                    if await safe_send_message(bot, tg_id, text, disable_notification=quiet):
+                    if await safe_send_message(bot, tg_id, text, disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num}:{event_kind}:{notify_min}', expires=datetime.now(timezone.utc).timestamp()+max(0,mins)*60):
                         sent_count += 1
                         if round_num is not None:
                             await set_reminder_sent(tg_id, season, round_num, is_quali_key, notify_key)
@@ -329,7 +329,7 @@ async def check_and_send_notifications(bot: Bot):
                         group_key = -abs(int(chat_id))
                         if await was_reminder_sent(group_key, season, round_num_g, is_quali_key, notify_key):
                             continue
-                    if await safe_send_message(bot, chat_id, text, parse_mode="HTML", disable_notification=quiet):
+                    if await safe_send_message(bot, chat_id, text, parse_mode="HTML", disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num_g}:{event_kind}:{GROUP_NOTIFY_BEFORE}', expires=datetime.now(timezone.utc).timestamp()+max(0,mins)*60):
                         sent_count += 1
                         if group_key is not None:
                             await set_reminder_sent(group_key, season, round_num_g, is_quali_key, notify_key)
@@ -727,7 +727,7 @@ async def _deliver_session_classification(
         key = receipt_base + receipt_part
         if await was_reminder_sent(chat_id, season, round_num, False, key):
             return True
-        delivered = await sender(bot, chat_id, payload, **kwargs)
+        delivered = await sender(bot, chat_id, payload, delivery_key=f'classification:{season}:{round_num}:{key}', **kwargs)
         if delivered:
             await set_reminder_sent(chat_id, season, round_num, False, key)
         return delivered
@@ -875,11 +875,11 @@ async def check_and_send_results(bot: Bot):
         for user in users:
             tz = user[1] or "Europe/Moscow"
             quiet = is_quiet_hours(tz)
-            if await safe_send_message(bot, user[0], text, disable_notification=quiet):
+            if await safe_send_message(bot, user[0], text, disable_notification=quiet, delivery_key=f'testing:{season}:{round_num}'):
                 sent_count += 1
             await asyncio.sleep(0.05)
         for chat_id in group_chats:
-            if await safe_send_message(bot, chat_id, text, disable_notification=is_quiet_hours(GROUP_TIMEZONE)):
+            if await safe_send_message(bot, chat_id, text, disable_notification=is_quiet_hours(GROUP_TIMEZONE), delivery_key=f'testing:{season}:{round_num}'):
                 sent_count += 1
             await asyncio.sleep(0.05)
 
@@ -923,7 +923,7 @@ async def check_and_send_results(bot: Bot):
             for u in voting_users:
                 tg_id, tz = u[0], u[1] or "Europe/Moscow"
                 quiet = is_quiet_hours(tz)
-                await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet, reply_markup=voting_keyboard)
+                await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet, reply_markup=voting_keyboard, delivery_key=f'voting-invite:{season}:{round_num}')
                 await asyncio.sleep(0.05)
             await set_last_notified_voting_invite_round(season, round_num)
             logger.info(f"🗳 Sent voting invite for {event_name} (no results yet)")
@@ -1083,6 +1083,7 @@ async def check_and_send_results(bot: Bot):
             bot,
             tg_id,
             photo_bytes_generic,
+            delivery_key=f'race-photo:{season}:{round_num}',
             caption="🏁 Результаты последней гонки (таблица на картинке).",
             parse_mode="HTML",
             has_spoiler=True,
@@ -1122,6 +1123,7 @@ async def check_and_send_results(bot: Bot):
             bot,
             tg_id,
             caption,
+            delivery_key=f'race-favorites:{season}:{round_num}',
             parse_mode="HTML",
             disable_notification=quiet,
         ):
@@ -1144,7 +1146,7 @@ async def check_and_send_results(bot: Bot):
         for u in voting_users:
             tg_id, tz = u[0], u[1] or "Europe/Moscow"
             quiet = is_quiet_hours(tz)
-            await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet, reply_markup=voting_keyboard)
+            await safe_send_message(bot, tg_id, voting_text, parse_mode="HTML", disable_notification=quiet, reply_markup=voting_keyboard, delivery_key=f'voting-invite:{season}:{round_num}')
             await asyncio.sleep(0.05)
         await set_last_notified_voting_invite_round(season, round_num)
 
@@ -1153,6 +1155,7 @@ async def check_and_send_results(bot: Bot):
     for chat_id in group_chats:
         if await safe_send_photo(
             bot, chat_id, photo_bytes_generic,
+            delivery_key=f'race-photo:{season}:{round_num}',
             caption=group_caption,
             parse_mode="HTML",
             disable_notification=is_quiet_hours(GROUP_TIMEZONE),
@@ -1421,7 +1424,7 @@ async def check_and_notify_voting_results(bot: Bot, *, not_before: datetime | No
                 continue
 
             quiet = is_quiet_hours(tz_name)
-            if await safe_send_message(bot, tg_id, text, parse_mode="HTML", disable_notification=quiet):
+            if await safe_send_message(bot, tg_id, text, parse_mode="HTML", disable_notification=quiet, delivery_key=f'voting-results:{season}:{round_num}'):
                 sent_count += 1
                 await set_reminder_sent(tg_id, season, round_num, False, VOTING_RESULTS_NOTIFY_KEY)
             await asyncio.sleep(0.05)

@@ -22,6 +22,20 @@ from app.services.web_notifications import push_config
 router = APIRouter(prefix="/api/admin/tools", tags=["administration"])
 
 
+@router.get('/telegram-deliveries')
+async def telegram_delivery_log(actor: AdminContext = Depends(require_admin_session)):
+    async with connection() as conn:
+        exists = await (await conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='telegram_delivery_batches'")).fetchone()
+        if not exists:
+            return []
+        batches = await (await conn.execute("SELECT b.event_key,b.created,b.expires,COALESCE(p.channel,'telegram') channel FROM telegram_delivery_batches b LEFT JOIN delivery_payloads p USING(event_key) ORDER BY created DESC LIMIT 30")).fetchall()
+        result = []
+        for batch in batches:
+            counts = await (await conn.execute('SELECT status,COUNT(*) n FROM telegram_deliveries WHERE event_key=? GROUP BY status', (batch['event_key'],))).fetchall()
+            result.append({**dict(batch), 'counts': {row['status']:row['n'] for row in counts}})
+        return result
+
+
 @asynccontextmanager
 async def connection():
     async with aiosqlite.connect(db.db_path) as conn:
@@ -179,6 +193,10 @@ async def insights(days: int = Query(30, ge=1, le=90), _: AdminContext = Depends
             FROM web_notifications WHERE created_at>=?""", (time.time()-days*86400,)))[0]
         queue = (await rows("""SELECT SUM(CASE WHEN done=0 AND attempts<4 THEN 1 ELSE 0 END) AS pending,
             SUM(CASE WHEN done=0 AND attempts>=4 THEN 1 ELSE 0 END) AS exhausted FROM web_push_outbox"""))[0]
+        shared = (await rows("""SELECT SUM(CASE WHEN d.status IN ('pending','retry','sending') THEN 1 ELSE 0 END) pending,
+            SUM(CASE WHEN d.status IN ('failed','unknown','blocked') THEN 1 ELSE 0 END) exhausted
+            FROM telegram_deliveries d JOIN delivery_payloads p USING(event_key) WHERE p.channel='webpush'"""))[0]
+        queue = {key: (queue[key] or 0)+(shared[key] or 0) for key in queue}
         visitors = (await rows("""SELECT COUNT(*) AS unique_browsers,SUM(CASE WHEN days>1 THEN 1 ELSE 0 END) AS returning_browsers
             FROM (SELECT visitor_id,COUNT(DISTINCT CAST(bucket/288 AS INTEGER)) AS days FROM site_visits WHERE bucket>=? GROUP BY visitor_id)""", (int(time.time()-days*86400)//300,)))[0]
         drivers = await rows("""SELECT f.driver_code AS label,COUNT(DISTINCT f.user_id) AS users FROM favorite_drivers f

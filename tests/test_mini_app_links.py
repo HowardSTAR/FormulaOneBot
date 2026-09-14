@@ -38,7 +38,11 @@ async def test_non_https_configuration_cannot_generate_a_broken_telegram_button(
 
 
 @pytest.mark.asyncio
-async def test_prediction_notifications_contain_destination_buttons(monkeypatch):
+async def test_prediction_notifications_contain_destination_buttons(monkeypatch, api_client):
+    from app.db import db
+    await db.conn.execute('INSERT INTO users(telegram_id) VALUES(123)')
+    await db.conn.commit()
+    monkeypatch.setattr('app.services.prediction_notifications.publish_web', AsyncMock())
     monkeypatch.setenv("MINI_APP_URL", "https://example.test")
     bot = AsyncMock()
     event = {"event_name": "Italian <Grand Prix>", "round": 15}

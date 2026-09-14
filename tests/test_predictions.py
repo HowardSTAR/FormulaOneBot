@@ -134,7 +134,11 @@ def test_sprint_prediction_window_uses_fp1_and_sprint_qualifying_cutoff():
 
 
 @pytest.mark.asyncio
-async def test_prediction_open_notification_dispatches_at_fp1():
+async def test_prediction_open_notification_dispatches_at_fp1(api_client, monkeypatch):
+    from app.db import db
+    await db.conn.execute('INSERT INTO users(telegram_id) VALUES(12345)')
+    await db.conn.commit()
+    monkeypatch.setattr('app.services.prediction_notifications.publish_web', AsyncMock())
     """The polling worker sends the invitation on its first tick inside the FP1 window."""
     from app.services.prediction_notifications import check_and_notify_predictions
 

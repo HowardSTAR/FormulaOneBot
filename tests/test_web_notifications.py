@@ -15,12 +15,15 @@ def subscription(endpoint="https://fcm.googleapis.com/fcm/send/test"):
 @pytest_asyncio.fixture
 async def store(tmp_path, monkeypatch):
     monkeypatch.setattr(service, "db", SimpleNamespace(db_path=tmp_path/"notifications.db"))
+    monkeypatch.setattr('app.services.telegram_outbox.db', service.db)
     async with service.connection() as conn:
         await conn.executescript("""CREATE TABLE users(id INTEGER PRIMARY KEY,archived_at TEXT,role TEXT DEFAULT 'user',timezone TEXT DEFAULT 'UTC',notify_before INTEGER DEFAULT 60,reminder_sessions INTEGER DEFAULT 31);
         INSERT INTO users(id,archived_at) VALUES(1,NULL),(2,NULL);
         CREATE TABLE favorite_drivers(user_id INTEGER,driver_code TEXT);
         CREATE TABLE favorite_teams(user_id INTEGER,constructor_name TEXT);
         INSERT INTO favorite_drivers VALUES(1,'NOR');""")
+        await conn.execute('ALTER TABLE users ADD COLUMN telegram_id INTEGER')
+        await conn.execute('CREATE TABLE group_chats(chat_id INTEGER PRIMARY KEY)')
         await service.initialize(conn)
         await conn.executemany("INSERT INTO web_notification_members VALUES(?,?)",[(1,time.time()),(2,time.time())])
         await conn.execute("INSERT INTO web_push_subscriptions VALUES(1,1,?,?,?)",(subscription()["endpoint"],json.dumps(subscription()),time.time()))
@@ -88,7 +91,7 @@ async def test_deduplication_personalization_and_queue(store):
         assert (await (await conn.execute("SELECT COUNT(*) FROM web_push_outbox")).fetchone())[0]==1
 
 @pytest.mark.asyncio
-async def test_restart_drops_old_push_but_keeps_history(store,monkeypatch):
+async def test_restart_keeps_queued_push_within_ttl(store,monkeypatch):
     sent=[]
     monkeypatch.setenv("WEB_PUSH_PUBLIC_KEY","test"); monkeypatch.setenv("WEB_PUSH_PRIVATE_KEY","test"); monkeypatch.setenv("WEB_PUSH_SUBJECT","mailto:test@example.com")
     monkeypatch.setitem(sys.modules,"pywebpush",SimpleNamespace(webpush=lambda **kw:sent.append(kw),WebPushException=type("WebPushException",(Exception,),{})))
@@ -97,9 +100,23 @@ async def test_restart_drops_old_push_but_keeps_history(store,monkeypatch):
     await store.publish("new", "New", "New", "/notifications")
     await store.dispatch_push(not_before=baseline)
     await store.dispatch_push(not_before=baseline)
-    assert len(sent)==1 and json.loads(sent[0]["data"])["title"]=="New"
+    assert len(sent)==2 and {json.loads(item['data'])['title'] for item in sent}=={'Old','New'}
     async with store.connection() as conn:
         assert (await (await conn.execute("SELECT COUNT(*) FROM web_notifications")).fetchone())[0]==4
+
+@pytest.mark.asyncio
+async def test_legacy_attempt_and_expired_reminder_are_not_replayed(store,monkeypatch):
+    from app.services.telegram_outbox import delivery_counts
+    await store.publish('legacy','Legacy','Body','/notifications')
+    await store.publish('reminder:2026:1:quali:5','Soon','Body','/notifications',expires=time.time()-1)
+    async with store.connection() as conn:
+        await conn.execute("UPDATE web_push_outbox SET attempts=1 WHERE notification_id IN (SELECT id FROM web_notifications WHERE event_key='legacy')")
+        ids = await (await conn.execute('SELECT notification_id,subscription_id FROM web_push_outbox ORDER BY notification_id')).fetchall()
+        await conn.commit()
+    await store.dispatch_push(not_before=time.time())
+    assert await delivery_counts(f'webpush:{ids[0][0]}:{ids[0][1]}') == {'unknown':1}
+    assert await delivery_counts(f'webpush:{ids[1][0]}:{ids[1][1]}') == {'expired':1}
+
 
 @pytest.mark.asyncio
 async def test_inbox_and_read_are_scoped_to_account(store):

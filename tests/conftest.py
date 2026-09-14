@@ -73,6 +73,8 @@ async def app_with_overrides(temp_db_path):
     # admin API tests), so changing DATABASE_PATH alone is too late. Rebind
     # the shared Database object explicitly to keep API tests away from bot.db.
     original_db_path = db.db_path
+    # Rebinding a path does not move an already opened SQLite connection.
+    await db.close()
     db.db_path = temp_db_path.resolve()
 
     # Инициализация БД для тестов

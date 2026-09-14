@@ -98,7 +98,10 @@ async def report_error(error, *, bot=None, source="bot.update", priority=None):
         try:
             admin_id = get_primary_admin_telegram_id()
             if admin_id:
-                await asyncio.wait_for(bot.send_message(admin_id, f"<b>{html.escape(title)}</b>\n\n<pre>{html.escape(body)}</pre>", parse_mode="HTML"), timeout=10)
+                import hashlib
+                from app.services.delivery_adapters import queued_message
+                digest = hashlib.sha256(f'{source}:{type(error).__name__}:{body}'.encode()).hexdigest()[:20]
+                await queued_message(bot,admin_id,f"<b>{html.escape(title)}</b>\n\n<pre>{html.escape(body)}</pre>",parse_mode="HTML", delivery_key=f'admin-alert:{digest}:{int(time.time()//900)}')
         except Exception:
             logger.warning("Admin Telegram alert unavailable; website persistence is independent")
     return priority

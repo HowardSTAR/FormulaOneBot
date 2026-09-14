@@ -5,6 +5,32 @@ import "./admin-tools.css";
 
 const base = "/api/admin/tools";
 const message = (e: unknown) => e instanceof Error ? e.message : "Ошибка запроса";
+const deliveryLabels: Record<string,string> = { pending: "В очереди", sending: "Отправляется", sent: "Принято Telegram", retry: "Ожидает повтора", unknown: "Доставка не подтверждена", blocked: "Бот заблокирован", failed: "Ошибка", expired: "Срок истёк", cancelled: "Получатель исключён" };
+type DeliveryBatch = { event_key: string; created: number; channel: string; counts: Record<string,number> };
+function TelegramDeliveryLog() {
+  const [rows, setRows] = useState<DeliveryBatch[]>([]);
+  const [error, setError] = useState("");
+  const refresh = useCallback(async () => {
+    try { setRows(await apiRequest<DeliveryBatch[]>(`${base}/telegram-deliveries`)); setError(""); }
+    catch (e) { setError(message(e)); }
+  }, []);
+  useEffect(() => {
+    let active = true;
+    apiRequest<DeliveryBatch[]>(`${base}/telegram-deliveries`)
+      .then(data => { if (active) setRows(data); })
+      .catch(e => { if (active) setError(message(e)); });
+    return () => { active = false; };
+  }, []);
+  return <section><h3>Доставка уведомлений · все каналы</h3>
+    <button onClick={() => void refresh()}>Обновить статусы</button>
+    <p>Последние 30 заданий общей очереди. Принятие сервисом не означает прочтение. Неопределённые отправки не повторяются автоматически во избежание дублей.</p>
+    {error && <p role="alert">{error}</p>}
+    {!error && !rows.length && <p>Рассылок в новой очереди пока нет.</p>}
+    {rows.map(row => <article key={row.event_key}><h4>{row.channel === 'webpush' ? 'Web Push' : 'Telegram'} · {row.event_key}</h4><small>{new Date(row.created * 1000).toLocaleString()}</small>
+      <p>{Object.entries(row.counts).map(([key,count]) => `${key === 'sent' ? 'Принято сервисом' : deliveryLabels[key] ?? key}: ${count}`).join(" · ") || "Нет получателей"}</p>
+    </article>)}
+  </section>;
+}
 type Insights = {
   accounts: { total: number; new_users: number; telegram_linked: number; verified_email: number };
   reach: { members: number; push_users: number };
@@ -55,6 +81,7 @@ export function AdminInsights() {
         <article><h3>Любимые пилоты аудитории</h3><small>Текущий срез, не зависит от периода</small>
           {data.drivers.length ? data.drivers.map(d => <p key={d.label}>{d.label} — {d.users} аккаунтов</p>) : <p>Пока нет данных</p>}</article></div>
       <details><summary>Регистрации по дням UTC</summary>{data.registrations.length ? data.registrations.map(r => <p key={r.day}>{r.day}: {r.users}</p>) : <p>Нет регистраций за период</p>}</details>
+      <TelegramDeliveryLog />
     </>}
   </section>;
 }
