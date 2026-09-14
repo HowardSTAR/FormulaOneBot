@@ -12,6 +12,31 @@ def subscription(endpoint="https://fcm.googleapis.com/fcm/send/test"):
     encode = lambda value: base64.urlsafe_b64encode(value).decode().rstrip("=")
     return {"endpoint":endpoint,"keys":{"p256dh":encode(b"\x04"+b"a"*64),"auth":encode(b"b"*16)}}
 
+
+@pytest.mark.asyncio
+async def test_home_unread_is_private_and_read_only(store):
+    import httpx
+    from fastapi import FastAPI
+    from app.api import web_notifications_api as api
+    async with store.connection() as conn:
+        await conn.execute('DELETE FROM web_notification_members WHERE user_id=1')
+        await conn.executemany("INSERT INTO web_notifications(user_id,event_key,title,body,url,created_at) VALUES(?,?,'Title','Private','/',?)", [(1,'race:1',time.time()),(2,'race:2',time.time()),(1,'admin-error:critical:test',time.time())])
+        await conn.commit()
+    app = FastAPI()
+    app.include_router(api.router)
+    app.dependency_overrides[api.require_hybrid_user_id] = lambda: 1
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://test') as client:
+        response = await client.get('/api/web-notifications/unread-count')
+        assert response.json() == {'unread':1}
+        async with store.connection() as conn:
+            assert (await (await conn.execute('SELECT COUNT(*) FROM web_notification_members WHERE user_id=1')).fetchone())[0] == 0
+            assert (await (await conn.execute('SELECT COUNT(*) FROM web_notifications WHERE read_at IS NOT NULL')).fetchone())[0] == 0
+            await conn.execute("UPDATE users SET role='admin' WHERE id=1")
+            await conn.commit()
+        assert (await client.get('/api/web-notifications/unread-count')).json() == {'unread':2}
+        app.dependency_overrides.clear()
+        assert (await client.get('/api/web-notifications/unread-count')).status_code in {401,403}
+
 @pytest_asyncio.fixture
 async def store(tmp_path, monkeypatch):
     monkeypatch.setattr(service, "db", SimpleNamespace(db_path=tmp_path/"notifications.db"))

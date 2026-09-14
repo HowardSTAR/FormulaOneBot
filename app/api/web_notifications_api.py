@@ -7,6 +7,13 @@ from app.services.web_notifications import connection, initialize, push_config, 
 
 router = APIRouter(prefix="/api/web-notifications", tags=["web-notifications"])
 
+@router.get('/unread-count')
+async def unread_count(user_id: int = Depends(require_hybrid_user_id)):
+    # Homepage inspection must not subscribe users or mark messages as read.
+    async with connection() as conn:
+        row = await (await conn.execute("SELECT COUNT(*) FROM web_notifications WHERE user_id=? AND read_at IS NULL AND (event_key NOT LIKE 'admin-error:%' OR EXISTS(SELECT 1 FROM users u WHERE u.id=web_notifications.user_id AND u.role IN ('admin','superadmin') AND u.archived_at IS NULL))", (user_id,))).fetchone()
+        return {'unread': row[0]}
+
 @router.get("")
 async def inbox(before: int = Query(0, ge=0), user_id: int = Depends(require_hybrid_user_id)):
     async with connection() as conn:

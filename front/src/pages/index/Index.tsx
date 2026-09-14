@@ -8,6 +8,7 @@ import { getCountryFlagUrl } from "../../constants/flags";
 import "./styles.css";
 import Hero from "./Hero";
 import IndexIcon from "./IndexIcon";
+import { PersonalHome } from './PersonalHome';
 
 export type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
 
@@ -241,6 +242,7 @@ function IndexPage() {
 
   return (
     <>
+      <PersonalHome auth={auth} timezone={displayTz} />
       <div className="index-desktop-shell index-dashboard">
         <section className="index-dashboard-top">
           <div className="index-hero-wrap index-desktop-hero-wrap">
