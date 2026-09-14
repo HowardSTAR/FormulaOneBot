@@ -22,6 +22,39 @@ from app.services.web_notifications import push_config
 router = APIRouter(prefix="/api/admin/tools", tags=["administration"])
 
 
+class RecoveryRequest(BaseModel):
+    season: int = Field(ge=1950, le=2100)
+    round: int = Field(ge=1, le=40)
+
+
+class RecoveryConfirmation(BaseModel):
+    confirmation: Literal['ПЕРЕСЧИТАТЬ']
+
+
+@router.get('/prediction-recovery')
+async def recovery_history(actor: AdminContext = Depends(require_admin_session)):
+    from app.services.prediction_recovery import history
+    return await history()
+
+
+@router.post('/prediction-recovery/preview')
+async def recovery_preview(data: RecoveryRequest, actor: AdminContext = Depends(require_admin_session)):
+    from app.services.prediction_recovery import prepare
+    try:
+        return await prepare(data.season,data.round)
+    except ValueError as exc:
+        raise HTTPException(409,str(exc)) from exc
+
+
+@router.post('/prediction-recovery/{identifier}/apply')
+async def recovery_apply(identifier: str, data: RecoveryConfirmation, actor: AdminContext = Depends(require_admin_session)):
+    from app.services.prediction_recovery import apply
+    try:
+        return await apply(identifier,actor.id)
+    except ValueError as exc:
+        raise HTTPException(409,str(exc)) from exc
+
+
 @router.get('/telegram-deliveries')
 async def telegram_delivery_log(actor: AdminContext = Depends(require_admin_session)):
     async with connection() as conn:

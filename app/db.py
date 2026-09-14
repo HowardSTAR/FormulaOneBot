@@ -60,6 +60,8 @@ class Database:
         await ensure_auth_schema(self.conn)
         from app.services.telegram_outbox import SCHEMA as telegram_outbox_schema
         await self.conn.executescript(telegram_outbox_schema)
+        from app.services.prediction_recovery import SCHEMA as prediction_recovery_schema
+        await self.conn.executescript(prediction_recovery_schema)
         from app.admin_notifications_schema import SCHEMA as admin_notifications_schema
         from app.services.web_notifications import initialize as initialize_web_notifications
         await self.conn.executescript(admin_notifications_schema)

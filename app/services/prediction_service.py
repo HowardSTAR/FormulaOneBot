@@ -464,7 +464,7 @@ async def get_personal_prediction_review(user_id: int, season: int, round_num: i
     # Missing snapshots use the same read-only fallback as historic NULL values.
     snapshot = dict(row).get("breakdown_json")
     items = json.loads(snapshot) if snapshot else prediction_breakdown(row,dict(actual) if actual else {},historical=True)
-    complete = bool(snapshot) or (row["points"] is not None and all(i["points"] is not None for i in items) and sum(i["points"] for i in items) == row["points"])
+    complete = all(i["points"] is not None for i in items) and row["points"] is not None and sum(i["points"] for i in items) == row["points"]
     # Never present a reconstructed sum as the historic award when it differs.
     if not snapshot and not complete and all(i["points"] is not None for i in items) and row["points"] is not None:
         for item in items:

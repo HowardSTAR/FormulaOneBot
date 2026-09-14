@@ -184,6 +184,9 @@ async def main():
         coalesce=True,
     )
     from app.services.telegram_outbox import drain as drain_telegram_outbox
+    from app.services.prediction_recovery import refresh_missing
+    scheduler.add_job(refresh_missing, 'interval', minutes=30, id='prediction_recovery',
+                      replace_existing=True, max_instances=1, coalesce=True)
     scheduler.add_job(
         drain_telegram_outbox, "interval", seconds=30, args=[bot],
         id="telegram_outbox", replace_existing=True, max_instances=1, coalesce=True,

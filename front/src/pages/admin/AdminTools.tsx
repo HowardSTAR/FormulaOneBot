@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
 import "./admin-tools.css";
+import { PredictionRecovery } from './PredictionRecovery';
 
 const base = "/api/admin/tools";
 const message = (e: unknown) => e instanceof Error ? e.message : "Ошибка запроса";
@@ -160,5 +161,5 @@ export function AdminToolDirectory() {
     <article><h3><Link to="/prediction-analytics">Аналитика предсказаний →</Link></h3><p>Отдельная закрытая страница: расчёты вероятностей, история прогнозов и их результаты.</p><h3><Link to="/notifications">Мои уведомления →</Link></h3><p>Алёрты об ошибках для администратора и настройка push на текущем устройстве.</p></article>
     <article><h3>Диагностика в Telegram-боте</h3><p><code>/check_broadcast</code> — диагностика рассылок; <code>/check_results</code> — проверка результатов.</p><p>В боте также есть принудительные рассылки и /broadcast. Здесь они не запускаются: могут отправлять реальные сообщения.</p></article>
     <article><h3>Новые точечные уведомления</h3><p>Вкладка «Уведомления»: аудитория, предпросмотр, подтверждение, история и число прочитанных сообщений.</p><p>Публикация постов исключена. Новая форма не отправляет email и Telegram-сообщения.</p></article>
-  </div></section>;
+  </div><PredictionRecovery /></section>;
 }
