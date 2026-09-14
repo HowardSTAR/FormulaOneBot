@@ -13,15 +13,15 @@ from app.utils.broadcast_draft import parse_button
 def test_button_parser_preserves_rich_text():
     text, plain, button = parse_button('<b>Итоги</b>\n/button Таблица | /predictions?tab=leaderboard', 'Итоги\n/button Таблица | /predictions?tab=leaderboard')
     assert text == '<b>Итоги</b>' and plain == 'Итоги'
-    assert button == ('Таблица','/predictions',{'tab':'leaderboard'})
+    assert button == ('Таблица','/predictions?tab=leaderboard',{})
     assert parse_button('Hi','Hi') == ('Hi','Hi',None)
 
 
 @pytest.mark.parametrize('footer',[
-    '/button X | https://evil.test/predictions',
+    '/button X | javascript:alert(1)',
     '/button X | //evil.test/predictions',
-    '/button X | /predictions?tab=bad',
-    '/button X | /voting?tab=form',
+    '/button X | https://user:pass@example.com',
+    '/button X | /%2fevil.test',
     '/button | /predictions',
     '/button X | /predictions\nmore',
     '/button X | /predictions\n/button Y | /voting',
@@ -29,6 +29,25 @@ def test_button_parser_preserves_rich_text():
 def test_invalid_directives_rejected(footer):
     with pytest.raises(ValueError):
         parse_button('Hi\n'+footer,'Hi\n'+footer)
+
+
+@pytest.mark.parametrize('destination', ['/contact-admin', '/news?tag=a&tag=b#latest', 'https://t.me/example', 'https://example.com/post?id=1'])
+def test_arbitrary_destinations_and_optional_separator(destination):
+    for separator in [' | ', ' ']:
+        message = 'Hello\n/button 🔔 Обратная связь' + separator + destination
+        assert parse_button(message, message)[2] == ('🔔 Обратная связь', destination, {})
+
+
+@pytest.mark.asyncio
+async def test_external_link_preview_needs_no_miniapp_config(mock_broadcast):
+    msg, deliver = mock_broadcast
+    msg.text = msg.html_text = '/broadcast Hello\n/button Канал | https://t.me/example'
+    await secret.admin_silent_broadcast(msg, SimpleNamespace(args=''))
+    assert deliver.await_count == 1
+    draft = next(iter(secret._broadcast_drafts.values()))
+    button = draft['keyboard'].inline_keyboard[0][0]
+    assert button.url == 'https://t.me/example'
+    assert button.web_app is None
 
 
 @pytest.fixture

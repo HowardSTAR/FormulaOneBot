@@ -716,6 +716,7 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
             "• Можно ответить командой на одиночное фото.\n\n"
             "Добавьте последней строкой без форматирования:\n"
             "<code>/button 🏆 Таблица прогнозов | /predictions?tab=leaderboard</code>\n\n"
+            "Можно указать любую страницу Mini App или внешнюю ссылку https://…\n"
             "После подтверждения сообщение уходит <b>всем</b> активным пользователям. "
             "С 21:00 до 10:00 по времени получателя — в тихом режиме (без звука).",
             parse_mode="HTML"
@@ -730,7 +731,10 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
     keyboard = None
     if button:
         label, path, params = button
-        keyboard = await mini_app_button(message.bot, label, path, **params)
+        if path.lower().startswith(('https://', 'http://')):
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=label, url=path)]])
+        else:
+            keyboard = await mini_app_button(message.bot, label, path, **params)
         if keyboard is None:
             await message.answer("Кнопка не создана: настройте MINI_APP_URL с публичным HTTPS-адресом. Рассылка не подготовлена.")
             return
@@ -745,7 +749,7 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
     draft = dict(owner=message.from_user.id, chat_id=message.chat.id,
                  text=text_to_send, plain=plain_text_to_send, photos=photo_file_ids,
                  keyboard=keyboard, targets={u[0] for u in users}, expires=time.monotonic()+600)
-    await message.answer("👁 Предпросмотр — пока только вам. Проверьте текст и кнопку Mini App.")
+    await message.answer("👁 Предпросмотр — пока только вам. Проверьте текст и переход по кнопке.")
     try:
         ok = await _deliver_broadcast(message.bot, message.chat.id, draft, quiet=True)
     except Exception:
