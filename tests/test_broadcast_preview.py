@@ -17,6 +17,26 @@ def test_button_parser_preserves_rich_text():
     assert parse_button('Hi','Hi') == ('Hi','Hi',None)
 
 
+@pytest.mark.parametrize('formatted', [
+    '<b>Привет ❤️</b>\n\n<b>/button ⭐️ Обратная связь /contact-admin</b>',
+    '<b>Привет ❤️\n\n/button ⭐️ Обратная связь /contact-admin</b>',
+    '<b>Привет ❤️</b>\n\n/button <tg-emoji emoji-id="123">⭐️</tg-emoji> Обратная связь /contact-admin',
+    '<b>Привет ❤️</b>\n\n/button ⭐️ Обратная связь <a href="https://example.test">/contact-admin</a>',
+])
+def test_formatted_button_footer_preserves_body_and_closes_tags(formatted):
+    plain = 'Привет ❤️\n\n/button ⭐️ Обратная связь /contact-admin'
+    body, text, button = parse_button(formatted, plain)
+    assert body == '<b>Привет ❤️</b>'
+    assert text == 'Привет ❤️'
+    assert button == ('⭐️ Обратная связь', '/contact-admin', {})
+
+
+def test_button_cut_preserves_html_entities_and_nested_formatting():
+    formatted = '<b>A &amp; <i>B\n/button X | /contact-admin</i></b>'
+    body, _, _ = parse_button(formatted, 'A & B\n/button X | /contact-admin')
+    assert body == '<b>A &amp; <i>B</i></b>'
+
+
 @pytest.mark.parametrize('footer',[
     '/button X | javascript:alert(1)',
     '/button X | //evil.test/predictions',
