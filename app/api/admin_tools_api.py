@@ -22,6 +22,39 @@ from app.services.web_notifications import push_config
 router = APIRouter(prefix="/api/admin/tools", tags=["administration"])
 
 
+@router.get('/control')
+async def control_summary(actor: AdminContext = Depends(require_admin_session)):
+    now = time.time()
+    async with connection() as conn:
+        counts = await (await conn.execute("SELECT status,COUNT(*) n FROM telegram_deliveries WHERE updated>=? OR status IN ('pending','retry','sending') GROUP BY status",(now-7*86400,))).fetchall()
+        oldest = await (await conn.execute("SELECT MIN(b.created) FROM telegram_deliveries d JOIN telegram_delivery_batches b USING(event_key) WHERE d.status IN ('pending','retry','sending')")).fetchone()
+        recoveries = await (await conn.execute("SELECT state,COUNT(*) n FROM prediction_recovery WHERE created>=? GROUP BY state",(now-7*86400,))).fetchall()
+        missing = await (await conn.execute("SELECT season,round,event_name,fastest_lap_driver,first_retirement_driver,safety_car,calculated_at FROM prediction_round_results WHERE fastest_lap_driver IS NULL OR first_retirement_driver IS NULL OR safety_car IS NULL ORDER BY season DESC,round DESC LIMIT 30")).fetchall()
+        return {'as_of':now,'counts':{r['status']:r['n'] for r in counts},'oldest_pending':oldest[0],
+                'recoveries':{r['state']:r['n'] for r in recoveries},'push_configured':push_config()['enabled'],
+                'incomplete':[{'season':r['season'],'round':r['round'],'event_name':r['event_name'],
+                               'missing':[key for key in ('fastest_lap_driver','first_retirement_driver','safety_car') if r[key] is None]} for r in missing]}
+
+
+@router.get('/control/deliveries')
+async def control_deliveries(
+    channel: Literal['all','telegram','webpush']='all',
+    status: Literal['all','attention','pending','retry','sending','sent','unknown','failed','blocked','expired','cancelled']='attention',
+    offset: int=Query(0,ge=0,le=100000), actor: AdminContext=Depends(require_admin_session),
+):
+    conditions, params = [], []
+    if channel != 'all':
+        conditions.append("COALESCE(p.channel,'telegram')=?"); params.append(channel)
+    if status == 'attention':
+        conditions.append("d.status IN ('unknown','failed','blocked','retry')")
+    elif status != 'all':
+        conditions.append('d.status=?'); params.append(status)
+    where = ' WHERE '+' AND '.join(conditions) if conditions else ''
+    async with connection() as conn:
+        rows = await (await conn.execute("SELECT d.event_key,d.telegram_id recipient,d.status,d.attempts,d.next_attempt,d.updated,d.message_id,d.error,COALESCE(p.channel,'telegram') channel,b.expires FROM telegram_deliveries d JOIN telegram_delivery_batches b USING(event_key) LEFT JOIN delivery_payloads p USING(event_key)"+where+' ORDER BY d.updated DESC,d.event_key,d.telegram_id LIMIT 51 OFFSET ?',(*params,offset))).fetchall()
+        return {'items':[dict(row) for row in rows[:50]],'has_more':len(rows)>50}
+
+
 class RecoveryRequest(BaseModel):
     season: int = Field(ge=1950, le=2100)
     round: int = Field(ge=1, le=40)

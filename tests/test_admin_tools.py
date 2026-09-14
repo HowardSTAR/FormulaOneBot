@@ -35,6 +35,40 @@ async def workspace(temp_db_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_control_summary_filters_pagination_and_auth(workspace):
+    database, app, client = workspace
+    now = time.time()
+    await database.conn.execute("INSERT INTO telegram_delivery_batches VALUES('control-test','Secret body',NULL,?,?)", (now+60,now-900000))
+    await database.conn.executemany("INSERT INTO telegram_deliveries(event_key,telegram_id,timezone,updated,status) VALUES('control-test',?,'UTC',?,'unknown')", [(i,now) for i in range(51)])
+    await database.conn.execute("INSERT INTO telegram_deliveries(event_key,telegram_id,timezone,updated,status) VALUES('control-test',100,'UTC',0,'pending')")
+    await database.conn.execute("INSERT INTO telegram_deliveries(event_key,telegram_id,timezone,updated,status) VALUES('control-test',101,'UTC',0,'sent')")
+    await database.conn.execute("INSERT INTO prediction_round_results(season,round,event_name,safety_car) VALUES(2026,14,'Test race',0)")
+    await database.conn.commit()
+    summary = await client.get('/api/admin/tools/control')
+    assert summary.status_code == 200
+    assert summary.json()['counts'] == {'unknown':51,'pending':1}
+    assert summary.json()['oldest_pending'] == now-900000
+    assert summary.json()['incomplete'][0]['missing'] == ['fastest_lap_driver','first_retirement_driver']
+    page = await client.get('/api/admin/tools/control/deliveries')
+    assert len(page.json()['items']) == 50 and page.json()['has_more']
+    assert 'Secret body' not in page.text
+    second = await client.get('/api/admin/tools/control/deliveries?offset=50')
+    assert len(second.json()['items']) == 1 and not second.json()['has_more']
+    assert not ({r['recipient'] for r in page.json()['items']} & {r['recipient'] for r in second.json()['items']})
+    assert (await client.get('/api/admin/tools/control/deliveries?channel=webpush')).json()['items'] == []
+    await database.conn.execute("INSERT INTO delivery_payloads(event_key,channel,payload) VALUES('control-test','webpush','{}')")
+    await database.conn.commit()
+    push = await client.get('/api/admin/tools/control/deliveries?channel=webpush&status=pending')
+    assert len(push.json()['items']) == 1 and push.json()['items'][0]['channel'] == 'webpush'
+    assert (await client.get('/api/admin/tools/control/deliveries?channel=telegram')).json()['items'] == []
+    assert (await client.get('/api/admin/tools/control/deliveries?offset=-1')).status_code == 422
+    assert (await client.get('/api/admin/tools/control/deliveries?status=invalid')).status_code == 422
+    app.dependency_overrides.clear()
+    for path in ['/control','/control/deliveries']:
+        assert (await client.get('/api/admin/tools'+path)).status_code in {401,403}
+
+
+@pytest.mark.asyncio
 async def test_telegram_delivery_log_is_admin_only(workspace):
     database, app, client = workspace
     await database.conn.execute("INSERT INTO telegram_delivery_batches VALUES('test','Body',NULL,?,?)", (time.time()+60,time.time()))

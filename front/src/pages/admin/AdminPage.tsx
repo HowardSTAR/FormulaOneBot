@@ -15,6 +15,7 @@ import {
 import { apiRequest } from "../../helpers/api";
 import "./admin.css";
 import { AdminInsights, AdminNotifications, AdminToolDirectory } from "./AdminTools";
+import { AdminControl } from './AdminControl';
 
 Chart.register(
   BarController,
@@ -151,7 +152,7 @@ function AdminChart({ metrics, source }: { metrics: Metrics; source: Source }) {
 }
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<"overview" | "users" | "games" | "audit" | "notifications" | "tools">("overview");
+  const [tab, setTab] = useState<"control" | "overview" | "users" | "games" | "audit" | "notifications" | "tools">("control");
   const [identity, setIdentity] = useState<AdminIdentity | null>(null);
   const [period, setPeriod] = useState<Period>("30d");
   const [source, setSource] = useState<Source>("all");
@@ -328,6 +329,7 @@ export default function AdminPage() {
       </header>
 
       <nav className="admin-tabs" aria-label="Разделы администрирования">
+        <button className={tab === 'control' ? 'active' : ''} onClick={()=>setTab('control')}>Центр контроля</button>
         <button className={tab === "notifications" ? "active" : ""} onClick={() => setTab("notifications")}>Уведомления</button>
         <button className={tab === "tools" ? "active" : ""} onClick={() => setTab("tools")}>Инструменты</button>
         <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Аналитика</button>
@@ -343,6 +345,7 @@ export default function AdminPage() {
         </div>
       )}
 
+      {tab === 'control' && <AdminControl />}
       {tab === "overview" && (
         <>
           <AdminInsights />
