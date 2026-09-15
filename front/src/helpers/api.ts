@@ -21,6 +21,7 @@ const IS_LOCAL_HOST = typeof window !== 'undefined'
 const API_BASE = IS_LOCAL_HOST ? '' : CONFIGURED_API_BASE;
 const PATH_BASE = ((import.meta.env.BASE_URL as string) || '/').replace(/\/$/, '');
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 15000);
+const reportedErrors = new Map<string,number>();
 
 export function apiAssetUrl(
   endpoint: string,
@@ -76,9 +77,21 @@ export async function apiRequest<T = unknown>(
   }
 
   let response: Response;
+  const reportError = (error_code: number) => {
+    if (endpoint.startsWith('/api/analytics/')) return;
+    const path = window.location.pathname;
+    if (!/^\/[a-zA-Z0-9/_-]*$/.test(path) || path.length > 160) return;
+    if (Date.now() - (reportedErrors.get(path) || 0) < 300000) return;
+    reportedErrors.set(path,Date.now());
+    const platform = getInitData() ? 'telegram' : window.matchMedia('(display-mode: standalone)').matches || (navigator as Navigator & { standalone?: boolean }).standalone ? 'pwa' : 'browser';
+    // No response body, URL query, form values, or stack trace. Raw fetch avoids recursion.
+    void fetch(apiAssetUrl('/api/analytics/event'), { method:'POST',credentials:'include',headers,
+      body:JSON.stringify({event:'error',path,platform,error_code}),keepalive:true }).catch(() => {});
+  };
   try {
     response = await fetch(url, options);
   } catch (e) {
+    reportError(0);
     if ((e as Error)?.name === 'AbortError') {
       throw new Error('Превышено время ожидания ответа сервера.');
     }
@@ -88,6 +101,7 @@ export async function apiRequest<T = unknown>(
   }
 
   const contentType = response.headers.get('content-type') || '';
+  if (response.status >= 500) reportError(response.status);
   if (contentType.includes('text/html')) {
     throw new Error(
       'Сервер вернул HTML вместо JSON. Убедитесь, что бэкенд запущен (python run_web.py) и приложение открыто с того же домена.'

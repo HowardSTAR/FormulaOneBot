@@ -199,6 +199,8 @@ async def run_job(job_id):
     try:
         payload = await asyncio.wait_for(build_forecast(row["season"], row["round"], row["session"]), 180)
         async with db.write_lock:
+            if time.time() >= payload['start_at']:
+                raise ValueError('Сессия началась до сохранения расчёта. Прогноз не сохранён')
             await db.conn.execute("UPDATE prediction_analytics SET status='ready',payload=?,start_at=? WHERE id=? AND status='pending'",
                                   (json.dumps(payload, ensure_ascii=False, allow_nan=False), payload["start_at"], job_id))
             await db.conn.commit()

@@ -145,7 +145,8 @@ async def test_snapshot_save_idempotent_and_settle_without_rewriting_forecast(ap
     from app.services import prediction_analytics as service
     from app.db import db
     roster, actual, history = sample()
-    payload = {"model": simulate(roster, history, "race", [], None), "start_at": time.time() - 20000, "cutoff": time.time() - 30000}
+    clock = time.time()
+    payload = {"model": simulate(roster, history, "race", [], None), "start_at": clock + 1000, "cutoff": clock}
     app_with_overrides.dependency_overrides[require_admin_session] = lambda: AdminContext(id=1, role="admin")
     monkeypatch.setattr(service, "build_forecast", AsyncMock(return_value=payload))
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app_with_overrides), base_url="http://test") as client:
@@ -156,6 +157,7 @@ async def test_snapshot_save_idempotent_and_settle_without_rewriting_forecast(ap
         assert (await client.post(url, json={"season": 2026, "round": 4, "session": "race"})).json()["id"] == job_id
         before = (await client.get(f"{url}/{job_id}")).json()
         assert before["status"] == "ready" and before["actual"] is None
+        monkeypatch.setattr(service.time,'time',lambda:clock+25000)
         monkeypatch.setattr(service, "classification", AsyncMock(return_value=[]))
         await service.settle_forecasts()
         assert (await client.get(f"{url}/{job_id}")).json()["actual"] is None
@@ -168,6 +170,18 @@ async def test_snapshot_save_idempotent_and_settle_without_rewriting_forecast(ap
         assert (await client.get(f"{url}/{job_id}")).json() == after
         count = await (await db.conn.execute("SELECT COUNT(*) FROM prediction_analytics")).fetchone()
         assert count[0] == 1
+
+
+@pytest.mark.asyncio
+async def test_job_cannot_be_saved_after_start(app_with_overrides,monkeypatch):
+    from app.db import db
+    from app.services import prediction_analytics as service
+    await db.conn.execute("INSERT INTO prediction_analytics(id,season,round,session,created_at,created_by) VALUES('late',2026,1,'race',?,1)",(time.time(),))
+    await db.conn.commit()
+    monkeypatch.setattr(service,'build_forecast',AsyncMock(return_value={'start_at':time.time()-1}))
+    await service.run_job('late')
+    row=await (await db.conn.execute("SELECT status,payload FROM prediction_analytics WHERE id='late'")).fetchone()
+    assert tuple(row)==('error',None)
 
 
 @pytest.mark.asyncio

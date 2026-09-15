@@ -29,7 +29,7 @@ async def test_visit_does_not_accept_search_parameters_or_cross_site_posts(api_c
 
 
 @pytest.mark.asyncio
-async def test_login_links_guest_visits_without_adding_a_new_visitor(api_client, app_with_overrides, monkeypatch):
+async def test_login_preserves_anonymous_visit_state_without_new_visitor(api_client, app_with_overrides, monkeypatch):
     from app.api import site_analytics
     from app.db import db
     await api_client.post('/api/analytics/visit', json={'path': '/'})
@@ -39,4 +39,21 @@ async def test_login_links_guest_visits_without_adding_a_new_visitor(api_client,
     await api_client.post('/api/analytics/visit', json={'path': '/wiki'})
     async with db.conn.execute('SELECT COUNT(DISTINCT visitor_id), COUNT(DISTINCT user_id), SUM(user_id IS NULL) FROM site_visits') as cursor:
         row = await cursor.fetchone()
-    assert tuple(row) == (1, 1, 0)
+    assert tuple(row) == (1, 1, 1)
+
+
+@pytest.mark.asyncio
+async def test_events_validate_deduplicate_and_do_not_accept_saved_click(api_client,monkeypatch):
+    from app.api import site_analytics
+    from app.db import db,get_or_create_user
+    uid=await get_or_create_user(777123)
+    async def authenticated(**kwargs):
+        return uid
+    monkeypatch.setattr(site_analytics,'require_hybrid_user_id',authenticated)
+    body={'path':'/predictions','platform':'pwa','event':'prediction_view','season':2026,'round':14}
+    for _ in range(3):
+        assert (await api_client.post('/api/analytics/event',json=body)).status_code == 200
+    assert (await (await db.conn.execute('SELECT COUNT(*) FROM product_events')).fetchone())[0] == 1
+    assert (await api_client.post('/api/analytics/event',json={**body,'event':'prediction_saved'})).status_code == 422
+    assert (await api_client.post('/api/analytics/event',json={**body,'path':'/predictions?name=secret'})).status_code == 422
+    assert (await api_client.post('/api/analytics/event',json=body,headers={'sec-fetch-site':'cross-site'})).status_code == 403

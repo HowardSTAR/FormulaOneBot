@@ -28,6 +28,7 @@ type LeaderboardEntry = {
 }
 
 type LeaderboardResponse = {
+  progress?: { attempts:number;best_time_ms:number|null;improvement_ms:number|null;recent:{time_ms:number;created_at:string}[] } | null
   entries: LeaderboardEntry[]
   me: LeaderboardEntry | null
   ghost: GhostRun | null
@@ -216,8 +217,15 @@ const apiRequest = async <T>(endpoint: string, body?: unknown): Promise<T> => {
       ? 'Войдите в аккаунт, чтобы сохранить результат.'
       : `Не удалось загрузить рейтинг (${response.status}).`
     try {
-      const payload = await response.json() as { detail?: string | { message?: string } }
-      message = typeof payload.detail === 'string' ? payload.detail : payload.detail?.message || message
+      const payload = await response.json() as { detail?: string | { message?: string } | { loc?: (string|number)[];msg?:string }[] }
+      if (Array.isArray(payload.detail) && response.status === 422) {
+        const text = payload.detail.map(item=>item.msg || '').join(' ')
+        message = text.includes('duration must match') ? 'Результат отклонён: время заезда не совпадает с длительностью записи призрака.'
+          : text.includes('strictly increasing') || text.includes('time zero') ? 'Результат отклонён: нарушена последовательность времени в записи заезда.'
+          : payload.detail.some(item=>item.loc?.includes('track_id')) ? 'Эта версия трассы не поддерживается. Обновите игру.'
+          : payload.detail.some(item=>item.loc?.includes('time_ms')) ? 'Время заезда вне допустимого диапазона: от 15 секунд до 60 минут.'
+          : 'Запись заезда содержит недопустимые данные. Обновите игру и попробуйте ещё раз.'
+      } else message = typeof payload.detail === 'string' ? payload.detail : !Array.isArray(payload.detail) ? payload.detail?.message || message : message
     } catch { /* ответ без JSON */ }
     throw new Error(message)
   }
@@ -232,6 +240,24 @@ const showMenuView = (view: 'main' | 'leaderboard'): void => {
 const renderLeaderboard = (data: LeaderboardResponse): void => {
   ui.leaderboardList.replaceChildren()
   ui.leaderboardMyPlace.textContent = data.me ? `Ваше место: #${data.me.place}` : 'Нет результата'
+  if (data.progress?.attempts) {
+    const progress = document.createElement('div')
+    progress.className = 'leaderboard-message'
+    const heading = document.createElement('p')
+    heading.textContent = `Ваш прогресс на этой трассе: ${data.progress.attempts} сохранённых заездов · улучшение от первого: ${formatTime(data.progress.improvement_ms ?? 0)}`
+    progress.append(heading)
+    const recent = document.createElement('details')
+    const label = document.createElement('summary')
+    label.textContent = 'Последние 10 заездов · только для вас'
+    recent.append(label)
+    data.progress.recent.forEach(run => {
+      const row = document.createElement('p')
+      row.textContent = `${formatTime(run.time_ms)} · ${run.created_at} UTC`
+      recent.append(row)
+    })
+    progress.append(recent)
+    ui.leaderboardList.append(progress)
+  }
 
   if (data.entries.length === 0) {
     const message = document.createElement('div')

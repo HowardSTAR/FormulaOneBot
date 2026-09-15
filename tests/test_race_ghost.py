@@ -25,6 +25,12 @@ async def test_superadmin_can_clear_own_scores_and_improve_own_record(api_client
         assert result.status_code == 200, result.text
         assert result.json()['leaderboard']['me']['time_ms'] == duration
         assert result.json()['leaderboard']['ghost']['time_ms'] == duration
+    progress = result.json()['leaderboard']['progress']
+    assert progress['attempts'] == 2 and progress['improvement_ms'] == 5000
+    assert [r['time_ms'] for r in progress['recent']] == [75000,80000]
+    from app.db import get_race_game_leaderboard
+    assert (await get_race_game_leaderboard())['progress'] is None
+    assert (await get_race_game_leaderboard(111111))['progress']['attempts'] == 0
     wiped = await api_client.delete(f'/api/admin/users/{user_id}/game-records/race')
     assert wiped.status_code == 200, wiped.text
     board = (await api_client.get('/api/race-game-leaderboard')).json()

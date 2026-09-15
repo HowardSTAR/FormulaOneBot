@@ -5,6 +5,7 @@ import { hapticImpact } from "../helpers/telegram";
 import { AppHeader } from "./AppHeader";
 import { LegalFooter } from "./LegalFooter";
 import { InstallHint } from "./InstallHint";
+import { analyticsPlatform } from '../helpers/analytics';
 
 const EDGE_THRESHOLD = 30;
 const SWIPE_THRESHOLD = 60;
@@ -18,7 +19,7 @@ export function SwipeBackLayout() {
   useEffect(() => {
     // Only the route is sent: no query parameters, search text or personal data.
     const timer = window.setTimeout(() => {
-      void apiRequest("/api/analytics/visit", { path: location.pathname }, "POST").catch(() => {});
+      void apiRequest("/api/analytics/visit", { path: location.pathname, platform: analyticsPlatform() }, "POST").catch(() => {});
     }, 500);
     return () => window.clearTimeout(timer);
   }, [location.pathname]);

@@ -7,6 +7,7 @@ import { apiRequest } from "../../helpers/api";
 import { getWebsiteUser, hasTelegramAuth } from "../../helpers/auth";
 import "./predictions.css";
 import { PersonalReview } from "./PersonalReview";
+import { trackPrediction } from '../../helpers/analytics';
 
 type Driver = PickerDriver;
 type Prediction = {
@@ -142,6 +143,13 @@ export default function PredictionsPage() {
   };
 
   useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (current?.round && tab === 'form') trackPrediction('prediction_view',current.season,current.round);
+  }, [current?.season,current?.round,tab]);
+  const editPrediction = (patch: Partial<Prediction>) => {
+    if (current?.round) trackPrediction('prediction_start',current.season,current.round);
+    setForm(value => ({...value,...patch}));
+  };
 
   useEffect(() => {
     if (hasTelegramAuth()) return;
@@ -303,7 +311,7 @@ export default function PredictionsPage() {
                     <DriverPicker label={label} season={current.season}
                       value={String(form[key] ?? "")}
                       disabled={!current.is_open}
-                      onChange={(code) => setForm({ ...form, [key]: code })}
+                      onChange={(code) => editPrediction({ [key]: code })}
                       drivers={current.drivers.map((driver) => {
                         const isPlacement = ["winner_driver", "second_driver", "third_driver", "fourth_driver", "fifth_driver"].includes(key);
                         const disabled = isPlacement && selectedTopFive.has(driver.code) && form[key] !== driver.code;
@@ -316,8 +324,8 @@ export default function PredictionsPage() {
                   <span className="prediction-field-marker">SC</span>
                   <legend><GlossaryText>Машина безопасности</GlossaryText></legend>
                   <div>
-                    <button type="button" className={form.safety_car ? "active" : ""} onClick={() => setForm({ ...form, safety_car: true })}>Да</button>
-                    <button type="button" className={!form.safety_car ? "active" : ""} onClick={() => setForm({ ...form, safety_car: false })}>Нет</button>
+                    <button type="button" className={form.safety_car ? "active" : ""} onClick={() => editPrediction({ safety_car: true })}>Да</button>
+                    <button type="button" className={!form.safety_car ? "active" : ""} onClick={() => editPrediction({ safety_car: false })}>Нет</button>
                   </div>
                 </fieldset>
               </div>

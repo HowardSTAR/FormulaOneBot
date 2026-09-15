@@ -35,6 +35,25 @@ async def workspace(temp_db_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_product_report_counts_ordered_funnel_and_is_private(workspace):
+    database, app, client = workspace
+    now=time.time()
+    for uid,event,created in [(1,'prediction_view',now-30),(1,'prediction_start',now-20),(2,'prediction_view',now-5),(2,'prediction_start',now-10),(3,'prediction_start',now-10)]:
+        await database.conn.execute('INSERT INTO product_events VALUES(?,?,?,?,?,?,?,?,?,?)',(str(uid),uid,event,'/predictions','browser',2026,1,0,created,0))
+    await database.conn.execute("INSERT INTO race_predictions(user_id,season,round,pole_driver,winner_driver,second_driver,third_driver,fourth_driver,fifth_driver,fastest_lap_driver,first_retirement_driver,safety_car) VALUES(1,2026,1,'NOR','NOR','HAM','LEC','VER','PIA','NOR','HAM',0)")
+    await database.conn.commit()
+    result=await client.get('/api/admin/tools/product-analytics')
+    assert result.status_code == 200,result.text
+    assert result.json()['funnel'] == {'opened':2,'started':1,'saved':1}
+    assert (await client.get('/api/admin/tools/product-analytics?days=7')).status_code == 200
+    assert result.headers['cache-control'] == 'no-store'
+    assert 'user_id' not in result.text and 'NOR' not in result.text
+    assert (await client.get('/api/admin/tools/product-analytics?days=999')).status_code == 422
+    app.dependency_overrides.clear()
+    assert (await client.get('/api/admin/tools/product-analytics')).status_code in {401,403}
+
+
+@pytest.mark.asyncio
 async def test_control_summary_filters_pagination_and_auth(workspace):
     database, app, client = workspace
     now = time.time()

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import "./styles.css";
+import { apiRequest } from '../../helpers/api';
+import { analyticsPlatform } from '../../helpers/analytics';
 
 function isPhoneDevice() {
   const userAgent = navigator.userAgent || "";
@@ -12,6 +14,10 @@ function isPhoneDevice() {
 }
 
 function RaceGamePage() {
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void apiRequest('/api/analytics/visit',{path:'/race-game',platform:analyticsPlatform()},'POST').catch(() => {}); },500);
+    return () => window.clearTimeout(timer);
+  }, []);
   const hostRef = useRef<HTMLElement>(null);
   const [gameStarted, setGameStarted] = useState(() =>
     !isPhoneDevice() || window.innerWidth > window.innerHeight,

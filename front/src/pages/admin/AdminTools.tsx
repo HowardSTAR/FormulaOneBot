@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
 import "./admin-tools.css";
+import { ProductAnalytics } from './ProductAnalytics';
 
 const base = "/api/admin/tools";
 const message = (e: unknown) => e instanceof Error ? e.message : "Ошибка запроса";
@@ -37,7 +38,7 @@ export function AdminInsights() {
     const url = URL.createObjectURL(new Blob(["\uFEFF" + rows.map(row => row.map(v => `"${String(v ?? 0).replaceAll('"', '""')}"`).join(";")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = `analytics-${days}d.csv`; a.click(); URL.revokeObjectURL(url);
   };
-  return <section className="admin-chart-card admin-tools"><header><h2>Аудитория и уведомления</h2>
+  return <><section className="admin-chart-card admin-tools"><header><h2>Аудитория и уведомления</h2>
     <div className="at-actions"><select aria-label="Период расширенной аналитики" value={days} onChange={e => setDays(Number(e.target.value))}>
       <option value={7}>7 дней</option><option value={30}>30 дней</option><option value={90}>90 дней</option>
     </select><button disabled={!data} onClick={exportCsv}>Скачать CSV</button></div></header>
@@ -56,7 +57,7 @@ export function AdminInsights() {
           {data.drivers.length ? data.drivers.map(d => <p key={d.label}>{d.label} — {d.users} аккаунтов</p>) : <p>Пока нет данных</p>}</article></div>
       <details><summary>Регистрации по дням UTC</summary>{data.registrations.length ? data.registrations.map(r => <p key={r.day}>{r.day}: {r.users}</p>) : <p>Нет регистраций за период</p>}</details>
     </>}
-  </section>;
+  </section><ProductAnalytics /></>;
 }
 
 type Person = { id: number; display_name: string | null; telegram_username: string | null };

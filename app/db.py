@@ -78,6 +78,17 @@ class Database:
             )
         """)
         await self.conn.execute("CREATE INDEX IF NOT EXISTS idx_site_visits_bucket ON site_visits(bucket)")
+        visit_columns = await (await self.conn.execute('PRAGMA table_info(site_visits)')).fetchall()
+        if 'platform' not in {r['name'] for r in visit_columns}:
+            await self.conn.execute("ALTER TABLE site_visits ADD COLUMN platform TEXT NOT NULL DEFAULT 'unknown'")
+        await self.conn.execute('''CREATE TABLE IF NOT EXISTS product_events (
+            visitor_id TEXT NOT NULL, user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            event TEXT NOT NULL, path TEXT NOT NULL, platform TEXT NOT NULL,
+            season INTEGER NOT NULL, round INTEGER NOT NULL, bucket INTEGER NOT NULL,
+            created REAL NOT NULL, error_code INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(visitor_id,event,path,season,round,bucket)
+        )''')
+        await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_product_events_created ON product_events(created)')
 
         # Проверка и добавление колонок (миграции "на лету")
         # 2. Таблицы избранного
@@ -1181,7 +1192,13 @@ async def get_race_game_leaderboard(
         except (TypeError, ValueError, json.JSONDecodeError):
             logger.warning("Invalid Emerald Loop ghost telemetry ignored")
 
-    return {"entries": entries, "me": me, "ghost": ghost, "track_id": track_id}
+    progress = None
+    if telegram_id is not None:
+        stats = await (await db.conn.execute('SELECT COUNT(*) attempts,MIN(time_ms) best_time_ms FROM race_game_scores WHERE telegram_id=? AND track_id=?',(int(telegram_id),track_id))).fetchone()
+        first = await (await db.conn.execute('SELECT time_ms FROM race_game_scores WHERE telegram_id=? AND track_id=? ORDER BY id LIMIT 1',(int(telegram_id),track_id))).fetchone()
+        recent = await (await db.conn.execute('SELECT time_ms,created_at FROM race_game_scores WHERE telegram_id=? AND track_id=? ORDER BY id DESC LIMIT 10',(int(telegram_id),track_id))).fetchall()
+        progress = {**dict(stats),'improvement_ms':int(first[0])-int(stats['best_time_ms']) if first else None,'recent':[dict(r) for r in recent]}
+    return {"entries": entries, "me": me, "ghost": ghost, "track_id": track_id, "progress":progress}
 
 
 # --- Reflex Grid: сохранение результатов и лидерборд ---

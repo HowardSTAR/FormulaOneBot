@@ -12,7 +12,7 @@ from typing import Literal
 from urllib.parse import unquote
 
 import aiosqlite
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field, field_validator
 
 from app.api.admin_api import AdminContext, require_admin_session
@@ -20,6 +20,14 @@ from app.db import db
 from app.services.web_notifications import push_config
 
 router = APIRouter(prefix="/api/admin/tools", tags=["administration"])
+
+
+@router.get('/product-analytics')
+async def product_analytics(response: Response, days: int=Query(30,ge=1,le=90), actor: AdminContext=Depends(require_admin_session)):
+    from app.services.product_analytics import report
+    response.headers['Cache-Control']='no-store'
+    async with connection() as conn:
+        return await report(conn,time.time()-days*86400)
 
 
 @router.get('/control')
