@@ -9,6 +9,7 @@ import "./styles.css";
 import Hero from "./Hero";
 import IndexIcon from "./IndexIcon";
 import { PersonalHome } from './PersonalHome';
+import type { SessionItem } from '../../context/HeroDataContext';
 
 export type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
 
@@ -82,7 +83,6 @@ function IndexArrow() {
 function IndexPage() {
   const { nextRace, schedule, userTz, loaded, load } = useHeroData();
   const auth = useAuthState();
-  const isAuthenticated = auth.signedIn;
   const currentYear = new Date().getFullYear();
   const [renderedAt] = useState(() => Date.now());
   const [driversTop, setDriversTop] = useState<DriverStanding[]>([]);
@@ -242,11 +242,11 @@ function IndexPage() {
 
   return (
     <>
-      <PersonalHome auth={auth} timezone={displayTz} />
       <div className="index-desktop-shell index-dashboard">
         <section className="index-dashboard-top">
           <div className="index-hero-wrap index-desktop-hero-wrap">
             <Hero nextRace={nextRace} schedule={schedule} userTz={userTz} showTrackMap />
+            <PersonalHome auth={auth} timezone={displayTz} />
           </div>
 
           <aside className="index-weekend-board">
@@ -278,19 +278,6 @@ function IndexPage() {
             </div>
           </aside>
         </section>
-
-        {auth.loaded && !isAuthenticated && (
-          <section className="index-guest-strip">
-            <div className="index-guest-message">
-              <span className="index-guest-icon" aria-hidden>✓</span>
-              <div><strong>Вы смотрите сайт как гость</strong><small>Все основные данные Formula 1 уже доступны</small></div>
-            </div>
-            <div className="index-guest-features" aria-label="Доступно без регистрации">
-              <span>Календарь</span><span>Live-расписание</span><span>Результаты</span><span>Таблицы</span><span>Сравнение</span>
-            </div>
-            <small className="index-guest-note">Вход нужен только для избранного, настроек и голосований</small>
-          </section>
-        )}
 
         <section className="index-dashboard-main">
           <div className="index-standings-preview">
@@ -350,10 +337,10 @@ function IndexPage() {
             </div>
             <div className="index-quick-links">
               <Link to="/race-results">
-                <span>01</span><div><strong>Результаты гонки</strong><small>{sessionMeta.race ? `${sessionMeta.race.date} · ${sessionMeta.race.time}` : "Последний завершённый этап"}</small></div><b>→</b>
+                  <span>01</span><div><strong>Результаты гонки</strong><small>Последний доступный протокол</small></div><b>→</b>
               </Link>
               <Link to="/quali-results">
-                <span>02</span><div><strong>Квалификация</strong><small>{sessionMeta.quali ? `${sessionMeta.quali.date} · ${sessionMeta.quali.time}` : "Протокол и стартовая решётка"}</small></div><b>→</b>
+                  <span>02</span><div><strong>Квалификация</strong><small>Последний доступный протокол</small></div><b>→</b>
               </Link>
               <Link to="/compare">
                 <span>03</span><div><strong>Сравнить пилотов</strong><small>Очки, темп и результаты</small></div><b>→</b>
@@ -373,6 +360,7 @@ function IndexPage() {
       <div className="index-layout">
         <div className="index-hero-wrap">
           <Hero nextRace={nextRace} schedule={schedule} userTz={userTz} />
+          <PersonalHome auth={auth} timezone={displayTz} />
         </div>
 
         <div className="index-panel index-results-panel">
@@ -381,32 +369,12 @@ function IndexPage() {
             <Link to="/quali-results" className="menu-item index-result-tile">
               <IndexIcon name="quali" />
               <span className="menu-label index-card-title">Квалификация</span>
-              {sessionMeta.quali ? (
-                <span className="index-card-meta">
-                  <span>{sessionMeta.quali.date}</span>
-                  <span>Старт: {sessionMeta.quali.time}</span>
-                </span>
-              ) : (
-                <span className="index-card-meta">
-                  <span>Данные скоро</span>
-                  <span>Старт: --:--</span>
-                </span>
-              )}
+              <span className="index-card-meta">Последний протокол</span>
             </Link>
             <Link to="/race-results" className="menu-item index-result-tile">
               <IndexIcon name="race" />
               <span className="menu-label index-card-title">Гонка</span>
-              {sessionMeta.race ? (
-                <span className="index-card-meta">
-                  <span>{sessionMeta.race.date}</span>
-                  <span>Старт: {sessionMeta.race.time}</span>
-                </span>
-              ) : (
-                <span className="index-card-meta">
-                  <span>Данные скоро</span>
-                  <span>Старт: --:--</span>
-                </span>
-              )}
+              <span className="index-card-meta">Последний протокол</span>
             </Link>
             {isSprintWeekendActive && (
               <>

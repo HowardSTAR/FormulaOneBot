@@ -4,6 +4,7 @@ import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
 import { ResultsFeedback } from "../../components/SessionResultsUI";
+import { RaceImpact } from '../../components/RaceImpact';
 
 type Result = {
   position: number;
@@ -177,6 +178,7 @@ function RaceResultsPage() {
 
   return (
     <>
+      {!loading && !error && data?.round && data.results?.length ? <RaceImpact key={`${resultSeason}:${data.round}`} season={resultSeason} round={data.round} rows={data.results} /> : null}
       <div className="race-results-mobile">
         <BackButton>← <span>Главное меню</span></BackButton>
         <h2 id="race-title">

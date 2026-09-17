@@ -7,6 +7,7 @@ import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 import { DetailedTrackMap } from "../../components/DetailedTrackMap";
 import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
+import { CalendarDownload } from '../../components/CalendarDownload';
 
 type Session = { name: string; utc_iso?: string; local?: string };
 type RaceDetailsResponse = {
@@ -81,6 +82,7 @@ function RaceDetailsPage() {
   const userTz = getDisplayTimezone(settings?.timezone);
   const now = new Date();
   const insights = getCircuitInsightsRu({
+    season: Number(season),
     eventName: data.event_name,
     country: data.country,
     location: data.location,
@@ -123,7 +125,7 @@ function RaceDetailsPage() {
         className={`session-row ${isActive ? "active" : ""}`}
         style={isPast ? { opacity: 0.5 } : undefined}
       >
-        <div className="session-name">{session.name}</div>
+        <div className="session-name">{session.name}<CalendarDownload title={`${data.event_name}: ${session.name}`} start={session.utc_iso} /></div>
         <div className="session-time">
           <div className="time-local">{timeStr}</div>
           <div className="time-date">{dateStr}</div>
@@ -142,11 +144,11 @@ function RaceDetailsPage() {
         </div>
       </div>
 
+      <div className="schedule-card">{sessionsHtml}</div>
+
       <DetailedTrackMap key={`${season}:${data.event_name}`} eventName={data.event_name} season={Number(season)} preview={
         <AnimatedTrackMap eventName={data.event_name} className="track-map-container race-details" svgClassName="race-details-track-svg" loadingClassName="circuit-data-pending" />
       } />
-
-      <div className="schedule-card">{sessionsHtml}</div>
 
       <div className="schedule-card">
         <div className="schedule-title">Результаты этапа</div>

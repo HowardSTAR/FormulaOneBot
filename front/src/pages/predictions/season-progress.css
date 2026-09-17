@@ -1,0 +1,14 @@
+.season-progress { margin: 16px 0; padding: clamp(12px, 3vw, 22px); border: 1px solid #343a44; border-radius: 16px; background: #151920; color: #ecedf1; }
+.season-progress p { color: #bfc5cf; line-height: 1.55; }
+.season-progress article { padding: 12px 0; border-bottom: 1px solid #353a43; }
+.season-progress button, .season-progress input, .season-progress select { min-height: 44px; max-width: 100%; border-radius: 9px; border: 1px solid #4b515c; color: inherit; background: #242932; padding: 8px 12px; font: inherit; }
+.season-progress form { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin: 10px 0; }
+.season-progress label { display: grid; gap: 6px; min-width: 0; }
+.season-progress details { margin: 12px 0; }
+.season-progress summary { cursor: pointer; padding: 8px 0; }
+.season-progress-rounds { display: grid; gap: 6px; margin-bottom: 16px; }
+.season-progress-rounds button { text-align: left; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.league-score-list { list-style: none; padding: 0; }
+.league-score-list li { display: flex; gap: 8px; padding: 10px 0; border-bottom: 1px solid #353a43; }
+.league-score-list b { margin-left: auto; white-space: nowrap; }
+.predictions-tabs { flex-wrap: wrap; }

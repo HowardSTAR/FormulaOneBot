@@ -293,6 +293,19 @@ async def api_prediction_current(user_id: int = Depends(get_prediction_user_id))
     }
 
 
+@web_app.get("/api/predictions/preview")
+async def api_prediction_preview():
+    """Public event/rules only: never return accounts or saved predictions."""
+    context = await get_prediction_context()
+    return {
+        **context,
+        "drivers": await get_prediction_drivers(int(context.get("season") or datetime.now(timezone.utc).year)),
+        "scoring_rules": PREDICTION_SCORING_RULES,
+        "profile": {"display_name": "Гостевой черновик", "completed": True},
+        "prediction": None,
+    }
+
+
 @web_app.post("/api/predictions/profile")
 async def api_prediction_profile(
     data: PredictionProfileRequest,
@@ -347,6 +360,71 @@ async def api_personal_prediction_review(season: int, round_num: int, response: 
     if review is None:
         raise HTTPException(404, "У вас нет прогноза на этот этап")
     return review
+
+
+@web_app.get("/api/predictions/personal-season")
+async def api_prediction_personal_season(response: Response, user_id: int = Depends(get_prediction_user_id)):
+    from app.services.prediction_social import personal_season
+    response.headers["Cache-Control"] = "private, no-store"
+    return await personal_season(user_id)
+
+
+class LeagueCreateRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=50)
+
+
+class LeagueJoinRequest(BaseModel):
+    token: str = Field(min_length=40, max_length=64)
+
+
+class LeagueActionRequest(BaseModel):
+    action: Literal["rotate", "leave"]
+
+
+@web_app.get("/api/predictions/leagues")
+async def api_prediction_leagues(response: Response, user_id: int = Depends(get_prediction_user_id)):
+    from app.services.prediction_social import list_leagues
+    response.headers["Cache-Control"] = "private, no-store"
+    return {"leagues": await list_leagues(user_id)}
+
+
+@web_app.post("/api/predictions/leagues")
+async def api_prediction_league_create(data: LeagueCreateRequest, user_id: int = Depends(get_prediction_user_id)):
+    from app.services.prediction_social import create_league
+    try:
+        return await create_league(user_id, data.name)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@web_app.post("/api/predictions/leagues/join")
+async def api_prediction_league_join(data: LeagueJoinRequest, user_id: int = Depends(get_prediction_user_id)):
+    from app.services.prediction_social import join_league
+    try:
+        return await join_league(user_id, data.token)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@web_app.get("/api/predictions/leagues/{league_id}")
+async def api_prediction_league_scores(league_id: int, response: Response, user_id: int = Depends(get_prediction_user_id)):
+    from app.services.prediction_social import league_scores
+    response.headers["Cache-Control"] = "private, no-store"
+    try:
+        return await league_scores(user_id, league_id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+
+
+@web_app.post("/api/predictions/leagues/{league_id}")
+async def api_prediction_league_manage(league_id: int, data: LeagueActionRequest, user_id: int = Depends(get_prediction_user_id)):
+    from app.services.prediction_social import manage_league
+    try:
+        return await manage_league(user_id, league_id, data.action)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @web_app.post("/api/contact-admin")
@@ -1262,7 +1340,7 @@ def _build_race_results(df: pd.DataFrame, fav_drivers: set, fav_teams: set) -> t
             full_name = f"{given} {family}".strip() or code
             team = getattr(row, "TeamName", "")
             points = float(getattr(row, "Points", 0))
-            if points == 0:
+            if not hasattr(row, "Points"):
                 points = points_for_race_position(pos)
 
             if code == "?" or (full_name and "?" in str(full_name)):
@@ -1276,6 +1354,7 @@ def _build_race_results(df: pd.DataFrame, fav_drivers: set, fav_teams: set) -> t
                 "name": full_name,
                 "team": team,
                 "points": points,
+                "grid_position": _optional_grid_position(getattr(row, "GridPosition", None)),
                 "is_favorite_driver": code in fav_drivers,
                 "is_favorite_team": team in fav_teams
             })
@@ -1283,6 +1362,37 @@ def _build_race_results(df: pd.DataFrame, fav_drivers: set, fav_teams: set) -> t
             continue
 
     return results, data_incomplete
+
+
+def _optional_grid_position(value):
+    try:
+        number = float(value)
+        return int(number) if math.isfinite(number) and number.is_integer() and number > 0 else None
+    except (TypeError, ValueError):
+        return None
+
+
+@web_app.get("/api/race-impact")
+async def api_race_impact(season: int = Query(ge=1950, le=2100), round_num: int = Query(ge=1, le=40)):
+    """Standings movement is based on official before/after tables, not guesses."""
+    if round_num == 1:
+        return {"changes": [], "note": "Первый этап сезона — предыдущего зачёта нет."}
+    before, after = await asyncio.gather(get_driver_standings_async(season, round_num - 1), get_driver_standings_async(season, round_num))
+    if before is None or after is None or before.empty or after.empty:
+        return {"changes": [], "note": "Изменения чемпионата пока не подтверждены."}
+    def positions(frame):
+        result = {}
+        for _, row in frame.iterrows():
+            try:
+                position = int(row["position"])
+                if position > 0:
+                    result[str(row["driverCode"])] = position
+            except (KeyError, TypeError, ValueError):
+                continue
+        return result
+    old, new = positions(before), positions(after)
+    return {"changes": [{"code": code, "position": pos, "change": old[code] - pos} for code, pos in sorted(new.items(), key=lambda item: item[1]) if code in old and old[code] != pos][:5],
+            "note": "Изменение зачёта за весь уик-энд, включая спринт и корректировки."}
 
 
 @web_app.get("/api/race-results")
@@ -2101,11 +2211,27 @@ async def _build_driver_comparison(driver_codes: list[str], season: int):
     for rn, loaded in zip(missing_race_rounds, loaded_race_results):
         race_by_round[rn] = loaded
     race_results = [race_by_round.get(rn, pd.DataFrame()) for rn in rounds]
+    if any(not isinstance(frame, pd.DataFrame) or frame.empty for frame in race_results):
+        return {"error": "Часть протоколов гонок недоступна. Неполную выборку нельзя считать нулевыми результатами."}
     quali_results = await asyncio.gather(*quali_tasks, return_exceptions=True)
+
+    # Championship totals must use the same source as /api/drivers: race-only
+    # sums omit sprints and can miss retrospective championship adjustments.
+    standings = await get_driver_standings_async(season, None)
+    if standings is None or standings.empty:
+        return {"error": "Официальный зачёт недоступен. Попробуйте обновить сравнение позже."}
+    championship_points = {
+        str(row.get("driverCode", "")).upper(): float(row["points"])
+        for _, row in standings.iterrows()
+        if pd.notna(row.get("points"))
+    }
+    if any(code not in championship_points for code in driver_codes):
+        return {"error": "Не для всех выбранных пилотов доступны очки официального зачёта."}
 
     histories: dict[str, list[float]] = {code: [] for code in driver_codes}
     race_wins: dict[str, int] = {code: 0 for code in driver_codes}
     quali_wins: dict[str, int] = {code: 0 for code in driver_codes}
+    quali_samples = 0
 
     for df, quali_payload in zip(race_results, quali_results):
         round_points: dict[str, float] = {code: 0.0 for code in driver_codes}
@@ -2126,10 +2252,8 @@ async def _build_driver_comparison(driver_codes: list[str], season: int):
                 race_row = row.iloc[0]
                 points_value = race_row.get("Points", 0)
                 points = 0.0 if pd.isna(points_value) else float(points_value)
-                if points == 0:
-                    position = race_row.get("Position")
-                    if position is not None and not pd.isna(position):
-                        points = float(points_for_race_position(int(position)))
+                if "Points" not in race_row.index or pd.isna(points_value):
+                    return {"error": "В протоколе отсутствуют подтверждённые очки. Обновите сравнение позже."}
                 round_points[code] = points
 
                 grid = race_row.get(
@@ -2168,8 +2292,10 @@ async def _build_driver_comparison(driver_codes: list[str], season: int):
                 except (TypeError, ValueError):
                     continue
 
-        positions_for_comparison = qualifying_positions or grid_positions
-        if positions_for_comparison:
+        # Starting grid penalties must not masquerade as qualifying results.
+        positions_for_comparison = qualifying_positions
+        if all(code in positions_for_comparison for code in driver_codes):
+            quali_samples += 1
             best_position = min(positions_for_comparison.values())
             for code, position in positions_for_comparison.items():
                 if position == best_position:
@@ -2183,7 +2309,8 @@ async def _build_driver_comparison(driver_codes: list[str], season: int):
                 "history": histories[code],
                 "race_wins": race_wins[code],
                 "quali_wins": quali_wins[code],
-                "total_points": round(sum(histories[code]), 3),
+                "quali_samples": quali_samples,
+                "total_points": championship_points[code],
                 "average_points": (
                     round(sum(histories[code]) / len(histories[code]), 3)
                     if histories[code]
@@ -2280,7 +2407,7 @@ def _team_points_for_comparison(df: pd.DataFrame, team_name: str) -> float:
         return 0.0
     pts_col = "Points" if "Points" in df.columns else ("points" if "points" in df.columns else None)
     points = team_rows[pts_col].fillna(0).astype(float).sum() if pts_col else 0
-    if points == 0 and "Position" in team_rows.columns:
+    if pts_col is None and "Position" in team_rows.columns:
         for position in team_rows["Position"]:
             if position is not None and pd.notna(position):
                 try:
@@ -2310,6 +2437,17 @@ async def _build_team_comparison(team_names: list[str], season: int):
         tasks.append(get_race_results_async(season, round_num))
 
     results = await asyncio.gather(*tasks, return_exceptions=True)
+    if any(not isinstance(frame, pd.DataFrame) or frame.empty or not ({"Points", "points"} & set(frame.columns)) for frame in results):
+        return {"error": "Часть протоколов гонок недоступна. Обновите сравнение позже."}
+    standings = await get_constructor_standings_async(season, None)
+    if standings is None or standings.empty:
+        return {"error": "Официальный зачёт команд недоступен. Попробуйте позже."}
+    championship_points = {}
+    for name in team_names:
+        matches = standings[standings["constructorName"].apply(lambda value: _team_matches(name, value))]
+        if len(matches) != 1 or pd.isna(matches.iloc[0].get("points")):
+            return {"error": "Не для всех выбранных команд доступны очки официального зачёта."}
+        championship_points[name] = float(matches.iloc[0]["points"])
     histories: dict[str, list[float]] = {name: [] for name in team_names}
     race_wins: dict[str, int] = {name: 0 for name in team_names}
 
@@ -2338,7 +2476,7 @@ async def _build_team_comparison(team_names: list[str], season: int):
                 "history": histories[name],
                 "race_wins": race_wins[name],
                 "quali_wins": 0,
-                "total_points": round(sum(histories[name]), 3),
+                "total_points": championship_points[name],
                 "average_points": (
                     round(sum(histories[name]) / len(histories[name]), 3)
                     if histories[name]

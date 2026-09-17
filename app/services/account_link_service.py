@@ -437,6 +437,18 @@ class AccountLinkService:
 
     @staticmethod
     async def _transfer_related_data(conn, source_id: int, target_id: int) -> None:
+        # Preserve private league ownership/membership when Telegram and web
+        # identities merge, before ON DELETE CASCADE removes the source user.
+        await conn.execute(
+            "UPDATE prediction_leagues SET owner_id = ? WHERE owner_id = ?",
+            (target_id, source_id),
+        )
+        await conn.execute(
+            "INSERT OR IGNORE INTO prediction_league_members(league_id, user_id) "
+            "SELECT league_id, ? FROM prediction_league_members WHERE user_id = ?",
+            (target_id, source_id),
+        )
+        await conn.execute("DELETE FROM prediction_league_members WHERE user_id = ?", (source_id,))
         await conn.execute(
             "INSERT OR IGNORE INTO favorite_drivers(user_id, driver_code) "
             "SELECT ?, driver_code FROM favorite_drivers WHERE user_id = ?",

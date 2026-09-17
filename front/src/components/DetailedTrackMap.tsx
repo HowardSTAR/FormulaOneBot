@@ -39,7 +39,7 @@ export function DetailedTrackMap({eventName, season, preview}: {eventName: strin
   const open = () => {setZoom(1);dialog.current?.showModal();};
   if (!data) return preview ? <>
     <button type="button" className="circuit-map-launcher" onClick={open} aria-label={`Открыть карту: ${eventName}`}>
-      {preview}<span className="circuit-map-launcher-label">⛶ Раскрыть трассу</span>
+      {preview}<span className="circuit-map-launcher-label">⛶ Контур · {season} · раскрыть</span>
     </button>
     <dialog ref={dialog} className="circuit-dialog" aria-label={`Карта ${eventName}`} onClick={e=>{if(e.target===e.currentTarget)dialog.current?.close();}}>
       <header><strong>{eventName} · {season}</strong><button type="button" onClick={()=>dialog.current?.close()}>Закрыть</button></header>
@@ -75,7 +75,7 @@ export function DetailedTrackMap({eventName, season, preview}: {eventName: strin
     </dialog>;
   if (preview) return <>
     <button type="button" className="circuit-map-launcher" onClick={open} aria-label={`Открыть карту: ${eventName}`}>
-      {preview}<span className="circuit-map-launcher-label">⛶ Повороты, секторы и зоны</span>
+      {preview}<span className="circuit-map-launcher-label">⛶ Подробная схема · {season}</span>
     </button>{expanded}
   </>;
   return <section className="detailed-circuit" aria-label="Подробная карта трассы">

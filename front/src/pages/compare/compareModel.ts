@@ -11,6 +11,7 @@ export type CompareSeries = {
   history: number[];
   race_wins: number;
   quali_wins: number;
+  quali_samples?: number;
   total_points: number;
   average_points: number;
 };

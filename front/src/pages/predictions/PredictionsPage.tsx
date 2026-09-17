@@ -1,13 +1,15 @@
 import { GlossaryText } from "../../components/GlossaryText";
 import { DriverPicker, type PickerDriver } from "../../components/DriverPicker";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
-import { getWebsiteUser, hasTelegramAuth } from "../../helpers/auth";
+import { getWebsiteUser, hasTelegramAuth, useAuthState } from "../../helpers/auth";
 import "./predictions.css";
 import { PersonalReview } from "./PersonalReview";
 import { trackPrediction } from '../../helpers/analytics';
+import { SeasonProgress } from './SeasonProgress';
+import { LeaguePanel, StageScores } from './LeaguePanel';
 
 type Driver = PickerDriver;
 type Prediction = {
@@ -31,6 +33,7 @@ type CurrentResponse = {
   round: number | null;
   event_name?: string;
   deadline_utc?: string | null;
+  opens_at_utc?: string | null;
   has_sprint: boolean;
   is_open: boolean;
   profile: { display_name: string; completed: boolean };
@@ -101,9 +104,17 @@ function pointsLabel(points: number) {
 }
 
 export default function PredictionsPage() {
+  const auth = useAuthState();
+  if (!auth.loaded) return <p role="status">Проверяем вход…</p>;
+  return <PredictionsContent key={String(auth.signedIn)} guest={!auth.signedIn} />;
+}
+
+function PredictionsContent({ guest }: { guest: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get("tab") === "leaderboard" ? "leaderboard" : "form";
-  const setTab = (value: "form" | "leaderboard") => {
+  const requestedTab = searchParams.get('tab');
+  const tab = !guest && ['leaderboard', 'history', 'leagues'].includes(requestedTab || '') ? requestedTab : 'form';
+  const [stageRound, setStageRound] = useState(0);
+  const setTab = (value: "form" | "leaderboard" | "history" | "leagues") => {
     setSearchParams((params) => { params.set("tab", value); return params; }, { replace: true });
   };
   const [current, setCurrent] = useState<CurrentResponse | null>(null);
@@ -120,17 +131,31 @@ export default function PredictionsPage() {
   const [notice, setNotice] = useState("");
   const [showTelegramReminder, setShowTelegramReminder] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
       const [currentData, leaderboardData] = await Promise.all([
-        apiRequest<CurrentResponse>("/api/predictions/current"),
-        apiRequest<LeaderboardResponse>("/api/predictions/leaderboard"),
+        apiRequest<CurrentResponse>(guest ? "/api/predictions/preview" : "/api/predictions/current"),
+        guest ? Promise.resolve<LeaderboardResponse>({season: 0, entries: [], rounds: [], current_user_id: 0}) : apiRequest<LeaderboardResponse>("/api/predictions/leaderboard"),
       ]);
       setCurrent(currentData);
       setDisplayName(currentData.profile.display_name || "");
       setForm(currentData.prediction ? { ...EMPTY_PREDICTION, ...currentData.prediction } : EMPTY_PREDICTION);
+      if (!currentData.prediction) {
+        try {
+          const draft = JSON.parse(sessionStorage.getItem(`prediction-draft:${currentData.season}:${currentData.round}`) || 'null');
+          if (draft && typeof draft === 'object') {
+            const safe = { ...EMPTY_PREDICTION };
+            for (const key of Object.keys(EMPTY_PREDICTION) as Array<keyof typeof EMPTY_PREDICTION>) {
+              if (key === 'safety_car') safe.safety_car = draft.safety_car === true;
+              else if (typeof draft[key] === 'string' && currentData.drivers.some(d => d.code === draft[key])) Object.assign(safe, {[key]: draft[key]});
+            }
+            setForm(safe);
+            setNotice('Черновик восстановлен. Проверьте выбор и сохраните прогноз — сам по себе черновик не участвует.');
+          }
+        } catch { /* Storage may be unavailable in private browsing. */ }
+      }
       setEntries(leaderboardData.entries || []);
       setCurrentUserId(leaderboardData.current_user_id);
       setRounds(leaderboardData.rounds || []);
@@ -140,9 +165,9 @@ export default function PredictionsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [guest]);
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => { void load(); }, [load]);
   useEffect(() => {
     if (current?.round && tab === 'form') trackPrediction('prediction_view',current.season,current.round);
   }, [current?.season,current?.round,tab]);
@@ -185,11 +210,19 @@ export default function PredictionsPage() {
   };
 
   const savePrediction = async () => {
+    if (guest && current) {
+      try {
+        sessionStorage.setItem(`prediction-draft:${current.season}:${current.round}`, JSON.stringify(form));
+        window.location.assign('/account?returnTo=predictions');
+      } catch { setError('Не удалось сохранить черновик в браузере. Войдите в аккаунт перед заполнением.'); }
+      return;
+    }
     setSaving(true);
     setError("");
     setNotice("");
     try {
       await apiRequest("/api/predictions/current", form, "POST");
+      try { sessionStorage.removeItem(`prediction-draft:${current?.season}:${current?.round}`); } catch { /* optional browser storage */ }
       setNotice("Прогноз сохранён. Его можно изменить до начала квалификации.");
       await load();
     } catch (e) {
@@ -203,6 +236,8 @@ export default function PredictionsPage() {
     ? [...SPRINT_DRIVER_FIELDS, ...BASE_DRIVER_FIELDS]
     : BASE_DRIVER_FIELDS;
   const formComplete = driverFields.every(({ key }) => Boolean(form[key]));
+  const editable = guest || Boolean(current?.is_open);
+  const beforeOpening = Date.parse(current?.opens_at_utc || '') > Date.now();
 
   return (
     <main className="predictions-page">
@@ -215,11 +250,18 @@ export default function PredictionsPage() {
         </div>
         {current?.status === "ok" && (
           <div className={`predictions-deadline ${current.is_open ? "is-open" : "is-closed"}`}>
-            <span>{current.is_open ? "Приём открыт" : "Приём закрыт"}</span>
-            <strong>{deadlineText(current.deadline_utc)}</strong>
+            <span>{current.is_open ? "Приём открыт до" : beforeOpening ? "Приём откроется" : "Приём закрыт"}</span>
+            <strong>{deadlineText(beforeOpening ? current.opens_at_utc : current.deadline_utc)}</strong>
           </div>
         )}
       </header>
+
+      {guest && <aside className="predictions-message">
+        <strong>Попробуйте прогноз без регистрации</strong>
+        <p>Выберите пилотов и исходы этапа. После гонки получите личный разбор: ваш выбор, фактический результат и объяснение каждого балла. Вход понадобится только для сохранения.</p>
+        <details><summary>Пример разбора</summary><p>Пример, не ваш результат: победитель угадан точно — 8 баллов. Если данных о первом сходе ещё нет, пункт ожидает подтверждения, а не считается ошибкой.</p></details>
+        {window.location.hash.startsWith('#invite=') && <p>Вас пригласили в приватную лигу. <Link to={`/account?returnTo=leagues${window.location.hash}`}>Войдите, чтобы принять приглашение</Link>. Автоматически вступать в лигу вы не будете.</p>}
+      </aside>}
 
       {showTelegramReminder && (
         <aside className="predictions-telegram-reminder">
@@ -233,8 +275,13 @@ export default function PredictionsPage() {
 
       <div className="predictions-tabs" role="tablist">
         <button className={tab === "form" ? "active" : ""} onClick={() => setTab("form")}>Мой прогноз</button>
-        <button className={tab === "leaderboard" ? "active" : ""} onClick={() => setTab("leaderboard")}>Турнирная таблица</button>
+        {!guest && <button className={tab === "leaderboard" ? "active" : ""} onClick={() => setTab("leaderboard")}>Турнирная таблица</button>}
+        {!guest && <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>Мой сезон</button>}
+        {!guest && <button className={tab === 'leagues' ? 'active' : ''} onClick={() => setTab('leagues')}>Лиги друзей</button>}
       </div>
+
+      {tab === 'history' && <SeasonProgress />}
+      {tab === 'leagues' && <LeaguePanel />}
 
       <details className="prediction-rules">
         <summary>
@@ -300,7 +347,7 @@ export default function PredictionsPage() {
               <div className="prediction-profile-line">
                 <span>Участник</span>
                 <strong>{current.profile.display_name}</strong>
-                <button onClick={() => setCurrent({ ...current, profile: { ...current.profile, completed: false } })}>Изменить</button>
+                {!guest && <button onClick={() => setCurrent({ ...current, profile: { ...current.profile, completed: false } })}>Изменить</button>}
               </div>
 
               <div className="prediction-grid">
@@ -310,7 +357,7 @@ export default function PredictionsPage() {
                     <span className="prediction-field-copy">{label}</span>
                     <DriverPicker label={label} season={current.season}
                       value={String(form[key] ?? "")}
-                      disabled={!current.is_open}
+                      disabled={!editable}
                       onChange={(code) => editPrediction({ [key]: code })}
                       drivers={current.drivers.map((driver) => {
                         const isPlacement = ["winner_driver", "second_driver", "third_driver", "fourth_driver", "fifth_driver"].includes(key);
@@ -320,7 +367,7 @@ export default function PredictionsPage() {
                   </div>
                 ))}
 
-                <fieldset className="prediction-field prediction-safety-car" disabled={!current.is_open}>
+                <fieldset className="prediction-field prediction-safety-car" disabled={!editable}>
                   <span className="prediction-field-marker">SC</span>
                   <legend><GlossaryText>Машина безопасности</GlossaryText></legend>
                   <div>
@@ -331,11 +378,11 @@ export default function PredictionsPage() {
               </div>
 
               <div className="prediction-submit-row">
-                <p>{current.is_open
+                <p>{guest ? 'Это только черновик в вашем браузере. Для участия нужно войти и отправить прогноз в период приёма.' : current.is_open
                   ? `После старта ${current.has_sprint ? "спринт-квалификации" : "квалификации"} сервер заблокирует любые изменения.`
                   : "Прогноз доступен только для просмотра."}</p>
-                <button disabled={!current.is_open || !formComplete || saving} onClick={() => void savePrediction()}>
-                  {saving ? "Сохраняем…" : current.prediction ? "Обновить прогноз" : "Отправить прогноз"}
+                <button disabled={!editable || (!guest && !formComplete) || saving || !current.round} onClick={() => void savePrediction()}>
+                  {saving ? "Сохраняем…" : guest ? "Войти и сохранить черновик" : current.prediction ? "Обновить прогноз" : "Отправить прогноз"}
                 </button>
               </div>
             </>
@@ -345,6 +392,10 @@ export default function PredictionsPage() {
 
       {!loading && tab === "leaderboard" && (
         <section className="prediction-leaderboard">
+          <label>Рейтинг этапа <select value={stageRound} onChange={e => setStageRound(Number(e.target.value))}>
+            <option value={0}>Выберите этап</option>{rounds.map(r => <option key={r.round} value={r.round}>{r.event_name}</option>)}
+          </select></label>
+          {stageRound > 0 && <StageScores entries={entries} round={stageRound} />}
           <div className="prediction-leaderboard-title">
             <div>
               <span>Season standings · {leaderboardSeason ?? current?.season}</span>

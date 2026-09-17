@@ -808,7 +808,7 @@ function ComparePage() {
                 <div className="compare-section-head">
                   <div>
                     <h3>Сводная таблица</h3>
-                    <p>Все показатели обновляются вместе с составом сравнения</p>
+                    <p>Очки чемпионата — официальный зачёт, включая спринты и корректировки. График и среднее — только основные гонки ({labels.length}), без спринтов.</p>
                   </div>
                 </div>
                 <div className="compare-ranking-scroll">
@@ -816,10 +816,10 @@ function ComparePage() {
                     <thead>
                       <tr>
                         <th>{tab === "drivers" ? "Пилот" : "Команда"}</th>
-                        <th>Этапы</th>
-                        <th>Квалификации</th>
-                        <th>Среднее</th>
-                        <th>Очки</th>
+                        <th>Лучший по очкам гонки среди выбранных</th>
+                        <th>Лучший в квалификации среди выбранных</th>
+                        <th>Средние очки за гонку</th>
+                        <th>Очки чемпионата</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -837,7 +837,7 @@ function ComparePage() {
                             </span>
                           </td>
                           <td>{series.race_wins}</td>
-                          <td>{series.quali_wins}</td>
+                          <td>{series.quali_samples ? `${series.quali_wins} из ${series.quali_samples}` : '—'}</td>
                           <td>{series.average_points.toFixed(1)}</td>
                           <td>
                             <strong style={{ color: series.color }}>
@@ -854,8 +854,8 @@ function ComparePage() {
               <div className="chart-container compare-chart-container">
                 <div className="compare-chart-head">
                   <div>
-                    <h3>Очки по этапам</h3>
-                    <p>Динамические серии для всех выбранных участников</p>
+                    <h3>Очки в основных гонках</h3>
+                    <p>Без спринтов. При равенстве очков лидерство засчитывается каждому; это не число побед в Гран-при.</p>
                   </div>
                 </div>
                 <div className="compare-chart-canvas-wrap">

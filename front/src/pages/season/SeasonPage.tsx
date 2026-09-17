@@ -82,6 +82,7 @@ function SeasonPage() {
     yearFromUrl && yearFromUrl >= 1950 && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
   );
   const [races, setRaces] = useState<Race[]>([]);
+  const [filter, setFilter] = useState<'upcoming' | 'past' | 'all'>(year === currentRealYear ? 'upcoming' : 'all');
   const [userTz, setUserTz] = useState(getDisplayTimezone());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,6 +144,7 @@ function SeasonPage() {
 
   const updateYear = useCallback((y: number) => {
     setYear(y);
+    setFilter(y === currentRealYear ? 'upcoming' : 'all');
     setExpandedPodiumRound(null);
     setExpandedFactsRound(null);
     setPodiums({});
@@ -257,7 +259,12 @@ function SeasonPage() {
     return { statusByRound, nextRaceIndex };
   }, [calendarNowMs, latestReadyRound, races, year]);
 
-  const desktopRace = races.find((r) => r.round === desktopSelectedRound) || races[0] || null;
+  const visibleRaces = races.filter(r => {
+    const start = parseRaceTime(r.race_start_utc) ?? Date.parse(r.date);
+    const past = start + 4 * 60 * 60 * 1000 < calendarNowMs;
+    return filter === 'all' || (filter === 'past' ? past : !past && !r.is_cancelled);
+  });
+  const desktopRace = visibleRaces.find((r) => r.round === desktopSelectedRound) || visibleRaces[0] || null;
   const desktopRaceStatus = desktopRace ? calendarState.statusByRound.get(desktopRace.round) : undefined;
   const completedRacesCount = races.filter((race) => {
     const status = calendarState.statusByRound.get(race.round);
@@ -265,6 +272,7 @@ function SeasonPage() {
   }).length;
   const desktopInsights = desktopRace
     ? getCircuitInsightsRu({
+        season: year,
         eventName: desktopRace.event_name,
         country: "",
         location: desktopRace.location,
@@ -402,6 +410,13 @@ function SeasonPage() {
         </div>
       </div>
 
+      <nav className="predictions-tabs" aria-label="Фильтр календаря">
+        <button aria-pressed={filter === 'upcoming'} onClick={() => setFilter('upcoming')}>Предстоящие</button>
+        <button aria-pressed={filter === 'past'} onClick={() => setFilter('past')}>Прошедшие</button>
+        <button aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Весь сезон</button>
+      </nav>
+      {!loading && !error && races.length > 0 && !visibleRaces.length && <p>В этом разделе этапов нет. Выберите «Весь сезон».</p>}
+
       {!loading && !error && !emptyMessage && races.length > 0 && desktopRace && (
         <div className="season-desktop-layout">
           <section className="season-desktop-primary">
@@ -503,7 +518,7 @@ function SeasonPage() {
 
           <aside className="season-desktop-list season-desktop-timeline">
             <h4 className="season-desktop-timeline-title">Все этапы сезона · {races.length}</h4>
-            {races.map((race) => {
+            {visibleRaces.map((race) => {
               const raceDate = new Date(race.date);
               const statusClass = calendarState.statusByRound.get(race.round) || "future";
               const isFinished = statusClass === "finished" || statusClass === "recent";
@@ -583,7 +598,7 @@ function SeasonPage() {
           </div>
         )}
         {!loading && !error && !emptyMessage &&
-          races.map((race) => {
+          visibleRaces.map((race) => {
             const raceDate = new Date(race.date);
             const statusClass = calendarState.statusByRound.get(race.round) || "future";
             const statusIcon = statusClass === "cancelled"
@@ -605,6 +620,7 @@ function SeasonPage() {
               .toLocaleDateString("ru-RU", { timeZone: userTz, month: "short" })
               .replace(".", "");
             const insights = getCircuitInsightsRu({
+              season: year,
               eventName: race.event_name,
               country: "",
               location: race.location,

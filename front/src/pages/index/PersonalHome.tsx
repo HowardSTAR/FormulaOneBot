@@ -8,6 +8,7 @@ import './personal-home.css';
 function PersonalCards({ timezone, personalized }: { timezone: string; personalized: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [prediction, setPrediction] = useState<PersonalPrediction | null>(null);
+  const [latest, setLatest] = useState<{points: number | null; season: number; round: number} | null>(null);
   const [unread, setUnread] = useState<number | null>(null);
   const [failed, setFailed] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -18,10 +19,12 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
     void Promise.allSettled([
       apiRequest<PersonalPrediction>('/api/predictions/current'),
       apiRequest<{ unread: number }>('/api/web-notifications/unread-count'),
-    ]).then(([p, n]) => {
+      apiRequest<{latest: {points: number | null; season: number; round: number} | null}>('/api/predictions/personal-season'),
+    ]).then(([p, n, h]) => {
       if (!active) return;
       setPrediction(p.status === 'fulfilled' ? p.value : null);
       setUnread(n.status === 'fulfilled' ? n.value.unread : null);
+      setLatest(h.status === 'fulfilled' ? h.value.latest : null);
       setFailed([...(p.status === 'rejected' ? ['прогноз'] : []), ...(n.status === 'rejected' ? ['уведомления'] : [])]);
       setLoaded(true);
     });
@@ -34,12 +37,16 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
     return () => { window.clearInterval(timer); window.removeEventListener('focus', update); };
   }, []);
   const view = prediction ? predictionSummary(prediction, now) : null;
+  const showRecap = !prediction?.is_open && latest?.points != null && (
+    prediction?.status !== 'ok' || now < Date.parse(prediction?.opens_at_utc || '') ||
+    (latest.season === prediction?.season && latest.round === prediction?.round)
+  );
   const deadline = Date.parse(prediction?.deadline_utc || '');
   return <>
     <div className="personal-home-row">
-      <Link to={prediction?.prediction?.points != null ? '/predictions?tab=leaderboard' : '/predictions'} className={`personal-home-prediction${view?.urgent ? ' personal-home-urgent' : ''}`}>
-        <strong>Мой прогноз <span aria-hidden="true">→</span></strong>
-        <span>{view?.title || (loaded ? 'Статус недоступен' : 'Проверяем…')}</span>
+      <Link to={showRecap || prediction?.prediction?.points != null ? '/predictions?tab=history' : '/predictions'} className={`personal-home-prediction${view?.urgent ? ' personal-home-urgent' : ''}`}>
+        <strong>{showRecap ? 'Разобрать мой этап' : view?.action || 'Мой прогноз'} <span aria-hidden="true">→</span></strong>
+        <span>{showRecap ? `Последний результат: ${latest?.points} очк.` : view?.title || (loaded ? 'Статус недоступен' : 'Проверяем…')}</span>
         {view?.urgent && <small>До закрытия меньше 2 часов</small>}
       </Link>
       <Link className="personal-home-inbox" to="/notifications" aria-label={unread === null ? 'Уведомления: количество неизвестно' : `Уведомления: непрочитанных ${unread}`} title={unread === 0 ? 'Всё прочитано' : 'Уведомления'}>
@@ -55,7 +62,7 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
       <nav aria-label="Личные разделы">
         <Link to="/account">Аккаунт</Link><Link to="/settings">Напоминания</Link>
         {personalized && <Link to="/favorites">Избранное</Link>}
-        <Link to="/predictions?tab=leaderboard">Мои результаты</Link>
+        <Link to="/predictions?tab=history">Мои результаты</Link>
         <button onClick={() => setRefresh(v => v + 1)}>Обновить</button>
       </nav>
     </div>}
@@ -71,6 +78,6 @@ export function PersonalHome({ auth, timezone }: { auth: AuthState; timezone: st
   }, []);
   if (!auth.loaded) return <section className="personal-home" aria-busy="true"><p>Загружаем личный раздел…</p></section>;
   return <section className="personal-home" aria-label="Мой уик-энд">
-    {auth.signedIn ? <PersonalCards key={identityVersion} timezone={timezone} personalized={auth.personalized} /> : <div className="personal-home-guest"><span>Ваши прогнозы и уведомления</span><Link to="/account">Войти →</Link></div>}
+    {auth.signedIn ? <PersonalCards key={identityVersion} timezone={timezone} personalized={auth.personalized} /> : <div className="personal-home-guest"><span>Ваш прогноз на следующий этап</span><Link to="/predictions">Попробовать →</Link></div>}
   </section>;
 }

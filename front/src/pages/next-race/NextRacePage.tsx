@@ -7,6 +7,7 @@ import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 import "./next-race-mobile.css";
+import { CalendarDownload } from '../../components/CalendarDownload';
 
 type NextRaceResponse = {
   status: string;
@@ -156,6 +157,7 @@ function NextRacePage() {
   }, [eventName]);
 
   const insights = getCircuitInsightsRu({
+    season: raceSeason ?? undefined,
     eventName: eventName || "",
     country: raceCountry,
     location: raceCity,
@@ -223,6 +225,7 @@ function NextRacePage() {
                 <div className="standings-info">
                   <div className="standings-name" style={{ fontSize: 16 }}>
                     {s.name}
+                    <CalendarDownload title={`${eventName}: ${s.name}`} start={s.utc_iso || s.utc} />
                   </div>
                   <div className="standings-code" style={{ color: "var(--text-secondary)", marginTop: 4 }}>
                     <span style={{ color: "var(--primary)", fontWeight: 700 }}>
@@ -254,7 +257,7 @@ function NextRacePage() {
             </section>
 
             <div className="circuit-insights-card">
-              <div className="circuit-insights-title">Интересные факты</div>
+              <div className="circuit-insights-title">Что знать перед этапом</div>
               <div className="circuit-facts-list">
                 {insights.facts.map((fact, idx) => {
                   const expanded = expandedFactIndex === idx;
@@ -269,7 +272,7 @@ function NextRacePage() {
                         <span className="circuit-fact-chevron">{expanded ? "▲" : "▼"}</span>
                       </button>
                       <div className={`circuit-fact-body ${expanded ? "expanded" : ""}`}>
-                        <div className="circuit-fact-text">{fact.text}</div>
+                        <div className="circuit-fact-text"><GlossaryText>{fact.text}</GlossaryText></div>
                       </div>
                     </div>
                   );
@@ -349,6 +352,7 @@ function NextRacePage() {
                       <b>{s._timeLabel}</b>
                       <small>{s._dateLabel}</small>
                     </div>
+                    <CalendarDownload title={`${eventName}: ${s.name}`} start={s.utc_iso || s.utc} />
                   </article>
                 ))}
               </div>

@@ -5,6 +5,7 @@ import { hapticImpact } from "../helpers/telegram";
 import { AppHeader } from "./AppHeader";
 import { LegalFooter } from "./LegalFooter";
 import { InstallHint } from "./InstallHint";
+import { MobileNav } from "./MobileNav";
 import { analyticsPlatform } from '../helpers/analytics';
 
 const EDGE_THRESHOLD = 30;
@@ -97,6 +98,7 @@ export function SwipeBackLayout() {
         </section>
         <LegalFooter />
       </div>
+      <MobileNav />
     </div>
   );
 }

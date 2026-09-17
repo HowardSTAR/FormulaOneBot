@@ -1,4 +1,6 @@
 export type PersonalPrediction = {
+  season?: number;
+  round?: number;
   status: string;
   event_name?: string;
   is_open: boolean;

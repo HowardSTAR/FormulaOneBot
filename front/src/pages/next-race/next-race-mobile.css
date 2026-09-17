@@ -35,8 +35,8 @@
   .app-page-main.route-next-race .track-map-container.next-race {
     box-sizing: border-box;
     width: 100%;
-    height: clamp(200px, 60vw, 320px);
-    min-height: 200px;
+    height: clamp(130px, 38vw, 180px);
+    min-height: 130px;
     padding: 8px;
   }
 

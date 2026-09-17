@@ -342,11 +342,17 @@
   .app-page-main.route-home .index-desktop-hero-wrap {
     grid-area: auto !important;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
+
+  .index-desktop-hero-wrap .personal-home { margin-bottom: 0; flex-shrink: 0; }
 
   .app-page-main.route-home .index-desktop-shell .hero-btn {
     min-height: 280px !important;
-    height: 100%;
+    height: auto;
+    flex: 1;
     padding: 23px 25px !important;
     border-radius: 16px !important;
     background:

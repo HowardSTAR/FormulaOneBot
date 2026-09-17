@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { notifyAuthChanged } from "../../helpers/auth";
 import "./AccountPage.css";
@@ -48,7 +48,13 @@ async function authFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export default function AccountPage() {
+  const navigate = useNavigate();
+  const [returnParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
+  useEffect(() => {
+    if (user && returnParams.get('returnTo') === 'predictions') navigate('/predictions', {replace: true});
+    if (user && returnParams.get('returnTo') === 'leagues') navigate(`/predictions?tab=leagues${window.location.hash}`, {replace: true});
+  }, [user, returnParams, navigate]);
   const [mode, setMode] = useState<"login" | "register" | "verify" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

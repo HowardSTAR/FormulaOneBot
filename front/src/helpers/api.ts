@@ -25,7 +25,7 @@ const reportedErrors = new Map<string,number>();
 
 export function apiAssetUrl(
   endpoint: string,
-  params: Record<string, string | number | undefined> = {}
+  params: Record<string, string | number | boolean | undefined> = {}
 ): string {
   const path = (PATH_BASE + endpoint).replace(/\/+/g, '/');
   const url = API_BASE ? new URL(endpoint, API_BASE) : new URL(path, window.location.origin);
@@ -39,7 +39,7 @@ export function apiAssetUrl(
 
 export async function apiRequest<T = unknown>(
   endpoint: string,
-  params: Record<string, string | number | boolean | undefined> = {},
+  params: Record<string, string | number | boolean | null | undefined> = {},
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET'
 ): Promise<T> {
   const path = (PATH_BASE + endpoint).replace(/\/+/g, '/');

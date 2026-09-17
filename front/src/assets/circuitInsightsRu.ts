@@ -15,6 +15,7 @@ export type CircuitInsights = {
 };
 
 type CircuitMatchInput = {
+  season?: number;
   eventName: string;
   country: string;
   location: string;
@@ -157,13 +158,31 @@ const PRESETS: CircuitPreset[] = [
     },
   },
   {
-    keywords: ["barcelona", "catalunya", "spain", "madrid"],
+    // Formula1.com/en/racing/2026/spain, verified 2026-09-17.
+    // Match the circuit, not Spain: Barcelona and Madrid are different venues.
+    keywords: ["madrid", "madring"],
     insights: {
       stats: [
-        { label: "Длина круга", value: "4.657-5.4 км" },
-        { label: "Кругов в гонке", value: "56-66" },
-        { label: "Дистанция", value: "около 305 км" },
-        { label: "Первый Гран-при", value: "1951 (в Испании)" },
+        { label: "Длина круга", value: "5.414 км" },
+        { label: "Кругов в гонке", value: "57" },
+        { label: "Дистанция", value: "308.399 км" },
+        { label: "Первый Гран-при на трассе", value: "2026" },
+      ],
+      facts: [
+        { title: "Какая конфигурация указана?", text: "MADRING, сезон 2026. Характеристики сверены с карточкой этапа Formula1.com 17 сентября 2026 года; это не Барселона и не Харама." },
+        { title: "Чем выделяется La Monumental?", text: "Поворот 12 — длинная профилированная дуга с поперечным уклоном 24%, по технической справке организатора MADRING." },
+        { title: "Как устроена трасса?", text: "MADRING сочетает участки общественных дорог и постоянной инфраструктуры вокруг IFEMA в Мадриде." },
+      ],
+    },
+  },
+  {
+    keywords: ["barcelona", "catalunya"],
+    insights: {
+      stats: [
+        { label: "Длина круга", value: "4.657 км" },
+        { label: "Кругов в гонке", value: "66" },
+        { label: "Дистанция", value: "307.236 км" },
+        { label: "Первый Гран-при на трассе", value: "1991" },
       ],
       facts: [
         { title: "Почему испанский этап важен инженерам?", text: "Исторически здесь проверяют эффективность обновлений, потому что трасса требовательна к балансу машины." },
@@ -442,8 +461,15 @@ function buildFallback(input: CircuitMatchInput): CircuitInsights {
 
 export function getCircuitInsightsRu(input: CircuitMatchInput): CircuitInsights {
   const haystack = normalize(`${input.eventName} ${input.country} ${input.location}`);
-  const preset = PRESETS.find((p) =>
-    p.keywords.some((keyword) => haystack.includes(normalize(keyword)))
-  );
+  // These verified configurations belong to 2026, not to historic Spanish GPs.
+  if (/madrid|madring|barcelona|catalunya/.test(haystack) && input.season !== 2026) {
+    return {stats: [{label: 'Характеристики конфигурации', value: 'Уточняются для выбранного сезона'}], facts: []};
+  }
+  // Match complete words, and prefer the actual circuit over a country alias.
+  // Otherwise "usa" matches Lusail and the USA preset steals Las Vegas.
+  const words = (value: string) => ` ${normalize(value).replace(/[^\p{L}\p{N}]+/gu, ' ')} `;
+  const preset = [input.location, input.eventName, input.country]
+    .map(value => PRESETS.find(p => p.keywords.some(keyword => words(value).includes(words(keyword)))))
+    .find(Boolean);
   return preset?.insights ?? buildFallback(input);
 }

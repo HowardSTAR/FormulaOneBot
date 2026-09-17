@@ -62,7 +62,7 @@ export const router = createBrowserRouter([
       { path: "/race-results", element: <RaceResultsPage /> },
       { path: "/reaction-game", element: <ReactionGamePage /> },
       { path: "/reflex-grid-game", element: <ReflexGridGamePage /> },
-      { path: "/predictions", element: <RequirePersonalAccount requireTelegram={false}><PredictionsPage /></RequirePersonalAccount> },
+      { path: "/predictions", element: <PredictionsPage /> },
       { path: "/practice-results", element: <PracticeResultsPage /> },
       { path: "/contact-admin", element: <ContactAdminPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },

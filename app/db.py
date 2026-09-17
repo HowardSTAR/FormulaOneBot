@@ -430,6 +430,24 @@ class Database:
             "CREATE INDEX IF NOT EXISTS idx_predictions_user ON race_predictions(user_id)"
         )
 
+        await self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS prediction_leagues (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                invite_token TEXT NOT NULL UNIQUE,
+                invite_expires TEXT NOT NULL
+            )
+        """)
+        await self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS prediction_league_members (
+                league_id INTEGER NOT NULL REFERENCES prediction_leagues(id) ON DELETE CASCADE,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                PRIMARY KEY(league_id,user_id)
+            )
+        """)
+        await self.conn.execute("CREATE INDEX IF NOT EXISTS idx_prediction_league_user ON prediction_league_members(user_id)")
+
         # 10. Журнал сообщений формы обратной связи (доставка в Telegram отмечается отдельно).
         await self.conn.execute(
             """
