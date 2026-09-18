@@ -1,0 +1,31 @@
+.season-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  margin: 12px 0 18px;
+  padding: 4px;
+  box-sizing: border-box;
+  gap: 4px;
+  border: 1px solid #34373e;
+  border-radius: 12px;
+  background: #13161c;
+}
+.season-filters button {
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 4px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #c8cbd1;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.season-filters button[aria-pressed="true"] {
+  background: #c91b15;
+  color: #fff;
+  border-color: #ff6e66;
+}
+.season-filters button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }

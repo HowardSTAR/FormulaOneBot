@@ -1,6 +1,7 @@
 .mobile-primary-nav { display: none; }
 .calendar-download { display: inline-block; font-size: 12px; padding: 12px; color: #ffada8; text-decoration: none; }
 @media (max-width: 767px) {
+  button.scroll-to-top { bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
   .route-race-details .track-map-container.race-details { height: 170px; min-height: 0; }
   .route-race-details .race-details-track-svg { max-height: 155px; }
 }
@@ -8,6 +9,6 @@
   .app-shell { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   .mobile-primary-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; padding: 4px 6px calc(4px + env(safe-area-inset-bottom, 0px)); background: #11151bf5; border-top: 1px solid #343941; }
   .mobile-primary-nav a { display: flex; align-items: center; justify-content: center; min-height: 48px; color: #c6cad1; font-size: 12px; text-decoration: none; border-radius: 10px; }
-  .mobile-primary-nav a.active { background: #70232155; color: #fff; box-shadow: inset 0 2px #f43b32; }
+  .mobile-primary-nav a.active { background: #a51c16; color: #fff; font-weight: 700; box-shadow: inset 0 2px #ff827a; }
   .mobile-primary-nav a:focus-visible { outline: 2px solid white; }
 }

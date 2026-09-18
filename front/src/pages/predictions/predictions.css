@@ -105,6 +105,7 @@
 }
 
 .predictions-tabs button.active { color: #fff; background: linear-gradient(135deg, #f02b24, #c90000); }
+.predictions-tabs.predictions-tabs-single { grid-template-columns: minmax(0, 1fr); }
 
 .prediction-form-shell,
 .prediction-leaderboard {

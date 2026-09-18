@@ -12,6 +12,17 @@ function load(relative) {
   return context.exports;
 }
 const {calendarText} = load('front/src/helpers/calendar.ts');
+const {canEditPrediction} = load('front/src/pages/predictions/prediction-window.ts');
+const opens = Date.parse('2026-09-24T08:30:00Z');
+const closes = Date.parse('2026-09-25T12:00:00Z');
+const windowState = {is_open: true, opens_at_utc: new Date(opens).toISOString(), deadline_utc: new Date(closes).toISOString()};
+assert.equal(canEditPrediction(windowState, opens - 1), false);
+assert.equal(canEditPrediction(windowState, opens), true);
+assert.equal(canEditPrediction(windowState, closes - 1), true);
+assert.equal(canEditPrediction(windowState, closes), false);
+assert.equal(canEditPrediction({...windowState, is_open: false}, opens), false);
+assert.equal(canEditPrediction({...windowState, deadline_utc: null}, opens), false);
+assert.equal(canEditPrediction(null, opens), false);
 assert.equal(calendarText('Test', 'invalid', ''), null);
 const title = 'Квалификация; тест, проверка\n'.repeat(7);
 const ics = calendarText(title, '2026-09-25T15:00:00+03:00', 'https://f1hub.ru/next-race');

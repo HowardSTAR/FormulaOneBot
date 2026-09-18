@@ -7,6 +7,7 @@ import { YearSelect } from "../../components/YearSelect";
 import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
+import './season-filters.css';
 
 const currentRealYear = new Date().getFullYear();
 
@@ -410,7 +411,7 @@ function SeasonPage() {
         </div>
       </div>
 
-      <nav className="predictions-tabs" aria-label="Фильтр календаря">
+      <nav className="season-filters" aria-label="Фильтр календаря">
         <button aria-pressed={filter === 'upcoming'} onClick={() => setFilter('upcoming')}>Предстоящие</button>
         <button aria-pressed={filter === 'past'} onClick={() => setFilter('past')}>Прошедшие</button>
         <button aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Весь сезон</button>

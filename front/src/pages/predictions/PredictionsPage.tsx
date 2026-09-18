@@ -10,6 +10,7 @@ import { PersonalReview } from "./PersonalReview";
 import { trackPrediction } from '../../helpers/analytics';
 import { SeasonProgress } from './SeasonProgress';
 import { LeaguePanel, StageScores } from './LeaguePanel';
+import { canEditPrediction } from './prediction-window';
 
 type Driver = PickerDriver;
 type Prediction = {
@@ -145,14 +146,14 @@ function PredictionsContent({ guest }: { guest: boolean }) {
       if (!currentData.prediction) {
         try {
           const draft = JSON.parse(sessionStorage.getItem(`prediction-draft:${currentData.season}:${currentData.round}`) || 'null');
-          if (draft && typeof draft === 'object') {
+          if (draft && typeof draft === 'object' && canEditPrediction(currentData)) {
             const safe = { ...EMPTY_PREDICTION };
             for (const key of Object.keys(EMPTY_PREDICTION) as Array<keyof typeof EMPTY_PREDICTION>) {
               if (key === 'safety_car') safe.safety_car = draft.safety_car === true;
               else if (typeof draft[key] === 'string' && currentData.drivers.some(d => d.code === draft[key])) Object.assign(safe, {[key]: draft[key]});
             }
             setForm(safe);
-            setNotice('Черновик восстановлен. Проверьте выбор и сохраните прогноз — сам по себе черновик не участвует.');
+            setNotice('Черновик восстановлен только в форме, он ещё не отправлен. Можно изменить выбор и нажать «Отправить прогноз».');
           }
         } catch { /* Storage may be unavailable in private browsing. */ }
       }
@@ -168,6 +169,13 @@ function PredictionsContent({ guest }: { guest: boolean }) {
   }, [guest]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const nextBoundary = [current?.opens_at_utc, current?.deadline_utc]
+      .map(value => Date.parse(value || '')).filter(time => time > Date.now()).sort((a, b) => a - b)[0];
+    if (!Number.isFinite(nextBoundary)) return;
+    const timer = window.setTimeout(() => void load(), Math.min(nextBoundary - Date.now() + 100, 2147483647));
+    return () => window.clearTimeout(timer);
+  }, [current, load]);
   useEffect(() => {
     if (current?.round && tab === 'form') trackPrediction('prediction_view',current.season,current.round);
   }, [current?.season,current?.round,tab]);
@@ -210,6 +218,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
   };
 
   const savePrediction = async () => {
+    if (!canEditPrediction(current)) { void load(); return; }
     if (guest && current) {
       try {
         sessionStorage.setItem(`prediction-draft:${current.season}:${current.round}`, JSON.stringify(form));
@@ -236,7 +245,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
     ? [...SPRINT_DRIVER_FIELDS, ...BASE_DRIVER_FIELDS]
     : BASE_DRIVER_FIELDS;
   const formComplete = driverFields.every(({ key }) => Boolean(form[key]));
-  const editable = guest || Boolean(current?.is_open);
+  const editable = canEditPrediction(current);
   const beforeOpening = Date.parse(current?.opens_at_utc || '') > Date.now();
 
   return (
@@ -257,8 +266,8 @@ function PredictionsContent({ guest }: { guest: boolean }) {
       </header>
 
       {guest && <aside className="predictions-message">
-        <strong>Попробуйте прогноз без регистрации</strong>
-        <p>Выберите пилотов и исходы этапа. После гонки получите личный разбор: ваш выбор, фактический результат и объяснение каждого балла. Вход понадобится только для сохранения.</p>
+        <strong>Мой прогноз — знакомство без регистрации</strong>
+        <p>Посмотрите правила и пример личного разбора. Выбор пилотов доступен только в период приёма — одинаково для гостей и участников. Для отправки понадобится вход.</p>
         <details><summary>Пример разбора</summary><p>Пример, не ваш результат: победитель угадан точно — 8 баллов. Если данных о первом сходе ещё нет, пункт ожидает подтверждения, а не считается ошибкой.</p></details>
         {window.location.hash.startsWith('#invite=') && <p>Вас пригласили в приватную лигу. <Link to={`/account?returnTo=leagues${window.location.hash}`}>Войдите, чтобы принять приглашение</Link>. Автоматически вступать в лигу вы не будете.</p>}
       </aside>}
@@ -273,7 +282,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
         </aside>
       )}
 
-      <div className="predictions-tabs" role="tablist">
+      <div className={`predictions-tabs${guest ? ' predictions-tabs-single' : ''}`} role="tablist">
         <button className={tab === "form" ? "active" : ""} onClick={() => setTab("form")}>Мой прогноз</button>
         {!guest && <button className={tab === "leaderboard" ? "active" : ""} onClick={() => setTab("leaderboard")}>Турнирная таблица</button>}
         {!guest && <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>Мой сезон</button>}
@@ -378,11 +387,11 @@ function PredictionsContent({ guest }: { guest: boolean }) {
               </div>
 
               <div className="prediction-submit-row">
-                <p>{guest ? 'Это только черновик в вашем браузере. Для участия нужно войти и отправить прогноз в период приёма.' : current.is_open
+                <p>{beforeOpening ? 'Приём ещё не открыт. Заполнение и редактирование станут доступны после открытия; прогноз не отправлен автоматически.' : guest ? 'Это только черновик в вашем браузере. Для участия нужно войти и отправить прогноз в период приёма.' : current.is_open
                   ? `После старта ${current.has_sprint ? "спринт-квалификации" : "квалификации"} сервер заблокирует любые изменения.`
                   : "Прогноз доступен только для просмотра."}</p>
                 <button disabled={!editable || (!guest && !formComplete) || saving || !current.round} onClick={() => void savePrediction()}>
-                  {saving ? "Сохраняем…" : guest ? "Войти и сохранить черновик" : current.prediction ? "Обновить прогноз" : "Отправить прогноз"}
+                  {saving ? "Сохраняем…" : !editable ? beforeOpening ? "Приём ещё не открыт" : "Приём закрыт" : guest ? "Войти и сохранить черновик" : current.prediction ? "Обновить прогноз" : "Отправить прогноз"}
                 </button>
               </div>
             </>
