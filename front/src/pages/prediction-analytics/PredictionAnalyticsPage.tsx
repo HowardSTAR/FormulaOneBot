@@ -3,6 +3,8 @@ import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import "./prediction-analytics.css";
 import "./deep-history.css";
+import './driver-sort.css';
+import { nextDriverSort, sortDrivers, type DriverSort, type DriverSortKey } from './driver-sort';
 
 type Event = { round: number; event_name: string; race_start_utc: string; quali_start_utc: string; is_cancelled?: boolean };
 type Summary = { id: string; round: number; session: string; created_at: number; status: string; settled_at: number | null };
@@ -35,6 +37,7 @@ export default function PredictionAnalyticsPage() {
   const [revision, setRevision] = useState(0);
   const [selectionRevision, setSelectionRevision] = useState(0);
   const [driverCode, setDriverCode] = useState("");
+  const [driverSort, setDriverSort] = useState<DriverSort>({key: 'expected', direction: 'asc'});
 
   useEffect(() => {
     let active = true;
@@ -63,7 +66,7 @@ export default function PredictionAnalyticsPage() {
     return () => { active = false; clearTimeout(timer); };
   }, [selected, selectionRevision]);
 
-  const choose = (id: string) => { setSnapshot(null); setSelected(id); setSelectionRevision(v => v + 1); };
+  const choose = (id: string) => { setSnapshot(null); setSelected(id); setSelectionRevision(v => v + 1); setDriverSort({key: 'expected', direction: 'asc'}); };
   const generate = async () => {
     setBusy(true); setError("");
     try {
@@ -79,6 +82,14 @@ export default function PredictionAnalyticsPage() {
   const focusDriver = p?.model.drivers.find(d => d.code === driverCode) ?? p?.model.drivers[0];
   const isRace = snapshot?.session === "race";
   const actual = new Map(snapshot?.actual?.rows.map(r => [r.code, r.position]) ?? []);
+  const sortedDrivers = sortDrivers(p?.model.drivers ?? [], driverSort, actual);
+  const sortButton = (key: DriverSortKey, label: string) => <button type="button" className="pa-sort-button"
+    data-active={driverSort.key === key}
+    aria-label={`${label}: сортировать по ${nextDriverSort(driverSort, key).direction === 'asc' ? 'возрастанию' : 'убыванию'}`}
+    onClick={() => setDriverSort(value => nextDriverSort(value, key))}>
+    {label} <span aria-hidden="true">{driverSort.key === key ? driverSort.direction === 'asc' ? '↑' : '↓' : '↕'}</span>
+  </button>;
+  const sortHeader = (key: DriverSortKey, label: string) => <th scope="col" aria-sort={driverSort.key === key ? driverSort.direction === 'asc' ? 'ascending' : 'descending' : 'none'}>{sortButton(key, label)}</th>;
 
   return <main className="pa-page">
     <BackButton />
@@ -113,7 +124,11 @@ export default function PredictionAnalyticsPage() {
       <p className="pa-muted">Проценты относятся к группе победителя и в сумме дают 100%, а не к точному порядку пилотов.</p>
       <div className="pa-scenarios">{p.model.scenarios.map((s, i) => <article className="pa-panel" key={s.label}><div className="pa-scenario-top"><span>0{i + 1}</span><strong>{percent(s.probability)}</strong></div><h3>{s.label}</h3><p>{s.why}</p><ol>{s.top5.map(name => <li key={name}>{name}</li>)}</ol></article>)}</div>
       <section className="pa-panel"><h2>Вероятности по пилотам</h2><p className="pa-muted">Диапазон мест охватывает центральные 80% симуляций. {isRace ? "Риск схода включён." : "Топ-10 означает место 1–10, не гарантированное прохождение Q3."}</p>
-        <div className="pa-table-wrap"><table><thead><tr><th>Пилот / команда</th><th>{isRace ? "Победа" : "Поул"}</th><th>Топ-3</th><th>Топ-10</th><th>Среднее / диапазон</th>{isRace && <th>Сход</th>}{snapshot.actual && <th>Факт</th>}</tr></thead><tbody>{p.model.drivers.map(d => <tr key={d.code}><td><details><summary>{d.name}<small>{d.team}</small></summary><ul>{d.reasons.map(r => <li key={r}>{r}</li>)}</ul></details></td><td><strong>{percent(d.win)}</strong><meter min="0" max="1" value={d.win} aria-label={`${d.name}: вероятность первого места`} /></td><td>{percent(d.podium)}</td><td>{percent(d.top10)}</td><td>{d.expected.toFixed(1)} <small>P{d.range[0]}–P{d.range[1]}</small></td>{isRace && <td>{percent(d.dnf)}</td>}{snapshot.actual && <td>{actual.has(d.code) ? `P${actual.get(d.code)}` : "Нет в результате"}</td>}</tr>)}</tbody></table></div>
+        <p className="pa-muted">Нажмите на заголовок для сортировки; повторное нажатие меняет направление. «Среднее / диапазон» сортируется по среднему месту.</p>
+        <div className="pa-table-wrap"><table><thead><tr>
+          <th scope="col" aria-sort={['name', 'team'].includes(driverSort.key) ? driverSort.direction === 'asc' ? 'ascending' : 'descending' : 'none'}>{sortButton('name', 'Пилот')} / {sortButton('team', 'Команда')}</th>
+          {sortHeader('win', isRace ? 'Победа' : 'Поул')}{sortHeader('podium', 'Топ-3')}{sortHeader('top10', 'Топ-10')}{sortHeader('expected', 'Среднее / диапазон')}{isRace && sortHeader('dnf', 'Сход')}{snapshot.actual && sortHeader('actual', 'Факт')}
+        </tr></thead><tbody>{sortedDrivers.map(d => <tr key={d.code}><td><details><summary>{d.name}<small>{d.team}</small></summary><ul>{d.reasons.map(r => <li key={r}>{r}</li>)}</ul></details></td><td><strong>{percent(d.win)}</strong><meter min="0" max="1" value={d.win} aria-label={`${d.name}: вероятность первого места`} /></td><td>{percent(d.podium)}</td><td>{percent(d.top10)}</td><td>{d.expected.toFixed(1)} <small>P{d.range[0]}–P{d.range[1]}</small></td>{isRace && <td>{percent(d.dnf)}</td>}{snapshot.actual && <td>{actual.has(d.code) ? `P${actual.get(d.code)}` : "Нет в результате"}</td>}</tr>)}</tbody></table></div>
       </section>
       {snapshot.actual && <section className="pa-panel"><h2>Прогноз / факт</h2><p>Результат сохранён {date(snapshot.settled_at!)}. Исходный прогноз не изменялся.</p><div className="pa-stats"><article><strong>{snapshot.actual.metrics.mae?.toFixed(2) ?? "—"}</strong><span>средняя ошибка позиции</span></article><article><strong>{snapshot.actual.metrics.winner_brier?.toFixed(4) ?? "—"}</strong><span>Brier первого места · меньше лучше</span></article><article><strong>{snapshot.actual.metrics.matched}/{snapshot.actual.metrics.total}</strong><span>пилотов сопоставлено</span></article></div></section>}
       <div className="pa-context"><section className="pa-panel"><h2>Условия и источники</h2><p>{p.current_label}</p><p>{p.inputs.weather.available ? `${p.inputs.weather.temperature} °C · ветер ${p.inputs.weather.wind} км/ч. Прогноз на ${p.inputs.weather.hour} UTC.` : `${p.inputs.weather.reason}. Использован повышенный разброс, а не выдуманный прогноз погоды.`}</p><a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Погода: Open-Meteo ↗</a><details><summary>История: все {p.inputs.history.length} сессий</summary><ul className="pa-archive">{p.inputs.history.map(h => <li key={`${h.season}-${h.round}-${h.session}`}>{h.season} · {h.name} · {h.session ? sessionName(h.session) : "сессия"}</li>)}</ul></details><a href="https://jolpi.ca/ergast/" target="_blank" rel="noreferrer">Классификации: Jolpica ↗</a></section>

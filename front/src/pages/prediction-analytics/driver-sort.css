@@ -1,0 +1,18 @@
+.pa-page th .pa-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 2px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  text-align: left;
+}
+.pa-page th .pa-sort-button:hover { color: #fff; }
+.pa-page th .pa-sort-button[data-active="true"] { color: #ff837b; }
+.pa-page th .pa-sort-button span { flex-shrink: 0; font-size: 15px; }
+.pa-page th:has(.pa-sort-button) { padding-top: 4px; padding-bottom: 4px; }
