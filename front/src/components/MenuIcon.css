@@ -12,12 +12,11 @@
   box-shadow: none;
   isolation: isolate;
 }
-.index-menu-icon svg.index-icon-artwork {
+.index-menu-icon img.index-icon-artwork {
   display: block;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  fill: none;
-  stroke: none;
+  object-fit: contain;
 }
-.app-header .index-menu-icon svg.index-icon-artwork { width: 100%; height: 100%; }
+.app-header .index-menu-icon img.index-icon-artwork { width: 100%; height: 100%; }
