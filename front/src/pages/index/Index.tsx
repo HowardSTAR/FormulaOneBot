@@ -391,7 +391,7 @@ function IndexPage() {
                   )}
                 </Link>
                 <Link to="/sprint-quali-results" className="menu-item index-result-tile">
-                  <IndexIcon name="quali" />
+                  <IndexIcon name="sprintQuali" />
                   <span className="menu-label index-card-title">Спринт-квала</span>
                   {sessionMeta.sprintQuali ? (
                     <span className="index-card-meta">

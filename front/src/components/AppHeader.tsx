@@ -54,7 +54,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     id: "analytics",
     label: "Аналитика",
-    icon: "compare",
+    icon: "predictions",
     items: [
       { to: "/compare", label: "Сравнение", activePaths: ["/compare"] },
       { to: "/predictions", label: "Прогнозы", activePaths: ["/predictions"] },
@@ -76,9 +76,9 @@ function NavIcon({ name }: { name: IconName }) {
   const shared: Partial<Record<IconName, IndexIconName>> = {
     notifications: "notifications",
     home: "home",
-    calendar: "calendar", results: "race", drivers: "drivers", teams: "teams",
-    compare: "compare", predictions: "predictions", wiki: "wiki", contact: "contact",
-    games: "arcade", star: "favorite", vote: "vote", settings: "settings", account: "account",
+    calendar: "calendar", results: "results", drivers: "peloton", teams: "teams",
+    compare: "compare", predictions: "analytics", wiki: "wiki", contact: "contact",
+    games: "games", star: "favorite", vote: "vote", settings: "settings", account: "account", admin: "admin",
   };
   const icon = shared[name];
   if (icon) return <IndexIcon name={icon} />;
@@ -110,10 +110,10 @@ function NavIcon({ name }: { name: IconName }) {
 
 function SidebarAccordion({ group, pathname }: { group: NavGroup; pathname: string }) {
   const icons: Record<string, IndexIconName> = {
-    "/practice-results": "quali", "/sprint-quali-results": "quali", "/sprint-results": "sprint",
+    "/practice-results": "practice", "/sprint-quali-results": "sprintQuali", "/sprint-results": "sprint",
     "/quali-results": "quali", "/race-results": "race", "/drivers": "drivers",
     "/constructors": "teams", "/compare": "compare", "/predictions": "predictions",
-    "/prediction-analytics": "predictions",
+    "/prediction-analytics": "predictionAnalytics",
     "/reaction-game": "reaction", "/reflex-grid-game": "grid", "/race-game": "arcade",
   };
   const active = group.items.some((item) => item.activePaths.includes(pathname));
