@@ -630,19 +630,21 @@ async def get_favorites_for_user_id(user_db_id: int) -> Tuple[List[str], List[st
 
 
 async def _get_round_value(season: int, column: str) -> int | None:
-    if not db.conn: await db.connect()
     # f-строка безопасна, т.к. column передается внутри кода, а не от юзера
-    async with db.conn.execute(f'SELECT "{column}" FROM notification_state WHERE season = ?', (season,)) as cursor:
-        row = await cursor.fetchone()
-        return row[column] if row else None
+    async with aiosqlite.connect(db.db_path, timeout=30) as conn:
+        conn.row_factory = aiosqlite.Row
+        async with conn.execute(f'SELECT "{column}" FROM notification_state WHERE season = ?', (season,)) as cursor:
+            row = await cursor.fetchone()
+            return row[column] if row else None
 
 
 async def _set_round_value(season: int, column: str, value: int) -> None:
-    if not db.conn: await db.connect()
-    await db.conn.execute(
-        f'INSERT INTO notification_state(season, "{column}") VALUES(?, ?) ON CONFLICT(season) DO UPDATE SET "{column}"=excluded."{column}"',
-        (season, value))
-    await db.conn.commit()
+    async with aiosqlite.connect(db.db_path, timeout=30) as conn:
+        await conn.execute("BEGIN IMMEDIATE")
+        await conn.execute(
+            f'INSERT INTO notification_state(season, "{column}") VALUES(?, ?) ON CONFLICT(season) DO UPDATE SET "{column}"=excluded."{column}"',
+            (season, value))
+        await conn.commit()
 
 
 async def get_all_users() -> list[int]:
@@ -674,26 +676,30 @@ async def set_last_reminded_round(season: int, r: int) -> None: await _set_round
 
 async def was_reminder_sent(telegram_id: int, season: int, round_num: int, is_quali: bool, notify_before_min: int) -> bool:
     """Проверяет, отправляли ли уже напоминание этому пользователю для данного этапа/типа/за сколько минут."""
-    if not db.conn:
-        await db.connect()
     q = (
         "SELECT 1 FROM event_reminder_sent "
         "WHERE telegram_id = ? AND season = ? AND round = ? AND is_quali = ? AND notify_before_min = ?"
     )
-    async with db.conn.execute(q, (telegram_id, season, round_num, 1 if is_quali else 0, notify_before_min)) as cur:
-        row = await cur.fetchone()
+    # A receipt must see the committed state, even if the shared connection has
+    # an older transaction open in another bot task.
+    async with aiosqlite.connect(db.db_path, timeout=30) as conn:
+        async with conn.execute(q, (telegram_id, season, round_num, 1 if is_quali else 0, notify_before_min)) as cur:
+            row = await cur.fetchone()
     return row is not None
 
 
 async def set_reminder_sent(telegram_id: int, season: int, round_num: int, is_quali: bool, notify_before_min: int) -> None:
     """Отмечает, что напоминание этому пользователю для данного этапа/типа/за сколько минут отправлено."""
-    if not db.conn:
-        await db.connect()
-    await db.conn.execute(
-        "INSERT OR IGNORE INTO event_reminder_sent (telegram_id, season, round, is_quali, notify_before_min) VALUES (?, ?, ?, ?, ?)",
-        (telegram_id, season, round_num, 1 if is_quali else 0, notify_before_min),
-    )
-    await db.conn.commit()
+    # Keep delivery receipts independent of unrelated work on db.conn. A
+    # pending read transaction on that shared connection cannot be upgraded to
+    # a writer after a different connection commits (SQLITE_BUSY_SNAPSHOT).
+    async with aiosqlite.connect(db.db_path, timeout=30) as conn:
+        await conn.execute("BEGIN IMMEDIATE")
+        await conn.execute(
+            "INSERT OR IGNORE INTO event_reminder_sent (telegram_id, season, round, is_quali, notify_before_min) VALUES (?, ?, ?, ?, ?)",
+            (telegram_id, season, round_num, 1 if is_quali else 0, notify_before_min),
+        )
+        await conn.commit()
 
 
 async def get_last_notified_round(season: int) -> int | None: return await _get_round_value(season,

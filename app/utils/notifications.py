@@ -1,6 +1,7 @@
 import html
 import asyncio
 import logging
+import aiosqlite
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -470,6 +471,22 @@ def _latest_finished_session(
     return finished
 
 
+async def _result_delivery_started(event_type: str, season: int, round_num: int) -> bool:
+    """A restart must resume a partially queued result instead of baselining it away."""
+    prefixes = {
+        "sprint_qualifying_results": ("classification:{season}:{round}:20010:", "classification:{season}:{round}:20011:"),
+        "sprint_results": ("classification:{season}:{round}:20020:", "classification:{season}:{round}:20021:"),
+        "qualifying_results": ("classification:{season}:{round}:20000:", "classification:{season}:{round}:20001:"),
+        "race_results": ("race-photo:{season}:{round}:", "race-favorites:{season}:{round}:"),
+    }[event_type]
+    patterns = tuple(prefix.format(season=season, round=round_num) + "%" for prefix in prefixes)
+    async with aiosqlite.connect(db.db_path, timeout=30) as conn:
+        row = await (await conn.execute(
+            "SELECT 1 FROM telegram_deliveries WHERE event_key LIKE ? OR event_key LIKE ? LIMIT 1", patterns
+        )).fetchone()
+    return row is not None
+
+
 async def initialize_result_notification_state() -> bool:
     """Skip result-session backlog that already exists when the bot starts.
 
@@ -539,6 +556,12 @@ async def initialize_result_notification_state() -> bool:
             round_num = int(event["round"])
             previous_round = await getter(season)
             if previous_round is not None and previous_round >= round_num:
+                continue
+            if await _result_delivery_started(event_type, season, round_num):
+                logger.info(
+                    "[Startup Result Baseline] event=%s season=%s round=%s delivery already started; resuming",
+                    event_type, season, round_num,
+                )
                 continue
             await setter(season, round_num)
             logger.info(

@@ -103,6 +103,21 @@ async def test_middleware_reports_stale_callback_without_reply(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_activity_lock_does_not_drop_bot_update(monkeypatch):
+    from app.middlewares import error_logging
+
+    monkeypatch.setattr(error_logging, "record_telegram_activity", AsyncMock(side_effect=sqlite3.OperationalError("database is locked")))
+    reporter = AsyncMock()
+    monkeypatch.setattr(error_logging, "report_error", reporter)
+    handler = AsyncMock(return_value="handled")
+    event = SimpleNamespace(from_user=SimpleNamespace(id=123, first_name="Test", last_name=None, username=None))
+
+    assert await error_logging.ErrorLoggingMiddleware()(handler, event, {}) == "handled"
+    handler.assert_awaited_once()
+    reporter.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_telegram_failure_does_not_lose_website_alert(store):
     bot = SimpleNamespace(send_message=AsyncMock(side_effect=TimeoutError()))
     await alerts.report_error(ValueError("<unsafe>"), bot=bot)

@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pandas as pd
 import pytest
+import aiosqlite
 from aiogram.types import BufferedInputFile
 
 from app.utils.notifications import (
@@ -304,7 +305,8 @@ async def test_startup_baseline_skips_completed_sessions_but_not_future_rounds()
     ]
     season = now.year
 
-    with patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock, return_value=schedule), \
+    with patch("app.utils.notifications._result_delivery_started", new_callable=AsyncMock, return_value=False), \
+            patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock, return_value=schedule), \
             patch("app.utils.notifications.get_last_notified_sprint_quali_round", new_callable=AsyncMock, return_value=None), \
             patch("app.utils.notifications.get_last_notified_sprint_round", new_callable=AsyncMock, return_value=10), \
             patch("app.utils.notifications.get_last_notified_quali_round", new_callable=AsyncMock, return_value=10), \
@@ -320,6 +322,30 @@ async def test_startup_baseline_skips_completed_sessions_but_not_future_rounds()
     set_sprint.assert_awaited_once_with(season, 11)
     set_quali.assert_awaited_once_with(season, 11)
     set_race.assert_awaited_once_with(season, 11)
+
+
+@pytest.mark.asyncio
+async def test_startup_resumes_partially_queued_qualifying(tmp_path, monkeypatch):
+    from app.utils import notifications
+
+    season = datetime.now(timezone.utc).year
+    path = tmp_path / "partial-classification.db"
+    monkeypatch.setattr(notifications.db, "db_path", path)
+    async with aiosqlite.connect(path) as conn:
+        await conn.execute("CREATE TABLE telegram_deliveries(event_key TEXT)")
+        await conn.execute(
+            "INSERT INTO telegram_deliveries VALUES(?)",
+            (f"classification:{season}:15:20000:123",),
+        )
+        await conn.commit()
+
+    schedule = [{"round": 15, "quali_start_utc": (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()}]
+    with patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock, return_value=schedule), \
+            patch("app.utils.notifications.get_last_notified_quali_round", new_callable=AsyncMock, return_value=14), \
+            patch("app.utils.notifications.set_last_notified_quali_round", new_callable=AsyncMock) as set_quali:
+        assert await initialize_result_notification_state() is True
+
+    set_quali.assert_not_awaited()
 
 
 @pytest.mark.asyncio

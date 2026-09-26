@@ -1,4 +1,5 @@
 import logging
+import sqlite3
 from typing import Callable, Dict, Any, Awaitable
 from aiogram import BaseMiddleware, Bot
 from aiogram.types import TelegramObject, Update
@@ -23,14 +24,19 @@ class ErrorLoggingMiddleware(BaseMiddleware):
                 nested_event = event.message or event.callback_query or event.inline_query
                 telegram_user = getattr(nested_event, "from_user", None)
             if telegram_user is not None:
-                await record_telegram_activity(
-                    db,
-                    int(telegram_user.id),
-                    display_name=" ".join(
-                        part for part in [telegram_user.first_name, telegram_user.last_name] if part
-                    ),
-                    telegram_username=telegram_user.username,
-                )
+                try:
+                    await record_telegram_activity(
+                        db,
+                        int(telegram_user.id),
+                        display_name=" ".join(
+                            part for part in [telegram_user.first_name, telegram_user.last_name] if part
+                        ),
+                        telegram_username=telegram_user.username,
+                    )
+                except sqlite3.OperationalError as exc:
+                    if "database is locked" not in str(exc).lower():
+                        raise
+                    logger.warning("Bot activity sample skipped because database is locked")
             return await handler(event, data)
         except Exception as e:
             priority = priority_for(e)
