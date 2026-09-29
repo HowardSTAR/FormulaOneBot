@@ -104,10 +104,12 @@ def build_preview(before, facts):
 async def prepare(season, round_num):
     async with connection() as conn:
         before = await snapshot(conn,season,round_num)
-    facts = await get_prediction_race_facts(season,round_num)
+    facts = await get_prediction_race_facts(season,round_num,prefer_openf1=True)
     after, summary = build_preview(before,facts)
     identifier = uuid.uuid4().hex
-    state = 'conflict' if summary['conflict'] else 'ready' if summary['additions'] or summary['tie_expansion'] else 'waiting'
+    state = ('conflict' if summary['conflict'] else
+             'ready' if summary['additions'] or summary['tie_expansion'] else
+             'waiting' if summary['missing'] else 'unchanged')
     async with connection() as conn:
         await conn.execute('INSERT INTO prediction_recovery(id,season,round,created,state,fingerprint,before_json,after_json,summary_json) VALUES(?,?,?,?,?,?,?,?,?)',
                            (identifier,season,round_num,time.time(),state,fingerprint(before),json.dumps(before),json.dumps(after),json.dumps(summary)))
@@ -151,6 +153,17 @@ async def history():
     async with connection() as conn:
         rows = await (await conn.execute('SELECT id,season,round,created,state,summary_json,applied_by,applied_at FROM prediction_recovery ORDER BY created DESC LIMIT 30')).fetchall()
         return [{**{k:row[k] for k in row.keys() if k != 'summary_json'},**json.loads(row['summary_json'])} for row in rows]
+
+
+async def calculated_rounds(season):
+    """Read-only batch scope: rounds already scored, not future calendar events."""
+    async with connection() as conn:
+        rows = await (await conn.execute(
+            'SELECT season,round,event_name,fastest_lap_driver,first_retirement_driver,safety_car '
+            'FROM prediction_round_results WHERE season=? ORDER BY round', (season,),
+        )).fetchall()
+    return [{'season': row['season'], 'round': row['round'], 'event_name': row['event_name'],
+             'missing': [key for key in FIELDS if row[key] is None]} for row in rows]
 
 
 async def applied_round_for_notification(identifier):

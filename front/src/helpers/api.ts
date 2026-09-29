@@ -40,7 +40,8 @@ export function apiAssetUrl(
 export async function apiRequest<T = unknown>(
   endpoint: string,
   params: Record<string, string | number | boolean | null | undefined> = {},
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET'
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET',
+  timeoutMs: number = REQUEST_TIMEOUT_MS
 ): Promise<T> {
   const path = (PATH_BASE + endpoint).replace(/\/+/g, '/');
   const url = API_BASE ? new URL(endpoint, API_BASE) : new URL(path, window.location.origin);
@@ -58,7 +59,7 @@ export async function apiRequest<T = unknown>(
   }
 
   const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
   const options: RequestInit = { method, headers, signal: controller.signal, credentials: 'include' };
 
   if (method === 'GET') {

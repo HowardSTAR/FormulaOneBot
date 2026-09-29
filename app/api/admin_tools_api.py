@@ -82,6 +82,13 @@ async def recovery_history(actor: AdminContext = Depends(require_admin_session))
     return await history()
 
 
+@router.get('/prediction-recovery/rounds')
+async def recovery_rounds(season: int = Query(..., ge=1950, le=2100),
+                          actor: AdminContext = Depends(require_admin_session)):
+    from app.services.prediction_recovery import calculated_rounds
+    return {"rounds": await calculated_rounds(season)}
+
+
 @router.post('/prediction-recovery/preview')
 async def recovery_preview(data: RecoveryRequest, actor: AdminContext = Depends(require_admin_session)):
     from app.services.prediction_recovery import prepare

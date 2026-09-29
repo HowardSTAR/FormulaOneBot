@@ -812,7 +812,7 @@ def get_weekend_schedule(season: int, round_number: int) -> list[dict]:
 OPENF1_BASE = "https://api.openf1.org/v1"
 
 
-async def _openf1_get(path: str, **params) -> list | None:
+async def _openf1_get(path: str, *, status_sink: dict | None = None, **params) -> list | None:
     """GET запрос к OpenF1 API. Возвращает список записей или None при ошибке."""
     url = f"{OPENF1_BASE}/{path}"
     try:
@@ -833,15 +833,21 @@ async def _openf1_get(path: str, **params) -> list | None:
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 if resp.status != 200:
+                    if status_sink is not None:
+                        status_sink["http_status"] = resp.status
                     if resp.status == 401:
                         logger.info(
                             "OpenF1 %s requires authentication while a live session is active",
                             path,
                         )
+                    elif resp.status == 429 or resp.status >= 500:
+                        logger.warning("OpenF1 %s returned HTTP %s", path, resp.status)
                     return None
                 return await resp.json()
     except Exception as e:
-        logger.debug(f"OpenF1 {path} error: {e}")
+        if status_sink is not None:
+            status_sink["error"] = type(e).__name__
+        logger.warning("OpenF1 %s request failed: %s", path, e)
         return None
 
 

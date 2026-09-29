@@ -1,4 +1,5 @@
 import asyncio
+import asyncio
 import json
 from unittest.mock import AsyncMock, patch
 
@@ -141,6 +142,27 @@ async def test_admin_confirmation_and_auth(recovery):
         assert (await client.post(url,json={'confirmation':''})).status_code==422
         assert (await client.post(url,json={'confirmation':'ПЕРЕСЧИТАТЬ'})).status_code==200
         assert (await client.post('/api/admin/tools/prediction-recovery/preview',json={'season':2026,'round':99})).status_code==422
+
+
+@pytest.mark.asyncio
+async def test_batch_scope_contains_only_calculated_rounds(recovery):
+    app = FastAPI(); app.include_router(api.router)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test') as client:
+        assert (await client.get('/api/admin/tools/prediction-recovery/rounds?season=2026')).status_code in {401, 403}
+        app.dependency_overrides[api.require_admin_session] = lambda: api.AdminContext(id=99, role='admin')
+        response = await client.get('/api/admin/tools/prediction-recovery/rounds?season=2026')
+        assert response.status_code == 200
+        assert [(row['season'], row['round']) for row in response.json()['rounds']] == [(2026, 14)]
+
+
+@pytest.mark.asyncio
+async def test_complete_round_without_new_facts_is_not_waiting(recovery):
+    database, fetch = recovery
+    await database.conn.execute("UPDATE prediction_round_results SET fastest_lap_driver='HAM',first_retirement_driver='STR',safety_car=0,max_points=34 WHERE season=2026 AND round=14")
+    await database.conn.commit()
+    fetch.return_value = {'fastest_lap_driver': 'HAM', 'first_retirement_driver': 'STR',
+                          'first_retirement_drivers': ['STR'], 'safety_car': 0, 'source': 'OpenF1'}
+    assert (await service.prepare(2026, 14))['state'] == 'unchanged'
 
 
 @pytest.mark.asyncio

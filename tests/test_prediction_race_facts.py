@@ -170,6 +170,46 @@ async def test_openf1_fills_missing_facts_without_overwriting_fastf1(monkeypatch
 
 
 @pytest.mark.asyncio
+async def test_prediction_openf1_retries_rate_limited_endpoint(monkeypatch):
+    import app.services.prediction_race_facts as module
+    fetch = AsyncMock(side_effect=[None, [{"session_key": 11377}]])
+    monkeypatch.setattr(module, "_openf1_get", fetch)
+    result = await module._prediction_openf1_get("sessions", year=2026)
+    assert result == [{"session_key": 11377}]
+    assert fetch.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_openf1_recovery_prefers_complete_source(monkeypatch):
+    import app.services.prediction_race_facts as module
+    complete = {"fastest_lap_driver": "RUS", "first_retirement_driver": "STR",
+                "first_retirement_drivers": ["STR"], "safety_car": 1, "source": "OpenF1"}
+    source = AsyncMock(return_value=complete)
+    fast = AsyncMock(side_effect=AssertionError("FastF1 should not be needed"))
+    monkeypatch.setattr(module, "_load_openf1_race_facts", source)
+    monkeypatch.setattr(module.asyncio, "to_thread", fast)
+    assert await get_prediction_race_facts(2026, 15, prefer_openf1=True) == complete
+    fast.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_openf1_missing_endpoint_is_visible_in_preview_note(monkeypatch):
+    import app.services.prediction_race_facts as module
+    event = {"round": 15, "race_start_utc": "2026-09-26T11:00:00+00:00"}
+    sessions = [{"session_type": "Race", "date_start": event["race_start_utc"], "session_key": 11377}]
+    results = [{"driver_number": n, "dnf": False, "dns": False, "dsq": False, "number_of_laps": 1}
+               for n in range(1, 11)]
+    drivers = [{"driver_number": n, "name_acronym": f"D{n}"} for n in range(1, 11)]
+    fetch = AsyncMock(side_effect=[sessions, results, drivers, None, []])
+    monkeypatch.setattr(module, "get_season_schedule_short_async", AsyncMock(return_value=[event]))
+    monkeypatch.setattr(module, "_prediction_openf1_get", fetch)
+    facts = await module._load_openf1_race_facts(2026, 15)
+    assert [call.args[0] for call in fetch.await_args_list] == ["sessions", "session_result", "drivers", "race_control", "laps"]
+    assert "race_control" in facts["note"]
+    assert facts["missing_endpoints"] == ["race_control"]
+
+
+@pytest.mark.asyncio
 async def test_sources_can_reconcile_same_first_retirement_group(monkeypatch):
     import app.services.prediction_race_facts as module
     primary = {"fastest_lap_driver": None, "first_retirement_driver": "STR",
