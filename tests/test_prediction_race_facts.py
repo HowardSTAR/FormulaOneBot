@@ -170,12 +170,40 @@ async def test_openf1_fills_missing_facts_without_overwriting_fastf1(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_prediction_openf1_retries_rate_limited_endpoint(monkeypatch):
+async def test_prediction_openf1_retries_transient_endpoint_failure(monkeypatch):
     import app.services.prediction_race_facts as module
     fetch = AsyncMock(side_effect=[None, [{"session_key": 11377}]])
     monkeypatch.setattr(module, "_openf1_get", fetch)
+    monkeypatch.setattr(module, "_PREDICTION_OPENF1_MIN_GAP", 0)
     result = await module._prediction_openf1_get("sessions", year=2026)
     assert result == [{"session_key": 11377}]
+    assert fetch.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_prediction_openf1_429_returns_for_batch_cooldown(monkeypatch):
+    import app.services.prediction_race_facts as module
+    async def limited(path, *, status_sink=None, **params):
+        status_sink["http_status"] = 429
+        return None
+    fetch = AsyncMock(side_effect=limited)
+    monkeypatch.setattr(module, "_openf1_get", fetch)
+    monkeypatch.setattr(module, "_PREDICTION_OPENF1_MIN_GAP", 0)
+    details = {}
+    assert await module._prediction_openf1_get("sessions", diagnostics=details, year=2026) is None
+    assert details["http_status"] == 429
+    fetch.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_sessions_loader_raises_on_failure_then_recovers(monkeypatch):
+    import app.services.prediction_race_facts as module
+    fetch = AsyncMock(return_value=None)
+    monkeypatch.setattr(module, "_prediction_openf1_get", fetch)
+    with pytest.raises(module.OpenF1SourceUnavailable):
+        await module._cached_prediction_openf1_sessions.__wrapped__(2099)
+    fetch.return_value = [{"session_key": 1}]
+    assert await module._cached_prediction_openf1_sessions.__wrapped__(2099) == [{"session_key": 1}]
     assert fetch.await_count == 2
 
 
@@ -193,6 +221,17 @@ async def test_openf1_recovery_prefers_complete_source(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_openf1_rate_limit_returns_promptly_for_batch(monkeypatch):
+    import app.services.prediction_race_facts as module
+    limited = {"source": "OpenF1", "note": "OpenF1: sessions (HTTP 429)."}
+    monkeypatch.setattr(module, "_load_openf1_race_facts", AsyncMock(return_value=limited))
+    fast = AsyncMock(side_effect=AssertionError("FastF1 should not delay cooldown"))
+    monkeypatch.setattr(module.asyncio, "to_thread", fast)
+    assert await get_prediction_race_facts(2026, 15, prefer_openf1=True) == limited
+    fast.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_openf1_missing_endpoint_is_visible_in_preview_note(monkeypatch):
     import app.services.prediction_race_facts as module
     event = {"round": 15, "race_start_utc": "2026-09-26T11:00:00+00:00"}
@@ -200,13 +239,32 @@ async def test_openf1_missing_endpoint_is_visible_in_preview_note(monkeypatch):
     results = [{"driver_number": n, "dnf": False, "dns": False, "dsq": False, "number_of_laps": 1}
                for n in range(1, 11)]
     drivers = [{"driver_number": n, "name_acronym": f"D{n}"} for n in range(1, 11)]
-    fetch = AsyncMock(side_effect=[sessions, results, drivers, None, []])
+    fetch = AsyncMock(side_effect=[results, drivers, None, []])
     monkeypatch.setattr(module, "get_season_schedule_short_async", AsyncMock(return_value=[event]))
+    monkeypatch.setattr(module, "_cached_prediction_openf1_sessions", AsyncMock(return_value=sessions))
     monkeypatch.setattr(module, "_prediction_openf1_get", fetch)
     facts = await module._load_openf1_race_facts(2026, 15)
-    assert [call.args[0] for call in fetch.await_args_list] == ["sessions", "session_result", "drivers", "race_control", "laps"]
+    assert [call.args[0] for call in fetch.await_args_list] == ["session_result", "drivers", "race_control", "laps"]
     assert "race_control" in facts["note"]
     assert facts["missing_endpoints"] == ["race_control"]
+
+
+@pytest.mark.asyncio
+async def test_openf1_stops_other_requests_after_minute_limit(monkeypatch):
+    import app.services.prediction_race_facts as module
+    event = {"round": 15, "race_start_utc": "2026-09-26T11:00:00+00:00"}
+    sessions = [{"session_type": "Race", "date_start": event["race_start_utc"], "session_key": 11377}]
+    async def limited(path, *, diagnostics=None, **params):
+        diagnostics["http_status"] = 429
+        return None
+    fetch = AsyncMock(side_effect=limited)
+    monkeypatch.setattr(module, "get_season_schedule_short_async", AsyncMock(return_value=[event]))
+    monkeypatch.setattr(module, "_cached_prediction_openf1_sessions", AsyncMock(return_value=sessions))
+    monkeypatch.setattr(module, "_prediction_openf1_get", fetch)
+    facts = await module._load_openf1_race_facts(2026, 15)
+    assert facts["missing_endpoints"] == ["session_result"]
+    assert "HTTP 429" in facts["note"]
+    fetch.assert_awaited_once()
 
 
 @pytest.mark.asyncio

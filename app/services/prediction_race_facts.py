@@ -8,11 +8,12 @@ from datetime import datetime, timedelta, timezone
 import fastf1
 import pandas as pd
 from fastf1.exceptions import DataNotLoadedError
-from app.f1_data import _openf1_get, get_season_schedule_short_async
+from app.f1_data import _openf1_get, cache_result, get_season_schedule_short_async
 
 logger = logging.getLogger(__name__)
 _prediction_openf1_lock = asyncio.Lock()
 _last_prediction_openf1_call = 0.0
+_PREDICTION_OPENF1_MIN_GAP = 2.75  # free tier: 30 requests/min; leave headroom for other app traffic
 
 
 def _frame(session, name):
@@ -319,11 +320,10 @@ async def _load_openf1_race_facts(season, round_num):
     event = next((item for item in schedule or [] if int(item.get("round") or 0) == round_num), None)
     if event is None:
         return {"source": "OpenF1", "note": "OpenF1: этап не найден в календаре сезона."}
-    diagnostics = {}
-    sessions = await _prediction_openf1_get("sessions", diagnostics=diagnostics, year=season)
-    if sessions is None:
-        return {"source": "OpenF1", "note": "OpenF1: не удалось загрузить список сессий" +
-                _openf1_failure_detail(diagnostics) + "."}
+    try:
+        sessions = await _cached_prediction_openf1_sessions(season)
+    except OpenF1SourceUnavailable as exc:
+        return {"source": "OpenF1", "note": str(exc)}
     session = _openf1_race_session(event, sessions)
     if session is None or session.get("session_key") is None:
         return {"source": "OpenF1", "note": "OpenF1: гонка этого этапа не сопоставлена с сессией API."}
@@ -338,6 +338,10 @@ async def _load_openf1_race_facts(season, round_num):
         payloads[path] = await _prediction_openf1_get(path, diagnostics=details, session_key=key)
         if payloads[path] is None:
             failures[path] = details
+            if details.get("http_status") == 429:
+                return {"source": "OpenF1", "note": f"OpenF1: {path} вернул HTTP 429; "
+                        "остальные запросы отложены до освобождения лимита.",
+                        "missing_endpoints": [path]}
     facts = extract_openf1_race_facts(session, payloads["session_result"],
                                      payloads["laps"], payloads["race_control"],
                                      payloads["drivers"])
@@ -347,6 +351,20 @@ async def _load_openf1_race_facts(season, round_num):
         facts["note"] = (facts.get("note", "") + " OpenF1: не ответили " + ", ".join(descriptions) + ".").strip()
         facts["missing_endpoints"] = missing
     return facts
+
+
+class OpenF1SourceUnavailable(Exception):
+    """A failed sessions request must not poison the successful-data cache."""
+
+
+@cache_result(ttl=3600, key_prefix="prediction_openf1_sessions_v1")
+async def _cached_prediction_openf1_sessions(season):
+    diagnostics = {}
+    sessions = await _prediction_openf1_get("sessions", diagnostics=diagnostics, year=season)
+    if sessions is None:
+        raise OpenF1SourceUnavailable("OpenF1: не удалось загрузить список сессий" +
+                                      _openf1_failure_detail(diagnostics) + ".")
+    return sessions
 
 
 def _openf1_failure_detail(details):
@@ -362,11 +380,15 @@ async def _prediction_openf1_get(path, *, diagnostics=None, **params):
     for attempt in range(2):
         async with _prediction_openf1_lock:
             loop = asyncio.get_running_loop()
-            await asyncio.sleep(max(0, 0.4 - (loop.time() - _last_prediction_openf1_call)))
+            await asyncio.sleep(max(0, _PREDICTION_OPENF1_MIN_GAP - (loop.time() - _last_prediction_openf1_call)))
             _last_prediction_openf1_call = loop.time()
             value = await _openf1_get(path, status_sink=diagnostics, **params)
         if value is not None:
             return value
+        if diagnostics and diagnostics.get("http_status") == 429:
+            # The minute quota needs a full cooldown. Return promptly so the
+            # admin batch can wait and resume without holding an HTTP request.
+            return None
         if attempt == 0:
             await asyncio.sleep(1.25)
     return None
@@ -380,6 +402,8 @@ async def get_prediction_race_facts(season, round_num, *, prefer_openf1=False):
         except Exception:
             logger.exception("OpenF1 prediction facts unavailable for %s/%s", season, round_num)
         if openf1_facts is not None and all(openf1_facts.get(field) is not None for field in _FACT_FIELDS):
+            return openf1_facts
+        if openf1_facts is not None and "HTTP 429" in openf1_facts.get("note", ""):
             return openf1_facts
     fastf1_facts = None
     try:

@@ -9,11 +9,11 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Literal
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from app.api.admin_api import AdminContext, require_admin_session
 from app.db import db
@@ -68,6 +68,69 @@ class RecoveryRequest(BaseModel):
     round: int = Field(ge=1, le=40)
 
 
+class ManualRecoveryRequest(RecoveryRequest):
+    fastest_lap_driver: str | None = None
+    fastest_lap_url: str | None = Field(default=None, max_length=1000)
+    first_retirement_drivers: list[str] = Field(default_factory=list, max_length=22)
+    first_retirement_url: str | None = Field(default=None, max_length=1000)
+    safety_car: bool | None = None
+    safety_car_url: str | None = Field(default=None, max_length=1000)
+    reason: str = Field(min_length=10, max_length=500)
+
+    @field_validator('fastest_lap_driver')
+    @classmethod
+    def driver_code(cls, value):
+        if value is None or not value.strip():
+            return None
+        from app.services.prediction_service import normalize_driver_code
+        return normalize_driver_code(value)
+
+    @field_validator('first_retirement_drivers')
+    @classmethod
+    def retirement_codes(cls, values):
+        from app.services.prediction_service import normalize_driver_code
+        codes = [normalize_driver_code(value) for value in values]
+        if len(codes) != len(set(codes)):
+            raise ValueError('Повторяющиеся пилоты в первой группе схода.')
+        return codes
+
+    @field_validator('fastest_lap_url', 'first_retirement_url', 'safety_car_url')
+    @classmethod
+    def evidence_url(cls, value):
+        if value is None or not value.strip():
+            return None
+        value = value.strip()
+        try:
+            parsed = urlsplit(value)
+        except ValueError as exc:
+            raise ValueError('Некорректная ссылка на источник.') from exc
+        if (parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password
+                or any(char.isspace() or ord(char) < 32 for char in value)):
+            raise ValueError('Нужна прямая ссылка на источник по HTTPS.')
+        return value
+
+    @field_validator('reason')
+    @classmethod
+    def clean_reason(cls, value):
+        value = value.strip()
+        if len(value) < 10:
+            raise ValueError('Кратко объясните, что подтверждает источник (не менее 10 символов).')
+        return value
+
+    @model_validator(mode='after')
+    def evidence_for_each_fact(self):
+        if not (self.fastest_lap_driver or self.first_retirement_drivers or self.safety_car is not None):
+            raise ValueError('Укажите хотя бы один факт гонки.')
+        for supplied, url, label in (
+            (self.fastest_lap_driver is not None, self.fastest_lap_url, 'лучшего круга'),
+            (bool(self.first_retirement_drivers), self.first_retirement_url, 'первого схода'),
+            (self.safety_car is not None, self.safety_car_url, 'машины безопасности'),
+        ):
+            if supplied and not url:
+                raise ValueError(f'Укажите ссылку на источник для {label}.')
+        return self
+
+
 class RecoveryConfirmation(BaseModel):
     confirmation: Literal['ПЕРЕСЧИТАТЬ']
 
@@ -94,6 +157,23 @@ async def recovery_preview(data: RecoveryRequest, actor: AdminContext = Depends(
     from app.services.prediction_recovery import prepare
     try:
         return await prepare(data.season,data.round)
+    except ValueError as exc:
+        raise HTTPException(409,str(exc)) from exc
+
+
+@router.post('/prediction-recovery/manual-preview')
+async def recovery_manual_preview(data: ManualRecoveryRequest,
+                                  actor: AdminContext = Depends(require_admin_session)):
+    from app.services.prediction_recovery import prepare_manual
+    values = {'fastest_lap_driver':data.fastest_lap_driver,
+              'first_retirement_drivers':data.first_retirement_drivers,
+              'safety_car':int(data.safety_car) if data.safety_car is not None else None}
+    urls = {key:url for key,url in (
+        ('fastest_lap_driver',data.fastest_lap_url),
+        ('first_retirement_driver',data.first_retirement_url),
+        ('safety_car',data.safety_car_url)) if url}
+    try:
+        return await prepare_manual(data.season,data.round,values,urls,data.reason,actor.id)
     except ValueError as exc:
         raise HTTPException(409,str(exc)) from exc
 

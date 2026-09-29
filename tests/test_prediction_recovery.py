@@ -1,5 +1,4 @@
 import asyncio
-import asyncio
 import json
 from unittest.mock import AsyncMock, patch
 
@@ -186,3 +185,95 @@ async def test_updated_results_require_separate_admin_confirmation(recovery):
         assert response.status_code == 200
         assert response.json()['queued'] == 2
         queue.assert_awaited_once_with(2026, 14, 'Test GP')
+
+
+@pytest.mark.asyncio
+async def test_manual_preview_requires_explicit_apply_and_preserves_evidence(recovery):
+    database, fetch = recovery
+    values = {'fastest_lap_driver':'HAM', 'first_retirement_drivers':['STR'], 'safety_car':0}
+    urls = {key:f'https://www.formula1.com/{key}' for key in service.FIELDS}
+    preview = await service.prepare_manual(2026, 14, values, urls,
+                                           'Официальный протокол и отчёт гонки.', 99)
+    fetch.assert_not_awaited()
+    assert preview['state'] == 'ready'
+    assert [row['delta'] for row in preview['changes']] == [6, 2]
+    assert all(row['new_max'] == 34 for row in preview['changes'])
+    async with service.connection() as conn:
+        saved = await service.snapshot(conn, 2026, 14)
+        assert saved['actual']['fastest_lap_driver'] is None
+        assert saved['predictions'][0]['points'] == 13
+    with pytest.raises(ValueError, match='только администратор'):
+        await service.apply(preview['id'], 100)
+    assert (await service.apply(preview['id'], 99))['already_applied'] is False
+    assert (await service.apply(preview['id'], 99))['already_applied'] is True
+    async with service.connection() as conn:
+        saved = await service.snapshot(conn, 2026, 14)
+        assert [row['points'] for row in saved['predictions']] == [19, 15]
+        assert saved['actual']['safety_car'] == 0
+        facts = json.loads(saved['actual']['race_facts_json'])
+        assert facts['source_urls'] == urls
+        assert set(facts['field_sources'].values()) == {'Ручное подтверждение'}
+        assert 'manual_evidence' not in facts and 'prepared_by' not in facts
+        actions = await (await conn.execute("SELECT action FROM admin_audit_log WHERE action LIKE 'prediction_recovery.manual_%' ORDER BY id")).fetchall()
+        assert [row['action'] for row in actions] == ['prediction_recovery.manual_preview', 'prediction_recovery.manual_apply']
+        assert (await (await conn.execute('SELECT results_sent FROM prediction_notification_state')).fetchone())[0] == 1
+        assert (await (await conn.execute('SELECT COUNT(*) FROM telegram_delivery_batches')).fetchone())[0] == 0
+
+
+@pytest.mark.asyncio
+async def test_manual_conflict_does_not_replace_confirmed_fact(recovery):
+    database, _ = recovery
+    await database.conn.execute("UPDATE prediction_round_results SET fastest_lap_driver='HAM',max_points=30 WHERE season=2026 AND round=14")
+    await database.conn.commit()
+    preview = await service.prepare_manual(2026, 14, {'fastest_lap_driver':'NOR'},
+                                           {'fastest_lap_driver':'https://www.formula1.com/results'},
+                                           'Исправление по официальной таблице.', 99)
+    assert preview['state'] == 'conflict'
+    with pytest.raises(ValueError, match='Нет новых'):
+        await service.apply(preview['id'], 99)
+    async with service.connection() as conn:
+        assert (await service.snapshot(conn, 2026, 14))['actual']['fastest_lap_driver'] == 'HAM'
+
+
+@pytest.mark.asyncio
+async def test_manual_confirmation_can_extend_first_retirement_tie(recovery):
+    database, _ = recovery
+    await database.conn.execute("UPDATE prediction_round_results SET first_retirement_driver='STR',max_points=30 WHERE season=2026 AND round=14")
+    await database.conn.execute("UPDATE race_predictions SET first_retirement_driver='HAM',max_points=30 WHERE user_id=2")
+    await database.conn.commit()
+    preview = await service.prepare_manual(2026, 14,
+                                           {'first_retirement_drivers':['HAM','STR']},
+                                           {'first_retirement_driver':'https://www.formula1.com/report'},
+                                           'Оба пилота сошли одновременно после контакта.', 99)
+    assert preview['state'] == 'ready'
+    assert preview['tie_expansion'] == ['HAM', 'STR']
+    assert [row['delta'] for row in preview['changes']] == [0, 2]
+    await service.apply(preview['id'], 99)
+    async with service.connection() as conn:
+        saved = await service.snapshot(conn, 2026, 14)
+    assert sorted(json.loads(saved['actual']['race_facts_json'])['first_retirement_drivers']) == ['HAM', 'STR']
+
+
+@pytest.mark.asyncio
+async def test_manual_preview_api_validates_sources_and_auth(recovery):
+    app = FastAPI(); app.include_router(api.router)
+    url = '/api/admin/tools/prediction-recovery/manual-preview'
+    payload = {'season':2026,'round':14,'fastest_lap_driver':'ham',
+               'fastest_lap_url':'https://www.formula1.com/results','reason':'Официальная таблица быстрейших кругов.'}
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://test') as client:
+        assert (await client.post(url,json=payload)).status_code in {401,403}
+        app.dependency_overrides[api.require_admin_session] = lambda: api.AdminContext(id=99,role='admin')
+        for invalid in (
+            {**payload,'fastest_lap_url':None},
+            {**payload,'fastest_lap_url':'http://example.com/results'},
+            {**payload,'first_retirement_drivers':['STR','STR'],'first_retirement_url':'https://www.formula1.com/report'},
+            {**payload,'fastest_lap_driver':'???'},
+            {**payload,'reason':'          '},
+            {**payload,'season':2026,'round':40},
+        ):
+            expected = 409 if invalid['round'] == 40 else 422
+            assert (await client.post(url,json=invalid)).status_code == expected
+        response = await client.post(url,json=payload)
+        assert response.status_code == 200
+        assert response.json()['additions']['fastest_lap_driver'] == 'HAM'
+        assert response.json()['manual_evidence']['urls']['fastest_lap_driver'] == payload['fastest_lap_url']

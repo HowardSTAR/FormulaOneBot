@@ -39,7 +39,7 @@ export function apiAssetUrl(
 
 export async function apiRequest<T = unknown>(
   endpoint: string,
-  params: Record<string, string | number | boolean | null | undefined> = {},
+  params: Record<string, unknown> = {},
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET',
   timeoutMs: number = REQUEST_TIMEOUT_MS
 ): Promise<T> {
@@ -112,8 +112,10 @@ export async function apiRequest<T = unknown>(
   if (!response.ok) {
     let serverMessage = "";
     try {
-      const payload = await response.json() as { detail?: string | { message?: string } };
-      serverMessage = typeof payload.detail === 'string' ? payload.detail : payload.detail?.message || '';
+      const payload = await response.json() as { detail?: string | { message?: string } | { msg?: string }[] };
+      serverMessage = typeof payload.detail === 'string' ? payload.detail
+        : Array.isArray(payload.detail) ? payload.detail[0]?.msg || ''
+          : payload.detail?.message || '';
     } catch { /* response without JSON */ }
     const msg = serverMessage || (response.status === 401
       ? 'Войдите в аккаунт или откройте приложение в Telegram'

@@ -4,6 +4,7 @@ import json
 import time
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 
 import aiosqlite
 from app.db import db
@@ -65,7 +66,18 @@ def build_preview(before, facts):
     )
     if (additions or tie_expansion) and not conflict:
         merged = json.loads(actual.get('race_facts_json') or 'null') or {}
-        merged.update({key:value for key,value in facts.items() if value is not None and value != []})
+        merged.update({key:value for key,value in facts.items()
+                       if key not in {'manual_evidence','prepared_by'} and value is not None and value != []})
+        if facts.get('manual_evidence'):
+            changed = set(additions)
+            if tie_expansion:
+                changed.add('first_retirement_driver')
+            field_sources = dict(merged.get('field_sources') or {})
+            field_sources.update({key:'Ручное подтверждение' for key in changed})
+            merged['field_sources'] = field_sources
+            source_urls = dict(merged.get('source_urls') or {})
+            source_urls.update({key:url for key,url in facts['manual_evidence']['urls'].items() if key in changed})
+            merged['source_urls'] = source_urls
         merged.update({key:actual[key] for key in FIELDS if actual.get(key) is not None})
         if old_winners and not tie_expansion:
             merged['first_retirement_drivers'] = sorted(old_winners)
@@ -98,14 +110,12 @@ def build_preview(before, facts):
             'retirement_group':sorted(incoming_winners) if 'first_retirement_driver' in additions else [],
             'tie_expansion':sorted(incoming_winners) if tie_expansion else [],'changes':changes,
             'missing':[k for k in FIELDS if actual.get(k) is None],
-            'note':facts.get('note'), 'source':facts.get('source','FastF1'), 'conflict':conflict}
+            'note':facts.get('note'), 'source':facts.get('source','FastF1'), 'conflict':conflict,
+            'manual_evidence':facts.get('manual_evidence'), 'prepared_by':facts.get('prepared_by')}
 
 
-async def prepare(season, round_num):
-    async with connection() as conn:
-        before = await snapshot(conn,season,round_num)
-    facts = await get_prediction_race_facts(season,round_num,prefer_openf1=True)
-    after, summary = build_preview(before,facts)
+async def _store_preview(season, round_num, before, facts):
+    after, summary = build_preview(before, facts)
     identifier = uuid.uuid4().hex
     state = ('conflict' if summary['conflict'] else
              'ready' if summary['additions'] or summary['tie_expansion'] else
@@ -113,9 +123,40 @@ async def prepare(season, round_num):
     async with connection() as conn:
         await conn.execute('INSERT INTO prediction_recovery(id,season,round,created,state,fingerprint,before_json,after_json,summary_json) VALUES(?,?,?,?,?,?,?,?,?)',
                            (identifier,season,round_num,time.time(),state,fingerprint(before),json.dumps(before),json.dumps(after),json.dumps(summary)))
+        if summary['manual_evidence']:
+            await conn.execute('INSERT INTO admin_audit_log(actor_user_id,action,details_json,created_at) VALUES(?,?,?,?)',
+                               (summary['prepared_by'],'prediction_recovery.manual_preview',
+                                json.dumps({'id':identifier,'season':season,'round':round_num,'state':state,
+                                            'evidence':summary['manual_evidence']},ensure_ascii=False),
+                                datetime.now(timezone.utc).isoformat()))
         await conn.execute('INSERT INTO prediction_recovery_checks VALUES(?,?,?) ON CONFLICT(season,round) DO UPDATE SET checked=excluded.checked',(season,round_num,time.time()))
         await conn.commit()
     return {'id':identifier,'season':season,'round':round_num,'state':state,**summary}
+
+
+async def prepare(season, round_num):
+    async with connection() as conn:
+        before = await snapshot(conn,season,round_num)
+    facts = await get_prediction_race_facts(season,round_num,prefer_openf1=True)
+    return await _store_preview(season, round_num, before, facts)
+
+
+async def prepare_manual(season, round_num, values, evidence, reason, actor):
+    """Preview administrator-asserted facts without fetching external APIs or changing scores."""
+    async with connection() as conn:
+        before = await snapshot(conn, season, round_num)
+    facts = {key: value for key, value in values.items() if value is not None}
+    group = facts.get('first_retirement_drivers') or []
+    if group:
+        facts['first_retirement_driver'] = group[0]
+    if not any(key in facts for key in FIELDS):
+        raise ValueError('Укажите хотя бы один подтверждённый факт гонки.')
+    facts.update({'source':'Ручное подтверждение',
+                  'note':'Факты внесены администратором по указанным источникам; API не опрашивались.',
+                  'prepared_by':actor,
+                  'manual_evidence':{'urls':evidence,'reason':reason,
+                                     'confirmed_at':datetime.now(timezone.utc).isoformat()}})
+    return await _store_preview(season, round_num, before, facts)
 
 
 async def apply(identifier, actor):
@@ -128,6 +169,9 @@ async def apply(identifier, actor):
             return {'already_applied':True}
         if candidate['state'] != 'ready':
             raise ValueError('Нет новых подтверждённых данных для применения.')
+        summary = json.loads(candidate['summary_json'])
+        if summary.get('manual_evidence') and summary.get('prepared_by') != actor:
+            raise ValueError('Ручные факты может применить только администратор, создавший предпросмотр.')
         if time.time()-candidate['created'] > 86400:
             await conn.execute("UPDATE prediction_recovery SET state='stale' WHERE id=?",(identifier,))
             await conn.commit()
@@ -145,6 +189,13 @@ async def apply(identifier, actor):
             await conn.execute('UPDATE race_predictions SET points=?,max_points=?,breakdown_json=?,scored_at=CURRENT_TIMESTAMP WHERE user_id=? AND season=? AND round=?',
                                (row['points'],row['max_points'],row['breakdown_json'],row['user_id'],candidate['season'],candidate['round']))
         await conn.execute("UPDATE prediction_recovery SET state='applied',applied_by=?,applied_at=? WHERE id=?",(actor,time.time(),identifier))
+        if summary.get('manual_evidence'):
+            await conn.execute('INSERT INTO admin_audit_log(actor_user_id,action,details_json,created_at) VALUES(?,?,?,?)',
+                               (actor,'prediction_recovery.manual_apply',
+                                json.dumps({'id':identifier,'season':candidate['season'],'round':candidate['round'],
+                                            'additions':summary['additions'],'tie_expansion':summary['tie_expansion'],
+                                            'evidence':summary['manual_evidence']},ensure_ascii=False),
+                                datetime.now(timezone.utc).isoformat()))
         await conn.commit()
     return {'already_applied':False}
 
@@ -159,11 +210,28 @@ async def calculated_rounds(season):
     """Read-only batch scope: rounds already scored, not future calendar events."""
     async with connection() as conn:
         rows = await (await conn.execute(
-            'SELECT season,round,event_name,fastest_lap_driver,first_retirement_driver,safety_car '
+            'SELECT season,round,event_name,fastest_lap_driver,first_retirement_driver,safety_car,race_facts_json '
             'FROM prediction_round_results WHERE season=? ORDER BY round', (season,),
         )).fetchall()
-    return [{'season': row['season'], 'round': row['round'], 'event_name': row['event_name'],
-             'missing': [key for key in FIELDS if row[key] is None]} for row in rows]
+    result = []
+    for row in rows:
+        try:
+            details = json.loads(row['race_facts_json'] or '{}') or {}
+        except (ValueError, TypeError):
+            details = {}
+        if not isinstance(details, dict):
+            details = {}
+        retirement_group = details.get('first_retirement_drivers')
+        if isinstance(retirement_group, str):
+            retirement_group = [retirement_group]
+        if not isinstance(retirement_group, list):
+            retirement_group = []
+        result.append({'season': row['season'], 'round': row['round'], 'event_name': row['event_name'],
+                       'missing': [key for key in FIELDS if row[key] is None],
+                       'current': {key: row[key] for key in FIELDS},
+                       'first_retirement_drivers': retirement_group or
+                           ([row['first_retirement_driver']] if row['first_retirement_driver'] else [])})
+    return result
 
 
 async def applied_round_for_notification(identifier):
