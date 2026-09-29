@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "../../helpers/api";
 import "./personal-review.css";
 
-type Item = { key: string; label: string; predicted: string | number | null; actual: string | number | null;
+type Item = { key: string; label: string; predicted: string | number | null; actual: string | number | string[] | null;
   position: number | null; points: number | null; maximum: number; status: string; reason: string;
   rule: { exact: number; offsets: number[] } };
 type RaceFacts = { source: string; note?: string; fastest_lap?: {driver: string; lap: number; seconds: number};
+  first_retirement_drivers?: string[]; retirement_order_method?: string;
   laps?: {driver: string; lap: number; seconds: number}[];
   retirements?: {driver: string; status: string; laps: number | null; time: string | null}[];
   retirement_order_confirmed?: boolean; safety_car?: number | null;
@@ -15,8 +16,9 @@ function lapTime(seconds: number) {
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, "0")}`;
 }
 const statuses: Record<string,string> = { exact: "Угадано", partial: "Частичное попадание", miss: "Не угадано", unavailable: "Нет данных", unknown: "Не подтверждено" };
-function value(key: string, v: string | number | null, names: Record<string, string>) {
+function value(key: string, v: string | number | string[] | null, names: Record<string, string>): string {
   if (v === null || v === "") return "—";
+  if (Array.isArray(v)) return v.map(code => value(key, code, names)).join(" · ");
   if (key === "safety_car") return Number(v) ? "Да" : "Нет";
   const code = String(v);
   return names[code.toUpperCase()] ? `${names[code.toUpperCase()]} (${code})` : code;
@@ -51,6 +53,7 @@ export function PersonalReview({ season, round, onClose }: { season: number; rou
           <dl><div><dt>Ваш выбор</dt><dd>{value(item.key,item.predicted,driverNames)}</dd></div><div><dt>Фактический результат</dt><dd>{value(item.key,item.actual,driverNames)}</dd></div></dl>
           {item.position !== null && <p>Ваш выбранный пилот в классификации: P{item.position}</p>}
           <p>{item.reason}</p><details><summary>Как считаются очки</summary><p>Точное совпадение: {item.rule.exact} баллов.
+            {item.key === "first_retirement_driver" ? " Если несколько пилотов сошли в одной подтверждённой первой группе, выбор любого из них считается верным; баллы начисляются один раз." : ""}
             {item.rule.offsets.some(Boolean) ? ` Отклонение финишной позиции выбранного пилота на 1 / 2 / 3 места: ${item.rule.offsets.join(" / ")} балла. Большее отклонение: 0. Баллы за точность и отклонение не суммируются.` : " Нет совпадения: 0."}
             {" Если фактические данные отсутствуют, пункт не учитывается в максимуме."}</p></details>
         </article>)}</div>
@@ -62,6 +65,8 @@ export function PersonalReview({ season, round, onClose }: { season: number; rou
             <ul>{result.data.race_facts.laps.map((lap, index) => <li key={index}>{lap.driver} · круг {lap.lap} · {lapTime(lap.seconds)}</li>)}</ul>
           </details>}
           <h4>Сходы</h4>
+          {!!result.data.race_facts.first_retirement_drivers?.length && <p>Первая группа: {result.data.race_facts.first_retirement_drivers.map(code => value("first_retirement_driver", code, driverNames)).join(" · ")}.
+            {result.data.race_facts.retirement_order_method === "last_lap_chronology" ? " Установлена по хронологии последних кругов." : ""}</p>}
           {!result.data.race_facts.retirement_order_confirmed && <p>Точная последовательность сходов не подтверждена. Порядок списка не означает порядок сходов.</p>}
           <ul>{result.data.race_facts.retirements?.map(row => <li key={row.driver}>{row.driver} · {row.status}{row.laps !== null ? ` · завершено кругов: ${row.laps}` : ""}{row.time ? ` · ${new Date(row.time).toLocaleTimeString()}` : ""}</li>)}</ul>
           <h4>Машина безопасности</h4>

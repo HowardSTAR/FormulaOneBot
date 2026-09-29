@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { apiRequest } from '../../helpers/api';
 
 type Check = {id:string; season:number; round:number; state:string; note?:string;
-  additions:Record<string,string | number>; missing:string[]; conflict:boolean;
+  additions:Record<string,string | number>; retirement_group?:string[]; tie_expansion?:string[]; missing:string[]; conflict:boolean;
   changes:{user_id:number;old_points:number;new_points:number;old_max:number;new_max:number;delta:number}[];
   applied_by?:number; applied_at?:number};
 const endpoint='/api/admin/tools/prediction-recovery';
@@ -38,7 +38,7 @@ export function PredictionRecovery() {
     }catch(e){setError(e instanceof Error?e.message:String(e));}finally{setBusy(false);}
   };
   return <section className="admin-chart-card admin-tools"><h2>Дозагрузка результатов прогнозов</h2>
-    <p>Новые данные не меняют очки без подтверждения. Добавляются только отсутствующие категории; прежние начисления сохраняются. Сам пересчёт ничего не рассылает; после применения можно отдельно подтвердить обновлённые итоги.</p>
+    <p>Новые данные не меняют очки без подтверждения. Добавляются отсутствующие категории или уточняется подтверждённая первая группа схода; прежние начисления сохраняются. Сам пересчёт ничего не рассылает; после применения можно отдельно подтвердить обновлённые итоги.</p>
     <fieldset disabled={busy}><label>Сезон<input type="number" min="1950" max="2100" value={season} onChange={e=>setSeason(Number(e.target.value))}/></label>
       <label>Этап<input type="number" min="1" max="40" value={round} onChange={e=>setRound(Number(e.target.value))}/></label>
       <button onClick={()=>void run()}>Загрузить данные и показать изменения</button></fieldset>
@@ -46,6 +46,8 @@ export function PredictionRecovery() {
     {selected&&<article><h3>{selected.season} · этап {selected.round}: {states[selected.state]}</h3>
       {selected.note&&<p>{selected.note}</p>}{selected.conflict&&<p>Источник также противоречит уже сохранённым фактам. Эти факты не заменяются.</p>}
       <ul>{Object.entries(selected.additions).map(([key,value])=><li key={key}>{names[key]}: {key==='safety_car'?(value?'Да':'Нет'):value}</li>)}</ul>
+      {!!selected.retirement_group?.length&&<p>Первая группа схода: {selected.retirement_group.join(', ')}. Выбор любого из них приносит 2 балла за пункт.</p>}
+      {!!selected.tie_expansion?.length&&<p>Уточнённая первая группа схода: {selected.tie_expansion.join(', ')}. Выбор любого из них приносит 2 балла за пункт.</p>}
       {!!selected.missing.length&&<p>Ещё нет данных: {selected.missing.map(key=>names[key]).join(', ')}.</p>}
       <details open><summary>Изменения баллов ({selected.changes.length} участников)</summary>{selected.changes.map(row=><p key={row.user_id}>Участник #{row.user_id}: {row.old_points}/{row.old_max} → {row.new_points}/{row.new_max} (+{row.delta})</p>)}</details>
       {selected.state==='ready'&&<fieldset disabled={busy}><label>Для применения введите ПЕРЕСЧИТАТЬ<input value={confirmation} onChange={e=>setConfirmation(e.target.value)}/></label><button disabled={confirmation!=='ПЕРЕСЧИТАТЬ'} onClick={()=>void run(true)}>Применить изменения очков</button></fieldset>}

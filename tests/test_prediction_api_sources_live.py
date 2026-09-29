@@ -54,8 +54,8 @@ def _format_answers(answers, sprint_weekend, names, retirement_candidate=None):
         elif value is None:
             if field == "first_retirement_driver" and retirement_candidate:
                 code = retirement_candidate["driver"]
-                rendered = (f"НЕТ ПОДТВЕРЖДЁННОГО ФАКТА · кандидат {code}"
-                            f" — {names.get(code, code)} (по времени последних кругов; баллы не начислены)")
+                rendered = (f"НЕТ ПОДТВЕРЖДЁННОГО ФАКТА · диагностический кандидат {code}"
+                            f" — {names.get(code, code)} (условия расчёта не выполнены)")
             else:
                 rendered = "НЕТ ДАННЫХ"
         elif field == "safety_car":
@@ -334,13 +334,15 @@ class LivePredictionApiSourcesTest(unittest.IsolatedAsyncioTestCase):
             print(_format_answers(answers, sprint_weekend, names,
                                   retirement_candidate if name == "OpenF1" else None))
             print(f"Лучший круг: {facts.get('fastest_lap') or 'нет подтверждённого времени'}")
+            print(f"Первая группа схода для расчёта: {facts.get('first_retirement_drivers') or 'не установлена'}"
+                  f" · метод: {facts.get('retirement_order_method') or '—'}")
             print(f"Сходы по времени: {facts.get('retirements') or 'нет подтверждённой последовательности'}")
             if name == "OpenF1":
                 print(f"Последние круги сошедших: {retirement_chronology}")
                 if retirement_candidate:
-                    print(f"Кандидат на первый сход: {retirement_candidate['driver']}"
+                    print(f"Независимая диагностическая проверка: {retirement_candidate['driver']}"
                           f" · отрыв до следующего последнего круга {retirement_candidate['gap_seconds']} с"
-                          " · это вывод из хронологии, не подтверждение дирекции гонки")
+                          " · это вывод из хронологии, не сообщение дирекции гонки")
             print(f"События SC/VSC: {facts.get('safety_events') or 'нет подтверждённых событий'}")
             if facts.get("note"):
                 print(f"Примечание: {facts['note']}")

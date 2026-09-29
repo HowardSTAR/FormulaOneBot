@@ -8,7 +8,7 @@ from contextlib import asynccontextmanager
 import aiosqlite
 from app.db import db
 from app.services.prediction_race_facts import get_prediction_race_facts
-from app.services.prediction_service import prediction_breakdown, EXACT_POINTS
+from app.services.prediction_service import prediction_breakdown, first_retirement_winners, EXACT_POINTS
 
 FIELDS = ('fastest_lap_driver', 'first_retirement_driver', 'safety_car')
 SCHEMA = '''
@@ -49,15 +49,26 @@ def build_preview(before, facts):
     actual = dict(before['actual'])
     additions = {key:facts[key] for key in FIELDS if actual.get(key) is None and facts.get(key) is not None}
     actual.update(additions)
+    old_winners = first_retirement_winners(before['actual'])
+    incoming_winners = first_retirement_winners(facts)
+    compatible_retirement_group = (bool(before['actual'].get('first_retirement_driver'))
+                                   and old_winners <= incoming_winners
+                                   and before['actual']['first_retirement_driver'] in incoming_winners)
+    tie_expansion = compatible_retirement_group and old_winners < incoming_winners
+    retirement_group_conflict = bool(facts.get('first_retirement_drivers') and old_winners
+                                     and not old_winners <= incoming_winners)
     # Never let a refreshed display contradict a previously confirmed answer.
-    conflict = bool(facts.get('conflicts')) or any(
+    conflict = bool(facts.get('conflicts')) or retirement_group_conflict or any(
         before['actual'].get(k) is not None and facts.get(k) is not None and before['actual'][k] != facts[k]
+        and not (k == 'first_retirement_driver' and compatible_retirement_group)
         for k in FIELDS
     )
-    if additions and not conflict:
+    if (additions or tie_expansion) and not conflict:
         merged = json.loads(actual.get('race_facts_json') or 'null') or {}
         merged.update({key:value for key,value in facts.items() if value is not None and value != []})
         merged.update({key:actual[key] for key in FIELDS if actual.get(key) is not None})
+        if old_winners and not tie_expansion:
+            merged['first_retirement_drivers'] = sorted(old_winners)
         actual['race_facts_json'] = json.dumps(merged,ensure_ascii=False)
     increase = sum(EXACT_POINTS[key] for key in additions)
     actual['max_points'] = (actual.get('max_points') or 0) + increase
@@ -66,7 +77,10 @@ def build_preview(before, facts):
         if old['points'] is None or old['max_points'] is None:
             raise ValueError('Есть нерассчитанные прогнозы. Сначала завершите исходный расчёт.')
         row = dict(old)
-        delta = sum(EXACT_POINTS[k] for k,v in additions.items() if old[k] == v)
+        delta = sum(EXACT_POINTS[k] for k,v in additions.items()
+                    if (str(old[k]).upper() in incoming_winners if k == 'first_retirement_driver' else old[k] == v))
+        if tie_expansion and str(old['first_retirement_driver']).upper() in incoming_winners - old_winners:
+            delta += EXACT_POINTS['first_retirement_driver']
         row['points'] += delta
         row['max_points'] += increase
         items = json.loads(old.get('breakdown_json') or 'null')
@@ -76,11 +90,13 @@ def build_preview(before, facts):
             for item in items:
                 item.update(points=None,status='unknown',reason='Историческая разбивка не сохранена; прежний итог не изменён.')
         fresh = {item['key']:item for item in prediction_breakdown(old,actual,historical=True)}
-        row['breakdown_json'] = json.dumps([fresh[item['key']] if item['key'] in additions else item for item in items],ensure_ascii=False)
+        row['breakdown_json'] = json.dumps([fresh[item['key']] if item['key'] in additions or (tie_expansion and item['key'] == 'first_retirement_driver') else item for item in items],ensure_ascii=False)
         predictions.append(row)
         changes.append({'user_id':row['user_id'],'old_points':old['points'],'new_points':row['points'],
                         'old_max':old['max_points'],'new_max':row['max_points'],'delta':delta})
-    return {'actual':actual,'predictions':predictions}, {'additions':additions,'changes':changes,
+    return {'actual':actual,'predictions':predictions}, {'additions':additions,
+            'retirement_group':sorted(incoming_winners) if 'first_retirement_driver' in additions else [],
+            'tie_expansion':sorted(incoming_winners) if tie_expansion else [],'changes':changes,
             'missing':[k for k in FIELDS if actual.get(k) is None],
             'note':facts.get('note'), 'source':facts.get('source','FastF1'), 'conflict':conflict}
 
@@ -91,7 +107,7 @@ async def prepare(season, round_num):
     facts = await get_prediction_race_facts(season,round_num)
     after, summary = build_preview(before,facts)
     identifier = uuid.uuid4().hex
-    state = 'conflict' if summary['conflict'] else 'ready' if summary['additions'] else 'waiting'
+    state = 'conflict' if summary['conflict'] else 'ready' if summary['additions'] or summary['tie_expansion'] else 'waiting'
     async with connection() as conn:
         await conn.execute('INSERT INTO prediction_recovery(id,season,round,created,state,fingerprint,before_json,after_json,summary_json) VALUES(?,?,?,?,?,?,?,?,?)',
                            (identifier,season,round_num,time.time(),state,fingerprint(before),json.dumps(before),json.dumps(after),json.dumps(summary)))

@@ -8,7 +8,7 @@ from app.services.prediction_race_facts import (
     _openf1_race_session, extract_openf1_race_facts, extract_race_facts,
     get_prediction_race_facts,
 )
-from app.services.prediction_service import build_actual_answers
+from app.services.prediction_service import build_actual_answers, calculate_prediction_points, prediction_breakdown
 
 
 def session():
@@ -57,10 +57,18 @@ def test_missing_data_and_incomplete_session_are_not_negative_answers():
     assert extract_race_facts(source)["fastest_lap_driver"] is None
 
 
-def test_tied_or_stopped_retirement_messages_do_not_establish_first():
+def test_tied_retirement_messages_credit_both_but_stopped_is_unconfirmed():
     source = session()
     source.race_control_messages["Time"] = "2025-01-01T14:00:00Z"
-    assert extract_race_facts(source)["first_retirement_driver"] is None
+    facts = extract_race_facts(source)
+    assert facts["first_retirement_drivers"] == ["HAM", "STR"]
+    answers = build_actual_answers(pd.DataFrame(), [], extra_facts=facts)
+    for code in ("HAM", "STR"):
+        prediction = {field: None for field in answers if not field.startswith("_")}
+        prediction["first_retirement_driver"] = code
+        assert calculate_prediction_points(prediction, answers) == 2
+        item = next(i for i in prediction_breakdown(prediction, answers) if i["key"] == "first_retirement_driver")
+        assert item["status"] == "exact" and item["actual"] == ["HAM", "STR"]
     source.race_control_messages["Message"] = "CAR 18 (STR) STOPPED"
     assert extract_race_facts(source)["first_retirement_driver"] is None
 
@@ -123,8 +131,27 @@ def test_openf1_completed_race_facts_exclude_deleted_lap_and_vsc():
     assert extract_openf1_race_facts({}, results, laps, messages, drivers)["safety_car"] == 1
     assert extract_openf1_race_facts({}, results[:3], laps, messages, drivers)["safety_car"] is None
     messages[4]["date"] = messages[3]["date"]
-    assert extract_openf1_race_facts({}, results, laps, messages, drivers)["first_retirement_driver"] is None
+    assert extract_openf1_race_facts({}, results, laps, messages, drivers)["first_retirement_drivers"] == ["HAM", "STR"]
     assert extract_openf1_race_facts({}, results, laps[:2], messages, drivers)["fastest_lap_driver"] is None
+
+
+def test_openf1_last_lap_chronology_only_with_clear_gap_and_tied_group():
+    drivers = [{"driver_number": n, "name_acronym": code} for n, code in
+               ((1, "VER"), (18, "STR"), (44, "HAM"), (4, "NOR"), (5, "LEC"),
+                (6, "RUS"), (7, "GAS"), (8, "ALO"), (9, "ANT"), (10, "PIA"))]
+    results = [{"driver_number": d["driver_number"], "dnf": d["name_acronym"] in {"STR", "HAM", "NOR"},
+                "dns": False, "dsq": False, "number_of_laps": 9 if d["name_acronym"] in {"STR", "HAM"} else 20}
+               for d in drivers]
+    laps = [{"driver_number": d["driver_number"], "lap_number": 9 if d["name_acronym"] in {"STR", "HAM"} else 20,
+             "date_start": "2026-09-26T11:00:00Z" if d["name_acronym"] == "STR" else
+                           "2026-09-26T11:00:20Z" if d["name_acronym"] == "HAM" else "2026-09-26T11:30:00Z",
+             "lap_duration": 100} for d in drivers]
+    messages = [{"category": "SessionStatus", "message": "SESSION ENDED", "date": "2026-09-26T13:00:00Z"}]
+    facts = extract_openf1_race_facts({}, results, laps, messages, drivers)
+    assert facts["first_retirement_drivers"] == ["HAM", "STR"]
+    assert facts["retirement_order_method"] == "last_lap_chronology"
+    laps[1]["date_start"] = "2026-09-26T11:05:00Z"
+    assert extract_openf1_race_facts({}, results, laps, messages, drivers)["first_retirement_driver"] is None
 
 
 @pytest.mark.asyncio
@@ -140,3 +167,17 @@ async def test_openf1_fills_missing_facts_without_overwriting_fastf1(monkeypatch
     assert (facts["fastest_lap_driver"], facts["first_retirement_driver"], facts["safety_car"]) == ("VER", "STR", 0)
     secondary["fastest_lap_driver"] = "NOR"
     assert (await get_prediction_race_facts(2026, 15))["fastest_lap_driver"] is None
+
+
+@pytest.mark.asyncio
+async def test_sources_can_reconcile_same_first_retirement_group(monkeypatch):
+    import app.services.prediction_race_facts as module
+    primary = {"fastest_lap_driver": None, "first_retirement_driver": "STR",
+               "first_retirement_drivers": ["STR"], "safety_car": None, "source": "FastF1"}
+    secondary = {"fastest_lap_driver": None, "first_retirement_driver": "HAM",
+                 "first_retirement_drivers": ["HAM", "STR"], "safety_car": None, "source": "OpenF1"}
+    monkeypatch.setattr(module.asyncio, "to_thread", AsyncMock(return_value=primary))
+    monkeypatch.setattr(module, "_load_openf1_race_facts", AsyncMock(return_value=secondary))
+    facts = await get_prediction_race_facts(2026, 15)
+    assert facts["first_retirement_drivers"] == ["HAM", "STR"]
+    assert "first_retirement_driver" not in facts.get("conflicts", [])

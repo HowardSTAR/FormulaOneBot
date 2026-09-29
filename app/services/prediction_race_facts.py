@@ -3,7 +3,7 @@ import asyncio
 import logging
 import math
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import fastf1
 import pandas as pd
@@ -23,6 +23,7 @@ def _frame(session, name):
 
 def extract_race_facts(session):
     facts = {"fastest_lap_driver": None, "first_retirement_driver": None,
+             "first_retirement_drivers": [],
              "safety_car": None, "source": "FastF1", "laps": [],
              "retirements": [], "safety_events": [], "retirement_order_confirmed": False}
     laps = _frame(session, "laps")
@@ -91,12 +92,17 @@ def extract_race_facts(session):
         retired = facts["retirements"]
         if retired and all(row["time"] for row in retired):
             retired.sort(key=lambda row: row["time"])
-            unique_first = len(retired) == 1 or retired[0]["time"] != retired[1]["time"]
-            facts["retirement_order_confirmed"] = unique_first
-            if unique_first:
-                facts["first_retirement_driver"] = retired[0]["driver"]
+            first_time = _utc(retired[0]["time"])
+            first = [row["driver"] for row in retired
+                     if first_time and (time := _utc(row["time"])) and
+                     (time - first_time).total_seconds() <= 30]
+            facts["first_retirement_drivers"] = sorted(set(first))
+            facts["first_retirement_driver"] = facts["first_retirement_drivers"][0]
+            facts["retirement_order_confirmed"] = True
+            facts["retirement_order_method"] = "race_control"
         elif len(retired) == 1:
             facts["first_retirement_driver"] = retired[0]["driver"]
+            facts["first_retirement_drivers"] = [retired[0]["driver"]]
             facts["retirement_order_confirmed"] = True
     return facts
 
@@ -115,6 +121,47 @@ def _utc(value):
         return datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
     except (TypeError, ValueError):
         return None
+
+
+def _last_lap_retirement_group(retired, results, laps):
+    """Conservative fallback: all DNFs need complete lap coverage and a clear next group."""
+    if not isinstance(laps, list) or not retired:
+        return []
+    latest = {}
+    for lap in laps:
+        number = str(lap.get("driver_number"))
+        started = _utc(lap.get("date_start"))
+        try:
+            lap_number = int(lap.get("lap_number"))
+            duration = float(lap.get("lap_duration"))
+        except (TypeError, ValueError):
+            continue
+        if started is None or lap_number < 1 or not math.isfinite(duration) or duration <= 0:
+            continue
+        previous = latest.get(number)
+        ended = started + timedelta(seconds=duration)
+        if previous is None or (lap_number, ended) > (previous[0], previous[1]):
+            latest[number] = (lap_number, ended)
+    chronology = []
+    for row in retired:
+        number = row["number"]
+        official = next((r for r in results if str(r.get("driver_number")) == number), None)
+        last = latest.get(number)
+        official_laps = int(official.get("number_of_laps") or 0) if official else 0
+        if not official or official_laps < 1 or not last or last[0] < official_laps:
+            return []
+        chronology.append((last[1], row["driver"], last[0]))
+    chronology.sort()
+    earliest = chronology[0][0]
+    # OpenF1 lap start timestamps are a proxy, not the moment of withdrawal.
+    # Credit cars in the same short incident window; a later independent DNF
+    # must be separated by ten minutes before we trust this fallback at all.
+    group = [row for row in chronology if (row[0] - earliest).total_seconds() <= 90
+             and abs(row[2] - chronology[0][2]) <= 1]
+    rest = [row for row in chronology if row not in group]
+    if rest and (rest[0][0] - earliest).total_seconds() < 600:
+        return []
+    return sorted(row[1] for row in group)
 
 
 def _openf1_race_session(event, sessions):
@@ -141,6 +188,7 @@ def _openf1_race_session(event, sessions):
 def extract_openf1_race_facts(session, results, laps, messages, drivers):
     """Only completed official classifications can authorize additional scoring."""
     facts = {"fastest_lap_driver": None, "first_retirement_driver": None,
+             "first_retirement_drivers": [],
              "safety_car": None, "source": "OpenF1", "laps": [],
              "retirements": [], "safety_events": [], "retirement_order_confirmed": False}
     if not isinstance(results, list) or len(results) < 10:
@@ -244,14 +292,23 @@ def extract_openf1_race_facts(session, results, laps, messages, drivers):
         {"driver": row["driver"], "time": row["time"].isoformat() if row["time"] else None}
         for row in retired
     ]
-    if len(retired) == 1:
-        facts["first_retirement_driver"] = retired[0]["driver"]
-        facts["retirement_order_confirmed"] = True
-    elif retired and all(row["time"] for row in retired):
+    if retired and all(row["time"] for row in retired):
         retired.sort(key=lambda row: row["time"])
-        if retired[0]["time"] != retired[1]["time"]:
-            facts["first_retirement_driver"] = retired[0]["driver"]
-            facts["retirement_order_confirmed"] = True
+        first_time = retired[0]["time"]
+        first = [row["driver"] for row in retired
+                 if (row["time"] - first_time).total_seconds() <= 30]
+        facts["first_retirement_drivers"] = sorted(set(first))
+        facts["retirement_order_method"] = "race_control"
+    elif len(retired) == 1:
+        facts["first_retirement_drivers"] = [retired[0]["driver"]]
+        facts["retirement_order_method"] = "classification"
+    else:
+        facts["first_retirement_drivers"] = _last_lap_retirement_group(retired, results, laps)
+        if facts["first_retirement_drivers"]:
+            facts["retirement_order_method"] = "last_lap_chronology"
+    if facts["first_retirement_drivers"]:
+        facts["first_retirement_driver"] = facts["first_retirement_drivers"][0]
+        facts["retirement_order_confirmed"] = True
     return facts
 
 
@@ -292,8 +349,17 @@ async def get_prediction_race_facts(season, round_num):
                                 "note": "Дополнительные данные пока недоступны."}
     if openf1_facts is None:
         return fastf1_facts
+    first_fast = set(fastf1_facts.get("first_retirement_drivers") or
+                     ([fastf1_facts["first_retirement_driver"]] if fastf1_facts.get("first_retirement_driver") else []))
+    first_open = set(openf1_facts.get("first_retirement_drivers") or
+                     ([openf1_facts["first_retirement_driver"]] if openf1_facts.get("first_retirement_driver") else []))
+    compatible_first = bool(first_fast and first_open and
+                            (first_fast <= first_open or first_open <= first_fast))
     conflicts = [field for field in _FACT_FIELDS if fastf1_facts.get(field) is not None
-                 and openf1_facts.get(field) is not None and fastf1_facts[field] != openf1_facts[field]]
+                 and openf1_facts.get(field) is not None and fastf1_facts[field] != openf1_facts[field]
+                 and not (field == "first_retirement_driver" and compatible_first)]
+    if first_fast and first_open and not compatible_first and "first_retirement_driver" not in conflicts:
+        conflicts.append("first_retirement_driver")
     merged = {**fastf1_facts, "source": "FastF1 + OpenF1"}
     merged["field_sources"] = {}
     for field in _FACT_FIELDS:
@@ -310,6 +376,17 @@ async def get_prediction_race_facts(season, round_num):
             merged[detail] = openf1_facts[detail]
     if not merged.get("retirement_order_confirmed"):
         merged["retirement_order_confirmed"] = bool(openf1_facts.get("retirement_order_confirmed"))
+    if merged.get("first_retirement_driver") is not None:
+        origin = openf1_facts if merged["field_sources"].get("first_retirement_driver") == "OpenF1" else fastf1_facts
+        group = sorted(first_fast | first_open) if compatible_first else (
+            origin.get("first_retirement_drivers") or [merged["first_retirement_driver"]]
+        )
+        merged["first_retirement_drivers"] = group
+        merged["first_retirement_driver"] = group[0]
+        merged["retirement_order_method"] = origin.get("retirement_order_method")
+    else:
+        merged["first_retirement_drivers"] = []
+        merged["retirement_order_confirmed"] = False
     if conflicts:
         merged["note"] = "Источники расходятся по: " + ", ".join(conflicts) + ". Нужна ручная проверка."
         merged["conflicts"] = conflicts

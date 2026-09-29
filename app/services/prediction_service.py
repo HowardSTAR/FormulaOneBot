@@ -384,8 +384,28 @@ def build_actual_answers(
     if extra_facts is not None:
         # Do not retain the classification-based guess when chronology is unknown.
         answers["first_retirement_driver"] = extra_facts.get("first_retirement_driver")
+        answers["_first_retirement_drivers"] = extra_facts.get("first_retirement_drivers") or (
+            [answers["first_retirement_driver"]] if answers["first_retirement_driver"] else []
+        )
         answers["_race_facts"] = extra_facts
     return answers
+
+
+def first_retirement_winners(answers: dict[str, Any]) -> set[str]:
+    winners = answers.get("_first_retirement_drivers") or answers.get("first_retirement_drivers")
+    if winners is None:
+        facts = answers.get("race_facts_json") or answers.get("_race_facts") or {}
+        if isinstance(facts, str):
+            try:
+                facts = json.loads(facts) or {}
+            except (TypeError, ValueError):
+                facts = {}
+        winners = facts.get("first_retirement_drivers") if isinstance(facts, dict) else None
+    if not winners:
+        winners = [answers["first_retirement_driver"]] if answers.get("first_retirement_driver") else []
+    if isinstance(winners, str):
+        winners = [winners]
+    return {str(code).upper() for code in winners if code}
 
 
 def calculate_prediction_points(prediction: Any, answers: dict[str, Any]) -> int:
@@ -417,6 +437,8 @@ def calculate_prediction_points(prediction: Any, answers: dict[str, Any]) -> int
                 points += 2
             elif delta == 3:
                 points += 1
+        elif field == "first_retirement_driver" and str(predicted).upper() in first_retirement_winners(answers):
+            points += EXACT_POINTS[field]
         elif predicted == actual:
             points += EXACT_POINTS[field]
     return points
@@ -436,18 +458,23 @@ def prediction_breakdown(prediction, answers, *, historical=False):
         unknown = historical and field in PLACEMENT_TARGETS and actual is not None and position is None
         partial = {f: answers.get(f) if f == field else None for f in PREDICTION_FIELDS}
         partial["_race_positions"] = positions
+        if field == "first_retirement_driver":
+            partial["_first_retirement_drivers"] = list(first_retirement_winners(answers))
         points = None if unknown else calculate_prediction_points(prediction, partial)
         if actual is None:
             status, reason = "unavailable", "Фактический результат пока не установлен; пункт не учитывается в максимуме."
         elif unknown:
             status, reason = "unknown", "Полная классификация при старом расчёте не сохранена; баллы этого пункта нельзя достоверно восстановить."
+        elif field == "first_retirement_driver" and str(predicted).upper() in first_retirement_winners(answers):
+            status, reason = "exact", f"Один из пилотов первой группы схода: +{points}."
         elif predicted == actual:
             status, reason = "exact", f"Точное совпадение: +{points}."
         elif points:
             status, reason = "partial", f"Ваш пилот финишировал P{position}; отклонение от P{PLACEMENT_TARGETS[field]}: {abs(position-PLACEMENT_TARGETS[field])}. +{points}."
         else:
             status, reason = "miss", "Нет совпадения в пределах начисления баллов: +0."
-        items.append({"key":field,"label":rule["label"],"predicted":predicted,"actual":actual,
+        display_actual = sorted(first_retirement_winners(answers)) if field == "first_retirement_driver" and actual is not None else actual
+        items.append({"key":field,"label":rule["label"],"predicted":predicted,"actual":display_actual,
                       "position":position,"points":points,"maximum":rule["exact"] if actual is not None else 0,
                       "status":status,"reason":reason,"rule":rule})
     return items

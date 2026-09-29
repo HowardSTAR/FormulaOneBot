@@ -54,6 +54,42 @@ async def test_preview_inert_apply_atomic_idempotent_and_no_broadcast(recovery):
 
 
 @pytest.mark.asyncio
+async def test_recovery_credits_each_driver_in_first_retirement_group(recovery):
+    database, fetch = recovery
+    await database.conn.execute("UPDATE race_predictions SET first_retirement_driver='HAM' WHERE user_id=2")
+    await database.conn.commit()
+    fetch.return_value = {'fastest_lap_driver': None, 'first_retirement_driver': 'HAM',
+                          'first_retirement_drivers': ['HAM', 'STR'], 'safety_car': None,
+                          'source': 'OpenF1'}
+    preview = await service.prepare(2026, 14)
+    assert preview['state'] == 'ready'
+    assert [row['delta'] for row in preview['changes']] == [2, 2]
+    assert all(row['new_max'] == 30 for row in preview['changes'])
+    await service.apply(preview['id'], 99)
+    async with service.connection() as conn:
+        saved = await service.snapshot(conn, 2026, 14)
+    assert json.loads(saved['actual']['race_facts_json'])['first_retirement_drivers'] == ['HAM', 'STR']
+    assert (await service.prepare(2026, 14))['state'] == 'waiting'
+
+
+@pytest.mark.asyncio
+async def test_recovery_can_extend_existing_first_retirement_to_tie(recovery):
+    database, fetch = recovery
+    await database.conn.execute("UPDATE prediction_round_results SET first_retirement_driver='STR',max_points=30 WHERE season=2026 AND round=14")
+    await database.conn.execute("UPDATE race_predictions SET max_points=30,points=15 WHERE user_id=1")
+    await database.conn.execute("UPDATE race_predictions SET max_points=30,first_retirement_driver='HAM' WHERE user_id=2")
+    await database.conn.commit()
+    fetch.return_value = {'first_retirement_driver': 'HAM', 'first_retirement_drivers': ['HAM', 'STR'],
+                          'source': 'OpenF1'}
+    preview = await service.prepare(2026, 14)
+    assert preview['state'] == 'ready'
+    assert preview['tie_expansion'] == ['HAM', 'STR']
+    assert [row['delta'] for row in preview['changes']] == [0, 2]
+    await service.apply(preview['id'], 99)
+    assert (await service.prepare(2026, 14))['state'] == 'waiting'
+
+
+@pytest.mark.asyncio
 async def test_stale_preview_rejected(recovery):
     database,_=recovery
     preview=await service.prepare(2026,14)
