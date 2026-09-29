@@ -168,7 +168,7 @@ async def get_race_recap(season: int, round_num: int) -> dict:
     return {"season": season, "round": round_num,
             "status": "ready" if after and teams_after and (round_num == 1 or before and teams_before) else "partial",
             "items": items, "sources": sources, "updated_at": datetime.now(timezone.utc).isoformat(),
-            "note": "Автоматическая сводка по правилам, без ИИ. Изменения зачёта — за весь уик-энд, включая спринт и опубликованные корректировки. Первые победы и подиумы — в выбранном сезоне, не в карьере. Причины событий не выводятся из очков."}
+            "note": "Изменения зачёта — за весь уик-энд, включая спринт и опубликованные корректировки. Первые победы и подиумы — в выбранном сезоне, не в карьере. Причины событий не выводятся из очков."}
 
 
 def format_recap_telegram(recap: dict, spoiler: bool = False) -> str:

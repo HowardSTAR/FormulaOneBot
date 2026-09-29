@@ -11,6 +11,14 @@
 .history-tabs button[aria-pressed=true] { background: #ad211b; border-color: #ff6259; }
 .history-legend { margin: 12px 0 18px; }
 .history-note { color: #adafbb; font-size: 13px; }
+.history-search-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+.history-search-actions span { color: #b8bac4; font-size: 13px; }
+.history-search-button { min-height: 48px; padding: 12px 24px; border: 1px solid #ff6259; border-radius: 10px; background: #b9211b; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
+.history-search-button:disabled { background: #292c34; border-color: #444650; color: #adb0bb; cursor: default; }
+.history-loading { display: flex; align-items: center; gap: 10px; }
+.history-loading::before { content: ''; flex: 0 0 16px; height: 16px; border: 2px solid #50535d; border-top-color: #ff6259; border-radius: 50%; animation: history-spin 1s linear infinite; }
+@keyframes history-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .history-loading::before { animation: none; } }
 .history-chart { display: block; width: 100%; height: auto; margin: 18px 0; }
 .history-table-scroll { overflow-x: auto; }
 .history-table { width: 100%; border-collapse: collapse; text-align: left; }

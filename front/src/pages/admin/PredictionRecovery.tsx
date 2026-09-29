@@ -12,7 +12,8 @@ const endpoint='/api/admin/tools/prediction-recovery';
 const names:Record<string,string>={fastest_lap_driver:'Лучший круг',first_retirement_driver:'Первый сход',safety_car:'Машина безопасности'};
 const states:Record<string,string>={ready:'Готово к проверке',waiting:'Ожидаем данные',unchanged:'Нет изменений',conflict:'Источники расходятся',applied:'Применено',stale:'Проверка устарела'};
 
-export function PredictionRecovery() {
+export function PredictionRecovery({onBusy}:{onBusy?:(busy:boolean)=>void}) {
+  const [mode,setMode]=useState<'single'|'season'|'manual'>('single');
   const [season,setSeason]=useState(new Date().getFullYear());
   const [round,setRound]=useState(1);
   const [checks,setChecks]=useState<Check[]>([]);
@@ -27,6 +28,7 @@ export function PredictionRecovery() {
   const [batchErrors,setBatchErrors]=useState<string[]>([]);
   const [batchConfirmation,setBatchConfirmation]=useState('');
   const [rounds,setRounds]=useState<CalculatedRound[]>([]);
+  const [roundsLoaded,setRoundsLoaded]=useState<number|null>(null);
   const [manualFastest,setManualFastest]=useState('');
   const [manualFastestUrl,setManualFastestUrl]=useState('');
   const [manualRetirements,setManualRetirements]=useState('');
@@ -37,13 +39,20 @@ export function PredictionRecovery() {
   const batchCancelled=useRef(false);
   const [error,setError]=useState('');
   useEffect(()=>{let active=true; apiRequest<Check[]>(endpoint).then(data=>{if(active)setChecks(data);}).catch(e=>{if(active)setError(String(e));});return()=>{active=false;};},[]);
-  useEffect(()=>{let active=true;apiRequest<{rounds:CalculatedRound[]}>(`${endpoint}/rounds`,{season}).then(data=>{if(active)setRounds(data.rounds);}).catch(()=>{if(active)setRounds([]);});return()=>{active=false;};},[season]);
+  useEffect(()=>{let active=true;apiRequest<{rounds:CalculatedRound[]}>(`${endpoint}/rounds`,{season}).then(data=>{if(active){setRounds(data.rounds);setRoundsLoaded(season);setRound(previous=>data.rounds.some(item=>item.round===previous)?previous:Math.max(1,...data.rounds.map(item=>item.round)));}}).catch(()=>{if(active){setRounds([]);setRoundsLoaded(season);setError('Не удалось загрузить список этапов. Обновите страницу или выберите сезон снова.');}});return()=>{active=false;};},[season]);
   useEffect(()=>()=>{batchCancelled.current=true;},[]);
+  useEffect(()=>{onBusy?.(busy||batchBusy);return()=>onBusy?.(false);},[busy,batchBusy,onBusy]);
+  useEffect(()=>{
+    const warn=(event:BeforeUnloadEvent)=>{event.preventDefault();};
+    if(busy||batchBusy)window.addEventListener('beforeunload',warn);
+    return()=>window.removeEventListener('beforeunload',warn);
+  },[busy,batchBusy]);
   const currentRound=rounds.find(item=>item.round===round);
+  const resetTarget=()=>{setSelected(null);setConfirmation('');setNotifyConfirmation('');setNotice('');setError('');setManualFastest('');setManualFastestUrl('');setManualRetirements('');setManualRetirementsUrl('');setManualSafety('');setManualSafetyUrl('');setManualReason('');};
   const run=async(apply=false)=>{
     setBusy(true);setError('');setNotice('');
     try {
-      if(apply && selected){await apiRequest(`${endpoint}/${selected.id}/apply`,{confirmation},'POST');setSelected(null);setConfirmation('');setNotice(`Этап ${selected.round}: изменения баллов применены. Рассылка не запускалась.`);await apiRequest<{rounds:CalculatedRound[]}>(`${endpoint}/rounds`,{season}).then(data=>setRounds(data.rounds)).catch(()=>{});}
+      if(apply && selected){await apiRequest(`${endpoint}/${selected.id}/apply`,{confirmation},'POST');setSelected({...selected,state:'applied'});setConfirmation('');setNotice(`Этап ${selected.round}: изменения баллов применены. Рассылка не запускалась.`);await apiRequest<{rounds:CalculatedRound[]}>(`${endpoint}/rounds`,{season}).then(data=>setRounds(data.rounds)).catch(()=>{});}
       else {setSelected(null);setConfirmation('');setSelected(await apiRequest<Check>(`${endpoint}/preview`,{season,round},'POST',180000));}
       setChecks(await apiRequest<Check[]>(endpoint));
     }catch(e){setError(e instanceof Error?e.message:String(e));}finally{setBusy(false);}
@@ -118,12 +127,15 @@ export function PredictionRecovery() {
       setNotifyConfirmation('');
     }catch(e){setError(e instanceof Error?e.message:String(e));}finally{setBusy(false);}
   };
-  return <section className="admin-chart-card admin-tools"><h2>Дозагрузка результатов прогнозов</h2>
-    <p>Новые данные не меняют очки без подтверждения. Добавляются отсутствующие категории или уточняется подтверждённая первая группа схода; прежние начисления сохраняются. Сам пересчёт ничего не рассылает; после применения можно отдельно подтвердить обновлённые итоги.</p>
-    <fieldset disabled={busy||batchBusy}><label>Сезон<input type="number" min="1950" max="2100" value={season} onChange={e=>{setSeason(Number(e.target.value));setBatchChecks([]);setBatchErrors([]);setBatchProgress('');setBatchConfirmation('');}}/></label>
-      <label>Этап<input type="number" min="1" max="40" value={round} onChange={e=>setRound(Number(e.target.value))}/></label>
-      <button onClick={()=>void run()}>Загрузить данные и показать изменения</button></fieldset>
-    <details className="pr-manual"><summary>Подтвердить факты вручную по источникам</summary>
+  return <section className="admin-chart-card admin-tools"><h2>Проверка и пересчёт</h2>
+    <ol className="admin-flow" aria-label="Порядок работы"><li>1 · Выбрать этап</li><li>2 · Проверить изменения</li><li>3 · Подтвердить пересчёт</li></ol>
+    <p>Проверка не меняет баллы. Пересчёт требует подтверждения и не запускает рассылку.</p>
+    <nav className="recovery-mode" aria-label="Способ проверки">{([['single','Один этап'],['season','Весь сезон'],['manual','Внести факты вручную']] as const).map(([value,label])=><button type="button" disabled={busy||batchBusy} aria-pressed={mode===value} key={value} onClick={()=>{setMode(value);setNotice('');setError('');}}>{label}</button>)}</nav>
+    <fieldset className="recovery-target" disabled={busy||batchBusy}><label>Сезон<select value={season} onChange={e=>{resetTarget();setSeason(Number(e.target.value));setBatchChecks([]);setBatchErrors([]);setBatchProgress('');setBatchConfirmation('');}}>{Array.from({length:new Date().getFullYear()-1949},(_,i)=>new Date().getFullYear()-i).map(year=><option key={year} value={year}>{year}</option>)}</select></label>
+      {mode!=='season'&&<label>Рассчитанный этап<select value={currentRound?round:''} disabled={roundsLoaded!==season} onChange={e=>{resetTarget();setRound(Number(e.target.value));}}><option value="" disabled>{roundsLoaded!==season?'Загружаем этапы…':'Выберите этап'}</option>{rounds.map(item=><option key={item.round} value={item.round}>Этап {item.round} · {item.event_name}{item.missing.length?' · неполные данные':''}</option>)}</select></label>}
+      {mode==='single'&&<button disabled={!currentRound||roundsLoaded!==season} onClick={()=>void run()}>Проверить данные — без изменения баллов</button>}</fieldset>
+    {roundsLoaded===season&&!rounds.length&&<p role="status">В выбранном сезоне пока нет рассчитанных этапов.</p>}
+    {mode==='manual'&&<section className="pr-manual"><h3>Подтвердить факты по источникам</h3>
       <p>Если API недоступно, внесите только проверенные факты. Для каждого заполненного пункта нужна ссылка на источник. Пустой пункт останется без данных. Подтверждённые ранее значения нельзя заменить; изменение баллов произойдёт только после отдельного применения предпросмотра.</p>
       {currentRound?<p><strong>{currentRound.event_name}</strong> · уже сохранено: лучший круг — {currentRound.current.fastest_lap_driver??'нет данных'}, первый сход — {currentRound.first_retirement_drivers.length?currentRound.first_retirement_drivers.join(', '):'нет данных'}, машина безопасности — {currentRound.current.safety_car===null?'нет данных':currentRound.current.safety_car?'Да':'Нет'}.</p>:<p>Этап {round} не найден среди рассчитанных этапов сезона {season}. Проверьте номер этапа.</p>}
       <fieldset disabled={busy||batchBusy||!currentRound}>
@@ -138,20 +150,20 @@ export function PredictionRecovery() {
         <label>Почему источник подтверждает эти факты<textarea rows={3} maxLength={500} value={manualReason} placeholder="Кратко укажите круг или время события, особенно для первого схода и SC/VSC." onChange={e=>setManualReason(e.target.value)}/></label>
         <button onClick={()=>void manualPreview()}>Показать ручной предпросмотр</button>
       </fieldset>
-    </details>
-    <section aria-label="Проверка всего сезона"><h3>Все рассчитанные этапы сезона</h3>
+    </section>}
+    {mode==='season'&&<section aria-label="Проверка всего сезона"><h3>Все рассчитанные этапы сезона</h3>
       <p>Проверка проходит по этапам по очереди, чтобы не превысить лимит OpenF1. Будущие и ещё не рассчитанные этапы не затрагиваются. Оставьте страницу открытой до завершения; проверка сама не меняет баллы.</p>
-      <button disabled={busy||batchBusy} onClick={()=>void checkAll()}>Проверить все этапы сезона {season}</button>
+      <button disabled={busy||batchBusy||roundsLoaded!==season||!rounds.length} onClick={()=>void checkAll()}>Проверить все этапы сезона {season}</button>
       {batchBusy&&<button onClick={()=>{batchCancelled.current=true;}}>Остановить после текущего этапа</button>}
       {batchProgress&&<p role="status">{batchProgress}</p>}
       {batchErrors.map((message,index)=><p role="alert" key={index}>{message}</p>)}
       {!!batchChecks.length&&<div><p>Проверено: {batchChecks.length}. Готово к применению: {batchChecks.filter(check=>check.state==='ready').length}. Без изменений: {batchChecks.filter(check=>check.state==='unchanged').length}. Ожидают данные: {batchChecks.filter(check=>check.state==='waiting').length}. Конфликты: {batchChecks.filter(check=>check.state==='conflict').length}.</p>
-        {batchChecks.map(check=><p key={check.id}><button disabled={batchBusy} onClick={()=>setSelected(check)}>{check.season} · этап {check.round} · {states[check.state]||check.state}</button> {check.state==='ready'&&`· изменятся баллы у ${check.changes.filter(row=>row.delta!==0||row.old_max!==row.new_max).length} участников`}{check.missing.length?` · ещё нет: ${check.missing.map(key=>names[key]).join(', ')}`:''}</p>)}
+        {batchChecks.map(check=><p key={check.id}><button disabled={batchBusy||busy} onClick={()=>{setSelected(check);setConfirmation('');setNotifyConfirmation('');}}>{check.season} · этап {check.round} · {states[check.state]||check.state}</button> {check.state==='ready'&&`· изменятся баллы у ${check.changes.filter(row=>row.delta!==0||row.old_max!==row.new_max).length} участников`}{check.missing.length?` · ещё нет: ${check.missing.map(key=>names[key]).join(', ')}`:''}</p>)}
         {batchChecks.some(check=>check.state==='ready')&&<fieldset disabled={batchBusy||busy}><label>Чтобы применить все готовые пересчёты, введите ПЕРЕСЧИТАТЬ ВСЕ<input value={batchConfirmation} onChange={e=>setBatchConfirmation(e.target.value)}/></label><button disabled={batchConfirmation!=='ПЕРЕСЧИТАТЬ ВСЕ'} onClick={()=>void applyAll()}>Применить все готовые этапы</button><small>Каждый этап проверяется повторно перед записью. Конфликты и этапы без новых данных пропускаются. Рассылки не запускаются.</small></fieldset>}
       </div>}
-    </section>
-    {busy&&<p role="status">Операция выполняется…</p>}{error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}
-    {selected&&<article><h3>{selected.season} · этап {selected.round}: {states[selected.state]}</h3>
+    </section>}
+    {busy&&<p role="status" className="history-loading">Операция выполняется. Дождитесь результата; повторный запрос не нужен.</p>}{error&&<p role="alert" className="admin-notice error">{error}</p>}{notice&&<p role="status" className="admin-notice success">{notice}</p>}
+    {selected&&<article className="recovery-result"><h3>{selected.season} · этап {selected.round}</h3><p className="recovery-status">{states[selected.state]}</p>
       {selected.source&&<p>Источник: {selected.source}{selected.prepared_by?` · внёс администратор #${selected.prepared_by}`:''}.</p>}
       {selected.note&&<p>{selected.note}</p>}{selected.conflict&&<p>Источник также противоречит уже сохранённым фактам. Эти факты не заменяются.</p>}
       {selected.manual_evidence&&<div><p>Обоснование: {selected.manual_evidence.reason}</p><ul>{Object.entries(selected.manual_evidence.urls).map(([key,url])=><li key={key}>{names[key]}: <a href={url} target="_blank" rel="noopener noreferrer">Открыть источник ↗</a></li>)}</ul><small>Ручная запись сохраняет ссылку, автора и время подтверждения в истории проверки.</small></div>}
@@ -160,10 +172,10 @@ export function PredictionRecovery() {
       {!!selected.retirement_group?.length&&<p>Первая группа схода: {selected.retirement_group.join(', ')}. Выбор любого из них приносит 2 балла за пункт.</p>}
       {!!selected.tie_expansion?.length&&<p>Уточнённая первая группа схода: {selected.tie_expansion.join(', ')}. Выбор любого из них приносит 2 балла за пункт.</p>}
       {!!selected.missing.length&&<p>Ещё нет данных: {selected.missing.map(key=>names[key]).join(', ')}.</p>}
-      <details open><summary>Изменения баллов ({selected.changes.length} участников)</summary>{selected.changes.map(row=><p key={row.user_id}>Участник #{row.user_id}: {row.old_points}/{row.old_max} → {row.new_points}/{row.new_max} (+{row.delta})</p>)}</details>
+      <details open={selected.state==='ready'}><summary>Изменения баллов ({selected.changes.length} участников)</summary><div className="admin-table-wrap"><table><thead><tr><th>Участник</th><th>Было</th><th>Станет</th><th>Разница</th></tr></thead><tbody>{selected.changes.map(row=><tr key={row.user_id}><td>#{row.user_id}</td><td>{row.old_points}/{row.old_max}</td><td>{row.new_points}/{row.new_max}</td><td>{row.delta>0?'+':''}{row.delta}</td></tr>)}</tbody></table></div>{!selected.changes.length&&<p>Участников для пересчёта нет.</p>}</details>
       {selected.state==='ready'&&<fieldset disabled={busy||batchBusy}><label>Для применения введите ПЕРЕСЧИТАТЬ<input value={confirmation} onChange={e=>setConfirmation(e.target.value)}/></label><button disabled={confirmation!=='ПЕРЕСЧИТАТЬ'} onClick={()=>void run(true)}>Применить изменения очков</button></fieldset>}
       {selected.state==='applied'&&selected.missing.length===0&&<fieldset disabled={busy||batchBusy}><label>Для отдельной рассылки обновлённых итогов введите ОТПРАВИТЬ<input value={notifyConfirmation} onChange={e=>setNotifyConfirmation(e.target.value)}/></label><button disabled={notifyConfirmation!=='ОТПРАВИТЬ'} onClick={()=>void notify()}>Разослать обновлённые итоги</button><small>Сообщение с кнопкой «Таблица прогнозов» уйдёт один раз; повторный запрос безопасен.</small></fieldset>}
     </article>}
-    <h3>Последние проверки и применения</h3>{checks.map(check=><p key={check.id}><button disabled={busy} onClick={()=>{setSelected(check);setConfirmation('');setNotifyConfirmation('');setNotice('');}}>{check.season} · этап {check.round} · {states[check.state]}</button>{check.applied_at&&` · админ #${check.applied_by}, ${new Date(check.applied_at*1000).toLocaleString()}`}</p>)}
+    <details><summary>История проверок и применений · {checks.length}</summary>{checks.map(check=><p key={check.id}><button disabled={busy||batchBusy} onClick={()=>{setSelected(check);setConfirmation('');setNotifyConfirmation('');setNotice('');}}>{check.season} · этап {check.round} · {states[check.state]}</button>{check.applied_at&&` · админ #${check.applied_by}, ${new Date(check.applied_at*1000).toLocaleString()}`}</p>)}{!checks.length&&<p>Проверок пока нет.</p>}</details>
   </section>;
 }

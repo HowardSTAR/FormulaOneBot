@@ -13,9 +13,22 @@ import {
   type ChartConfiguration,
 } from "chart.js";
 import { apiRequest } from "../../helpers/api";
+import { useSearchParams } from 'react-router-dom';
 import "./admin.css";
 import { AdminInsights, AdminNotifications, AdminToolDirectory } from "./AdminTools";
 import { AdminControl } from './AdminControl';
+import './admin-workspace.css';
+
+const sections = [
+  { id: 'control', label: 'Доставка', hint: 'Очередь, ошибки и статусы', description: 'Посмотрите, какие уведомления требуют внимания. Отправки не запускаются при просмотре.' },
+  { id: 'recovery', label: 'Результаты прогнозов', hint: 'Проверка и пересчёт', description: 'Выберите этап или весь сезон. Сначала проверьте изменения, затем подтвердите применение.' },
+  { id: 'notifications', label: 'Рассылки сайта', hint: 'Аудитория и предпросмотр', description: 'Подготовьте сообщение, проверьте получателей и подтвердите отправку. Telegram-рассылки здесь не запускаются.' },
+  { id: 'users', label: 'Пользователи', hint: 'Поиск и доступ', description: 'Найдите аккаунт по имени, email или Telegram. Управление ролями доступно супер-администратору.' },
+  { id: 'overview', label: 'Аналитика', hint: 'Аудитория и сценарии', description: 'Смотрите посещения, возвращаемость и использование функций. Анонимные браузеры считаются отдельно.' },
+  { id: 'games', label: 'Игры', hint: 'Рекорды и модерация', description: 'Статистика игровых результатов. Удаление рекордов требует отдельного подтверждения.' },
+  { id: 'audit', label: 'Журнал действий', hint: 'Кто и что изменил', description: 'Последние 100 административных действий: автор, время и объект изменения.' },
+  { id: 'tools', label: 'Справка и инструменты', hint: 'Дополнительные возможности', description: 'Переходы к аналитике предсказаний и подсказки по диагностике.' },
+] as const;
 
 Chart.register(
   BarController,
@@ -152,7 +165,10 @@ function AdminChart({ metrics, source }: { metrics: Metrics; source: Source }) {
 }
 
 export default function AdminPage() {
-  const [tab, setTab] = useState<"control" | "overview" | "users" | "games" | "audit" | "notifications" | "tools">("control");
+  const [params, setParams] = useSearchParams();
+  const tab = sections.find(section => section.id === params.get('section'))?.id || 'control';
+  const activeSection = sections.find(section => section.id === tab)!;
+  const setTab = (value: string) => { setError(''); setMessage(''); setParams({ section: value }); };
   const [identity, setIdentity] = useState<AdminIdentity | null>(null);
   const [period, setPeriod] = useState<Period>("30d");
   const [source, setSource] = useState<Source>("all");
@@ -169,6 +185,7 @@ export default function AdminPage() {
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [emailDraft, setEmailDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -318,25 +335,23 @@ export default function AdminPage() {
     <div className="admin-page">
       <header className="admin-hero">
         <div>
-          <span className="admin-eyebrow">TurboTears Control Center</span>
-          <h1>Администрирование</h1>
-          <p>Активность, пользователи, роли и журнал критических действий.</p>
+          <span className="admin-eyebrow">Управление проектом</span>
+          <h1>Админ-панель</h1>
         </div>
         <div className="admin-identity">
-          <span>{identity?.role ?? "…"}</span>
+          <span>{identity?.role === 'superadmin' ? 'Супер-администратор' : identity ? 'Администратор' : 'Проверяем доступ…'}</span>
           <strong>{identityLabel}</strong>
         </div>
       </header>
 
-      <nav className="admin-tabs" aria-label="Разделы администрирования">
-        <button className={tab === 'control' ? 'active' : ''} onClick={()=>setTab('control')}>Центр контроля</button>
-        <button className={tab === "notifications" ? "active" : ""} onClick={() => setTab("notifications")}>Уведомления</button>
-        <button className={tab === "tools" ? "active" : ""} onClick={() => setTab("tools")}>Инструменты</button>
-        <button className={tab === "overview" ? "active" : ""} onClick={() => setTab("overview")}>Аналитика</button>
-        <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>Пользователи</button>
-        <button className={tab === "games" ? "active" : ""} onClick={() => setTab("games")}>Игры</button>
-        <button className={tab === "audit" ? "active" : ""} onClick={() => setTab("audit")}>Audit log</button>
+      <div className="admin-workspace">
+      <label className="admin-mobile-section">Раздел админ-панели<select value={tab} disabled={busy || recoveryBusy} onChange={event => setTab(event.target.value)}>{sections.map(section => <option key={section.id} value={section.id}>{section.label}</option>)}</select></label>
+      <nav className="admin-section-nav" aria-label="Разделы администрирования">
+        {sections.map(section => <button type="button" key={section.id} disabled={recoveryBusy || busy} onClick={() => setTab(section.id)} className={tab === section.id ? 'active' : undefined} aria-current={tab === section.id ? 'page' : undefined}><strong>{section.label}</strong><small>{section.hint}</small></button>)}
       </nav>
+      <div className="admin-workspace-content">
+      <header className="admin-section-heading"><span>Админ-панель / {activeSection.label}</span><h2>{activeSection.label}</h2><p>{activeSection.description}</p></header>
+      {recoveryBusy && <p role="status">Проверка или пересчёт выполняется. Дождитесь завершения; проверку сезона можно остановить после текущего этапа.</p>}
 
       {(message || error) && (
         <div className={`admin-notice ${error ? "error" : "success"}`} role="status">
@@ -345,7 +360,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {tab === 'control' && <AdminControl />}
+      {(tab === 'control' || tab === 'recovery') && <AdminControl key={tab} mode={tab === 'recovery' ? 'recovery' : 'delivery'} onNavigate={setTab} onBusy={setRecoveryBusy} />}
       {tab === "overview" && (
         <>
           <AdminInsights />
@@ -419,11 +434,11 @@ export default function AdminPage() {
             </form>
             <select value={roleFilter} onChange={(event) => { setPage(1); setRoleFilter(event.target.value as typeof roleFilter); }}>
               <option value="all">Все роли</option>
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-              <option value="superadmin">Superadmin</option>
+              <option value="user">Участники</option>
+              <option value="admin">Администраторы</option>
+              <option value="superadmin">Супер-администраторы</option>
             </select>
-            <span>Найдено: {userPage?.total ?? 0}</span>
+            <span>{userPage ? `Найдено: ${userPage.total}` : 'Загружаем пользователей…'}</span>
           </header>
           <div className="admin-table-wrap">
             <table>
@@ -465,7 +480,7 @@ export default function AdminPage() {
                     </td>
                     <td data-label="Регистрация">{formatDate(user.created_at)}</td>
                     <td data-label="Активность">{formatDate(user.last_activity)}</td>
-                    <td data-label="Роль"><span className={`admin-role role-${user.role}`}>{user.role}</span></td>
+                    <td data-label="Роль"><span className={`admin-role role-${user.role}`}>{user.role==='superadmin'?'Супер-администратор':user.role==='admin'?'Администратор':'Участник'}</span></td>
                     <td data-label="Действия">
                       <div className="admin-actions">
                         <button disabled={busy || user.protected} onClick={() => { setEditingUser(user); setEmailDraft(user.email || ""); }}>Email</button>
@@ -565,6 +580,7 @@ export default function AdminPage() {
         </section>
       )}
 
+      </div></div>
       {editingUser && (
         <div className="admin-modal-backdrop" role="presentation" onMouseDown={() => setEditingUser(null)}>
           <div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-email-title" onMouseDown={(event) => event.stopPropagation()}>

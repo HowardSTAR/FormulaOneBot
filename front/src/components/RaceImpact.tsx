@@ -13,12 +13,7 @@ export function RaceImpact({season, round, rows, recap}: {season: number; round:
       {data?.status === 'partial' && <p className="history-note">Часть данных о чемпионате недоступна. Показаны только подтверждённые факты.</p>}
       {data && data.status !== 'ready' && <button type="button" onClick={reload}>Проверить обновление</button>}
       {!!data?.items.length && <div className="race-recap-list">{data.items.map(item => <article key={item.category}><h3>{item.title}</h3><p><GlossaryText>{item.text}</GlossaryText></p></article>)}</div>}
-      <details><summary>Источники и как читать сводку</summary>
-        <p className="history-note">{data?.note || 'Сводка по правилам, без ИИ. Причины событий не выводятся из очков.'}</p>
-        {data?.updated_at && <p>Сформировано: {new Date(data.updated_at).toLocaleString('ru-RU')}</p>}
-        {data?.sources?.map(source => <p key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a></p>)}
-        <p><GlossaryText>Разобраться в терминах: машина безопасности, виртуальная машина безопасности, временной штраф.</GlossaryText></p>
-      </details>
+      {!!data?.items.length && <p className="history-note">Изменения чемпионата — за весь уик-энд. Первые победы и подиумы — в этом сезоне.</p>}
       {favorites.length > 0 && <p>Ваше избранное: {favorites.map(r => `${r.code} — P${r.position}, ${r.points} очк.`).join(' · ')}</p>}
       <p><Link to={`/predictions?tab=history&reviewSeason=${season}&reviewRound=${round}`}>Как это повлияло на мой прогноз →</Link></p>
   </section>;

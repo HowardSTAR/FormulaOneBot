@@ -92,7 +92,8 @@ export function AdminNotifications({ adminId }: { adminId?: number }) {
     setNotice(`${result.already_sent ? "Этот запрос уже выполнен. " : ""}В историю записано: ${result.recipients}. Push поставлено в очередь: ${result.queued}.`);
     setPreview(null); setConfirmation(""); await load();
   });
-  return <section className="admin-chart-card admin-tools"><h2>Точечные уведомления</h2>
+  return <section className="admin-chart-card admin-tools"><h2>Новое уведомление</h2>
+    <ol className="admin-flow" aria-label="Порядок отправки"><li>1 · Аудитория</li><li>2 · Текст и предпросмотр</li><li>3 · Проверка и подтверждение</li></ol>
     <p>История на сайте + необязательный push. Не отправляет посты, email или сообщения в Telegram.</p>
     <p>Доступны только аккаунты, открывавшие раздел уведомлений сайта. Гости недоступны. Фильтры применяются вместе. Максимум 1000 получателей за отправку.</p>
     {error && <p role="alert" className="admin-notice error">{error}</p>}{notice && <p role="status">{notice}</p>}
@@ -129,10 +130,10 @@ export function AdminNotifications({ adminId }: { adminId?: number }) {
 }
 
 export function AdminToolDirectory() {
-  return <section className="admin-chart-card admin-tools"><h2>Административные инструменты</h2><p>Что уже есть и где находится</p><div className="at-columns">
+  return <section className="admin-chart-card admin-tools"><h2>Дополнительные возможности</h2><div className="at-columns">
     <article><h3>В этой админке</h3><p>Аналитика: активность сайта/бота, гости, популярные страницы, регистрации, возвращаемость и CSV.</p><p>Пользователи: поиск, роли, email, отвязка Telegram и восстановление доступа. Изменение ролей защищено правами superadmin.</p><p>Игры: статистика и управление рекордами. Журнал: история административных действий.</p></article>
     <article><h3><Link to="/prediction-analytics">Аналитика предсказаний →</Link></h3><p>Отдельная закрытая страница: расчёты вероятностей, история прогнозов и их результаты.</p><h3><Link to="/notifications">Мои уведомления →</Link></h3><p>Алёрты об ошибках для администратора и настройка push на текущем устройстве.</p></article>
     <article><h3>Диагностика в Telegram-боте</h3><p><code>/check_broadcast</code> — диагностика рассылок; <code>/check_results</code> — проверка результатов.</p><p>В боте также есть принудительные рассылки и /broadcast. Здесь они не запускаются: могут отправлять реальные сообщения.</p></article>
-    <article><h3>Новые точечные уведомления</h3><p>Вкладка «Уведомления»: аудитория, предпросмотр, подтверждение, история и число прочитанных сообщений.</p><p>Публикация постов исключена. Новая форма не отправляет email и Telegram-сообщения.</p></article>
-  </div><p>Доставка, неполные результаты и подтверждение пересчётов перенесены во вкладку «Центр контроля».</p></section>;
+    <article><h3>Рассылки сайта</h3><p>Раздел «Рассылки сайта»: аудитория, предпросмотр, подтверждение, история и число прочитанных сообщений.</p><p>Эта форма не отправляет email и Telegram-сообщения.</p></article>
+  </div><p>Статусы сообщений — в разделе «Доставка». Дозагрузка и ручное подтверждение фактов — в разделе «Результаты прогнозов».</p></section>;
 }

@@ -8,6 +8,7 @@ type YearSelectProps = {
   placeholder?: string;
   showCurrentYearBtn?: boolean;
   className?: string;
+  ariaLabel?: string;
 };
 
 function generateYears(min: number, max: number): number[] {
@@ -24,6 +25,7 @@ export function YearSelect({
   placeholder = "Введи год",
   showCurrentYearBtn = true,
   className = "",
+  ariaLabel = "Сезон",
 }: YearSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -76,6 +78,7 @@ export function YearSelect({
         <div className="year-select-input-wrap">
           <input
             ref={inputRef}
+            aria-label={ariaLabel}
             type="text"
             inputMode="numeric"
             className="search-input year-select-input"
