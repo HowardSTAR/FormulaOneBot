@@ -105,8 +105,15 @@ async def drain(bot=None, *, event_key=None, limit=50):
             error = 'rate_limited'
         except TelegramForbiddenError:
             status, error = 'blocked', 'telegram_forbidden'
-        except TelegramBadRequest:
-            status, error = 'failed', 'telegram_bad_request'
+        except TelegramBadRequest as exc:
+            # A bare error code makes a rejected photo impossible to diagnose
+            # after the request has finished. Telegram's description is the
+            # only source of the specific 400 reason (caption, image, etc.).
+            from app.services.error_alerts import redact
+            detail = redact(' '.join(str(getattr(exc, 'message', '') or '').split()))[:300]
+            status, error = 'failed', f'telegram_bad_request: {detail}' if detail else 'telegram_bad_request'
+            logger.warning('Telegram rejected delivery event=%s recipient=%s: %s',
+                           row['event_key'], row['telegram_id'], detail or 'Bad Request')
         except (TelegramNetworkError, TelegramServerError, TimeoutError):
             status, error = 'unknown', 'delivery_not_confirmed'
         except Exception:

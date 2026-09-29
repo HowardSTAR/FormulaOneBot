@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
-from aiogram.exceptions import TelegramRetryAfter, TelegramNetworkError, TelegramForbiddenError
-from aiogram.methods import SendMessage
+from aiogram.exceptions import TelegramRetryAfter, TelegramNetworkError, TelegramForbiddenError, TelegramBadRequest
+from aiogram.methods import SendMessage, SendPhoto
 
 from app.db import Database
 from app.services import telegram_outbox as outbox
@@ -57,6 +57,23 @@ async def test_ambiguous_and_blocked_are_not_replayed(queue):
     await outbox.drain(bot)
     assert await outbox.delivery_counts('errors') == {'unknown':1,'blocked':1}
     assert bot.send_message.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_bad_request_keeps_telegram_reason_without_retrying(queue):
+    from app.services.delivery_adapters import queued_photo
+    await queued_photo(None, 1, b'png-test', delivery_key='bad-photo')
+    method = SendPhoto(chat_id=1, photo='test')
+    bot = SimpleNamespace(send_photo=AsyncMock(side_effect=TelegramBadRequest(
+        method=method, message='Bad Request: chat not found')))
+    await outbox.drain(bot)
+    async with outbox.connection() as conn:
+        row = await (await conn.execute(
+            'SELECT status, attempts, error FROM telegram_deliveries WHERE event_key=?',
+            ('bad-photo:1',))).fetchone()
+    assert tuple(row) == ('failed', 1, 'telegram_bad_request: Bad Request: chat not found')
+    await outbox.drain(bot)
+    bot.send_photo.assert_awaited_once()
 
 
 @pytest.mark.asyncio
