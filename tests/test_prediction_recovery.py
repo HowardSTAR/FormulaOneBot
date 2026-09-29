@@ -79,6 +79,21 @@ async def test_unavailable_data_never_zeros_results_and_background_does_not_appl
 
 
 @pytest.mark.asyncio
+async def test_conflicting_sources_cannot_be_applied(recovery):
+    _, fetch = recovery
+    fetch.return_value = {
+        'fastest_lap_driver': None, 'first_retirement_driver': 'STR',
+        'safety_car': 0, 'source': 'FastF1 + OpenF1',
+        'conflicts': ['fastest_lap_driver'],
+    }
+    preview = await service.prepare(2026, 14)
+    assert preview['state'] == 'conflict'
+    assert preview['conflict'] is True
+    with pytest.raises(ValueError, match='Нет новых'):
+        await service.apply(preview['id'], 99)
+
+
+@pytest.mark.asyncio
 async def test_admin_confirmation_and_auth(recovery):
     app=FastAPI();app.include_router(api.router)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),base_url='http://test') as client:

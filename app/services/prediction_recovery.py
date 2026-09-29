@@ -50,7 +50,10 @@ def build_preview(before, facts):
     additions = {key:facts[key] for key in FIELDS if actual.get(key) is None and facts.get(key) is not None}
     actual.update(additions)
     # Never let a refreshed display contradict a previously confirmed answer.
-    conflict = any(before['actual'].get(k) is not None and facts.get(k) is not None and before['actual'][k] != facts[k] for k in FIELDS)
+    conflict = bool(facts.get('conflicts')) or any(
+        before['actual'].get(k) is not None and facts.get(k) is not None and before['actual'][k] != facts[k]
+        for k in FIELDS
+    )
     if additions and not conflict:
         merged = json.loads(actual.get('race_facts_json') or 'null') or {}
         merged.update({key:value for key,value in facts.items() if value is not None and value != []})
@@ -88,7 +91,7 @@ async def prepare(season, round_num):
     facts = await get_prediction_race_facts(season,round_num)
     after, summary = build_preview(before,facts)
     identifier = uuid.uuid4().hex
-    state = 'ready' if summary['additions'] else 'waiting'
+    state = 'conflict' if summary['conflict'] else 'ready' if summary['additions'] else 'waiting'
     async with connection() as conn:
         await conn.execute('INSERT INTO prediction_recovery(id,season,round,created,state,fingerprint,before_json,after_json,summary_json) VALUES(?,?,?,?,?,?,?,?,?)',
                            (identifier,season,round_num,time.time(),state,fingerprint(before),json.dumps(before),json.dumps(after),json.dumps(summary)))

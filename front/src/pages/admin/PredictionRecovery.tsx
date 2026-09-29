@@ -7,7 +7,7 @@ type Check = {id:string; season:number; round:number; state:string; note?:string
   applied_by?:number; applied_at?:number};
 const endpoint='/api/admin/tools/prediction-recovery';
 const names:Record<string,string>={fastest_lap_driver:'Лучший круг',first_retirement_driver:'Первый сход',safety_car:'Машина безопасности'};
-const states:Record<string,string>={ready:'Готово к проверке',waiting:'Ожидаем данные',applied:'Применено',stale:'Проверка устарела'};
+const states:Record<string,string>={ready:'Готово к проверке',waiting:'Ожидаем данные',conflict:'Источники расходятся',applied:'Применено',stale:'Проверка устарела'};
 
 export function PredictionRecovery() {
   const [season,setSeason]=useState(new Date().getFullYear());
