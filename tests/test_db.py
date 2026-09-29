@@ -54,6 +54,7 @@ async def test_get_user_settings_default(db_session):
     assert "timezone" in settings
     assert "notify_before" in settings
     assert "notifications_enabled" in settings
+    assert settings["results_spoiler"] is False
     assert settings["timezone"] in ("Europe/Moscow", "UTC") or settings["timezone"].startswith("Etc/")
 
 
@@ -65,10 +66,12 @@ async def test_update_user_setting(db_session):
     await get_or_create_user(telegram_id=111222)
     await update_user_setting(111222, "timezone", "Europe/Moscow")
     await update_user_setting(111222, "notify_before", 120)
+    await update_user_setting(111222, "results_spoiler", 1)
 
     settings = await get_user_settings(111222)
     assert settings["timezone"] == "Europe/Moscow"
     assert settings["notify_before"] == 120
+    assert settings["results_spoiler"] is True
 
 
 @pytest.mark.asyncio

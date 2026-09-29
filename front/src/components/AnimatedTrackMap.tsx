@@ -1,7 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { resolveCircuitAsset } from "../assets/circuitAsset";
 
 type AnimatedTrackMapProps = {
   eventName: string;
+  location?: string;
+  season?: number;
   className: string;
   svgClassName: string;
   loadingClassName: string;
@@ -9,36 +12,39 @@ type AnimatedTrackMapProps = {
 
 export function AnimatedTrackMap({
   eventName,
+  location,
+  season,
   className,
   svgClassName,
   loadingClassName,
 }: AnimatedTrackMapProps) {
+  const assetName = resolveCircuitAsset(eventName, location, season);
   const [trackState, setTrackState] = useState<{
     eventName: string;
     svg: string | null;
     error: boolean;
   }>({ eventName: "", svg: null, error: false });
   const trackContainerRef = useRef<HTMLDivElement>(null);
-  const trackSvg = trackState.eventName === eventName ? trackState.svg : null;
-  const trackError = trackState.eventName === eventName && trackState.error;
+  const trackSvg = trackState.eventName === assetName ? trackState.svg : null;
+  const trackError = trackState.eventName === assetName && trackState.error;
 
   useEffect(() => {
     let cancelled = false;
 
-    fetch(`/static/circuit/${eventName}.svg`)
+    fetch(`/static/circuit/${encodeURIComponent(assetName)}.svg`)
       .then(async (response) => {
         if (!response.ok) throw new Error("Track map not found");
         const svg = await response.text();
-        if (!cancelled) setTrackState({ eventName, svg, error: false });
+        if (!cancelled) setTrackState({ eventName: assetName, svg, error: false });
       })
       .catch(() => {
-        if (!cancelled) setTrackState({ eventName, svg: null, error: true });
+        if (!cancelled) setTrackState({ eventName: assetName, svg: null, error: true });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [eventName]);
+  }, [assetName]);
 
   useLayoutEffect(() => {
     const container = trackContainerRef.current;

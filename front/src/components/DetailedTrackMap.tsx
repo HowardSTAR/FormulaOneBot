@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { getDetailedCircuit, type DetailedCircuit } from '../assets/detailedCircuits';
+import { resolveCircuitAsset } from '../assets/circuitAsset';
 import './detailed-track-map.css';
 
 const colors = ['#ee369f', '#ffd633', '#50baff'];
@@ -28,18 +29,19 @@ function Diagram({ data, turns, zones, pit }: {data: DetailedCircuit; turns: boo
   </svg>;
 }
 
-export function DetailedTrackMap({eventName, season, preview}: {eventName: string; season: number; preview?: ReactNode}) {
-  const data = getDetailedCircuit(eventName, season);
+export function DetailedTrackMap({eventName, location, season, preview}: {eventName: string; location?: string; season: number; preview?: ReactNode}) {
+  const assetName = resolveCircuitAsset(eventName, location, season);
+  const data = getDetailedCircuit(assetName, season);
   const dialog = useRef<HTMLDialogElement>(null);
   const [turns,setTurns] = useState(true);
   const [zones,setZones] = useState(true);
   const [pit,setPit] = useState(true);
   const [zoom,setZoom] = useState(1);
-  const pending = <p className="circuit-data-pending">Подробная разметка {season}: пока не проверена. На схеме показан только контур трассы.</p>;
+  const pending = <p className="circuit-data-pending">Подробная разметка {season} пока не проверена. {assetName === "Sepang Grand Prix" ? "Показан архивный контур Sepang; актуальные повороты и зоны 2026 ещё не подтверждены." : "На схеме показан только контур трассы."}</p>;
   const open = () => {setZoom(1);dialog.current?.showModal();};
   if (!data) return preview ? <>
     <button type="button" className="circuit-map-launcher" onClick={open} aria-label={`Открыть карту: ${eventName}`}>
-      {preview}<span className="circuit-map-launcher-label">⛶ Контур · {season} · раскрыть</span>
+      {preview}<span className="circuit-map-launcher-label">⛶ {assetName === "Sepang Grand Prix" ? "Архивный контур Sepang" : `Контур · ${season}`} · раскрыть</span>
     </button>
     <dialog ref={dialog} className="circuit-dialog" aria-label={`Карта ${eventName}`} onClick={e=>{if(e.target===e.currentTarget)dialog.current?.close();}}>
       <header><strong>{eventName} · {season}</strong><button type="button" onClick={()=>dialog.current?.close()}>Закрыть</button></header>

@@ -102,6 +102,20 @@ def test_voting_results_deadline_matches_moscow_wednesday():
 
 
 @pytest.mark.asyncio
+async def test_two_hour_qualifying_reminder_is_replaced_by_prediction_closing():
+    now = datetime.now(timezone.utc)
+    event = {
+        "round": 8, "event_name": "Test Grand Prix", "location": "Test",
+        "quali_start_utc": (now + timedelta(minutes=120)).isoformat(),
+    }
+    with patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock, return_value=[event]), \
+         patch("app.utils.notifications.get_users_with_settings", new_callable=AsyncMock, return_value=[(111, "UTC", 120, 1, 31)]), \
+         patch("app.utils.notifications.safe_send_message", new_callable=AsyncMock) as send:
+        await check_and_send_notifications(bot=object())
+    send.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_voting_results_do_not_depend_on_external_race_results():
     """Итоги из локальных голосов доставляются даже без внешнего протокола гонки."""
     schedule = [{"round": 1, "event_name": "Australian GP", "date": "2026-01-01"}]
@@ -548,6 +562,7 @@ async def test_race_results_send_image_and_separate_favorites_message():
         await check_and_send_results(bot=object())
 
     assert m_photo.await_count == 1
+    assert m_photo.await_args.kwargs["has_spoiler"] is False
     favorite_texts = [call.args[2] for call in m_message.await_args_list if len(call.args) >= 3]
     assert any("Пилоты" in text and "Команды" in text for text in favorite_texts)
     assert m_set_round.await_count == 1

@@ -176,6 +176,22 @@ async def test_prediction_open_notification_dispatches_at_fp1(api_client, monkey
 
 
 @pytest.mark.asyncio
+async def test_unconfirmed_prediction_facts_are_labelled_preliminary():
+    from app.services import prediction_notifications as notifications
+    with patch.object(notifications, "mini_app_button", new_callable=AsyncMock, return_value=None), \
+         patch.object(notifications, "publish_web", new_callable=AsyncMock) as web, \
+         patch.object(notifications, "_queue_prediction", new_callable=AsyncMock) as queue:
+        await notifications._send_prediction_results(
+            object(), {"event_name": "Test GP", "season": 2026, "round": 15},
+            [{"display_name": "Fan", "points": 12, "max_points": 31}], [(123, "UTC")],
+            provisional=True,
+        )
+    assert "Предварительные итоги" in queue.await_args.args[3]
+    assert "могут измениться" in queue.await_args.args[3]
+    assert "Предварительные итоги" in web.await_args.args[1]
+
+
+@pytest.mark.asyncio
 async def test_prediction_profile_scoring_and_leaderboard(api_client):
     """Профиль, прогноз, расчёт этапа и общая таблица используют одну историю БД."""
     from app.services.prediction_service import (

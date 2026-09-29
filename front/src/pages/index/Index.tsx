@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useHeroData } from "../../context/useHeroData";
 import { useAuthState } from "../../helpers/auth";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
-import { getDisplayTimezone } from "../../helpers/timezone";
+import { formatTimezoneLabel, getDisplayTimezone } from "../../helpers/timezone";
 import { getCountryFlagUrl } from "../../constants/flags";
 import "./styles.css";
 import Hero from "./Hero";
@@ -259,7 +259,7 @@ function IndexPage() {
             </div>
             <div className="index-weekend-location">
               <span>{nextRace?.location || nextRace?.country || "Formula 1"}</span>
-              <small>Время: {displayTz}</small>
+              <small>Время: {formatTimezoneLabel(displayTz)}</small>
             </div>
             <div className="index-session-list">
               {desktopSessions.length > 0 ? desktopSessions.map((session) => (

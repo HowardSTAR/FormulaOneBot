@@ -153,6 +153,8 @@ function Hero({ nextRace, schedule, userTz, showTrackMap = false }: HeroProps) {
       {showTrackMap && nextRace.event_name && (
         <AnimatedTrackMap
           eventName={nextRace.event_name}
+          location={nextRace.location}
+          season={nextRace.season}
           className="index-hero-track-map"
           svgClassName="index-hero-track-svg"
           loadingClassName="index-hero-track-loading"

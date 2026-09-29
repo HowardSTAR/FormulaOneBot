@@ -134,6 +134,21 @@ async def history():
         return [{**{k:row[k] for k in row.keys() if k != 'summary_json'},**json.loads(row['summary_json'])} for row in rows]
 
 
+async def applied_round_for_notification(identifier):
+    """Return a verified applied recovery; incomplete rounds cannot be announced as updated."""
+    async with connection() as conn:
+        row = await (await conn.execute(
+            "SELECT r.state,r.season,r.round,p.event_name,p.fastest_lap_driver,p.first_retirement_driver,p.safety_car "
+            "FROM prediction_recovery r JOIN prediction_round_results p ON p.season=r.season AND p.round=r.round "
+            "WHERE r.id=?", (identifier,),
+        )).fetchone()
+    if row is None or row['state'] != 'applied':
+        raise ValueError('Сначала примените проверенный пересчёт.')
+    if any(row[key] is None for key in FIELDS):
+        raise ValueError('Дополнительные факты гонки ещё неполные. Повторная рассылка недоступна.')
+    return row['season'], row['round'], row['event_name']
+
+
 async def refresh_missing():
     """One recent incomplete round per tick, at most once per hour; never apply."""
     async with connection() as conn:

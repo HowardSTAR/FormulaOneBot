@@ -195,8 +195,10 @@ function NextRacePage() {
           <div className="next-race-dash" aria-hidden />
           <div className="next-race-track-wrap">
             {eventName ? (
-              <DetailedTrackMap key={`${eventName}:${raceSeason}`} eventName={eventName} season={raceSeason ?? 0} preview={<AnimatedTrackMap
+              <DetailedTrackMap key={`${eventName}:${raceSeason}`} eventName={eventName} location={raceCity} season={raceSeason ?? 0} preview={<AnimatedTrackMap
                 eventName={eventName}
+                location={raceCity}
+                season={raceSeason ?? undefined}
                 className="track-map-container next-race"
                 svgClassName="next-race-mobile-track-svg"
                 loadingClassName="next-race-track-loading"
@@ -316,8 +318,10 @@ function NextRacePage() {
                     <b>{raceCity || eventName}</b>
                   </div>
                   {eventName ? (
-                    <DetailedTrackMap key={`${eventName}:${raceSeason}`} eventName={eventName} season={raceSeason ?? 0} preview={<AnimatedTrackMap
+                    <DetailedTrackMap key={`${eventName}:${raceSeason}`} eventName={eventName} location={raceCity} season={raceSeason ?? 0} preview={<AnimatedTrackMap
                       eventName={eventName}
+                      location={raceCity}
+                      season={raceSeason ?? undefined}
                       className="next-race-desktop-track-map"
                       svgClassName="next-race-desktop-track-svg"
                       loadingClassName="next-race-track-loading"

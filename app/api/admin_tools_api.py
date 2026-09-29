@@ -1,6 +1,6 @@
-"""Admin-only insights and explicitly confirmed, idempotent inbox notifications.
+"""Admin-only insights and explicitly confirmed, idempotent notifications.
 
-No Telegram posts or synchronous network sends. Push uses the existing outbox.
+Telegram follow-ups are queued only on a separate confirmed action.
 """
 import json
 import re
@@ -72,6 +72,10 @@ class RecoveryConfirmation(BaseModel):
     confirmation: Literal['ПЕРЕСЧИТАТЬ']
 
 
+class RecoveryNotifyConfirmation(BaseModel):
+    confirmation: Literal['ОТПРАВИТЬ']
+
+
 @router.get('/prediction-recovery')
 async def recovery_history(actor: AdminContext = Depends(require_admin_session)):
     from app.services.prediction_recovery import history
@@ -92,6 +96,18 @@ async def recovery_apply(identifier: str, data: RecoveryConfirmation, actor: Adm
     from app.services.prediction_recovery import apply
     try:
         return await apply(identifier,actor.id)
+    except ValueError as exc:
+        raise HTTPException(409,str(exc)) from exc
+
+
+@router.post('/prediction-recovery/{identifier}/notify')
+async def recovery_notify(identifier: str, data: RecoveryNotifyConfirmation, actor: AdminContext = Depends(require_admin_session)):
+    from app.services.prediction_recovery import applied_round_for_notification
+    from app.services.prediction_notifications import queue_verified_result_update
+    try:
+        season, round_num, event_name = await applied_round_for_notification(identifier)
+        queued = await queue_verified_result_update(season, round_num, event_name)
+        return {'queued': queued, 'season': season, 'round': round_num}
     except ValueError as exc:
         raise HTTPException(409,str(exc)) from exc
 

@@ -30,6 +30,22 @@ type CircuitPreset = {
 
 const PRESETS: CircuitPreset[] = [
   {
+    // Formula1.com/en/racing/2026/bahrain — the 2026 Bahrain GP is at Sepang.
+    keywords: ["sepang", "kuala lumpur", "malaysia"],
+    insights: {
+      stats: [
+        { label: "Длина круга", value: "5.543 км" },
+        { label: "Кругов в гонке", value: "56" },
+        { label: "Дистанция", value: "310.398 км" },
+        { label: "Первый Гран-при на трассе", value: "1999" },
+      ],
+      facts: [
+        { title: "Где проходит этап?", text: "В сезоне 2026 Bahrain Grand Prix принимает малайзийский автодром Sepang, а не трасса Sakhir в Бахрейне." },
+        { title: "Какая конфигурация?", text: "В карточке Formula1.com для этапа 2026 указан круг 5.543 км и дистанция 56 кругов." },
+      ],
+    },
+  },
+  {
     keywords: ["shanghai", "china"],
     insights: {
       stats: [

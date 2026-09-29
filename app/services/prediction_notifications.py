@@ -36,7 +36,7 @@ async def _queue_prediction(bot, event, kind, text, keyboard, users):
     now = datetime.now(timezone.utc)
     _, deadline = get_prediction_window(event)
     expires = deadline or now + timedelta(hours=2 if kind == 'closing' else 24)
-    if kind == 'results':
+    if kind in {'results', 'results-updated'}:
         expires = now + timedelta(days=7)
     key = f"prediction:{kind}:{event.get('season', now.year)}:{event['round']}"
     await enqueue(key, text, keyboard, users, expires.timestamp())
@@ -85,6 +85,9 @@ async def _send_prediction_results(
     event: dict,
     top: list[dict],
     users: list[tuple],
+    *,
+    provisional: bool = False,
+    verified_update: bool = False,
 ) -> int:
     keyboard = await mini_app_button(
         bot, "🏆 Таблица прогнозов", "/predictions", tab="leaderboard",
@@ -98,14 +101,34 @@ async def _send_prediction_results(
         ]
     else:
         lines = ["В этом этапе не было отправленных прогнозов."]
+    title = (
+        "Обновлённые итоги прогнозов этапа" if verified_update
+        else "Предварительные итоги прогнозов этапа" if provisional
+        else "Итоги прогнозов этапа"
+    )
     text = (
-        "🏆 <b>Итоги прогнозов этапа</b>\n\n"
-        f"🏁 {html.escape(str(event.get('event_name') or 'Гран-при'))}\n\n"
+        f"🏆 <b>{title}</b>\n\n"
+        + f"🏁 {html.escape(str(event.get('event_name') or 'Гран-при'))}\n\n"
         + "\n".join(lines)
+        + ("\n\nЧасть фактов гонки ещё не подтверждена. Баллы и места могут измениться после проверки." if provisional else "")
+        + ("\n\nДополнительные факты гонки проверены, баллы пересчитаны с сохранением прежних начислений." if verified_update else "")
         + "\n\nОткройте общую таблицу прогнозов по кнопке ниже."
     )
-    await publish_web(f"prediction-results:{event.get('season')}:{event.get('round')}", "Итоги прогнозов", text, "/predictions?tab=leaderboard")
-    return await _queue_prediction(bot, event, 'results', text, keyboard, users)
+    web_key = "prediction-results-updated" if verified_update else "prediction-results"
+    await publish_web(f"{web_key}:{event.get('season')}:{event.get('round')}", title, text, "/predictions?tab=leaderboard")
+    return await _queue_prediction(bot, event, 'results-updated' if verified_update else 'results', text, keyboard, users)
+
+
+async def queue_verified_result_update(season: int, round_num: int, event_name: str) -> int:
+    """Explicit admin action: persist one idempotent follow-up; worker delivers it."""
+    top = await get_stage_top(season, round_num)
+    if not top:
+        raise ValueError("Для этого этапа нет рассчитанных прогнозов.")
+    users = await get_users_with_settings(notifications_only=True)
+    return await _send_prediction_results(
+        None, {"season": season, "round": round_num, "event_name": event_name},
+        top, users, verified_update=True,
+    )
 
 
 async def _send_prediction_closing(bot: Bot, event: dict, users: list[tuple]) -> bool:
@@ -200,6 +223,12 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
             continue
         if race_results is None or race_results.empty or len(race_results.index) < 10:
             continue
+        if "DataComplete" in race_results.columns and not race_results["DataComplete"].fillna(False).all():
+            continue
+        if "Points" in race_results.columns:
+            top_ten = race_results[race_results["Position"].between(1, 10)]
+            if len(top_ten) >= 10 and top_ten["Points"].fillna(0).eq(0).all():
+                continue
         qualifying_results = quali_payload[1] if isinstance(quali_payload, tuple) else quali_payload
         race_facts = await get_prediction_race_facts(season, round_num)
         answers = build_actual_answers(
@@ -216,10 +245,18 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
             answers,
         )
         top = await get_stage_top(season, round_num)
+        expected = {
+            "pole_driver", "winner_driver", "second_driver", "third_driver",
+            "fourth_driver", "fifth_driver", "fastest_lap_driver",
+            "first_retirement_driver", "safety_car",
+        }
+        if event.get("sprint_start_utc") or event.get("sprint_quali_start_utc"):
+            expected.update({"sprint_pole_driver", "sprint_winner_driver"})
+        provisional = not expected.issubset(set(score_info.get("available_fields") or []))
         # Keep historical scoring intact, but never replay old broadcasts on boot.
         skipped_result = not_before is not None and race_at + timedelta(hours=3) < not_before
         sent = 0 if skipped_result else await _send_prediction_results(
-            bot, {**event, "season": season}, top, notification_users,
+            bot, {**event, "season": season}, top, notification_users, provisional=provisional,
         )
         if skipped_result or sent or not notification_users:
             await mark_notification_state(season, round_num, "results_sent")

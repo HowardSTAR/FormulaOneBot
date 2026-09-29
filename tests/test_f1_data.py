@@ -25,6 +25,27 @@ from app.f1_data import (
 
 
 @pytest.mark.asyncio
+async def test_race_results_prefer_classification_to_live_positions():
+    complete = pd.DataFrame([{"Position": 1, "Abbreviation": "VER", "Points": 25}])
+    with patch("app.f1_data._get_race_results_fastf1_async", new_callable=AsyncMock, return_value=complete), \
+         patch("app.f1_data.openf1_get_race_results_live", new_callable=AsyncMock) as live:
+        from app.f1_data import get_race_results_async
+        result = await get_race_results_async(2026, 15)
+    assert result.equals(complete)
+    live.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_live_positions_are_explicitly_provisional():
+    live_rows = pd.DataFrame([{"Position": 1, "Abbreviation": "VER", "Points": 0}])
+    with patch("app.f1_data._get_race_results_fastf1_async", new_callable=AsyncMock, return_value=pd.DataFrame()), \
+         patch("app.f1_data.openf1_get_race_results_live", new_callable=AsyncMock, return_value=live_rows):
+        from app.f1_data import get_race_results_async
+        result = await get_race_results_async(2026, 15)
+    assert result["DataComplete"].tolist() == [False]
+
+
+@pytest.mark.asyncio
 async def test_openf1_driver_lookup_fills_session_placeholders_from_meeting():
     """Временный пустой /drivers для сессии не должен превращать всех пилотов в '?'."""
     with patch("app.f1_data._openf1_get", new_callable=AsyncMock) as request:

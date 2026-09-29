@@ -5,7 +5,7 @@ import { CustomSelect } from "../../components/CustomSelect";
 import { hapticSelection, hapticImpact } from "../../helpers/telegram";
 import "../../assets/personal-pages.css";
 
-type SettingsResponse = { timezone?: string; notify_before?: number; notifications_enabled?: boolean; reminder_sessions?: number };
+type SettingsResponse = { timezone?: string; notify_before?: number; notifications_enabled?: boolean; reminder_sessions?: number; results_spoiler?: boolean };
 const SESSION_OPTIONS = [
   { bit: 1, label: "Свободные заезды", detail: "FP1, FP2 и FP3" },
   { bit: 2, label: "Квалификация", detail: "Борьба за стартовую решётку" },
@@ -54,6 +54,7 @@ function SettingsPage() {
   const [notifyBefore, setNotifyBefore] = useState(60);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [reminderSessions, setReminderSessions] = useState(31);
+  const [resultsSpoiler, setResultsSpoiler] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [clockTick, setClockTick] = useState(() => Date.now());
   const [toast, setToast] = useState(false);
@@ -87,6 +88,7 @@ function SettingsPage() {
         if (s?.notify_before != null) setNotifyBefore(s.notify_before);
         if (s?.notifications_enabled !== undefined) setNotificationsEnabled(Boolean(s.notifications_enabled));
         setReminderSessions(s.reminder_sessions ?? 31);
+        setResultsSpoiler(Boolean(s.results_spoiler));
         setLoaded(true);
       })
       .catch(() => { if (!cancelled) setError("Не удалось загрузить настройки. Обновите страницу."); });
@@ -101,7 +103,7 @@ function SettingsPage() {
     try {
       await apiRequest(
         "/api/account/settings",
-        { timezone, notify_before: notifyBefore, notifications_enabled: notificationsEnabled, reminder_sessions: reminderSessions },
+        { timezone, notify_before: notifyBefore, notifications_enabled: notificationsEnabled, reminder_sessions: reminderSessions, results_spoiler: resultsSpoiler },
         "POST"
       );
       setToast(true);
@@ -126,7 +128,7 @@ function SettingsPage() {
           <p>Управляйте локальным временем и уведомлениями о событиях гоночного уик-энда.</p>
         </div>
         <div className={`personal-status-badge ${notificationsEnabled ? "is-on" : ""}`}>
-          <i aria-hidden />{notificationsEnabled ? "Уведомления бота включены" : "Уведомления бота выключены"}
+          <i aria-hidden />{notificationsEnabled ? "Сообщения со звуком" : "Сообщения без звука"}
         </div>
       </header>
 
@@ -161,6 +163,16 @@ function SettingsPage() {
               <span className="slider round" />
             </label>
           </div>
+          <div className="setting-card notification-setting-card">
+            <div>
+              <strong>Скрывать фото результатов в Telegram</strong>
+              <p>Если включить, картинки с классификацией придут как спойлер. По умолчанию результаты видны сразу.</p>
+            </div>
+            <label className="switch" aria-label="Скрывать фото результатов в Telegram">
+              <input type="checkbox" checked={resultsSpoiler} onChange={(e) => { hapticSelection(); setResultsSpoiler(e.target.checked); }} />
+              <span className="slider round" />
+            </label>
+          </div>
           <fieldset className="session-reminder-options" disabled={!loaded || saving}>
             <legend>О каких сессиях напоминать</legend>
             <p>По умолчанию выбраны все. Выбор действует в боте и на сайте; результаты сессий не меняются. Push включается отдельно в разделе «Уведомления».</p>
@@ -181,7 +193,7 @@ function SettingsPage() {
             <div><dt>Локальное время</dt><dd>{timePreview.replace("Сейчас: ", "")}</dd></div>
             <div><dt>Часовой пояс</dt><dd>{timezoneLabel}</dd></div>
             <div><dt>Напоминание</dt><dd>За {notifyLabel}</dd></div>
-            <div><dt>Статус</dt><dd>{notificationsEnabled ? "Активно" : "Отключено"}</dd></div>
+            <div><dt>Звук Telegram</dt><dd>{notificationsEnabled ? "Включён" : "Отключён"}</dd></div>
           </dl>
           <p>Выбрано категорий сессий: {SESSION_OPTIONS.filter(({ bit }) => reminderSessions & bit).length} из 5. Настройки синхронизируются с ботом для связанного аккаунта.</p>
         </aside>

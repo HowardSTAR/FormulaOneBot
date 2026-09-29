@@ -15,14 +15,17 @@ function lapTime(seconds: number) {
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, "0")}`;
 }
 const statuses: Record<string,string> = { exact: "Угадано", partial: "Частичное попадание", miss: "Не угадано", unavailable: "Нет данных", unknown: "Не подтверждено" };
-function value(key: string, v: string | number | null) {
+function value(key: string, v: string | number | null, names: Record<string, string>) {
   if (v === null || v === "") return "—";
-  return key === "safety_car" ? (Number(v) ? "Да" : "Нет") : String(v);
+  if (key === "safety_car") return Number(v) ? "Да" : "Нет";
+  const code = String(v);
+  return names[code.toUpperCase()] ? `${names[code.toUpperCase()]} (${code})` : code;
 }
 
 export function PersonalReview({ season, round, onClose }: { season: number; round: number; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [result, setResult] = useState<{ data?: Review; error?: string }>({});
+  const [driverNames, setDriverNames] = useState<Record<string, string>>({});
   useEffect(() => {
     const element = dialog.current;
     const previous = document.activeElement as HTMLElement | null;
@@ -30,6 +33,9 @@ export function PersonalReview({ season, round, onClose }: { season: number; rou
     let active = true;
     apiRequest<Review>(`/api/predictions/mine/${season}/${round}`).then(data => { if (active) setResult({ data }); })
       .catch(error => { if (active) setResult({ error: error instanceof Error ? error.message : "Не удалось загрузить прогноз" }); });
+    apiRequest<{drivers?: {code: string; name: string}[]}>('/api/drivers', {season})
+      .then(data => { if (active) setDriverNames(Object.fromEntries((data.drivers || []).filter(driver => driver.code && driver.name).map(driver => [driver.code.toUpperCase(), driver.name.trim()]))); })
+      .catch(() => { if (active) setDriverNames({}); });
     return () => { active = false; element?.close(); previous?.focus(); };
   }, [season, round]);
   return <dialog ref={dialog} className="personal-review" aria-labelledby="personal-review-title" onCancel={onClose}>
@@ -37,10 +43,12 @@ export function PersonalReview({ season, round, onClose }: { season: number; rou
     <div className="personal-review-content">
       {result.error ? <p role="alert">{result.error}</p> : !result.data ? <p role="status">Загрузка личного прогноза…</p> : <>
         <h3>{result.data.event_name}</h3><p className="personal-review-score">{result.data.points === null ? "Ещё не рассчитан" : `${result.data.points} / ${result.data.max_points} баллов`}</p>
+        {result.data.items.some(item => item.status === "unavailable") && <p className="personal-review-warning">Предварительный результат: часть фактов гонки ещё не подтверждена. Баллы и место могут измениться после проверки.</p>}
+        <p>Угадано: {result.data.items.filter(item => item.status === "exact").length} · Частично: {result.data.items.filter(item => item.status === "partial").length} · Не угадано: {result.data.items.filter(item => item.status === "miss").length} · Ожидают данных: {result.data.items.filter(item => item.status === "unavailable").length}</p>
         {!result.data.complete && <p className="personal-review-warning">Полная разбивка этого расчёта не сохранена или результаты ещё не готовы. Неподтверждённые баллы отмечены «—». Итог взят из сохранённого результата.</p>}
         <div className="personal-review-items">{result.data.items.map(item => <article key={item.key} className={`review-${item.status}`}>
           <header><h4>{item.label}</h4><span>{statuses[item.status] ?? item.status} · {item.points ?? "—"} / {item.maximum}</span></header>
-          <dl><div><dt>Ваш выбор</dt><dd>{value(item.key,item.predicted)}</dd></div><div><dt>Фактический результат</dt><dd>{value(item.key,item.actual)}</dd></div></dl>
+          <dl><div><dt>Ваш выбор</dt><dd>{value(item.key,item.predicted,driverNames)}</dd></div><div><dt>Фактический результат</dt><dd>{value(item.key,item.actual,driverNames)}</dd></div></dl>
           {item.position !== null && <p>Ваш выбранный пилот в классификации: P{item.position}</p>}
           <p>{item.reason}</p><details><summary>Как считаются очки</summary><p>Точное совпадение: {item.rule.exact} баллов.
             {item.rule.offsets.some(Boolean) ? ` Отклонение финишной позиции выбранного пилота на 1 / 2 / 3 места: ${item.rule.offsets.join(" / ")} балла. Большее отклонение: 0. Баллы за точность и отклонение не суммируются.` : " Нет совпадения: 0."}

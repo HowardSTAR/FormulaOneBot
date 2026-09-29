@@ -12,6 +12,9 @@ type Result = {
   name: string;
   team: string;
   points: number;
+  time?: string | null;
+  gap?: string | null;
+  status?: string | null;
   is_favorite_driver?: boolean;
   is_favorite_team?: boolean;
 };
@@ -354,7 +357,7 @@ function RaceResultsPage() {
                     {desktopWinner.name}
                   </button>
                   <div className="race-results-desktop-winner-meta">
-                    1:32:04.{String(Math.max(0, desktopWinner.points)).padStart(3, "0")}
+                    {desktopWinner.time || desktopWinner.status || "Время уточняется"}
                   </div>
                 </div>
                 <div className="race-results-desktop-winner-team">
@@ -385,10 +388,10 @@ function RaceResultsPage() {
                 </button>
               </div>
               <aside className="race-results-desktop-summary">
-                <div className="race-results-desktop-summary-points">{desktopWinner.points || 0}</div>
+                <div className="race-results-desktop-summary-points">{desktopWinner.points}</div>
                 <div className="race-results-desktop-summary-label">Набрано очков</div>
-                <div className="race-results-desktop-summary-row"><span>Средняя скорость</span><b>231.4 km/h</b></div>
-                <div className="race-results-desktop-summary-row"><span>Быстрый круг</span><b>1:34.551</b></div>
+                <div className="race-results-desktop-summary-row"><span>Этап</span><b>{data?.round ?? "—"}</b></div>
+                <div className="race-results-desktop-summary-row"><span>Сезон</span><b>{resultSeason}</b></div>
               </aside>
             </div>
           )}
@@ -400,11 +403,9 @@ function RaceResultsPage() {
                 <span>Пилот</span>
                 <span>Команда</span>
                 <span>Время/статус</span>
-                <span>Gap</span>
+                <span>Отставание</span>
               </div>
               {desktopRows.map((row) => {
-                const gap = row.position <= 1 ? "-" : `+${(row.position * 3.7).toFixed(3)}s`;
-                const status = row.points > 0 ? `1:32:${String(3 + row.position).padStart(2, "0")}.${String(100 + row.position * 17).slice(0, 3)}` : "Сход";
                 const rowDriverInfo = driverInfo(row);
                 const rowTeam = teamName(row);
                 return (
@@ -438,8 +439,8 @@ function RaceResultsPage() {
                       />
                       <span>{rowTeam}</span>
                     </div>
-                    <span className="race-results-time">{status}</span>
-                    <span className="race-results-gap">{gap}</span>
+                    <span className="race-results-time">{row.time || row.status || "—"}</span>
+                    <span className="race-results-gap">{row.gap || "—"}</span>
                   </div>
                 );
               })}

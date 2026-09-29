@@ -449,6 +449,8 @@ function SeasonPage() {
                 <AnimatedTrackMap
                   key={desktopRace.event_name}
                   eventName={desktopRace.event_name}
+                  location={desktopRace.location}
+                  season={year}
                   className="season-desktop-track-map"
                   svgClassName="season-desktop-track-svg"
                   loadingClassName="season-track-loading"

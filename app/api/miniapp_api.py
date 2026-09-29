@@ -193,6 +193,7 @@ class SettingsRequest(BaseModel):
     notify_before: int
     notifications_enabled: bool = False
     reminder_sessions: Optional[int] = Field(default=None, ge=0, le=31, strict=True)
+    results_spoiler: Optional[bool] = None
 
 
 class PredictionProfileRequest(BaseModel):
@@ -225,7 +226,7 @@ class AdminFeedbackRequest(BaseModel):
 async def api_get_settings(user_id: Optional[int] = Depends(get_optional_user_id)):
     """Получить текущие настройки пользователя. Для гостя возвращает дефолт."""
     if user_id is None:
-        return {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False, "reminder_sessions": 31}
+        return {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False, "reminder_sessions": 31, "results_spoiler": False}
     return await get_user_settings(user_id)
 
 
@@ -242,12 +243,14 @@ async def api_save_settings(
     await update_user_setting(user_id, "notifications_enabled", int(settings.notifications_enabled))
     if settings.reminder_sessions is not None:
         await update_user_setting(user_id, "reminder_sessions", settings.reminder_sessions)
+    if settings.results_spoiler is not None:
+        await update_user_setting(user_id, "results_spoiler", int(settings.results_spoiler))
     return {"status": "ok"}
 
 
 @web_app.get("/api/account/settings")
 async def api_account_settings(user_id: int = Depends(get_prediction_user_id)):
-    async with db.conn.execute("SELECT timezone,notify_before,notifications_enabled,reminder_sessions FROM users WHERE id=?", (user_id,)) as cursor:
+    async with db.conn.execute("SELECT timezone,notify_before,notifications_enabled,reminder_sessions,results_spoiler FROM users WHERE id=?", (user_id,)) as cursor:
         row = await cursor.fetchone()
     if row is None:
         raise HTTPException(404, "Account not found")
@@ -257,8 +260,9 @@ async def api_account_settings(user_id: int = Depends(get_prediction_user_id)):
 @web_app.post("/api/account/settings")
 async def api_save_account_settings(settings: SettingsRequest, user_id: int = Depends(get_prediction_user_id)):
     async with db.write_lock:
-        await db.conn.execute("UPDATE users SET timezone=?,notify_before=?,notifications_enabled=?,reminder_sessions=COALESCE(?,reminder_sessions) WHERE id=?",
-                              (settings.timezone,settings.notify_before,int(settings.notifications_enabled),settings.reminder_sessions,user_id))
+        await db.conn.execute("UPDATE users SET timezone=?,notify_before=?,notifications_enabled=?,reminder_sessions=COALESCE(?,reminder_sessions),results_spoiler=COALESCE(?,results_spoiler) WHERE id=?",
+                              (settings.timezone,settings.notify_before,int(settings.notifications_enabled),settings.reminder_sessions,
+                               int(settings.results_spoiler) if settings.results_spoiler is not None else None,user_id))
         await db.conn.commit()
     return {"status": "ok"}
 
@@ -1326,10 +1330,22 @@ def _build_race_results(df: pd.DataFrame, fav_drivers: set, fav_teams: set) -> t
     Возвращает (results, data_incomplete).
     """
     results: list[dict] = []
-    data_incomplete = False
+    data_incomplete = "DataComplete" in df.columns and not df["DataComplete"].fillna(False).all()
 
     if "Position" in df.columns:
         df = df.sort_values("Position")
+    winner_elapsed = None
+    if "Time" in df.columns and "Position" in df.columns:
+        winner_rows = df[pd.to_numeric(df["Position"], errors="coerce").eq(1)]
+        if not winner_rows.empty:
+            winner_value = winner_rows.iloc[0].get("Time")
+            if winner_value is not None and not pd.isna(winner_value):
+                try:
+                    candidate = pd.to_timedelta(winner_value).total_seconds()
+                    if candidate >= 3600:
+                        winner_elapsed = candidate
+                except (TypeError, ValueError):
+                    pass
 
     for row in df.itertuples(index=False):
         try:
@@ -1339,9 +1355,33 @@ def _build_race_results(df: pd.DataFrame, fav_drivers: set, fav_teams: set) -> t
             family = getattr(row, "LastName", "")
             full_name = f"{given} {family}".strip() or code
             team = getattr(row, "TeamName", "")
-            points = float(getattr(row, "Points", 0))
             if not hasattr(row, "Points"):
-                points = points_for_race_position(pos)
+                data_incomplete = True
+            points = float(getattr(row, "Points", 0))
+            if not math.isfinite(points):
+                data_incomplete = True
+                points = 0
+
+            raw_time = getattr(row, "Time", None)
+            time_text = None
+            if raw_time is not None and not pd.isna(raw_time):
+                if isinstance(raw_time, (pd.Timedelta, timedelta)):
+                    total_seconds = raw_time.total_seconds()
+                    if total_seconds > 0:
+                        if pos > 1 and winner_elapsed is not None and total_seconds >= 3600:
+                            delta = total_seconds - winner_elapsed
+                            time_text = f"+{delta:.3f} с" if delta >= 0 else None
+                        elif pos > 1 and total_seconds < 3600:
+                            time_text = f"+{total_seconds:.3f} с"
+                        else:
+                            hours = int(total_seconds // 3600)
+                            minutes = int(total_seconds // 60) % 60
+                            seconds = total_seconds % 60
+                            time_text = f"{hours}:{minutes:02d}:{seconds:06.3f}" if hours else f"{minutes}:{seconds:06.3f}"
+                else:
+                    time_text = str(raw_time).strip() or None
+            raw_status = getattr(row, "Status", None)
+            status = str(raw_status).strip() if raw_status is not None and not pd.isna(raw_status) else None
 
             if code == "?" or (full_name and "?" in str(full_name)):
                 data_incomplete = True
@@ -1354,6 +1394,9 @@ def _build_race_results(df: pd.DataFrame, fav_drivers: set, fav_teams: set) -> t
                 "name": full_name,
                 "team": team,
                 "points": points,
+                "time": time_text if pos == 1 else None,
+                "gap": time_text if pos > 1 else None,
+                "status": status,
                 "grid_position": _optional_grid_position(getattr(row, "GridPosition", None)),
                 "is_favorite_driver": code in fav_drivers,
                 "is_favorite_team": team in fav_teams
@@ -1361,6 +1404,8 @@ def _build_race_results(df: pd.DataFrame, fav_drivers: set, fav_teams: set) -> t
         except Exception:
             continue
 
+    if len(results) >= 10 and all(row["points"] == 0 for row in results if 1 <= row["position"] <= 10):
+        data_incomplete = True
     return results, data_incomplete
 
 

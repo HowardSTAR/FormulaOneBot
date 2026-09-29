@@ -146,8 +146,8 @@ function RaceDetailsPage() {
 
       <div className="schedule-card">{sessionsHtml}</div>
 
-      <DetailedTrackMap key={`${season}:${data.event_name}`} eventName={data.event_name} season={Number(season)} preview={
-        <AnimatedTrackMap eventName={data.event_name} className="track-map-container race-details" svgClassName="race-details-track-svg" loadingClassName="circuit-data-pending" />
+      <DetailedTrackMap key={`${season}:${data.event_name}`} eventName={data.event_name} location={data.location} season={Number(season)} preview={
+        <AnimatedTrackMap eventName={data.event_name} location={data.location} season={Number(season)} className="track-map-container race-details" svgClassName="race-details-track-svg" loadingClassName="circuit-data-pending" />
       } />
 
       <div className="schedule-card">

@@ -13,10 +13,10 @@ async def sound_db(monkeypatch):
         await conn.executescript('''
             CREATE TABLE users(id INTEGER, telegram_id INTEGER, timezone TEXT,
                 notify_before INTEGER, notifications_enabled INTEGER,
-                reminder_sessions INTEGER, archived_at TEXT);
-            INSERT INTO users VALUES(1,101,'UTC',60,0,31,NULL);
-            INSERT INTO users VALUES(2,102,'UTC',60,1,31,NULL);
-            INSERT INTO users VALUES(3,103,'UTC',60,0,31,'archived');
+                reminder_sessions INTEGER, results_spoiler INTEGER, archived_at TEXT);
+            INSERT INTO users VALUES(1,101,'UTC',60,0,31,0,NULL);
+            INSERT INTO users VALUES(2,102,'UTC',60,1,31,1,NULL);
+            INSERT INTO users VALUES(3,103,'UTC',60,0,31,0,'archived');
             CREATE TABLE favorite_drivers(user_id INTEGER, driver_code TEXT);
             CREATE TABLE favorite_teams(user_id INTEGER, constructor_name TEXT);
             INSERT INTO favorite_drivers VALUES(1,'STR');
@@ -31,6 +31,7 @@ async def test_silent_users_remain_recipients(sound_db):
     from app.utils.notifications import get_users_with_settings
     from app.db import get_users_favorites_for_notifications
     assert {u[0] for u in await get_users_with_settings(True)} == {101, 102}
+    assert {u[0]: u[5] for u in await get_users_with_settings(True)} == {101: 0, 102: 1}
     assert set(await get_users_favorites_for_notifications(True)) == {101}
 
 

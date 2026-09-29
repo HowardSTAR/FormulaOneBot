@@ -1514,6 +1514,9 @@ async def openf1_get_race_results_live(season: int, round_num: int | None = None
                         if ds == race_date:
                             session_key = s.get("session_key")
                             break
+    if session_key is None and round_num is not None:
+        # Never label the latest race as an explicitly requested historic round.
+        return None
     if session_key is None:
         used_latest_session = await _openf1_get_latest_session()
         if used_latest_session and (used_latest_session.get("session_type") or "").strip() == "Race":
@@ -1838,11 +1841,14 @@ async def _get_race_results_fastf1_async(season: int, round_number: int):
 
 
 async def get_race_results_async(season: int, round_number: int):
-    """Результаты гонки: сначала OpenF1 (live), при отсутствии — FastF1."""
-    df = await openf1_get_race_results_live(season, round_number)
-    if df is not None and not df.empty:
-        return df
-    return await _get_race_results_fastf1_async(season, round_number)
+    """Use classified results with points when available; OpenF1 positions are provisional."""
+    official = await _get_race_results_fastf1_async(season, round_number)
+    if official is not None and not official.empty:
+        return official
+    live = await openf1_get_race_results_live(season, round_number)
+    if live is not None and not live.empty:
+        live["DataComplete"] = False
+    return live
 
 
 @cache_result(ttl=86400, key_prefix="sprint_res")

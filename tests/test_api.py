@@ -260,7 +260,7 @@ async def test_api_settings_get_guest_returns_defaults():
         r = await client.get("/api/settings")
 
     assert r.status_code == 200
-    assert r.json() == {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False, "reminder_sessions": 31}
+    assert r.json() == {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False, "reminder_sessions": 31, "results_spoiler": False}
 
 
 @pytest.mark.asyncio
@@ -676,7 +676,8 @@ async def test_api_compare_multi_supports_single_driver(api_client: AsyncClient)
     """Мультисравнение сохраняет рабочее состояние при одном выбранном пилоте."""
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
             patch("app.api.miniapp_api.get_race_results_async", new_callable=AsyncMock) as m_race, \
-            patch("app.api.miniapp_api.get_quali_for_round_async", new_callable=AsyncMock) as m_quali:
+            patch("app.api.miniapp_api.get_quali_for_round_async", new_callable=AsyncMock) as m_quali, \
+            patch("app.api.miniapp_api.get_driver_standings_async", new_callable=AsyncMock) as m_standings:
         m_sched.return_value = [
             {"round": 1, "event_name": "Bahrain GP", "date": "2024-03-02"},
         ]
@@ -684,6 +685,7 @@ async def test_api_compare_multi_supports_single_driver(api_client: AsyncClient)
             {"Abbreviation": "VER", "Points": 25},
         ])
         m_quali.return_value = (1, [{"position": 1, "driver": "VER"}])
+        m_standings.return_value = pd.DataFrame([{"driverCode": "VER", "points": 25}])
 
         response = await api_client.get(
             "/api/compare/multi",
@@ -812,10 +814,15 @@ async def test_api_compare_teams_multi_returns_dynamic_series(api_client: AsyncC
             {"round": 1, "event_name": "Bahrain GP", "date": "2024-03-02"},
             {"round": 2, "event_name": "Saudi Arabian GP", "date": "2024-03-09"},
         ]
-        with patch(
+        with patch("app.api.miniapp_api.get_constructor_standings_async", new_callable=AsyncMock) as standings_mock, patch(
             "app.api.miniapp_api.get_race_results_async",
             new_callable=AsyncMock,
         ) as results_mock:
+            standings_mock.return_value = pd.DataFrame([
+                {"constructorName": "Red Bull", "points": 68},
+                {"constructorName": "McLaren", "points": 68},
+                {"constructorName": "Ferrari", "points": 58},
+            ])
             results_mock.side_effect = [
                 pd.DataFrame([
                     {"TeamName": "Red Bull", "Points": 43},

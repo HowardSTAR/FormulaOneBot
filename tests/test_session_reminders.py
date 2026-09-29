@@ -27,26 +27,28 @@ async def test_existing_accounts_migrate_with_all_sessions(tmp_path):
     import aiosqlite
     from app.auth_schema import CREATE_USERS_SQL, ensure_auth_schema
     async with aiosqlite.connect(tmp_path / "legacy.db") as conn:
-        legacy_sql = "\n".join(line for line in CREATE_USERS_SQL.splitlines() if "reminder_sessions" not in line)
+        legacy_sql = "\n".join(line for line in CREATE_USERS_SQL.splitlines() if "reminder_sessions" not in line and "results_spoiler" not in line)
         await conn.execute(legacy_sql)
         await conn.execute("INSERT INTO users(telegram_id,notifications_enabled) VALUES(42,0)")
         await conn.commit()
         await ensure_auth_schema(conn)
-        row = await (await conn.execute("SELECT reminder_sessions,notifications_enabled FROM users WHERE telegram_id=42")).fetchone()
-        assert tuple(row) == (31, 0)
-        await conn.execute("UPDATE users SET reminder_sessions=0 WHERE telegram_id=42")
+        row = await (await conn.execute("SELECT reminder_sessions,notifications_enabled,results_spoiler FROM users WHERE telegram_id=42")).fetchone()
+        assert tuple(row) == (31, 0, 0)
+        await conn.execute("UPDATE users SET reminder_sessions=0,results_spoiler=1 WHERE telegram_id=42")
         await conn.commit()
         await ensure_auth_schema(conn)
         assert (await (await conn.execute("SELECT reminder_sessions FROM users WHERE telegram_id=42")).fetchone())[0] == 0
+        assert (await (await conn.execute("SELECT results_spoiler FROM users WHERE telegram_id=42")).fetchone())[0] == 1
 
 
 @pytest.mark.asyncio
 async def test_account_settings_shared_with_bot_and_legacy_client(api_client):
     from app.db import get_user_settings, update_user_setting
     assert (await api_client.get("/api/account/settings")).json()["reminder_sessions"] == 31
-    body = {"timezone": "Europe/Moscow", "notify_before": 60, "notifications_enabled": False, "reminder_sessions": 0}
+    body = {"timezone": "Europe/Moscow", "notify_before": 60, "notifications_enabled": False, "reminder_sessions": 0, "results_spoiler": True}
     assert (await api_client.post("/api/account/settings", json=body)).status_code == 200
     assert (await get_user_settings(999888))["reminder_sessions"] == 0
+    assert (await get_user_settings(999888))["results_spoiler"] is True
     body.pop("reminder_sessions")
     await api_client.post("/api/settings", json=body)
     assert (await get_user_settings(999888))["reminder_sessions"] == 0

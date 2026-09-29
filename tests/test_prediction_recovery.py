@@ -1,6 +1,6 @@
 import asyncio
 import json
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -90,3 +90,26 @@ async def test_admin_confirmation_and_auth(recovery):
         assert (await client.post(url,json={'confirmation':''})).status_code==422
         assert (await client.post(url,json={'confirmation':'ПЕРЕСЧИТАТЬ'})).status_code==200
         assert (await client.post('/api/admin/tools/prediction-recovery/preview',json={'season':2026,'round':99})).status_code==422
+
+
+@pytest.mark.asyncio
+async def test_updated_results_require_separate_admin_confirmation(recovery):
+    _, fetch = recovery
+    fetch.return_value = {
+        'fastest_lap_driver': 'HAM', 'first_retirement_driver': 'STR',
+        'safety_car': 0, 'source': 'FastF1',
+    }
+    preview = await service.prepare(2026, 14)
+    app = FastAPI(); app.include_router(api.router)
+    url = f"/api/admin/tools/prediction-recovery/{preview['id']}/notify"
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url='http://test') as client:
+        assert (await client.post(url, json={'confirmation': 'ОТПРАВИТЬ'})).status_code in {401, 403}
+        app.dependency_overrides[api.require_admin_session] = lambda: api.AdminContext(id=99, role='admin')
+        assert (await client.post(url, json={'confirmation': 'ОТПРАВИТЬ'})).status_code == 409
+        await service.apply(preview['id'], 99)
+        assert (await client.post(url, json={'confirmation': ''})).status_code == 422
+        with patch('app.services.prediction_notifications.queue_verified_result_update', new_callable=AsyncMock, return_value=2) as queue:
+            response = await client.post(url, json={'confirmation': 'ОТПРАВИТЬ'})
+        assert response.status_code == 200
+        assert response.json()['queued'] == 2
+        queue.assert_awaited_once_with(2026, 14, 'Test GP')

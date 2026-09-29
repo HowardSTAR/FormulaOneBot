@@ -379,6 +379,7 @@ async def quali_callback(callback: CallbackQuery) -> None:
             [InlineKeyboardButton(text="🔙 Вернуться", callback_data=f"back_to_race_{season}")]
         ])
 
+        user_settings = await get_user_settings(callback.from_user.id)
         await callback.message.answer_photo(
             photo=photo,
             caption=f"⏱ Результаты квалификации. Сезон {season}, этап {latest_round}.",
@@ -710,7 +711,7 @@ async def race_callback(callback: CallbackQuery) -> None:
             photo=photo,
             caption=caption,
             parse_mode="HTML",
-            has_spoiler=True,
+            has_spoiler=bool(user_settings.get("results_spoiler")),
             reply_markup=kb
         )
 

@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { apiRequest } from '../../helpers/api';
 import { AUTH_CHANGED_EVENT, type AuthState } from '../../helpers/auth';
 import { predictionSummary, type PersonalPrediction } from './personal-summary';
+import { formatTimezoneLabel } from '../../helpers/timezone';
 import './personal-home.css';
 
 function PersonalCards({ timezone, personalized }: { timezone: string; personalized: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [prediction, setPrediction] = useState<PersonalPrediction | null>(null);
-  const [latest, setLatest] = useState<{points: number | null; season: number; round: number} | null>(null);
+  const [latest, setLatest] = useState<{points: number | null; season: number; round: number; items?: {status: string}[]} | null>(null);
   const [unread, setUnread] = useState<number | null>(null);
   const [failed, setFailed] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -19,7 +20,7 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
     void Promise.allSettled([
       apiRequest<PersonalPrediction>('/api/predictions/current'),
       apiRequest<{ unread: number }>('/api/web-notifications/unread-count'),
-      apiRequest<{latest: {points: number | null; season: number; round: number} | null}>('/api/predictions/personal-season'),
+      apiRequest<{latest: {points: number | null; season: number; round: number; items?: {status: string}[]} | null}>('/api/predictions/personal-season'),
     ]).then(([p, n, h]) => {
       if (!active) return;
       setPrediction(p.status === 'fulfilled' ? p.value : null);
@@ -46,7 +47,7 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
     <div className="personal-home-row">
       <Link to={showRecap || prediction?.prediction?.points != null ? '/predictions?tab=history' : '/predictions'} className={`personal-home-prediction${view?.urgent ? ' personal-home-urgent' : ''}`}>
         <strong>{showRecap ? 'Разобрать мой этап' : view?.action || 'Мой прогноз'} <span aria-hidden="true">→</span></strong>
-        <span>{showRecap ? `Последний результат: ${latest?.points} очк.` : view?.title || (loaded ? 'Статус недоступен' : 'Проверяем…')}</span>
+        <span>{showRecap ? `Последний результат: ${latest?.points} очк.${latest?.items?.some(item => item.status === 'unavailable') ? ' · предварительно' : ''}` : view?.title || (loaded ? 'Статус недоступен' : 'Проверяем…')}</span>
         {view?.urgent && <small>До закрытия меньше 2 часов</small>}
       </Link>
       <Link className="personal-home-inbox" to="/notifications" aria-label={unread === null ? 'Уведомления: количество неизвестно' : `Уведомления: непрочитанных ${unread}`} title={unread === 0 ? 'Всё прочитано' : 'Уведомления'}>
@@ -58,7 +59,7 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
     {failed.length > 0 && <p className="personal-home-error" role="status">Не загрузились: {failed.join(', ')}. <button onClick={() => setRefresh(v => v + 1)}>Повторить</button></p>}
     {expanded && <div className="personal-home-more" id="personal-home-more">
       {prediction?.event_name && <p>{prediction.event_name}</p>}
-      {prediction && Number.isFinite(deadline) && <p>Закрытие: {new Date(deadline).toLocaleString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} · {timezone}</p>}
+      {prediction && Number.isFinite(deadline) && <p>Закрытие: {new Date(deadline).toLocaleString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} · {formatTimezoneLabel(timezone)}</p>}
       <nav aria-label="Личные разделы">
         <Link to="/account">Аккаунт</Link><Link to="/settings">Напоминания</Link>
         {personalized && <Link to="/favorites">Избранное</Link>}

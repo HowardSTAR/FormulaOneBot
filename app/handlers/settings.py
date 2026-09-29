@@ -99,6 +99,7 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
     tz = user_settings.get("timezone", "Europe/Moscow")
     notify_before = user_settings.get("notify_before", 60)
     notifications_enabled = user_settings.get("notifications_enabled", False)
+    results_spoiler = user_settings.get("results_spoiler", False)
 
     # 2. Форматируем часовой пояс
     tz_label = "Неизвестно"
@@ -120,6 +121,7 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
         f"🌍 <b>Часовой пояс:</b> {tz_label}\n"
         f"⏰ <b>Напоминать за:</b> {notify_str} до выбранных сессий\n"
         f"<b>Звук сообщений Telegram:</b> {notif_status}\n\n"
+        f"<b>Фото результатов:</b> {'скрыты спойлером' if results_spoiler else 'видны сразу'}\n\n"
         "Сообщения приходят в обоих режимах. «Без звука» отключает только звук в Telegram.\n\n"
         "<i>С 21:00 до 10:00 по вашему времени уведомления приходят в тихом режиме (без звука).</i>\n\n"
         "<i>Выбери параметр для изменения:</i>"
@@ -127,6 +129,7 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
 
     kb = InlineKeyboardBuilder()
     kb.button(text=f"Звук: {notif_status}", callback_data="toggle_notifications")
+    kb.button(text=f"Фото результатов: {'спойлер' if results_spoiler else 'видны'}", callback_data="toggle_results_spoiler")
     kb.button(text=f"⏰ Напоминать за ({notify_str})", callback_data="change_notify")
     kb.button(text=f"🌍 Часовой пояс ({tz_label})", callback_data="change_tz")
     kb.button(text="❌ Закрыть", callback_data="close_settings")
@@ -229,6 +232,14 @@ async def cb_toggle_notifications(callback: types.CallbackQuery, state: FSMConte
     await update_user_setting(callback.from_user.id, "notifications_enabled", int(new_status))
 
     # Перерисовываем меню, чтобы лампочка сменилась с 🔴 на 🟢
+    await _show_main_settings(callback, state, callback.from_user.id, is_edit=True)
+
+
+@settings_router.callback_query(F.data == "toggle_results_spoiler", SettingsSG.main_menu)
+async def cb_toggle_results_spoiler(callback: types.CallbackQuery, state: FSMContext):
+    await safe_answer_callback(callback)
+    current = await get_user_settings(callback.from_user.id)
+    await update_user_setting(callback.from_user.id, "results_spoiler", int(not current.get("results_spoiler", False)))
     await _show_main_settings(callback, state, callback.from_user.id, is_edit=True)
 
 

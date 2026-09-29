@@ -25,7 +25,6 @@ from app.db import (
     set_last_notified_quali_round,
 )
 from app.f1_data import (
-    points_for_race_position,
     get_season_schedule_short_async,
     get_race_results_async,
     get_driver_standings_async,
@@ -352,6 +351,7 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
         return
 
     tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users}
+    spoiler_map = {u[0]: bool(u[5]) for u in users}
     status = await message.answer(f"🔄 Рассылаю 4 уведомления {len(users)} пользователям...")
 
     schedule = await get_season_schedule_short_async(season)
@@ -424,7 +424,7 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
                 bot, tg_id, photo_quali,
                 caption=caption_quali,
                 parse_mode="HTML",
-                has_spoiler=True,
+                has_spoiler=spoiler_map[tg_id],
                 disable_notification=is_quiet_hours(tz_map[tg_id]),
             ):
                 sent_2 += 1
@@ -455,7 +455,14 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
     # 4) После гонки — картинка + все пилоты и команды под спойлером
     results_df = await get_race_results_async(season, round_num)
     sent_4 = 0
-    if not results_df.empty:
+    results_complete = not results_df.empty and {"Points", "Position"}.issubset(results_df.columns)
+    if results_complete and "DataComplete" in results_df.columns:
+        results_complete = bool(results_df["DataComplete"].fillna(False).all())
+    if results_complete and "Position" in results_df.columns:
+        top_ten = results_df[pd.to_numeric(results_df["Position"], errors="coerce").between(1, 10)]
+        if len(top_ten) < 10 or pd.to_numeric(top_ten["Points"], errors="coerce").fillna(0).eq(0).all():
+            results_complete = False
+    if results_complete:
         if "Position" in results_df.columns:
             results_df = results_df.sort_values("Position")
         driver_standings = await get_driver_standings_async(season, round_num)
@@ -507,12 +514,6 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
                         pass
             pts_val = row.get("Points")
             pts = int(float(pts_val)) if pts_val is not None and pd.notna(pts_val) else 0
-            if pts == 0:
-                try:
-                    pos_int = int(pos) if pos not in ("?", "", None) else 0
-                except (TypeError, ValueError):
-                    pos_int = 0
-                pts = points_for_race_position(pos_int)
             rows_race.append({
                 "pos": int(pos) if pos != "?" else "?",
                 "driver": full_name,
@@ -534,12 +535,8 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
         for _, row in results_df.iterrows():
             code = str(row.get("Abbreviation", "")).upper()
             pts = row.get("Points", 0)
-            if pts is None or pd.isna(pts) or (isinstance(pts, (int, float)) and pts == 0):
-                pos_val = row.get("Position")
-                try:
-                    pts = points_for_race_position(int(pos_val)) if pos_val not in ("?", "", None) else 0
-                except (TypeError, ValueError):
-                    pts = 0
+            if pts is None or pd.isna(pts):
+                pts = 0
             res_map[code] = {"pos": str(row.get("Position", "DNF")), "points": pts}
 
         constructor_results_by_name = {}
@@ -567,7 +564,7 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
                 bot, tg_id, photo_race,
                 caption=caption_race,
                 parse_mode="HTML",
-                has_spoiler=True,
+                has_spoiler=spoiler_map[tg_id],
                 disable_notification=is_quiet_hours(tz_map[tg_id]),
             ):
                 sent_4 += 1
@@ -576,7 +573,7 @@ async def cmd_test_notify(message: Message, command: CommandObject, bot):
         for tg_id in tz_map:
             if await safe_send_message(
                 bot, tg_id,
-                prefix + f"⚠️ Нет данных гонки для этапа {round_num}.",
+                prefix + f"⚠️ Подтверждённых результатов гонки для этапа {round_num} пока нет.",
                 disable_notification=is_quiet_hours(tz_map[tg_id]),
             ):
                 sent_4 += 1

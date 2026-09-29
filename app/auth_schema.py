@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS users (
     notify_before INTEGER NOT NULL DEFAULT 60,
     notifications_enabled INTEGER NOT NULL DEFAULT 0 CHECK (notifications_enabled IN (0, 1)),
     reminder_sessions INTEGER NOT NULL DEFAULT 31 CHECK (reminder_sessions BETWEEN 0 AND 31),
+    results_spoiler INTEGER NOT NULL DEFAULT 0 CHECK (results_spoiler IN (0, 1)),
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     archived_at TEXT,
@@ -80,7 +81,7 @@ async def _rebuild_users(conn: aiosqlite.Connection) -> None:
             INSERT INTO users_auth_migration (
                 id, email, password_hash, telegram_id, display_name,
                 telegram_username, role, email_verified,
-                timezone, notify_before, notifications_enabled, reminder_sessions,
+                timezone, notify_before, notifications_enabled, reminder_sessions, results_spoiler,
                 created_at, updated_at, archived_at
             )
             SELECT
@@ -96,6 +97,7 @@ async def _rebuild_users(conn: aiosqlite.Connection) -> None:
                 COALESCE({old_or_default('notify_before', '60')}, 60),
                 COALESCE({old_or_default('notifications_enabled', '0')}, 0),
                 COALESCE({old_or_default('reminder_sessions', '31')}, 31),
+                COALESCE({old_or_default('results_spoiler', '0')}, 0),
                 COALESCE({old_or_default('created_at', 'CURRENT_TIMESTAMP')}, CURRENT_TIMESTAMP),
                 COALESCE({old_or_default('updated_at', old_or_default('created_at', 'CURRENT_TIMESTAMP'))}, CURRENT_TIMESTAMP),
                 {old_or_default('archived_at', 'NULL')}
@@ -120,6 +122,13 @@ async def ensure_auth_schema(conn: aiosqlite.Connection) -> None:
         await _rebuild_users(conn)
     if "reminder_sessions" not in {row["name"] for row in await _table_info(conn, "users")}:
         await conn.execute("ALTER TABLE users ADD COLUMN reminder_sessions INTEGER NOT NULL DEFAULT 31 CHECK (reminder_sessions BETWEEN 0 AND 31)")
+    if "results_spoiler" not in {row["name"] for row in await _table_info(conn, "users")}:
+        try:
+            await conn.execute("ALTER TABLE users ADD COLUMN results_spoiler INTEGER NOT NULL DEFAULT 0 CHECK (results_spoiler IN (0, 1))")
+        except aiosqlite.OperationalError as exc:
+            # bot and web may both migrate the shared SQLite file at startup.
+            if "duplicate column name" not in str(exc).lower():
+                raise
 
     await conn.executescript(
         """

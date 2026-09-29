@@ -33,7 +33,6 @@ from app.db import (
 import pandas as pd
 
 from app.f1_data import (
-    points_for_race_position,
     get_season_schedule_short_async,
     get_race_results_async,
     get_driver_standings_async,
@@ -189,7 +188,7 @@ async def get_users_with_settings(notifications_only: bool = False):
     if not db.conn: await db.connect()
     try:
         q = (
-            "SELECT telegram_id, timezone, notify_before, notifications_enabled, reminder_sessions "
+            "SELECT telegram_id, timezone, notify_before, notifications_enabled, reminder_sessions, results_spoiler "
             "FROM users WHERE telegram_id IS NOT NULL AND archived_at IS NULL"
         )
         async with db.conn.execute(q) as cursor:
@@ -285,6 +284,14 @@ async def check_and_send_notifications(bot: Bot):
 
             for race, mins, event_kind in upcoming_event:
                 if not session_enabled(user[4] if len(user) > 4 else None, event_kind):
+                    continue
+                # The prediction-closing notice already says that qualifying
+                # starts in two hours and links to the form. Do not send a
+                # second generic reminder to the same private chat.
+                closing_session = "sprint_quali" if (
+                    race.get("sprint_quali_start_utc") or race.get("sprint_start_utc")
+                ) else "quali"
+                if not race.get("is_testing") and notify_min == 120 and event_kind == closing_session:
                     continue
                 if abs(mins - notify_min) <= half_window:
                     round_num = race.get("round")
@@ -767,14 +774,15 @@ async def _deliver_session_classification(
     recipient_ids = set()
     for user in notification_users:
         tg_id, tz = user[0], user[1] or "Europe/Moscow"
+        hide_results = bool(user[5]) if len(user) > 5 else False
         recipient_ids.add(tg_id)
         delivered = await send_once(
             safe_send_photo,
             tg_id,
             photo_bytes,
-            caption=f"🏁 {session_label}: результаты на картинке.",
+            caption=f"🏁 {session_label}: результаты на картинке." + (" Нажмите на спойлер, чтобы открыть." if hide_results else ""),
             parse_mode="HTML",
-            has_spoiler=True,
+            has_spoiler=hide_results,
             disable_notification=is_quiet_hours(tz),
         )
         sent_count += int(delivered)
@@ -915,9 +923,18 @@ async def check_and_send_results(bot: Bot):
     # === ЛОГИКА ДЛЯ ГОНОК: картинка + текст по избранным под спойлером ===
     logger.info("[Result Ingestion] event=race_results season=%s round=%s", season, round_num)
     results_df = await get_race_results_async(season, round_num)
+    if results_df is None:
+        results_df = pd.DataFrame()
 
     # Проверяем, что данные полные (нет ??)
-    data_incomplete = False
+    data_incomplete = (
+        "DataComplete" in results_df.columns
+        and not results_df["DataComplete"].fillna(False).all()
+    )
+    if not results_df.empty and len(results_df) >= 10 and "Points" in results_df.columns:
+        top_ten = results_df[pd.to_numeric(results_df["Position"], errors="coerce").between(1, 10)]
+        if len(top_ten) >= 10 and pd.to_numeric(top_ten["Points"], errors="coerce").fillna(0).eq(0).all():
+            data_incomplete = True
     if not results_df.empty:
         for row in results_df.itertuples(index=False):
             code = getattr(row, "Abbreviation", "") or getattr(row, "DriverNumber", "?")
@@ -1027,12 +1044,6 @@ async def check_and_send_results(bot: Bot):
 
         pts_val = row.get("Points")
         pts = int(float(pts_val)) if pts_val is not None and pd.notna(pts_val) else 0
-        if pts == 0:
-            try:
-                pos_int = int(pos) if pos not in ("?", "", None) else 0
-            except (TypeError, ValueError):
-                pos_int = 0
-            pts = points_for_race_position(pos_int)
 
         rows_for_image.append({
             "pos": int(pos) if pos != "?" else "?",
@@ -1082,12 +1093,8 @@ async def check_and_send_results(bot: Bot):
     for _, row in results_df.iterrows():
         code = str(row.get("Abbreviation", "")).upper()
         pts = row.get("Points", 0)
-        if pts is None or pd.isna(pts) or (isinstance(pts, (int, float)) and pts == 0):
-            pos_val = row.get("Position")
-            try:
-                pts = points_for_race_position(int(pos_val)) if pos_val not in ("?", "", None) else 0
-            except (TypeError, ValueError):
-                pts = 0
+        if pts is None or pd.isna(pts):
+            pts = 0
         res_map[code] = {"pos": str(row.get("Position", "DNF")), "points": pts}
 
     constructor_results_by_name = {}
@@ -1100,16 +1107,21 @@ async def check_and_send_results(bot: Bot):
 
     sent_count = 0
     # Общая классификация приходит картинкой, а избранные — отдельным сообщением.
-    notification_recipients = [(u[0], u[1] or "Europe/Moscow") for u in notifications_users]
-    for tg_id, tz in notification_recipients:
+    notification_recipients = [(u[0], u[1] or "Europe/Moscow", bool(u[5]) if len(u) > 5 else False) for u in notifications_users]
+    results_keyboard = await mini_app_button(
+        bot, "🏁 Результаты на сайте", "/race-results",
+        season=season, round=round_num, mode="archive",
+    )
+    for tg_id, tz, hide_results in notification_recipients:
         if await safe_send_photo(
             bot,
             tg_id,
             photo_bytes_generic,
             delivery_key=f'race-photo:{season}:{round_num}',
-            caption="🏁 Результаты последней гонки (таблица на картинке).",
+            caption="🏁 Результаты гонки на картинке." + (" Изображение скрыто как спойлер — нажмите, чтобы открыть." if hide_results else ""),
             parse_mode="HTML",
-            has_spoiler=True,
+            has_spoiler=hide_results,
+            reply_markup=results_keyboard,
             disable_notification=is_quiet_hours(tz),
         ):
             sent_count += 1
@@ -1132,8 +1144,6 @@ async def check_and_send_results(bot: Bot):
                         break
             if team_rows:
                 total_pts = sum(float(getattr(r, "Points", 0) or 0) for r in team_rows)
-                if total_pts == 0:
-                    total_pts = sum(points_for_race_position(int(getattr(r, "Position", 0))) for r in team_rows)
                 best_pos = min(int(getattr(r, "Position", 999)) for r in team_rows)
                 team_res.append({"team": team_name, "text": f"P{best_pos}, +{int(total_pts)} очк."})
 
@@ -1431,12 +1441,17 @@ async def check_and_notify_voting_results(bot: Bot, *, not_before: datetime | No
         else:
             driver_str = "не выбран"
 
+        def count_word(count: int, one: str, few: str, many: str) -> str:
+            return one if count % 10 == 1 and count % 100 != 11 else (
+                few if 2 <= count % 10 <= 4 and not 12 <= count % 100 <= 14 else many
+            )
+
         text = (
             f"🗳 <b>Итоги голосования</b>\n\n"
             f"🏁 {html.escape(str(event_name))} (этап {round_num})\n\n"
-            f"По мнению нашего сообщества этап оценили на: <b>{rating_str}</b>\n"
-            f"Лучшим пилотом стал: <b>{html.escape(str(driver_str))}</b>\n\n"
-            f"Оценок гонки: {race_count} · Голосов за победителя: {driver_count}"
+            f"Оценка гонки: <b>{rating_str}</b> ({race_count} {count_word(race_count, 'оценка', 'оценки', 'оценок')})\n"
+            f"Лидер голосования за пилота: <b>{html.escape(str(driver_str))}</b> ({driver_count} {count_word(driver_count, 'голос', 'голоса', 'голосов')} за него)\n\n"
+            "Это мнение проголосовавших, а не официальный результат этапа."
         )
 
         await publish_web(f"voting-results:{season}:{round_num}", "Итоги голосования", text, f"/voting?season={season}&round={round_num}")

@@ -23,6 +23,8 @@ Status: intentionally not audited or modified in this change at the user's reque
 
 ## Circuit illustrations and outlines
 
+- `front/public/static/circuit/Sepang Grand Prix.svg` — derived circuit centreline from `my-1999.geojson` by Tomislav Bacinger, source: https://github.com/bacinger/f1-circuits/blob/master/circuits/my-1999.geojson ; project license: MIT (https://github.com/bacinger/f1-circuits/blob/master/LICENSE.md), copyright 2019–2025 Tomislav Bacinger. MIT permits copying, modification, public and commercial display worldwide without an expiry, provided copyright and license notices are preserved. The full notice is distributed as `front/public/static/circuit/Sepang Grand Prix.LICENSE.txt`. This is a schematic historical outline, not FIA-certified 2026 corner/zone data.
+
 Status: intentionally not audited or modified in this change at the user's request. Existing SVG files and archived circuit materials remain pending a separate provenance and circuit-IP review.
 
 ## Application screenshots and other graphics

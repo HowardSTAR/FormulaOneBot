@@ -110,6 +110,28 @@ def test_race_results_preserve_official_zero_and_missing_grid():
     assert result[0]["grid_position"] is None
 
 
+def test_race_results_reject_live_positions_without_confirmed_points():
+    rows = [
+        {"Abbreviation": f"D{position:02d}", "Points": 0, "Position": position, "DataComplete": False}
+        for position in range(1, 11)
+    ]
+    result, incomplete = api._build_race_results(pd.DataFrame(rows), set(), set())
+    assert len(result) == 10
+    assert incomplete is True
+
+
+def test_race_results_keep_real_status_without_inventing_gap():
+    rows = pd.DataFrame([
+        {"Abbreviation": "WIN", "Points": 25, "Position": 1, "Time": pd.Timedelta(hours=1, minutes=35, seconds=2), "Status": "Finished"},
+        {"Abbreviation": "RET", "Points": 0, "Position": 2, "Status": "Accident"},
+    ])
+    result, incomplete = api._build_race_results(rows, set(), set())
+    assert incomplete is False
+    assert result[0]["time"] == "1:35:02.000"
+    assert result[1]["status"] == "Accident"
+    assert result[1]["gap"] is None
+
+
 @pytest.mark.asyncio
 async def test_league_survives_identity_merge_and_account_deletion(temp_db_path, monkeypatch):
     from app.services.account_link_service import AccountLinkService
