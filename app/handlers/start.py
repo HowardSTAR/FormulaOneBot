@@ -15,6 +15,7 @@ async def cmd_start(message: Message, state: FSMContext):
 
     # Создаем кнопки главного меню (обычные текстовые кнопки внизу)
     kb = [
+        [KeyboardButton(text="📈 История сезонов"), KeyboardButton(text="📰 Рекап гонки")],
         [
             KeyboardButton(text="🏁 Следующая гонка"),
             KeyboardButton(text="📅 Календарь"),

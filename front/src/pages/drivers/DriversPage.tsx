@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
@@ -205,6 +205,7 @@ function DriversPage() {
   return (
     <>
       <BackButton>← <span>Главное меню</span></BackButton>
+      <Link className="standings-history-link" to="/history?kind=drivers">История с 1950 года · сравнить сезоны →</Link>
       <div className="page-head-row">
         <h2 className="page-head-title">Личный зачет</h2>
         <div className="page-head-controls mobile-year-control">
@@ -222,7 +223,7 @@ function DriversPage() {
         <div className="desktop-standings-board drivers-desktop-shell">
           <div className="desktop-standings-toolbar drivers-desktop-toolbar">
             <div>
-              <div className="drivers-desktop-kicker">Прямые данные · Телеметрия {year}</div>
+              <div className="drivers-desktop-kicker">Зачёт чемпионата · {year}</div>
               <h2 className="desktop-standings-heading">Личный зачет пилотов</h2>
             </div>
             <div className="drivers-desktop-controls">
@@ -302,9 +303,9 @@ function DriversPage() {
                 <p>{gapToLeader} ОЧК. <span>({second?.code || "—"} vs {leader?.code || "—"})</span></p>
               </article>
               <article className="drivers-insight-card active">
-                <h4>Борьба в чемпионате</h4>
-                <p>Высокая интенсивность</p>
-                <small>Прогнозы показывают потенциальную битву трех пилотов к 12-му этапу.</small>
+                <h4>Как менялось место</h4>
+                <p><Link to="/history?kind=drivers">Сравнить сезоны →</Link></p>
+                <small>Смотрите динамику мест; очки разных эпох начислялись по разным правилам.</small>
               </article>
             </div>
             </>

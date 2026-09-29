@@ -1577,10 +1577,10 @@ async def get_season_schedule_short_async(season: int):
     return await _run_sync(get_season_schedule_short, season)
 
 
-@cache_result(ttl=3600, key_prefix="dr_standings_v3")
+@cache_result(ttl=3600, key_prefix="dr_standings_v4")
 async def get_driver_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
     """Асинхронно получает личный зачет (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
-    url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/driverStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json"
+    url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/driverStandings.json?limit=100" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json?limit=100"
 
     async with _profile_http_session() as session_req:
         try:
@@ -1606,6 +1606,7 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
                                 {
                                     "position": pos,
                                     "points": float(ds.get("points", 0.0)),
+                                    "wins": int(ds.get("wins", 0)),
                                     "driverCode": driver.get("code", "") or (driver.get("familyName", "")[:3].upper() if driver.get("familyName") else ""),
                                     "givenName": driver.get("givenName", ""),
                                     "familyName": driver.get("familyName", ""),
@@ -1634,18 +1635,18 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
             logger.warning(f"Ergast fallback failed for {season}: {e}")
 
     # Текущий сезон: список пилотов 2026 из Ergast (составы уже есть до первой гонки)
-    if season == datetime.now().year and round_number is None:
+    if season == datetime.now().year and round_number is None and await _is_preseason(season):
         df = await _get_drivers_list_ergast(season)
         if not df.empty:
             return sort_standings_zero_last(df)
 
-    return await _get_zero_point_driver_standings()
+    return pd.DataFrame()
 
 
-@cache_result(ttl=3600, key_prefix="con_standings_v3")
+@cache_result(ttl=3600, key_prefix="con_standings_v4")
 async def get_constructor_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
     """Асинхронно получает кубок конструкторов (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
-    url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/constructorStandings.json" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json"
+    url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/constructorStandings.json?limit=100" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json?limit=100"
 
     async with _profile_http_session() as session_req:
         try:
@@ -1660,8 +1661,9 @@ async def get_constructor_standings_async(season: int, round_number: int | None 
                         for cs in constructor_standings:
                             team = cs.get("Constructor", {})
                             parsed_data.append({
-                                "position": int(cs.get("position", 0)),
+                                "position": int(cs.get("position") or 0),
                                 "points": float(cs.get("points", 0.0)),
+                                "wins": int(cs.get("wins", 0)),
                                 "constructorId": team.get("constructorId", ""),
                                 "constructorName": team.get("name", "")
                             })
@@ -1681,17 +1683,27 @@ async def get_constructor_standings_async(season: int, round_number: int | None 
             logger.warning(f"Ergast fallback failed for constructors {season}: {e}")
 
     # Текущий сезон: список команд 2026 из Ergast
-    if season == datetime.now().year and round_number is None:
+    if season == datetime.now().year and round_number is None and await _is_preseason(season):
         df = await _get_constructors_list_ergast(season)
         if not df.empty:
             return sort_standings_zero_last(df)
 
-    return await _get_zero_point_constructor_standings()
+    return pd.DataFrame()
 
 
 # ==========================================
 # СКРЫТЫЕ ФУНКЦИИ ГЕНЕРАЦИИ МЕЖСЕЗОНЬЯ
 # ==========================================
+
+async def _is_preseason(season: int) -> bool:
+    """Only an actual calendar can justify a zero-point preseason roster."""
+    try:
+        schedule = await get_season_schedule_short_async(season)
+        starts = [datetime.fromisoformat(r["race_start_utc"]) for r in schedule if r.get("race_start_utc") and not r.get("is_cancelled")]
+        starts = [start.replace(tzinfo=timezone.utc) if start.tzinfo is None else start for start in starts]
+        return bool(starts) and datetime.now(timezone.utc) < min(starts)
+    except Exception:
+        return False
 
 async def _get_drivers_list_ergast(season: int) -> pd.DataFrame:
     """Список пилотов сезона из Ergast (без очков). Для избранного/составов до первой гонки."""
@@ -2061,12 +2073,12 @@ async def _fetch_driver_career_results(session: aiohttp.ClientSession, did: str)
     for base in _ERGAST_BASES:
         try:
             offset = 0
-            limit = 1000
+            limit = 100
             career = []
             while True:
                 resp_data = await _fetch_json(session, f"{base}/drivers/{did}/results.json?limit={limit}&offset={offset}")
                 if not resp_data:
-                    break
+                    raise ValueError("Неполная загрузка карьеры пилота")
                 mr = resp_data.get("MRData", {})
                 total = int(mr.get("total", 0))
                 for race in mr.get("RaceTable", {}).get("Races", []):
@@ -2080,7 +2092,10 @@ async def _fetch_driver_career_results(session: aiohttp.ClientSession, did: str)
                             "status": res.get("status", ""),
                             "laps": res.get("laps"),
                         })
-                offset += limit
+                page_size = sum(len(r.get("Results", [])) for r in mr.get("RaceTable", {}).get("Races", []))
+                if not page_size and offset < total:
+                    raise ValueError("Пустая страница карьеры пилота")
+                offset += page_size
                 if offset >= total:
                     break
             if career:
@@ -2323,7 +2338,7 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
     return ""
 
 
-@cache_result(ttl=3600, key_prefix="driver_details_v7")
+@cache_result(ttl=3600, key_prefix="driver_details_v8")
 async def get_driver_details_async(driver_id: str, season: int, code: str | None = None):
     """
     Получает профиль пилота, статистику сезона и карьеры из Ergast/Jolpica API.
@@ -2388,17 +2403,21 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
     season_poles = sum(1 for r in season_results if r.get("grid") == "1")
     season_dnfs = sum(1 for r in season_results if r.get("positionText") in ("R", "D", "W", "F", "N", "E", "EX"))
 
+    # Official season total includes sprint points; GP points remain separate.
+    standings_points = season_points
     # Season position from standings
     season_pos: int | str = 0
     if not standings_df.empty and "driverCode" in standings_df.columns:
         for row in standings_df.itertuples(index=False):
             row_code = getattr(row, "driverCode", "") or (getattr(row, "familyName", "")[:3].upper() if getattr(row, "familyName", "") else "")
-            if str(row_code).upper() == driver_info.get("code", "").upper():
+            if getattr(row, "driverId", "") == did or (row_code and str(row_code).upper() == driver_info.get("code", "").upper()):
                 season_pos = getattr(row, "position", 0)
+                standings_points = float(getattr(row, "points", season_points))
                 break
 
     # World championships
-    driver_seasons = sorted(set(r.get("season") for r in career_results if r.get("season")), reverse=True)
+    driver_seasons = sorted(set(r.get("season") for r in career_results
+                                if r.get("season") and int(r["season"]) < datetime.now().year), reverse=True)
     world_championships = await _count_driver_championships(did, driver_seasons)
 
     return {
@@ -2415,7 +2434,7 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
         "season": season,
         "season_stats": {
             "position": season_pos,
-            "points": season_points,
+            "points": standings_points,
             "grand_prix_races": season_gp,
             "grand_prix_points": season_points,
             "grand_prix_wins": season_wins,
@@ -2793,12 +2812,12 @@ async def _fetch_constructor_career_results(session: aiohttp.ClientSession, cid:
     for base in _ERGAST_BASES:
         try:
             offset = 0
-            limit = 1000
+            limit = 100
             career = []
             while True:
                 resp_data = await _fetch_json(session, f"{base}/constructors/{cid}/results.json?limit={limit}&offset={offset}")
                 if not resp_data:
-                    break
+                    raise ValueError("Неполная загрузка карьеры конструктора")
                 mr = resp_data.get("MRData", {})
                 total = int(mr.get("total", 0))
                 for race in mr.get("RaceTable", {}).get("Races", []):
@@ -2810,7 +2829,10 @@ async def _fetch_constructor_career_results(session: aiohttp.ClientSession, cid:
                             "points": float(res.get("points", 0)),
                             "grid": res.get("grid"),
                         })
-                offset += limit
+                page_size = sum(len(r.get("Results", [])) for r in mr.get("RaceTable", {}).get("Races", []))
+                if not page_size and offset < total:
+                    raise ValueError("Пустая страница карьеры конструктора")
+                offset += page_size
                 if offset >= total:
                     break
             if career:

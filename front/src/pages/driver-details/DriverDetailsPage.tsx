@@ -1,4 +1,5 @@
 import { GlossaryText } from "../../components/GlossaryText";
+import { DriverGuide } from "../../components/DriverGuide";
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -246,7 +247,7 @@ function DriverDetailsPage() {
             <div className="driver-stats-block">
               <h3 className="driver-stats-title">КАРЬЕРА</h3>
               <StatRow label="Гран-при (всего)" value={cs.grand_prix_entered} />
-              <StatRow label="Карьерные очки" value={Math.round(cs.career_points)} />
+              <StatRow label="Карьерные очки в ГП" value={cs.career_points} />
               <StatRow label="Лучший финиш" value={formatHigh(cs.highest_race_finish)} />
               <StatRow label="Подиумы" value={cs.podiums} />
               <StatRow label="Лучшая позиция на старте" value={formatHigh(cs.highest_grid)} />
@@ -317,7 +318,7 @@ function DriverDetailsPage() {
               <article className="driver-profile-career-card">
                 <h4>Итоги карьеры</h4>
                 <div><span>Гран-при (всего)</span><b>{cs.grand_prix_entered}</b></div>
-                <div><span>Всего очков</span><b>{Math.round(cs.career_points)}</b></div>
+                <div><span>Очки в Гран-при</span><b>{cs.career_points}</b></div>
                 <div><span>Лучший финиш</span><b>{formatHigh(cs.highest_race_finish)}</b></div>
               </article>
               <article className="driver-profile-accolades-card">
@@ -330,11 +331,11 @@ function DriverDetailsPage() {
         </div>
 
         <section className="driver-profile-desktop-recent">
-          <h3 className="driver-profile-title">Последние результаты</h3>
+          <h3 className="driver-profile-title">Сезон и карьера</h3>
           <div className="driver-profile-recent-strip">
             <article>
-              <span>Последний результат</span>
-              <b>{ss.position === 1 ? "Победитель гонки" : `P${ss.position}`}</b>
+              <span>Место в чемпионате {season}</span>
+              <b>{ss.position ? `P${ss.position}` : '—'}</b>
             </article>
             <article>
               <span>Лучшая стартовая</span>
@@ -369,6 +370,7 @@ function DriverDetailsPage() {
           </div>
         </section>
       </section>
+      <DriverGuide key={data.driverId} driverId={data.driverId} />
     </>
   );
 }

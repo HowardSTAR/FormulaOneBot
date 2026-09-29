@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from aiogram import Bot
 from app.utils.mini_app_links import mini_app_button
+from app.services.race_recap import get_race_recap, recap_caption
 from app.services.web_notifications import classification as web_classification, publish_safely as publish_web, has_members as has_web_members
 
 from app.db import (
@@ -1108,6 +1109,11 @@ async def check_and_send_results(bot: Bot):
     sent_count = 0
     # Общая классификация приходит картинкой, а избранные — отдельным сообщением.
     notification_recipients = [(u[0], u[1] or "Europe/Moscow", bool(u[5]) if len(u) > 5 else False) for u in notifications_users]
+    try:
+        recap = await asyncio.wait_for(get_race_recap(season, round_num), timeout=15)
+    except Exception:
+        logger.warning("Recap unavailable for %s round %s; classification delivery continues", season, round_num)
+        recap = {"items": []}
     results_keyboard = await mini_app_button(
         bot, "🏁 Результаты на сайте", "/race-results",
         season=season, round=round_num, mode="archive",
@@ -1118,7 +1124,7 @@ async def check_and_send_results(bot: Bot):
             tg_id,
             photo_bytes_generic,
             delivery_key=f'race-photo:{season}:{round_num}',
-            caption="🏁 Результаты гонки на картинке." + (" Изображение скрыто как спойлер — нажмите, чтобы открыть." if hide_results else ""),
+            caption="🏁 Результаты гонки на картинке." + (" Изображение скрыто как спойлер — нажмите, чтобы открыть." if hide_results else "") + recap_caption(recap, spoiler=hide_results),
             parse_mode="HTML",
             has_spoiler=hide_results,
             reply_markup=results_keyboard,
@@ -1184,7 +1190,7 @@ async def check_and_send_results(bot: Bot):
         await set_last_notified_voting_invite_round(season, round_num)
 
     # === Результаты в группы (общая картинка, без избранного) ===
-    group_caption = f"🏁 {event_name} — этап {round_num}, сезон {season}\n\n📊 Результаты на картинке."
+    group_caption = f"🏁 {html.escape(event_name)} — этап {round_num}, сезон {season}\n\n📊 Результаты на картинке." + recap_caption(recap)
     for chat_id in group_chats:
         if await safe_send_photo(
             bot, chat_id, photo_bytes_generic,

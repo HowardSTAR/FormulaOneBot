@@ -1,29 +1,25 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { apiRequest } from '../helpers/api';
+import type { useRaceRecap } from '../helpers/useRaceRecap';
 import { GlossaryText } from './GlossaryText';
 type Row = {code: string; name: string; position: number; points: number; grid_position?: number | null; is_favorite_driver?: boolean; is_favorite_team?: boolean};
-type Impact = {changes: {code: string; position: number; change: number}[]; note: string};
-export function RaceImpact({season, round, rows}: {season: number; round: number; rows: Row[]}) {
-  const [data, setData] = useState<Impact | null>(null);
-  useEffect(() => {
-    let active = true;
-    apiRequest<Impact>('/api/race-impact', {season, round_num: round}).then(d => {if (active) setData(d);})
-      .catch(() => {if (active) setData({changes: [], note: 'Изменения зачёта временно недоступны.'});});
-    return () => {active = false;};
-  }, [season, round]);
-  const movers = rows.filter(r => r.grid_position != null && r.grid_position > 0 && r.position > 0 && r.grid_position > r.position)
-    .sort((a,b) => (b.grid_position! - b.position) - (a.grid_position! - a.position));
+export function RaceImpact({season, round, rows, recap}: {season: number; round: number; rows: Row[]; recap: ReturnType<typeof useRaceRecap>}) {
+  const {data, error, reload} = recap;
   const favorites = rows.filter(r => r.is_favorite_driver || r.is_favorite_team);
-  return <details className="prediction-rules"><summary>Что изменилось после этапа</summary>
-    <div style={{padding: 16}}>
-      {movers[0] && <p>Наибольший прирост позиций среди доступных данных: {movers[0].name}, +{movers[0].grid_position! - movers[0].position} (старт → итоговая классификация).</p>}
-      {!movers.length && <p>Нет подтверждённых данных о приросте позиций.</p>}
-      {data?.changes.map(c => <p key={c.code}>{c.code}: {c.position}-е место в чемпионате · {c.change > 0 ? '+' : ''}{c.change} поз.</p>)}
-      <p>{data?.note || 'Проверяем изменения чемпионата…'}</p>
+  return <section className="race-recap-panel" aria-label="Короткий рекап гонки">
+      <h2>Главное после гонки</h2>
+      {!data && !error && <p role="status">Проверяем классификацию и изменения чемпионата…</p>}
+      {error && <p role="alert">Рекап временно недоступен. <button type="button" onClick={reload}>Повторить</button></p>}
+      {data?.status === 'waiting' && <p>{data.note}</p>}
+      {data?.status === 'partial' && <p className="history-note">Часть данных о чемпионате недоступна. Показаны только подтверждённые факты.</p>}
+      {data && data.status !== 'ready' && <button type="button" onClick={reload}>Проверить обновление</button>}
+      {!!data?.items.length && <div className="race-recap-list">{data.items.map(item => <article key={item.category}><h3>{item.title}</h3><p><GlossaryText>{item.text}</GlossaryText></p></article>)}</div>}
+      <details><summary>Источники и как читать сводку</summary>
+        <p className="history-note">{data?.note || 'Сводка по правилам, без ИИ. Причины событий не выводятся из очков.'}</p>
+        {data?.updated_at && <p>Сформировано: {new Date(data.updated_at).toLocaleString('ru-RU')}</p>}
+        {data?.sources?.map(source => <p key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a></p>)}
+        <p><GlossaryText>Разобраться в терминах: машина безопасности, виртуальная машина безопасности, временной штраф.</GlossaryText></p>
+      </details>
       {favorites.length > 0 && <p>Ваше избранное: {favorites.map(r => `${r.code} — P${r.position}, ${r.points} очк.`).join(' · ')}</p>}
       <p><Link to={`/predictions?tab=history&reviewSeason=${season}&reviewRound=${round}`}>Как это повлияло на мой прогноз →</Link></p>
-      <p><GlossaryText>Разобраться в терминах: машина безопасности, виртуальная машина безопасности, временной штраф.</GlossaryText></p>
-    </div>
-  </details>;
+  </section>;
 }

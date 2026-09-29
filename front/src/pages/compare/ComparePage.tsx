@@ -9,6 +9,7 @@ import {
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
+import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
 import { hapticSelection } from "../../helpers/telegram";
 import {
@@ -513,6 +514,7 @@ function ComparePage() {
   return (
     <>
       <BackButton className="btn-back compare-back-button">← Главное меню</BackButton>
+      <Link className="standings-history-link" to="/history">Сравнить места по нескольким сезонам →</Link>
       <div className="page-head-row page-head-row-compare">
         <h2 className="page-head-title">
           {tab === "drivers" ? "Сравнение пилотов" : "Сравнение команд"}

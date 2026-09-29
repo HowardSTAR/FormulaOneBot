@@ -49,6 +49,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { to: "/drivers", label: "Пилоты", activePaths: ["/drivers", "/driver-details"] },
       { to: "/constructors", label: "Команды", activePaths: ["/constructors", "/constructor-details", "/team-principal"] },
+      { to: "/history", label: "История сезонов", activePaths: ["/history"] },
     ],
   },
   {
@@ -112,7 +113,7 @@ function SidebarAccordion({ group, pathname }: { group: NavGroup; pathname: stri
   const icons: Record<string, IndexIconName> = {
     "/practice-results": "practice", "/sprint-quali-results": "sprintQuali", "/sprint-results": "sprint",
     "/quali-results": "quali", "/race-results": "race", "/drivers": "drivers",
-    "/constructors": "teams", "/compare": "compare", "/predictions": "predictions",
+    "/constructors": "teams", "/history": "compare", "/compare": "compare", "/predictions": "predictions",
     "/prediction-analytics": "predictionAnalytics",
     "/reaction-game": "reaction", "/reflex-grid-game": "grid", "/race-game": "arcade",
   };

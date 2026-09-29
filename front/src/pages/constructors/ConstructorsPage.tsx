@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
@@ -181,6 +181,7 @@ function ConstructorsPage() {
   return (
     <>
       <BackButton className="btn-back constructors-back-button">← <span>Главное меню</span></BackButton>
+      <Link className="standings-history-link" to="/history?kind=constructors">История Кубка с 1958 года · сравнить сезоны →</Link>
       <div className="page-head-row">
         <h2 className="page-head-title">Кубок конструкторов</h2>
         <div className="page-head-controls mobile-year-control">

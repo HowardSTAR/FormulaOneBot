@@ -5,6 +5,7 @@ import { CustomSelect } from "../../components/CustomSelect";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
 import { ResultsFeedback } from "../../components/SessionResultsUI";
 import { RaceImpact } from '../../components/RaceImpact';
+import { useRaceRecap } from '../../helpers/useRaceRecap';
 
 type Result = {
   position: number;
@@ -81,6 +82,7 @@ function RaceResultsPage() {
   const desktopWinner = data?.results?.[0] ?? null;
   const desktopRows = data?.results ?? [];
   const resultSeason = data?.season || season;
+  const recap = useRaceRecap(resultSeason, data?.round || 0, Boolean(!loading && !error && data?.round && data.results?.length));
   const driverInfo = (driver: Result) => driverTeams[(driver.code || "").toUpperCase()];
   const teamName = (driver: Result) => driver.team || driverInfo(driver)?.constructorName || "Команда не указана";
   const openDriver = (driver: Result) => {
@@ -181,7 +183,6 @@ function RaceResultsPage() {
 
   return (
     <>
-      {!loading && !error && data?.round && data.results?.length ? <RaceImpact key={`${resultSeason}:${data.round}`} season={resultSeason} round={data.round} rows={data.results} /> : null}
       <div className="race-results-mobile">
         <BackButton>← <span>Главное меню</span></BackButton>
         <h2 id="race-title">
@@ -237,6 +238,7 @@ function RaceResultsPage() {
         )}
 
         <div id="race-content">
+          {!loading && !error && data?.round && data.results?.length ? <RaceImpact season={resultSeason} round={data.round} rows={data.results} recap={recap} /> : null}
           <ResultsFeedback
             loading={loading}
             error={error}
@@ -330,6 +332,7 @@ function RaceResultsPage() {
         </header>
 
         <div className="race-results-desktop-content">
+          {!loading && !error && data?.round && data.results?.length ? <RaceImpact season={resultSeason} round={data.round} rows={data.results} recap={recap} /> : null}
           <ResultsFeedback
             loading={loading}
             error={error}

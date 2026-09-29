@@ -9,6 +9,7 @@ import ConstructorDetailsPage from "./pages/constructor-details/ConstructorDetai
 import TeamPrincipalPage from "./pages/team-principal/TeamPrincipalPage";
 import DriverDetailsPage from "./pages/driver-details/DriverDetailsPage";
 import DriversPage from "./pages/drivers/DriversPage";
+import HistoryPage from "./pages/history/HistoryPage";
 import FavoritesPage from "./pages/favorites/FavoritesPage";
 import NextRacePage from "./pages/next-race/NextRacePage";
 import QualiResultsPage from "./pages/quali-results/QualiResultsPage";
@@ -55,6 +56,7 @@ export const router = createBrowserRouter([
       { path: "/constructors", element: <ConstructorsPage /> },
       { path: "/driver-details", element: <DriverDetailsPage /> },
       { path: "/drivers", element: <DriversPage /> },
+      { path: "/history", element: <HistoryPage /> },
       { path: "/favorites", element: <RequirePersonalAccount><FavoritesPage /></RequirePersonalAccount> },
       { path: "/next-race", element: <NextRacePage /> },
       { path: "/quali-results", element: <QualiResultsPage /> },
