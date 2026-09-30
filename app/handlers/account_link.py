@@ -27,7 +27,7 @@ def _confirmation_keyboard(hint: str, conflict: bool) -> InlineKeyboardMarkup:
             ]
         )
     else:
-        rows.append([InlineKeyboardButton(text="Подтвердить привязку", callback_data=f"link:web:{hint}")])
+        rows.append([InlineKeyboardButton(text="Подтвердить привязку", callback_data=f"link:web:{hint}", style="success")])
     rows.append([InlineKeyboardButton(text="Отмена", callback_data=f"link:cancel:{hint}")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 

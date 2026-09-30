@@ -26,6 +26,8 @@ from app.services.prediction_race_facts import get_prediction_race_facts
 from app.services.telegram_outbox import enqueue, drain
 from app.utils.notifications import get_users_with_settings
 from app.utils.mini_app_links import mini_app_button
+from app.utils.telegram_presentation import personal_buttons
+from app.utils.time_tools import telegram_time
 from app.services.web_notifications import publish_safely as publish_web
 
 
@@ -76,6 +78,9 @@ async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple]) -> 
         f"{sprint_line}\n\n"
         "⏳ Приём закроется строго в момент начала первой квалификации уикенда."
     )
+    _, deadline = get_prediction_window(event)
+    if deadline:
+        text += "\nЗакрытие: " + telegram_time(deadline)
     await publish_web(f"prediction-open:{event.get('season')}:{event.get('round')}", "Открыт приём прогнозов", text, "/predictions?tab=form")
     return await _queue_prediction(bot, event, 'open', text, keyboard, users)
 
@@ -92,6 +97,7 @@ async def _send_prediction_results(
     keyboard = await mini_app_button(
         bot, "🏆 Таблица прогнозов", "/predictions", tab="leaderboard",
     )
+    keyboard = personal_buttons(int(event.get('season') or datetime.now(timezone.utc).year), int(event['round']), keyboard)
     if top:
         medals = ("🥇", "🥈", "🥉")
         lines = [
@@ -141,6 +147,9 @@ async def _send_prediction_closing(bot: Bot, event: dict, users: list[tuple]) ->
         "🔒 Приём закроется строго в момент начала первой квалификации уикенда."
     )
     season, round_num = event['season'], int(event['round'])
+    _, deadline = get_prediction_window(event)
+    if deadline:
+        text += "\nЗакрытие: " + telegram_time(deadline) + "\nДо закрытия: " + telegram_time(deadline, relative=True)
     await publish_web(f"prediction-closing:{season}:{round_num}", "До закрытия прогнозов осталось 2 часа", text, "/predictions?tab=form")
     remaining = []
     for telegram_id, tz, *_ in users:

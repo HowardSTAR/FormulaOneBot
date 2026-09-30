@@ -239,37 +239,40 @@ async def send_comparison_graph(
 
         total_races = len(passed_races)
 
-        results_list = [None] * total_races
         tasks = []
         for i, r in enumerate(passed_races):
             tasks.append(get_race_results_async(year, r["round"]))
 
-        pending = set(asyncio.create_task(t) for t in tasks)
+        ordered_tasks = [asyncio.create_task(t) for t in tasks]
+        pending = set(ordered_tasks)
         completed_count = 0
 
-        task_to_index = {list(pending)[i]: i for i in range(len(pending))}
+        task_to_index = {task: i for i, task in enumerate(ordered_tasks)}
         final_results = [None] * total_races
 
         last_update_time = time.time()
 
-        while pending:
-            done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-            completed_count += len(done)
-
-            for t in done:
-                idx = task_to_index[t]
-                try:
-                    final_results[idx] = await t
-                except Exception:
-                    final_results[idx] = None
-
-            if time.time() - last_update_time > 1.5:
-                await loader.update(
-                    f"🏎️ <b>Дуэль: {name1} ⚔️ {name2}</b>\n"
-                    f"📅 Сезон: {year}\n\n"
-                    f"⏳ Загружаю данные: <b>{completed_count} / {total_races}</b> гонок..."
-                )
-                last_update_time = time.time()
+        try:
+            while pending:
+                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+                completed_count += len(done)
+                for t in done:
+                    idx = task_to_index[t]
+                    try:
+                        final_results[idx] = await t
+                    except Exception:
+                        final_results[idx] = None
+                if time.time() - last_update_time > 1.5:
+                    await loader.update(
+                        f"🏎️ <b>Дуэль: {name1} ⚔️ {name2}</b>\n"
+                        f"📅 Сезон: {year}\n\n"
+                        f"Загружено: <b>{completed_count} / {total_races}</b> гонок."
+                    )
+                    last_update_time = time.time()
+        finally:
+            for task in pending:
+                task.cancel()
+            await asyncio.gather(*ordered_tasks, return_exceptions=True)
 
         await loader.update("🎨 Рисую график...")
 

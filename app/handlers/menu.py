@@ -11,6 +11,10 @@ from aiogram.types import CallbackQuery, Message
 from app.utils.bot_menu import MAIN_BUTTONS, SECTIONS, WEB_DESTINATIONS, main_keyboard, section_keyboard
 from app.utils.mini_app_links import destination_buttons
 from app.utils.safe_send import safe_answer_callback
+from app.services.prediction_service import get_prediction_context, parse_utc
+from app.utils.telegram_presentation import disabled_button
+from app.utils.time_tools import telegram_time
+from datetime import datetime, timezone
 
 ACTION_HANDLERS = {
     "next": ("races", "next_race_btn", False),
@@ -38,6 +42,29 @@ async def section_content(bot, section: str):
             pass
         if web is None:
             hint += "\n\nКнопки Mini App временно недоступны. Попробуйте позже."
+    if section == "predictions":
+        try:
+            context = await asyncio.wait_for(get_prediction_context(), timeout=5)
+        except Exception:
+            context = {"status": "unavailable"}
+        now = datetime.now(timezone.utc)
+        opens, deadline = parse_utc(context.get("opens_at_utc")), parse_utc(context.get("deadline_utc"))
+        status = None
+        if context.get("is_open"):
+            hint += "\n\nПриём открыт. Закрытие: " + telegram_time(deadline)
+            if web:
+                web.inline_keyboard[0][0].style = "primary"
+        elif opens and now < opens:
+            status = "Приём ещё не открыт"
+            hint += "\n\nПрогнозы откроются: " + telegram_time(opens)
+        elif deadline and now >= deadline:
+            status = "Приём завершён"
+            hint += "\n\nВыбор изменить нельзя. Сохранённый прогноз доступен для просмотра."
+        else:
+            status = "Сроки уточняются"
+            hint += "\n\nРасписание приёма пока не подтверждено."
+        if web and status:
+            web.inline_keyboard.insert(0, [disabled_button(status)])
     return f"<b>{heading}</b>\n\n{hint}", section_keyboard(section, web)
 
 
@@ -48,7 +75,9 @@ async def open_main_menu(message: Message, state: FSMContext):
 
 async def open_section(message: Message, state: FSMContext):
     await state.clear()
-    text, keyboard = await section_content(message.bot, MAIN_BUTTONS[message.text])
+    from app.utils.activity_status import ActivityStatus
+    async with ActivityStatus(message, "Открываю раздел…"):
+        text, keyboard = await section_content(message.bot, MAIN_BUTTONS[message.text])
     await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
 

@@ -70,6 +70,10 @@ def main_keyboard() -> ReplyKeyboardMarkup:
 def section_keyboard(section: str, web: InlineKeyboardMarkup | None = None) -> InlineKeyboardMarkup | None:
     rows = [[InlineKeyboardButton(text=label, callback_data=data) for label, data in row]
             for row in SECTIONS[section][2]]
+    for row in rows:
+        for button in row:
+            if button.callback_data in {"nav:action:next", "nav:action:guide"}:
+                button.style = "primary"
     if web:
         # Keep the return button last; guide's bot lookup remains the first action.
         rows = [*rows[:-1], *web.inline_keyboard, *rows[-1:]]

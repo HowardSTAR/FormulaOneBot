@@ -760,7 +760,7 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
         "С 21:00 до 10:00 по времени получателя — без звука.\n"
         "Подтверждение действует 10 минут. После перезапуска бота создайте предпросмотр заново.",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-            InlineKeyboardButton(text="✅ Отправить всем", callback_data=f"bc:send:{token}"),
+            InlineKeyboardButton(text="✅ Отправить всем", callback_data=f"bc:send:{token}", style="danger"),
             InlineKeyboardButton(text="Отмена", callback_data=f"bc:cancel:{token}"),
         ]]),
     )

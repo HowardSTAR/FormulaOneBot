@@ -8,6 +8,9 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from aiogram import Bot
 from app.utils.mini_app_links import mini_app_button
 from app.services.race_recap import get_race_recap, recap_caption
+from app.utils.telegram_presentation import race_card, race_fallback, personal_buttons, rich_enabled
+from app.services.delivery_adapters import queued_rich_message
+from app.utils.time_tools import telegram_time
 from app.services.web_notifications import classification as web_classification, publish_safely as publish_web, has_members as has_web_members
 
 from app.db import (
@@ -117,7 +120,7 @@ def get_notification_text(
     """Генерирует текст для ГОНКИ/КВАЛИ/СПРИНТА/СПРИНТ-КВАЛЫ. for_group=True — без строки «Начало в HH:MM»."""
     if event_kind is None:
         event_kind = "quali" if for_quali else "race"
-    event_name = race.get('event_name', 'Гран-при')
+    event_name = html.escape(str(race.get('event_name') or 'Гран-при'))
     dt_key_map = {
         "race": "race_start_utc",
         "quali": "quali_start_utc",
@@ -141,17 +144,19 @@ def get_notification_text(
         start_date_str = "??.??.????"
 
     time_suffix = " (UTC)" if user_tz_name == "UTC" else " (по вашему времени)"
-    time_line = "" if for_group else f"⏰ Начало в {start_time_str}{time_suffix}\n"
+    local_time = telegram_time(dt_str, user_tz_name, fallback=start_time_str + time_suffix)
+    countdown = telegram_time(dt_str, user_tz_name, relative=True, fallback=format_time_left(minutes_left))
+    time_line = "" if for_group else f"⏰ Начало в {local_time}\n"
     if event_kind in ("practice1", "practice2", "practice3"):
         return (f"🏎 Скоро свободные заезды — FP{event_kind[-1]}!\n\n"
-                f"{format_time_left(minutes_left)} старт: {event_name}\n"
+                f"{countdown} старт: {event_name}\n"
                 f"📍 Трасса: {race.get('location', '')}\n"
                 f"📅 Дата: {start_date_str}\n{time_line}")
 
     if event_kind == "quali":
         return (
             f"⏱ Скоро квалификация!\n\n"
-            f"{format_time_left(minutes_left)} старт: {event_name}\n"
+            f"{countdown} старт: {event_name}\n"
             f"📍 Трасса: {race.get('location', '')}\n"
             f"📅 Дата: {start_date_str}\n"
             f"{time_line}"
@@ -159,7 +164,7 @@ def get_notification_text(
     if event_kind == "sprint_quali":
         return (
             f"⏱ Скоро спринт-квалификация!\n\n"
-            f"{format_time_left(minutes_left)} старт: {event_name}\n"
+            f"{countdown} старт: {event_name}\n"
             f"📍 Трасса: {race.get('location', '')}\n"
             f"📅 Дата: {start_date_str}\n"
             f"{time_line}"
@@ -167,14 +172,14 @@ def get_notification_text(
     if event_kind == "sprint":
         return (
             f"⚡ Скоро спринт!\n\n"
-            f"{format_time_left(minutes_left)} старт: {event_name}\n"
+            f"{countdown} старт: {event_name}\n"
             f"📍 Трасса: {race.get('location', '')}\n"
             f"📅 Дата: {start_date_str}\n"
             f"{time_line}"
         )
     return (
         f"🏎 Скоро гонка!\n\n"
-        f"{format_time_left(minutes_left)} старт: {event_name} 🏁\n"
+        f"{countdown} старт: {event_name} 🏁\n"
         f"📍 Трасса: {race.get('location', '')}\n"
         f"📅 Дата: {start_date_str}\n"
         f"{time_line}"
@@ -1081,8 +1086,12 @@ async def check_and_send_results(bot: Bot):
             favorite_driver_codes=fav_codes,
         )
 
-    # Общая картинка для групп (без избранных)
-    photo_bytes_generic = (await asyncio.to_thread(_render_race_image, None)).getvalue()
+    notification_recipients = [(u[0], u[1] or "Europe/Moscow", bool(u[5]) if len(u) > 5 else False) for u in notifications_users]
+    use_rich = rich_enabled()
+    # Do not render a PNG when all recipients will receive native tables.
+    photo_bytes_generic = None
+    if not use_rich or any(hide for _, _, hide in notification_recipients):
+        photo_bytes_generic = (await asyncio.to_thread(_render_race_image, None)).getvalue()
     await web_classification(season, round_num, f"{race_info.get('event_name', 'Гран-при')} · Итоги гонки", "race-results", [
         {"position": str(row.get("Position", "—")), "code": str(row.get("Abbreviation", "")),
          "name": str(row.get("FullName", row.get("Abbreviation", ""))), "team": str(row.get("TeamName", "")),
@@ -1107,8 +1116,7 @@ async def check_and_send_results(bot: Bot):
             constructor_results_by_name[team_name].append(row)
 
     sent_count = 0
-    # Общая классификация приходит картинкой, а избранные — отдельным сообщением.
-    notification_recipients = [(u[0], u[1] or "Europe/Moscow", bool(u[5]) if len(u) > 5 else False) for u in notifications_users]
+    # Native classification or a spoiler image; favorites remain separate.
     try:
         recap = await asyncio.wait_for(get_race_recap(season, round_num), timeout=15)
     except Exception:
@@ -1118,18 +1126,30 @@ async def check_and_send_results(bot: Bot):
         bot, "🏁 Результаты на сайте", "/race-results",
         season=season, round=round_num, mode="archive",
     )
+    results_keyboard = personal_buttons(season, round_num, results_keyboard)
+    card = race_card(event_name, season, round_num, rows_for_image, recap)
+    fallback = race_fallback(event_name, season, round_num, rows_for_image, recap)
     for tg_id, tz, hide_results in notification_recipients:
-        if await safe_send_photo(
-            bot,
-            tg_id,
-            photo_bytes_generic,
-            delivery_key=f'race-photo:{season}:{round_num}',
-            caption="🏁 Результаты гонки на картинке." + (" Изображение скрыто как спойлер — нажмите, чтобы открыть." if hide_results else "") + recap_caption(recap, spoiler=hide_results),
-            parse_mode="HTML",
-            has_spoiler=hide_results,
-            reply_markup=results_keyboard,
-            disable_notification=is_quiet_hours(tz),
-        ):
+        if use_rich and not hide_results:
+            queued = await queued_rich_message(
+                bot, tg_id, card,
+                fallback,
+                delivery_key=f'race-photo:{season}:{round_num}',
+                reply_markup=results_keyboard, disable_notification=is_quiet_hours(tz),
+            )
+        else:
+            queued = await safe_send_photo(
+                bot,
+                tg_id,
+                photo_bytes_generic,
+                delivery_key=f'race-photo:{season}:{round_num}',
+                caption="🏁 Результаты гонки на картинке." + (" Изображение скрыто как спойлер — нажмите, чтобы открыть." if hide_results else "") + recap_caption(recap, spoiler=hide_results),
+                parse_mode="HTML",
+                has_spoiler=hide_results,
+                reply_markup=results_keyboard,
+                disable_notification=is_quiet_hours(tz),
+            )
+        if queued:
             sent_count += 1
         await asyncio.sleep(0.05)
 
@@ -1189,16 +1209,26 @@ async def check_and_send_results(bot: Bot):
             await asyncio.sleep(0.05)
         await set_last_notified_voting_invite_round(season, round_num)
 
-    # === Результаты в группы (общая картинка, без избранного) ===
+    # === Public group classification, with private personal callbacks ===
     group_caption = f"🏁 {html.escape(event_name)} — этап {round_num}, сезон {season}\n\n📊 Результаты на картинке." + recap_caption(recap)
     for chat_id in group_chats:
-        if await safe_send_photo(
-            bot, chat_id, photo_bytes_generic,
-            delivery_key=f'race-photo:{season}:{round_num}',
-            caption=group_caption,
-            parse_mode="HTML",
-            disable_notification=is_quiet_hours(GROUP_TIMEZONE),
-        ):
+        if use_rich:
+            queued = await queued_rich_message(
+                bot, chat_id, card, fallback,
+                delivery_key=f'race-photo:{season}:{round_num}',
+                reply_markup=personal_buttons(season, round_num),
+                disable_notification=is_quiet_hours(GROUP_TIMEZONE),
+            )
+        else:
+            queued = await safe_send_photo(
+                bot, chat_id, photo_bytes_generic,
+                delivery_key=f'race-photo:{season}:{round_num}',
+                caption=group_caption,
+                parse_mode="HTML",
+                reply_markup=personal_buttons(season, round_num),
+                disable_notification=is_quiet_hours(GROUP_TIMEZONE),
+            )
+        if queued:
             sent_count += 1
         await asyncio.sleep(0.05)
 

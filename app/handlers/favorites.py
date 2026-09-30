@@ -64,7 +64,7 @@ async def _build_drivers_keyboard(telegram_id: int) -> tuple[InlineKeyboardMarku
             is_selected = code in fav_set
             btn_text = f"{'⭐ ' if is_selected else ''}{full_name}"
 
-            builder.button(text=btn_text, callback_data=f"toggle_driver_{code}")
+            builder.button(text=btn_text, callback_data=f"toggle_driver_{code}", style="success" if is_selected else None)
         except:
             continue
 
@@ -115,7 +115,7 @@ async def _build_teams_keyboard(telegram_id: int) -> tuple[InlineKeyboardMarkup,
             name = getattr(row, "constructorName", "Unknown")
             is_selected = name in fav_set
             btn_text = f"{'⭐ ' if is_selected else ''}{name}"
-            builder.button(text=btn_text, callback_data=f"toggle_team_{name}")
+            builder.button(text=btn_text, callback_data=f"toggle_team_{name}", style="success" if is_selected else None)
         except:
             continue
 
@@ -209,7 +209,7 @@ async def cb_toggle_team(call: CallbackQuery):
 async def ask_clear_drivers(call: CallbackQuery):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Да, удалить", callback_data="confirm_clear_drivers"),
+            InlineKeyboardButton(text="✅ Да, удалить", callback_data="confirm_clear_drivers", style="danger"),
             InlineKeyboardButton(text="❌ Нет, назад", callback_data="fav_drivers")
         ]
     ])
@@ -235,7 +235,7 @@ async def confirm_clear_drivers(call: CallbackQuery):
 async def ask_clear_teams(call: CallbackQuery):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Да, удалить", callback_data="confirm_clear_teams"),
+            InlineKeyboardButton(text="✅ Да, удалить", callback_data="confirm_clear_teams", style="danger"),
             InlineKeyboardButton(text="❌ Нет, назад", callback_data="fav_teams")
         ]
     ])

@@ -1,10 +1,28 @@
 from datetime import datetime
+from html import escape
 import pytz
 
 RU_MONTHS = {
     1: 'января', 2: 'февраля', 3: 'марта', 4: 'апреля', 5: 'мая', 6: 'июня',
     7: 'июля', 8: 'августа', 9: 'сентября', 10: 'октября', 11: 'ноября', 12: 'декабря'
 }
+
+
+def telegram_time(value, user_timezone="Europe/Moscow", *, relative=False, fallback=None):
+    """Native date entity with a useful absolute fallback for older clients."""
+    if isinstance(value, datetime):
+        value = value.isoformat()
+    if not value:
+        return "Время уточняется"
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=pytz.utc)
+        stamp = int(parsed.timestamp())
+    except (ValueError, TypeError, AttributeError):
+        return escape(str(value))
+    fallback = escape(fallback if fallback is not None else format_race_time(value, user_timezone))
+    return f'<tg-time unix="{stamp}" format="{"r" if relative else "wDt"}">{fallback}</tg-time>'
 
 def format_race_time(utc_time_str: str, user_timezone_str: str = "Europe/Moscow") -> str:
     """

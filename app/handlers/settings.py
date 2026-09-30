@@ -121,7 +121,7 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
         f"🌍 <b>Часовой пояс:</b> {tz_label}\n"
         f"⏰ <b>Напоминать за:</b> {notify_str} до выбранных сессий\n"
         f"<b>Звук сообщений Telegram:</b> {notif_status}\n\n"
-        f"<b>Фото результатов:</b> {'скрыты спойлером' if results_spoiler else 'видны сразу'}\n\n"
+        f"<b>Результаты:</b> {'фото скрыты спойлером' if results_spoiler else 'видны сразу'}\n\n"
         "Сообщения приходят в обоих режимах. «Без звука» отключает только звук в Telegram.\n\n"
         "<i>С 21:00 до 10:00 по вашему времени уведомления приходят в тихом режиме (без звука).</i>\n\n"
         "<i>Выбери параметр для изменения:</i>"
@@ -129,7 +129,7 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
 
     kb = InlineKeyboardBuilder()
     kb.button(text=f"Звук: {notif_status}", callback_data="toggle_notifications")
-    kb.button(text=f"Фото результатов: {'спойлер' if results_spoiler else 'видны'}", callback_data="toggle_results_spoiler")
+    kb.button(text=f"Результаты: {'спойлер' if results_spoiler else 'видны'}", callback_data="toggle_results_spoiler")
     kb.button(text=f"⏰ Напоминать за ({notify_str})", callback_data="change_notify")
     kb.button(text=f"🌍 Часовой пояс ({tz_label})", callback_data="change_tz")
     kb.button(text="❌ Закрыть", callback_data="close_settings")
@@ -163,7 +163,7 @@ def get_notify_keyboard(current_val: int):
     kb = InlineKeyboardBuilder()
     for label, val in NOTIFY_OPTIONS.items():
         mark = "✅ " if val == current_val else ""
-        kb.button(text=f"{mark}{label}", callback_data=f"set_not:{val}")
+        kb.button(text=f"{mark}{label}", callback_data=f"set_not:{val}", style="success" if val == current_val else None)
     kb.button(text="« Назад", callback_data="back_to_settings")
     kb.adjust(2)
     return kb.as_markup()
@@ -174,7 +174,7 @@ async def show_session_settings(callback, state):
     mask = settings["reminder_sessions"]
     kb = InlineKeyboardBuilder()
     for bit, label in SESSION_OPTIONS:
-        kb.button(text=f"{'✅' if mask & bit else '⬜'} {label}", callback_data=f"session_toggle:{bit}")
+        kb.button(text=f"{'✅' if mask & bit else '⬜'} {label}", callback_data=f"session_toggle:{bit}", style="success" if mask & bit else None)
     kb.button(text="« Назад", callback_data="back_to_settings")
     kb.adjust(1)
     await callback.message.edit_text(

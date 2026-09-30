@@ -28,7 +28,7 @@ from app.utils.image_render import (
 )
 from app.utils.loader import Loader
 from app.utils.safe_send import safe_answer_callback
-from app.utils.time_tools import format_race_time
+from app.utils.time_tools import format_race_time, telegram_time
 
 router = Router()
 UTC_PLUS_3 = timezone(timedelta(hours=3))
@@ -193,7 +193,8 @@ async def _send_next_race_message(message: Message, user_id: int, season: int | 
             await message.answer(text)
         return
 
-    time_block = f"\n⏰ Старт гонки: {payload['local']}" if payload['local'] else f"📅 {payload['date']}"
+    time_block = (f"\n⏰ Старт гонки: {telegram_time(payload['race_start_utc'], fallback=payload['local'])}\n"
+                  f"До старта: {telegram_time(payload['race_start_utc'], relative=True)}") if payload['local'] else f"📅 {payload['date']}"
 
     text = (
         f"🗓 Ближайший этап сезона {payload['season']}:\n\n"
@@ -206,7 +207,7 @@ async def _send_next_race_message(message: Message, user_id: int, season: int | 
     is_group = message.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP)
     keyboard = [
         [InlineKeyboardButton(text="📅 Расписание уикенда",
-                              callback_data=f"weekend_{payload['season']}_{payload['round']}")],
+                              callback_data=f"weekend_{payload['season']}_{payload['round']}", style="primary")],
         [InlineKeyboardButton(text="⏱ Квалификация", callback_data=f"quali_{payload['season']}_{payload['round']}"),
          InlineKeyboardButton(text="🏁 Гонка", callback_data=f"race_{payload['season']}_{payload['round']}")],
         [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu")],
@@ -272,7 +273,7 @@ async def weekend_schedule(callback: CallbackQuery):
     for s in sessions:
         ru_name = SESSION_NAME_RU.get(s["name"], s["name"])
         # Для расписания в боте используем format_race_time (UTC+X)
-        time_str = format_race_time(s.get("utc_iso"), user_tz)
+        time_str = telegram_time(s.get("utc_iso"), user_tz)
         lines.append(f"• {ru_name}\n  {time_str}")
 
     text = f"📅 Расписание уикенда (Сезон {season}, Этап {round_num}):\n\n" + "\n\n".join(lines)

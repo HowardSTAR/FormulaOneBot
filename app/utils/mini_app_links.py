@@ -74,4 +74,7 @@ async def mini_app_button(bot: Bot, label: str, path: str, **params) -> InlineKe
     destination = validate_button_destination(path)
     if destination.scheme:
         raise ValueError("Mini App destination must be a local path")
-    return await destination_buttons(bot, [(label, path, params)])
+    keyboard = await destination_buttons(bot, [(label, path, params)])
+    if keyboard:
+        keyboard.inline_keyboard[0][0].style = "primary"
+    return keyboard

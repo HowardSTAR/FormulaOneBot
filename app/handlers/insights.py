@@ -8,11 +8,13 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.filters.command import CommandObject
 from aiogram.types import Message, LinkPreviewOptions, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from app.f1_data import get_season_schedule_short_async, get_driver_standings_async
+from app.f1_data import get_season_schedule_short_async, get_driver_standings_async, get_race_results_async
 from app.services.driver_guides import get_driver_guide
 from app.services.race_recap import get_race_recap, format_recap_telegram
 from app.utils.mini_app_links import mini_app_button
 from app.utils.activity_status import ActivityStatus
+from app.services.race_recap import classified_rows
+from app.utils.telegram_presentation import race_card, race_fallback, personal_buttons, send_card, disabled_button
 
 router = Router()
 DRIVERS_PER_PAGE = 6
@@ -66,8 +68,12 @@ async def _driver_picker(message: Message, page: int = 0, edit: bool = False):
     navigation = []
     if page > 0:
         navigation.append(InlineKeyboardButton(text="← Назад", callback_data=f"insights:drivers:page:{page - 1}"))
+    else:
+        navigation.append(disabled_button("← Назад"))
     if page + 1 < pages:
         navigation.append(InlineKeyboardButton(text="Далее →", callback_data=f"insights:drivers:page:{page + 1}"))
+    else:
+        navigation.append(disabled_button("Далее →"))
     if navigation:
         rows.append(navigation)
     rows.append([InlineKeyboardButton(text="← Справочник", callback_data="nav:section:guides")])
@@ -203,6 +209,12 @@ async def _show_recap(message: Message, command: CommandObject | None = None):
             return
         round_num = event["round"]
         result = await asyncio.wait_for(get_race_recap(season, round_num), timeout=45)
+        try:
+            frame = await asyncio.wait_for(get_race_results_async(season, round_num), timeout=10)
+            rows = [{"pos": int(row["Position"]), "driver": row.get("FullName") or row["Abbreviation"], "points": row.get("Points", "—")}
+                    for row in classified_rows(frame)]
+        except Exception:
+            rows = []
     except Exception:
         await message.answer("Источники временно недоступны. Рекап можно запросить позже — результаты не меняются.")
         return
@@ -213,4 +225,8 @@ async def _show_recap(message: Message, command: CommandObject | None = None):
     if result["status"] == "partial":
         text += " Часть данных чемпионата ещё не подтверждена."
     keyboard = await _web_button(message, "Рекап и результаты", "/race-results", season=season, round=round_num, mode="archive")
-    await message.answer(text, parse_mode="HTML", reply_markup=keyboard)
+    keyboard = personal_buttons(season, round_num, keyboard)
+    card = race_card(event.get("event_name") or f"Этап {round_num}", season, round_num, rows, result)
+    if rows:
+        text = race_fallback(event.get("event_name") or f"Этап {round_num}", season, round_num, rows, result)
+    await send_card(message.bot, message.chat.id, card, text, reply_markup=keyboard, message_thread_id=message.message_thread_id)

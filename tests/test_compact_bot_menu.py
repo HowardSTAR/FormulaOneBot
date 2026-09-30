@@ -42,6 +42,7 @@ class LocalSession(BaseSession):
 @pytest.fixture
 def navigation(monkeypatch):
     monkeypatch.setenv("MINI_APP_URL", "https://example.test/?source=telegram")
+    monkeypatch.setattr(menu, "get_prediction_context", AsyncMock(return_value={"status": "unavailable"}))
     session = LocalSession()
     bot = Bot("123456:LOCAL_TEST", session=session)
     dispatcher = Dispatcher()
@@ -219,7 +220,8 @@ async def test_group_callbacks_cannot_open_personal_actions(navigation):
 async def test_miniapp_buttons_keep_exact_destinations_and_timeout_has_a_back_button(navigation, monkeypatch):
     bot, _, _, _ = navigation
     text, markup = await menu.section_content(bot, "predictions")
-    assert [row[0].web_app.url for row in markup.inline_keyboard[:-1]] == [
+    assert markup.inline_keyboard[0][0].disabled is not None
+    assert [button.web_app.url for row in markup.inline_keyboard for button in row if button.web_app] == [
         "https://example.test/predictions?source=telegram&tab=form",
         "https://example.test/predictions?source=telegram&tab=leaderboard",
         "https://example.test/predictions?source=telegram&tab=leagues",
@@ -243,7 +245,7 @@ async def test_all_drivers_remain_available_in_small_editable_pages(navigation, 
         result = session.methods[-1]
         assert isinstance(result, SendMessage if page == 0 else EditMessageText)
         rows = result.reply_markup.inline_keyboard
-        pilots = [button for row in rows for button in row if button.callback_data.startswith("insights:driver:")]
+        pilots = [button for row in rows for button in row if (button.callback_data or "").startswith("insights:driver:")]
         assert len(pilots) <= 6 and len(rows) <= 5
         seen.extend(button.text for button in pilots)
         assert f"Страница {page + 1} из 4" in result.text

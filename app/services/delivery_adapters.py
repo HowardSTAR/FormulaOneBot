@@ -76,6 +76,16 @@ async def queued_photo(bot, chat_id, photo, *, delivery_key, expires=None, **kwa
     return True
 
 
+async def queued_rich_message(bot, chat_id, card, fallback_text, *, delivery_key, expires=None, **kwargs):
+    # Rich blocks are a discriminated union: their default `type` values must
+    # survive persistence. The generic legacy encoder omits model defaults.
+    serialized_card = card.model_dump(exclude_none=True)
+    await queue_actions(f'{delivery_key}:{chat_id}', [
+        {'method': 'send_rich_message', 'kwargs': encode({'rich_message': serialized_card, '_fallback_text': fallback_text, **kwargs})}
+    ], [(chat_id, 'Europe/Moscow')], expires or time.time() + 86400)
+    return True
+
+
 async def dispatch(bot, row):
     payload = json.loads(row['payload'])
     if row['channel'] == 'webpush':
@@ -98,10 +108,17 @@ async def dispatch(bot, row):
         kwargs['reply_markup'] = InlineKeyboardMarkup.model_validate(kwargs['reply_markup'])
     if action['method'] == 'send_media_group':
         kwargs['media'] = [InputMediaPhoto.model_validate(item) for item in kwargs['media']]
-    if action['method'] not in {'send_message','send_photo','send_media_group'}:
+    if action['method'] not in {'send_message','send_photo','send_media_group','send_rich_message'}:
         return 'failed','unsupported_method',None,0
     await _apply_sound_preference(row['telegram_id'],kwargs)
-    result = await getattr(bot,action['method'])(chat_id=row['telegram_id'], **kwargs)
+    if action['method'] == 'send_rich_message':
+        from aiogram.types import InputRichMessage
+        from app.utils.telegram_presentation import send_card
+        fallback = kwargs.pop('_fallback_text')
+        card = InputRichMessage.model_validate(kwargs.pop('rich_message'))
+        result = await send_card(bot, row['telegram_id'], card, fallback, **kwargs)
+    else:
+        result = await getattr(bot,action['method'])(chat_id=row['telegram_id'], **kwargs)
     message = result[0] if isinstance(result,list) else result
     message_id = message.message_id if isinstance(message.message_id,int) else None
     async with connection() as conn:

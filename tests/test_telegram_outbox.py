@@ -141,3 +141,67 @@ async def test_binary_photo_and_group_delivery(queue):
     kwargs = bot.send_photo.call_args.kwargs
     assert kwargs['chat_id'] == -100 and kwargs['has_spoiler']
     assert isinstance(kwargs['photo'],BufferedInputFile) and kwargs['photo'].data == b'png-test'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('original_rich', [True, False])
+async def test_rich_upgrade_preserves_frozen_delivery_and_deduplicates(queue, monkeypatch, original_rich):
+    from aiogram.types import InputRichMessage
+    from app.services.delivery_adapters import queued_photo, queued_rich_message
+    from app.utils.telegram_presentation import race_card, personal_buttons
+    monkeypatch.setenv('TELEGRAM_RICH_MESSAGES', '1')
+    await queue.conn.execute('INSERT INTO group_chats(chat_id) VALUES(-100)')
+    await queue.conn.commit()
+    bot = SimpleNamespace(
+        send_rich_message=AsyncMock(return_value=SimpleNamespace(message_id=31)),
+        send_photo=AsyncMock(return_value=SimpleNamespace(message_id=32)),
+        send_message=AsyncMock(),
+    )
+    card = race_card('Test GP', 2026, 15, [{'pos': 1, 'driver': 'RUS', 'points': 25}], {'items': []})
+    async def rich():
+        await queued_rich_message(bot, -100, card, 'Full fallback', delivery_key='race-photo:2026:15', reply_markup=personal_buttons(2026, 15))
+    async def photo():
+        await queued_photo(bot, -100, b'original-png', delivery_key='race-photo:2026:15')
+    await (rich() if original_rich else photo())
+    await (photo() if original_rich else rich())
+    await outbox.drain(bot)
+    await outbox.drain(bot)
+    assert await outbox.delivery_counts('race-photo:2026:15:-100') == {'sent': 1}
+    bot.send_message.assert_not_awaited()
+    if original_rich:
+        bot.send_photo.assert_not_awaited()
+        bot.send_rich_message.assert_awaited_once()
+        sent = bot.send_rich_message.await_args.kwargs
+        assert isinstance(sent['rich_message'], InputRichMessage)
+        assert sent['chat_id'] == -100
+        assert sent['reply_markup'].inline_keyboard[-1][0].callback_data == 'personal:review:2026:15'
+    else:
+        bot.send_rich_message.assert_not_awaited()
+        bot.send_photo.assert_awaited_once()
+        assert bot.send_photo.await_args.kwargs['photo'].data == b'original-png'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('ambiguous', [False, True])
+async def test_queued_rich_fallback_is_only_for_explicit_feature_rejection(queue, monkeypatch, ambiguous):
+    from aiogram.methods import SendRichMessage
+    from app.services.delivery_adapters import queued_rich_message
+    from app.utils.telegram_presentation import race_card
+    monkeypatch.setenv('TELEGRAM_RICH_MESSAGES', '1')
+    card = race_card('Test GP', 2026, 15, [], {'items': []})
+    method = SendRichMessage(chat_id=1, rich_message=card)
+    failure = (TelegramNetworkError(method=method, message='timeout') if ambiguous else
+               TelegramBadRequest(method=method, message='rich message is not supported'))
+    bot = SimpleNamespace(send_rich_message=AsyncMock(side_effect=failure),
+                          send_message=AsyncMock(return_value=SimpleNamespace(message_id=33)))
+    await queued_rich_message(bot, 1, card, 'Verified classification', delivery_key='rich-fallback')
+    await outbox.drain(bot)
+    await outbox.drain(bot)
+    bot.send_rich_message.assert_awaited_once()
+    if ambiguous:
+        bot.send_message.assert_not_awaited()
+        assert await outbox.delivery_counts('rich-fallback:1') == {'unknown': 1}
+    else:
+        bot.send_message.assert_awaited_once()
+        assert bot.send_message.await_args.kwargs['text'] == 'Verified classification'
+        assert await outbox.delivery_counts('rich-fallback:1') == {'sent': 1}

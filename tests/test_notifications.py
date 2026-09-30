@@ -25,7 +25,11 @@ from app.utils.safe_send import safe_send_photo
 
 
 @pytest.fixture(autouse=True)
-def isolated_delivery_receipts():
+def isolated_delivery_receipts(monkeypatch):
+    # This module covers the retained image transport. Native cards have their
+    # own isolated tests; no new adapter may touch a real DB from legacy mocks.
+    monkeypatch.setenv("TELEGRAM_RICH_MESSAGES", "0")
+    monkeypatch.setattr("app.utils.notifications.get_race_recap", AsyncMock(return_value={"items": []}))
     with patch("app.utils.notifications.was_reminder_sent", AsyncMock(return_value=False)), patch(
         "app.utils.notifications.set_reminder_sent", AsyncMock()
     ), patch(
@@ -520,8 +524,12 @@ async def test_race_results_wait_until_race_can_be_finished():
 
 
 @pytest.mark.asyncio
-async def test_race_results_send_image_and_separate_favorites_message():
-    """После гонки пользователь получает общую картинку и отдельный текст по избранному."""
+@pytest.mark.parametrize("native,spoiler,group", [(n, s, g) for n in (False, True) for s in (False, True) for g in (False, True)])
+async def test_race_results_send_image_and_separate_favorites_message(monkeypatch, native, spoiler, group):
+    """Native cards preserve spoilers, group privacy and old delivery keys."""
+    monkeypatch.setenv("TELEGRAM_RICH_MESSAGES", "1" if native else "0")
+    monkeypatch.setattr("app.utils.notifications.web_classification", AsyncMock())
+    monkeypatch.setattr("app.utils.notifications.publish_web", AsyncMock())
     now = datetime.now(timezone.utc)
     schedule = [{
         "round": 9,
@@ -534,7 +542,7 @@ async def test_race_results_send_image_and_separate_favorites_message():
     ])
 
     async def users_side_effect(notifications_only: bool = False):
-        return [(111, "Europe/Moscow", 60, 1)]
+        return [(111, "Europe/Moscow", 60, 1, 0, int(spoiler))]
 
     with patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
             patch("app.utils.notifications.get_last_notified_round", new_callable=AsyncMock) as m_last, \
@@ -546,6 +554,7 @@ async def test_race_results_send_image_and_separate_favorites_message():
             patch("app.utils.notifications.get_driver_standings_async", new_callable=AsyncMock) as m_standings, \
             patch("app.utils.notifications.create_f1_style_classification_image") as m_render, \
             patch("app.utils.notifications.safe_send_photo", new_callable=AsyncMock) as m_photo, \
+            patch("app.utils.notifications.queued_rich_message", new_callable=AsyncMock) as m_rich, \
             patch("app.utils.notifications.safe_send_message", new_callable=AsyncMock) as m_message, \
             patch("app.utils.notifications.RACE_RESULTS_MIN_ROWS", 1), \
             patch("app.utils.notifications.set_last_notified_round", new_callable=AsyncMock) as m_set_round:
@@ -554,15 +563,25 @@ async def test_race_results_send_image_and_separate_favorites_message():
         m_results.return_value = results_df
         m_invite.return_value = 9
         m_favs.return_value = {111: {"drivers": ["VER"], "teams": ["Red Bull"]}}
-        m_groups.return_value = []
+        m_groups.return_value = [-100] if group else []
         m_standings.return_value = pd.DataFrame()
         m_render.return_value = io.BytesIO(b"test-image")
         m_photo.return_value = True
+        m_rich.return_value = True
         m_message.return_value = True
         await check_and_send_results(bot=object())
 
-    assert m_photo.await_count == 1
-    assert m_photo.await_args.kwargs["has_spoiler"] is False
+    expected_photos = ([] if native and not spoiler else [111]) + ([-100] if group and not native else [])
+    expected_rich = ([111] if native and not spoiler else []) + ([-100] if native and group else [])
+    assert [call.args[1] for call in m_photo.await_args_list] == expected_photos
+    assert [call.args[1] for call in m_rich.await_args_list] == expected_rich
+    for sent in m_photo.await_args_list + m_rich.await_args_list:
+        assert sent.kwargs["delivery_key"].startswith("race-photo:")
+        keyboard = sent.kwargs["reply_markup"]
+        assert keyboard.inline_keyboard[-1][0].callback_data.endswith(":9")
+    if 111 in expected_photos:
+        assert m_photo.await_args_list[0].kwargs["has_spoiler"] is spoiler
+    assert m_render.call_count == (1 if not native or spoiler else 0)
     favorite_texts = [call.args[2] for call in m_message.await_args_list if len(call.args) >= 3]
     assert any("Пилоты" in text and "Команды" in text for text in favorite_texts)
     assert m_set_round.await_count == 1
