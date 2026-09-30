@@ -265,7 +265,9 @@ async def test_external_cancellation_is_not_suppressed(local):
 async def test_stopping_comparison_cancels_all_pending_race_requests(local, monkeypatch):
     bot, session = local
     entered, cancelled, ready = [], [], asyncio.Event()
-    async def race_request(year, round_num):
+    async def race_request(year, round_num=None):
+        if round_num is None:
+            return pd.DataFrame([{"driverCode": "ALO", "points": 25}, {"driverCode": "HAM", "points": 25}])
         entered.append(round_num)
         if len(entered) == 2:
             ready.set()
@@ -275,7 +277,7 @@ async def test_stopping_comparison_cancels_all_pending_race_requests(local, monk
             cancelled.append(round_num)
     monkeypatch.setattr(compare, "get_season_schedule_short_async", AsyncMock(return_value=[
         {"round": 1, "event_name": "First GP"}, {"round": 2, "event_name": "Second GP"}]))
-    monkeypatch.setattr(compare, "get_race_results_async", race_request)
+    monkeypatch.setattr(compare, "get_driver_standings_async", race_request)
     render = AsyncMock()
     monkeypatch.setattr(compare, "create_comparison_image", render)
     task = asyncio.create_task(compare.send_comparison_graph(message(bot), "ALO", "HAM", 2025))
@@ -292,22 +294,24 @@ async def test_stopping_comparison_cancels_all_pending_race_requests(local, monk
 async def test_parallel_comparison_keeps_points_in_schedule_order(local, monkeypatch):
     rendered = []
     second_done = asyncio.Event()
-    async def race_request(year, round_num):
+    async def race_request(year, round_num=None):
+        if round_num is None:
+            return pd.DataFrame([{"driverCode": "ALO", "points": 25}, {"driverCode": "HAM", "points": 50}])
         if round_num == 1:
             await second_done.wait()
         else:
             second_done.set()
-        return pd.DataFrame([{"Abbreviation": "ALO", "Points": 25 if round_num == 1 else 0},
-                             {"Abbreviation": "HAM", "Points": 0 if round_num == 1 else 25}])
+        return pd.DataFrame([{"driverCode": "ALO", "points": 25},
+                             {"driverCode": "HAM", "points": 0 if round_num == 1 else 50}])
     def image(data1, data2, labels):
         rendered.append((data1["history"], data2["history"], labels))
         return BytesIO(b"local-image")
     monkeypatch.setattr(compare, "get_season_schedule_short_async", AsyncMock(return_value=[
         {"round": 1, "event_name": "First Grand Prix"}, {"round": 2, "event_name": "Second Grand Prix"}]))
-    monkeypatch.setattr(compare, "get_race_results_async", race_request)
+    monkeypatch.setattr(compare, "get_driver_standings_async", race_request)
     monkeypatch.setattr(compare, "create_comparison_image", image)
     await compare.send_comparison_graph(message(local[0]), "ALO", "HAM", 2025)
-    assert rendered == [([25, 0], [0, 25], ["First", "Second"])]
+    assert rendered == [([25, 25], [0, 50], ["First", "Second"])]
 
 
 @pytest.mark.asyncio

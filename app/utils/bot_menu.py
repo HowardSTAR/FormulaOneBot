@@ -21,7 +21,7 @@ SECTIONS = {
         [("🤝 С друзьями", "nav:action:community"), ("🎮 Игры", "nav:section:games")],
         [("← Главное меню", "nav:section:home")],
     ]),
-    "stats": ("📊 Статистика", "Зачёты, сравнение пилотов и история чемпионата.", [
+    "stats": ("📊 Статистика", "Зачёты, сравнение пилотов и команд, история чемпионата.", [
         [("🏎 Личный зачёт", "nav:action:drivers"), ("🏆 Кубок команд", "nav:action:teams")],
         [("⚔️ Сравнение", "nav:action:compare"), ("📈 История сезонов", "nav:action:history")],
         [("← Разделы", "nav:section:sections")],

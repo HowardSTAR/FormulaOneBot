@@ -60,7 +60,7 @@ async def _send_teams_for_year(message: Message, season: int, telegram_id: int |
             favorite_teams = await get_favorite_teams(telegram_id)
 
         lines: list[str] = []
-        rows_for_image: list[tuple[str, str, str, str]] = []
+        rows_for_image: list[dict] = []
 
         for row in df.itertuples(index=False):
             # --- position ---
@@ -121,19 +121,14 @@ async def _send_teams_for_year(message: Message, season: int, telegram_id: int |
             line = (
                 f"{trophy}"
                 f"{pos_display}. {display_team_name} — "
-                f"{points:.0f} очков"
+                f"{points:g} очков"
             )
             lines.append(line)
 
             # Данные для картинки
-            rows_for_image.append(
-                (
-                    position_str,
-                    constructor_code,
-                    display_team_name,
-                    f"{points:.0f} очк.",
-                )
-            )
+            rows_for_image.append({"pos": position_str, "code": constructor_code,
+                                   "name": team_name, "points": f"{points:g}",
+                                   "favorite": team_name in favorite_teams or constructor_code in favorite_teams})
 
         if not lines:
             await message.answer(f"Не удалось отобразить команды за {season} год (нет корректных данных).")

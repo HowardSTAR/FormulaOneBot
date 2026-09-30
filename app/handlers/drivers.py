@@ -1,6 +1,6 @@
 import asyncio
 import math
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 
 from aiogram import Router, F
 from aiogram.enums import ChatType
@@ -19,7 +19,6 @@ from aiogram.types import (
 from app.db import get_favorite_drivers
 from app.f1_data import (
     get_driver_standings_async,
-    get_season_schedule_short_async,
     sort_standings_zero_last,
 )
 from app.utils.default import validate_f1_year
@@ -37,26 +36,9 @@ class DriversYearState(StatesGroup):
 async def _send_drivers_for_year(message: Message, season: int, telegram_id: int | None = None) -> None:
     async with Loader(message, text="⏳ Получаю таблицу пилотов...") as loader:
         try:
-            round_number = None
-            if season == datetime.now().year:
-                schedule = await get_season_schedule_short_async(season)
-                if schedule:
-                    now = datetime.now(timezone.utc)
-                    for r in schedule:
-                        if not r.get("race_start_utc"):
-                            continue
-                        try:
-                            race_dt = datetime.fromisoformat(r["race_start_utc"])
-                            if race_dt.tzinfo is None:
-                                race_dt = race_dt.replace(tzinfo=timezone.utc)
-                            offset = 9 if r.get("is_testing") else 1
-                            if now > race_dt + timedelta(hours=offset):
-                                round_number = r["round"]
-                            else:
-                                break
-                        except Exception:
-                            continue
-            df = await get_driver_standings_async(season, round_number)
+            # Same published season table as teams and the comparison picker.
+            # Do not infer the last classification from an elapsed-time guess.
+            df = await get_driver_standings_async(season)
         except Exception:
             await message.answer(
                 "❌ Не удалось получить таблицу пилотов.\n"
@@ -78,7 +60,7 @@ async def _send_drivers_for_year(message: Message, season: int, telegram_id: int
             except Exception:
                 favorite_codes = set()
 
-        rows: list[tuple[str, str, str, str]] = []
+        rows: list[dict] = []
 
         for row in df.itertuples(index=False):
             pos_raw = getattr(row, "position", None)
@@ -113,21 +95,9 @@ async def _send_drivers_for_year(message: Message, season: int, telegram_id: int
             family_name = getattr(row, "familyName", "")
             full_name = f"{given_name} {family_name}".strip()
 
-            if code and code in favorite_codes:
-                code_label = f"⭐️ {code}"
-            else:
-                code_label = code
-
-            points_text = f"{points:.0f} очк."
-
-            rows.append(
-                (
-                    position_str,
-                    code_label,
-                    full_name or code_label or str(position_val),
-                    points_text,
-                )
-            )
+            rows.append({"pos": position_str, "code": code, "name": full_name or code or str(position_val),
+                         "points": f"{points:g}", "team": getattr(row, "constructorName", "") or "",
+                         "favorite": code in favorite_codes})
 
         if not rows:
             await message.answer(
@@ -227,6 +197,9 @@ async def drivers_year_from_text(message: Message, state: FSMContext):
 
 @router.callback_query(F.data.startswith("drivers_current_"))
 async def drivers_year_current(callback: CallbackQuery, state: FSMContext) -> None:
+    if (await state.get_state() or "").startswith("CompareState:"):
+        await safe_answer_callback(callback, "Это старая кнопка личного зачёта. В сравнении выберите сезон под новым сообщением.", show_alert=True)
+        return
     await state.clear()
     await safe_answer_callback(callback)
     year_str = callback.data.split("_")[-1]

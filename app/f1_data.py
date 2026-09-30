@@ -1577,7 +1577,7 @@ async def get_season_schedule_short_async(season: int):
     return await _run_sync(get_season_schedule_short, season)
 
 
-@cache_result(ttl=3600, key_prefix="dr_standings_v4")
+@cache_result(ttl=3600, key_prefix="dr_standings_v5")
 async def get_driver_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
     """Асинхронно получает личный зачет (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/driverStandings.json?limit=100" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/driverStandings.json?limit=100"
@@ -1620,6 +1620,8 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
                         df = pd.DataFrame(parsed_data)
                         # Если Jolpica вернул слишком мало пилотов — берём из Ergast
                         if len(df) >= 5:
+                            if str(standings_lists[0].get("round", "")).isdigit():
+                                df.attrs["round"] = int(standings_lists[0]["round"])
                             return sort_standings_zero_last(df)
                         logger.warning(f"Jolpica returned only {len(df)} drivers for {season}, falling back to Ergast")
         except Exception as e:
@@ -1643,7 +1645,7 @@ async def get_driver_standings_async(season: int, round_number: int | None = Non
     return pd.DataFrame()
 
 
-@cache_result(ttl=3600, key_prefix="con_standings_v4")
+@cache_result(ttl=3600, key_prefix="con_standings_v5")
 async def get_constructor_standings_async(season: int, round_number: int | None = None) -> pd.DataFrame:
     """Асинхронно получает кубок конструкторов (Jolpica API). Фоллбэк: Ergast для старых сезонов, OpenF1 для текущего."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}/{round_number}/constructorStandings.json?limit=100" if round_number else f"https://api.jolpi.ca/ergast/f1/{season}/constructorStandings.json?limit=100"
@@ -1669,6 +1671,8 @@ async def get_constructor_standings_async(season: int, round_number: int | None 
                             })
                         df = pd.DataFrame(parsed_data)
                         if len(df) >= 3:
+                            if str(standings_lists[0].get("round", "")).isdigit():
+                                df.attrs["round"] = int(standings_lists[0]["round"])
                             return sort_standings_zero_last(df)
                         logger.warning(f"Jolpica returned only {len(df)} constructors for {season}, falling back to Ergast")
         except Exception as e:

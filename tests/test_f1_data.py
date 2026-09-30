@@ -440,3 +440,40 @@ async def test_formula1_practice_fallback_uses_calendar_round_link():
 
     assert results[0]["driver"] == "ANT"
     assert request.await_args_list[1].args[0].endswith("/1002/china/practice/1")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["drivers", "teams"])
+async def test_published_standings_keep_round_metadata_and_fractional_points(monkeypatch, kind):
+    from app import f1_data
+
+    driver = kind == "drivers"
+    entries = [{"position": str(i + 1), "points": "12.5", "wins": "0",
+                **({"Driver": {"driverId": f"driver_{i}", "code": f"D{i}", "familyName": f"Pilot {i}"}}
+                   if driver else {"Constructor": {"constructorId": f"team_{i}", "name": f"Team {i}"}})}
+               for i in range(5 if driver else 3)]
+    payload = {"MRData": {"StandingsTable": {"StandingsLists": [
+        {"round": "2", "DriverStandings" if driver else "ConstructorStandings": entries}]}}}
+    urls = []
+
+    class Response:
+        status = 200
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, *args):
+            pass
+        async def json(self):
+            return payload
+
+    class Session(Response):
+        def get(self, url):
+            urls.append(url)
+            return Response()
+
+    monkeypatch.setattr(f1_data, "_profile_http_session", Session)
+    getter = f1_data.get_driver_standings_async if driver else f1_data.get_constructor_standings_async
+    table = await getter.__wrapped__(2025, 2)
+    assert table.attrs["round"] == 2
+    assert sort_standings_zero_last(table).attrs["round"] == 2
+    assert table["points"].tolist() == [12.5] * len(entries)
+    assert urls[0].endswith(f"/2025/2/{'driver' if driver else 'constructor'}Standings.json?limit=100")

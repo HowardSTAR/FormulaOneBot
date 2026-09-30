@@ -1,307 +1,247 @@
+"""Season → participant pair → graphs, with isolated callbacks and sessions."""
 import asyncio
 import logging
+import re
+import secrets
 import time
-from datetime import datetime, timezone
+from datetime import datetime
+from html import escape
 
-from aiogram import Router, F
+from aiogram import F, Router
+from aiogram.enums import ChatType
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, Message
 
 from app.db import get_favorite_drivers
-from app.f1_data import get_season_schedule_short_async, get_race_results_async, get_driver_standings_async
+from app.f1_data import get_season_schedule_short_async, get_driver_standings_async, get_constructor_standings_async
+from app.services.bot_comparison import load_points_series
 from app.utils.default import validate_f1_year
 from app.utils.image_render import create_comparison_image
 from app.utils.loader import Loader
 from app.utils.safe_send import safe_answer_callback
+from app.utils.telegram_presentation import disabled_button
 
 logger = logging.getLogger(__name__)
 router = Router()
+PAGE_SIZE = 8
 
 
-# --- 1. Машина состояний (FSM) ---
 class CompareState(StatesGroup):
+    waiting_for_kind = State()
     waiting_for_year = State()
     waiting_for_driver_1 = State()
     waiting_for_driver_2 = State()
 
 
-# --- Вспомогательная функция для клавиатуры ---
-def build_drivers_keyboard(
-    drivers: list[dict],
-    prefix: str,
-    exclude_code: str | None = None,
-    favorite_codes: set[str] | None = None,
-) -> InlineKeyboardMarkup:
-    """drivers: [{"code": "VER", "name": "Verstappen"}, ...]. Кнопки показывают имя, callback — код."""
-    builder = []
-    row = []
-    fav = favorite_codes or set()
-    sorted_drivers = sorted(drivers, key=lambda d: d["name"])
-    for d in sorted_drivers:
-        if exclude_code and d["code"] == exclude_code:
-            continue
-        label = d["name"][:20] if len(d["name"]) > 20 else d["name"]
-        if d["code"] in fav:
-            label = f"⭐ {label}"
-        row.append(InlineKeyboardButton(text=label, callback_data=f"{prefix}{d['code']}"))
-        if len(row) == 3:
-            builder.append(row)
-            row = []
-    if row:
-        builder.append(row)
-    return InlineKeyboardMarkup(inline_keyboard=builder)
+def build_drivers_keyboard(drivers, prefix, exclude_code=None, favorite_codes=None):
+    """Compatibility helper; callbacks do not contain display names."""
+    buttons = [InlineKeyboardButton(text=("⭐ " if d["code"] in (favorite_codes or set()) else "") + d["name"],
+                                   callback_data=f"{prefix}{d['code']}")
+               for d in sorted(drivers, key=lambda d: d["name"]) if d["code"] != exclude_code]
+    return InlineKeyboardMarkup(inline_keyboard=[buttons[i:i + 2] for i in range(0, len(buttons), 2)])
 
 
-# --- 2. Старт диалога ---
+def _navigation(nonce):
+    return [InlineKeyboardButton(text="Отмена", callback_data=f"cmp:cancel:{nonce}")]
+
+
+def _year_keyboard(nonce):
+    year = datetime.now().year
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"Текущий сезон ({year})", callback_data=f"cmp:year:{nonce}:{year}", style="primary")],
+        [InlineKeyboardButton(text="← Пилоты / команды", callback_data=f"cmp:kind-menu:{nonce}")],
+        _navigation(nonce),
+    ])
+
+
+def _picker(data, second=False, page=0):
+    options = [(i, d) for i, d in enumerate(data["participants"]) if not second or i != data["first"]]
+    last_page = max(0, (len(options) - 1) // PAGE_SIZE)
+    page = max(0, min(page, last_page))
+    nonce = data["nonce"]
+    buttons = [InlineKeyboardButton(text=("⭐ " if item.get("favorite") else "") + item["name"],
+                                   callback_data=f"cmp:pick:{nonce}:{index}")
+               for index, item in options[page * PAGE_SIZE:(page + 1) * PAGE_SIZE]]
+    rows = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+    if len(options) > PAGE_SIZE:
+        rows.append([
+            InlineKeyboardButton(text="←", callback_data=f"cmp:page:{nonce}:{page - 1}") if page else disabled_button("←"),
+            disabled_button(f"{page + 1} / {last_page + 1}"),
+            InlineKeyboardButton(text="→", callback_data=f"cmp:page:{nonce}:{page + 1}") if page < last_page else disabled_button("→"),
+        ])
+    if second:
+        rows.append([InlineKeyboardButton(text="← Изменить первого участника", callback_data=f"cmp:first:{nonce}")])
+    rows.append([InlineKeyboardButton(text="Другой сезон", callback_data=f"cmp:season:{nonce}")])
+    rows.append(_navigation(nonce))
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def _picker_text(data, second=False):
+    title = "пилотов" if data["kind"] == "drivers" else "команд"
+    text = f"📊 <b>Сравнение {title} · {data['year']}</b>\n\n"
+    if second:
+        text += "Первый участник: <b>" + escape(data["participants"][data["first"]]["name"]) + "</b>\n\n"
+    return text + ("Выберите второго участника:" if second else "Выберите первого участника:")
+
+
+def _actor_message(callback):
+    return callback.message.model_copy(update={"from_user": callback.from_user, "text": None, "entities": None}).as_(callback.bot)
+
+
 @router.message(F.text == "⚔️ Сравнение")
 @router.message(Command("compare"))
 async def cmd_compare(message: Message, state: FSMContext):
     await state.clear()
-    current_year = datetime.now().year
+    nonce = secrets.token_hex(4)
+    await state.update_data(nonce=nonce)
+    await state.set_state(CompareState.waiting_for_kind)
+    await message.answer("📊 <b>Сравнение</b>\n\nВыберите пилотов или команды, затем сезон и двух участников.", parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="🏎 Пилоты", callback_data=f"cmp:kind:{nonce}:drivers", style="primary"),
+            InlineKeyboardButton(text="🏆 Команды", callback_data=f"cmp:kind:{nonce}:teams"),
+        ], _navigation(nonce)]))
 
-    kb = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=f"Текущий сезон ({current_year})", callback_data=f"drivers_current_{current_year}",)],
-            [InlineKeyboardButton(text="❌ Закрыть", callback_data="close_menu")]
-        ]
-    )
 
-    await message.answer(
-        "🏎️ <b>Сравнение пилотов</b>\n\n"
-        "Введите год сезона или нажмите на кнопку для текущего сезона:",
-        reply_markup=kb, parse_mode="HTML"
-    )
+async def _ask_year(message, state, data):
     await state.set_state(CompareState.waiting_for_year)
+    label = "пилотов" if data["kind"] == "drivers" else "команд"
+    await message.answer(f"📅 <b>Сравнение {label}</b>\n\nВведите год сезона или выберите текущий.",
+                         reply_markup=_year_keyboard(data["nonce"]), parse_mode="HTML")
 
 
-# --- 3. Обработка года ---
+async def _load_participants(message, state, year):
+    data = await state.get_data()
+    error = validate_f1_year(year)
+    if data.get("kind") == "teams" and year < 1958:
+        error = "Кубок конструкторов существует с 1958 года. Выберите другой сезон."
+    if error:
+        await message.answer(error)
+        return
+    async with Loader(message, f"Загружаю участников сезона {year}…"):
+        fetch = get_driver_standings_async if data["kind"] == "drivers" else get_constructor_standings_async
+        try:
+            standings = await asyncio.wait_for(fetch(year), timeout=20)
+        except Exception:
+            await message.answer("Источник зачёта недоступен. Попробуйте другой сезон или повторите позже.")
+            return
+        participants, seen = [], set()
+        favorites = set()
+        if data["kind"] == "drivers" and message.chat.type == ChatType.PRIVATE:
+            favorites = set(await get_favorite_drivers(message.from_user.id))
+        if standings is not None and not standings.empty:
+            for row in standings.to_dict("records"):
+                driver = data["kind"] == "drivers"
+                identifier = str(row.get("driverId") or row.get("driverCode") or "") if driver else str(row.get("constructorId") or row.get("constructorName") or "")
+                if not identifier or identifier in seen:
+                    continue
+                seen.add(identifier)
+                name = f"{row.get('givenName', '')} {row.get('familyName', '')}".strip() if driver else str(row.get("constructorName") or identifier)
+                participants.append({"id": identifier, "code": str(row.get("driverCode") or identifier),
+                                     "name": name or identifier, "favorite": row.get("driverCode") in favorites})
+        if len(participants) < 2:
+            await message.answer(f"За {year} год не удалось найти двух участников. Выберите другой сезон.")
+            return
+    participants.sort(key=lambda p: p["name"].casefold())
+    await state.update_data(year=year, participants=participants, first=None)
+    await state.set_state(CompareState.waiting_for_driver_1)
+    data = await state.get_data()
+    await message.answer(_picker_text(data), reply_markup=_picker(data), parse_mode="HTML")
+
+
 @router.message(CompareState.waiting_for_year)
 async def process_compare_year(message: Message, state: FSMContext):
-    if not message.text.isdigit():
-        await message.answer("Пожалуйста, введите год числом.")
+    if not (message.text or "").strip().isdigit():
+        await message.answer("Введите год числом, например 1997, или нажмите «Текущий сезон».")
         return
+    await _load_participants(message, state, int(message.text.strip()))
 
-    year = int(message.text)
-    error_msg = validate_f1_year(year)
-    if error_msg:
-        await message.answer(error_msg)
+
+@router.callback_query(F.data.startswith("cmp:"))
+async def comparison_callback(callback: CallbackQuery, state: FSMContext):
+    if not isinstance(callback.message, Message):
+        await safe_answer_callback(callback, "Откройте сравнение снова.")
         return
-
-    async with Loader(message, f"⏳ Загружаю список пилотов сезона {year}...") as loader:
-        standings = await get_driver_standings_async(year)
-        favorite_codes = set(await get_favorite_drivers(message.from_user.id))
-
-        if standings.empty:
-            await message.answer(f"❌ Не удалось найти данные о пилотах за {year} год.")
+    parts = (callback.data or "").split(":")
+    if len(parts) == 4 and parts[1] == "new" and parts[2] in {"drivers", "teams"} and parts[3].isdigit():
+        await safe_answer_callback(callback)
+        await state.clear()
+        await state.update_data(nonce=secrets.token_hex(4), kind=parts[2])
+        await state.set_state(CompareState.waiting_for_year)
+        await _load_participants(_actor_message(callback), state, int(parts[3]))
+        return
+    data = await state.get_data()
+    if len(parts) not in (3, 4) or not data.get("nonce") or parts[2] != data["nonce"]:
+        await safe_answer_callback(callback, "Эта кнопка устарела. Откройте своё сравнение заново.", show_alert=True)
+        return
+    action, current = parts[1], await state.get_state()
+    await safe_answer_callback(callback)
+    message = _actor_message(callback)
+    if action == "cancel":
+        await state.clear()
+        await callback.message.edit_text("Сравнение отменено. Можно выбрать другой раздел.")
+    elif action == "kind-menu":
+        await cmd_compare(message, state)
+    elif action == "kind" and len(parts) == 4 and parts[3] in {"drivers", "teams"} and current == CompareState.waiting_for_kind.state:
+        await state.update_data(kind=parts[3])
+        await _ask_year(message, state, await state.get_data())
+    elif action == "season" and current in {CompareState.waiting_for_driver_1.state, CompareState.waiting_for_driver_2.state}:
+        await _ask_year(message, state, data)
+    elif action == "year" and len(parts) == 4 and parts[3].isdigit() and current == CompareState.waiting_for_year.state:
+        await _load_participants(message, state, int(parts[3]))
+    elif action == "first" and data.get("participants") and current == CompareState.waiting_for_driver_2.state:
+        await state.update_data(first=None)
+        await state.set_state(CompareState.waiting_for_driver_1)
+        await callback.message.edit_text(_picker_text(data), reply_markup=_picker(data), parse_mode="HTML")
+    elif action == "page" and len(parts) == 4 and re.fullmatch(r"\d{1,3}", parts[3]) and current in {CompareState.waiting_for_driver_1.state, CompareState.waiting_for_driver_2.state}:
+        second = current == CompareState.waiting_for_driver_2.state
+        await callback.message.edit_text(_picker_text(data, second), reply_markup=_picker(data, second, int(parts[3])), parse_mode="HTML")
+    elif action == "pick" and len(parts) == 4 and parts[3].isdigit() and current in {CompareState.waiting_for_driver_1.state, CompareState.waiting_for_driver_2.state}:
+        index = int(parts[3])
+        if not 0 <= index < len(data["participants"]):
+            return
+        if current == CompareState.waiting_for_driver_1.state:
+            await state.update_data(first=index)
+            await state.set_state(CompareState.waiting_for_driver_2)
+            data = await state.get_data()
+            await callback.message.edit_text(_picker_text(data, True), reply_markup=_picker(data, True), parse_mode="HTML")
+        elif index != data["first"]:
+            first, second = data["participants"][data["first"]], data["participants"][index]
             await state.clear()
-            return
-
-        try:
-            drivers_list = []
-            seen_codes = set()
-            for _, row in standings.iterrows():
-                code = (
-                    str(row.get("driverCode", "") or row.get("driverId", "") or "")
-                ).upper()[:3]
-                if not code:
-                    continue
-                if code in seen_codes:
-                    continue
-                seen_codes.add(code)
-                family = str(getattr(row, "familyName", None) or getattr(row, "LastName", "") or "").strip()
-                given = str(getattr(row, "givenName", None) or getattr(row, "FirstName", "") or "").strip()
-                name = family or f"{given} {family}".strip() or code
-                drivers_list.append({"code": code, "name": name})
-
-            if not drivers_list:
-                await message.answer(f"❌ Не удалось найти пилотов за {year} год.")
-                await state.clear()
-                return
-
-        except Exception:
-            await message.answer("❌ Ошибка обработки списка пилотов.")
-            return
-
-        await state.update_data(year=year, drivers_list=drivers_list)
-
-    kb = build_drivers_keyboard(drivers_list, prefix="cmp_d1_", favorite_codes=favorite_codes)
-    await message.answer(
-        f"📅 Сезон: <b>{year}</b>\n\nВыберите <b>первого</b> пилота:",
-        reply_markup=kb, parse_mode="HTML"
-    )
-    await state.set_state(CompareState.waiting_for_driver_1)
+            try:
+                await send_comparison_graph(message, first["id"], second["id"], data["year"],
+                                            d1_name=first["name"], d2_name=second["name"], kind=data["kind"])
+            except Exception:
+                logger.exception("Comparison failed")
+                await message.answer("Не удалось построить сравнение. Попробуйте позже или выберите другой сезон.")
 
 
-# --- 4. Выбор первого пилота ---
-def _driver_name(drivers_list: list, code: str) -> str:
-    for d in drivers_list:
-        if d["code"] == code:
-            return d["name"]
-    return code
-
-
-@router.callback_query(CompareState.waiting_for_driver_1, F.data.startswith("cmp_d1_"))
-async def process_driver_1_selection(callback: CallbackQuery, state: FSMContext):
-    driver1_code = callback.data.replace("cmp_d1_", "")
-    data = await state.get_data()
-    drivers_list = data.get("drivers_list", [])
-    year = data.get("year")
-
-    await state.update_data(driver1=driver1_code)
-    name1 = _driver_name(drivers_list, driver1_code)
-
-    favorite_codes = set(await get_favorite_drivers(callback.from_user.id))
-    kb = build_drivers_keyboard(
-        drivers_list, prefix="cmp_d2_", exclude_code=driver1_code, favorite_codes=favorite_codes
-    )
-
-    await callback.message.edit_text(
-        f"📅 Сезон: <b>{year}</b>\n"
-        f"1️⃣ Пилот 1: <b>{name1}</b>\n\n"
-        f"Выберите <b>второго</b> пилота:",
-        reply_markup=kb, parse_mode="HTML"
-    )
-    await state.set_state(CompareState.waiting_for_driver_2)
-    await safe_answer_callback(callback)
-
-
-# --- 5. Выбор второго пилота ---
-@router.callback_query(CompareState.waiting_for_driver_2, F.data.startswith("cmp_d2_"))
-async def process_driver_2_selection(callback: CallbackQuery, state: FSMContext):
-    driver2_code = callback.data.replace("cmp_d2_", "")
-    data = await state.get_data()
-    driver1_code = data.get("driver1")
-    drivers_list = data.get("drivers_list", [])
-    year = data.get("year")
-
-    await state.clear()
-    try:
-        await callback.message.delete()
-    except Exception:
-        pass
-
-    name1 = _driver_name(drivers_list, driver1_code)
-    name2 = _driver_name(drivers_list, driver2_code)
-
-    try:
-        await send_comparison_graph(
-            callback.message, driver1_code, driver2_code, year,
-            d1_name=name1, d2_name=name2,
-        )
-    except Exception as e:
-        logger.exception("Comparison error")
-        await callback.message.answer(f"❌ Произошла ошибка: {e}")
-
-    await safe_answer_callback(callback)
-
-
-# --- 6. Логика генерации (С ПРОГРЕСС-БАРОМ) ---
-async def send_comparison_graph(
-    message: Message, d1_code: str, d2_code: str, year: int,
-    d1_name: str | None = None, d2_name: str | None = None,
-):
-    name1 = d1_name or d1_code
-    name2 = d2_name or d2_code
-    text_init = (
-        f"🏎️ <b>Дуэль: {name1} ⚔️ {name2}</b>\n"
-        f"📅 Сезон: {year}\n\n"
-        f"⏳ Начинаю анализ гонок..."
-    )
-
-    async with Loader(message, text_init) as loader:
-        schedule = await get_season_schedule_short_async(year)
-
-        current_year = datetime.now().year
-        now = datetime.now(timezone.utc)
-
-        passed_races = []
-        for r in schedule:
-            if r.get("race_start_utc"):
-                try:
-                    r_dt = datetime.fromisoformat(r["race_start_utc"])
-                    if r_dt.tzinfo is None: r_dt = r_dt.replace(tzinfo=timezone.utc)
-                    if r_dt <= now:
-                        passed_races.append(r)
-                except:
-                    pass
-            elif year < current_year:
-                passed_races.append(r)
-
-        if not passed_races:
-            await message.answer(f"В сезоне {year} данных о гонках не найдено.")
-            return
-
-        d1_history = []
-        d2_history = []
-        labels = []
-
-        total_races = len(passed_races)
-
-        tasks = []
-        for i, r in enumerate(passed_races):
-            tasks.append(get_race_results_async(year, r["round"]))
-
-        ordered_tasks = [asyncio.create_task(t) for t in tasks]
-        pending = set(ordered_tasks)
-        completed_count = 0
-
-        task_to_index = {task: i for i, task in enumerate(ordered_tasks)}
-        final_results = [None] * total_races
-
-        last_update_time = time.time()
-
-        try:
-            while pending:
-                done, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
-                completed_count += len(done)
-                for t in done:
-                    idx = task_to_index[t]
-                    try:
-                        final_results[idx] = await t
-                    except Exception:
-                        final_results[idx] = None
-                if time.time() - last_update_time > 1.5:
-                    await loader.update(
-                        f"🏎️ <b>Дуэль: {name1} ⚔️ {name2}</b>\n"
-                        f"📅 Сезон: {year}\n\n"
-                        f"Загружено: <b>{completed_count} / {total_races}</b> гонок."
-                    )
-                    last_update_time = time.time()
-        finally:
-            for task in pending:
-                task.cancel()
-            await asyncio.gather(*ordered_tasks, return_exceptions=True)
-
-        await loader.update("🎨 Рисую график...")
-
-        for i, race in enumerate(passed_races):
-            df = final_results[i]
-            label = race.get("event_name", "GP").replace(" Grand Prix", "").replace("Gp", "")
-            labels.append(label)
-
-            pts1 = 0
-            pts2 = 0
-
-            if df is not None and not df.empty:
-                df['Abbreviation'] = df['Abbreviation'].fillna("").astype(str).str.upper()
-
-                row1 = df[df['Abbreviation'] == d1_code]
-                if not row1.empty: pts1 = row1.iloc[0]['Points']
-
-                row2 = df[df['Abbreviation'] == d2_code]
-                if not row2.empty: pts2 = row2.iloc[0]['Points']
-
-            d1_history.append(pts1)
-            d2_history.append(pts2)
-
-        data1 = {"code": d1_code, "name": name1, "history": d1_history, "color": "#ff8700"}
-        data2 = {"code": d2_code, "name": name2, "history": d2_history, "color": "#00d2be"}
-
-        photo_io = await asyncio.to_thread(create_comparison_image, data1, data2, labels)
-        file = BufferedInputFile(photo_io.read(), filename="comparison.png")
-
-        # Когда мы вызываем отправку фото, мы все еще внутри async with.
-        # Как только блок завершится, Loader сам удалит сообщение с "🎨 Рисую график..."
-        await message.answer_photo(file, caption=f"Сравнение: {name1} ⚔️ {name2} ({year})")
+async def send_comparison_graph(message, d1_code, d2_code, year, d1_name=None, d2_name=None, *, kind="drivers"):
+    name1, name2 = d1_name or d1_code, d2_name or d2_code
+    async with Loader(message, f"Готовлю сравнение: {escape(name1)} / {escape(name2)} · {year}") as loader:
+        schedule = await asyncio.wait_for(get_season_schedule_short_async(year), timeout=20)
+        last_update = 0
+        async def progress(completed, total):
+            nonlocal last_update
+            if completed == total or time.monotonic() - last_update >= 1.5:
+                last_update = time.monotonic()
+                await loader.update(f"Загружено зачётов: {completed} / {total}")
+        fetch = get_driver_standings_async if kind == "drivers" else get_constructor_standings_async
+        result = await load_points_series(year, kind, [d1_code, d2_code], schedule, fetch, progress)
+        await loader.update("Рисую графики…")
+        series = [{"code": code, "name": name, "history": history, "total_points": total, "cumulative": True,
+                   "season": year, "kind": kind, "color": color, "rounds": [int(e["round"]) for e in result["events"]]}
+                  for code, name, history, total, color in zip([d1_code, d2_code], [name1, name2], result["histories"], result["totals"], ["#ff625d", "#00d2be"])]
+        labels = [str(e.get("event_name") or f"Этап {e['round']}").replace(" Grand Prix", "") for e in result["events"]]
+        photo = await asyncio.to_thread(create_comparison_image, *series, labels)
+        caption = (f"📊 Сравнение {'пилотов' if kind == 'drivers' else 'команд'} · {year}\n"
+                   f"{escape(name1)} / {escape(name2)}\n\n"
+                   "Официальный зачёт, включая спринты и корректировки. Нижний график — изменение очков за уик-энд.")
+        if result["missing"]:
+            caption += f"\nНет подтверждённых данных по {result['missing']} этапам: на графике пропуски, не нули."
+        await message.answer_photo(BufferedInputFile(photo.getvalue(), filename=f"comparison_{kind}_{year}.png"),
+            caption=caption, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Сравнить другую пару", callback_data=f"cmp:new:{kind}:{year}", style="primary")],
+                [InlineKeyboardButton(text="← Статистика", callback_data="nav:section:stats")],
+            ]))

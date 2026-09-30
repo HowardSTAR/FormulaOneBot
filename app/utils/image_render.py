@@ -241,8 +241,9 @@ def get_asset_path(year: int, category: str, target_name: str) -> Path | None:
     if not target_name:
         return None
 
-    base_dir = Path(__file__).resolve().parents[1] / "assets" / str(year) / category
-    if not base_dir.exists():
+    season_dir = Path(__file__).resolve().parents[1] / "assets" / str(year)
+    base_dir = season_dir / category
+    if category != "teams" and not base_dir.exists():
         return None
 
     search_name = target_name.replace("⭐️", "").replace("⭐", "").strip().lower()
@@ -263,9 +264,21 @@ def get_asset_path(year: int, category: str, target_name: str) -> Path | None:
                      if file.is_file() and file.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".avif"}
                      and normalize(file.stem) in candidates), None)
 
-    for file_path in base_dir.iterdir():
-        if file_path.is_file() and search_name in file_path.stem.strip().lower():
-            return file_path
+    if category == "teams":
+        aliases = {
+            "redbull": {"redbullracing"}, "redbullracing": {"redbull"},
+            "rb": {"racingbulls", "rbf1team"}, "rbf1team": {"racingbulls", "rb"},
+            "racingbulls": {"rbf1team", "rb"}, "vcarb": {"racingbulls"},
+            "alpinef1team": {"alpine"}, "haas": {"haasf1team"},
+            "sauber": {"kicksauber"}, "astonmartin": {"astonmartinf1team"},
+            "cadillacf1team": {"cadillac"}, "audif1team": {"audi"},
+        }
+        identity = _normalize_team_key(search_name)
+        candidates = {identity, *aliases.get(identity, set())}
+        directories = [season_dir / "team-logos", base_dir]
+        return next((file for directory in directories if directory.is_dir() for file in sorted(directory.iterdir())
+                     if file.is_file() and file.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".avif"}
+                     and _normalize_team_key(file.stem) in candidates), None)
     return None
 
 
@@ -402,106 +415,79 @@ def _create_vertical_gradient(width: int, height: int, top_color: tuple, bottom_
     return gradient_strip.resize((width, height), resample=Image.Resampling.NEAREST)
 
 
-def create_comparison_image(
-        driver1_data: dict,
-        driver2_data: dict,
-        labels: List[str]
-) -> BytesIO:
-    """
-    Строит график сравнения накопленных очков двух пилотов.
-    driverX_data: {"code": "VER", "history": [25, 18, ...], "color": "#123456"}
-    labels: список названий трасс (кратко)
-    """
-    # Настройка стиля (Темная тема F1)
-    plt.style.use('dark_background')
-
-    # Размеры и DPI
-    fig, ax = plt.subplots(figsize=(12, 7), dpi=150)
-    fig.patch.set_facecolor('#1e1e23')  # Цвет фона вокруг графика
-    ax.set_facecolor('#1e1e23')  # Цвет поля графика
-
-    # Подготовка данных (кумулятивная сумма)
-    y1 = []
-    current = 0
-    for p in driver1_data["history"]:
-        current += p if p is not None else 0
-        y1.append(current)
-
-    y2 = []
-    current = 0
-    for p in driver2_data["history"]:
-        current += p if p is not None else 0
-        y2.append(current)
-
-    # Обрезаем данные, если гонок прошло меньше, чем в календаре
-    n_races = min(len(y1), len(y2), len(labels))
-    x = range(n_races)
-    y1 = y1[:n_races]
-    y2 = y2[:n_races]
-    labels = labels[:n_races]
-
-    # --- РИСОВАНИЕ ---
-
-    label1 = driver1_data.get("name") or driver1_data.get("code", "?")
-    label2 = driver2_data.get("name") or driver2_data.get("code", "?")
-
-    # Пилот 1
-    color1 = driver1_data.get("color", "#ff8700")
-    ax.plot(x, y1, label=label1, color=color1,
-            linewidth=4, marker='o', markersize=8, markeredgecolor='white', markeredgewidth=1.5)
-
-    # Пилот 2
-    color2 = driver2_data.get("color", "#00d2be")
-    ax.plot(x, y2, label=label2, color=color2,
-            linewidth=4, marker='o', markersize=8, markeredgecolor='white', markeredgewidth=1.5)
-
-    # Заливка под графиком (для лидера)
-    # ax.fill_between(x, y1, y2, where=(y1 > y2), interpolate=True, color=color1, alpha=0.1)
-    # ax.fill_between(x, y1, y2, where=(y2 > y1), interpolate=True, color=color2, alpha=0.1)
-
-    # --- ОФОРМЛЕНИЕ ---
-
-    # Заголовок
-    plt.title(f"Battle: {label1} vs {label2}",
-              fontsize=20, fontweight='bold', color='white', pad=20)
-
-    # Оси
-    ax.grid(color='#444444', linestyle='--', linewidth=0.5, alpha=0.5)
-
-    # Ось X (Трассы) - показываем каждую, если влезает, или через одну
-    ax.set_xticks(x)
-    # Если трасс много (>10), поворачиваем подписи
-    rotation = 45 if n_races > 5 else 0
-    ax.set_xticklabels(labels, rotation=rotation, ha='right', fontsize=10, color='#cccccc')
-
-    # Ось Y (Очки)
-    ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
-    ax.tick_params(axis='y', colors='#cccccc', labelsize=12)
-
-    # Убираем рамки сверху и справа
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['bottom'].set_color('#666666')
-    ax.spines['left'].set_color('#666666')
-
-    # Легенда
-    legend = ax.legend(fontsize=14, frameon=True, facecolor='#2b2b30', edgecolor='none')
-    for text in legend.get_texts():
-        text.set_color("white")
-
-    # Добавляем финальный счет текстом
-    final_score_text = f"{y1[-1]} - {y2[-1]}"
-    plt.text(0.98, 0.05, final_score_text, transform=ax.transAxes,
-             fontsize=24, fontweight='bold', color='white', ha='right', alpha=0.3)
-
-    # Сохранение
-    plt.tight_layout()
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', facecolor='#1e1e23')
-    buf.seek(0)
-    plt.close(fig)  # Обязательно закрываем, чтобы очистить память
-
-    return buf
+def create_comparison_image(driver1_data: dict, driver2_data: dict, labels: List[str]) -> BytesIO:
+    """Official cumulative points and weekend deltas; None is a gap, not zero."""
+    from matplotlib.figure import Figure
+    from matplotlib.backends.backend_agg import FigureCanvasAgg
+    from matplotlib.font_manager import FontProperties
+    from matplotlib.patches import FancyBboxPatch
+    font_path = Path(__file__).resolve().parents[1] / "assets/fonts/Jost-Regular.ttf"
+    bold_path = font_path.with_name("Jost-Bold.ttf")
+    regular = FontProperties(fname=str(font_path)) if font_path.is_file() else FontProperties()
+    bold = FontProperties(fname=str(bold_path)) if bold_path.is_file() else FontProperties(weight="bold")
+    n = min(len(labels), len(driver1_data["history"]), len(driver2_data["history"]))
+    if not n:
+        raise ValueError("Нет данных для графиков.")
+    figure = Figure(figsize=(10.8, 12), dpi=120, facecolor="#0b0c10")
+    FigureCanvasAgg(figure)
+    figure.text(.05, .966, "TURBOTEARS  /  RACE INTELLIGENCE", color="#989aa5", fontsize=14, fontproperties=bold)
+    figure.text(.95, .966, str(driver1_data.get("season") or ""), color="#989aa5", fontsize=14, ha="right", fontproperties=bold)
+    heading = "СРАВНЕНИЕ КОМАНД" if driver1_data.get("kind") == "teams" else "СРАВНЕНИЕ ПИЛОТОВ"
+    figure.text(.05, .916, heading, color="#f5f5f7", fontsize=32, fontproperties=bold)
+    figure.text(.05, .878, "Полный зачёт, включая спринты и корректировки", color="#989aa5", fontsize=15, fontproperties=regular)
+    axes = figure.subplots(2, 1, gridspec_kw={"height_ratios": [1.5, 1]})
+    figure.subplots_adjust(left=.085, right=.955, top=.69, bottom=.16, hspace=.35)
+    colors = [driver1_data.get("color", "#ff625d"), driver2_data.get("color", "#00d2be")]
+    series = [driver1_data, driver2_data]
+    histories = []
+    for index, data in enumerate(series):
+        history, accumulated = [], 0.0
+        for point in data["history"][:n]:
+            if point is None:
+                history.append(float("nan"))
+            elif data.get("cumulative"):
+                history.append(float(point))
+            else:
+                accumulated += float(point)
+                history.append(accumulated)
+        histories.append(history)
+        x = .05 + index * .46
+        card = FancyBboxPatch((x, .751), .435, .081, boxstyle="round,pad=0.009,rounding_size=0.012",
+                              transform=figure.transFigure, facecolor="#17191f", edgecolor=colors[index], linewidth=1)
+        figure.add_artist(card)
+        label = str(data.get("name") or data.get("code") or "—")
+        figure.text(x + .012, .802, label, color=colors[index], fontsize=max(12, 18 - max(0, len(label) - 18) // 3), fontproperties=bold)
+        total = data.get("total_points", history[-1])
+        score = "—" if total is None or not math.isfinite(float(total)) else f"{float(total):g}"
+        figure.text(x + .012, .765, f"{score} очков в опубликованном зачёте", color="#f5f5f7", fontsize=14, fontproperties=regular)
+        axes[0].plot(range(n), history, color=colors[index], marker="o", markersize=4, linewidth=2.7, label=label)
+        deltas = [value - (history[i - 1] if i else 0) for i, value in enumerate(history)]
+        axes[1].bar([i + (-.19 if index == 0 else .19) for i in range(n)], deltas, width=.36, color=colors[index])
+    for ax, title in zip(axes, ["ОЧКИ ПОСЛЕ КАЖДОГО ЭТАПА", "ИЗМЕНЕНИЕ ОЧКОВ ЗА УИК-ЭНД"]):
+        ax.set_facecolor("#0b0c10")
+        ax.set_title(title, loc="left", pad=16, color="#f5f5f7", fontsize=16, fontproperties=bold)
+        ax.grid(axis="y", color="#34343d", linewidth=.6, alpha=.7)
+        ax.set_axisbelow(True)
+        ax.yaxis.set_major_locator(ticker.MaxNLocator(nbins=6))
+        ax.tick_params(colors="#989aa5", labelsize=10)
+        for edge in ("top", "right"):
+            ax.spines[edge].set_visible(False)
+        for edge in ("left", "bottom"):
+            ax.spines[edge].set_color("#34343d")
+        ax.set_xlim(-.6, n - .4)
+        ax.set_xticks(range(n))
+    axes[0].set_xticklabels([str(value) for value in driver1_data.get("rounds", range(1, n + 1))][:n])
+    axes[1].set_xticklabels([str(label)[:17] for label in labels[:n]], rotation=48, ha="right", fontsize=9, fontproperties=regular)
+    axes[1].axhline(0, color="#989aa5", linewidth=.6)
+    figure.text(.05, .069, "Пропуск данных не означает 0 очков. Изменение включает штрафы и пересчёты.",
+                color="#989aa5", fontsize=11, fontproperties=regular)
+    figure.text(.05, .026, "F1HUB.RU", color="#ff625d", fontsize=13, fontproperties=bold)
+    figure.text(.95, .026, "ОФИЦИАЛЬНЫЙ ЗАЧЁТ", color="#989aa5", fontsize=12, ha="right", fontproperties=regular)
+    output = BytesIO()
+    figure.savefig(output, format="png", facecolor=figure.get_facecolor())
+    output.seek(0)
+    figure.clear()
+    return output
 
 
 # --- ОСНОВНАЯ ФУНКЦИЯ ---
@@ -668,38 +654,38 @@ def create_results_image(
 
 
 # Обертки
-def create_driver_standings_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]], season: int) -> BytesIO:
-    def _loader(code: str, name: str):
-        return _get_driver_photo(code, name, season) # Прокидываем год
-
-    def _color(pos: str):
-        try:
-            p = int(pos)
-        except:
-            p = 99
-        if p == 1: return (255, 180, 0)
-        if p == 2: return (192, 192, 192)
-        if p == 3: return (205, 127, 50)
-        return (80, 100, 140)
-
-    return create_results_image(title, subtitle, rows, avatar_loader=_loader, card_color_func=_color)
+def _standings_rows(rows):
+    result = []
+    for row in rows:
+        if isinstance(row, dict):
+            result.append({"team": "", "favorite": False, **row})
+        else:
+            pos, code, name, points = map(str, row[:4])
+            result.append({"pos": pos, "code": code.replace("⭐️", "").replace("⭐", "").strip(),
+                           "name": name.replace("⭐️", "").replace("⭐", "").strip(),
+                           "points": points.replace(" очк.", ""), "team": "",
+                           "favorite": "⭐" in code or "⭐" in name})
+    return result
 
 
-def create_constructor_standings_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]], season: int) -> BytesIO:
-    def _loader(code: str, name: str):
-        return _get_team_logo(code, name, season) # Прокидываем год
+def _local_standings_art(code, name, season, category):
+    path = get_asset_path(season, category, code) or get_asset_path(season, category, name)
+    if path is not None:
+        with Image.open(path) as source:
+            return source.convert("RGBA")
+    return None
 
-    def _color(pos: str):
-        try:
-            p = int(pos)
-        except:
-            p = 99
-        if p == 1: return (255, 180, 0)
-        if p == 2: return (192, 192, 192)
-        if p == 3: return (205, 127, 50)
-        return (220, 40, 40)
 
-    return create_results_image(title, subtitle, rows, avatar_loader=_loader, card_color_func=_color)
+def create_driver_standings_image(title: str, subtitle: str, rows, season: int) -> BytesIO:
+    from app.utils.standings_card import render_standings
+    return render_standings(title, subtitle, _standings_rows(rows), season, "drivers",
+                            lambda code, name, year: _local_standings_art(code, name, year, "pilots"))
+
+
+def create_constructor_standings_image(title: str, subtitle: str, rows, season: int) -> BytesIO:
+    from app.utils.standings_card import render_standings
+    return render_standings(title, subtitle, _standings_rows(rows), season, "teams",
+                            lambda code, name, year: _local_standings_art(code, name, year, "teams"))
 
 
 def create_quali_results_image(title: str, subtitle: str, rows: List[Tuple[str, str, str, str]]) -> BytesIO:
