@@ -1,7 +1,8 @@
 import definitions from '../../app/race_tracks.json'
 import type { Collider, Point } from './collisions'
+import { barrierContours } from './barrierGeometry'
 
-export type TrackObject = { kind: string; x: number; y: number; width?: number; height?: number; radius?: number }
+export type TrackObject = { kind: string; x: number; y: number; width?: number; height?: number; radius?: number; facing?: string }
 export type Track = {
   id: string; name: string; format: string; theme: string; accent: string; description: string
   roadHalfWidth: number; image?: string; autoBarriers: boolean
@@ -11,35 +12,22 @@ export type Track = {
 }
 export const tracks: Track[] = definitions
 
-export function offsetLoop(points: Point[], offset: number): Point[] {
-  return points.map((point, index) => {
-    const before = points[(index + points.length - 1) % points.length]
-    const after = points[(index + 1) % points.length]
-    const ax = point.x - before.x, ay = point.y - before.y
-    const bx = after.x - point.x, by = after.y - point.y
-    const al = Math.hypot(ax, ay), bl = Math.hypot(bx, by)
-    const nx = -ay / al - by / bl, ny = ax / al + bx / bl
-    const length = Math.hypot(nx, ny)
-    const ux = nx / length, uy = ny / length
-    const miter = offset / Math.max(0.5, (ux * -by + uy * bx) / bl)
-    return { x: point.x + ux * miter, y: point.y + uy * miter }
-  })
-}
+const wallCache = new WeakMap<Track, Point[][]>()
 
 export function trackWalls(track: Track): Point[][] {
+  const cached = wallCache.get(track)
+  if (cached) return cached
   const walls = track.barrierPaths.map(path => path.map(([x, y]) => ({ x, y })))
   if (track.autoBarriers) {
     const points = track.centerLine.map(([x, y]) => ({ x, y }))
-    for (const offset of [-track.roadHalfWidth - 30, track.roadHalfWidth + 30]) {
-      const loop = offsetLoop(points, offset)
-      walls.push([...loop, loop[0]])
-    }
+    walls.push(...barrierContours(points, track.roadHalfWidth + 30))
   }
+  wallCache.set(track, walls)
   return walls
 }
 
 export function trackColliders(track: Track): Collider[] {
-  const props: Collider[] = track.objects.map(object => object.kind === 'building'
+  const props: Collider[] = track.objects.map(object => object.width !== undefined && object.height !== undefined
     ? { type: 'rect', x: object.x, y: object.y, width: object.width!, height: object.height! }
     : { type: 'circle', x: object.x, y: object.y, radius: object.radius! })
   for (const path of trackWalls(track)) {

@@ -55,11 +55,27 @@
     "centerLine":[[875,800],[1110,800],[1230,780],[1320,720],[1370,620],[1380,500],[1370,380],[1320,280],[1230,220],[1110,200],[425,200],[305,220],[215,280],[165,380],[155,500],[165,620],[215,720],[305,780],[425,800],[675,800]],
     "checkpointIndexes":[0,5,10,14,18,0],"finishLine":{"x":875,"minY":732,"maxY":868},
     "objects":[
-      {"kind":"building","x":430,"y":400,"width":260,"height":120},
-      {"kind":"building","x":930,"y":410,"width":220,"height":110},
-      {"kind":"building","x":460,"y":930,"width":610,"height":44},
-      {"kind":"rock","x":800,"y":500,"radius":36},{"kind":"rock","x":730,"y":590,"radius":24},
-      {"kind":"tree","x":390,"y":605,"radius":22},{"kind":"tree","x":1150,"y":620,"radius":24}
+      {"kind":"grandstand","x":480,"y":24,"width":580,"height":60,"facing":"south"},
+      {"kind":"grandstand","x":470,"y":326,"width":590,"height":66,"facing":"north"},
+      {"kind":"grandstand","x":425,"y":620,"width":680,"height":64,"facing":"south"},
+      {"kind":"grandstand","x":470,"y":930,"width":590,"height":66,"facing":"north"},
+      {"kind":"pitbuilding","x":440,"y":460,"width":630,"height":90},
+      {"kind":"scoreboard","x":1120,"y":455,"width":68,"height":62},
+      {"kind":"servicevehicle","x":480,"y":567,"width":31,"height":16},
+      {"kind":"servicevehicle","x":544,"y":567,"width":31,"height":16},
+      {"kind":"servicevehicle","x":608,"y":567,"width":31,"height":16},
+      {"kind":"servicevehicle","x":672,"y":567,"width":31,"height":16},
+      {"kind":"servicevehicle","x":736,"y":567,"width":31,"height":16},
+      {"kind":"servicevehicle","x":800,"y":567,"width":31,"height":16},
+      {"kind":"servicevehicle","x":864,"y":567,"width":31,"height":16},
+      {"kind":"servicevehicle","x":928,"y":567,"width":31,"height":16},
+      {"kind":"servicevehicle","x":992,"y":567,"width":31,"height":16},
+      {"kind":"marshal","x":1140,"y":895,"width":32,"height":30},
+      {"kind":"marshal","x":360,"y":90,"width":32,"height":30},
+      {"kind":"tree","x":350,"y":435,"radius":18},{"kind":"tree","x":350,"y":540,"radius":20},
+      {"kind":"tree","x":1155,"y":570,"radius":20},{"kind":"tree","x":1140,"y":640,"radius":18},
+      {"kind":"light","x":430,"y":112,"radius":5},{"kind":"light","x":1110,"y":112,"radius":5},
+      {"kind":"light","x":415,"y":900,"radius":5},{"kind":"light","x":1090,"y":900,"radius":5}
     ],"barrierPaths":[]
   },
   {
@@ -75,7 +91,7 @@
       {"kind":"rock","x":610,"y":230,"radius":32},{"kind":"rock","x":1410,"y":350,"radius":35},
       {"kind":"building","x":310,"y":830,"width":170,"height":70},
       {"kind":"building","x":900,"y":40,"width":180,"height":48}
-    ],"barrierPaths":[]
+    ],"barrierPaths":[[[1040,500],[1160,500]]]
   },
   {
     "id":"harbor-sprint-v1", "name":"Harbor Sprint", "format":"Городской маршрут", "theme":"harbor", "accent":"#79d9ff",

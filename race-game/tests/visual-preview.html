@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Проверка оформления трасс</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#101b1b;color:#e7eadf;font:14px system-ui}
+  header{height:58px;display:flex;align-items:center;gap:20px;padding:10px 20px;background:#152626}
+  select{min-height:36px;background:#223838;color:inherit;border:1px solid #657968;border-radius:6px;padding:6px}
+  label{display:flex;align-items:center;gap:8px}#preview{height:calc(100vh - 58px)}canvas{display:block;image-rendering:pixelated}
+</style>
+<header><b>Предпросмотр трассы</b><select aria-label="Трасса" id="circuit"></select><label><input type="checkbox" id="collision">Коллизии</label></header>
+<div id="preview"></div>
+<script type="module">
+  import Phaser from 'phaser'
+  import { tracks, trackColliders } from '../src/tracks'
+  import { drawTrack } from '../src/trackRenderer'
+  const picker = document.querySelector('#circuit')
+  const collisions = document.querySelector('#collision')
+  for (const track of tracks.filter(track => !track.image)) {
+    const option = document.createElement('option')
+    option.value = track.id; option.textContent = track.name; picker.append(option)
+  }
+  class Preview extends Phaser.Scene {
+    create() {
+      const track = tracks.find(track => track.id === picker.value)
+      drawTrack(this, track)
+      if (collisions.checked) {
+        const graphics = this.add.graphics().lineStyle(2, 0x81ffff, 0.9)
+        for (const collider of trackColliders(track)) {
+          if (collider.type === 'rect') graphics.strokeRect(collider.x, collider.y, collider.width, collider.height)
+          else if (collider.type === 'circle') graphics.strokeCircle(collider.x, collider.y, collider.radius)
+          else graphics.lineBetween(collider.a.x, collider.a.y, collider.b.x, collider.b.y)
+        }
+      }
+    }
+  }
+  const game = new Phaser.Game({type:Phaser.AUTO,parent:'preview',width:1536,height:1024,pixelArt:true,
+    scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH},scene:Preview})
+  picker.addEventListener('change',()=>game.scene.getScenes(true)[0]?.scene.restart())
+  collisions.addEventListener('change',()=>game.scene.getScenes(true)[0]?.scene.restart())
+</script>
+</html>
