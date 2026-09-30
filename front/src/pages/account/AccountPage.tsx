@@ -54,6 +54,7 @@ export default function AccountPage() {
   useEffect(() => {
     if (user && returnParams.get('returnTo') === 'predictions') navigate('/predictions', {replace: true});
     if (user && returnParams.get('returnTo') === 'leagues') navigate(`/predictions?tab=leagues${window.location.hash}`, {replace: true});
+    if (user && returnParams.get('returnTo') === 'community') navigate('/community', {replace: true});
   }, [user, returnParams, navigate]);
   const [mode, setMode] = useState<"login" | "register" | "verify" | "forgot">("login");
   const [email, setEmail] = useState("");

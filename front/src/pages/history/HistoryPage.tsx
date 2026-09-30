@@ -4,6 +4,7 @@ import { BackButton } from '../../components/BackButton';
 import { YearSelect } from '../../components/YearSelect';
 import { apiRequest } from '../../helpers/api';
 import './history.css';
+import { ShareButton } from '../../components/ShareButton';
 
 type Kind = 'drivers' | 'constructors';
 type Standing = { id: string; name: string; position: number | null; position_text?: string; points: number; wins: number; round: number; teams: string[] };
@@ -130,6 +131,7 @@ function HistorySearch() {
       <h2>Место в чемпионате · {submittedStart}–{submittedEnd}</h2><p className="history-note">P1 сверху. Линия прерывается, если записи нет; текущий сезон показан пунктиром.</p>
       <div className="history-chart-legend">{data.series.map((series, i) => <span key={series.id}><span style={{ color: colors[i] }}>●</span> {series.name}</span>)}</div>
       <HistoryChart series={data.series} />
+      <ShareButton options={{kind: 'history', history_kind: kind, ids: submittedIds, start_year: submittedStart, end_year: submittedEnd}}>Поделиться сравнением</ShareButton>
       <div className="history-table-scroll"><table className="history-table"><caption>Места, очки и победы в Гран-при по сезонам</caption><thead><tr><th scope="col">Сезон</th>{data.series.map(s => <th scope="col" key={s.id}>{s.name}</th>)}</tr></thead>
         <tbody>{data.years.map(year => <tr key={year.season}><th scope="row"><Link to={`/${kind}?year=${year.season}`}>{year.season}{year.season === current ? ' · идёт' : ''}</Link></th>
           {data.series.map(s => { const standing = s.seasons.find(y => y.season === year.season)?.standing;

@@ -69,6 +69,7 @@ async def test_start_menu_contains_history_and_driver_buttons(monkeypatch):
     labels = [button.text for row in keyboard.keyboard for button in row]
     assert '📈 История сезонов' in labels
     assert '🏎 Справка о пилоте' in labels
+    assert '🤝 С друзьями' in labels
 
 
 async def test_driver_answers_loading_before_awaiting_source(monkeypatch):

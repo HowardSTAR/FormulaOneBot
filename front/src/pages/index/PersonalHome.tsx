@@ -69,6 +69,7 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
         <Link to="/account">Аккаунт</Link><Link to="/settings">Напоминания</Link>
         {personalized && <Link to="/favorites">Избранное</Link>}
         <Link to="/predictions?tab=history">Мои результаты</Link>
+        <Link to="/community">С друзьями · трасса недели</Link>
         <button onClick={() => setRefresh(v => v + 1)}>Обновить</button>
       </nav>
     </div>}

@@ -448,6 +448,12 @@ class Database:
             )
         """)
         await self.conn.execute("CREATE INDEX IF NOT EXISTS idx_prediction_league_user ON prediction_league_members(user_id)")
+        league_columns = {r['name'] for r in await (await self.conn.execute('PRAGMA table_info(prediction_leagues)')).fetchall()}
+        for column, definition in [('mode', "TEXT NOT NULL DEFAULT 'season'"), ('season', 'INTEGER'), ('rounds_json', 'TEXT')]:
+            if column not in league_columns:
+                await self.conn.execute(f'ALTER TABLE prediction_leagues ADD COLUMN {column} {definition}')
+        from app.services.engagement import SCHEMA as engagement_schema
+        await self.conn.executescript(engagement_schema)
 
         # 10. Журнал сообщений формы обратной связи (доставка в Telegram отмечается отдельно).
         await self.conn.execute(
@@ -1098,7 +1104,8 @@ async def save_race_game_score(
     time_ms: int,
     telemetry: list[dict] | None = None,
     track_id: str = "emerald-loop-v1",
-) -> bool:
+    return_score_id: bool = False,
+) -> bool | int:
     """Сохраняет время трёх кругов для участника общего игрового рейтинга."""
     if not db.conn:
         await db.connect()
@@ -1124,7 +1131,7 @@ async def save_race_game_score(
         else None
     )
     async with db.write_lock:
-        await db.conn.execute(
+        cursor = await db.conn.execute(
             """
             INSERT INTO race_game_scores (telegram_id, time_ms, track_id, telemetry_json)
             VALUES (?, ?, ?, ?)
@@ -1132,7 +1139,7 @@ async def save_race_game_score(
             (tg_id, normalized_time, normalized_track, telemetry_json),
         )
         await db.conn.commit()
-    return True
+    return cursor.lastrowid if return_score_id else True
 
 
 async def get_race_game_leaderboard(

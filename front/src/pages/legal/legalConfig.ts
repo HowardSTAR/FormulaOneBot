@@ -4,7 +4,7 @@ const configuredEmail = import.meta.env.VITE_LEGAL_CONTACT_EMAIL?.trim();
 const configuredStorageLocation = import.meta.env.VITE_DATA_STORAGE_LOCATION?.trim();
 
 export const legalConfig = {
-  effectiveDate: "14 августа 2026 года",
+  effectiveDate: "30 сентября 2026 года",
   operatorName: configuredOperator || "администратор независимого проекта TurboTears",
   operatorAddress: configuredAddress || "предоставляется в ответ на юридически обоснованный запрос",
   contactEmail: configuredEmail || "",

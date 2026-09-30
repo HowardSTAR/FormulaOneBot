@@ -7,6 +7,7 @@ import { LegalFooter } from "./LegalFooter";
 import { InstallHint } from "./InstallHint";
 import { MobileNav } from "./MobileNav";
 import { analyticsPlatform } from '../helpers/analytics';
+import { EngagementEntry } from './EngagementEntry';
 
 const EDGE_THRESHOLD = 30;
 const SWIPE_THRESHOLD = 60;
@@ -20,7 +21,8 @@ export function SwipeBackLayout() {
   useEffect(() => {
     // Only the route is sent: no query parameters, search text or personal data.
     const timer = window.setTimeout(() => {
-      void apiRequest("/api/analytics/visit", { path: location.pathname, platform: analyticsPlatform() }, "POST").catch(() => {});
+      const path = location.pathname.startsWith('/share/') ? '/share' : location.pathname;
+      void apiRequest("/api/analytics/visit", { path, platform: analyticsPlatform() }, "POST").catch(() => {});
     }, 500);
     return () => window.clearTimeout(timer);
   }, [location.pathname]);
@@ -90,6 +92,7 @@ export function SwipeBackLayout() {
 
   return (
     <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className="app-shell">
+      <EngagementEntry />
       <AppHeader />
       <InstallHint />
       <div className="app-content">

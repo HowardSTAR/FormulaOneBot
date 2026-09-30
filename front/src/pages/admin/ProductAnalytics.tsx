@@ -10,6 +10,8 @@ type Data = {
   errors:{path:string;platform:string;error_code:number;occurrences:number}[];
   delivery:{channel:string;status:string;recipients:number}[];
   quality:{version:string;session:string;sessions:number;pending:number;excluded:number;mae:number|null;winner_brier:number|null}[];
+  sharing?: {kind: string; event: string; events: number; browsers: number}[];
+  referrals?: {arrived: number; activated: number; returned: number};
 };
 const platforms:Record<string,string>={telegram:'Telegram',pwa:'PWA',browser:'Браузер',unknown:'Не определено'};
 const percent=(n:number,d:number)=>d?`${(100*n/d).toFixed(1)}%`:'—';
@@ -25,6 +27,10 @@ export function ProductAnalytics(){
       <p>Открыли: {data.funnel.opened} → начали менять: {data.funnel.started} → сохранили: {data.funnel.saved}. Конверсия в сохранение: {percent(data.funnel.saved,data.funnel.opened)}.</p>
       <small>Единица — аккаунт × этап. Только последовательные шаги; сохранение подтверждается базой, не кликом. Редактирование учитывается тоже. События появились {data.first_event?new Date(data.first_event*1000).toLocaleString():'ещё не поступили'}; старые открытия не восстанавливаются.</small>
       <h3>Возвращаемость в прогнозы</h3>{data.retention.length?data.retention.map(r=><p key={`${r.season}:${r.round}`}>{r.season}: этап {r.round} → {r.next_round}: {r.returned} из {r.participants} ({percent(r.returned,r.participants)}).</p>):<p>Недостаточно завершённых этапов.</p>}
+      <h3>Приглашения и участие друзей</h3>
+      {data.referrals && <p>Новых аккаунтов по приглашениям: {data.referrals.arrived} → сохранили прогноз или заезд: {data.referrals.activated} → сохранили прогноз другого этапа: {data.referrals.returned}.</p>}
+      <small>Первое приглашение за 30 дней; уже участвовавшие аккаунты и самоприглашения исключены. Активация подтверждается серверной записью. Возврат — прогноз другого этапа, не просто повторный визит.</small>
+      <details><summary>Отправка карточек</summary>{data.sharing?.map(s => <p key={`${s.kind}:${s.event}`}>{s.kind} · {({share_opened:'Открыли отправку',share_sent:'Клиент подтвердил отправку',share_copied:'Скопировали ссылку',arrival:'Открыли приглашение'} as Record<string,string>)[s.event] || s.event}: {s.browsers} браузеров, {s.events} событий.</p>)}<small>Клиентские сигналы, повторы за 5 минут объединяются. Открытие окна или копирование ссылки не означает отправку сообщения; отправка не означает прочтение.</small></details>
       <small>Переход между соседними рассчитанными этапами сезона, только сохранённые прогнозы. Это не все возвращения на сайт.</small>
       <details><summary>Популярность разделов по платформам</summary>{data.visits.map(v=><p key={`${v.platform}:${v.path}`}>{platforms[v.platform]||v.platform} · {v.path}: {v.browsers} браузеров, {v.visits} посещений, анонимных браузеров {v.anonymous_browsers}.</p>)}<small>Повторы одного пути за 5 минут объединяются. Платформу сообщает клиент; исторические визиты остаются «не определено».</small></details>
       <details><summary>Ошибки запросов по разделам</summary>{data.errors.length?data.errors.map(e=><p key={`${e.path}:${e.platform}:${e.error_code}`}>{e.path} · {platforms[e.platform]} · {e.error_code||'сеть/таймаут'}: {e.occurrences}</p>):<p>Зарегистрированных ошибок за период нет.</p>}<small>Клиентские сообщения о 5xx и сетевых ошибках, объединённые за 5 минут. Это не полный серверный журнал и не ошибки валидации формы.</small></details>

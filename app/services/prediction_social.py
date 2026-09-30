@@ -1,5 +1,6 @@
 """Private season summaries and opt-in score-only leagues."""
 import secrets
+import json
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone
 
@@ -62,29 +63,44 @@ async def _connection():
 async def list_leagues(user_id: int):
     db = await _connection()
     rows = await (await db.conn.execute(
-        "SELECT l.id,l.name,l.owner_id,l.invite_token,l.invite_expires FROM prediction_leagues l "
+        "SELECT l.id,l.name,l.owner_id,l.invite_token,l.invite_expires,l.mode,l.season,l.rounds_json FROM prediction_leagues l "
         "JOIN prediction_league_members m ON m.league_id=l.id WHERE m.user_id=? ORDER BY l.id DESC", (user_id,)
     )).fetchall()
     return [{"id": r["id"], "name": r["name"], "owner": r["owner_id"] == user_id,
              "invite_token": r["invite_token"] if r["owner_id"] == user_id else None,
-             "invite_expires": r["invite_expires"] if r["owner_id"] == user_id else None} for r in rows]
+             "invite_expires": r["invite_expires"] if r["owner_id"] == user_id else None,
+             "mode": r['mode'], "season": r['season'], "rounds": json.loads(r['rounds_json'] or '[]')} for r in rows]
 
 
-async def create_league(user_id: int, name: str):
+async def create_league(user_id: int, name: str, mode: str = 'season'):
     name = " ".join(name.split())
     if not 2 <= len(name) <= 50:
         raise ValueError("Название должно содержать от 2 до 50 символов")
     if not (await predictions.get_prediction_profile(user_id))["completed"]:
         raise ValueError("Сначала задайте имя участника в прогнозах")
     db = await _connection()
+    if mode not in {'season', 'cup'}:
+        raise ValueError('Неизвестный формат лиги')
+    season, selected_rounds = None, []
+    if mode == 'cup':
+        now = datetime.now(timezone.utc)
+        season = now.year
+        schedule = await predictions.get_season_schedule_short_async(season) or []
+        for event in sorted(schedule, key=lambda event: int(event['round'])):
+            _, deadline = predictions.get_prediction_window(event)
+            if not event.get('is_cancelled') and deadline and deadline > now:
+                selected_rounds.append({'round': int(event['round']), 'event_name': event.get('event_name') or f"Этап {event['round']}"})
+        selected_rounds = selected_rounds[:3]
+        if len(selected_rounds) < 3:
+            raise ValueError('В расписании осталось меньше трёх этапов с открытым дедлайном. Создайте сезонную лигу.')
     async with db.write_lock:
         try:
             count = await (await db.conn.execute("SELECT COUNT(*) FROM prediction_leagues WHERE owner_id=?", (user_id,))).fetchone()
             if count[0] >= 10:
                 raise ValueError("Можно создать не более 10 лиг")
             cursor = await db.conn.execute(
-                "INSERT INTO prediction_leagues(name,owner_id,invite_token,invite_expires) VALUES(?,?,?,?)",
-                (name, user_id, secrets.token_urlsafe(32), (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()))
+                "INSERT INTO prediction_leagues(name,owner_id,invite_token,invite_expires,mode,season,rounds_json) VALUES(?,?,?,?,?,?,?)",
+                (name, user_id, secrets.token_urlsafe(32), (datetime.now(timezone.utc) + timedelta(days=30)).isoformat(), mode, season, json.dumps(selected_rounds)))
             league_id = cursor.lastrowid
             await db.conn.execute("INSERT INTO prediction_league_members(league_id,user_id) VALUES(?,?)", (league_id, user_id))
             await db.conn.commit()
@@ -122,8 +138,28 @@ async def league_scores(user_id: int, league_id: int):
     if not member:
         raise PermissionError("Лига доступна только её участникам")
     members = {r[0] for r in await (await db.conn.execute("SELECT user_id FROM prediction_league_members WHERE league_id=?", (league_id,))).fetchall()}
-    board = deepcopy(await predictions.get_prediction_leaderboard())
+    league = await (await db.conn.execute('SELECT * FROM prediction_leagues WHERE id=?', (league_id,))).fetchone()
+    board = deepcopy(await predictions.get_prediction_leaderboard(league['season']) if league['season'] is not None else await predictions.get_prediction_leaderboard())
     board["entries"] = [e for e in board["entries"] if e["user_id"] in members]
+    if league['mode'] == 'cup':
+        rounds = json.loads(league['rounds_json'])
+        allowed = {r['round'] for r in rounds}
+        board['rounds'] = [r for r in board['rounds'] if r['round'] in allowed]
+        board['cup_rounds'] = rounds
+        for entry in board['entries']:
+            entry['history'] = [h for h in entry['history'] if h['round'] in allowed]
+            scores = [h['points'] for h in entry['history']]
+            entry['total_points'] = sum(scores)
+            entry['best_points'] = max(scores, default=0)
+            entry['average_points'] = round(sum(scores) / len(scores), 2) if scores else 0
+            entry['rounds_scored'] = len(scores)
+        best = {}
+        for entry in board['entries']:
+            for result in entry['history']:
+                best[result['round']] = max(best.get(result['round'], 0), result['points'])
+        for entry in board['entries']:
+            entry['wins'] = sum(result['points'] > 0 and result['points'] == best[result['round']] for result in entry['history'])
+    board['mode'] = league['mode']
     latest = max((h["round"] for e in board["entries"] for h in e["history"]), default=None)
     current_places = previous_places(board["entries"], latest + 1) if latest else {}
     board["entries"].sort(key=lambda e: (current_places.get(e["user_id"], float('inf')), e["display_name"].casefold()))

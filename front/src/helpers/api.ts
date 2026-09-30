@@ -102,7 +102,7 @@ async function executeApiRequest<T = unknown>(
   let response: Response;
   const reportError = (error_code: number) => {
     if (endpoint.startsWith('/api/analytics/')) return;
-    const path = window.location.pathname;
+    const path = window.location.pathname.startsWith('/share/') ? '/share' : window.location.pathname;
     if (!/^\/[a-zA-Z0-9/_-]*$/.test(path) || path.length > 160) return;
     if (Date.now() - (reportedErrors.get(path) || 0) < 300000) return;
     reportedErrors.set(path,Date.now());

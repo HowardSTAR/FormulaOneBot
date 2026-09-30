@@ -63,4 +63,9 @@ async def report(conn, since):
           AND (COALESCE(reminder_sessions,31)&31)>0),0) push_reminders,
         COALESCE(SUM(telegram_id IS NOT NULL AND notifications_enabled=0),0) silent_telegram
         FROM users u WHERE archived_at IS NULL'''))[0]
-    return {'audience':audience,'visits':visits,'funnel':funnel,'retention':retention,'errors':errors,'delivery':delivery,'quality':forecast_quality(source),'first_event':first,'reach':reach}
+    sharing = await rows('''SELECT s.kind,e.event,COUNT(*) events,COUNT(DISTINCT e.visitor) browsers
+        FROM engagement_events e JOIN engagement_shares s ON s.token=e.token
+        WHERE e.created>=? GROUP BY s.kind,e.event''', (since,))
+    referrals = (await rows('''SELECT COUNT(*) arrived,COUNT(activated) activated,COALESCE(SUM(returned),0) returned
+        FROM engagement_referrals WHERE created>=?''', (since,)))[0]
+    return {'audience':audience,'visits':visits,'funnel':funnel,'retention':retention,'errors':errors,'delivery':delivery,'quality':forecast_quality(source),'first_event':first,'reach':reach,'sharing':sharing,'referrals':referrals}

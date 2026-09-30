@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { apiRequest } from '../../helpers/api';
 import { PersonalReview } from './PersonalReview';
 import './season-progress.css';
+import { ShareButton } from '../../components/ShareButton';
 
 type Round = {season: number; round: number; event_name: string; points: number; max_points: number};
 type Progress = {season: number; history: Round[]; best_points: number | null; average_points: number | null;
@@ -38,6 +39,7 @@ export function SeasonProgress() {
         {data.latest.items.some(i => ['unavailable', 'unknown'].includes(i.status)) && <p>Часть результатов не подтверждена. Отсутствие данных не считается ошибкой прогноза.</p>}
         {data.previous_points !== null && <p>Предыдущий ваш этап: {data.previous_points} очк. Максимум может отличаться из-за спринта и доступности данных.</p>}
         <button onClick={() => setReview(data.latest)}>Разобрать последний этап →</button>
+        <ShareButton options={{kind: 'prediction', season: data.latest.season, round: data.latest.round}} />
       </article> : <p>После расчёта вашего первого этапа здесь появятся результаты.</p>}
       <p>Лучший этап: <strong>{data.best_points ?? '—'}</strong> · Среднее: <strong>{data.average_points ?? '—'}</strong> · Место в сезоне: <strong>{data.place ?? '—'}</strong></p>
       {data.place_change !== null && <p>Изменение места после последнего рассчитанного этапа: {data.place_change > 0 ? '+' : ''}{data.place_change}. По текущему пересчитанному зачёту.</p>}

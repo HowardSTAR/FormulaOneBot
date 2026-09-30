@@ -437,6 +437,11 @@ class AccountLinkService:
 
     @staticmethod
     async def _transfer_related_data(conn, source_id: int, target_id: int) -> None:
+        # Shared cards and first-touch attribution survive account linking too.
+        await conn.execute('UPDATE engagement_shares SET owner_id=? WHERE owner_id=?', (target_id, source_id))
+        await conn.execute('UPDATE engagement_referrals SET referrer_id=? WHERE referrer_id=?', (target_id, source_id))
+        await conn.execute('INSERT OR IGNORE INTO engagement_referrals(user_id,referrer_id,token,created,activated,activity,season,round,returned) SELECT ?,referrer_id,token,created,activated,activity,season,round,returned FROM engagement_referrals WHERE user_id=?', (target_id, source_id))
+        await conn.execute('DELETE FROM engagement_referrals WHERE user_id=? OR user_id=referrer_id', (source_id,))
         # Preserve private league ownership/membership when Telegram and web
         # identities merge, before ON DELETE CASCADE removes the source user.
         await conn.execute(

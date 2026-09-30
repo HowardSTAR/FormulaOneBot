@@ -290,7 +290,11 @@ function PredictionsContent({ guest }: { guest: boolean }) {
       </div>
 
       {tab === 'history' && <SeasonProgress />}
-      {tab === 'leagues' && <LeaguePanel />}
+      {tab === 'leagues' && current && (current.profile.completed ? <LeaguePanel /> : <section className="prediction-name-card">
+        <h3>Как вас называть в лиге?</h3>
+        <p>Участники увидят это имя и ваши очки, но не ответы прогнозов. Приглашение сохранено; вступление вы подтвердите следующим шагом.</p>
+        <div className="prediction-name-row"><input aria-label="Имя участника лиги" value={displayName} onChange={event => setDisplayName(event.target.value)} maxLength={40} placeholder="Например, Alex Racing" /><button disabled={saving || displayName.trim().length < 2} onClick={() => void saveName()}>{saving ? 'Сохраняем…' : 'Сохранить имя и продолжить'}</button></div>
+      </section>)}
 
       <details className="prediction-rules">
         <summary>

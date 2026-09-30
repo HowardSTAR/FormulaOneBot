@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiRequest } from "../../helpers/api";
 import "./personal-review.css";
+import { ShareButton } from '../../components/ShareButton';
 
 type Item = { key: string; label: string; predicted: string | number | null; actual: string | number | string[] | null;
   position: number | null; points: number | null; maximum: number; status: string; reason: string;
@@ -45,6 +46,7 @@ export function PersonalReview({ season, round, onClose }: { season: number; rou
     <div className="personal-review-content">
       {result.error ? <p role="alert">{result.error}</p> : !result.data ? <p role="status">Загрузка личного прогноза…</p> : <>
         <h3>{result.data.event_name}</h3><p className="personal-review-score">{result.data.points === null ? "Ещё не рассчитан" : `${result.data.points} / ${result.data.max_points} баллов`}</p>
+        {result.data.points !== null && <ShareButton options={{kind: 'prediction', season, round}} />}
         {result.data.items.some(item => item.status === "unavailable") && <p className="personal-review-warning">Предварительный результат: часть фактов гонки ещё не подтверждена. Баллы и место могут измениться после проверки.</p>}
         <p>Угадано: {result.data.items.filter(item => item.status === "exact").length} · Частично: {result.data.items.filter(item => item.status === "partial").length} · Не угадано: {result.data.items.filter(item => item.status === "miss").length} · Ожидают данных: {result.data.items.filter(item => item.status === "unavailable").length}</p>
         {!result.data.complete && <p className="personal-review-warning">Полная разбивка этого расчёта не сохранена или результаты ещё не готовы. Неподтверждённые баллы отмечены «—». Итог взят из сохранённого результата.</p>}

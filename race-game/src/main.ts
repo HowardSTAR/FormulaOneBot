@@ -13,9 +13,15 @@ const TOTAL_LAPS = 3
 const GHOST_ENABLED_KEY = 'emerald-loop-ghost-enabled'
 const SELECTED_TRACK_KEY = 'emerald-loop-selected-track'
 let selectedTrack = tracks[0]
+const entryParams = new URLSearchParams(window.location.search)
+let challengeToken = entryParams.get('challenge') || ''
+if (!/^[A-Za-z0-9_-]{32}$/.test(challengeToken)) challengeToken = ''
+let challengeRun: {track_id: string; name: string; time_ms: number; ghost: GhostRun; entries: {name: string; time_ms: number}[]} | null = null
+let weeklyTrackId = ''
 try {
   selectedTrack = tracks.find(track => track.id === localStorage.getItem(SELECTED_TRACK_KEY)) ?? tracks[0]
 } catch { /* Storage is optional. */ }
+selectedTrack = tracks.find(track => track.id === entryParams.get('track')) ?? selectedTrack
 let centerLine: Phaser.Math.Vector2[] = []
 let checkpoints: Phaser.Math.Vector2[] = []
 let colliders: Collider[] = []
@@ -51,6 +57,7 @@ type LeaderboardResponse = {
 }
 
 type ScoreSubmissionResult = {
+  challenge?: {difference_ms?: number; beaten?: boolean; error?: string} | null
   saved: boolean
   leaderboard: LeaderboardResponse | null
   auto_enrolled?: boolean
@@ -59,6 +66,7 @@ type ScoreSubmissionResult = {
 }
 
 type GhostRun = {
+  is_challenge?: boolean
   name: string
   time_ms: number
   samples: GhostSample[]
@@ -122,6 +130,11 @@ const ui = {
   leaderboardTrackName: $('#leaderboard-track-name'),
   archive: $('#legacy-leaderboard-button') as HTMLButtonElement,
   currentRanking: $('#current-leaderboard-button') as HTMLButtonElement,
+  shareRace: $('#share-race-button') as HTMLButtonElement,
+  challengePanel: $('#challenge-panel'),
+  challengeTitle: $('#challenge-title'),
+  challengeCopy: $('#challenge-copy'),
+  challengeRanking: $('#challenge-ranking'),
 }
 
 const syncTrackControls = (): void => {
@@ -192,7 +205,7 @@ const syncGhostControls = (ghost: GhostRun | null): void => {
     : 'Пока нет записанного пути. Завершите новый заезд с сохранением результата.'
   ui.ghostMenuLabel.textContent = `Ghost Racer: ${ghostEnabled ? 'ON' : 'OFF'}`
   ui.ghostMenuCopy.textContent = available && ghost
-    ? `${ghost.is_global_best ? '#1' : 'Лучший доступный'} ${ghost.name} · ${formatTime(ghost.time_ms)}`
+    ? `${ghost.is_challenge ? 'Вызов друга' : ghost.is_global_best ? '#1' : 'Лучший доступный'} ${ghost.name} · ${formatTime(ghost.time_ms)}`
     : 'Пока нет записанного пути. Завершите новый заезд с сохранением результата.'
 }
 
@@ -346,6 +359,10 @@ let ghostRequestVersion = 0
 const loadGhost = async (): Promise<void> => {
   const version = ++ghostRequestVersion
   const trackId = selectedTrack.id
+  if (challengeRun && challengeRun.track_id === trackId) {
+    activeScene?.setGhost(challengeRun.ghost)
+    return
+  }
   try {
     const response = await fetch(`/api/race-game/ghost?track_id=${encodeURIComponent(trackId)}`, {
       credentials: 'omit', cache: 'no-store', signal: AbortSignal.timeout(15000),
@@ -364,6 +381,7 @@ async function submitRaceTime(timeMs: number, telemetry: GhostSample[], trackId:
       time_ms: Math.round(timeMs),
       track_id: trackId,
       telemetry,
+      challenge_token: challengeRun?.track_id === trackId ? challengeToken : undefined,
     })
   } catch (error) {
     return {
@@ -519,7 +537,7 @@ class RaceScene extends Phaser.Scene {
     this.resetRace()
     this.updateCameraZoom()
     activeScene = this
-    ui.trackSelect.disabled = false
+    ui.trackSelect.disabled = Boolean(challengeRun || weeklyTrackId)
     ui.start.disabled = false
     ui.introLeaderboard.disabled = false
     ui.menuButton.disabled = false
@@ -728,6 +746,7 @@ class RaceScene extends Phaser.Scene {
     ui.start.textContent = 'НАЧАТЬ ЗАЕЗД'
     ui.restart.hidden = true
     ui.resultRow.hidden = true
+    ui.shareRace.hidden = true
     ui.modal.classList.add('is-visible')
     ui.countdown.textContent = ''
     ui.countdown.classList.remove('is-go')
@@ -833,6 +852,7 @@ class RaceScene extends Phaser.Scene {
 
   private finishRace(): void {
     this.recordTelemetry(true)
+    ui.shareRace.hidden = true
     this.raceState = 'finished'
     this.velocity.scale(0.4)
     const bestKey = `emerald-loop-best-time:${selectedTrack.id}`
@@ -866,12 +886,18 @@ class RaceScene extends Phaser.Scene {
             leaderboardRequestVersion += 1
             renderLeaderboard(result.leaderboard)
           }
-          this.setGhost(result.leaderboard.ghost)
+          this.setGhost(challengeRun?.track_id === trackId ? challengeRun.ghost : result.leaderboard.ghost)
         } else {
           void Promise.all([loadLeaderboard(), loadGhost()])
         }
         if (this.raceState === 'finished' && this.elapsedTime === finishedTime) {
           ui.modalCopy.textContent = 'Три круга завершены. Результат сохранён в браузере и таблице лидеров.'
+          ui.shareRace.hidden = false
+          if (result.challenge?.difference_ms !== undefined) {
+            const difference = result.challenge.difference_ms
+            ui.challengeCopy.textContent = difference < 0 ? `Вы быстрее друга на ${formatTime(-difference)}!` : difference === 0 ? 'Точное совпадение времени!' : `До времени друга — ${formatTime(difference)}.`
+            void refreshChallenge()
+          } else if (result.challenge?.error) ui.challengeCopy.textContent = result.challenge.error
         }
       } else if (this.raceState === 'finished' && this.elapsedTime === finishedTime) {
         ui.modalCopy.textContent = result.message
@@ -1032,6 +1058,61 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) activeScene?.pauseWhenHidden()
 })
 
+async function refreshChallenge(): Promise<void> {
+  if (!challengeToken) return
+  try {
+    const data = await apiRequest<NonNullable<typeof challengeRun>>(`/api/engagement/challenges/${challengeToken}`)
+    challengeRun = data
+    ui.challengeRanking.replaceChildren(...data.entries.slice(0, 8).map(entry => {
+      const row = document.createElement('li')
+      row.textContent = `${entry.name} · ${formatTime(entry.time_ms)}`
+      return row
+    }))
+  } catch { /* The verified race remains saved even if an invitation expires. */ }
+}
+ui.shareRace.addEventListener('click', () => {
+  if (window.parent !== window) window.parent.postMessage({type: 'f1hub-share-race', trackId: selectedTrack.id}, window.location.origin)
+  else window.location.assign('/community')
+})
+
+async function bootGame(): Promise<void> {
+  if (challengeToken) {
+    ui.challengePanel.hidden = false
+    ui.challengeTitle.textContent = 'Открываем вызов…'
+    try {
+      const response = await fetch(`/api/engagement/challenges/${challengeToken}`, {signal: AbortSignal.timeout(15000), cache: 'no-store'})
+      if (!response.ok) throw new Error('Вызов недоступен')
+      const data = await response.json() as NonNullable<typeof challengeRun>
+      const track = tracks.find(track => track.id === data.track_id)
+      if (!track) throw new Error('Версия трассы недоступна')
+      challengeRun = data
+      activateTrack(track); syncTrackControls()
+      ui.challengeTitle.textContent = `Вызов: ${data.name}`
+      ui.challengeCopy.textContent = `Цель — быстрее ${formatTime(data.time_ms)}. Призрак повторяет заезд друга; условия трассы одинаковы.`
+      void refreshChallenge()
+    } catch {
+      challengeToken = ''
+      ui.challengeTitle.textContent = 'Вызов истёк или отозван'
+      ui.challengeCopy.textContent = 'Обычный заезд доступен. Выберите трассу и создайте собственный вызов.'
+    }
+  } else if (entryParams.get('weekly') === '1') {
+    ui.challengePanel.hidden = false
+    ui.challengeTitle.textContent = 'Загружаем трассу недели…'
+    try {
+      const response = await fetch('/api/engagement/weekly', {signal: AbortSignal.timeout(15000), cache: 'no-store'})
+      if (!response.ok) throw new Error('Трасса недели недоступна')
+      const data = await response.json() as {track_id: string; end: string}
+      const track = tracks.find(track => track.id === data.track_id)
+      if (!track) throw new Error('Версия трассы недоступна')
+      weeklyTrackId = data.track_id
+      activateTrack(track); syncTrackControls()
+      ui.challengeTitle.textContent = 'Трасса недели'
+      ui.challengeCopy.textContent = `Заезд участвует в недельном рейтинге до ${new Date(data.end).toLocaleString('ru-RU')}. Постоянные рекорды остаются без изменений.`
+    } catch {
+      ui.challengeTitle.textContent = 'Недельный рейтинг временно недоступен'
+      ui.challengeCopy.textContent = 'Можно проехать обычный заезд. Трасса недели определяется сервером; её участие сейчас не подтверждено.'
+    }
+  }
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game-canvas',
@@ -1074,3 +1155,5 @@ game.events.once(Phaser.Core.Events.DESTROY, () => {
   window.removeEventListener('resize', resizeGame)
   window.visualViewport?.removeEventListener('resize', resizeGame)
 })
+}
+void bootGame()

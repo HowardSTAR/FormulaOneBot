@@ -46,6 +46,7 @@ from app.api.admin_tools_api import router as admin_tools_router
 from app.api.prediction_analytics_api import router as prediction_analytics_router
 from app.api.site_analytics import router as site_analytics_router
 from app.api.f1_insights_api import router as f1_insights_router
+from app.api.engagement_api import router as engagement_router, public_router as engagement_public_router
 from app.api.web_notifications_api import router as web_notifications_router
 from app.f1_data import (
     points_for_race_position,
@@ -137,6 +138,8 @@ web_app.include_router(admin_tools_router)
 web_app.include_router(prediction_analytics_router)
 web_app.include_router(web_notifications_router)
 web_app.include_router(f1_insights_router)
+web_app.include_router(engagement_router)
+web_app.include_router(engagement_public_router)
 
 
 @web_app.get("/health", include_in_schema=False)
@@ -378,6 +381,7 @@ async def api_prediction_personal_season(response: Response, user_id: int = Depe
 
 class LeagueCreateRequest(BaseModel):
     name: str = Field(min_length=2, max_length=50)
+    mode: Literal['season', 'cup'] = 'season'
 
 
 class LeagueJoinRequest(BaseModel):
@@ -399,7 +403,7 @@ async def api_prediction_leagues(response: Response, user_id: int = Depends(get_
 async def api_prediction_league_create(data: LeagueCreateRequest, user_id: int = Depends(get_prediction_user_id)):
     from app.services.prediction_social import create_league
     try:
-        return await create_league(user_id, data.name)
+        return await create_league(user_id, data.name, data.mode)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
 
@@ -655,6 +659,7 @@ class RaceTelemetrySample(BaseModel):
 class RaceGameScoreRequest(BaseModel):
     time_ms: int = Field(ge=15_000, le=3_600_000)
     track_id: str = "emerald-loop-v1"
+    challenge_token: str | None = Field(default=None, pattern=r'^[A-Za-z0-9_-]{32}$')
     telemetry: list[RaceTelemetrySample] = Field(default_factory=list, max_length=6000)
 
     @field_validator("track_id")
@@ -774,12 +779,28 @@ async def api_race_game_leaderboard_score(
     user_id: int = Depends(get_current_user_id),
 ):
     profile, auto_enrolled = await ensure_race_game_profile(user_id)
-    saved = await save_race_game_score(
+    score_id = await save_race_game_score(
         user_id,
         body.time_ms,
         telemetry=[sample.model_dump() for sample in body.telemetry],
         track_id=body.track_id,
+        return_score_id=True,
     )
+    saved = bool(score_id)
+    challenge_result = None
+    if saved:
+        from app.services import engagement
+        account = await (await db.conn.execute('SELECT id FROM users WHERE telegram_id=?', (user_id,))).fetchone()
+        if account:
+            await engagement.activate_saved(account[0], 'race')
+        if body.challenge_token:
+            try:
+                challenge_result = await engagement.record_challenge(body.challenge_token, user_id, score_id)
+            except ValueError as exc:
+                challenge_result = {'error': str(exc)}
+            except Exception:
+                engagement.logger.exception('Challenge association failed; race score remains saved')
+                challenge_result = {'error': 'Заезд сохранён, но таблица вызова временно недоступна.'}
     leaderboard = (
         await get_race_game_leaderboard(user_id, track_id=body.track_id)
         if saved
@@ -800,6 +821,7 @@ async def api_race_game_leaderboard_score(
         "auto_enrolled": auto_enrolled,
         "reason": reason,
         "message": message,
+        "challenge": challenge_result,
     }
 
 

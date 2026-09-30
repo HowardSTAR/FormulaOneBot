@@ -14,6 +14,8 @@ const TeamPrincipalPage = lazy(() => import("./pages/team-principal/TeamPrincipa
 const DriverDetailsPage = lazy(() => import("./pages/driver-details/DriverDetailsPage"));
 const DriversPage = lazy(() => import("./pages/drivers/DriversPage"));
 const HistoryPage = lazy(() => import("./pages/history/HistoryPage"));
+const CommunityPage = lazy(() => import('./pages/community/CommunityPage'));
+const SharePage = lazy(() => import('./pages/community/SharePage'));
 const FavoritesPage = lazy(() => import("./pages/favorites/FavoritesPage"));
 const NextRacePage = lazy(() => import("./pages/next-race/NextRacePage"));
 const QualiResultsPage = lazy(() => import("./pages/quali-results/QualiResultsPage"));
@@ -57,6 +59,8 @@ export const router = createBrowserRouter([
       { path: "/driver-details", element: <DriverDetailsPage /> },
       { path: "/drivers", element: <DriversPage /> },
       { path: "/history", element: <HistoryPage /> },
+      { path: '/community', element: <CommunityPage /> },
+      { path: '/share/:token', element: <SharePage /> },
       { path: "/favorites", element: <RequirePersonalAccount><FavoritesPage /></RequirePersonalAccount> },
       { path: "/next-race", element: <NextRacePage /> },
       { path: "/quali-results", element: <QualiResultsPage /> },

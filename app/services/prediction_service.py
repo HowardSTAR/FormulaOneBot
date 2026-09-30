@@ -300,6 +300,8 @@ async def save_user_prediction(
             (user_id, int(season), int(round_num), *values),
         )
         await db.conn.commit()
+    from app.services.engagement import activate_saved
+    await activate_saved(user_id, 'prediction', int(season), int(round_num), database=db)
     return normalized
 
 
@@ -584,7 +586,7 @@ async def get_stage_top(season: int, round_num: int, limit: int = 3) -> list[dic
         return [dict(row) for row in await cursor.fetchall()]
 
 
-async def get_prediction_leaderboard() -> dict[str, Any]:
+async def get_prediction_leaderboard(season: int | None = None) -> dict[str, Any]:
     if not db.conn:
         await db.connect()
     async with db.conn.execute(
@@ -592,6 +594,8 @@ async def get_prediction_leaderboard() -> dict[str, Any]:
     ) as cursor:
         latest_round = await cursor.fetchone()
     leaderboard_season = int(latest_round["season"]) if latest_round and latest_round["season"] else datetime.now(timezone.utc).year
+    if season is not None:
+        leaderboard_season = int(season)
 
     async with db.conn.execute(
         """
