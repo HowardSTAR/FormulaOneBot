@@ -5164,7 +5164,7 @@
     width: 100% !important;
     height: 100% !important;
     overflow: visible !important;
-    filter: drop-shadow(0 0 10px rgba(225, 6, 0, 0.28)) !important;
+    filter: none !important;
   }
 
   .app-page-main:is(.route-home, .route-season, .route-next-race) .animated-track-svg .track-outline {
@@ -5220,6 +5220,14 @@
     height: 100%;
     min-height: 0;
   }
+}
+
+/* Static circuit illustrations do not keep transition/paint layers alive. */
+.animated-track-svg .track-outline.animation-complete,
+.animated-track-svg .track-fill.animate {
+  transition: none !important;
+  animation: none !important;
+  will-change: auto;
 }
 
 @media (max-width: 899px) {

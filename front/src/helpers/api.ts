@@ -1,3 +1,5 @@
+import { SingleFlight } from './singleFlight';
+
 // Точно как в web/app/static/js/common.js — читаем при каждом запросе
 function getInitData(): string {
   const tg = typeof window !== 'undefined'
@@ -22,6 +24,11 @@ const API_BASE = IS_LOCAL_HOST ? '' : CONFIGURED_API_BASE;
 const PATH_BASE = ((import.meta.env.BASE_URL as string) || '/').replace(/\/$/, '');
 const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 15000);
 const reportedErrors = new Map<string,number>();
+const pendingReads = new SingleFlight();
+
+export function invalidateApiReads(): void {
+  pendingReads.clear();
+}
 
 export function apiAssetUrl(
   endpoint: string,
@@ -37,7 +44,22 @@ export function apiAssetUrl(
   return url.toString();
 }
 
-export async function apiRequest<T = unknown>(
+export function apiRequest<T = unknown>(
+  endpoint: string,
+  params: Record<string, unknown> = {},
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET',
+  timeoutMs: number = REQUEST_TIMEOUT_MS,
+): Promise<T> {
+  const request = () => executeApiRequest<T>(endpoint, params, method, timeoutMs);
+  if (method !== 'GET') return request();
+  const key = JSON.stringify([
+    endpoint, Object.entries(params).sort(([a], [b]) => a.localeCompare(b)),
+    getInitData(), readCookie('turbotears_csrf'), timeoutMs,
+  ]);
+  return pendingReads.run(key, request);
+}
+
+async function executeApiRequest<T = unknown>(
   endpoint: string,
   params: Record<string, unknown> = {},
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET',

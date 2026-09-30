@@ -37,12 +37,12 @@ export function MobileNav() {
       <div className="mobile-menu-content">
         <header><h2 id="mobile-menu-title">Все разделы</h2><button type="button" onClick={close} aria-label="Закрыть меню" autoFocus>×</button></header>
         {!auth.signedIn && <p className="mobile-menu-hint"><Link to="/account" onClick={close}>Войти в аккаунт →</Link> Личные разделы появятся после входа.</p>}
-        <nav aria-label="Все разделы сайта">
+        <nav aria-label="Все разделы сайта">{open && <>
           <section><h3>Главное</h3><div>{links(nav.primary)}</div></section>
           {nav.groups.map(group => <section key={group.id}><h3>{group.label}</h3><div>{links(group.items)}</div></section>)}
           <section><h3>Справка и аккаунт</h3><div>{links(nav.general)}</div></section>
           {!!nav.personal.length && <section><h3>Личные разделы и управление</h3><div>{links(nav.personal)}</div></section>}
-        </nav>
+        </>}</nav>
       </div>
     </dialog>
   </>;

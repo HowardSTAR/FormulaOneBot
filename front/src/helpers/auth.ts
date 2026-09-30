@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { apiRequest } from "./api";
+import { useEffect, useState } from "react";
+import { apiRequest, invalidateApiReads } from "./api";
+import { SingleFlight } from './singleFlight';
 
 export function hasTelegramAuth(): boolean {
   const tg = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram?.WebApp;
@@ -18,18 +19,25 @@ export type WebsiteUser = {
 };
 
 export const AUTH_CHANGED_EVENT = "turbotears-auth-changed";
+const pendingUser = new SingleFlight();
+let identityVersion = 0;
 
-export async function getWebsiteUser(): Promise<WebsiteUser | null> {
-  try {
-    const response = await fetch("/api/auth/me", { credentials: "include" });
-    if (!response.ok) return null;
-    return await response.json() as WebsiteUser;
-  } catch {
-    return null;
-  }
+export function getWebsiteUser(): Promise<WebsiteUser | null> {
+  return pendingUser.run(String(identityVersion), async () => {
+    try {
+      const response = await fetch("/api/auth/me", { credentials: "include" });
+      if (!response.ok) return null;
+      return await response.json() as WebsiteUser;
+    } catch {
+      return null;
+    }
+  });
 }
 
 export function notifyAuthChanged(): void {
+  identityVersion += 1;
+  pendingUser.clear();
+  invalidateApiReads();
   window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
 }
 
@@ -51,38 +59,30 @@ export function useAuthState(): AuthState {
     role: null,
   }));
 
-  const refresh = useCallback(() => {
-    if (telegramMiniApp) {
-      void apiRequest<{ role: "admin" | "superadmin" }>("/api/admin/me")
-        .then(({ role }) => setState({ loaded: true, signedIn: true, personalized: true, telegramMiniApp: true, role }))
-        .catch(() => setState({ loaded: true, signedIn: true, personalized: true, telegramMiniApp: true, role: null }));
-      return;
-    }
-    void getWebsiteUser().then((user) => {
-      setState({
-        loaded: true,
-        signedIn: Boolean(user),
-        personalized: Boolean(user?.telegram_id),
-        telegramMiniApp: false,
-        role: user?.role ?? null,
-      });
-    });
-  }, [telegramMiniApp]);
-
   useEffect(() => {
-    if (telegramMiniApp) refresh();
-    if (!telegramMiniApp) void getWebsiteUser().then((user) => {
-      setState({
-        loaded: true,
-        signedIn: Boolean(user),
-        personalized: Boolean(user?.telegram_id),
-        telegramMiniApp: false,
-        role: user?.role ?? null,
-      });
-    });
+    let active = true;
+    let generation = 0;
+    const refresh = () => {
+      const current = ++generation;
+      const identity = identityVersion;
+      const update = (value: AuthState) => {
+        if (active && current === generation && identity === identityVersion) setState(value);
+      };
+      if (telegramMiniApp) {
+        void apiRequest<{ role: "admin" | "superadmin" }>("/api/admin/me")
+          .then(({ role }) => update({ loaded: true, signedIn: true, personalized: true, telegramMiniApp: true, role }))
+          .catch(() => update({ loaded: true, signedIn: true, personalized: true, telegramMiniApp: true, role: null }));
+      } else {
+        void getWebsiteUser().then(user => update({
+          loaded: true, signedIn: Boolean(user), personalized: Boolean(user?.telegram_id),
+          telegramMiniApp: false, role: user?.role ?? null,
+        }));
+      }
+    };
+    refresh();
     window.addEventListener(AUTH_CHANGED_EVENT, refresh);
-    return () => window.removeEventListener(AUTH_CHANGED_EVENT, refresh);
-  }, [refresh, telegramMiniApp]);
+    return () => { active = false; window.removeEventListener(AUTH_CHANGED_EVENT, refresh); };
+  }, [telegramMiniApp]);
 
   return state;
 }

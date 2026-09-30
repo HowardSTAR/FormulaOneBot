@@ -29,20 +29,20 @@ export function AnimatedTrackMap({
   const trackError = trackState.eventName === assetName && trackState.error;
 
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
 
-    fetch(`/static/circuit/${encodeURIComponent(assetName)}.svg`)
+    fetch(`/static/circuit/${encodeURIComponent(assetName)}.svg`, { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Track map not found");
         const svg = await response.text();
-        if (!cancelled) setTrackState({ eventName: assetName, svg, error: false });
+        if (!controller.signal.aborted) setTrackState({ eventName: assetName, svg, error: false });
       })
       .catch(() => {
-        if (!cancelled) setTrackState({ eventName: assetName, svg: null, error: true });
+        if (!controller.signal.aborted) setTrackState({ eventName: assetName, svg: null, error: true });
       });
 
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [assetName]);
 
@@ -50,7 +50,6 @@ export function AnimatedTrackMap({
     const container = trackContainerRef.current;
     if (!trackSvg || !container) return;
 
-    const animationFrameIds: number[] = [];
     container.innerHTML = trackSvg;
     const svg = container.querySelector("svg");
     if (!svg) return;
@@ -82,10 +81,15 @@ export function AnimatedTrackMap({
       fillGroup.appendChild(path);
     });
 
-    const visibleRoutes = routes.reduce<SVGGeometryElement[]>(
-      (longest, route) => !longest.length || route.getTotalLength() > longest[0].getTotalLength() ? [route] : longest,
-      [],
-    );
+    // Measure each candidate only once. The map is a static illustration, not
+    // a per-frame stroke animation that repaints its filters while loading.
+    let longest: SVGGeometryElement | undefined;
+    let longestLength = -1;
+    for (const route of routes) {
+      const length = route.getTotalLength();
+      if (length > longestLength) { longest = route; longestLength = length; }
+    }
+    const visibleRoutes = longest ? [longest] : [];
     if (eventName === "Spanish Grand Prix") {
       // The legacy Madrid SVG contains fragmented filled bands, not a route
       // centreline. Use a continuous schematic centreline in its 121 × 85 viewBox.
@@ -94,10 +98,9 @@ export function AnimatedTrackMap({
       visibleRoutes.splice(0, visibleRoutes.length, madrid);
     }
     for (const border of visibleRoutes) {
-      border.classList.add("track-outline", "track-route-border");
+      border.classList.add("track-outline", "track-route-border", "animate", "animation-complete");
       border.setAttribute("pathLength", "1");
-      border.dataset.trackLength = "1";
-      border.style.strokeDasharray = "0 1";
+      border.style.strokeDasharray = "1 0";
       border.style.strokeDashoffset = "0";
 
       const surface = border.cloneNode(true) as SVGGeometryElement;
@@ -110,25 +113,7 @@ export function AnimatedTrackMap({
     svg.innerHTML = "";
     svg.appendChild(fillGroup);
     svg.appendChild(outlineGroup);
-    svg.getBoundingClientRect();
-
-    const prepareFrame = window.requestAnimationFrame(() => {
-      const startFrame = window.requestAnimationFrame(() => {
-        const outlines = outlineGroup.querySelectorAll<SVGElement>(".track-outline");
-        outlines.forEach((path) => {
-          path.classList.add("animate");
-          const length = path.dataset.trackLength;
-          if (length) path.style.strokeDasharray = `${length} 0`;
-        });
-        fillGroup.querySelectorAll(".track-fill").forEach((path) => path.classList.add("animate"));
-      });
-      animationFrameIds.push(startFrame);
-    });
-    animationFrameIds.push(prepareFrame);
-
-    return () => {
-      animationFrameIds.forEach((id) => window.cancelAnimationFrame(id));
-    };
+    fillGroup.querySelectorAll('.track-fill').forEach(path => path.classList.add('animate'));
   }, [trackSvg, eventName]);
 
   return (

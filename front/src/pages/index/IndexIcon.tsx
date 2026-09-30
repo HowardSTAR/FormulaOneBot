@@ -34,6 +34,6 @@ export type IndexIconName = keyof typeof ICONS;
 
 export default function IndexIcon({name}: {name: IndexIconName}) {
   return <span className={`menu-icon index-menu-icon is-${name}`} aria-hidden="true">
-    <img className="index-icon-artwork" src={ICONS[name]} alt="" decoding="async" />
+    <img className="index-icon-artwork" src={ICONS[name]} alt="" decoding="async" loading="lazy" width="96" height="96" />
   </span>;
 }

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiRequest } from '../../helpers/api';
 import { AUTH_CHANGED_EVENT, type AuthState } from '../../helpers/auth';
 import { predictionSummary, type PersonalPrediction } from './personal-summary';
 import { formatTimezoneLabel } from '../../helpers/timezone';
+import { useVisibleClock } from '../../helpers/useVisibleClock';
 import './personal-home.css';
 
 function PersonalCards({ timezone, personalized }: { timezone: string; personalized: boolean }) {
@@ -14,9 +15,11 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
   const [failed, setFailed] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [refresh, setRefresh] = useState(0);
-  const [now, setNow] = useState(() => Date.now());
+  const now = useVisibleClock(30000);
+  const lastRefresh = useRef(0);
   useEffect(() => {
     let active = true;
+    lastRefresh.current = Date.now();
     void Promise.allSettled([
       apiRequest<PersonalPrediction>('/api/predictions/current'),
       apiRequest<{ unread: number }>('/api/web-notifications/unread-count'),
@@ -32,10 +35,12 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
     return () => { active = false; };
   }, [refresh]);
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 30000);
-    const update = () => { setNow(Date.now()); setRefresh(v => v + 1); };
+    const update = () => {
+      if (!document.hidden && Date.now() - lastRefresh.current >= 60000) setRefresh(v => v + 1);
+    };
     window.addEventListener('focus', update);
-    return () => { window.clearInterval(timer); window.removeEventListener('focus', update); };
+    document.addEventListener('visibilitychange', update);
+    return () => { window.removeEventListener('focus', update); document.removeEventListener('visibilitychange', update); };
   }, []);
   const view = prediction ? predictionSummary(prediction, now) : null;
   const showRecap = !prediction?.is_open && latest?.points != null && (

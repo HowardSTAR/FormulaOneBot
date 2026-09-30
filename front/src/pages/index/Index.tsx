@@ -3,13 +3,13 @@ import { Link } from "react-router-dom";
 import { useHeroData } from "../../context/useHeroData";
 import { useAuthState } from "../../helpers/auth";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { useMediaQuery } from '../../helpers/useMediaQuery';
 import { formatTimezoneLabel, getDisplayTimezone } from "../../helpers/timezone";
 import { getCountryFlagUrl } from "../../constants/flags";
 import "./styles.css";
 import Hero from "./Hero";
 import IndexIcon from "./IndexIcon";
 import { PersonalHome } from './PersonalHome';
-import type { SessionItem } from '../../context/HeroDataContext';
 
 export type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
 
@@ -29,8 +29,6 @@ type ConstructorStanding = {
 };
 type DriversResponse = { drivers?: DriverStanding[] };
 type ConstructorsResponse = { constructors?: ConstructorStanding[] };
-type ScheduleResponse = { sessions?: SessionItem[] };
-
 function teamLogoUrl(teamId: string, teamName: string, season: number): string {
   const team = teamId || teamName;
   return apiAssetUrl("/api/team-logo", { team, name: teamName, season });
@@ -82,14 +80,15 @@ function IndexArrow() {
 
 function IndexPage() {
   const { nextRace, schedule, userTz, loaded, load } = useHeroData();
+  const desktop = useMediaQuery('(min-width: 900px)');
   const auth = useAuthState();
   const currentYear = new Date().getFullYear();
+  const widgetSeason = nextRace?.season || currentYear;
   const [renderedAt] = useState(() => Date.now());
   const [driversTop, setDriversTop] = useState<DriverStanding[]>([]);
   const [constructorsTop, setConstructorsTop] = useState<ConstructorStanding[]>([]);
-  const [weekendSessions, setWeekendSessions] = useState<SessionItem[]>([]);
   const displayTz = getDisplayTimezone(userTz);
-  const sessionsForCards = schedule.length ? schedule : weekendSessions;
+  const sessionsForCards = schedule;
 
   const hasSprintSession = sessionsForCards.some((s) => {
     const n = (s.name || "").toLowerCase();
@@ -113,7 +112,7 @@ function IndexPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const season = nextRace?.season || currentYear;
+    const season = widgetSeason;
     const loadStandings = async () => {
       try {
         const [driversRes, constructorsRes] = await Promise.allSettled([
@@ -137,28 +136,7 @@ function IndexPage() {
     return () => {
       cancelled = true;
     };
-  }, [nextRace?.season, currentYear]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadWeekendForCards = async () => {
-      if (schedule.length > 0) return;
-      if (!nextRace?.season || !nextRace?.round) return;
-      try {
-        const data = await apiRequest<ScheduleResponse>("/api/weekend-schedule", {
-          season: nextRace.season,
-          round_number: nextRace.round,
-        });
-        if (!cancelled) setWeekendSessions(data.sessions || []);
-      } catch {
-        if (!cancelled) setWeekendSessions([]);
-      }
-    };
-    loadWeekendForCards();
-    return () => {
-      cancelled = true;
-    };
-  }, [schedule.length, nextRace?.season, nextRace?.round]);
+  }, [widgetSeason]);
 
   const sessionMeta = useMemo(() => {
     const normalizedSessions = sessionsForCards.filter((s) => Boolean(s.utc_iso));
@@ -210,8 +188,6 @@ function IndexPage() {
     };
   }, [sessionsForCards, displayTz, nextRace]);
 
-  const widgetSeason = nextRace?.season || currentYear;
-
   const desktopSessions = useMemo(() => {
     return sessionsForCards
       .filter((session) => Boolean(session.utc_iso))
@@ -242,7 +218,7 @@ function IndexPage() {
 
   return (
     <>
-      <div className="index-desktop-shell index-dashboard">
+      {desktop ? <div className="index-desktop-shell index-dashboard">
         <section className="index-dashboard-top">
           <div className="index-hero-wrap index-desktop-hero-wrap">
             <Hero nextRace={nextRace} schedule={schedule} userTz={userTz} showTrackMap />
@@ -356,7 +332,7 @@ function IndexPage() {
         </section>
       </div>
 
-      <div className="index-mobile-stack">
+      : <div className="index-mobile-stack">
       <div className="index-layout">
         <div className="index-hero-wrap">
           <Hero nextRace={nextRace} schedule={schedule} userTz={userTz} />
@@ -611,7 +587,7 @@ function IndexPage() {
           </div>
         </div>
       </div>
-      </div>
+      </div>}
     </>
   );
 }

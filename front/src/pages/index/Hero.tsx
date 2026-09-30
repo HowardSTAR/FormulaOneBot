@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
 import { getDisplayTimezone } from "../../helpers";
+import { useVisibleClock } from '../../helpers/useVisibleClock';
 import type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
 
 const SESSION_DURATION_MS = 90 * 60 * 1000;
@@ -42,13 +43,12 @@ function formatSessionDate(value: string, timeZone: string): string {
 }
 
 function Hero({ nextRace, schedule, userTz, showTrackMap = false }: HeroProps) {
-  const [now, setNow] = useState(() => Date.now());
+  const now = useVisibleClock(1000, nextRace?.status === 'ok');
   const displayTz = getDisplayTimezone(userTz);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
+  const dates = useMemo(() => {
+    const values = [...schedule.map(s => s.utc_iso), nextRace?.next_session_iso, nextRace?.race_start_utc, nextRace?.date];
+    return new Map(values.filter((value): value is string => Boolean(value)).map(value => [value, formatSessionDate(value, displayTz)]));
+  }, [schedule, nextRace, displayTz]);
 
   const view: HeroView = (() => {
     for (const session of schedule) {
@@ -59,7 +59,7 @@ function Hero({ nextRace, schedule, userTz, showTrackMap = false }: HeroProps) {
         return {
           status: "future",
           timerText: formatCountdown(start, now),
-          dateText: formatSessionDate(session.utc_iso, displayTz),
+          dateText: dates.get(session.utc_iso) || '',
           subLabel: session.name,
           showTimer: true,
         };
@@ -68,7 +68,7 @@ function Hero({ nextRace, schedule, userTz, showTrackMap = false }: HeroProps) {
         return {
           status: "running",
           timerText: "СЕССИЯ ИДЕТ",
-          dateText: formatSessionDate(session.utc_iso, displayTz),
+          dateText: dates.get(session.utc_iso) || '',
           subLabel: `LIVE: ${session.name}`,
           showTimer: true,
         };
@@ -88,7 +88,7 @@ function Hero({ nextRace, schedule, userTz, showTrackMap = false }: HeroProps) {
         return {
           status: running ? "running" : completed ? "completed" : "future",
           timerText: running ? "СЕССИЯ ИДЕТ" : completed ? "" : formatCountdown(target, now),
-          dateText: formatSessionDate(targetIso, displayTz),
+          dateText: dates.get(targetIso) || '',
           subLabel: running ? `LIVE: ${label}` : label,
           showTimer: !completed,
         };
@@ -98,7 +98,7 @@ function Hero({ nextRace, schedule, userTz, showTrackMap = false }: HeroProps) {
     return {
       status: "completed",
       timerText: "",
-      dateText: nextRace?.date ? formatSessionDate(nextRace.date, displayTz) : "--.--",
+      dateText: nextRace?.date ? dates.get(nextRace.date) || '' : "--.--",
       subLabel: "БЛИЖАЙШИЙ ЭТАП",
       showTimer: false,
     };

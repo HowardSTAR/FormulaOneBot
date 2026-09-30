@@ -1,4 +1,4 @@
-import { useState, useCallback, type ReactNode } from "react";
+import { useState, useCallback, useRef, type ReactNode } from "react";
 import { apiRequest } from "../helpers/api";
 import { HeroDataContext } from "./heroDataContextObject";
 
@@ -49,41 +49,47 @@ const initialState: HeroDataState = {
 
 export function HeroDataProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<HeroDataState>(initialState);
+  const pending = useRef<Promise<void> | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const [raceRes, settingsRes] = await Promise.allSettled([
-        apiRequest<NextRaceResponse>("/api/next-race"),
-        apiRequest<SettingsResponse>("/api/settings"),
-      ]);
+  const load = useCallback(() => {
+    if (pending.current) return pending.current;
+    const request = (async () => {
+      try {
+        const [raceRes, settingsRes] = await Promise.allSettled([
+          apiRequest<NextRaceResponse>("/api/next-race"),
+          apiRequest<SettingsResponse>("/api/settings"),
+        ]);
 
-      const raceData = raceRes.status === "fulfilled" ? raceRes.value : { status: "error" as const };
-      const settings = settingsRes.status === "fulfilled" ? settingsRes.value : { timezone: "UTC" };
-      const tz = settings?.timezone || "UTC";
+        const raceData = raceRes.status === "fulfilled" ? raceRes.value : { status: "error" as const };
+        const settings = settingsRes.status === "fulfilled" ? settingsRes.value : { timezone: "UTC" };
+        const tz = settings?.timezone || "UTC";
 
-      setState((prev) => ({ ...prev, nextRace: raceData, userTz: tz, loaded: true }));
+        setState({ nextRace: raceData, userTz: tz, schedule: [], loaded: true });
 
-      if (raceData.status === "ok" && raceData.season && raceData.round) {
-        try {
-          const scheduleData = await apiRequest<ScheduleResponse>("/api/weekend-schedule", {
-            season: raceData.season,
-            round_number: raceData.round,
-          });
-          if (scheduleData?.sessions?.length) {
-            setState((prev) => ({ ...prev, schedule: scheduleData.sessions! }));
+        if (raceData.status === "ok" && raceData.season && raceData.round) {
+          try {
+            const scheduleData = await apiRequest<ScheduleResponse>("/api/weekend-schedule", {
+              season: raceData.season,
+              round_number: raceData.round,
+            });
+            if (scheduleData?.sessions?.length) {
+              setState((prev) => ({ ...prev, schedule: scheduleData.sessions! }));
+            }
+          } catch {
+            // Fallback to next_session_iso/next_session_name from next-race
           }
-        } catch {
-          // Fallback to next_session_iso/next_session_name from next-race
         }
+      } catch (e) {
+        console.error(e);
+        setState((prev) => ({
+          ...prev,
+          nextRace: { status: "error", event_name: e instanceof Error ? e.message : "Ошибка" },
+          loaded: true,
+        }));
       }
-    } catch (e) {
-      console.error(e);
-      setState((prev) => ({
-        ...prev,
-        nextRace: { status: "error", event_name: e instanceof Error ? e.message : "Ошибка" },
-        loaded: true,
-      }));
-    }
+    })().finally(() => { pending.current = null; });
+    pending.current = request;
+    return request;
   }, []);
 
   return (

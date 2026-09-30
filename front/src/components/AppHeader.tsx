@@ -22,7 +22,7 @@ function SidebarAccordion({ group, pathname }: { group: NavigationGroup; pathnam
       <span className="app-header-link-icon"><IndexIcon name={group.icon} /></span><span className="app-header-link-label">{group.label}</span><span className="app-header-link-arrow" aria-hidden>›</span>
     </button>
     <div id={id} className="app-header-submenu" aria-hidden={!expanded}>
-      {group.items.map(item => { const selected = navigationActive(item, pathname); return <Link key={item.to} to={item.to} className={`app-header-submenu-link${selected ? ' active' : ''}`} aria-current={selected ? 'page' : undefined} tabIndex={expanded ? 0 : -1}>
+      {expanded && group.items.map(item => { const selected = navigationActive(item, pathname); return <Link key={item.to} to={item.to} className={`app-header-submenu-link${selected ? ' active' : ''}`} aria-current={selected ? 'page' : undefined}>
         <span className="app-header-submenu-icon" aria-hidden><IndexIcon name={item.icon} /></span>{item.label}
       </Link>; })}
     </div>

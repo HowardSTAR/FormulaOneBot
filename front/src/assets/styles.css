@@ -48,8 +48,7 @@ body {
     max-width: 500px;
     margin: 0 auto;
     padding: 16px;
-    opacity: 0; /* Скрыто до загрузки анимации */
-    animation: fadeIn 0.4s ease-out forwards;
+    opacity: 1;
 }
 
 .app-shell {
@@ -188,7 +187,7 @@ body {
         pointer-events: none;
         z-index: -1;
         border-radius: 9999px;
-        filter: blur(120px);
+        /* A painted gradient avoids large filtered surfaces on every scroll. */
     }
 
     .app-content::before {
@@ -196,7 +195,7 @@ body {
         height: 280px;
         right: 24px;
         top: 8vh;
-        background: rgba(225, 6, 0, 0.09);
+        background: radial-gradient(ellipse, rgba(225, 6, 0, 0.06), transparent 70%);
     }
 
     .app-content::after {
@@ -204,7 +203,7 @@ body {
         height: 260px;
         left: 300px;
         bottom: 8vh;
-        background: rgba(255, 180, 168, 0.045);
+        background: radial-gradient(ellipse, rgba(255, 180, 168, 0.035), transparent 70%);
     }
 
     .app-content > * {
@@ -894,7 +893,6 @@ p {
 
     /* Animation setup */
     transition: stroke-dashoffset 2.5s ease-in-out;
-    will-change: stroke-dashoffset;
 
     /* Optional: Neon Glow */
     filter: drop-shadow(0 0 3px rgba(225, 6, 0, 1));

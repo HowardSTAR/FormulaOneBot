@@ -3,47 +3,47 @@ import { createBrowserRouter } from "react-router-dom";
 import { SwipeBackLayout } from "./components/SwipeBackLayout";
 import { RequirePersonalAccount } from "./components/RequirePersonalAccount";
 import IndexPage from "./pages/index/Index";
-import ComparePage from "./pages/compare/ComparePage";
-import ConstructorsPage from "./pages/constructors/ConstructorsPage";
-import ConstructorDetailsPage from "./pages/constructor-details/ConstructorDetailsPage";
-import TeamPrincipalPage from "./pages/team-principal/TeamPrincipalPage";
-import DriverDetailsPage from "./pages/driver-details/DriverDetailsPage";
-import DriversPage from "./pages/drivers/DriversPage";
-import HistoryPage from "./pages/history/HistoryPage";
-import FavoritesPage from "./pages/favorites/FavoritesPage";
-import NextRacePage from "./pages/next-race/NextRacePage";
-import QualiResultsPage from "./pages/quali-results/QualiResultsPage";
-import RaceDetailsPage from "./pages/race-details/RaceDetailsPage";
-import RaceResultsPage from "./pages/race-results/RaceResultsPage";
-import SettingsPage from "./pages/settings/SettingsPage";
-import SeasonPage from "./pages/season/SeasonPage";
-import SprintQualiResultsPage from "./pages/sprint-quali-results/SprintQualiResultsPage";
-import SprintResultsPage from "./pages/sprint-results/SprintResultsPage";
-import VotingPage from "./pages/voting/VotingPage";
-import AccountPage from "./pages/account/AccountPage";
-import ResetPasswordPage from "./pages/reset-password/ResetPasswordPage";
-import ReactionGamePage from "./pages/reaction-game/ReactionGamePage";
-import ReflexGridGamePage from "./pages/reflex-grid-game/ReflexGridGamePage";
-import RaceGamePage from "./pages/race-game/RaceGamePage";
-import PredictionsPage from "./pages/predictions/PredictionsPage";
-import PracticeResultsPage from "./pages/practice-results/PracticeResultsPage";
-import ContactAdminPage from "./pages/contact-admin/ContactAdminPage";
-import WikiPage from "./pages/wiki/WikiPage";
-import NotificationsPage from "./pages/notifications/NotificationsPage";
-import {
-  DataDeletionPage,
-  DataSourcesPage,
-  IntellectualPropertyPage,
-  PrivacyPage,
-  TermsPage,
-} from "./pages/legal/LegalPages";
 import { RequireAdmin } from "./components/RequireAdmin";
 
+// Keep only the home screen eager: charts, games and other page-specific code
+// and styles must not be downloaded/evaluated just to open the website.
+const ComparePage = lazy(() => import("./pages/compare/ComparePage"));
+const ConstructorsPage = lazy(() => import("./pages/constructors/ConstructorsPage"));
+const ConstructorDetailsPage = lazy(() => import("./pages/constructor-details/ConstructorDetailsPage"));
+const TeamPrincipalPage = lazy(() => import("./pages/team-principal/TeamPrincipalPage"));
+const DriverDetailsPage = lazy(() => import("./pages/driver-details/DriverDetailsPage"));
+const DriversPage = lazy(() => import("./pages/drivers/DriversPage"));
+const HistoryPage = lazy(() => import("./pages/history/HistoryPage"));
+const FavoritesPage = lazy(() => import("./pages/favorites/FavoritesPage"));
+const NextRacePage = lazy(() => import("./pages/next-race/NextRacePage"));
+const QualiResultsPage = lazy(() => import("./pages/quali-results/QualiResultsPage"));
+const RaceDetailsPage = lazy(() => import("./pages/race-details/RaceDetailsPage"));
+const RaceResultsPage = lazy(() => import("./pages/race-results/RaceResultsPage"));
+const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
+const SeasonPage = lazy(() => import("./pages/season/SeasonPage"));
+const SprintQualiResultsPage = lazy(() => import("./pages/sprint-quali-results/SprintQualiResultsPage"));
+const SprintResultsPage = lazy(() => import("./pages/sprint-results/SprintResultsPage"));
+const VotingPage = lazy(() => import("./pages/voting/VotingPage"));
+const AccountPage = lazy(() => import("./pages/account/AccountPage"));
+const ResetPasswordPage = lazy(() => import("./pages/reset-password/ResetPasswordPage"));
+const ReactionGamePage = lazy(() => import("./pages/reaction-game/ReactionGamePage"));
+const ReflexGridGamePage = lazy(() => import("./pages/reflex-grid-game/ReflexGridGamePage"));
+const RaceGamePage = lazy(() => import("./pages/race-game/RaceGamePage"));
+const PredictionsPage = lazy(() => import("./pages/predictions/PredictionsPage"));
+const PracticeResultsPage = lazy(() => import("./pages/practice-results/PracticeResultsPage"));
+const ContactAdminPage = lazy(() => import("./pages/contact-admin/ContactAdminPage"));
+const WikiPage = lazy(() => import("./pages/wiki/WikiPage"));
+const NotificationsPage = lazy(() => import("./pages/notifications/NotificationsPage"));
+const DataDeletionPage = lazy(() => import("./pages/legal/LegalPages").then(m => ({ default: m.DataDeletionPage })));
+const DataSourcesPage = lazy(() => import("./pages/legal/LegalPages").then(m => ({ default: m.DataSourcesPage })));
+const IntellectualPropertyPage = lazy(() => import("./pages/legal/LegalPages").then(m => ({ default: m.IntellectualPropertyPage })));
+const PrivacyPage = lazy(() => import("./pages/legal/LegalPages").then(m => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import("./pages/legal/LegalPages").then(m => ({ default: m.TermsPage })));
 const AdminPage = lazy(() => import("./pages/admin/AdminPage"));
 const PredictionAnalyticsPage = lazy(() => import("./pages/prediction-analytics/PredictionAnalyticsPage"));
 
 export const router = createBrowserRouter([
-  { path: "/race-game", element: <RaceGamePage /> },
+  { path: "/race-game", element: <Suspense fallback={<div role="status">Загрузка игры…</div>}><RaceGamePage /></Suspense> },
   {
     element: <SwipeBackLayout />,
     children: [

@@ -34,5 +34,6 @@ export default defineConfig({
   },
   build: {
     assetsDir: 'static',
+    manifest: true,
   }
 })

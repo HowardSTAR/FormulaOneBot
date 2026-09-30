@@ -1,4 +1,4 @@
-import { useRef, useCallback, useLayoutEffect, useEffect } from "react";
+import { Suspense, useRef, useCallback, useLayoutEffect, useEffect } from "react";
 import { apiRequest } from "../helpers/api";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { hapticImpact } from "../helpers/telegram";
@@ -94,7 +94,9 @@ export function SwipeBackLayout() {
       <InstallHint />
       <div className="app-content">
         <section className={`app-page-main route-${routeKey}`}>
-          <Outlet />
+          <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
+            <Outlet />
+          </Suspense>
         </section>
         <LegalFooter />
       </div>
