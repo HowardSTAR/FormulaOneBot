@@ -4,10 +4,61 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from aiogram.types import InlineKeyboardMarkup
 
 from app.handlers import secret
-from app.utils.broadcast_draft import parse_button
+from app.handlers.secret import _deliver_broadcast
+from app.utils.broadcast_draft import parse_button, parse_buttons
+from app.utils.mini_app_links import destination_buttons
+
+
+RELEASE_BUTTONS = (
+    '/button 📈 История и сравнение | /history\n'
+    '/button 🏎 Пилоты | /drivers\n'
+    '/button 📰 Рекап гонки | /race-results'
+)
+
+
+def test_three_buttons_preserve_rich_body_and_order():
+    plain = 'Новое ❤️ & полезное\n\n' + RELEASE_BUTTONS
+    formatted = '<b>Новое ❤️ &amp; полезное\n\n' + RELEASE_BUTTONS + '</b>'
+    body, text, buttons = parse_buttons(formatted, plain)
+    assert body == '<b>Новое ❤️ &amp; полезное</b>'
+    assert text == 'Новое ❤️ & полезное'
+    assert buttons == [
+        ('📈 История и сравнение', '/history', {}),
+        ('🏎 Пилоты', '/drivers', {}),
+        ('📰 Рекап гонки', '/race-results', {}),
+    ]
+
+
+def test_multiple_buttons_allow_blank_lines_and_optional_separator():
+    text = 'Hello\n/button First /history\n\n/button Second | /drivers\n'
+    assert parse_buttons(text, text) == (
+        'Hello', 'Hello', [('First', '/history', {}), ('Second', '/drivers', {})],
+    )
+    assert parse_buttons('Hello', 'Hello') == ('Hello', 'Hello', [])
+
+
+@pytest.mark.parametrize('text', [
+    '/button X | /history',
+    'Hello\n/button X | /history\nOther text\n/button Y | /drivers',
+    'Hello\n/button X | /history\n/button Y | javascript:alert(1)',
+    'Hello\n/button X | /history\n/button Y | //evil.test',
+    'Hello\n/button X | /history\n/button',
+    'Hello\n/button X | /history\n/button | /drivers',
+    'Hello\n' + '\n'.join('/button X | /history' for _ in range(11)),
+])
+def test_invalid_multiple_buttons_reject_entire_block(text):
+    with pytest.raises(ValueError):
+        parse_buttons(text, text)
+
+
+def test_ten_buttons_and_formatting_mismatch():
+    text = 'Hello\n' + '\n'.join('/button X | /history' for _ in range(10))
+    assert len(parse_buttons(text, text)[2]) == 10
+    with pytest.raises(ValueError):
+        parse_buttons('Different\n' + RELEASE_BUTTONS, 'Hello\n' + RELEASE_BUTTONS)
 
 
 def test_button_parser_preserves_rich_text():
@@ -59,7 +110,9 @@ def test_arbitrary_destinations_and_optional_separator(destination):
 
 
 @pytest.mark.asyncio
-async def test_external_link_preview_needs_no_miniapp_config(mock_broadcast):
+async def test_external_link_preview_needs_no_miniapp_config(mock_broadcast, monkeypatch):
+    for key in ('MINI_APP_URL', 'PUBLIC_WEB_URL', 'FRONTEND_URL'):
+        monkeypatch.delenv(key, raising=False)
     msg, deliver = mock_broadcast
     msg.text = msg.html_text = '/broadcast Hello\n/button Канал | https://t.me/example'
     await secret.admin_silent_broadcast(msg, SimpleNamespace(args=''))
@@ -75,8 +128,7 @@ def mock_broadcast(monkeypatch):
     secret._broadcast_drafts.clear()
     monkeypatch.setattr(secret,'get_settings',lambda:SimpleNamespace(admin_ids={1}))
     monkeypatch.setattr(secret,'get_users_with_settings',AsyncMock(return_value=[(2,'UTC'),(3,'UTC')]))
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text='Open',web_app=WebAppInfo(url='https://example.test/predictions'))]])
-    monkeypatch.setattr(secret,'mini_app_button',AsyncMock(return_value=keyboard))
+    monkeypatch.setenv('MINI_APP_URL', 'https://example.test/')
     deliver = AsyncMock(return_value=True)
     monkeypatch.setattr(secret,'_deliver_broadcast',deliver)
     text = '/broadcast Hello\n/button Open | /predictions?tab=leaderboard'
@@ -131,7 +183,7 @@ async def test_owner_cancel_expiry_and_replacement(mock_broadcast):
 @pytest.mark.asyncio
 async def test_missing_configuration_no_confirmation(mock_broadcast, monkeypatch):
     msg, deliver = mock_broadcast
-    monkeypatch.setattr(secret,'mini_app_button',AsyncMock(return_value=None))
+    monkeypatch.setattr(secret,'destination_buttons',AsyncMock(return_value=None))
     await secret.admin_silent_broadcast(msg,SimpleNamespace(args=''))
     assert not secret._broadcast_drafts and deliver.await_count == 0
 
@@ -146,3 +198,71 @@ async def test_album_uses_separate_button_message(monkeypatch):
     assert result
     assert media.call_args.args[2][0].caption is None
     assert text.call_args.kwargs['reply_markup'] is keyboard
+
+
+@pytest.mark.asyncio
+async def test_three_buttons_preview_is_private_and_footer_is_removed(mock_broadcast):
+    msg, deliver = mock_broadcast
+    msg.text = '/broadcast Новости ❤️\n\n' + RELEASE_BUTTONS
+    msg.html_text = '/broadcast <b>Новости ❤️</b>\n\n' + RELEASE_BUTTONS
+    await secret.admin_silent_broadcast(msg, SimpleNamespace(args=''))
+    assert deliver.await_count == 1 and deliver.call_args.args[1] == msg.chat.id
+    draft = next(iter(secret._broadcast_drafts.values()))
+    assert draft['text'] == '<b>Новости ❤️</b>' and draft['plain'] == 'Новости ❤️'
+    assert [row[0].text for row in draft['keyboard'].inline_keyboard] == [
+        '📈 История и сравнение', '🏎 Пилоты', '📰 Рекап гонки',
+    ]
+    assert [row[0].web_app.url for row in draft['keyboard'].inline_keyboard] == [
+        'https://example.test/history', 'https://example.test/drivers', 'https://example.test/race-results',
+    ]
+    assert all(row[0].url is None for row in draft['keyboard'].inline_keyboard)
+
+
+@pytest.mark.asyncio
+async def test_invalid_third_button_has_no_preview_or_draft(mock_broadcast):
+    msg, deliver = mock_broadcast
+    msg.text = msg.html_text = '/broadcast Hello\n' + RELEASE_BUTTONS.replace('/race-results', 'javascript:alert(1)')
+    await secret.admin_silent_broadcast(msg, SimpleNamespace(args=''))
+    assert not secret._broadcast_drafts and deliver.await_count == 0
+    secret.get_users_with_settings.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_confirmation_captures_all_three_buttons(mock_broadcast, monkeypatch):
+    msg, preview = mock_broadcast
+    queue = AsyncMock()
+    monkeypatch.setattr('app.services.delivery_adapters.queue_actions', queue)
+    msg.text = msg.html_text = '/broadcast Hello\n' + RELEASE_BUTTONS
+    await secret.admin_silent_broadcast(msg, SimpleNamespace(args=''))
+    token = next(iter(secret._broadcast_drafts))
+    expected = secret._broadcast_drafts[token]['keyboard']
+    monkeypatch.setattr(secret, '_deliver_broadcast', _deliver_broadcast)
+    await secret.confirm_broadcast(callback(msg, token))
+    assert preview.await_count == 1  # only the admin preview; capture sends nothing
+    queue.assert_awaited_once()
+    actions = queue.call_args.args[1]
+    assert len(actions) == 1 and actions[0]['method'] == 'send_message'
+    assert actions[0]['kwargs']['text'] == 'Hello'
+    restored = InlineKeyboardMarkup.model_validate(actions[0]['kwargs']['reply_markup'])
+    assert restored == expected
+    assert queue.call_args.args[2] == [(2, 'UTC'), (3, 'UTC')]
+    assert token not in secret._broadcast_drafts
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('photos', [[], ['one'], ['one', 'two']])
+async def test_delivery_serialization_preserves_three_miniapp_buttons(monkeypatch, photos):
+    """Capture is inert: exercise the actual delivery path without Telegram or DB writes."""
+    from app.services.delivery_adapters import capture
+
+    monkeypatch.setenv('MINI_APP_URL', 'https://example.test/')
+    _, _, buttons = parse_buttons('Hello\n' + RELEASE_BUTTONS, 'Hello\n' + RELEASE_BUTTONS)
+    markup = await destination_buttons(object(), buttons)
+    with capture() as actions:
+        assert await secret._deliver_broadcast(object(), 1, dict(
+            text='Hello', plain='Hello', photos=photos, keyboard=markup,
+        ), quiet=True)
+    assert len(actions) == (2 if len(photos) > 1 else 1)
+    restored = InlineKeyboardMarkup.model_validate(actions[-1]['kwargs']['reply_markup'])
+    assert restored == markup
+    assert '/button' not in actions[-1]['kwargs'].get('text', actions[-1]['kwargs'].get('caption', ''))

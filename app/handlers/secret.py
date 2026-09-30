@@ -43,8 +43,8 @@ from app.utils.notifications import (
     is_quiet_hours,
 )
 from app.utils.safe_send import safe_send_media_group, safe_send_message, safe_send_photo
-from app.utils.mini_app_links import mini_app_button
-from app.utils.broadcast_draft import parse_button
+from app.utils.mini_app_links import destination_buttons
+from app.utils.broadcast_draft import parse_buttons
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -667,7 +667,7 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
     """
     Предпросмотр и подтверждаемая рассылка всем активным пользователям.
     С 21:00 до 10:00 по времени каждого пользователя — в тихом режиме (без звука).
-    Поддержка: текст, фото, альбом и последняя строка /button для Mini App.
+    Поддержка: текст, фото, альбом и до 10 строк /button в конце для Mini App.
     """
     settings = get_settings()
     if not message.from_user or message.from_user.id not in settings.admin_ids:
@@ -711,9 +711,11 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
             "• <code>/broadcast Ваш текст</code> — предпросмотр перед рассылкой.\n"
             "• Прикрепите одно или несколько фото к <code>/broadcast текст</code> — фото или альбом с подписью.\n"
             "• Можно ответить командой на одиночное фото.\n\n"
-            "Добавьте последней строкой:\n"
-            "<code>/button 🏆 Таблица прогнозов | /predictions?tab=leaderboard</code>\n\n"
-            "Можно указать любую страницу Mini App или внешнюю ссылку https://…\n"
+            "Добавьте кнопки отдельными строками в конце (до 10):\n"
+            "<code>/button 📈 История и сравнение | /history</code>\n"
+            "<code>/button 🏎 Пилоты | /drivers</code>\n"
+            "<code>/button 📰 Рекап гонки | /race-results</code>\n\n"
+            "Путь /… открывает раздел внутри Mini App; полная ссылка https://… — внешнюю страницу.\n"
             "После подтверждения сообщение уходит <b>всем</b> активным пользователям. "
             "С 21:00 до 10:00 по времени получателя — в тихом режиме (без звука).",
             parse_mode="HTML"
@@ -721,19 +723,15 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
         return
 
     try:
-        text_to_send, plain_text_to_send, button = parse_button(text_to_send, plain_text_to_send)
+        text_to_send, plain_text_to_send, buttons = parse_buttons(text_to_send, plain_text_to_send)
     except ValueError as exc:
         await message.answer(str(exc), parse_mode=None)
         return
     keyboard = None
-    if button:
-        label, path, params = button
-        if path.lower().startswith(('https://', 'http://')):
-            keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=label, url=path)]])
-        else:
-            keyboard = await mini_app_button(message.bot, label, path, **params)
+    if buttons:
+        keyboard = await destination_buttons(message.bot, buttons)
         if keyboard is None:
-            await message.answer("Кнопка не создана: настройте MINI_APP_URL с публичным HTTPS-адресом. Рассылка не подготовлена.")
+            await message.answer("Кнопки не созданы: настройте MINI_APP_URL с публичным HTTPS-адресом. Рассылка не подготовлена.")
             return
     users = await get_users_with_settings(notifications_only=False)
     if not users:
@@ -746,7 +744,7 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
     draft = dict(owner=message.from_user.id, chat_id=message.chat.id,
                  text=text_to_send, plain=plain_text_to_send, photos=photo_file_ids,
                  keyboard=keyboard, targets={u[0] for u in users}, expires=time.monotonic()+600)
-    await message.answer("👁 Предпросмотр — пока только вам. Проверьте текст и переход по кнопке.")
+    await message.answer("👁 Предпросмотр — пока только вам. Проверьте текст и переходы по кнопкам.")
     try:
         ok = await _deliver_broadcast(message.bot, message.chat.id, draft, quiet=True)
     except Exception:
