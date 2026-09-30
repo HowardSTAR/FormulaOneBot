@@ -1,16 +1,20 @@
 from aiogram import Router, F
 from aiogram.filters import CommandStart
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup, Message
+from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 
 from app.db import get_or_create_user
-from app.handlers.settings import _show_main_settings
+from app.utils.bot_menu import main_keyboard
 
 router = Router()
 
 
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
+    if message.chat.type != "private":
+        await message.answer("В группе используйте /f1. Полное меню F1Hub доступно в личном чате с ботом.")
+        return
+    await state.clear()
     user_id = await get_or_create_user(message.from_user.id)
     argument = (getattr(message, 'text', None) or '').partition(' ')[2].strip()
     if argument.startswith('share_'):
@@ -26,56 +30,20 @@ async def cmd_start(message: Message, state: FSMContext):
             await message.answer('Приглашение истекло или отозвано. Откройте F1Hub, чтобы начать своё соревнование.')
         return
 
-    # Создаем кнопки главного меню (обычные текстовые кнопки внизу)
-    kb = [
-        [KeyboardButton(text="📈 История сезонов"), KeyboardButton(text="📰 Рекап гонки")],
-        [KeyboardButton(text="🏎 Справка о пилоте")],
-        [KeyboardButton(text="🤝 С друзьями")],
-        [
-            KeyboardButton(text="🏁 Следующая гонка"),
-            KeyboardButton(text="📅 Календарь"),
-        ],
-        [
-            KeyboardButton(text="🏆 Кубок конструкторов"),
-            KeyboardButton(text="🏎 Личный зачет"),
-            KeyboardButton(text="⚔️ Сравнение"),
-        ],
-        [
-            KeyboardButton(text="⭐ Избранное"),
-            KeyboardButton(text="⚙️ Настройки"),
-            KeyboardButton(text="📩 Связь с админом")
-        ],
-    ]
-
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=kb,
-        resize_keyboard=True,
-        input_field_placeholder="Выберите пункт меню"
-    )
-
     welcome_text = (
-        "🏎 **Добро пожаловать в TurboTears!**\n\n"
-        "Я твой персональный паддок в Telegram. Здесь есть всё для фаната F1:\n\n"
-        "🏁 **Календарь и Гонки**\n"
-        "Расписание этапов, время старта и обратный отсчет до зеленых огней.\n\n"
-        "📊 **Статистика**\n"
-        "Актуальный Личный зачет и Кубок конструкторов.\n\n"
-        "⚔️ **Сравнение пилотов**\n"
-        "Строим красивые графики противостояния любых гонщиков по очкам.\n\n"
-        "⭐ **Избранное и Уведомления**\n"
-        "Подпишись на любимых пилотов, и я пришлю их результаты после финиша. "
-        "Настрой время напоминания перед гонкой (за 10 мин, за час или за сутки)!\n\n"
-        "👇 **Жми на кнопки меню ниже!**"
+        "🏁 <b>Добро пожаловать в F1Hub!</b>\n\n"
+        "<b>Уик-энд</b> — расписание и рекап.\n"
+        "<b>Прогнозы</b> — ваш выбор, очки и лиги.\n"
+        "<b>Разделы</b> — статистика, история, пилоты и игры.\n"
+        "<b>Моё</b> — избранное, настройки и обратная связь.\n\n"
+        "Выберите кнопку внизу."
     )
 
     await message.answer(
         welcome_text,
-        reply_markup=keyboard,
-        parse_mode="Markdown"
+        reply_markup=main_keyboard(),
+        parse_mode="HTML"
     )
-
-    # Сразу показываем настройки уведомлений, чтобы пользователь мог настроить напоминания
-    await _show_main_settings(message, state, message.from_user.id, is_edit=False)
 
 
 @router.message(F.text == '🤝 С друзьями')

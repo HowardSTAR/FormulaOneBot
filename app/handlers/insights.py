@@ -1,5 +1,6 @@
 """The same archive, driver introductions and recap inside Telegram."""
 import asyncio
+import math
 from datetime import datetime, timezone
 from html import escape
 
@@ -14,6 +15,7 @@ from app.utils.mini_app_links import mini_app_button
 from app.utils.activity_status import ActivityStatus
 
 router = Router()
+DRIVERS_PER_PAGE = 6
 
 
 @router.message(Command("history"))
@@ -45,7 +47,7 @@ async def choose_driver(message: Message):
         await _driver_picker(message)
 
 
-async def _driver_picker(message: Message):
+async def _driver_picker(message: Message, page: int = 0, edit: bool = False):
     season = datetime.now(timezone.utc).year
     try:
         frame = await asyncio.wait_for(get_driver_standings_async(season), timeout=30)
@@ -57,8 +59,42 @@ async def _driver_picker(message: Message):
     if not buttons:
         await message.answer("Список пилотов пока недоступен. Попробуйте позже.")
         return
-    await message.answer("🏎 О каком пилоте рассказать? Выберите имя.", reply_markup=InlineKeyboardMarkup(
-        inline_keyboard=[buttons[i:i + 2] for i in range(0, len(buttons), 2)]))
+    pages = math.ceil(len(buttons) / DRIVERS_PER_PAGE)
+    page = max(0, min(page, pages - 1))
+    selected = buttons[page * DRIVERS_PER_PAGE:(page + 1) * DRIVERS_PER_PAGE]
+    rows = [selected[i:i + 2] for i in range(0, len(selected), 2)]
+    navigation = []
+    if page > 0:
+        navigation.append(InlineKeyboardButton(text="← Назад", callback_data=f"insights:drivers:page:{page - 1}"))
+    if page + 1 < pages:
+        navigation.append(InlineKeyboardButton(text="Далее →", callback_data=f"insights:drivers:page:{page + 1}"))
+    if navigation:
+        rows.append(navigation)
+    rows.append([InlineKeyboardButton(text="← Справочник", callback_data="nav:section:guides")])
+    text = f"🏎 О каком пилоте рассказать? Выберите имя.\nСтраница {page + 1} из {pages}."
+    keyboard = InlineKeyboardMarkup(inline_keyboard=rows)
+    if edit:
+        from aiogram.exceptions import TelegramBadRequest
+        try:
+            await message.edit_text(text, reply_markup=keyboard)
+        except TelegramBadRequest as exc:
+            if "message is not modified" not in str(exc).lower():
+                await message.answer(text, reply_markup=keyboard)
+    else:
+        await message.answer(text, reply_markup=keyboard)
+
+
+@router.callback_query(F.data.startswith("insights:drivers:page:"))
+async def driver_page_callback(callback: CallbackQuery):
+    from app.utils.safe_send import safe_answer_callback
+    page = (callback.data or "").removeprefix("insights:drivers:page:")
+    if not page.isdigit() or len(page) > 2:
+        await safe_answer_callback(callback, "Откройте список пилотов снова.")
+        return
+    await safe_answer_callback(callback)
+    if isinstance(callback.message, Message):
+        async with ActivityStatus(callback.message, "Обновляю список пилотов…"):
+            await _driver_picker(callback.message, int(page), edit=True)
 
 
 @router.callback_query(F.data == "insights:drivers")

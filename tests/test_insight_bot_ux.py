@@ -58,18 +58,21 @@ async def test_long_wait_explains_source_is_still_answering(monkeypatch):
     assert '%' not in status.edit_text.call_args.args[0]
 
 
-async def test_start_menu_contains_history_and_driver_buttons(monkeypatch):
+async def test_start_menu_is_compact_and_secondary_actions_remain_discoverable(monkeypatch):
     from app.handlers import start
+    from app.utils.bot_menu import SECTIONS
     msg, _ = message()
     msg.from_user = SimpleNamespace(id=123)
     monkeypatch.setattr(start, 'get_or_create_user', AsyncMock())
-    monkeypatch.setattr(start, '_show_main_settings', AsyncMock())
-    await start.cmd_start(msg, SimpleNamespace())
+    await start.cmd_start(msg, SimpleNamespace(clear=AsyncMock()))
     keyboard = msg.answer.call_args.kwargs['reply_markup']
     labels = [button.text for row in keyboard.keyboard for button in row]
-    assert '📈 История сезонов' in labels
-    assert '🏎 Справка о пилоте' in labels
-    assert '🤝 С друзьями' in labels
+    assert labels == ['🏁 Уик-энд', '🔮 Прогнозы', '📚 Разделы', '👤 Моё']
+    secondary = [label for _, _, rows in SECTIONS.values() for row in rows for label, _ in row]
+    assert '📈 История сезонов' in secondary
+    assert '🏎 Справка о пилоте' in secondary
+    assert '🤝 С друзьями' in secondary
+    assert msg.answer.await_count == 1  # no automatic full-size settings panel
 
 
 async def test_driver_answers_loading_before_awaiting_source(monkeypatch):
