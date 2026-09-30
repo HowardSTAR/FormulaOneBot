@@ -28,3 +28,10 @@ test('a long frame still detects the line at the interpolated crossing position'
   assert.equal(finishCrossing({ x: 855, y: 640 }, { x: 895, y: 680 }), 0.5)
   assert.equal(finishCrossing({ x: 855, y: 600 }, { x: 895, y: 620 }), null)
 })
+
+test('new circuits use their own finish gate, not Emerald coordinates', () => {
+  const line = { x: 875, minY: 734, maxY: 826 }
+  assert.equal(finishCrossing({ x: 870, y: 780 }, { x: 880, y: 780 }, line), 0.5)
+  assert.equal(finishCrossing({ x: 870, y: 660 }, { x: 880, y: 660 }, line), null)
+  assert.equal(finishCrossing({ x: 880, y: 780 }, { x: 870, y: 780 }, line), null)
+})

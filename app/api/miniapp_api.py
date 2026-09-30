@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from PIL import Image
 from pydantic import BaseModel, Field, model_validator, field_validator
+from app.race_rules import SUPPORTED_TRACK_IDS, validate_race_path
 
 # run_web.py imports this module directly, so load local configuration before
 # app.db and authentication services read environment variables.
@@ -653,12 +654,20 @@ class RaceTelemetrySample(BaseModel):
 
 class RaceGameScoreRequest(BaseModel):
     time_ms: int = Field(ge=15_000, le=3_600_000)
-    track_id: Literal["emerald-loop-v1"] = "emerald-loop-v1"
+    track_id: str = "emerald-loop-v1"
     telemetry: list[RaceTelemetrySample] = Field(default_factory=list, max_length=6000)
+
+    @field_validator("track_id")
+    @classmethod
+    def validate_track(cls, value: str) -> str:
+        if value not in SUPPORTED_TRACK_IDS:
+            raise ValueError("Unsupported track_id")
+        return value
 
     @model_validator(mode="after")
     def validate_telemetry_timeline(self):
         if not self.telemetry:
+            validate_race_path(self.track_id, [])
             return self
         if len(self.telemetry) < 2:
             raise ValueError("Telemetry must contain at least two samples")
@@ -671,6 +680,7 @@ class RaceGameScoreRequest(BaseModel):
             raise ValueError("Telemetry must start at race time zero")
         if abs(self.telemetry[-1].t - self.time_ms) > 250:
             raise ValueError("Telemetry duration must match recorded race time")
+        validate_race_path(self.track_id, [sample.model_dump() for sample in self.telemetry])
         return self
 
 
@@ -736,20 +746,24 @@ async def api_reaction_leaderboard_score(
 @web_app.get("/api/race-game-leaderboard")
 async def api_race_game_leaderboard(
     response: Response,
-    track_id: Literal["emerald-loop-v1"] = Query("emerald-loop-v1"),
+    track_id: str = Query("emerald-loop-v1"),
     user_id: Optional[int] = Depends(get_optional_user_id),
 ):
     response.headers["Cache-Control"] = "no-store"
+    if track_id not in SUPPORTED_TRACK_IDS:
+        raise HTTPException(422, "Unsupported track_id")
     return await get_race_game_leaderboard(user_id, track_id=track_id)
 
 
 @web_app.get("/api/race-game/ghost")
 async def api_public_race_game_ghost(
     response: Response,
-    track_id: Literal["emerald-loop-v1"] = Query("emerald-loop-v1"),
+    track_id: str = Query("emerald-loop-v1"),
 ):
     """Public replay, independent of the viewer's account or session."""
     response.headers["Cache-Control"] = "no-store"
+    if track_id not in SUPPORTED_TRACK_IDS:
+        raise HTTPException(422, "Unsupported track_id")
     leaderboard = await get_race_game_leaderboard(track_id=track_id)
     return {"track_id": track_id, "ghost": leaderboard["ghost"]}
 

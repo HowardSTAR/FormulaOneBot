@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#07100d" />
     <meta name="description" content="Emerald Loop — пиксельная браузерная гонка на вымышленном болиде с открытыми колёсами." />
     <title>Emerald Loop — браузерная гонка</title>
-    <script type="module" crossorigin src="./assets/index-RRrfi-GB.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-5clc3475.css">
+    <script type="module" crossorigin src="./assets/index-BFrw2RIm.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-C8BII-CR.css">
   </head>
   <body>
     <main id="app" aria-label="Игра Emerald Loop">
@@ -16,7 +16,7 @@
       <section class="hud" aria-label="Показатели заезда">
         <div class="brand-card">
           <span class="brand-mark" aria-hidden="true"></span>
-          <span><strong>EMERALD LOOP</strong><small>ARCADE CIRCUIT</small></span>
+          <span><strong id="track-name">EMERALD LOOP</strong><small id="track-format">Классическая</small></span>
         </div>
         <div class="telemetry-card">
           <div><small>КРУГ</small><strong id="lap-value">1 / 3</strong></div>
@@ -39,6 +39,13 @@
           <p class="eyebrow">ПИКСЕЛЬНЫЙ ЗАЕЗД</p>
           <h1 id="modal-title">Emerald Loop</h1>
           <p id="modal-copy">Три круга по оригинальной трассе. Удерживайте скорость, аккуратно проходите повороты и не теряйте время на траве.</p>
+          <div class="track-picker">
+            <label for="track-select">Трасса · отдельные рекорды</label>
+            <select id="track-select" aria-describedby="track-description track-switch-note"></select>
+            <div id="track-preview" class="track-preview"></div>
+            <p id="track-description"></p>
+            <small id="track-switch-note">Смена трассы начинает новый заезд.</small>
+          </div>
           <div class="control-guide">
             <div><span>↑</span><b>Газ</b><small>W / ↑ / пробел</small></div>
             <div><span>← →</span><b>Поворот</b><small>A D / стрелки</small></div>
@@ -54,7 +61,7 @@
             <a href="/" target="_top">На главную</a>
             <button id="intro-leaderboard-button" type="button">Таблица лидеров</button>
           </div>
-          <p class="mobile-note">Слева — джойстик руля, справа — газ и тормоз. Призрак повторяет рекордный заезд из трёх кругов.</p>
+          <p class="mobile-note">Слева — джойстик руля, справа — газ и тормоз. Призрак повторяет рекорд этой трассы. Возврат ↺ переводит заезд в тренировку без рекорда.</p>
           <details class="fullscreen-help"><summary>Как убрать панель браузера?</summary><p>На iPhone: Safari → Поделиться → На экран «Домой». Запустите TurboTears с иконки. На Android полноэкранный режим включается при нажатии «Начать заезд», если браузер его поддерживает.</p></details>
         </div>
       </section>
@@ -64,7 +71,7 @@
         <aside class="game-menu-panel" role="dialog" aria-modal="true" aria-labelledby="game-menu-title">
           <div class="game-menu-header">
             <div>
-              <p class="eyebrow">EMERALD LOOP</p>
+              <p class="eyebrow" id="menu-track-name">EMERALD LOOP</p>
               <h2 id="game-menu-title">Меню заезда</h2>
             </div>
             <button id="menu-close-button" class="menu-close-button" type="button" aria-label="Закрыть меню">×</button>
@@ -76,6 +83,9 @@
             </button>
             <button id="menu-continue-button" class="menu-action is-primary" type="button">
               <span aria-hidden>▶</span><b>Продолжить</b><small>Вернуться к заезду</small>
+            </button>
+            <button id="menu-tracks-button" class="menu-action" type="button">
+              <span aria-hidden="true">▱</span><b>Выбрать трассу</b><small>Сбросить заезд и открыть четыре маршрута</small>
             </button>
             <button id="menu-ghost-toggle" class="menu-action ghost-menu-toggle" type="button" aria-pressed="true">
               <span aria-hidden>◌</span><b id="menu-ghost-label">Ghost Racer: ON</b><small id="menu-ghost-copy">Загрузка лучшего заезда…</small>
@@ -91,13 +101,15 @@
           <div id="menu-leaderboard-view" class="game-menu-view leaderboard-view" hidden>
             <button id="leaderboard-back-button" class="leaderboard-back" type="button">← Назад в меню</button>
             <div class="leaderboard-heading">
-              <div><small>EMERALD LOOP</small><h3>Таблица лидеров</h3></div>
+              <div><small id="leaderboard-track-name">EMERALD LOOP</small><h3>Таблица лидеров</h3></div>
               <span id="leaderboard-my-place">—</span>
             </div>
             <div id="leaderboard-list" class="leaderboard-list">
               <div class="leaderboard-message">Загрузка результатов…</div>
             </div>
             <p class="leaderboard-note">В рейтинг попадает лучшее время участников общего игрового профиля.</p>
+            <button id="legacy-leaderboard-button" class="leaderboard-back" type="button">Архив Emerald · до столкновений</button>
+            <button id="current-leaderboard-button" class="leaderboard-back" type="button" hidden>← Текущие рекорды Emerald</button>
             <a class="leaderboard-settings-link" href="/reaction-game" target="_top">Настроить имя и участие на сайте</a>
           </div>
         </aside>

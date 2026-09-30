@@ -5,6 +5,7 @@ import json
 import aiosqlite
 from pathlib import Path
 from typing import List, Tuple, Any, Optional
+from app.race_rules import SUPPORTED_TRACK_IDS, validate_race_path
 
 # Настройка путей и логгера
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -1111,7 +1112,11 @@ async def save_race_game_score(
         return False
 
     normalized_track = str(track_id or "").strip()
-    if normalized_track != "emerald-loop-v1":
+    if normalized_track not in SUPPORTED_TRACK_IDS:
+        return False
+    try:
+        validate_race_path(normalized_track, telemetry or [])
+    except (ValueError, TypeError, KeyError):
         return False
     telemetry_json = (
         json.dumps(telemetry, ensure_ascii=False, separators=(",", ":"))

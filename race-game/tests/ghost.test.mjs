@@ -14,7 +14,7 @@ const { createTelemetrySample, interpolateGhost } = await import(
 test('opening the leaderboard cannot restore wiped local scores', async () => {
   const main = await readFile(new URL('../src/main.ts', import.meta.url), 'utf8')
   const loader = main.slice(main.indexOf('const loadLeaderboard ='), main.indexOf('let ghostRequestVersion'))
-  assert.ok(loader.includes("apiRequest<LeaderboardResponse>('/api/race-game-leaderboard')"))
+  assert.ok(loader.includes('/api/race-game-leaderboard?track_id='))
   assert.ok(!loader.includes('submitRaceTime('))
   assert.ok(!loader.includes('localStorage.getItem('))
 })

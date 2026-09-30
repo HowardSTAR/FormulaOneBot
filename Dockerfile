@@ -5,6 +5,7 @@ RUN npm ci --no-audit --no-fund
 COPY race-game/index.html race-game/tsconfig.json race-game/vite.config.ts ./
 COPY race-game/src ./src
 COPY race-game/public ./public
+COPY app/race_tracks.json /app/race_tracks.json
 RUN npm run build
 
 FROM node:20-alpine AS front-builder

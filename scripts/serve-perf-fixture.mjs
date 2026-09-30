@@ -6,6 +6,8 @@ import { extname, resolve, sep } from 'node:path';
 const root = resolve(process.argv[2] || '.tmp/perf-after');
 const port = Number(process.argv[3] || 4179);
 const signed = process.argv.includes('--signed');
+const raceQA = process.argv.includes('--race');
+const raceTracks = raceQA ? JSON.parse(await readFile(new URL('../app/race_tracks.json', import.meta.url), 'utf8')) : [];
 const counts = new Map();
 const start = new Date(Date.now() + 2 * 86400000).toISOString();
 const race = { status: 'ok', event_name: 'Bahrain Grand Prix', location: 'Sakhir', country: 'Bahrain', season: 2026, round: 16, next_session_name: 'Практика 1', next_session_iso: start, race_start_utc: start, date: start.slice(0, 10) };
@@ -34,6 +36,16 @@ const server = createServer(async (req, res) => {
   }
   counts.set(url.pathname, (counts.get(url.pathname) || 0) + 1);
   if (url.pathname.startsWith('/api/')) {
+    if (raceQA && req.method === 'GET' && ['/api/race-game-leaderboard', '/api/race-game/ghost'].includes(url.pathname)) {
+      const trackId = url.searchParams.get('track_id') || 'emerald-loop-v1';
+      const index = raceTracks.findIndex(track => track.id === trackId);
+      const valid = index >= 0 || trackId === 'emerald-loop-v1';
+      res.writeHead(valid ? 200 : 422, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      return res.end(JSON.stringify(!valid ? { detail: 'Unsupported track_id' } : url.pathname.endsWith('/ghost')
+        ? { track_id: trackId, ghost: null }
+        : { track_id: trackId, ghost: null, me: null, progress: null,
+          entries: [{ place: 1, telegram_id: 1, name: 'Тестовый рекорд · ' + trackId, time_ms: 72000 + (index + 1) * 10000, is_me: false }] }));
+    }
     // Normal visit/error analytics are consumed locally and never forwarded.
     if (req.method !== 'GET' && !url.pathname.startsWith('/api/analytics/')) {
       res.writeHead(405); return res.end();
