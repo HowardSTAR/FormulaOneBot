@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { notifyAuthChanged } from "../../helpers/auth";
+import { visibleInterval } from "../../helpers/visibleInterval";
 import "./AccountPage.css";
 
 type User = {
@@ -108,10 +109,10 @@ export default function AccountPage() {
     };
 
     void checkStatus();
-    const interval = window.setInterval(checkStatus, 2000);
+    const stop = visibleInterval(() => void checkStatus(), 2000);
     return () => {
       active = false;
-      window.clearInterval(interval);
+      stop();
     };
   }, [linkSession]);
 

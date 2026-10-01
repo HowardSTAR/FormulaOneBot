@@ -3,6 +3,7 @@ import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { CustomSelect } from "../../components/CustomSelect";
 import { hapticSelection, hapticImpact } from "../../helpers/telegram";
+import { visibleInterval } from "../../helpers/visibleInterval";
 import "../../assets/personal-pages.css";
 
 type SettingsResponse = { timezone?: string; notify_before?: number; notifications_enabled?: boolean; reminder_sessions?: number; results_spoiler?: boolean };
@@ -75,8 +76,7 @@ function SettingsPage() {
   }, [timezone, clockTick]);
 
   useEffect(() => {
-    const id = window.setInterval(() => setClockTick(Date.now()), 30_000);
-    return () => clearInterval(id);
+    return visibleInterval(() => setClockTick(Date.now()), 30_000);
   }, []);
 
   useEffect(() => {

@@ -103,3 +103,12 @@ test('home is eager, every other page is lazy and shell retains a suspense bound
   const shell = readFileSync(new URL('../src/components/SwipeBackLayout.tsx', import.meta.url), 'utf8');
   assert.match(shell, /<Suspense[\s\S]*<Outlet\s*\/>[\s\S]*<\/Suspense>/);
 });
+
+test('account, calendar and settings use the tested visibility-aware timer', () => {
+  for (const page of ['account/AccountPage', 'season/SeasonPage', 'settings/SettingsPage']) {
+    const source = readFileSync(new URL(`../src/pages/${page}.tsx`, import.meta.url), 'utf8');
+    assert.match(source, /import \{ visibleInterval \}/);
+    assert.match(source, /visibleInterval\(/);
+    assert.doesNotMatch(source, /window\.setInterval\(/);
+  }
+});

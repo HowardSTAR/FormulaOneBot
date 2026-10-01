@@ -1,6 +1,8 @@
 """Deterministic TurboTears result cards; artwork is optional, never a data source."""
 from io import BytesIO
 from pathlib import Path
+from functools import lru_cache
+import threading
 
 from PIL import Image, ImageDraw, ImageFont, ImageOps
 
@@ -10,13 +12,33 @@ PANEL = "#17191f"
 WHITE = "#f5f5f7"
 MUTED = "#989aa5"
 RED = "#e10600"
+_THREAD_FONTS = threading.local()
 
 
 def _font(size, bold=False):
+    path = FONT_DIR / ("Jost-Bold.ttf" if bold else "Jost-Regular.ttf")
     try:
-        return ImageFont.truetype(str(FONT_DIR / ("Jost-Bold.ttf" if bold else "Jost-Regular.ttf")), size)
+        stamp = path.stat()
+        version = (stamp.st_mtime_ns, stamp.st_size)
+    except OSError:
+        version = None
+    if not hasattr(_THREAD_FONTS, "load"):
+        # FreeType objects remain local to the rendering thread.
+        _THREAD_FONTS.load = lru_cache(maxsize=32)(_load_font)
+    return _THREAD_FONTS.load(str(path), size, version)
+
+
+def _load_font(path, size, version):
+    try:
+        # Memory sources avoid keeping dozens of font files open on Windows.
+        return ImageFont.truetype(BytesIO(_font_bytes(path, version)), size)
     except OSError:
         return ImageFont.load_default()
+
+
+@lru_cache(maxsize=8)
+def _font_bytes(path, version):
+    return Path(path).read_bytes()
 
 
 def _fit(draw, text, size, width, bold=False):

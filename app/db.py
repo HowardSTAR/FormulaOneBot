@@ -28,28 +28,39 @@ class Database:
         self.db_path = db_path
         self.conn: Optional[aiosqlite.Connection] = None
         self.write_lock = asyncio.Lock()
+        self._connection_lock = asyncio.Lock()
 
     async def connect(self):
         """Открывает соединение и включает WAL-режим для скорости."""
-        if self.conn is None:
-            self.conn = await aiosqlite.connect(self.db_path)
+        async with self._connection_lock:
+            if self.conn is not None:
+                return
+            connection = await aiosqlite.connect(self.db_path)
             # Включаем доступ к полям по именам (dict-like access)
-            self.conn.row_factory = aiosqlite.Row
-            await self.conn.execute("PRAGMA foreign_keys = ON;")
+            connection.row_factory = aiosqlite.Row
             # bot и web работают с одним SQLite-файлом в разных контейнерах.
             # Вместо мгновенного `database is locked` ждём освобождения записи.
-            await self.conn.execute("PRAGMA busy_timeout = 30000;")
-            # WAL-режим критически важен для конкурентной записи и чтения
-            await self.conn.execute("PRAGMA journal_mode = WAL;")
-            await self.conn.commit()
+            try:
+                await connection.execute("PRAGMA foreign_keys = ON;")
+                await connection.execute("PRAGMA busy_timeout = 30000;")
+                await connection.execute("PRAGMA journal_mode = WAL;")
+                await connection.commit()
+            except BaseException:
+                await connection.close()
+                raise
+            # Publish only a fully configured connection, not a half-open one.
+            self.conn = connection
             logger.info("Database connection established (WAL mode enabled).")
 
     async def close(self):
         """Закрывает соединение."""
-        if self.conn:
-            await self.conn.close()
-            self.conn = None
-            logger.info("Database connection closed.")
+        async with self._connection_lock:
+            if self.conn:
+                try:
+                    await self.conn.close()
+                finally:
+                    self.conn = None
+                logger.info("Database connection closed.")
 
     async def init_tables(self):
         """Создает таблицы (миграции)."""

@@ -8,6 +8,9 @@ import pickle
 import hashlib
 import re
 import ssl
+import tempfile
+import threading
+from collections import OrderedDict
 from datetime import date as _date, timezone, timedelta, datetime
 from typing import Optional, Any, Dict, Tuple, List
 from urllib.parse import unquote
@@ -21,6 +24,7 @@ from fastf1.ergast import Ergast
 from fastf1.exceptions import DataNotLoadedError
 from lxml import html as lxml_html
 from redis.asyncio import Redis
+from app.utils.singleflight import SingleFlight
 
 # --- ЛОГИРОВАНИЕ --- #
 logger = logging.getLogger(__name__)
@@ -43,7 +47,9 @@ _REDIS_CLIENT: Redis | None = None
 # --- FALLBACK КЭШ (когда Redis недоступен) --- #
 _fallback_cache_dir = _project_root / "f1bot_cache"
 _fallback_cache_dir.mkdir(exist_ok=True)
-_MEMORY_CACHE: dict[str, tuple[float, Any]] = {}  # key -> (expires_at, data)
+_MEMORY_CACHE: OrderedDict[str, tuple[float, Any]] = OrderedDict()
+_MEMORY_CACHE_LIMIT = 128
+_MEMORY_CACHE_LOCK = threading.RLock()
 
 
 def _cache_key(key_prefix: str, func_name: str, args: tuple, kwargs: dict) -> str:
@@ -52,14 +58,35 @@ def _cache_key(key_prefix: str, func_name: str, args: tuple, kwargs: dict) -> st
     return f"{key_prefix}:{func_name}:{arg_hash}"
 
 
+def _memory_cache_get(cache_key: str) -> Any | None:
+    with _MEMORY_CACHE_LOCK:
+        entry = _MEMORY_CACHE.get(cache_key)
+        if entry is not None:
+            expires_at, data = entry
+            if expires_at > time.time():
+                _MEMORY_CACHE.move_to_end(cache_key)
+                return data
+            _MEMORY_CACHE.pop(cache_key, None)
+    return None
+
+
+def _remember_cache(cache_key: str, expires_at: float, data: Any) -> None:
+    with _MEMORY_CACHE_LOCK:
+        now = time.time()
+        for key, (expires, _) in list(_MEMORY_CACHE.items()):
+            if expires <= now:
+                _MEMORY_CACHE.pop(key, None)
+        _MEMORY_CACHE[cache_key] = (expires_at, data)
+        _MEMORY_CACHE.move_to_end(cache_key)
+        while len(_MEMORY_CACHE) > _MEMORY_CACHE_LIMIT:
+            _MEMORY_CACHE.popitem(last=False)
+
+
 def _fallback_cache_get(cache_key: str) -> Any | None:
-    """Читает из памяти, при промахе — из файла."""
-    now = time.time()
-    if cache_key in _MEMORY_CACHE:
-        expires_at, data = _MEMORY_CACHE[cache_key]
-        if expires_at > now:
-            return data
-        del _MEMORY_CACHE[cache_key]
+    """Blocking disk fallback; async callers run this outside their event loop."""
+    cached = _memory_cache_get(cache_key)
+    if cached is not None:
+        return cached
 
     safe_key = hashlib.md5(cache_key.encode()).hexdigest()
     file_path = _fallback_cache_dir / f"{safe_key}.pkl"
@@ -68,8 +95,8 @@ def _fallback_cache_get(cache_key: str) -> Any | None:
             with open(file_path, "rb") as f:
                 stored = pickle.load(f)
             expires_at, data = stored
-            if expires_at > now:
-                _MEMORY_CACHE[cache_key] = (expires_at, data)
+            if expires_at > time.time():
+                _remember_cache(cache_key, expires_at, data)
                 return data
         except Exception as e:
             logger.debug(f"Fallback cache read error: {e}")
@@ -79,14 +106,25 @@ def _fallback_cache_get(cache_key: str) -> Any | None:
 def _fallback_cache_set(cache_key: str, data: Any, ttl: int) -> None:
     """Сохраняет в память и в файл."""
     expires_at = time.time() + ttl
-    _MEMORY_CACHE[cache_key] = (expires_at, data)
+    _remember_cache(cache_key, expires_at, data)
     safe_key = hashlib.md5(cache_key.encode()).hexdigest()
     file_path = _fallback_cache_dir / f"{safe_key}.pkl"
+    temporary = None
     try:
-        with open(file_path, "wb") as f:
+        # Bot and web can write the same key from separate processes. Readers
+        # must see either the previous complete file or the new complete file.
+        with tempfile.NamedTemporaryFile(dir=_fallback_cache_dir, prefix=safe_key, suffix=".tmp", delete=False) as f:
+            temporary = pathlib.Path(f.name)
             pickle.dump((expires_at, data), f)
+        os.replace(temporary, file_path)
     except Exception as e:
         logger.debug(f"Fallback cache write error: {e}")
+    finally:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError as e:
+                logger.debug(f"Fallback cache temporary cleanup error: {e}")
 
 
 def sort_standings_zero_last(df: pd.DataFrame, position_col: str = "position") -> pd.DataFrame:
@@ -108,13 +146,25 @@ def sort_standings_zero_last(df: pd.DataFrame, position_col: str = "position") -
 async def init_redis_cache(redis_url: str):
     """Инициализация Redis клиента для кэширования данных."""
     global _REDIS_CLIENT
+    await close_redis_cache()
     try:
         _REDIS_CLIENT = Redis.from_url(redis_url)
         await _REDIS_CLIENT.ping()
         logger.info("Redis cache initialized successfully.")
     except Exception as e:
         logger.warning(f"Redis unavailable, using file cache: {e}")
-        _REDIS_CLIENT = None
+        await close_redis_cache()
+
+
+async def close_redis_cache():
+    """Release the pool on shutdown or failed initialization without flushing data."""
+    global _REDIS_CLIENT
+    client, _REDIS_CLIENT = _REDIS_CLIENT, None
+    if client is not None:
+        try:
+            await client.aclose()
+        except Exception as e:
+            logger.debug(f"Redis CLOSE error: {e}")
 
 
 QUALI_CACHE_TTL = 14 * 24 * 3600  # 14 дней — до следующей квалификации с запасом
@@ -164,20 +214,20 @@ async def set_cached_quali_results(season: int, payload: dict) -> None:
 
 def cache_result(ttl: int = 300, key_prefix: str = ""):
     def decorator(func):
-        @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
-            cache_key = _cache_key(key_prefix, func.__name__, args, kwargs)
-
+        flights = SingleFlight()
+        async def read_through(cache_key, args, kwargs):
             if _REDIS_CLIENT is not None:
                 try:
                     full_key = f"f1bot:cache:{cache_key}"
                     cached_data = await _REDIS_CLIENT.get(full_key)
                     if cached_data:
-                        return pickle.loads(cached_data)
+                        return await asyncio.to_thread(pickle.loads, cached_data)
                 except Exception as e:
                     logger.debug(f"Redis READ error: {e}")
 
-            cached = _fallback_cache_get(cache_key)
+            cached = _memory_cache_get(cache_key)
+            if cached is None:
+                cached = await asyncio.to_thread(_fallback_cache_get, cache_key)
             if cached is not None:
                 return cached
 
@@ -195,13 +245,22 @@ def cache_result(ttl: int = 300, key_prefix: str = ""):
             if should_cache:
                 if _REDIS_CLIENT is not None:
                     try:
-                        packed = pickle.dumps(result)
+                        packed = await asyncio.to_thread(pickle.dumps, result)
                         await _REDIS_CLIENT.setex(f"f1bot:cache:{cache_key}", cache_ttl, packed)
                     except Exception as e:
                         logger.debug(f"Redis WRITE error: {e}")
-                _fallback_cache_set(cache_key, result, cache_ttl)
+                await asyncio.to_thread(_fallback_cache_set, cache_key, result, cache_ttl)
 
             return result
+
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            cache_key = _cache_key(key_prefix, func.__name__, args, kwargs)
+            if _REDIS_CLIENT is None:
+                cached = _memory_cache_get(cache_key)
+                if cached is not None:
+                    return cached
+            return await flights.run(cache_key, lambda: read_through(cache_key, args, kwargs))
 
         return wrapper
 
@@ -215,11 +274,15 @@ async def _run_sync(func, *args, **kwargs):
     return await loop.run_in_executor(None, functools.partial(func, *args, **kwargs))
 
 
+@functools.lru_cache(maxsize=1)
+def _profile_ssl_context() -> ssl.SSLContext:
+    return ssl.create_default_context(cafile=certifi.where())
+
+
 def _profile_http_session() -> aiohttp.ClientSession:
-    """ClientSession с certifi CA bundle для Jolpica/OpenF1/Wikipedia на локальном Python."""
-    ssl_context = ssl.create_default_context(cafile=certifi.where())
+    """Reuse CA configuration, but never share a session across event loops."""
     return aiohttp.ClientSession(
-        connector=aiohttp.TCPConnector(ssl=ssl_context),
+        connector=aiohttp.TCPConnector(ssl=_profile_ssl_context()),
         headers={"User-Agent": "TurboTears/1.0 (independent non-commercial motorsport statistics service) aiohttp"},
     )
 

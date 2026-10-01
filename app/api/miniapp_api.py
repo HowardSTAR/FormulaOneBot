@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import io
 import math
 import os
@@ -10,11 +11,10 @@ from typing import Literal, Optional, List
 
 import pandas as pd
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Query, Depends, Header
+from fastapi import FastAPI, HTTPException, Query, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from PIL import Image
 from pydantic import BaseModel, Field, model_validator, field_validator
 from app.race_rules import SUPPORTED_TRACK_IDS, validate_race_path
 
@@ -83,6 +83,7 @@ from app.services.prediction_service import (
 )
 from app.utils.default import DRIVER_CODE_TO_FILE
 from app.utils.image_render import _get_team_logo, get_car_image_path
+from app.utils.portrait_render import render_head_crop_png_bytes
 
 # --- Настройка путей ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -97,7 +98,7 @@ ASSETS_DIR = PROJECT_ROOT / "app" / "assets"
 # --- Инициализация приложения ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from app.f1_data import init_redis_cache
+    from app.f1_data import init_redis_cache, close_redis_cache
     await db.connect()
     await db.init_tables()
     redis_url = os.getenv("REDIS_URL")
@@ -106,7 +107,10 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        await db.close()
+        try:
+            await db.close()
+        finally:
+            await close_redis_cache()
 
 
 web_app = FastAPI(
@@ -1107,13 +1111,19 @@ async def api_team_logo(
     """Возвращает логотип команды в формате PNG."""
     if season is None:
         season = datetime.now().year
-    img = await asyncio.to_thread(_get_team_logo, team, name or team, season)
-    if img is None:
+    png_bytes = await asyncio.to_thread(_render_team_logo_png_bytes, team, name or team, season)
+    if png_bytes is None:
         raise HTTPException(status_code=404, detail="Логотип не найден")
+    return Response(content=png_bytes, media_type="image/png")
+
+
+def _render_team_logo_png_bytes(team, name, season):
+    img = _get_team_logo(team, name, season)
+    if img is None:
+        return None
     buf = io.BytesIO()
     img.save(buf, format="PNG")
-    buf.seek(0)
-    return Response(content=buf.getvalue(), media_type="image/png")
+    return buf.getvalue()
 
 
 PILOT_FALLBACK_PATH = PROJECT_ROOT / "app" / "assets" / "pilot" / "pilot.png"
@@ -1168,37 +1178,12 @@ def _find_local_pilot_portrait_path(season: int, code: str | None, name: str | N
 
 
 def _render_head_crop_png_bytes(path: Path) -> bytes:
-    with Image.open(path) as img:
-        base = img.convert("RGBA")
-        w, h = base.size
-        alpha_extrema = base.getchannel("A").getextrema()
-        is_transparent_square_portrait = h <= int(w * 1.25) and alpha_extrema[0] < 255
-        if path.stem in DRIVER_CODE_TO_FILE and (path.parent / "sources.json").is_file():
-            # The verified studio set uses a uniform top square: head + shoulders,
-            # independent of full-body image height. Never stretch a narrow crop.
-            side = min(w, h)
-            if path.stem == "TSU":
-                # Reviewed profile photo differs from the uniform studio set.
-                head = base.crop((int(w * .25), 0, int(w * .25) + int(w * .533333), int(w * .533333)))
-            else:
-                head = base.crop((0, 0, side, side))
-            head.thumbnail((256, 256), Image.Resampling.LANCZOS)
-        elif is_transparent_square_portrait:
-            # Готовые квадратные headshot-ассеты уже скомпонованы вокруг лица.
-            # Повторный кроп срезал подбородок и форму у портретов 2025 года.
-            head = base
-        else:
-            # Высокие ростовые портреты 2026: берём верхнюю часть без
-            # обратного растягивания, чтобы лицо оставалось пропорциональным.
-            crop_h = max(1, int(h * PILOT_HEAD_CROP_RATIO))
-            head = base.crop((0, 0, w, crop_h))
-        buf = io.BytesIO()
-        head.save(buf, format="PNG")
-        return buf.getvalue()
+    return render_head_crop_png_bytes(path, PILOT_HEAD_CROP_RATIO)
 
 
 @web_app.get("/api/pilot-portrait")
 async def api_pilot_portrait(
+    request: Request,
     season: Optional[int] = Query(None),
     code: Optional[str] = Query(None),
     name: Optional[str] = Query(None),
@@ -1208,11 +1193,16 @@ async def api_pilot_portrait(
     if season is None:
         season = datetime.now().year
 
-    local_path = _find_local_pilot_portrait_path(season, code, name)
+    local_path = await asyncio.to_thread(_find_local_pilot_portrait_path, season, code, name)
     if local_path and local_path.exists():
         try:
             png_bytes = await asyncio.to_thread(_render_head_crop_png_bytes, local_path)
-            return Response(content=png_bytes, media_type="image/png")
+            tag = '"' + hashlib.sha256(png_bytes).hexdigest() + '"'
+            headers = {"ETag": tag, "Cache-Control": "public, max-age=0, must-revalidate"}
+            candidates = request.headers.get("if-none-match", "").split(",")
+            if any(value.strip().removeprefix("W/") in {tag, "*"} for value in candidates):
+                return Response(status_code=304, headers=headers)
+            return Response(content=png_bytes, media_type="image/png", headers=headers)
         except Exception:
             pass
 

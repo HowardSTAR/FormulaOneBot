@@ -30,30 +30,10 @@ EXPECTED_PILOTS = {
         "Pierre Gasly",
         "Yuki Tsunoda",
     },
-    "2026": {
-        "Alexander Albon",
-        "Andrea Kimi Antonelli",
-        "Arvid Lindblad",
-        "Carlos Sainz",
-        "Charles Leclerc",
-        "Esteban Ocon",
-        "Fernando Alonso",
-        "Franco Colapinto",
-        "Gabriel Bortoleto",
-        "George Russell",
-        "Isack Hadjar",
-        "Lance Stroll",
-        "Lando Norris",
-        "Lewis Hamilton",
-        "Liam Lawson",
-        "Max Verstappen",
-        "Nico Hulkenberg",
-        "Oliver Bearman",
-        "Oscar Piastri",
-        "Pierre Gasly",
-        "Sergio Perez",
-        "Valtteri Bottas",
-    },
+    # Verified studio set is identity-keyed, including Tsunoda's reviewed JPEG.
+    "2026": {"ALB", "ANT", "LIN", "SAI", "LEC", "OCO", "ALO", "COL", "BOR",
+             "RUS", "HAD", "STR", "NOR", "HAM", "LAW", "VER", "HUL", "BEA",
+             "PIA", "GAS", "PER", "BOT", "TSU"},
 }
 
 EXPECTED_TEAMS = {
@@ -129,4 +109,9 @@ def test_all_season_assets_have_real_transparency_and_clean_names():
                 ):
                     continue
                 assert path.name == path.name.strip()
+                if season_dir.name == "2026" and category == "pilots" and path.name == "TSU.jpg":
+                    # Not a cutout: provenance/hash are checked in test_verified_portraits.
+                    with Image.open(path) as image:
+                        assert image.size == (600, 900) and image.mode == "RGB"
+                    continue
                 _assert_transparent(path)

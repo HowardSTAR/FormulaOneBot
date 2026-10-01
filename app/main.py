@@ -14,7 +14,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from app.bot import create_bot_and_dispatcher
 from app.config import get_settings
 from app.db import db
-from app.f1_data import init_redis_cache, warmup_cache
+from app.f1_data import init_redis_cache, close_redis_cache, warmup_cache
 from app.handlers import account_link, menu, start, races, drivers, teams, favorites, secret, settings, compare, feedback, groups, insights, telegram_features, guest
 from app.middlewares.error_logging import ErrorLoggingMiddleware
 from app.utils.backup import create_backup
@@ -71,7 +71,10 @@ async def on_startup(bot: Bot):
 
 
 async def on_shutdown(bot: Bot):
-    await db.close()
+    try:
+        await db.close()
+    finally:
+        await close_redis_cache()
     logger.info("Bot stopped, DB closed.")
 
 

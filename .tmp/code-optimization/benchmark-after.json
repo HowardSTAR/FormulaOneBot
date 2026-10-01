@@ -1,0 +1,9 @@
+{
+  "fixture_requests": 20,
+  "fixture_source_calls": 1,
+  "fixture_burst_ms": 24.38,
+  "portrait_reads": 10,
+  "portrait_total_ms": 84.27,
+  "tls_sessions": 10,
+  "tls_setup_ms": 12.96
+}

@@ -81,6 +81,18 @@ npm run dev
 
 Подробности находятся в `LOCAL_WEB_GUIDE.md`.
 
+## Проверка перед обновлением
+
+В активированной Python-среде с установленными зависимостями:
+
+```text
+python scripts/check_regression.py
+```
+
+Проверяются бот, API, права доступа, фронтенд, игры и production-сборка.
+Используется временная тестовая БД; рабочая БД и `.env` не изменяются.
+Детали оптимизаций и замеров — в [docs/code-optimization.md](docs/code-optimization.md).
+
 ## Docker
 
 ```bash

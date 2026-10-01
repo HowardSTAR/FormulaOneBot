@@ -7,6 +7,7 @@ import { YearSelect } from "../../components/YearSelect";
 import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
+import { visibleInterval } from "../../helpers/visibleInterval";
 import './season-filters.css';
 
 const currentRealYear = new Date().getFullYear();
@@ -197,10 +198,10 @@ function SeasonPage() {
     };
 
     void refreshStatus();
-    const intervalId = window.setInterval(() => void refreshStatus(), 60_000);
+    const stop = visibleInterval(() => void refreshStatus(), 60_000);
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+      stop();
     };
   }, [races, year]);
 

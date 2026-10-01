@@ -44,9 +44,10 @@ def extract_race_facts(session):
     # Deleted flags require race-control messages; do not score unverified laps.
     required = {"Driver", "LapTime", "LapNumber", "Deleted"}
     if required.issubset(laps.columns) and not messages.empty:
-        valid = laps[laps["Deleted"].eq(False)].copy()
-        if "FastF1Generated" in valid:
-            valid = valid[valid["FastF1Generated"].eq(False)]
+        valid_mask = laps["Deleted"].eq(False)
+        if "FastF1Generated" in laps:
+            valid_mask &= laps["FastF1Generated"].eq(False)
+        valid = laps.loc[valid_mask].copy()
         valid["_seconds"] = pd.to_timedelta(valid["LapTime"], errors="coerce").dt.total_seconds()
         valid = valid[(valid["_seconds"] > 0) & valid["LapNumber"].notna() & valid["Driver"].notna()]
         for _, lap in valid.iterrows():
