@@ -18,7 +18,10 @@ def fixture(path, params):
     round_number = int(params.get('round', ['15'])[0])
     # Deliberate unavailable calendar for recovery-state QA; not real 1997 data.
     if path == '/api/season' and year == 1997: return None
-    races = [dict(round=i,event_name=f'Test Grand Prix {i}',location='Баку' if i==15 else 'Сахир', date='2026-09-26' if i <=15 else '2026-10-04', race_start_utc='2026-09-26T11:00:00Z' if i<=15 else '2026-10-04T14:00:00Z', quali_start_utc='2026-09-25T12:00:00Z', available_practice_sessions=[1,2,3]) for i in range(1,18)]
+    races = [dict(round=i,event_name=f'Test Grand Prix {i}',location='Баку' if i==15 else 'Сахир', date=f'{year}-09-26' if i <=15 else f'{year}-10-04', race_start_utc=f'{year}-09-26T11:00:00Z' if i<=15 else f'{year}-10-04T14:00:00Z', quali_start_utc=f'{year}-09-25T12:00:00Z', available_practice_sessions=[1,2,3]) for i in range(1,18)]
+    # Normal and sprint schedules exercise the calendar without external requests.
+    races[15].update(quali_start_utc=f'{year}-10-03T14:00:00Z', practice1_start_utc=f'{year}-10-02T10:00:00Z', practice2_start_utc=f'{year}-10-02T14:00:00Z', practice3_start_utc=f'{year}-10-03T10:00:00Z')
+    races[16].update(date=f'{year}-10-11',race_start_utc=f'{year}-10-11T14:00:00Z',quali_start_utc=f'{year}-10-10T14:00:00Z',practice1_start_utc=f'{year}-10-09T10:00:00Z',sprint_quali_start_utc=f'{year}-10-09T14:00:00Z',sprint_start_utc=f'{year}-10-10T10:00:00Z')
     if path=='/api/auth/me': return dict(id=1,email='qa@example.test',telegram_id=1,email_verified=True,role='superadmin',display_name='UX test',telegram_username='ux_test')
     if path=='/api/admin/me': return dict(id=1,role='superadmin')
     if path in ['/api/settings','/api/account/settings']: return dict(timezone='Etc/GMT-3',notify_before=60,notifications_enabled=True,reminder_sessions=31,results_spoiler=False)
@@ -62,7 +65,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         url=urlsplit(self.path)
-        value=fixture(url.path,parse_qs(url.query))
+        params=parse_qs(url.query)
+        # Delayed historical response verifies that a new year wins the race.
+        if url.path=='/api/season' and params.get('season')==['2025']: time.sleep(1)
+        value=fixture(url.path,params)
         self.send_response(200 if value is not None else 404)
         self.send_header('Content-Type','application/json; charset=utf-8')
         self.end_headers()

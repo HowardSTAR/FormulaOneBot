@@ -29,3 +29,87 @@
   border-color: #ff6e66;
 }
 .season-filters button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.app-page-main.route-season header.season-page-head {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0 0 12px;
+}
+.season-calendar-title { margin: 0; }
+.app-page-main.route-season header.season-page-head .page-head-controls { display: flex !important; align-items: center; gap: 8px; }
+.season-calendar-summary, .season-calendar-list-help {
+  margin: 8px 0 0;
+  color: #b5b7c1;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.season-year-label { color: #b5b7c1; font-size: 12px; }
+.season-filter-count {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: #ffffff14;
+  color: #fff;
+}
+.season-calendar-empty { padding: 16px; border: 1px solid #34373e; border-radius: 12px; }
+.season-retry, .season-calendar-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  border: 1px solid #454952;
+  border-radius: 8px;
+  background: #1e2229;
+  color: #f4f4f6;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.4;
+  text-decoration: none;
+  cursor: pointer;
+}
+.season-selected-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.season-calendar-action.primary { background: #ba1712; border-color: #e84d45; }
+.season-calendar-list-help { grid-column: 1 / -1; margin: 0 0 10px; }
+.season-retry:focus-visible, .season-calendar-action:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+@media (min-width: 900px) {
+  .app-page-main.route-season header.season-page-head .page-head-title { font-size: clamp(32px, 3.5vw, 56px) !important; }
+  .app-page-main.route-season .season-desktop-primary { position: static !important; }
+  .app-page-main.route-season .season-schedule-title {
+    margin: 0 0 10px;
+    color: #ff6e66;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .app-page-main.route-season .season-desktop-session-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)) !important; }
+  .app-page-main.route-season .season-desktop-hero-media h2 {
+    margin: 0;
+    font-size: clamp(28px, 3vw, 50px);
+    line-height: 1.08;
+    font-style: italic;
+    text-transform: uppercase;
+    overflow-wrap: anywhere;
+  }
+  .app-page-main.route-season .season-desktop-session-item b { font-size: 16px !important; line-height: 1.45 !important; }
+  .app-page-main.route-season .season-desktop-session-item span { color: #bfc1ca !important; font-size: 11px !important; }
+  .app-page-main.route-season .season-desktop-timeline-title { color: #d0d2d9 !important; }
+  .app-page-main.route-season .season-desktop-race-item { cursor: pointer !important; }
+  .app-page-main.route-season .season-desktop-race-item .race-name { white-space: normal !important; line-height: 1.2 !important; overflow: visible !important; }
+  .app-page-main.route-season .season-desktop-race-item .race-round { flex-wrap: wrap; }
+  .app-page-main.route-season .season-desktop-race-item .race-round-status { color: #d0d2d9; }
+  .app-page-main.route-season .season-desktop-stage-shell.expanded { grid-column: auto; }
+  .app-page-main.route-season .season-desktop-facts-grid .season-desktop-fact-item { min-height: 0 !important; padding: 12px !important; }
+  .app-page-main.route-season .season-desktop-fact-text { font-style: normal !important; color: #bfc1ca !important; }
+}
+@media (max-width: 899px) {
+  .app-page-main.route-season header.season-page-head .page-head-controls { width: 100%; display: flex; justify-content: flex-start; }
+  .season-filters button { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .season-filter-count { margin-left: 0; }
+  .app-page-main.route-season .race-insights-toggle { min-height: 44px; }
+}

@@ -1,6 +1,5 @@
-import { localDateTime, timezoneName } from '../../helpers/presentation';
-import { GlossaryText } from "../../components/GlossaryText";
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { localDateTime, optionalNumber, timezoneName } from '../../helpers/presentation';
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
 import { BackButton } from "../../components/BackButton";
@@ -9,22 +8,15 @@ import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 import { visibleInterval } from "../../helpers/visibleInterval";
+import { PageFeedback } from '../../components/PageFeedback';
+import { GlossaryText } from '../../components/GlossaryText';
+import { calendarState as getCalendarState, calendarStatusLabel, filteredCalendar, isCompletedStatus,
+  parseRaceTime, readCalendarQuery, selectedCalendarRace, raceDateParts, raceSessions, calendarResultLinks } from '../../helpers/seasonCalendar';
+import type { CalendarRace as Race, CalendarFilter, CalendarRaceStatus } from '../../helpers/seasonCalendar';
 import './season-filters.css';
 
 const currentRealYear = new Date().getFullYear();
 
-type Race = {
-  round: number;
-  event_name: string;
-  location: string;
-  date: string;
-  is_cancelled?: boolean;
-  first_session_start_utc?: string | null;
-  race_start_utc?: string | null;
-  quali_start_utc?: string | null;
-  sprint_start_utc?: string | null;
-  sprint_quali_start_utc?: string | null;
-};
 type SeasonResponse = { races?: Race[] };
 type SettingsResponse = { timezone?: string };
 type RaceResult = {
@@ -35,6 +27,7 @@ type RaceResult = {
   points: number;
 };
 type RaceResultsResponse = {
+  season?: number;
   round?: number | null;
   results?: RaceResult[];
   data_incomplete?: boolean;
@@ -44,62 +37,35 @@ type PodiumState = {
   error: string | null;
   results: RaceResult[];
 };
-type CalendarRaceStatus = "cancelled" | "live" | "recent" | "next" | "finished" | "future";
-
 const RACE_RESULTS_MIN_AGE_MS = 2 * 60 * 60 * 1000;
-
-function parseRaceTime(value?: string | null): number | null {
-  if (!value) return null;
-  const time = new Date(value).getTime();
-  return Number.isNaN(time) ? null : time;
-}
-
-function weekendStartTime(race: Race): number {
-  const candidates = [
-    race.first_session_start_utc,
-    race.sprint_quali_start_utc,
-    race.quali_start_utc,
-    race.sprint_start_utc,
-    race.race_start_utc,
-  ]
-    .map(parseRaceTime)
-    .filter((value): value is number => value !== null);
-  if (candidates.length > 0) return Math.min(...candidates);
-  return new Date(race.date).getTime();
-}
-
-function isCompletedStatus(status: CalendarRaceStatus): boolean {
-  return status === "finished" || status === "recent";
-}
-
-function sessionHasStarted(value: string | null | undefined, nowMs: number, fallback = false): boolean {
-  const sessionTime = parseRaceTime(value);
-  return sessionTime === null ? fallback : sessionTime <= nowMs;
-}
 
 function SeasonPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const yearFromUrl = parseInt(searchParams.get("year") || "", 10);
-  const [year, setYear] = useState(
-    yearFromUrl && yearFromUrl >= 1950 && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
-  );
+  const {year, round: selectedRound, filter} = readCalendarQuery(searchParams, currentRealYear);
+  const calendarRequest = useRef(0);
   const [races, setRaces] = useState<Race[]>([]);
-  const filterParam = searchParams.get('filter');
-  const filter: 'upcoming' | 'past' | 'all' = filterParam === 'upcoming' || filterParam === 'past' || filterParam === 'all' ? filterParam : year === currentRealYear ? 'upcoming' : 'all';
-  const setFilter = (value: 'upcoming' | 'past' | 'all') => setSearchParams(previous => {
-    const next = new URLSearchParams(previous); next.set('filter', value); return next;
-  }, {replace: true});
+  const [loadedYear, setLoadedYear] = useState<number | null>(null);
   const [userTz, setUserTz] = useState(getDisplayTimezone());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
   const [expandedPodiumRound, setExpandedPodiumRound] = useState<number | null>(null);
   const [expandedFactsRound, setExpandedFactsRound] = useState<number | null>(null);
-  const [desktopSelectedRound, setDesktopSelectedRound] = useState<number | null>(null);
   const [calendarNowMs, setCalendarNowMs] = useState(() => Date.now());
   const [latestReadyRound, setLatestReadyRound] = useState<number | null>(null);
   const [podiums, setPodiums] = useState<Record<number, PodiumState>>({});
+  const activeRaces = loadedYear === year ? races : [];
+  const isLoading = loading || loadedYear !== year;
+  const setFilter = (value: CalendarFilter) => {
+    setExpandedPodiumRound(null);
+    setExpandedFactsRound(null);
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous); next.set('filter', value);
+      if (!filteredCalendar(activeRaces, calendarState.statusByRound, value).some(race => race.round === selectedRound)) next.delete('round');
+      return next;
+    }, {replace: true});
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -114,43 +80,40 @@ function SeasonPage() {
   }, []);
 
   const loadCalendar = useCallback(async (season: number) => {
+    const request = ++calendarRequest.current;
     setLoading(true);
     setError(null);
     setEmptyMessage(null);
+    setLatestReadyRound(null);
+    setPodiums({});
+    setExpandedPodiumRound(null);
+    setExpandedFactsRound(null);
     try {
       const data = await apiRequest<SeasonResponse>("/api/season", { season });
+      if (request !== calendarRequest.current) return;
       if (!data.races || data.races.length === 0) {
         setRaces([]);
         setEmptyMessage("Расписание не найдено");
-        setDesktopSelectedRound(null);
       } else {
-        const loadedRaces = data.races;
+        const loadedRaces = [...data.races].sort((a, b) => a.round - b.round);
         setRaces(loadedRaces);
-        const nowLocal = new Date();
-        nowLocal.setHours(0, 0, 0, 0);
-        const nextIdx = loadedRaces.findIndex((r) => {
-          const raceEnd = new Date(r.date);
-          raceEnd.setDate(raceEnd.getDate() + 1);
-          return raceEnd >= nowLocal;
-        });
-        const initial = nextIdx >= 0 ? loadedRaces[nextIdx] : loadedRaces[0];
-        setDesktopSelectedRound(initial?.round ?? null);
       }
     } catch (e) {
+      if (request !== calendarRequest.current) return;
       console.error(e);
       setError(e instanceof Error ? e.message : "Ошибка загрузки");
       setRaces([]);
     } finally {
-      setLoading(false);
+      if (request === calendarRequest.current) { setLoadedYear(season); setLoading(false); }
     }
   }, []);
 
   useEffect(() => {
-    loadCalendar(year);
+    void loadCalendar(year);
+    return () => { calendarRequest.current += 1; };
   }, [year, loadCalendar]);
 
   const updateYear = useCallback((y: number) => {
-    setYear(y);
     setExpandedPodiumRound(null);
     setExpandedFactsRound(null);
     setPodiums({});
@@ -158,7 +121,7 @@ function SeasonPage() {
   }, [setSearchParams]);
 
   useEffect(() => {
-    if (year !== currentRealYear || races.length === 0) {
+    if (year !== currentRealYear || loadedYear !== year || races.length === 0) {
       setLatestReadyRound(null);
       return;
     }
@@ -166,12 +129,13 @@ function SeasonPage() {
     let cancelled = false;
     const refreshStatus = async () => {
       const nowMs = Date.now();
+      if (cancelled) return;
       setCalendarNowMs(nowMs);
       const latestRaceStarted = [...races]
         .reverse()
         .find((race) => {
           const raceStart = parseRaceTime(race.race_start_utc);
-          return raceStart !== null && raceStart <= nowMs;
+          return !race.is_cancelled && raceStart !== null && raceStart <= nowMs;
         });
 
       if (!latestRaceStarted) {
@@ -180,7 +144,7 @@ function SeasonPage() {
       }
 
       const raceStart = parseRaceTime(latestRaceStarted.race_start_utc);
-      if (raceStart === null || nowMs - raceStart < RACE_RESULTS_MIN_AGE_MS) {
+      if (raceStart === null || nowMs - raceStart < RACE_RESULTS_MIN_AGE_MS || nowMs - raceStart > 24 * 60 * 60 * 1000) {
         if (!cancelled) setLatestReadyRound(null);
         return;
       }
@@ -193,6 +157,7 @@ function SeasonPage() {
         if (cancelled) return;
         const ready =
           response.round === latestRaceStarted.round &&
+          (response.season == null || response.season === year) &&
           (response.results?.length || 0) >= 10 &&
           !response.data_incomplete;
         setLatestReadyRound(ready ? latestRaceStarted.round : null);
@@ -207,7 +172,9 @@ function SeasonPage() {
       cancelled = true;
       stop();
     };
-  }, [races, year]);
+  }, [races, year, loadedYear]);
+
+  useEffect(() => visibleInterval(() => setCalendarNowMs(Date.now()), 60_000), []);
 
   const handleYearChange = (y: number) => {
     if (y > currentRealYear) {
@@ -225,74 +192,29 @@ function SeasonPage() {
     updateYear(y);
   };
 
-  const calendarState = useMemo(() => {
-    const statusByRound = new Map<number, CalendarRaceStatus>();
-    if (races.length === 0) return { statusByRound, nextRaceIndex: -1 };
-
-    if (year !== currentRealYear) {
-      races.forEach((race) => statusByRound.set(race.round, race.is_cancelled ? "cancelled" : "finished"));
-      return { statusByRound, nextRaceIndex: -1 };
-    }
-
-    let latestStartedWeekendIndex = -1;
-    races.forEach((race, index) => {
-      if (weekendStartTime(race) <= calendarNowMs) latestStartedWeekendIndex = index;
-    });
-    const liveIndex =
-      latestStartedWeekendIndex >= 0 &&
-      !races[latestStartedWeekendIndex].is_cancelled &&
-      latestReadyRound !== races[latestStartedWeekendIndex].round
-        ? latestStartedWeekendIndex
-        : -1;
-    const recentIndex = liveIndex < 0
-      ? races.findIndex((race) => race.round === latestReadyRound)
-      : -1;
-    const nextRaceIndex = liveIndex >= 0
-      ? -1
-      : races.findIndex((race) => weekendStartTime(race) > calendarNowMs && !race.is_cancelled);
-
-    races.forEach((race, index) => {
-      let status: CalendarRaceStatus;
-      if (race.is_cancelled) status = "cancelled";
-      else if (index === liveIndex) status = "live";
-      else if (index === recentIndex) status = "recent";
-      else if (index === nextRaceIndex) status = "next";
-      else if (index < Math.max(liveIndex, recentIndex, nextRaceIndex)) status = "finished";
-      else status = "future";
-      statusByRound.set(race.round, status);
-    });
-
-    return { statusByRound, nextRaceIndex };
-  }, [calendarNowMs, latestReadyRound, races, year]);
-
-  const visibleRaces = races.filter(r => {
-    const start = parseRaceTime(r.race_start_utc) ?? Date.parse(r.date);
-    const past = start + 4 * 60 * 60 * 1000 < calendarNowMs;
-    return filter === 'all' || (filter === 'past' ? past : !past && !r.is_cancelled);
-  });
-  const desktopRace = visibleRaces.find((r) => r.round === desktopSelectedRound) || visibleRaces[0] || null;
+  const calendarState = useMemo(() => getCalendarState(loadedYear === year ? races : [], year, calendarNowMs, latestReadyRound), [calendarNowMs, latestReadyRound, races, year, loadedYear]);
+  const visibleRaces = filteredCalendar(activeRaces, calendarState.statusByRound, filter);
+  const desktopRace = selectedCalendarRace(visibleRaces, selectedRound, filter, calendarState.statusByRound);
   const desktopRaceStatus = desktopRace ? calendarState.statusByRound.get(desktopRace.round) : undefined;
-  const completedRacesCount = races.filter((race) => {
-    const status = calendarState.statusByRound.get(race.round);
-    return status === "finished" || status === "recent";
-  }).length;
+  const completedRacesCount = filteredCalendar(activeRaces, calendarState.statusByRound, 'past').length;
+  const upcomingRacesCount = filteredCalendar(activeRaces, calendarState.statusByRound, 'upcoming').length;
   const desktopInsights = desktopRace
     ? getCircuitInsightsRu({
         season: year,
         eventName: desktopRace.event_name,
-        country: "",
+        country: desktopRace.country ?? "",
         location: desktopRace.location,
+        eventFormat: desktopRace.sprint_start_utc ? 'Со спринтом' : 'Стандартный',
+        sessionsCount: raceSessions(desktopRace).filter(session => session.iso).length,
       })
     : null;
 
-  const selectedRaceDate = desktopRace ? new Date(desktopRace.date) : null;
-  const selectedDateLabel = selectedRaceDate
-    ? selectedRaceDate.toLocaleDateString("ru-RU", { timeZone: userTz, day: "2-digit", month: "short" }).replace(".", "").toUpperCase()
-    : "—";
+  const selectedDateLabel = desktopRace ? raceDateParts(desktopRace, userTz).label : '—';
+  const selectedResultLinks = desktopRace ? calendarResultLinks(desktopRace, year, calendarNowMs, desktopRaceStatus) : [];
   const formatSessionTime = (iso?: string | null): string => localDateTime(iso, userTz);
-  const desktopFactTitles = ["Локация", "Ключевой участок", "Непредсказуемость"];
   const timelineRaceName = (name: string): string => name.replace(/Grand Prix/gi, "GP");
   const loadPodium = useCallback(async (round: number) => {
+    const request = calendarRequest.current;
     if (podiums[round]?.loading || podiums[round]?.results.length) return;
     setPodiums((current) => ({
       ...current,
@@ -303,7 +225,9 @@ function SeasonPage() {
         season: year,
         round,
       });
-      const results = (response.results || [])
+      if (request !== calendarRequest.current) return;
+      if (response.round !== round || (response.season != null && response.season !== year)) throw new Error('Источник вернул другой этап. Повторите загрузку.');
+      const results = (response.data_incomplete ? [] : response.results || [])
         .filter((result) => result.position >= 1 && result.position <= 3)
         .sort((a, b) => a.position - b.position)
         .slice(0, 3);
@@ -316,6 +240,7 @@ function SeasonPage() {
         },
       }));
     } catch (e) {
+      if (request !== calendarRequest.current) return;
       setPodiums((current) => ({
         ...current,
         [round]: {
@@ -332,7 +257,9 @@ function SeasonPage() {
     status: CalendarRaceStatus,
     selectDesktopRace = false,
   ) => {
-    if (selectDesktopRace) setDesktopSelectedRound(race.round);
+    if (selectDesktopRace) setSearchParams(previous => {
+      const next = new URLSearchParams(previous); next.set('round', String(race.round)); return next;
+    }, {replace: true});
     if (!isCompletedStatus(status)) {
       setExpandedPodiumRound(null);
       return;
@@ -340,7 +267,7 @@ function SeasonPage() {
     const shouldOpen = expandedPodiumRound !== race.round;
     setExpandedPodiumRound(shouldOpen ? race.round : null);
     if (shouldOpen) void loadPodium(race.round);
-  }, [expandedPodiumRound, loadPodium]);
+  }, [expandedPodiumRound, loadPodium, setSearchParams]);
 
   const toggleRaceFacts = useCallback((race: Race) => {
     const shouldOpen = expandedFactsRound !== race.round;
@@ -372,7 +299,7 @@ function SeasonPage() {
           </div>
         )}
         {!state?.loading && state?.error && (
-          <div className="season-podium-message">{state.error}</div>
+          <div className="season-podium-message" role="status">{state.error} <button type="button" className="season-retry" onClick={() => void loadPodium(race.round)}>Повторить</button></div>
         )}
         {!state?.loading && Boolean(state?.results.length) && (
           <ol className="season-podium-list">
@@ -384,7 +311,7 @@ function SeasonPage() {
                   <strong>{result.name}</strong>
                   <small>{result.team || "Команда не указана"}</small>
                 </span>
-                <span className="season-podium-points">{result.points} оч.</span>
+                <span className="season-podium-points">{optionalNumber(result.points) ?? '—'} оч.</span>
               </li>
             ))}
           </ol>
@@ -396,53 +323,37 @@ function SeasonPage() {
   return (
     <>
       <BackButton>← <span>Главное меню</span></BackButton>
-      <div className="page-head-row season-page-head">
-        <h2 className="page-head-title">Календарь</h2>
+      <header className="page-head-row season-page-head">
+        <div>
+          <h1 className="page-head-title season-calendar-title">Календарь</h1>
+          <p className="season-calendar-summary">Сезон {year}{!isLoading && !error && activeRaces.length > 0 ? ` · Этапов: ${activeRaces.length} · Прошедших: ${completedRacesCount}` : ''}</p>
+        </div>
         <div className="page-head-controls">
+          <span className="season-year-label">Сезон</span>
           <YearSelect
             value={year}
             onChange={handleYearChange}
             minYear={1950}
             maxYear={currentRealYear}
-            placeholder="Введи год"
+            ariaLabel="Сезон календаря"
           />
         </div>
-      </div>
+      </header>
 
       <nav className="season-filters" aria-label="Фильтр календаря">
-        <button aria-pressed={filter === 'upcoming'} onClick={() => setFilter('upcoming')}>Предстоящие</button>
-        <button aria-pressed={filter === 'past'} onClick={() => setFilter('past')}>Прошедшие</button>
-        <button aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Весь сезон</button>
+        <button type="button" aria-pressed={filter === 'upcoming'} onClick={() => setFilter('upcoming')}>Предстоящие{!isLoading && !error && <span className="season-filter-count">{upcomingRacesCount}</span>}</button>
+        <button type="button" aria-pressed={filter === 'past'} onClick={() => setFilter('past')}>Прошедшие{!isLoading && !error && <span className="season-filter-count">{completedRacesCount}</span>}</button>
+        <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Весь сезон{!isLoading && !error && <span className="season-filter-count">{activeRaces.length}</span>}</button>
       </nav>
-      {!loading && !error && races.length > 0 && !visibleRaces.length && <p>В этом разделе этапов нет. Выберите «Весь сезон».</p>}
+      {!isLoading && !error && activeRaces.length > 0 && !visibleRaces.length && <section className="season-calendar-empty" role="status"><p>В сезоне {year} {filter === 'past' ? 'пока нет прошедших этапов' : 'не осталось предстоящих этапов'}.</p><button type="button" className="season-retry" onClick={() => setFilter('all')}>Показать весь сезон</button></section>}
+      {error && !isLoading && <PageFeedback message={error} retry={() => void loadCalendar(year)} />}
+      {isLoading && <div className="loading full-width" role="status"><div className="spinner" /><div>Загрузка календаря {year}…</div></div>}
+      {!isLoading && !error && emptyMessage && <section className="season-calendar-empty" role="status"><p>{emptyMessage} для сезона {year}.</p><button type="button" className="season-retry" onClick={() => void loadCalendar(year)}>Повторить загрузку</button></section>}
 
-      {!loading && !error && !emptyMessage && races.length > 0 && desktopRace && (
+      {!isLoading && !error && !emptyMessage && desktopRace && (
         <div className="season-desktop-layout">
           <section className="season-desktop-primary">
-            <div className="season-desktop-primary-head">
-              <div>
-                <h3 className="season-desktop-main-heading">Календарь</h3>
-                <p className="season-desktop-main-subheading">
-                  Сезон {year} · {races.length} этапа · {completedRacesCount} завершено
-                </p>
-              </div>
-              <div className="season-desktop-season-picker">
-                <span className="season-desktop-season-label">Выберите сезон</span>
-                <select
-                  className="season-desktop-season-select"
-                  value={year}
-                  onChange={(e) => handleYearChange(Number(e.target.value))}
-                >
-                  {Array.from({ length: currentRealYear - 1949 }, (_, i) => currentRealYear - i).map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <article className="season-desktop-main-card season-desktop-hero-card">
+            <article className="season-desktop-main-card season-desktop-hero-card" aria-labelledby="season-selected-name">
               <div className="season-desktop-hero-media">
                 <AnimatedTrackMap
                   key={desktopRace.event_name}
@@ -454,17 +365,9 @@ function SeasonPage() {
                   loadingClassName="season-track-loading"
                 />
                 <div className="season-desktop-hero-next">
-                  {desktopRaceStatus === "live"
-                    ? "LIVE"
-                    : desktopRaceStatus === "recent"
-                      ? "Только что прошёл"
-                      : desktopRaceStatus === "next"
-                        ? "Следующий этап"
-                        : desktopRaceStatus === "finished"
-                          ? "Прошедший этап"
-                          : "Предстоящий этап"}: {String(desktopRace.round).padStart(2, "0")}
+                  {calendarStatusLabel[desktopRaceStatus ?? 'unknown']} · Этап {desktopRace.round}
                 </div>
-                <h4>{desktopRace.event_name}</h4>
+                <h2 id="season-selected-name">{desktopRace.event_name}</h2>
                 <div className="season-desktop-hero-meta">
                   <span>{selectedDateLabel}</span>
                   <span>{desktopRace.location}</span>
@@ -472,28 +375,15 @@ function SeasonPage() {
               </div>
 
               <div className="season-desktop-hero-schedule">
-                <h5>Расписание сессий</h5><p className="ui-data-context">Время: {timezoneName(userTz)}</p>
+                <h3 className="season-schedule-title">Расписание сессий</h3><p className="ui-data-context">Время: {timezoneName(userTz)}</p>
                 <div className="season-desktop-session-grid">
-                  {desktopRace.sprint_quali_start_utc && (
-                    <div className="season-desktop-session-item">
-                      <span><GlossaryText>Спринт-квалификация</GlossaryText></span>
-                      <b>{formatSessionTime(desktopRace.sprint_quali_start_utc)}</b>
-                    </div>
-                  )}
-                  {desktopRace.sprint_start_utc && (
-                    <div className="season-desktop-session-item">
-                      <span><GlossaryText>Спринт</GlossaryText></span>
-                      <b>{formatSessionTime(desktopRace.sprint_start_utc)}</b>
-                    </div>
-                  )}
-                  <div className="season-desktop-session-item">
-                    <span><GlossaryText>Квалификация</GlossaryText></span>
-                    <b>{formatSessionTime(desktopRace.quali_start_utc)}</b>
-                  </div>
-                  <div className="season-desktop-session-item focus">
-                    <span>Grand Prix</span>
-                    <b>{formatSessionTime(desktopRace.race_start_utc)}</b>
-                  </div>
+                  {raceSessions(desktopRace).map(session => <div key={session.key} className={`season-desktop-session-item ${session.key === 'race' ? 'focus' : ''}`}>
+                    <span><GlossaryText>{session.label}</GlossaryText></span><b>{parseRaceTime(session.iso) === null ? 'Время уточняется' : formatSessionTime(session.iso)}</b>
+                  </div>)}
+                </div>
+                <div className="season-selected-actions">
+                  <Link className="season-calendar-action primary" to={`/race-details?season=${year}&round=${desktopRace.round}`}>Расписание и трасса →</Link>
+                  {selectedResultLinks.map(link => <Link className="season-calendar-action" key={link.key} to={link.href}>Результаты: {link.label}</Link>)}
                 </div>
                 <div className="season-desktop-stats">
                   {desktopInsights?.stats.slice(0, 4).map((item) => (
@@ -508,42 +398,25 @@ function SeasonPage() {
             </article>
 
             <div className="season-desktop-facts-grid">
-              {desktopInsights?.facts.slice(0, 3).map((fact, i) => (
+              {desktopInsights?.facts.slice(0, 3).map((fact) => (
                 <div key={fact.title} className="season-desktop-fact-item">
-                  <div className="season-desktop-fact-title">{desktopFactTitles[i] || fact.title}</div>
-                  <div className="season-desktop-fact-text">"{fact.text}"</div>
+                  <div className="season-desktop-fact-title">{fact.title}</div>
+                  <div className="season-desktop-fact-text">{fact.text}</div>
                 </div>
               ))}
             </div>
           </section>
 
           <aside className="season-desktop-list season-desktop-timeline">
-            <h4 className="season-desktop-timeline-title">{filter === 'upcoming' ? 'Предстоящие' : filter === 'past' ? 'Прошедшие' : 'Весь сезон'} · {visibleRaces.length}{filter !== 'all' ? ` из ${races.length}` : ''}</h4>
+            <h2 className="season-desktop-timeline-title">{filter === 'upcoming' ? 'Предстоящие' : filter === 'past' ? 'Прошедшие' : 'Весь сезон'} · {visibleRaces.length}{filter !== 'all' ? ` из ${activeRaces.length}` : ''}</h2>
+            <p className="season-calendar-list-help">Выберите этап, чтобы открыть расписание{filter !== 'upcoming' ? ' и подиум' : ''}.</p>
             {visibleRaces.map((race) => {
-              const raceDate = new Date(race.date);
               const statusClass = calendarState.statusByRound.get(race.round) || "future";
-              const isFinished = statusClass === "finished" || statusClass === "recent";
+              const isFinished = isCompletedStatus(statusClass);
               const isSelected = desktopRace.round === race.round;
               const isExpanded = expandedPodiumRound === race.round && isFinished;
-              const statusLabel = statusClass === "cancelled"
-                ? "ОТМЕНЕН"
-                : statusClass === "live"
-                  ? "LIVE"
-                  : statusClass === "recent"
-                    ? "ТОЛЬКО ЧТО"
-                    : statusClass === "finished"
-                      ? "ЗАВЕРШЕН"
-                      : statusClass === "next"
-                        ? "СЛЕДУЮЩАЯ · СКОРО"
-                        : "ЭТАП";
-              const dateLabel = raceDate
-                .toLocaleDateString("ru-RU", {
-                  timeZone: userTz,
-                  day: "2-digit",
-                  month: "short",
-                })
-                .replace(".", "")
-                .toUpperCase();
+              const statusLabel = calendarStatusLabel[statusClass];
+              const dateLabel = raceDateParts(race, userTz).label;
               return (
                 <div
                   key={`desktop-${race.round}`}
@@ -551,6 +424,7 @@ function SeasonPage() {
                 >
                   <button
                     type="button"
+                    aria-label={`Выбрать этап ${race.round}: ${race.event_name}`}
                     className={`season-desktop-race-item ${statusClass} ${isSelected ? "active" : ""}`}
                     onClick={() => toggleRaceExpansion(race, statusClass, true)}
                     aria-pressed={isSelected}
@@ -566,7 +440,7 @@ function SeasonPage() {
                           <span className={`race-round-status ${statusClass}`}>{statusLabel}</span>
                         </div>
                         <span className="season-desktop-race-icon" aria-hidden="true">
-                          {isFinished ? (isExpanded ? "−" : "+") : statusClass === "live" ? "●" : "○"}
+                          {isFinished ? (isExpanded ? "−" : "+") : isSelected ? "✓" : "→"}
                         </span>
                       </div>
                       <div className="race-name">{timelineRaceName(race.event_name)}</div>
@@ -579,7 +453,7 @@ function SeasonPage() {
                     aria-hidden={!isExpanded}
                   >
                     <div className="season-stage-expansion-inner">
-                      {(isExpanded || podiums[race.round]) && renderPodium(race)}
+                      {isExpanded && renderPodium(race)}
                     </div>
                   </div>
                 </div>
@@ -590,76 +464,25 @@ function SeasonPage() {
       )}
 
       <div className="season-races-grid">
-        {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка календаря...</div></div>}
-        {error && <div className="page-error">{error}</div>}
-        {!loading && emptyMessage && (
-          <div className="empty-state season-empty-state">
-            <div className="empty-icon">🔮</div>
-            <div className="empty-title">{emptyMessage}</div>
-          </div>
-        )}
-        {!loading && !error && !emptyMessage &&
+        {!isLoading && !error && !emptyMessage &&
           visibleRaces.map((race) => {
-            const raceDate = new Date(race.date);
             const statusClass = calendarState.statusByRound.get(race.round) || "future";
-            const statusIcon = statusClass === "cancelled"
-              ? "ОТМЕНЕН"
-              : statusClass === "live"
-                ? "LIVE"
-                : statusClass === "recent"
-                  ? "ТОЛЬКО ЧТО"
-                  : statusClass === "finished"
-                    ? "🏁"
-                    : statusClass === "next"
-                      ? "СЛЕДУЮЩАЯ · СКОРО"
-                      : "";
-            const day = raceDate.toLocaleDateString("ru-RU", {
-              timeZone: userTz,
-              day: "numeric",
-            });
-            const month = raceDate
-              .toLocaleDateString("ru-RU", { timeZone: userTz, month: "short" })
-              .replace(".", "");
+            const statusIcon = calendarStatusLabel[statusClass];
+            const {day, month} = raceDateParts(race, userTz);
             const insights = getCircuitInsightsRu({
               season: year,
               eventName: race.event_name,
-              country: "",
+              country: race.country ?? "",
               location: race.location,
+              eventFormat: race.sprint_start_utc ? 'Со спринтом' : 'Стандартный',
+              sessionsCount: raceSessions(race).filter(session => session.iso).length,
             });
             const areFactsExpanded = expandedFactsRound === race.round;
-            const completedFallback = isCompletedStatus(statusClass);
-            const resultLinks = [
-              {
-                key: "sprintQuali",
-                label: "Спринт-квала",
-                href: `/sprint-quali-results?mode=archive&season=${year}&round=${race.round}`,
-                visible: Boolean(race.sprint_quali_start_utc)
-                  && sessionHasStarted(race.sprint_quali_start_utc, calendarNowMs),
-              },
-              {
-                key: "sprint",
-                label: "Спринт",
-                href: `/sprint-results?mode=archive&season=${year}&round=${race.round}`,
-                visible: Boolean(race.sprint_start_utc)
-                  && sessionHasStarted(race.sprint_start_utc, calendarNowMs),
-              },
-              {
-                key: "quali",
-                label: "Квалификация",
-                href: `/quali-results?mode=archive&season=${year}&round=${race.round}`,
-                visible: sessionHasStarted(race.quali_start_utc, calendarNowMs, completedFallback),
-              },
-              {
-                key: "race",
-                label: "Гонка",
-                href: `/race-results?mode=archive&season=${year}&round=${race.round}`,
-                visible: sessionHasStarted(race.race_start_utc, calendarNowMs, completedFallback),
-              },
-            ].filter((item) => item.visible);
+            const resultLinks = calendarResultLinks(race, year, calendarNowMs, statusClass);
             return (
               <div key={race.round} className="season-race-item">
                 <div
-                  id={statusClass === "next" ? "next-race-card" : undefined}
+                  id={race.round === calendarState.nextRound ? "next-race-card" : undefined}
                   className={`race-card ${statusClass} ${areFactsExpanded ? "expanded" : ""}`}
                 >
                   <button
@@ -685,8 +508,9 @@ function SeasonPage() {
                     onClick={() => toggleRaceFacts(race)}
                     aria-expanded={areFactsExpanded}
                     aria-controls={`season-mobile-facts-${race.round}`}
+                    aria-label={`${resultLinks.length ? 'Результаты и факты' : 'Факты'}: ${race.event_name}`}
                   >
-                    Факты
+                    {resultLinks.length ? 'Результаты и факты' : 'Факты'}
                     <span aria-hidden="true">{areFactsExpanded ? "−" : "+"}</span>
                   </button>
                 </div>
@@ -697,7 +521,7 @@ function SeasonPage() {
                   aria-hidden={!areFactsExpanded}
                 >
                   <div className="season-stage-expansion-inner">
-                    <div className="season-race-insights season-mobile-race-facts-panel">
+                    {areFactsExpanded && <div className="season-race-insights season-mobile-race-facts-panel">
                       {resultLinks.length > 0 && (
                         <div className="season-mobile-results">
                           <div className="season-mobile-results-head">Результаты этапа</div>
@@ -727,7 +551,7 @@ function SeasonPage() {
                           </div>
                         ))}
                       </div>
-                    </div>
+                    </div>}
                   </div>
                 </div>
               </div>

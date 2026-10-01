@@ -16,6 +16,7 @@ const {safeReturnPath} = await moduleFrom('../src/helpers/returnPath.ts');
 const {notificationBody} = await moduleFrom('../src/helpers/notificationPresentation.ts');
 const {describeAuditChange} = await moduleFrom('../src/helpers/adminAudit.ts');
 const {readSessionFilters} = await moduleFrom('../src/helpers/sessionFilters.ts', source => source.replace(/^import .*;$/gm, ''));
+const calendar = await moduleFrom('../src/helpers/seasonCalendar.ts');
 globalThis.React = React;
 const {YearSelect} = await moduleFrom('../src/components/YearSelect.tsx');
 const {CustomSelect} = await moduleFrom('../src/components/CustomSelect.tsx', source => source.replace('import { hapticSelection } from "../helpers/telegram";', 'const hapticSelection = () => {};'));
@@ -90,4 +91,72 @@ test('Docker frontend build includes the legal registers at their resolved impor
       && posix.resolve('/front', parts.at(-1), filename) === expected),
     `${filename} must be copied to ${expected} in the frontend builder`);
   }
+});
+
+test('calendar URL accepts bounded years and rounds and retains the requested filter', () => {
+  assert.deepEqual(calendar.readCalendarQuery(new URLSearchParams('year=1997&round=4&filter=past'),2026), {year:1997,round:4,filter:'past'});
+  assert.deepEqual(calendar.readCalendarQuery(new URLSearchParams('year=1997junk&round=0&filter=bad'),2026), {year:2026,round:null,filter:'upcoming'});
+  assert.equal(calendar.readCalendarQuery(new URLSearchParams('year=1997'),2026).filter,'all');
+  assert.equal(calendar.readCalendarQuery(new URLSearchParams('year=2027&round=41'),2026).year,2026);
+});
+
+const calendarRace = (round, start, extra={}) => ({round,event_name:`Race ${round}`,location:'Test',date:start?.slice(0,10) ?? '',race_start_utc:start,...extra});
+test('calendar distinguishes an active weekend from a race and ages out recent results', () => {
+  const past=calendarRace(15,'2026-09-26T11:00:00Z');
+  const next=calendarRace(16,'2026-10-04T14:00:00Z',{practice1_start_utc:'2026-10-02T10:00:00Z'});
+  let state=calendar.calendarState([past,next],2026,Date.parse('2026-10-02T12:00:00Z'),15);
+  assert.equal(state.statusByRound.get(15),'finished');
+  assert.equal(state.statusByRound.get(16),'weekend');
+  assert.equal(state.nextRound,16);
+  state=calendar.calendarState([past,next],2026,Date.parse('2026-10-04T15:00:00Z'));
+  assert.equal(state.statusByRound.get(16),'live');
+  state=calendar.calendarState([past,next],2026,Date.parse('2026-10-04T19:00:00Z'));
+  assert.equal(state.statusByRound.get(16),'pending');
+  assert.deepEqual(calendar.filteredCalendar([past,next],state.statusByRound,'past').map(r=>r.round),[15,16]);
+  assert.equal(calendar.filteredCalendar([past,next],state.statusByRound,'upcoming').length,0);
+  assert.equal(calendar.calendarState([past,next],2026,Date.parse('2026-10-04T16:00:00Z'),16).statusByRound.get(16),'recent');
+});
+test('calendar cancelled stages never replace the next race or count as completed', () => {
+  const races=[calendarRace(1,'2026-03-01T12:00:00Z'),calendarRace(2,'2026-03-08T12:00:00Z',{is_cancelled:true}),calendarRace(3,'2026-03-15T12:00:00Z')];
+  const state=calendar.calendarState(races,2026,Date.parse('2026-03-10T12:00:00Z'));
+  assert.equal(state.nextRound,3);
+  assert.deepEqual(calendar.filteredCalendar(races,state.statusByRound,'past').map(r=>r.round),[1]);
+  assert.equal(calendar.filteredCalendar(races,state.statusByRound,'all').length,3);
+  assert.deepEqual(calendar.calendarResultLinks(races[1],2026,Date.now(),'cancelled'),[]);
+});
+test('calendar selection prefers the latest past race and respects deep links', () => {
+  const races=[calendarRace(1,'2026-03-01T12:00:00Z'),calendarRace(2,'2026-03-08T12:00:00Z')];
+  const statuses=calendar.calendarState(races,2026,Date.parse('2026-03-10T12:00:00Z')).statusByRound;
+  assert.equal(calendar.selectedCalendarRace(races,null,'past',statuses).round,2);
+  assert.equal(calendar.selectedCalendarRace(races,1,'past',statuses).round,1);
+  assert.equal(calendar.selectedCalendarRace([],1,'past',statuses),null);
+});
+test('calendar dates respect real session times but date-only archives do not shift by timezone', () => {
+  const race=calendarRace(1,'2026-11-22T06:00:00Z');
+  assert.equal(calendar.raceDateParts(race,'America/Los_Angeles').day,'21');
+  assert.equal(calendar.raceDateParts({...race,race_start_utc:null},'America/Los_Angeles').day,'22');
+  assert.equal(calendar.raceDateParts({...race,race_start_utc:null,date:'bad'},'UTC').label,'Дата уточняется');
+  assert.equal(calendar.calendarState([calendarRace(1,null)],2026,Date.parse('2026-03-10T12:00:00Z')).statusByRound.get(1),'unknown');
+});
+test('calendar shows practices and only links to sessions that have started', () => {
+  const race=calendarRace(16,'2026-10-04T14:00:00Z',{practice1_start_utc:'2026-10-02T10:00:00Z',practice2_start_utc:'2026-10-02T14:00:00Z',practice3_start_utc:'2026-10-03T10:00:00Z',quali_start_utc:'2026-10-03T14:00:00Z'});
+  assert.equal(calendar.raceSessions(race).length,5);
+  assert.deepEqual(calendar.calendarResultLinks(race,2026,Date.parse('2026-10-02T12:00:00Z'),'weekend'),[]);
+  const links=calendar.calendarResultLinks(race,2026,Date.parse('2026-10-03T15:00:00Z'),'weekend');
+  assert.deepEqual(links.map(link=>link.key),['quali']);
+  assert.match(links[0].href,/season=2026&round=16$/);
+});
+
+test('calendar uses one accessible header and mounts details only when expanded', () => {
+  const source=readFileSync(new URL('../src/pages/season/SeasonPage.tsx',import.meta.url),'utf8');
+  assert.equal((source.match(/<h1\b/g)||[]).length,1);
+  assert.match(source,/ariaLabel="Сезон календаря"/);
+  assert.match(source,/areFactsExpanded && <div/);
+  assert.match(source,/isExpanded && renderPodium/);
+  assert.match(source,/PageFeedback message=\{error\} retry=/);
+  assert.match(source,/request !== calendarRequest.current/);
+  assert.match(source,/<GlossaryText>\{session.label\}<\/GlossaryText>/);
+  const styles=readFileSync(new URL('../src/pages/season/season-filters.css',import.meta.url),'utf8');
+  assert.match(styles,/header\.season-page-head \.page-head-controls \{ display: flex !important/);
+  assert.doesNotMatch(source,/desktopFactTitles|ТОЛЬКО ЧТО|"LIVE"/);
 });
