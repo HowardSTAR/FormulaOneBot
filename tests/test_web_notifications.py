@@ -152,3 +152,26 @@ async def test_inbox_and_read_are_scoped_to_account(store):
     await mark_read(ReadBody(through_id=999),user_id=1)
     assert (await inbox(before=0,user_id=1))["unread"]==0
     assert (await inbox(before=0,user_id=2))["unread"]==1
+
+
+@pytest.mark.asyncio
+async def test_inbox_categories_keep_private_counts_and_historical_context(store):
+    from app.api.web_notifications_api import inbox
+    async with store.connection() as conn:
+        await conn.executemany(
+            "INSERT INTO web_notifications(user_id,event_key,title,body,url,created_at) VALUES(?,?,'Title','Body',?,?)",
+            [(1, 'race:15', '/race-results?season=2026&round=15', time.time()),
+             (1, 'prediction:15', '/predictions?tab=history', time.time()),
+             (1, 'reminder:15', '/race-details?round=15', time.time()),
+             (2, 'race:other', '/race-results?round=1', time.time()),
+             (1, 'admin-error:critical:secret', '/admin', time.time())],
+        )
+        await conn.commit()
+    race = await inbox(before=0, user_id=1, category='results')
+    assert race['unread'] == 1
+    assert len(race['items']) == 1 and race['items'][0]['historical_snapshot'] is True
+    predictions = await inbox(before=0, user_id=1, category='predictions')
+    assert predictions['unread'] == 1 and predictions['items'][0]['historical_snapshot'] is True
+    reminders = await inbox(before=0, user_id=1, category='reminders')
+    assert len(reminders['items']) == 1 and reminders['items'][0]['historical_snapshot'] is False
+    assert not (await inbox(before=0, user_id=1, category='admin'))['items']

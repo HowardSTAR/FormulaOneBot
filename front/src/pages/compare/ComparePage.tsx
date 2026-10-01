@@ -318,10 +318,11 @@ function ComparePage() {
       type: "line",
       data: {
         labels,
-        datasets: visibleSeries.map((series) => ({
+        datasets: visibleSeries.map((series, index) => ({
           label: series.name,
           data: series.history,
           borderColor: series.color,
+          borderDash: index === 0 ? [] : index === 1 ? [8,4] : [2,4],
           backgroundColor: rgbaFromHex(series.color, 0.16),
           pointBackgroundColor: series.color,
           pointBorderColor: "#111216",
@@ -818,8 +819,8 @@ function ComparePage() {
                     <thead>
                       <tr>
                         <th>{tab === "drivers" ? "Пилот" : "Команда"}</th>
-                        <th>Лучший по очкам гонки среди выбранных</th>
-                        <th>Лучший в квалификации среди выбранных</th>
+                        <th>Этапов с лучшим результатом гонки среди выбранных</th>
+                        <th>Этапов с лучшей квалификацией среди выбранных</th>
                         <th>Средние очки за гонку</th>
                         <th>Очки чемпионата</th>
                       </tr>
@@ -861,8 +862,13 @@ function ComparePage() {
                   </div>
                 </div>
                 <div className="compare-chart-canvas-wrap">
-                  <canvas ref={chartRef} />
+                  <canvas ref={chartRef} role="img" aria-label="Очки выбранных участников по Гран-при. Точные значения доступны в таблице ниже." />
                 </div>
+                <details><summary>Точные очки по этапам</summary><div className="ui-table-scroll"><table>
+                  <caption>Очки в основных гонках сезона {year}, без спринтов</caption>
+                  <thead><tr><th scope="col">Этап</th>{visibleSeries.map(series => <th scope="col" key={series.code}>{series.name}</th>)}</tr></thead>
+                  <tbody>{labels.map((label, index) => <tr key={`${index}-${label}`}><th scope="row">{label}</th>{visibleSeries.map(series => <td key={series.code}>{series.history[index] ?? '—'}</td>)}</tr>)}</tbody>
+                </table></div></details>
                 <div className="compare-chart-legend" aria-label="Легенда графика">
                   {visibleSeries.map((series) => (
                     <div className="compare-legend-item" key={series.code}>

@@ -38,10 +38,11 @@ export function AdminInsights() {
     const url = URL.createObjectURL(new Blob(["\uFEFF" + rows.map(row => row.map(v => `"${String(v ?? 0).replaceAll('"', '""')}"`).join(";")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a"); a.href = url; a.download = `analytics-${days}d.csv`; a.click(); URL.revokeObjectURL(url);
   };
-  return <><section className="admin-chart-card admin-tools"><header><h2>Аудитория и уведомления</h2>
+  return <><section className="admin-chart-card admin-tools"><header><h2>Аудитория и уведомления · {days} дней</h2>
     <div className="at-actions"><select aria-label="Период расширенной аналитики" value={days} onChange={e => setDays(Number(e.target.value))}>
       <option value={7}>7 дней</option><option value={30}>30 дней</option><option value={90}>90 дней</option>
     </select><button disabled={!data} onClick={exportCsv}>Скачать CSV</button></div></header>
+    <p className="ui-data-context">Этот период относится только к блоку «Аудитория и уведомления». Число аккаунтов и настройки каналов — текущее состояние; регистрации и доставки — за выбранный период.</p>
     {error ? <p role="alert">{error}</p> : !data ? <p role="status">Загрузка…</p> : <>
       <div className="admin-metric-grid">{[["Аккаунтов сейчас", data.accounts.total], ["Новых за период", data.accounts.new_users],
         ["Браузеры за период", data.visitors.unique_browsers], ["Вернулись в другой день", data.visitors.returning_browsers],

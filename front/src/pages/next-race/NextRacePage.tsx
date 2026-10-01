@@ -1,3 +1,4 @@
+import { timezoneName } from '../../helpers/presentation';
 import { GlossaryText } from "../../components/GlossaryText";
 import { useState, useEffect } from "react";
 import { BackButton } from "../../components/BackButton";
@@ -54,7 +55,7 @@ function NextRacePage() {
         const userTz = getDisplayTimezone(settings?.timezone);
 
         if (cancelled) return;
-        setDisplayTimezone(userTz.replace(/_/g, " "));
+        setDisplayTimezone(timezoneName(userTz));
         if (raceData.status !== "ok") {
           setTitle(raceData.status === "season_finished" ? "Сезон завершен" : "Нет данных");
           setSessions([]);

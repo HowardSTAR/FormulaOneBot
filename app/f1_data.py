@@ -2891,6 +2891,7 @@ async def _fetch_constructor_career_results(session: aiohttp.ClientSession, cid:
                     for res in race.get("Results", []):
                         career.append({
                             "season": race.get("season"),
+                            "round": race.get("round"),
                             "position": res.get("position"),
                             "positionText": res.get("positionText", ""),
                             "points": float(res.get("points", 0)),
@@ -3009,7 +3010,7 @@ async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers
 
 
 # --- КАРТОЧКА КОНСТРУКТОРА --- #
-@cache_result(ttl=3600, key_prefix="constructor_details_v16")
+@cache_result(ttl=3600, key_prefix="constructor_details_v17")
 async def get_constructor_details_async(constructor_id: str, season: int):
     """Профиль команды: название, лого, статистика сезона и карьеры, биография."""
     cid = constructor_id.strip().lower().replace(" ", "_")
@@ -3064,11 +3065,15 @@ async def get_constructor_details_async(constructor_id: str, season: int):
     poles = sum(1 for r in career_results if r.get("grid") == "1")
 
     season_pos: int | str = 0
+    standings_points = None
     if not standings_df.empty:
         for row in standings_df.itertuples(index=False):
             row_cid = getattr(row, "constructorId", "")
             if str(row_cid).lower() == cid:
                 season_pos = getattr(row, "position", 0)
+                raw_points = getattr(row, "points", None)
+                if raw_points is not None and pd.notna(raw_points):
+                    standings_points = float(raw_points)
                 break
 
     constructor_seasons = sorted(set(r.get("season") for r in career_results if r.get("season")), reverse=True)
@@ -3085,7 +3090,10 @@ async def get_constructor_details_async(constructor_id: str, season: int):
         "season": season,
         "season_stats": {
             "position": season_pos,
-            "points": sum(r["points"] for r in season_results),
+            "points": standings_points if standings_points is not None else sum(r["points"] for r in season_results),
+            "points_source": "standings" if standings_points is not None else "grand_prix",
+            "grand_prix_points": sum(r["points"] for r in season_results),
+            "standings_round": standings_df.attrs.get("round"),
             "grand_prix_races": season_race_count if season_race_count else len(season_results),
             "grand_prix_wins": sum(1 for r in season_results if r.get("position") == "1"),
             "grand_prix_podiums": sum(1 for r in season_results if r.get("position") in ("1", "2", "3")),
@@ -3093,6 +3101,7 @@ async def get_constructor_details_async(constructor_id: str, season: int):
         },
         "career_stats": {
             "grand_prix_entered": gp_entered,
+            "grand_prix_events": len({(r["season"], r["round"]) for r in career_results if r.get("season") and r.get("round")}) or None,
             "career_points": career_points,
             "highest_race_finish": _highest_finish(career_results),
             "podiums": podiums,

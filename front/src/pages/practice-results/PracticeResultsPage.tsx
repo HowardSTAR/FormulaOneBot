@@ -1,5 +1,7 @@
+import { useSessionFilters } from '../../helpers/sessionFilters';
+import { ResultsSeasonFilter } from '../../components/ResultsSeasonFilter';
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link } from 'react-router-dom';
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
 import { apiRequest } from "../../helpers/api";
@@ -47,12 +49,6 @@ type PracticeRequestState = {
   error: string | null;
 };
 
-function optionalInt(value: string | null): number | null {
-  if (!value) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function sessionsForRace(race: SeasonRace | undefined): PracticeSession[] {
   const configured = race?.available_practice_sessions?.filter(
     (session): session is PracticeSession => session === 1 || session === 2 || session === 3,
@@ -62,31 +58,24 @@ function sessionsForRace(race: SeasonRace | undefined): PracticeSession[] {
 }
 
 export default function PracticeResultsPage() {
-  const [searchParams] = useSearchParams();
-  const season = optionalInt(searchParams.get("season")) ?? new Date().getFullYear();
-  const queryRound = optionalInt(searchParams.get("round"));
-  const querySession = optionalInt(searchParams.get("session"));
-  const initialSession: PracticeSession =
-    querySession === 2 || querySession === 3 ? querySession : 1;
-
-  const [mode, setMode] = useState<"latest" | "archive">(
-    searchParams.get("mode") === "archive" ? "archive" : "latest",
-  );
-  const [selectedRound, setSelectedRound] = useState<number | null>(queryRound);
-  const [selectedSession, setSelectedSession] = useState<PracticeSession>(initialSession);
+  const {season, setSeason, mode, setMode, selectedRound, setSelectedRound, selectedSession, setSelectedSession} = useSessionFilters(2018);
+  const [attempt, setAttempt] = useState(0);
   const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
+  const [seasonError, setSeasonError] = useState<string | null>(null);
+  const [seasonLoading, setSeasonLoading] = useState(true);
   const [requestState, setRequestState] = useState<PracticeRequestState>({
     key: "",
     data: null,
     error: null,
   });
-  const requestKey = `${season}:${mode}:${selectedRound ?? "latest"}:${selectedSession}`;
-  const loading = requestState.key !== requestKey;
+  const requestKey = `${attempt}:${season}:${mode}:${selectedRound ?? "latest"}:${selectedSession}`;
+  const loading = requestState.key !== requestKey || (mode === 'archive' && seasonLoading);
   const data = loading ? null : requestState.data;
-  const error = loading ? null : requestState.error;
+  const error = loading ? null : requestState.error || (mode === 'archive' ? seasonError : null);
 
   useEffect(() => {
     let cancelled = false;
+    setSeasonLoading(true); setSeasonError(null);
     apiRequest<{ races?: SeasonRace[] }>("/api/season", {
       season,
       completed_only: true,
@@ -104,15 +93,15 @@ export default function PracticeResultsPage() {
         });
       })
       .catch(() => {
-        if (!cancelled) setSeasonRaces([]);
-      });
+        if (!cancelled) { setSeasonRaces([]); setSeasonError('Не удалось загрузить список этапов. Попробуйте повторить запрос.'); }
+      }).finally(() => { if (!cancelled) setSeasonLoading(false); });
     return () => {
       cancelled = true;
     };
-  }, [season]);
+  }, [season, attempt]);
 
   useEffect(() => {
-    if (mode === "archive" && selectedRound === null) return;
+    if (mode === "archive" && selectedRound === null) { setRequestState({key: requestKey, data: null, error: null}); return; }
     let cancelled = false;
     apiRequest<PracticeResponse>("/api/practice-results", {
       season,
@@ -154,12 +143,12 @@ export default function PracticeResultsPage() {
   const eventName = data?.race_info?.event_name || "Grand Prix";
   const selectArchiveRound = (round: number) => {
     const sessions = sessionsForRace(seasonRaces.find((race) => race.round === round));
-    setSelectedRound(round);
-    if (!sessions.includes(selectedSession)) setSelectedSession(sessions[0] ?? 1);
+    setSelectedRound(round, sessions.includes(selectedSession) ? undefined : sessions[0] ?? 1);
   };
 
   return (
     <div className="practice-page">
+      <ResultsSeasonFilter season={season} onChange={setSeason} minYear={2018} />
       <BackButton fallback="/">← <span>Главное меню</span></BackButton>
 
       <header className="practice-hero">
@@ -237,7 +226,7 @@ export default function PracticeResultsPage() {
         </div>
         {mode === "archive" && (
           <div className="archive-note practice-archive-note">
-            Результаты других ГП можно открыть в разделе Календарь.
+            Выберите сезон и этап выше. В спринт-уикенд доступна только первая практика.
           </div>
         )}
       </section>
@@ -254,6 +243,7 @@ export default function PracticeResultsPage() {
         <ResultsFeedback
           loading={loading}
           error={error}
+          retry={() => setAttempt(v => v + 1)}
           empty={!loading && !error && (!data || data.results.length === 0)}
           icon="⏱"
           title={`Нет данных P${selectedSession}`}
@@ -264,6 +254,7 @@ export default function PracticeResultsPage() {
             <div className="practice-mobile-results standings-list">
               {data.results.map((result) => (
                 <ResultsMobileRow
+                  season={data.season || season}
                   key={`${result.position}-${result.driver}`}
                   position={result.position}
                   name={result.name || result.driver}
@@ -276,13 +267,13 @@ export default function PracticeResultsPage() {
             </div>
             <ResultsDesktopTable
               className="practice-unified-table"
-              columns={["Поз", "Пилот", "Команда", "Лучший круг / Gap", "Круги"]}
+              columns={["Поз", "Пилот", "Команда", "Лучший круг / отрыв", "Круги"]}
               rows={data.results.map((result) => ({
                 key: `${result.position}-${result.driver}`,
                 winner: result.position === 1,
                 values: [
                   String(result.position).padStart(2, "0"),
-                  `${result.is_favorite_driver ? "★ " : ""}${result.name || result.driver} · ${result.driver}`,
+                  <Link className="ui-profile-link" to={`/driver-details?code=${encodeURIComponent(result.driver)}&season=${data.season || season}`}>{result.is_favorite_driver ? '★ ' : ''}{result.name || result.driver} · {result.driver}</Link>,
                   result.team || "—",
                   result.position === 1 ? (result.best || "—") : (result.gap || "—"),
                   result.laps,

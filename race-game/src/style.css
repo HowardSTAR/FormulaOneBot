@@ -407,6 +407,11 @@ button:disabled, select:disabled { opacity: 0.55; cursor: wait; }
   line-height: 1.55;
 }
 
+.touch-guide { display: none; }
+@media (pointer: coarse) {
+  .control-guide.keyboard-guide { display: none; }
+  .touch-guide { display: block; color: #c8d2ca; font-size: 13px; line-height: 1.5; }
+}
 .control-guide {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

@@ -1,3 +1,4 @@
+import { PageFeedback } from '../../components/PageFeedback';
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -41,7 +42,7 @@ type Driver = {
   driverId?: string;
 };
 
-type DriversResponse = { drivers?: Driver[] };
+type DriversResponse = { round?: number | null; drivers?: Driver[] };
 type ConstructorStanding = { position: number; name: string; points: number };
 type ConstructorsResponse = { constructors?: ConstructorStanding[] };
 type RaceResult = { code?: string; points?: number };
@@ -62,6 +63,7 @@ function DriversPage() {
   );
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataContext, setDataContext] = useState<{round?: number | null; received: string} | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<{ icon: string; title: string; desc: string } | null>(null);
   const [topConstructors, setTopConstructors] = useState<ConstructorStanding[]>([]);
@@ -86,6 +88,7 @@ function DriversPage() {
     setEmptyMessage(null);
     try {
       const data = await apiRequest<DriversResponse>("/api/drivers", { season });
+      setDataContext({round: data.round, received: new Date().toLocaleTimeString('ru-RU')});
       if (!data.drivers || data.drivers.length === 0) {
         if (season === currentRealYear) {
           setEmptyMessage({
@@ -204,6 +207,7 @@ function DriversPage() {
 
   return (
     <>
+      {!loading && !error && dataContext && <p className="ui-data-context">Сезон {year} · {dataContext.round != null ? `после этапа ${dataContext.round}` : 'этап обновления не указан источником'} · Получено в {dataContext.received}; время обновления источника может отличаться.</p>}
       <BackButton>← <span>Главное меню</span></BackButton>
       <Link className="standings-history-link" to="/history?kind=drivers">История с 1950 года · сравнить сезоны →</Link>
       <div className="page-head-row">
@@ -237,7 +241,7 @@ function DriversPage() {
             </div>
           </div>
           {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка пилотов...</div></div>}
-          {error && <div className="page-error">{error}</div>}
+          {error && <PageFeedback message={error} retry={() => void loadDrivers(year)} />}
           {!loading && !error && emptyMessage && (
             <div className="empty-state">
               {emptyMessage.icon && <span className="empty-icon">{emptyMessage.icon}</span>}
@@ -357,7 +361,7 @@ function DriversPage() {
 
       <div className="standings-cards-grid">
         {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка пилотов...</div></div>}
-        {error && <div className="page-error">{error}</div>}
+        {error && <PageFeedback message={error} retry={() => void loadDrivers(year)} />}
         {!loading && !error && emptyMessage && (
           <div className="empty-state">
             {emptyMessage.icon && <span className="empty-icon">{emptyMessage.icon}</span>}

@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import "./session-results-ui.css";
+import { PageFeedback } from './PageFeedback';
+import { Link } from 'react-router-dom';
 
 type FeedbackProps = {
   loading?: boolean;
@@ -8,6 +10,7 @@ type FeedbackProps = {
   icon?: string;
   title?: string;
   description?: string;
+  retry?: () => void;
 };
 
 export function ResultsFeedback({
@@ -17,6 +20,7 @@ export function ResultsFeedback({
   icon = "🏁",
   title = "Нет данных",
   description = "Результаты пока недоступны.",
+  retry,
 }: FeedbackProps) {
   if (loading) {
     return (
@@ -29,7 +33,7 @@ export function ResultsFeedback({
       </div>
     );
   }
-  if (error) return <div className="page-error results-feedback-error" role="alert">{error}</div>;
+  if (error) return <PageFeedback message={error} retry={retry} parent={{to: '/season', label: 'Открыть календарь'}} />;
   if (!empty) return null;
   return (
     <div className="empty-state results-empty-state" role="status">
@@ -41,6 +45,7 @@ export function ResultsFeedback({
 }
 
 type MobileRowProps = {
+  season?: number;
   position: number;
   name: string;
   code?: string;
@@ -51,6 +56,7 @@ type MobileRowProps = {
 };
 
 export function ResultsMobileRow({
+  season,
   position,
   name,
   code,
@@ -64,7 +70,7 @@ export function ResultsMobileRow({
     <div className={`standings-item results-mobile-row${position === 1 ? " winner" : ""}`}>
       <div className={`standings-position ${position <= 3 ? "podium" : ""}`}>{positionLabel}</div>
       <div className="standings-info">
-        <div className="standings-name">{favorite ? "★ " : ""}{name}</div>
+        <div className="standings-name">{favorite ? "★ " : ""}{code ? <Link className="ui-profile-link" to={`/driver-details?code=${encodeURIComponent(code)}${season ? `&season=${season}` : ''}`}>{name}</Link> : name}</div>
         <div className="standings-code">
           {code || team || "—"}
           {code && team ? <span className="results-mobile-team">{team}</span> : null}

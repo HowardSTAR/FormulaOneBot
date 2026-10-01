@@ -1,5 +1,7 @@
+import { useSessionFilters } from '../../helpers/sessionFilters';
+import { ResultsSeasonFilter } from '../../components/ResultsSeasonFilter';
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
@@ -54,29 +56,19 @@ function teamLogoUrl(teamId: string, teamName: string, season: number): string {
   });
 }
 
-function parseOptionalInt(value: string | null): number | null {
-  if (value === null) return null;
-  const n = Number.parseInt(value, 10);
-  return Number.isFinite(n) ? n : null;
-}
-
 function SprintResultsPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const seasonFromQuery = parseOptionalInt(searchParams.get("season"));
-  const roundFromQuery = parseOptionalInt(searchParams.get("round"));
-  const modeFromQuery = searchParams.get("mode");
-  const initialSeason = seasonFromQuery ?? new Date().getFullYear();
-  const initialRound = roundFromQuery;
-  const initialMode: "latest" | "archive" = modeFromQuery === "archive" ? "archive" : "latest";
+  const {season, setSeason, mode, setMode, selectedRound, setSelectedRound} = useSessionFilters(2021);
+  const [attempt, setAttempt] = useState(0);
 
   const [data, setData] = useState<SprintResultsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"latest" | "archive">(initialMode);
-  const [season] = useState<number>(initialSeason);
+  const [resultLoading, setLoading] = useState(true);
+  const [resultError, setError] = useState<string | null>(null);
+  const [seasonLoading, setSeasonLoading] = useState(true);
+  const [seasonError, setSeasonError] = useState<string | null>(null);
+  const loading = resultLoading || (mode === 'archive' && seasonLoading);
+  const error = resultError || (mode === 'archive' ? seasonError : null);
   const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
-  const [selectedRound, setSelectedRound] = useState<number | null>(initialRound);
   const [driverTeams, setDriverTeams] = useState<Record<string, DriverTeamInfo>>({});
   const desktopWinner = data?.results?.[0] ?? null;
   const desktopRows = data?.results ?? [];
@@ -113,6 +105,7 @@ function SprintResultsPage() {
   useEffect(() => {
     let cancelled = false;
     async function loadSeason() {
+      setSeasonLoading(true); setSeasonError(null);
       try {
         const seasonData = await apiRequest<{ races?: SeasonRace[] }>("/api/season", {
           season,
@@ -137,17 +130,20 @@ function SprintResultsPage() {
         if (!cancelled) {
           setSeasonRaces([]);
           setSelectedRound(null);
+          setSeasonError('Не удалось загрузить список этапов. Попробуйте повторить запрос.');
         }
+      } finally {
+        if (!cancelled) setSeasonLoading(false);
       }
     }
     loadSeason();
     return () => {
       cancelled = true;
     };
-  }, [season]);
+  }, [season, attempt]);
 
   useEffect(() => {
-    if (mode === "archive" && !selectedRound) return;
+    if (mode === "archive" && !selectedRound) { setLoading(false); setData(null); return; }
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -165,12 +161,7 @@ function SprintResultsPage() {
         if (!cancelled) {
           console.error(e);
           const message = e instanceof Error ? e.message : "Ошибка загрузки данных";
-          if (message.includes("время ожидания") || message.includes("timed out")) {
-            setData({ results: [] });
-            setError(null);
-          } else {
-            setError(message);
-          }
+          setError(message);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -180,10 +171,11 @@ function SprintResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [mode, selectedRound, season]);
+  }, [mode, selectedRound, season, attempt]);
 
   return (
     <>
+      <ResultsSeasonFilter season={season} onChange={setSeason} minYear={2021} />
       <div className="sprint-results-mobile">
         <BackButton>← <span>Главное меню</span></BackButton>
         <h2>
@@ -224,7 +216,7 @@ function SprintResultsPage() {
         </div>
         {mode === "archive" && selectedRound && (
           <div style={{ marginBottom: 12 }}>
-            <CustomSelect
+            <CustomSelect ariaLabel="Этап"
               options={seasonRaces.map((r) => ({
                 value: r.round,
                 label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
@@ -235,13 +227,14 @@ function SprintResultsPage() {
           </div>
         )}
         {mode === "archive" && (
-          <div className="archive-note">Результаты других ГП можно открыть в разделе Календарь.</div>
+          <div className="archive-note">Выберите сезон и этап выше.</div>
         )}
 
         <div id="sprint-content">
           <ResultsFeedback
             loading={loading}
             error={error}
+            retry={() => setAttempt(v => v + 1)}
             empty={!loading && !error && (!data?.results || data.results.length === 0)}
             icon="⚡"
             description={mode === "archive"
@@ -254,6 +247,7 @@ function SprintResultsPage() {
                 const isFavorite = Boolean(r.is_favorite_driver || r.is_favorite_team);
                 return (
                   <ResultsMobileRow
+                    season={data.season || season}
                     key={i}
                     position={r.position}
                     name={r.name}
@@ -283,7 +277,7 @@ function SprintResultsPage() {
           <div className="race-results-desktop-controls">
             {mode === "archive" && selectedRound && (
               <div className="race-results-desktop-round-select">
-                <CustomSelect
+                <CustomSelect ariaLabel="Этап"
                   options={seasonRaces.map((r) => ({
                     value: r.round,
                     label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
@@ -305,6 +299,7 @@ function SprintResultsPage() {
           <ResultsFeedback
             loading={loading}
             error={error}
+            retry={() => setAttempt(v => v + 1)}
             empty={!loading && !error && desktopRows.length === 0}
             icon="⚡"
             title="Спринт ещё не завершён"

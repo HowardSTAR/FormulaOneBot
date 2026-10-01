@@ -1,3 +1,4 @@
+import { timezoneName } from '../../helpers/presentation';
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { GlossaryText } from "../../components/GlossaryText";
@@ -136,6 +137,7 @@ function RaceDetailsPage() {
 
   return (
     <>
+      <p className="ui-data-context">Время сессий: {timezoneName(userTz)}</p>
       <BackButton fallback="/season">← <span>Назад</span></BackButton>
       <div className="circuit-header">
         <div className="circuit-title">{data.event_name}</div>

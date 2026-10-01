@@ -1,3 +1,4 @@
+import { PageFeedback } from '../../components/PageFeedback';
 import { useState, useEffect, useCallback } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -23,13 +24,14 @@ type Constructor = {
   constructorId?: string;
 };
 
-type ConstructorsResponse = { constructors?: Constructor[] };
+type ConstructorsResponse = { round?: number | null; constructors?: Constructor[] };
 type DriverStanding = { name: string; points: number };
 type DriversResponse = { drivers?: DriverStanding[] };
 type NextRaceInfo = {
   status?: string;
   event_name?: string;
   date?: string;
+  race_start_utc?: string;
   round?: number;
   location?: string;
 };
@@ -45,6 +47,7 @@ function ConstructorsPage() {
   );
   const [teams, setTeams] = useState<Constructor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataContext, setDataContext] = useState<{round?: number | null; received: string} | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<{ icon: string; title: string; desc?: string } | null>(null);
   const [topDrivers, setTopDrivers] = useState<DriverStanding[]>([]);
@@ -68,6 +71,7 @@ function ConstructorsPage() {
     setEmptyMessage(null);
     try {
       const data = await apiRequest<ConstructorsResponse>("/api/constructors", { season });
+      setDataContext({round: data.round, received: new Date().toLocaleTimeString('ru-RU')});
       if (!data.constructors || data.constructors.length === 0) {
         if (season === currentRealYear) {
           setEmptyMessage({
@@ -170,16 +174,17 @@ function ConstructorsPage() {
         backgroundRepeat: "no-repeat",
       }
     : undefined;
-  const raceDate = nextRace?.date ? new Date(nextRace.date) : null;
+  const raceDate = nextRace?.race_start_utc || nextRace?.date ? new Date(nextRace.race_start_utc || nextRace.date!) : null;
   const daysLeft = raceDate
     ? Math.max(
         0,
-        Math.ceil((raceDate.getTime() - new Date().setHours(0, 0, 0, 0)) / (1000 * 60 * 60 * 24))
+        Math.ceil((raceDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
       )
     : null;
 
   return (
     <>
+      {!loading && !error && dataContext && <p className="ui-data-context">Сезон {year} · {dataContext.round != null ? `после этапа ${dataContext.round}` : 'этап обновления не указан источником'} · Получено в {dataContext.received}; время обновления источника может отличаться.</p>}
       <BackButton className="btn-back constructors-back-button">← <span>Главное меню</span></BackButton>
       <Link className="standings-history-link" to="/history?kind=constructors">История Кубка с 1958 года · сравнить сезоны →</Link>
       <div className="page-head-row">
@@ -203,7 +208,7 @@ function ConstructorsPage() {
           </div>
 
           {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка команд...</div></div>}
-          {error && <div className="page-error">{error}</div>}
+          {error && <PageFeedback message={error} retry={() => void loadTeams(year)} />}
           {!loading && !error && emptyMessage && (
             <div className="empty-state">
               {emptyMessage.icon && <span className="empty-icon">{emptyMessage.icon}</span>}
@@ -373,7 +378,7 @@ function ConstructorsPage() {
 
       <div className="standings-cards-grid">
         {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка команд...</div></div>}
-        {error && <div className="page-error">{error}</div>}
+        {error && <PageFeedback message={error} retry={() => void loadTeams(year)} />}
         {!loading && !error && emptyMessage && (
           <div className="empty-state">
             {emptyMessage.icon && <span className="empty-icon">{emptyMessage.icon}</span>}

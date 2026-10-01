@@ -1,3 +1,6 @@
+import { PageFeedback } from "../../components/PageFeedback";
+import { cleanBiography } from "../../helpers/presentation";
+import { nationalityLabel } from "../../constants/flags";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -27,11 +30,13 @@ export default function TeamPrincipalPage() {
   const season = Number(searchParams.get("season")) || new Date().getFullYear();
   const [data, setData] = useState<ConstructorPrincipalResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (!constructorId) return;
     let cancelled = false;
+    setLoading(true); setError("");
     apiRequest<ConstructorPrincipalResponse>("/api/constructor-details", { constructorId, season })
       .then((response) => {
         if (cancelled) return;
@@ -48,7 +53,7 @@ export default function TeamPrincipalPage() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [constructorId, season]);
+  }, [constructorId, season, attempt]);
 
   const backPath = `/constructor-details?constructorId=${encodeURIComponent(constructorId)}&season=${season}`;
 
@@ -74,7 +79,7 @@ export default function TeamPrincipalPage() {
     return (
       <>
         <BackButton fallback={backPath}>← <span>Команда</span></BackButton>
-        <div className="error">{error || "Карточка руководителя пока недоступна"}</div>
+        <PageFeedback message={error || "Карточка руководителя пока недоступна"} retry={() => setAttempt(v => v + 1)} parent={{to: backPath, label: "Карточка команды"}} />
       </>
     );
   }
@@ -94,7 +99,7 @@ export default function TeamPrincipalPage() {
         </div>
         <section className="team-principal-bio">
           <h2>Краткая биография</h2>
-          <p>{principal.bio || "Краткая биография пока недоступна."}</p>
+          <p>{cleanBiography(principal.bio || "Краткая биография пока недоступна.")}</p>
           {principal.url && <a href={principal.url} target="_blank" rel="noopener noreferrer">Открыть источник →</a>}
         </section>
       </article>
@@ -111,13 +116,13 @@ export default function TeamPrincipalPage() {
             <div>
               <b>{data.name}</b>
               <b>Сезон {season}</b>
-              {data.nationality && <b>{data.nationality}</b>}
+              {data.nationality && <b>Страна команды: {nationalityLabel(data.nationality)}</b>}
             </div>
           </div>
         </header>
         <section className="team-principal-desktop-bio">
           <h2>Краткая биография</h2>
-          <p>{principal.bio || "Краткая биография пока недоступна."}</p>
+          <p>{cleanBiography(principal.bio || "Краткая биография пока недоступна.")}</p>
           {principal.url && <a href={principal.url} target="_blank" rel="noopener noreferrer">Открыть источник →</a>}
         </section>
       </article>

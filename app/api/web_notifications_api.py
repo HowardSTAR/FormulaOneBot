@@ -2,6 +2,7 @@ import json
 import time
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
+from typing import Literal
 from app.api.auth_api import require_hybrid_user_id
 from app.services.web_notifications import connection, initialize, push_config, validate_subscription
 
@@ -15,15 +16,17 @@ async def unread_count(user_id: int = Depends(require_hybrid_user_id)):
         return {'unread': row[0]}
 
 @router.get("")
-async def inbox(before: int = Query(0, ge=0), user_id: int = Depends(require_hybrid_user_id)):
+async def inbox(before: int = Query(0, ge=0), user_id: int = Depends(require_hybrid_user_id), category: Literal['all', 'results', 'predictions', 'voting', 'reminders', 'admin'] = 'all'):
     async with connection() as conn:
         await initialize(conn)
         await conn.execute("INSERT OR IGNORE INTO web_notification_members VALUES(?,?)", (user_id,time.time()))
         await conn.commit()
         visible = "(event_key NOT LIKE 'admin-error:%' OR EXISTS(SELECT 1 FROM users u WHERE u.id=web_notifications.user_id AND u.role IN ('admin','superadmin') AND u.archived_at IS NULL))"
+        category_filter = {'results': "url LIKE '%-results%'", 'predictions': "url LIKE '/predictions%'", 'voting': "url LIKE '/voting%'", 'reminders': "event_key LIKE 'reminder:%'", 'admin': "event_key LIKE 'admin-error:%'"}.get(category, '1=1')
+        visible += f" AND ({category_filter})"
         rows = await (await conn.execute(f"SELECT id,title,body,url,created_at,read_at,event_key FROM web_notifications WHERE user_id=? AND (?=0 OR id<?) AND {visible} ORDER BY id DESC LIMIT 31", (user_id,before,before))).fetchall()
         unread = await (await conn.execute(f"SELECT COUNT(*) FROM web_notifications WHERE user_id=? AND read_at IS NULL AND {visible}", (user_id,))).fetchone()
-        items = [{**{k:r[k] for k in r.keys() if k != 'event_key'}, "priority": r["event_key"].split(":")[1] if r["event_key"].startswith("admin-error:") else None} for r in rows[:30]]
+        items = [{**{k:r[k] for k in r.keys() if k != 'event_key'}, "historical_snapshot": '-results' in r['url'] or r['url'].startswith(('/predictions', '/voting')), "priority": r["event_key"].split(":")[1] if r["event_key"].startswith("admin-error:") else None} for r in rows[:30]]
         return {"items":items, "next_before":rows[29]["id"] if len(rows)>30 else None, "unread":unread[0], "push":push_config()}
 
 class ReadBody(BaseModel):

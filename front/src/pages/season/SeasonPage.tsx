@@ -1,3 +1,4 @@
+import { localDateTime, timezoneName } from '../../helpers/presentation';
 import { GlossaryText } from "../../components/GlossaryText";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -84,7 +85,11 @@ function SeasonPage() {
     yearFromUrl && yearFromUrl >= 1950 && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
   );
   const [races, setRaces] = useState<Race[]>([]);
-  const [filter, setFilter] = useState<'upcoming' | 'past' | 'all'>(year === currentRealYear ? 'upcoming' : 'all');
+  const filterParam = searchParams.get('filter');
+  const filter: 'upcoming' | 'past' | 'all' = filterParam === 'upcoming' || filterParam === 'past' || filterParam === 'all' ? filterParam : year === currentRealYear ? 'upcoming' : 'all';
+  const setFilter = (value: 'upcoming' | 'past' | 'all') => setSearchParams(previous => {
+    const next = new URLSearchParams(previous); next.set('filter', value); return next;
+  }, {replace: true});
   const [userTz, setUserTz] = useState(getDisplayTimezone());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,7 +151,6 @@ function SeasonPage() {
 
   const updateYear = useCallback((y: number) => {
     setYear(y);
-    setFilter(y === currentRealYear ? 'upcoming' : 'all');
     setExpandedPodiumRound(null);
     setExpandedFactsRound(null);
     setPodiums({});
@@ -285,14 +289,7 @@ function SeasonPage() {
   const selectedDateLabel = selectedRaceDate
     ? selectedRaceDate.toLocaleDateString("ru-RU", { timeZone: userTz, day: "2-digit", month: "short" }).replace(".", "").toUpperCase()
     : "—";
-  const formatSessionTime = (iso?: string | null): string =>
-    iso
-      ? new Date(iso).toLocaleTimeString("ru-RU", {
-          timeZone: userTz,
-          hour: "2-digit",
-          minute: "2-digit",
-        })
-      : "--:--";
+  const formatSessionTime = (iso?: string | null): string => localDateTime(iso, userTz);
   const desktopFactTitles = ["Локация", "Ключевой участок", "Непредсказуемость"];
   const timelineRaceName = (name: string): string => name.replace(/Grand Prix/gi, "GP");
   const loadPodium = useCallback(async (round: number) => {
@@ -475,7 +472,7 @@ function SeasonPage() {
               </div>
 
               <div className="season-desktop-hero-schedule">
-                <h5>Расписание сессий</h5>
+                <h5>Расписание сессий</h5><p className="ui-data-context">Время: {timezoneName(userTz)}</p>
                 <div className="season-desktop-session-grid">
                   {desktopRace.sprint_quali_start_utc && (
                     <div className="season-desktop-session-item">
@@ -495,7 +492,7 @@ function SeasonPage() {
                   </div>
                   <div className="season-desktop-session-item focus">
                     <span>Grand Prix</span>
-                    <b>{selectedDateLabel}</b>
+                    <b>{formatSessionTime(desktopRace.race_start_utc)}</b>
                   </div>
                 </div>
                 <div className="season-desktop-stats">
@@ -521,7 +518,7 @@ function SeasonPage() {
           </section>
 
           <aside className="season-desktop-list season-desktop-timeline">
-            <h4 className="season-desktop-timeline-title">Все этапы сезона · {races.length}</h4>
+            <h4 className="season-desktop-timeline-title">{filter === 'upcoming' ? 'Предстоящие' : filter === 'past' ? 'Прошедшие' : 'Весь сезон'} · {visibleRaces.length}{filter !== 'all' ? ` из ${races.length}` : ''}</h4>
             {visibleRaces.map((race) => {
               const raceDate = new Date(race.date);
               const statusClass = calendarState.statusByRound.get(race.round) || "future";
@@ -537,7 +534,7 @@ function SeasonPage() {
                     : statusClass === "finished"
                       ? "ЗАВЕРШЕН"
                       : statusClass === "next"
-                        ? "NEXT · СКОРО"
+                        ? "СЛЕДУЮЩАЯ · СКОРО"
                         : "ЭТАП";
               const dateLabel = raceDate
                 .toLocaleDateString("ru-RU", {
@@ -614,7 +611,7 @@ function SeasonPage() {
                   : statusClass === "finished"
                     ? "🏁"
                     : statusClass === "next"
-                      ? "NEXT · СКОРО"
+                      ? "СЛЕДУЮЩАЯ · СКОРО"
                       : "";
             const day = raceDate.toLocaleDateString("ru-RU", {
               timeZone: userTz,

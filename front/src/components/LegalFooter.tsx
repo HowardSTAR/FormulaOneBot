@@ -4,8 +4,8 @@ export function LegalFooter() {
   return (
     <footer className="legal-footer">
       <div className="legal-footer-heading">
-        <strong>TurboTears</strong>
-        <span>Independent race intelligence</span>
+        <strong>F1Hub · проект TurboTears</strong>
+        <span>Независимая гоночная аналитика</span>
       </div>
       <p>
         Независимый некоммерческий информационный проект для поклонников автоспорта.

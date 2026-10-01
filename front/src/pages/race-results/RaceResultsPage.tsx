@@ -1,5 +1,7 @@
+import { useSessionFilters } from '../../helpers/sessionFilters';
+import { ResultsSeasonFilter } from '../../components/ResultsSeasonFilter';
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
@@ -54,29 +56,19 @@ function teamLogoUrl(teamId: string, teamName: string, season: number): string {
   });
 }
 
-function parseOptionalInt(value: string | null): number | null {
-  if (value === null) return null;
-  const n = Number.parseInt(value, 10);
-  return Number.isFinite(n) ? n : null;
-}
-
 function RaceResultsPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const seasonFromQuery = parseOptionalInt(searchParams.get("season"));
-  const roundFromQuery = parseOptionalInt(searchParams.get("round"));
-  const modeFromQuery = searchParams.get("mode");
-  const initialSeason = seasonFromQuery ?? new Date().getFullYear();
-  const initialRound = roundFromQuery;
-  const initialMode: "latest" | "archive" = modeFromQuery === "archive" ? "archive" : "latest";
+  const {season, setSeason, mode, setMode, selectedRound, setSelectedRound} = useSessionFilters(1950);
+  const [attempt, setAttempt] = useState(0);
 
   const [data, setData] = useState<RaceResultsResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"latest" | "archive">(initialMode);
-  const [season] = useState<number>(initialSeason);
+  const [resultLoading, setLoading] = useState(true);
+  const [resultError, setError] = useState<string | null>(null);
+  const [seasonLoading, setSeasonLoading] = useState(true);
+  const [seasonError, setSeasonError] = useState<string | null>(null);
+  const loading = resultLoading || (mode === 'archive' && seasonLoading);
+  const error = resultError || (mode === 'archive' ? seasonError : null);
   const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
-  const [selectedRound, setSelectedRound] = useState<number | null>(initialRound);
   const [driverTeams, setDriverTeams] = useState<Record<string, DriverTeamInfo>>({});
 
   const desktopWinner = data?.results?.[0] ?? null;
@@ -116,6 +108,7 @@ function RaceResultsPage() {
   useEffect(() => {
     let cancelled = false;
     async function loadSeason() {
+      setSeasonLoading(true); setSeasonError(null);
       try {
         const seasonData = await apiRequest<{ races?: SeasonRace[] }>("/api/season", {
           season,
@@ -136,17 +129,20 @@ function RaceResultsPage() {
         if (!cancelled) {
           setSeasonRaces([]);
           setSelectedRound(null);
+          setSeasonError('Не удалось загрузить список этапов. Попробуйте повторить запрос.');
         }
+      } finally {
+        if (!cancelled) setSeasonLoading(false);
       }
     }
     loadSeason();
     return () => {
       cancelled = true;
     };
-  }, [season]);
+  }, [season, attempt]);
 
   useEffect(() => {
-    if (mode === "archive" && !selectedRound) return;
+    if (mode === "archive" && !selectedRound) { setLoading(false); setData(null); return; }
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -164,12 +160,7 @@ function RaceResultsPage() {
         if (!cancelled) {
           console.error(e);
           const message = e instanceof Error ? e.message : "Ошибка загрузки данных";
-          if (message.includes("время ожидания") || message.includes("timed out")) {
-            setData({ results: [] });
-            setError(null);
-          } else {
-            setError(message);
-          }
+          setError(message);
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -179,10 +170,11 @@ function RaceResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [mode, selectedRound, season]);
+  }, [mode, selectedRound, season, attempt]);
 
   return (
     <>
+      <ResultsSeasonFilter season={season} onChange={setSeason} minYear={1950} />
       <div className="race-results-mobile">
         <BackButton>← <span>Главное меню</span></BackButton>
         <h2 id="race-title">
@@ -223,7 +215,7 @@ function RaceResultsPage() {
         </div>
         {mode === "archive" && selectedRound && (
           <div style={{ marginBottom: 12 }}>
-            <CustomSelect
+            <CustomSelect ariaLabel="Этап"
               options={seasonRaces.map((r) => ({
                 value: r.round,
                 label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
@@ -234,14 +226,16 @@ function RaceResultsPage() {
           </div>
         )}
         {mode === "archive" && (
-          <div className="archive-note">Результаты других ГП можно открыть в разделе Календарь.</div>
+          <div className="archive-note">Выберите сезон и этап выше.</div>
         )}
 
         <div id="race-content">
+          <nav className="ui-section-links" aria-label="Содержание результатов"><a href="#race-classification">Классификация ↓</a></nav>
           {!loading && !error && data?.round && data.results?.length ? <RaceImpact season={resultSeason} round={data.round} rows={data.results} recap={recap} /> : null}
           <ResultsFeedback
             loading={loading}
             error={error}
+            retry={() => setAttempt(v => v + 1)}
             empty={!loading && !error && (!data?.results || data.results.length === 0)}
             icon="🏁"
             title={data?.data_incomplete ? "Результаты обрабатываются" : "Нет данных"}
@@ -252,7 +246,7 @@ function RaceResultsPage() {
                 : "Гонки в этом сезоне еще не проводились или результаты обрабатываются. Попробуйте режим Архив."}
           />
           {!loading && !error && data?.results && data.results.length > 0 && (
-            <div className="standings-list" style={{ marginTop: 16 }}>
+            <div id="race-classification" tabIndex={-1} className="standings-list" style={{ marginTop: 16 }}>
               {data.results.map((r, i) => {
                 const emoji =
                   r.position === 1 ? "🥇" : r.position === 2 ? "🥈" : r.position === 3 ? "🥉" : r.position;
@@ -306,7 +300,7 @@ function RaceResultsPage() {
           <div className="race-results-desktop-controls">
             {mode === "archive" && selectedRound && (
               <div className="race-results-desktop-round-select">
-                <CustomSelect
+                <CustomSelect ariaLabel="Этап"
                   options={seasonRaces.map((r) => ({
                     value: r.round,
                     label: `Этап ${String(r.round).padStart(2, "0")} · ${r.event_name || "Grand Prix"}`,
@@ -332,10 +326,12 @@ function RaceResultsPage() {
         </header>
 
         <div className="race-results-desktop-content">
+          <nav className="ui-section-links" aria-label="Содержание результатов"><a href="#race-classification-desktop">Классификация ↓</a></nav>
           {!loading && !error && data?.round && data.results?.length ? <RaceImpact season={resultSeason} round={data.round} rows={data.results} recap={recap} /> : null}
           <ResultsFeedback
             loading={loading}
             error={error}
+            retry={() => setAttempt(v => v + 1)}
             empty={!loading && !error && desktopRows.length === 0}
             icon="🏁"
             title={data?.data_incomplete ? "Результаты обрабатываются" : "Гонка ещё не прошла"}
@@ -400,7 +396,7 @@ function RaceResultsPage() {
           )}
 
           {!loading && !error && desktopRows.length > 0 && (
-            <div className="race-results-desktop-table race-results-table-compact">
+            <div id="race-classification-desktop" tabIndex={-1} className="race-results-desktop-table race-results-table-compact">
               <div className="race-results-desktop-table-head">
                 <span>Поз</span>
                 <span>Пилот</span>

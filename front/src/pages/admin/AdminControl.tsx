@@ -12,7 +12,7 @@ const date=(value:number)=>new Date(value*1000).toLocaleString();
 export function AdminControl({mode, onNavigate, onBusy}:{mode:'delivery'|'recovery';onNavigate:(section:string)=>void;onBusy:(busy:boolean)=>void}){
   const [summary,setSummary]=useState<Summary|null>(null);
   const [rows,setRows]=useState<{items:Delivery[];has_more:boolean}|null>(null);
-  const [channel,setChannel]=useState('all');const [status,setStatus]=useState('attention');
+  const [channel,setChannel]=useState('all');const [status,setStatus]=useState('failed');
   const [offset,setOffset]=useState(0);const [refresh,setRefresh]=useState(0);
   const [error,setError]=useState('');
   const [loaded,setLoaded]=useState('');
@@ -25,10 +25,17 @@ export function AdminControl({mode, onNavigate, onBusy}:{mode:'delivery'|'recove
     return()=>{active=false;};
   },[channel,status,offset,refresh,key,mode]);
   const busy=loaded!==key;
+  const groups = Object.values((rows?.items || []).reduce<Record<string, Delivery[]>>((result, row) => {
+    const groupKey = `${row.channel}:${row.event_key}:${row.status}`;
+    (result[groupKey] ||= []).push(row);
+    return result;
+  }, {}));
   return <section className="admin-control admin-tools"><header><div>{mode==='recovery'?<span>Полнота результатов</span>:<h2>Состояние доставки</h2>}</div><button disabled={busy} onClick={()=>setRefresh(v=>v+1)}>{busy?'Обновляем…':'Обновить сводку'}</button></header>
     {error&&<p role="alert">{error}</p>}{busy&&<p role="status">Обновляю данные…</p>}
     {summary&&mode==='delivery'&&<><small>Обновлено: {date(summary.as_of)}</small>
-      <div className="control-metrics">{[['unknown','Не подтверждено'],['failed','Ошибки'],['pending','В очереди'],['retry','Повторы']].map(([s,title])=><button key={s} aria-pressed={status===s} onClick={()=>{setStatus(s);setOffset(0);}}><strong>{summary.counts[s]||0}</strong><span>{title}</span></button>)}</div>
+      <div className="control-metrics">{[['failed','Нужна диагностика'],['retry','Временные сбои'],['blocked','Получатель недоступен'],['unknown','Проверить доставку'],['pending','В очереди']].map(([s,title])=><button key={s} aria-pressed={status===s} onClick={()=>{setStatus(s);setOffset(0);}}><strong>{summary.counts[s]||0}</strong><span>{title}</span></button>)}</div>
+      <p className="ui-data-context">Сводка: все каналы; завершённые доставки за последние 7 дней, очередь — за всё время. Фильтры ниже меняют только журнал.</p>
+      <p className="ui-data-context">Ошибка: проверьте причину в технических сведениях. Получатель недоступен: повтор не поможет, пока он не восстановит доступ к боту. Неподтверждённую доставку нельзя повторять без проверки Telegram.</p>
       <p>Push: {summary.push_configured?'ключи настроены':'не настроен — проверьте VAPID'}. {summary.oldest_pending?`Самое старое ожидающее задание: ${date(summary.oldest_pending)}.`:'Ожидающих заданий нет.'}</p>
       {summary.incomplete.length>0&&<button onClick={()=>onNavigate('recovery')}>Неполных этапов: {summary.incomplete.length} · проверить →</button>}
       <details><summary>Что означают статусы</summary><p>Завершённые статусы в сводке — за 7 дней; ожидающие — за всё время. Это не проверка работы процесса бота. «Принято» не означает «прочитано». Неопределённые доставки нельзя повторять вслепую. Здесь нет автоматических отправок или сброса статусов.</p></details>
@@ -37,9 +44,9 @@ export function AdminControl({mode, onNavigate, onBusy}:{mode:'delivery'|'recove
       <div className="control-filters"><label>Канал<select value={channel} onChange={e=>{setChannel(e.target.value);setOffset(0);}}><option value="all">Все каналы</option><option value="telegram">Telegram</option><option value="webpush">Web Push</option></select></label><label>Статус<select value={status} onChange={e=>{setStatus(e.target.value);setOffset(0);}}><option value="attention">Требуют внимания</option><option value="all">Все</option>{Object.entries(labels).map(([v,label])=><option key={v} value={v}>{label}</option>)}</select></label></div>
       <small>Журнал за всё время · до 50 записей на странице</small>
       {!busy&&!error&&rows?.items.length===0&&<p>По выбранным фильтрам заданий нет.</p>}
-      {!busy&&!error&&rows?.items.map(row=><article className={`control-job control-${row.status}`} key={`${row.event_key}:${row.recipient}`}><header><strong>{labels[row.status]||row.status}</strong><span>{row.channel==='webpush'?'Web Push':'Telegram'} · {date(row.updated)}</span></header><code>{row.event_key}</code><p>{row.channel==='webpush'?'ID подписки':'ID чата'}: {row.recipient} · попыток: {row.attempts}</p>
+      {!busy&&!error&&groups.map(group => <details className="control-job-group" key={`${group[0].channel}:${group[0].event_key}:${group[0].status}`} open={group.length === 1}><summary>{labels[group[0].status]} · {group[0].channel === 'webpush' ? 'Web Push' : 'Telegram'} · {group[0].event_key} · получателей на странице: {group.length}</summary>{group.map(row=><article className={`control-job control-${row.status}`} key={`${row.channel}:${row.event_key}:${row.recipient}`}><header><strong>{labels[row.status]||row.status}</strong><span>{row.channel==='webpush'?'Web Push':'Telegram'} · {date(row.updated)}</span></header><code>{row.event_key}</code><p>{row.channel==='webpush'?'ID подписки':'ID чата'}: {row.recipient} · попыток: {row.attempts}</p>
         {row.status==='unknown'&&<p>Сервис мог принять сообщение. Требуется ручная проверка; автоматического повтора нет.</p>}{row.status==='blocked'&&<p>Бот заблокирован либо push-подписка больше не действует.</p>}
-        <details><summary>Технические сведения</summary><p>Код: {row.error||'—'} · ID сообщения: {row.message_id??'—'}</p><p>Срок: {date(row.expires)}{row.next_attempt>0?` · следующая попытка: ${date(row.next_attempt)}`:''}</p></details></article>)}
+        <details><summary>Технические сведения</summary><p>Код: {row.error||'—'} · ID сообщения: {row.message_id??'—'}</p><p>Срок: {date(row.expires)}{row.next_attempt>0?` · следующая попытка: ${date(row.next_attempt)}`:''}</p></details></article>)}</details>)}
       <footer><button disabled={busy||offset===0} onClick={()=>setOffset(v=>Math.max(0,v-50))}>Назад</button><span>Страница {offset/50+1}</span><button disabled={busy||!!error||!rows?.has_more} onClick={()=>setOffset(v=>v+50)}>Далее</button></footer>
     </>}
   </section>;

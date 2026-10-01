@@ -5,6 +5,7 @@ import { BackButton } from "../../components/BackButton";
 import { notifyAuthChanged } from "../../helpers/auth";
 import { visibleInterval } from "../../helpers/visibleInterval";
 import "./AccountPage.css";
+import { safeReturnPath } from '../../helpers/returnPath';
 
 type User = {
   id: number;
@@ -53,6 +54,8 @@ export default function AccountPage() {
   const [returnParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
   useEffect(() => {
+    const path = safeReturnPath(returnParams.get('returnPath'));
+    if (user && path && (returnParams.get('requireTelegram') !== '1' || user.telegram_id)) navigate(path, {replace: true});
     if (user && returnParams.get('returnTo') === 'predictions') navigate('/predictions', {replace: true});
     if (user && returnParams.get('returnTo') === 'leagues') navigate(`/predictions?tab=leagues${window.location.hash}`, {replace: true});
     if (user && returnParams.get('returnTo') === 'community') navigate('/community', {replace: true});
@@ -231,6 +234,7 @@ export default function AccountPage() {
           ? "Управляйте профилем, избранным и персональными настройками."
           : "Email используется для безопасного входа. Telegram подключается отдельно через бота."}</p>
       </header>
+      {safeReturnPath(returnParams.get('returnPath')) && <p className="ui-warning">{returnParams.get('requireTelegram') === '1' ? 'Для этого раздела войдите и подключите Telegram. Затем мы вернём вас обратно.' : 'Войдите в аккаунт — затем мы вернём вас в выбранный раздел.'}</p>}
 
       {!user ? (
         <section className="account-card account-auth-card">

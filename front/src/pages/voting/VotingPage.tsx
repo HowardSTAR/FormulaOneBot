@@ -5,6 +5,7 @@ import { DriverPicker, type PickerDriver } from "../../components/DriverPicker";
 import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
 import { hapticSelection } from "../../helpers/telegram";
+import { PageFeedback } from '../../components/PageFeedback';
 import "../../assets/voting-desktop.css";
 
 Chart.register(...registerables);
@@ -47,6 +48,9 @@ function VotingPage() {
     () => typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches
   );
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [voteError, setVoteError] = useState('');
+  const loadSequence = useRef(0);
   const [saving, setSaving] = useState<number | null>(null);
   const chartRaceRef = useRef<HTMLCanvasElement>(null);
   const chartDriverRef = useRef<HTMLCanvasElement>(null);
@@ -68,18 +72,18 @@ function VotingPage() {
   });
 
   const loadData = useCallback(async (season: number) => {
+    const sequence = ++loadSequence.current;
     setLoading(true);
+    setError('');
     try {
       const [seasonRes, votesRes, statsRes, driverStatsRes, driversRes] = await Promise.all([
         apiRequest<SeasonResponse>("/api/season", { season }),
-        apiRequest<VotesResponse>("/api/votes/me", { season }).catch(() => ({
-          race_votes: {},
-          driver_votes: {},
-        })),
-        apiRequest<StatsResponse>("/api/votes/stats", { season }).catch(() => ({ stats: [] })),
-        apiRequest<DriverStatsResponse>("/api/votes/driver-stats", { season }).catch(() => ({ stats: [] })),
+        apiRequest<VotesResponse>("/api/votes/me", { season }),
+        apiRequest<StatsResponse>("/api/votes/stats", { season }),
+        apiRequest<DriverStatsResponse>("/api/votes/driver-stats", { season }),
         apiRequest<DriversResponse>("/api/drivers", { season }),
       ]);
+      if (sequence !== loadSequence.current) return;
       setRaces(seasonRes.races || []);
       setRaceVotes(votesRes.race_votes || {});
       setDriverVotes(votesRes.driver_votes || {});
@@ -87,17 +91,15 @@ function VotingPage() {
       setDriverStats(driverStatsRes.stats || []);
       setDrivers(driversRes.drivers || []);
     } catch (e) {
-      console.error(e);
-      setRaces([]);
-      setStats([]);
-      setDriverStats([]);
+      if (sequence === loadSequence.current) setError(e instanceof Error ? e.message : 'Не удалось загрузить голосование');
     } finally {
-      setLoading(false);
+      if (sequence === loadSequence.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadData(year);
+    void loadData(year);
+    return () => { loadSequence.current++; };
   }, [year, loadData]);
 
   useEffect(() => {
@@ -120,9 +122,9 @@ function VotingPage() {
     chartRaceInstanceRef.current?.destroy();
     chartRaceInstanceRef.current = null;
 
-    const statsMap = Object.fromEntries(stats.map((s) => [s.round, s.avg]));
+    const statsMap = Object.fromEntries(stats.filter(s => s.count > 0 && Number.isFinite(s.avg)).map((s) => [s.round, s.avg]));
     const labels = finishedRaces.map((r) => `R${r.round}`);
-    const data = finishedRaces.map((r) => statsMap[r.round] ?? 0);
+    const data = finishedRaces.map((r) => statsMap[r.round] ?? null);
 
     const config: ChartConfiguration<"line"> = {
       type: "line",
@@ -218,6 +220,7 @@ function VotingPage() {
   const handleRaceVote = async (round: number, rating: number) => {
     hapticSelection();
     setSaving(round);
+    setVoteError('');
     try {
       await apiRequest("/api/votes/race", { season: year, round, rating }, "POST");
       setRaceVotes((prev) => ({ ...prev, [round]: rating }));
@@ -226,7 +229,7 @@ function VotingPage() {
       ]);
       setStats(statsRes.stats || []);
     } catch (e) {
-      console.error(e);
+      setVoteError(e instanceof Error ? e.message : 'Не удалось сохранить оценку');
     } finally {
       setSaving(null);
     }
@@ -235,6 +238,7 @@ function VotingPage() {
   const handleDriverVote = async (round: number, driverCode: string) => {
     hapticSelection();
     setSaving(round);
+    setVoteError('');
     try {
       await apiRequest("/api/votes/driver", { season: year, round, driver_code: driverCode }, "POST");
       setDriverVotes((prev) => ({ ...prev, [round]: driverCode }));
@@ -243,7 +247,7 @@ function VotingPage() {
       ]);
       setDriverStats(driverStatsRes.stats || []);
     } catch (e) {
-      console.error(e);
+      setVoteError(e instanceof Error ? e.message : 'Не удалось сохранить голос');
     } finally {
       setSaving(null);
     }
@@ -289,8 +293,10 @@ function VotingPage() {
       </div>
 
       {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка голосования...</div></div>}
+      {error && <PageFeedback message={error} retry={() => void loadData(year)} />}
+      {voteError && <p role="alert" className="ui-warning">{voteError}</p>}
 
-      {!loading && (
+      {!loading && !error && (
         <div className="voting-page-shell">
           {/* График — скрыт по умолчанию, раскрывается по клику */}
           {tab === "race" && (
@@ -310,7 +316,7 @@ function VotingPage() {
                 <div className="voting-accordion-inner">
                   {chartExpanded && (
                     <div className="voting-chart">
-                      <canvas ref={chartRaceRef} />
+                      <canvas ref={chartRaceRef} role="img" aria-label="Средние оценки гонок сообщества. Точные значения и ваши оценки — в таблице ниже." />
                     </div>
                   )}
                 </div>
@@ -334,7 +340,7 @@ function VotingPage() {
                 <div className="voting-accordion-inner">
                   {chartExpanded && (
                     <div className="voting-chart">
-                      <canvas ref={chartDriverRef} />
+                      <canvas ref={chartDriverRef} role="img" aria-label="Количество голосов за пилотов дня. Точные значения — в таблице ниже." />
                     </div>
                   )}
                 </div>
@@ -343,6 +349,12 @@ function VotingPage() {
           )}
 
           <div className="voting-accordion-list">
+            <details><summary>Точные оценки и голоса</summary><div className="ui-table-scroll">
+              {tab === 'race' ? <table><caption>Оценки гонок: ваши и сообщества</caption><thead><tr><th>Этап</th><th>Ваша оценка</th><th>Средняя</th><th>Оценок</th></tr></thead><tbody>{finishedRaces.map(race => {
+                const summary = stats.find(item => item.round === race.round);
+                return <tr key={race.round}><th scope="row">{race.event_name}</th><td>{raceVotes[race.round] ?? 'Не оценена'}</td><td>{summary?.count ? summary.avg.toFixed(1) : 'Нет оценок'}</td><td>{summary?.count ?? 0}</td></tr>;
+              })}</tbody></table> : <table><caption>Голоса за пилота дня</caption><thead><tr><th>Пилот</th><th>Голосов</th></tr></thead><tbody>{driverStats.map(item => <tr key={item.driver_code}><th scope="row">{drivers.find(driver => driver.code === item.driver_code)?.name || item.driver_code}</th><td>{item.count}</td></tr>)}</tbody></table>}
+            </div></details>
             {finishedRaces.map((race) => {
               const isExpanded = expandedRound === race.round;
               const myRaceVote = raceVotes[race.round];
@@ -367,8 +379,8 @@ function VotingPage() {
                     <span className="voting-accordion-badge">
                       {tab === "race"
                         ? myRaceVote
-                          ? `★ ${myRaceVote}`
-                          : "—"
+                          ? `Ваша оценка: ${myRaceVote}/5`
+                          : "Вы не оценили"
                         : myDriverVote
                           ? myDriverVote
                           : "—"}
@@ -377,11 +389,13 @@ function VotingPage() {
                   </button>
                   <div className={`voting-accordion-body ${isExpanded ? "expanded" : ""}`}>
                     <div className="voting-accordion-inner">
+                      {tab === 'race' && <p className="ui-data-context">{stats.find(item => item.round === race.round)?.count ? `Сообщество: ${stats.find(item => item.round === race.round)!.avg.toFixed(1)}/5 · оценок: ${stats.find(item => item.round === race.round)!.count}` : 'Сообщество пока не оценило гонку'}</p>}
                       {tab === "race" && (
                         <div className="voting-stars">
                           {[1, 2, 3, 4, 5].map((r) => (
                             <button
                               key={r}
+                              aria-label={`Оценить гонку на ${r} из 5`}
                               type="button"
                               className={`star-btn ${myRaceVote === r ? "active" : ""}`}
                               onClick={() => handleRaceVote(race.round, r)}

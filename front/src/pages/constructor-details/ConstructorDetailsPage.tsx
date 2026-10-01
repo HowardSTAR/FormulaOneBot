@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { GlossaryText } from "../../components/GlossaryText";
 import { BackButton } from "../../components/BackButton";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
-import { getFlagUrlForNationality } from "../../constants/flags";
+import { getFlagUrlForNationality, nationalityLabel } from "../../constants/flags";
+import { PageFeedback } from "../../components/PageFeedback";
+import { cleanBiography } from "../../helpers/presentation";
 
 function teamLogoUrl(teamId: string, teamName: string, season: number): string {
   const team = teamId || teamName;
@@ -25,6 +27,9 @@ function pilotPortraitUrl(code: string, fullName: string, season: number): strin
 type SeasonStats = {
   position: number | string;
   points: number;
+  points_source?: string;
+  grand_prix_points?: number;
+  standings_round?: number;
   grand_prix_races: number;
   grand_prix_wins: number;
   grand_prix_podiums: number;
@@ -33,6 +38,7 @@ type SeasonStats = {
 
 type CareerStats = {
   grand_prix_entered: number;
+  grand_prix_events?: number | null;
   career_points: number;
   highest_race_finish: { position: number | string; count: number };
   podiums: number;
@@ -94,6 +100,7 @@ function ConstructorDetailsPage() {
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"stats" | "bio">("stats");
   const [principalImageAvailable, setPrincipalImageAvailable] = useState(true);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!constructorId) {
@@ -102,6 +109,8 @@ function ConstructorDetailsPage() {
       return;
     }
     let cancelled = false;
+    setLoading(true);
+    setError(null);
     async function load() {
       try {
         const res = await apiRequest<ConstructorDetailsResponse>("/api/constructor-details", {
@@ -123,13 +132,13 @@ function ConstructorDetailsPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [constructorId, season]);
+  }, [constructorId, season, attempt]);
 
   if (error || !constructorId) {
     return (
       <>
         <BackButton fallback="/constructors"><span>Кубок конструкторов</span></BackButton>
-        <div className="error">{error || "Не указана команда"}</div>
+        <PageFeedback message={error || "Не указана команда"} retry={constructorId ? () => setAttempt(v => v + 1) : undefined} parent={{to: "/constructors", label: "Кубок конструкторов"}} />
       </>
     );
   }
@@ -156,7 +165,7 @@ function ConstructorDetailsPage() {
   const carUrl = carImageUrl(data.name, season);
   const drivers = (data.drivers || []).slice(0, 2);
   const principal = principalImageAvailable ? data.principal || null : null;
-  const teamCountry = data.nationality || "Не указано";
+  const teamCountry = nationalityLabel(data.nationality) || "Не указано";
   const seasonLabel = `Сезон ${season}`;
   const heroTitleMain = data.constructorId === "mercedes"
     ? "MERCEDES-AMG"
@@ -171,6 +180,7 @@ function ConstructorDetailsPage() {
 
   return (
     <>
+      <nav className="ui-section-links" aria-label="Родительский раздел"><Link to={`/constructors?year=${season}`}>К зачёту команд · {season}</Link></nav>
       <div className="constructor-details-mobile">
         <BackButton fallback="/constructors"><span>Кубок конструкторов</span></BackButton>
 
@@ -294,7 +304,8 @@ function ConstructorDetailsPage() {
             <div className="driver-stats-block">
               <h3 className="driver-stats-title">{data.season} СЕЗОН</h3>
               <StatRow label="Позиция в сезоне" value={ss.position ?? "-"} />
-              <StatRow label="Очки сезона" value={ss.points} />
+              <StatRow label={ss.points_source === "grand_prix" ? "Очки Гран-при (зачёт недоступен)" : "Очки общего зачёта"} value={ss.points} />
+              {ss.grand_prix_points != null && <StatRow label="Из них в Гран-при" value={ss.grand_prix_points} />}
               <StatRow label="Гран-при (гонок)" value={ss.grand_prix_races} />
               <StatRow label="Победы" value={ss.grand_prix_wins} />
               <StatRow label="Подиумы" value={ss.grand_prix_podiums} />
@@ -302,8 +313,9 @@ function ConstructorDetailsPage() {
             </div>
             <div className="driver-stats-block">
               <h3 className="driver-stats-title">КАРЬЕРА</h3>
-              <StatRow label="Гран-при (всего)" value={cs.grand_prix_entered} />
-              <StatRow label="Карьерные очки" value={Math.round(cs.career_points)} />
+              <StatRow label="Выступления машин в Гран-при" value={cs.grand_prix_entered} />
+              {cs.grand_prix_events != null && <StatRow label="Этапы команды" value={cs.grand_prix_events} />}
+              <StatRow label="Очки в Гран-при за карьеру" value={Math.round(cs.career_points)} />
               <StatRow label="Лучший финиш" value={formatHigh(cs.highest_race_finish)} />
               <StatRow label="Подиумы" value={cs.podiums} />
               <StatRow label="Поулы" value={cs.pole_positions} />
@@ -315,7 +327,7 @@ function ConstructorDetailsPage() {
         {tab === "bio" && (
           <div className="driver-bio-block">
             {data.bio ? (
-              <p className="driver-bio-text"><GlossaryText>{data.bio}</GlossaryText></p>
+              <p className="driver-bio-text"><GlossaryText>{cleanBiography(data.bio)}</GlossaryText></p>
             ) : (
               <p className="driver-bio-empty">Биография пока недоступна.</p>
             )}
@@ -355,11 +367,6 @@ function ConstructorDetailsPage() {
               </div>
             </div>
           </div>
-          <aside className="constructor-profile-desktop-summary" aria-label="Результаты команды в сезоне">
-            <div><span>Позиция</span><strong>P{ss.position || "—"}</strong></div>
-            <div><span>Очки</span><strong>{ss.points}</strong></div>
-            <div><span>Победы</span><strong>{ss.grand_prix_wins}</strong></div>
-          </aside>
         </header>
 
         <div className="constructor-profile-desktop-grid">
@@ -381,7 +388,7 @@ function ConstructorDetailsPage() {
                     <img src={pilotPortraitUrl(d.code, fullName, season)} alt={fullName} />
                     <div>
                       <b>{fullName}</b>
-                      <span>{d.nationality || "Пилот"}</span>
+                      <span>{nationalityLabel(d.nationality) || "Пилот"}</span>
                     </div>
                     <i>#{d.permanentNumber || "--"}</i>
                     <u>{idx === 0 ? "P1" : "P2"}</u>
@@ -419,9 +426,11 @@ function ConstructorDetailsPage() {
                   <strong>{ss.position ?? "-"}</strong>
                 </div>
                 <div className="constructor-season-points-row">
-                  <span>ОЧКИ СЕЗОНА</span>
+                  <span>{ss.points_source === "grand_prix" ? "ОЧКИ ГРАН-ПРИ · ЗАЧЁТ НЕДОСТУПЕН" : "ОЧКИ ОБЩЕГО ЗАЧЁТА"}</span>
                   <b>{ss.points}</b>
                 </div>
+                {ss.grand_prix_points != null && <p className="ui-data-context">Гран-при: {ss.grand_prix_points} очк. · Общий зачёт также учитывает спринты и возможные корректировки.</p>}
+                {ss.standings_round != null && <p className="ui-data-context">После этапа {ss.standings_round}</p>}
                 <div className="constructor-season-metrics">
                   <div>
                     <span>ГРАН-ПРИ</span>
@@ -443,8 +452,9 @@ function ConstructorDetailsPage() {
               </div>
               <div className="driver-stats-block constructor-career-block">
                 <h3 className="driver-stats-title">СТАТИСТИКА КАРЬЕРЫ</h3>
-                <StatRow label="Гран-при всего" value={cs.grand_prix_entered} />
-                <StatRow label="Очки за карьеру" value={Math.round(cs.career_points)} />
+                <StatRow label="Выступления машин в Гран-при" value={cs.grand_prix_entered} />
+                {cs.grand_prix_events != null && <StatRow label="Этапы команды" value={cs.grand_prix_events} />}
+                <StatRow label="Очки в Гран-при за карьеру" value={Math.round(cs.career_points)} />
                 <StatRow label="Лучший финиш" value={formatHigh(cs.highest_race_finish)} />
                 <StatRow label="Подиумы" value={cs.podiums} />
                 <StatRow label="Поулы" value={cs.pole_positions} />
@@ -461,7 +471,7 @@ function ConstructorDetailsPage() {
           <h3 className="driver-profile-title">Биография команды</h3>
           <div className="driver-bio-block">
             {data.bio ? (
-              <p className="driver-bio-text"><GlossaryText>{data.bio}</GlossaryText></p>
+              <p className="driver-bio-text"><GlossaryText>{cleanBiography(data.bio)}</GlossaryText></p>
             ) : (
               <p className="driver-bio-empty">Биография пока недоступна.</p>
             )}

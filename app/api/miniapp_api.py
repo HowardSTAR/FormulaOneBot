@@ -988,7 +988,7 @@ async def api_drivers(
             "driverId": driver_id,
         })
 
-    return {"season": season, "round": round_number, "drivers": results}
+    return {"season": season, "round": df.attrs.get("round", round_number), "drivers": results}
 
 
 @web_app.get("/api/driver-details")
@@ -1083,7 +1083,7 @@ async def api_constructors(
             "is_favorite": team_name in favorite_teams
         })
 
-    return {"season": season, "round": round_number, "constructors": results}
+    return {"season": season, "round": df.attrs.get("round", round_number), "constructors": results}
 
 
 @web_app.get("/api/car-image")

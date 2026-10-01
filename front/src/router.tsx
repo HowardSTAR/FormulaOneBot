@@ -4,6 +4,7 @@ import { SwipeBackLayout } from "./components/SwipeBackLayout";
 import { RequirePersonalAccount } from "./components/RequirePersonalAccount";
 import IndexPage from "./pages/index/Index";
 import { RequireAdmin } from "./components/RequireAdmin";
+import { NotFoundPage, RouteErrorPage } from "./components/RouteErrorPage";
 
 // Keep only the home screen eager: charts, games and other page-specific code
 // and styles must not be downloaded/evaluated just to open the website.
@@ -41,15 +42,18 @@ const DataSourcesPage = lazy(() => import("./pages/legal/LegalPages").then(m => 
 const IntellectualPropertyPage = lazy(() => import("./pages/legal/LegalPages").then(m => ({ default: m.IntellectualPropertyPage })));
 const PrivacyPage = lazy(() => import("./pages/legal/LegalPages").then(m => ({ default: m.PrivacyPage })));
 const TermsPage = lazy(() => import("./pages/legal/LegalPages").then(m => ({ default: m.TermsPage })));
+const LicenseRegisterPage = lazy(() => import('./pages/legal/LicenseRegisterPage'));
 const AdminPage = lazy(() => import("./pages/admin/AdminPage"));
 const PredictionAnalyticsPage = lazy(() => import("./pages/prediction-analytics/PredictionAnalyticsPage"));
 
 export const router = createBrowserRouter([
-  { path: "/race-game", element: <Suspense fallback={<div role="status">Загрузка игры…</div>}><RaceGamePage /></Suspense> },
+  { path: "/race-game", errorElement: <RouteErrorPage />, element: <Suspense fallback={<div role="status">Загрузка игры…</div>}><RaceGamePage /></Suspense> },
   {
     element: <SwipeBackLayout />,
+    errorElement: <RouteErrorPage />,
     children: [
       { path: "/", element: <IndexPage /> },
+      { path: "*", element: <NotFoundPage /> },
       { path: "/account", element: <AccountPage /> },
       { path: "/compare", element: <ComparePage /> },
       { path: "/prediction-analytics", element: <RequireAdmin><Suspense fallback={<div role="status">Загрузка аналитики…</div>}><PredictionAnalyticsPage /></Suspense></RequireAdmin> },
@@ -82,6 +86,8 @@ export const router = createBrowserRouter([
       { path: "/privacy", element: <PrivacyPage /> },
       { path: "/terms", element: <TermsPage /> },
       { path: "/legal/ip", element: <IntellectualPropertyPage /> },
+      { path: "/legal/notices", element: <LicenseRegisterPage /> },
+      { path: "/legal/assets", element: <LicenseRegisterPage /> },
       { path: "/about/data", element: <DataSourcesPage /> },
       { path: "/account/delete", element: <DataDeletionPage /> },
       {

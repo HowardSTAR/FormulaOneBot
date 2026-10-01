@@ -11,7 +11,7 @@ export function BackButton({ fallback, className = "btn-back" }: BackButtonProps
   const navigate = useNavigate();
 
   const handleClick = () => {
-    if (window.history.length > 1) {
+    if (Number(window.history.state?.idx) > 0) {
       navigate(-1);
     } else {
       navigate(fallback ?? "/");

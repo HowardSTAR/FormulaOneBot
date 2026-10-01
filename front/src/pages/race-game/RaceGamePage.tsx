@@ -18,6 +18,7 @@ function isPhoneDevice() {
 }
 
 function RaceGamePage() {
+  useEffect(() => { document.title = 'Emerald Loop · F1Hub — проект TurboTears'; }, []);
   const location = useLocation();
   const auth = useAuthState();
   const frame = useRef<HTMLIFrameElement>(null);

@@ -17,18 +17,18 @@ export function RaceImpact({season, round, rows, recap}: {season: number; round:
       {!!data?.items.length && <div className="race-recap-list">{data.items.map(item => <article key={item.category}><h3>{item.title}</h3><p><GlossaryText>{item.text}</GlossaryText></p></article>)}</div>}
       {!!data?.items.length && <p className="history-note">Изменения чемпионата — за весь уик-энд. Первые победы и подиумы — в этом сезоне.</p>}
       {!!data?.items.length && <ShareButton options={{kind: 'recap', season, round}}>Отправить главное о гонке</ShareButton>}
-      {!!data?.chronicle?.length && <section className="race-news" aria-label="Ключевые события гонки">
-        <h3>Ключевые события гонки</h3>
+      {!!data?.chronicle?.length && <details className="race-news" aria-label="Ключевые события гонки">
+        <summary>Ключевые события гонки</summary>
         <ul>{data.chronicle.slice(0, 4).map(item => <li key={item.url}><GlossaryText>{item.title}</GlossaryText></li>)}</ul>
-      </section>}
-      {!!data?.news?.length && <section className="race-news" aria-label="Интересные моменты гонки">
-        <h3>Интересные моменты гонки</h3>
+      </details>}
+      {!!data?.news?.length && <details className="race-news" aria-label="Интересные моменты гонки">
+        <summary>Интересные моменты гонки</summary>
         <ul>{data.news.slice(0, 3).map(item => <li key={item.url}>
           <a href={item.url} target="_blank" rel="noopener noreferrer">{item.title} ↗</a>
           <small>{item.publisher} · {new Date(item.published_at).toLocaleDateString('ru-RU')}</small>
         </li>)}</ul>
-      </section>}
-      {favorites.length > 0 && <p>Ваше избранное: {favorites.map(r => `${r.code} — P${r.position}, ${r.points} очк.`).join(' · ')}</p>}
+      </details>}
+      {favorites.length > 0 && <details><summary>Ваше избранное · {favorites.length}</summary><ul>{favorites.map(row => <li key={row.code}>{row.name} — P{row.position}, {row.points ?? '—'} очк.</li>)}</ul></details>}
       <p><Link to={`/predictions?tab=history&reviewSeason=${season}&reviewRound=${round}`}>Как это повлияло на мой прогноз →</Link></p>
   </section>;
 }

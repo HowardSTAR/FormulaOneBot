@@ -143,7 +143,10 @@ async def publish_safely(*args, **kwargs):
         logger.exception("Website notification persistence failed")
 
 async def classification(season, round_num, title, route, rows):
-    body = "\n".join(f"P{r.get('position', '—')} · {r.get('name', '')} · {r.get('team', '')} · {r.get('display', r.get('points', ''))}" for r in rows)
+    def display(row):
+        value = row.get('display', row.get('points'))
+        return '—' if value is None or str(value).strip().lower() in ('', 'none', 'nan') or row.get('data_complete') is False else str(value)
+    body = "\n".join(f"P{r.get('position', '—')} · {r.get('name', '')} · {r.get('team', '')} · {display(r)}" for r in rows)
     await publish_safely(f"{season}:{round_num}:{route}", title, body, f"/{route}?season={season}&round={round_num}", rows=rows)
 
 async def poll_web_notifications(*, not_before: float):

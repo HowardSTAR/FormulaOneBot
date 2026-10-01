@@ -1,10 +1,12 @@
 import { GlossaryText } from "../../components/GlossaryText";
 import { DriverGuide } from "../../components/DriverGuide";
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
-import { getFlagUrlForNationality } from "../../constants/flags";
+import { PageFeedback } from "../../components/PageFeedback";
+import { cleanBiography } from "../../helpers/presentation";
+import { getFlagUrlForNationality, nationalityLabel } from "../../constants/flags";
 
 function pilotPortraitUrl(code: string, fullName: string, season: number): string {
   return apiAssetUrl("/api/pilot-portrait", {
@@ -84,6 +86,7 @@ function DriverDetailsPage() {
 
   const [data, setData] = useState<DriverDetailsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"stats" | "bio">("stats");
   const [teamName, setTeamName] = useState<string>("Команда Формулы-1");
@@ -96,6 +99,7 @@ function DriverDetailsPage() {
       return;
     }
     let cancelled = false;
+    setLoading(true); setError(null);
     async function load() {
       try {
         const params: Record<string, string | number> = { season };
@@ -126,13 +130,13 @@ function DriverDetailsPage() {
     }
     load();
     return () => { cancelled = true; };
-  }, [code, driverId, season]);
+  }, [code, driverId, season, attempt]);
 
   if (error || (!code && !driverId)) {
     return (
       <>
         <BackButton fallback="/drivers">← <span>Личный зачет</span></BackButton>
-        <div className="error">{error || "Не указан пилот"}</div>
+        <PageFeedback message={error || "Не указан пилот"} retry={() => setAttempt(v => v + 1)} parent={{to: "/drivers", label: "Личный зачёт"}} />
       </>
     );
   }
@@ -166,6 +170,7 @@ function DriverDetailsPage() {
   return (
     <>
       <div className="driver-details-mobile">
+        <nav className="ui-section-links" aria-label="Родительский раздел"><Link to={`/drivers?year=${season}`}>К зачёту пилотов · {season}</Link></nav>
         <BackButton fallback="/drivers">← <span>Личный зачет</span></BackButton>
 
         <div className="driver-card-header">
@@ -196,12 +201,13 @@ function DriverDetailsPage() {
                     className="country-flag-svg"
                   />
                 )}
-                <span>{data.nationality}</span>
+                <span>{nationalityLabel(data.nationality)}</span>
               </div>
             )}
           </div>
         </div>
 
+        <DriverGuide key={data.driverId} driverId={data.driverId} />
         <div className="driver-tabs">
           <button
             type="button"
@@ -261,7 +267,7 @@ function DriverDetailsPage() {
         {tab === "bio" && (
           <div className="driver-bio-block">
             {data.bio ? (
-              <p className="driver-bio-text"><GlossaryText>{data.bio}</GlossaryText></p>
+              <p className="driver-bio-text"><GlossaryText>{cleanBiography(data.bio)}</GlossaryText></p>
             ) : (
               <p className="driver-bio-empty">Биография пока недоступна.</p>
             )}
@@ -280,6 +286,7 @@ function DriverDetailsPage() {
       </div>
 
       <section className="driver-profile-desktop">
+        <nav className="ui-section-links" aria-label="Родительский раздел"><Link to={`/drivers?year=${season}`}>К зачёту пилотов · {season}</Link></nav>
         <header className="driver-profile-desktop-hero">
           <div className="driver-profile-desktop-photo">
             <img src={pilotPortraitUrl(data.code, fullName, season)} alt={fullName} />
@@ -297,19 +304,18 @@ function DriverDetailsPage() {
             </div>
           </div>
           <aside className="driver-profile-desktop-rank">
-            <div><span>Позиция</span><strong>P{ss.position || 0}</strong></div>
+            <div><span>Позиция</span><strong>{ss.position ? `P${ss.position}` : '—'}</strong></div>
             <div><span>Очки</span><strong>{ss.points}</strong></div>
             <div><span>Победы</span><strong>{ss.grand_prix_wins}</strong></div>
           </aside>
         </header>
 
+        <DriverGuide key={data.driverId} driverId={data.driverId} />
         <div className="driver-profile-desktop-grid">
           <section className="driver-profile-desktop-main">
             <h3 className="driver-profile-title">Аналитика выступлений</h3>
             <div className="driver-profile-season-cards">
-              <article><span>Позиция</span><strong>{ss.position || "-"}</strong><small>Текущее место</small></article>
-              <article><span>Очки</span><strong>{ss.points}</strong><small>Итого за сезон</small></article>
-              <article><span>Победы</span><strong>{ss.grand_prix_wins}</strong><small>Гран-при</small></article>
+
               <article><span>Подиумы</span><strong>{ss.grand_prix_podiums}</strong><small>Гран-при</small></article>
               <article><span>Поулы</span><strong>{ss.grand_prix_poles}</strong><small>Квалификации</small></article>
               <article><span>Участий в ГП</span><strong>{ss.grand_prix_races}</strong><small>Сезон {season}</small></article>
@@ -330,36 +336,18 @@ function DriverDetailsPage() {
           </section>
         </div>
 
-        <section className="driver-profile-desktop-recent">
-          <h3 className="driver-profile-title">Сезон и карьера</h3>
-          <div className="driver-profile-recent-strip">
-            <article>
-              <span>Место в чемпионате {season}</span>
-              <b>{ss.position ? `P${ss.position}` : '—'}</b>
-            </article>
-            <article>
-              <span>Лучшая стартовая</span>
-              <b>{formatHigh(cs.highest_grid)}</b>
-            </article>
-            <article>
-              <span>Очки</span>
-              <b>{ss.points}</b>
-            </article>
-          </div>
-        </section>
-
         <section className="driver-profile-desktop-bio driver-profile-desktop-bio-bottom">
           <h3 className="driver-profile-title">Биография</h3>
           <div className="driver-profile-bio-card">
-            <p><GlossaryText>{data.bio || "Биография пока недоступна."}</GlossaryText></p>
+            <p><GlossaryText>{cleanBiography(data.bio || "Биография пока недоступна.")}</GlossaryText></p>
             <div className="driver-profile-bio-meta">
               <div>
                 <span>Гражданство</span>
-                <b>{data.nationality}</b>
+                <b>{nationalityLabel(data.nationality)}</b>
               </div>
               <div>
                 <span>Дата рождения</span>
-                <b>{data.dateOfBirth || "—"}</b>
+                <b>{data.dateOfBirth ? new Date(data.dateOfBirth + "T12:00:00").toLocaleDateString("ru-RU") : "—"}</b>
               </div>
             </div>
             {data.url && (
@@ -370,7 +358,7 @@ function DriverDetailsPage() {
           </div>
         </section>
       </section>
-      <DriverGuide key={data.driverId} driverId={data.driverId} />
+
     </>
   );
 }

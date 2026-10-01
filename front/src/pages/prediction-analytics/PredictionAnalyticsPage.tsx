@@ -7,7 +7,7 @@ import './driver-sort.css';
 import { nextDriverSort, sortDrivers, type DriverSort, type DriverSortKey } from './driver-sort';
 
 type Event = { round: number; event_name: string; race_start_utc: string; quali_start_utc: string; is_cancelled?: boolean };
-type Summary = { id: string; round: number; session: string; created_at: number; status: string; settled_at: number | null };
+type Summary = { id: string; season: number; round: number; session: string; created_at: number; status: string; settled_at: number | null };
 type Driver = { code: string; name: string; team: string; win: number; podium: number; top10: number; expected: number; range: number[]; dnf: number; reasons: string[];
   factors?: { key: string; label: string; value: number; weight: number; contribution: number; samples: number; effective_samples: number }[];
   timeline?: { season: number; round: number; name: string; position: number; dnf: boolean; team: string }[] };
@@ -99,7 +99,8 @@ export default function PredictionAnalyticsPage() {
       <p>Не один исход — пространство вероятностей. Форма, история трассы и условия уикенда в воспроизводимой модели.</p>
       <div className="pa-warning">Экспериментальная модель · пока не откалибрована на независимой выборке. Проценты приблизительные и не гарантируют результат.</div>
     </header>
-    <section className="pa-controls" aria-label="Параметры прогноза">
+    <h2>Новый расчёт</h2><p className="ui-data-context">Эти параметры относятся к новому расчёту, а не к открытому сохранённому прогнозу ниже.</p>
+    <section className="pa-controls" aria-label="Параметры нового расчёта">
       <label>Сезон<select value={season} onChange={e => { setSeason(Number(e.target.value)); setIndex(null); setSelected(""); setSnapshot(null); setRound(0); }}>{[0, 1, 2].map(offset => <option key={offset}>{new Date().getFullYear() - offset}</option>)}</select></label>
       <label>Этап<select value={round} onChange={e => setRound(Number(e.target.value))}><option value={0} disabled>Выберите этап</option>{index?.events.map(e => <option key={e.round} value={e.round} disabled={e.is_cancelled}>{e.round}. {e.event_name}</option>)}</select></label>
       <label>Сессия<select value={session} onChange={e => setSession(e.target.value)}><option value="race">Гонка</option><option value="qualifying">Квалификация</option></select></label>
@@ -111,7 +112,7 @@ export default function PredictionAnalyticsPage() {
     {snapshot?.status === "pending" && <section className="pa-panel" role="status"><h2>Собираем данные и моделируем сессию…</h2><p>До трёх минут. Расчёт продолжится, даже если закрыть страницу; его можно открыть из истории.</p></section>}
     {snapshot?.error && <p className="pa-warning" role="alert">{snapshot.error}</p>}
     {p && snapshot && <>
-      <section className="pa-heading"><div><div className="pa-eyebrow">{sessionName(snapshot.session)} · {date(p.cutoff)}</div><h2>{p.event.event_name}</h2></div><span className="pa-badge">{snapshot.actual ? "Результат зафиксирован" : "Прогноз сохранён"}</span></section>
+      <section className="pa-heading"><div><div className="pa-eyebrow">Открытый расчёт · {snapshot.season} · этап {snapshot.round} · {sessionName(snapshot.session)} · {date(p.cutoff)}</div><h2>{p.event.event_name}</h2></div><span className="pa-badge">{snapshot.actual ? "Результат зафиксирован" : "Прогноз сохранён"}</span></section>
       <div className="pa-stats">
         <article><strong>{p.model.trials.toLocaleString("ru-RU")}</strong><span>симуляций сессии</span></article>
         <article><strong>{p.inputs.history.length}</strong><span>исторических классификаций</span></article>
@@ -135,6 +136,6 @@ export default function PredictionAnalyticsPage() {
         <section className="pa-panel"><h2>Новостной контекст</h2><p>{p.news_policy}</p>{!p.inputs.news.length && <p>{p.inputs.news_available ? "За последние 7 дней нет доступных публикаций." : "Новостной источник временно недоступен."}</p>}{p.inputs.news.map(n => <a className="pa-news" key={n.url} href={n.url} target="_blank" rel="noreferrer"><span>{n.title} ↗</span><small>BBC Sport · {date(n.published_at)}</small></a>)}</section></div>
       <details className="pa-panel"><summary>Как считается · {p.model.version}</summary>{p.inputs.coverage ? <p>Пять сезонов, отдельные факторы долгосрочной и свежей формы, команды, трассы, квалификаций, напарника и отыгрыша позиций. Вес истории уменьшается вдвое за 540 дней, выступления за другую команду получают множитель 0,55, до границы регламента 2026 — 0,4. Все коэффициенты пока эвристические, не обученные. Стабильность результатов влияет на разброс; риск схода учитывает пилота и текущую команду.</p> : <p>Архивная модель v1: 60% форма пилота, 30% команда, 10% история трассы; до 6 последних сессий и прошлый этап на этой трассе.</p>}<p>Для гонки квалификация получает вес 30%, для квалификации последняя практика — 12%. Порядок моделируется случайными возмущениями Гумбеля; риск схода — бета-сглаженной частотой. Осадки увеличивают разброс и риск схода. Вероятность осадков в час старта используется как приближение, а не вероятность дождя на протяжении всей сессии.</p><p>Не учитываются автоматически штрафы, стратегия пит-стопов, топливо и индивидуальная форма на мокрой трассе. Это исследовательская модель, точность ещё не подтверждена независимой проверкой. Метрики появятся после публикации полной классификации, не раньше четырёх часов после старта.</p></details>
     </>}
-    <section className="pa-panel"><h2>История расчётов</h2><p className="pa-muted">Каждый расчёт сохраняется отдельно. Старые прогнозы не пересчитываются по известному результату.</p>{!index ? <p role="status">Загрузка…</p> : !index.snapshots.length ? <p>Пока нет расчётов. Выберите будущую сессию и создайте первый прогноз.</p> : <div className="pa-history">{index.snapshots.map(s => <button key={s.id} aria-pressed={selected === s.id} onClick={() => choose(s.id)}><span>Этап {s.round} · {sessionName(s.session)}</span><small>{date(s.created_at)} · {s.settled_at ? "Прогноз + факт" : s.status === "ready" ? "Сохранён" : s.status === "pending" ? "Расчёт" : "Ошибка"}</small></button>)}</div>}</section>
+    <section className="pa-panel"><h2>История расчётов</h2><p className="pa-muted">Каждый расчёт сохраняется отдельно. Старые прогнозы не пересчитываются по известному результату.</p>{!index ? <p role="status">Загрузка…</p> : !index.snapshots.length ? <p>Пока нет расчётов. Выберите будущую сессию и создайте первый прогноз.</p> : <div className="pa-history">{index.snapshots.map(s => <button key={s.id} aria-pressed={selected === s.id} onClick={() => choose(s.id)}><span>{s.season} · этап {s.round} · {index.events.find(event => event.round === s.round)?.event_name || 'Гран-при'} · {sessionName(s.session)}</span><small>{date(s.created_at)} · {s.settled_at ? "Прогноз + факт" : s.status === "ready" ? "Сохранён" : s.status === "pending" ? "Расчёт" : "Ошибка"}</small></button>)}</div>}</section>
   </main>;
 }

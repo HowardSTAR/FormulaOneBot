@@ -38,6 +38,19 @@ export function PredictionRecovery({onBusy}:{onBusy?:(busy:boolean)=>void}) {
   const [manualReason,setManualReason]=useState('');
   const batchCancelled=useRef(false);
   const [error,setError]=useState('');
+  const [drivers,setDrivers]=useState<{code:string;name:string;constructorName?:string}[]>([]);
+  const [driversError,setDriversError]=useState('');
+  useEffect(()=>{
+    let active=true; setDrivers([]); setDriversError('');
+    setManualFastest(''); setManualRetirements(''); setManualSafety('');
+    setManualFastestUrl(''); setManualRetirementsUrl(''); setManualSafetyUrl(''); setManualReason('');
+    apiRequest<{season:number;round:number;results?:{code:string;name:string;team?:string}[]}>('/api/race-results',{season,round}).then(data=>{
+      if (!active) return;
+      if (data.season !== season || data.round !== round || !data.results?.length) throw new Error('No matching race roster');
+      setDrivers(data.results.filter(driver=>driver.code).map(driver=>({code:driver.code,name:driver.name,constructorName:driver.team})));
+    }).catch(()=>{if(active)setDriversError('Состав выбранной гонки не загружен. Выберите сезон или этап повторно.');});
+    return()=>{active=false;};
+  },[season,round]);
   useEffect(()=>{let active=true; apiRequest<Check[]>(endpoint).then(data=>{if(active)setChecks(data);}).catch(e=>{if(active)setError(String(e));});return()=>{active=false;};},[]);
   useEffect(()=>{let active=true;apiRequest<{rounds:CalculatedRound[]}>(`${endpoint}/rounds`,{season}).then(data=>{if(active){setRounds(data.rounds);setRoundsLoaded(season);setRound(previous=>data.rounds.some(item=>item.round===previous)?previous:Math.max(1,...data.rounds.map(item=>item.round)));}}).catch(()=>{if(active){setRounds([]);setRoundsLoaded(season);setError('Не удалось загрузить список этапов. Обновите страницу или выберите сезон снова.');}});return()=>{active=false;};},[season]);
   useEffect(()=>()=>{batchCancelled.current=true;},[]);
@@ -58,6 +71,8 @@ export function PredictionRecovery({onBusy}:{onBusy?:(busy:boolean)=>void}) {
     }catch(e){setError(e instanceof Error?e.message:String(e));}finally{setBusy(false);}
   };
   const manualPreview=async()=>{
+    const urls=[manualFastestUrl,manualRetirementsUrl,manualSafetyUrl].filter(value=>value.trim());
+    if(urls.some(value=>{try{return new URL(value.trim()).protocol!=='https:';}catch{return true;}})){setError('Укажите полную HTTPS-ссылку на подтверждающий материал.');return;}
     setBusy(true);setError('');setNotice('');setSelected(null);setConfirmation('');
     try{
       const group=manualRetirements.split(/[,;\s]+/).map(code=>code.trim().toUpperCase()).filter(Boolean);
@@ -137,15 +152,20 @@ export function PredictionRecovery({onBusy}:{onBusy?:(busy:boolean)=>void}) {
     {roundsLoaded===season&&!rounds.length&&<p role="status">В выбранном сезоне пока нет рассчитанных этапов.</p>}
     {mode==='manual'&&<section className="pr-manual"><h3>Подтвердить факты по источникам</h3>
       <p>Если API недоступно, внесите только проверенные факты. Для каждого заполненного пункта нужна ссылка на источник. Пустой пункт останется без данных. Подтверждённые ранее значения нельзя заменить; изменение баллов произойдёт только после отдельного применения предпросмотра.</p>
-      {currentRound?<p><strong>{currentRound.event_name}</strong> · уже сохранено: лучший круг — {currentRound.current.fastest_lap_driver??'нет данных'}, первый сход — {currentRound.first_retirement_drivers.length?currentRound.first_retirement_drivers.join(', '):'нет данных'}, машина безопасности — {currentRound.current.safety_car===null?'нет данных':currentRound.current.safety_car?'Да':'Нет'}.</p>:<p>Этап {round} не найден среди рассчитанных этапов сезона {season}. Проверьте номер этапа.</p>}
+      {currentRound?<p><strong>{currentRound.event_name}</strong> · уже сохранено: лучший круг — {currentRound.current.fastest_lap_driver??'нет данных'}, первый сход — {currentRound.first_retirement_drivers.length?currentRound.first_retirement_drivers.join(', '):'нет данных'}, машина безопасности — {currentRound.current.safety_car==null?'нет данных':currentRound.current.safety_car?'Да':'Нет'}.</p>:<p>Этап {round} не найден среди рассчитанных этапов сезона {season}. Проверьте номер этапа.</p>}
       <fieldset disabled={busy||batchBusy||!currentRound}>
         <div className="pr-manual-grid">
-          <label>Лучший круг · код пилота<input value={manualFastest} maxLength={4} placeholder="RUS" onChange={e=>setManualFastest(e.target.value)}/></label>
+          {driversError&&<p role="alert">{driversError}</p>}
+          <label>Лучший круг<select disabled={!drivers.length} value={manualFastest} onChange={e=>setManualFastest(e.target.value)}><option value="">Не подтверждать</option>{drivers.map(driver=><option value={driver.code} key={driver.code}>{driver.name} ({driver.code}){driver.constructorName ? ` · ${driver.constructorName}` : ''}</option>)}</select></label>
           <label>Источник лучшего круга · HTTPS<input type="url" value={manualFastestUrl} placeholder="https://..." onChange={e=>setManualFastestUrl(e.target.value)}/></label>
-          <label>Первый сход · коды через запятую<input value={manualRetirements} placeholder="STR или STR, ALO при одновременном сходе" onChange={e=>setManualRetirements(e.target.value)}/></label>
+          <fieldset><legend>Первая группа схода · можно выбрать несколько пилотов</legend><p>Отметьте всех, кто сошёл одновременно первым. Выбор любого из них засчитывается один раз.</p>{drivers.map(driver=>{
+            const group=manualRetirements.split(',').filter(Boolean);
+            return <label key={driver.code}><input type="checkbox" checked={group.includes(driver.code)} onChange={e=>setManualRetirements((e.target.checked?[...group,driver.code]:group.filter(code=>code!==driver.code)).join(','))}/>{driver.name} ({driver.code}){driver.constructorName ? ` · ${driver.constructorName}` : ''}</label>;
+          })}</fieldset>
           <label>Источник порядка сходов · HTTPS<input type="url" value={manualRetirementsUrl} placeholder="https://..." onChange={e=>setManualRetirementsUrl(e.target.value)}/></label>
           <label>Машина безопасности<select value={manualSafety} onChange={e=>setManualSafety(e.target.value)}><option value="">Не подтверждено</option><option value="yes">Да — был Safety Car</option><option value="no">Нет — не было Safety Car</option></select></label>
           <label>Источник по машине безопасности · HTTPS<input type="url" value={manualSafetyUrl} placeholder="https://..." onChange={e=>setManualSafetyUrl(e.target.value)}/></label>
+          <p className="ui-data-context">Нужна прямая HTTPS-ссылка на классификацию, протокол или материал с подтверждением выбранного факта. Ссылка на главную страницу недостаточна. Проверка формы не применяет баллы.</p>
         </div>
         <label>Почему источник подтверждает эти факты<textarea rows={3} maxLength={500} value={manualReason} placeholder="Кратко укажите круг или время события, особенно для первого схода и SC/VSC." onChange={e=>setManualReason(e.target.value)}/></label>
         <button onClick={()=>void manualPreview()}>Показать ручной предпросмотр</button>

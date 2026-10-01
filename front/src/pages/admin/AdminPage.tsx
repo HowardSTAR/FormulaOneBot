@@ -19,6 +19,7 @@ import { AdminInsights, AdminNotifications, AdminToolDirectory } from "./AdminTo
 import { AdminControl } from './AdminControl';
 import { AdminRecapNews } from './AdminRecapNews';
 import './admin-workspace.css';
+import { auditActionLabels, describeAuditChange } from '../../helpers/adminAudit';
 
 const sections = [
   { id: 'control', label: 'Доставка', hint: 'Очередь, ошибки и статусы', description: 'Посмотрите, какие уведомления требуют внимания. Отправки не запускаются при просмотре.' },
@@ -183,6 +184,10 @@ export default function AdminPage() {
   const [sortBy, setSortBy] = useState<UserSortField>("last_activity");
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [audit, setAudit] = useState<AuditItem[]>([]);
+  const [auditLoading, setAuditLoading] = useState(true);
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditAction, setAuditAction] = useState('all');
+  const filteredAudit = audit.filter(item => (auditAction === 'all' || item.action === auditAction) && `${item.target_user_id ?? ''} ${item.actor_email ?? ''} ${item.actor_telegram_id ?? ''} ${describeAuditChange(item.action, item.details)}`.toLowerCase().includes(auditSearch.toLowerCase().trim()));
   const [gameRecords, setGameRecords] = useState<GameRecordStats | null>(null);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
   const [emailDraft, setEmailDraft] = useState("");
@@ -211,8 +216,11 @@ export default function AdminPage() {
   }, [page, roleFilter, search, sortBy, sortOrder]);
 
   const loadAudit = useCallback(async () => {
-    const result = await apiRequest<{ items: AuditItem[] }>("/api/admin/audit-log", { limit: 100 });
-    setAudit(result.items);
+    setAuditLoading(true);
+    try {
+      const result = await apiRequest<{ items: AuditItem[] }>("/api/admin/audit-log", { limit: 100 });
+      setAudit(result.items);
+    } finally { setAuditLoading(false); }
   }, []);
 
   const loadGameRecords = useCallback(async () => {
@@ -366,6 +374,8 @@ export default function AdminPage() {
       {tab === "overview" && (
         <>
           <AdminInsights />
+          <h3>Активность и посещения · {period === 'all' ? 'всё время' : period.replace('d', ' дней')}</h3>
+          <p className="ui-data-context">Фильтры ниже меняют только посещения и динамику. DAU / WAU / MAU всегда означают последние 24 часа / 7 дней / 30 дней.</p>
           <section className="admin-toolbar">
             <div>
               {(["7d", "30d", "90d", "all"] as Period[]).map((value) => (
@@ -485,7 +495,7 @@ export default function AdminPage() {
                     <td data-label="Активность">{formatDate(user.last_activity)}</td>
                     <td data-label="Роль"><span className={`admin-role role-${user.role}`}>{user.role==='superadmin'?'Супер-администратор':user.role==='admin'?'Администратор':'Участник'}</span></td>
                     <td data-label="Действия">
-                      <div className="admin-actions">
+                      <details className="admin-user-actions"><summary>Действия · {user.display_name || 'участник'}</summary><div className="admin-actions">
                         <button disabled={busy || user.protected} onClick={() => { setEditingUser(user); setEmailDraft(user.email || ""); }}>Email</button>
                         <button disabled={busy || user.protected || !user.telegram_id} onClick={() => unlinkTelegram(user)}>Отвязать TG</button>
                         <button disabled={busy || user.protected || !user.email} onClick={() => sendReset(user)}>Сброс пароля</button>
@@ -501,7 +511,7 @@ export default function AdminPage() {
                             {user.role === "admin" ? "Отозвать admin" : "Назначить admin"}
                           </button>
                         )}
-                      </div>
+                      </div></details>
                     </td>
                   </tr>
                 ))}
@@ -567,18 +577,23 @@ export default function AdminPage() {
 
       {tab === "audit" && (
         <section className="admin-audit-card">
-          <header><h2>Журнал действий</h2><span>последние 100 событий</span></header>
+          <header><h3>Последние изменения</h3><span>последние 100 событий</span></header>
+          {auditLoading && <p role="status">Загрузка журнала…</p>}
+          <div className="control-filters"><label>Поиск по автору, ID участника или изменению<input value={auditSearch} onChange={event => setAuditSearch(event.target.value)} /></label><label>Тип действия<select value={auditAction} onChange={event => setAuditAction(event.target.value)}><option value="all">Все действия</option>{[...new Set(audit.map(item => item.action))].map(action => <option key={action} value={action}>{auditActionLabels[action] || action}</option>)}</select></label></div>
+          <p className="ui-data-context">Показано {filteredAudit.length} из {audit.length} загруженных событий. Фильтры действуют на последние 100 записей.</p>
           <div className="admin-audit-list">
-            {audit.map((item) => (
+            {filteredAudit.map((item) => (
               <article key={item.id}>
                 <time>{formatDate(item.created_at)}</time>
-                <strong>{item.action}</strong>
+                <strong>{auditActionLabels[item.action] || 'Административное действие'}</strong>
                 <span>Администратор: {item.actor_email || item.actor_telegram_id || "удалённый аккаунт"}</span>
                 <span>Пользователь: {item.target_user_id ? `#${item.target_user_id}` : "—"}</span>
-                <code>{JSON.stringify(item.details)}</code>
+                <p>{describeAuditChange(item.action, item.details)}</p>
+                <details><summary>Технические сведения</summary><code>{item.action} · {JSON.stringify(item.details)}</code></details>
               </article>
             ))}
-            {!audit.length && <p className="admin-empty">Критических действий ещё не было.</p>}
+            {!auditLoading && !error && !audit.length && <p className="admin-empty">Действий в журнале пока нет.</p>}
+            {!!audit.length && !filteredAudit.length && <p className="admin-empty">Нет совпадений. Измените поиск или тип действия.</p>}
           </div>
         </section>
       )}

@@ -1,4 +1,9 @@
 const API_BASE = (import.meta.env.VITE_API_URL as string) || "";
+export function nationalityLabel(nationality: string): string {
+  const code = getFlagCodeForNationality(nationality);
+  return code ? new Intl.DisplayNames(['ru'], {type: 'region'}).of(code.toUpperCase()) || nationality : nationality;
+}
+
 const PATH_BASE = ((import.meta.env.BASE_URL as string) || "/").replace(/\/$/, "");
 
 /** Маппинг национальностей (Ergast/OpenF1 API) на ISO-код страны */

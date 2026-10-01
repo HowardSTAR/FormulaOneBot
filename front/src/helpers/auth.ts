@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { apiRequest, invalidateApiReads } from "./api";
+import { apiRequest, ApiError, invalidateApiReads } from "./api";
 import { SingleFlight } from './singleFlight';
 
 export function hasTelegramAuth(): boolean {
@@ -31,6 +31,14 @@ export function getWebsiteUser(): Promise<WebsiteUser | null> {
     } catch {
       return null;
     }
+  });
+}
+
+/** A failed request is not the same as a signed-out visitor. */
+export function getWebsiteUserStrict(): Promise<WebsiteUser | null> {
+  return pendingUser.run(`strict:${identityVersion}`, async () => {
+    try { return await apiRequest<WebsiteUser>('/api/auth/me'); }
+    catch (error) { if (error instanceof ApiError && error.status === 401) return null; throw error; }
   });
 }
 

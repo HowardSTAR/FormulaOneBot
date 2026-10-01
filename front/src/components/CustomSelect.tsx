@@ -1,18 +1,6 @@
-import { useState, useRef, useEffect } from "react";
 import { hapticSelection } from "../helpers/telegram";
 
 export type CustomSelectOption = { value: string | number; label: string };
-
-function renderLabel(text: string) {
-  if (text.startsWith("⭐ ")) {
-    return (
-      <>
-        <span className="select-star" aria-hidden>⭐</span> {text.slice(2)}
-      </>
-    );
-  }
-  return text;
-}
 
 type CustomSelectProps = {
   options: CustomSelectOption[];
@@ -20,62 +8,18 @@ type CustomSelectProps = {
   onChange: (value: string | number) => void;
   className?: string;
   disabled?: boolean;
+  ariaLabel?: string;
 };
 
-export function CustomSelect({ options, value, onChange, className = "", disabled }: CustomSelectProps) {
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-
-  const selected = options.find((o) => String(o.value) === String(value));
-  const label = selected?.label ?? "";
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
-
-  return (
-    <div
-      ref={wrapperRef}
-      className={`custom-select-wrapper ${open ? "open" : ""} ${className}`}
-    >
-      <div
-        className="custom-select-trigger"
-        onClick={() => !disabled && setOpen(!open)}
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            if (!disabled) setOpen(!open);
-          }
-        }}
-      >
-        <span>{renderLabel(label)}</span>
-        <div className="select-arrow" />
-      </div>
-      <div className="custom-options">
-        {options.map((opt) => (
-          <div
-            key={String(opt.value)}
-            className={`custom-option ${String(opt.value) === String(value) ? "selected" : ""}`}
-            onClick={() => {
-              hapticSelection();
-              onChange(opt.value);
-              setOpen(false);
-            }}
-            role="option"
-            aria-selected={String(opt.value) === String(value)}
-          >
-            {renderLabel(opt.label)}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+/** Native selection supports arrows, Enter, Escape, touch and screen readers. */
+export function CustomSelect({ options, value, onChange, className = "", disabled, ariaLabel = "Выберите значение" }: CustomSelectProps) {
+  return <div className={`custom-select-wrapper ${className}`}>
+    <select className="custom-select-native" value={String(value)} disabled={disabled} aria-label={ariaLabel}
+      onChange={event => {
+        const option = options.find(item => String(item.value) === event.target.value);
+        if (option) { hapticSelection(); onChange(option.value); }
+      }}>
+      {options.map(option => <option key={String(option.value)} value={String(option.value)}>{option.label}</option>)}
+    </select>
+  </div>;
 }

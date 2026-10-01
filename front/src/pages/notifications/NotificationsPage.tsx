@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
 import { BackButton } from "../../components/BackButton";
 import "./notifications.css";
+import { notificationBody } from '../../helpers/notificationPresentation';
 
-type Item = { id: number; title: string; body: string; url: string; created_at: number; read_at: number | null; priority?: "minimal" | "low" | "medium" | "critical" | "blocking" | null };
+type Item = { id: number; title: string; body: string; url: string; created_at: number; read_at: number | null; historical_snapshot?: boolean; priority?: "minimal" | "low" | "medium" | "critical" | "blocking" | null };
 const priorityNames = { minimal: "Минимальный", low: "Низкий", medium: "Средний", critical: "Критический", blocking: "Блокирующий" };
 type Inbox = { items: Item[]; unread: number; next_before: number | null; push: { enabled: boolean; public_key: string } };
 function keyBytes(key: string) {
@@ -17,6 +18,8 @@ export default function NotificationsPage() {
   const [data, setData] = useState<Inbox | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [category, setCategory] = useState('all');
+  const requestSequence = useRef(0);
   const [subscribed, setSubscribed] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
     supported() ? Notification.permission : "unsupported",
@@ -26,9 +29,10 @@ export default function NotificationsPage() {
   const ios = /iPhone|iPad|iPod/i.test(navigator.userAgent)
     || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
   const refresh = useCallback(async () => {
-    try { setData(await apiRequest<Inbox>("/api/web-notifications")); }
-    catch (e) { setError(e instanceof Error ? e.message : "Не удалось загрузить уведомления"); }
-  }, []);
+    const sequence = ++requestSequence.current;
+    try { const result = await apiRequest<Inbox>("/api/web-notifications", {category}); if (sequence === requestSequence.current) {setData(result); setError('');} }
+    catch (e) { if (sequence === requestSequence.current) setError(e instanceof Error ? e.message : "Не удалось загрузить уведомления"); }
+  }, [category]);
   useEffect(() => {
     void refresh();
     let alive = true;
@@ -86,9 +90,10 @@ export default function NotificationsPage() {
   };
   const more = async () => {
     if (!data?.next_before) return;
+    const sequence = ++requestSequence.current;
     setBusy(true);
-    try { const page = await apiRequest<Inbox>("/api/web-notifications", { before:data.next_before }); setData({ ...page, items:[...data.items,...page.items] }); }
-    catch { setError("Не удалось загрузить историю"); }
+    try { const page = await apiRequest<Inbox>("/api/web-notifications", { before:data.next_before, category }); if (sequence === requestSequence.current) setData({ ...page, items:[...data.items,...page.items] }); }
+    catch { if (sequence === requestSequence.current) setError("Не удалось загрузить историю"); }
     finally { setBusy(false); }
   };
   return <div className="notifications-page">
@@ -113,14 +118,17 @@ export default function NotificationsPage() {
         <p>{ios ? "Safari → Поделиться → На экран Домой → Добавить." : "Chrome → меню ⋮ → Установить приложение или Добавить на главный экран."}</p>
       </details>}
     </section>
-    {error && <p role="alert">{error}</p>}
-    {!data ? <p>Загружаем уведомления…</p> : <>
-      <div className="notifications-toolbar"><span>Непрочитанных: {data.unread}</span><button disabled={!data.unread} onClick={markRead}>Прочитать все</button></div>
+    <label>Тип уведомлений <select value={category} onChange={event => {setData(null); setCategory(event.target.value);}}><option value="all">Все</option><option value="results">Результаты</option><option value="predictions">Прогнозы</option><option value="voting">Голосования</option><option value="reminders">Напоминания</option><option value="admin">Системные</option></select></label>
+    {error && <div role="alert"><p>{error}</p><button onClick={() => void refresh()}>Повторить</button></div>}
+    {!data ? !error && <p role="status">Загружаем уведомления…</p> : <>
+      <div className="notifications-toolbar"><span>Непрочитанных в разделе: {data.unread}</span><button disabled={!data.unread} onClick={markRead}>Отметить прочитанными до этой даты</button></div>
       {!data.items.length && <p className="notifications-empty">Здесь появятся новые события. Прошедшие уведомления не рассылаются повторно.</p>}
       {data.items.map(item => <article key={item.id} className={item.read_at ? "" : "is-unread"}>
         {item.priority && <span className={`notification-priority priority-${item.priority}`}>{priorityNames[item.priority]} приоритет</span>}
-        <time>{new Date(item.created_at*1000).toLocaleString("ru-RU")}</time><h2>{item.title}</h2><p>{item.body}</p>
-        <Link to={item.url}>Открыть →</Link>
+        <time>{new Date(item.created_at*1000).toLocaleString("ru-RU")}</time><h2>{item.title}</h2><p>{notificationBody(item.body,item.url).body}</p>
+        {notificationBody(item.body,item.url).uncertainPoints && <p className="ui-warning">Очки в этом архивном сообщении не подтверждены. Проверьте актуальную классификацию по кнопке ниже.</p>}
+        {(item.historical_snapshot ?? /-results|^\/predictions|^\/voting/.test(item.url)) && <p className="ui-data-context">Итог на момент отправки. После уточнения данных или пересчёта значения могли измениться.</p>}
+        <Link to={item.url}>{item.historical_snapshot ? 'Актуальный результат' : 'Открыть'} →</Link>
       </article>)}
       {data.next_before && <button disabled={busy} onClick={more}>Показать ещё</button>}
     </>}

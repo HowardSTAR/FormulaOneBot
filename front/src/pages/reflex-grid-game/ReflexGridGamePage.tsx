@@ -480,10 +480,11 @@ function ReflexGridGamePage() {
         <>
           <div className="reaction-timer-card reflex-timer-card" data-state={status}>
             <div className="reaction-main-time">{mode === "timed" ? timerText : `${formatSecondsMs(elapsedMs)}`}</div>
-            <div className="reaction-time-unit">{mode === "timed" ? "До конца" : "Секунд"}</div>
+            <div className="reaction-time-unit">{status === 'idle' ? 'Попытка ещё не началась' : mode === "timed" ? 'Осталось секунд' : 'Прошло секунд'}</div>
             <div className="reaction-result" style={{ marginTop: 8 }}>{currentMetricText}</div>
           </div>
 
+          <p className="reaction-helper" role="status">{helperText}</p>
           <div
             className="reflex-grid"
             data-size={boardSize}
@@ -502,9 +503,8 @@ function ReflexGridGamePage() {
           </div>
 
           <button type="button" className="reaction-settings-edit reflex-reset-button" onClick={resetBoard}>
-            Сыграть снова
+            {status === 'running' ? 'Сбросить попытку' : 'Подготовить новое поле'}
           </button>
-          <p className="reaction-helper">{helperText}</p>
 
           <section className="reaction-slide">
             <div className="reaction-settings-card">

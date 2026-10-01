@@ -164,7 +164,7 @@ export default function WikiPage() {
 
       <header className="wiki-hero">
         <div className="wiki-hero-copy">
-          <span className="wiki-kicker">F1 Academy · сезон 2026</span>
+          <span className="wiki-kicker">Справочник F1</span>
           <h1>Wiki для<br /><em>новичков</em></h1>
           <p>
             <GlossaryText>Термины Формулы-1 без сложных формулировок — от андерката до активной аэродинамики.</GlossaryText>
@@ -208,10 +208,10 @@ export default function WikiPage() {
           ))}
         </div>
 
-        <div className="wiki-alphabet" aria-label="Алфавитный указатель">
+        <details className="wiki-alphabet" aria-label="Алфавитный указатель"><summary>Алфавитный указатель</summary>
           {renderAlphabet("А—Я", RU_ALPHABET, "ru")}
           {renderAlphabet("A—Z", EN_ALPHABET, "en")}
-        </div>
+        </details>
       </section>
 
       <div className="wiki-results-head" aria-live="polite">

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { Navigate } from "react-router-dom";
-import { getWebsiteUser, hasTelegramAuth } from "../helpers/auth";
+import { Navigate, useLocation } from "react-router-dom";
+import { getWebsiteUserStrict, hasTelegramAuth } from "../helpers/auth";
+import { PageFeedback } from './PageFeedback';
 
 type RequirePersonalAccountProps = {
   children: ReactElement;
@@ -14,14 +15,21 @@ export function RequirePersonalAccount({
 }: RequirePersonalAccountProps) {
   const telegramMiniApp = hasTelegramAuth();
   const [allowed, setAllowed] = useState<boolean | null>(telegramMiniApp ? true : null);
+  const location = useLocation();
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (telegramMiniApp) return;
-    void getWebsiteUser().then((user) => {
-      setAllowed(requireTelegram ? Boolean(user?.telegram_id) : Boolean(user));
-    });
-  }, [requireTelegram, telegramMiniApp]);
+    let active = true;
+    setAllowed(null); setError(false);
+    void getWebsiteUserStrict().then((user) => {
+      if (active) setAllowed(requireTelegram ? Boolean(user?.telegram_id) : Boolean(user));
+    }).catch(() => { if (active) setError(true); });
+    return () => { active = false; };
+  }, [requireTelegram, telegramMiniApp, attempt]);
 
-  if (allowed === null) return null;
-  return allowed ? children : <Navigate to="/account" replace />;
+  if (error) return <PageFeedback retry={() => setAttempt(v => v + 1)} />;
+  if (allowed === null) return <p role="status">Проверяем аккаунт…</p>;
+  return allowed ? children : <Navigate to={`/account?returnPath=${encodeURIComponent(location.pathname + location.search)}&requireTelegram=${requireTelegram ? '1' : '0'}`} replace />;
 }

@@ -1095,7 +1095,7 @@ async def check_and_send_results(bot: Bot):
     await web_classification(season, round_num, f"{race_info.get('event_name', 'Гран-при')} · Итоги гонки", "race-results", [
         {"position": str(row.get("Position", "—")), "code": str(row.get("Abbreviation", "")),
          "name": str(row.get("FullName", row.get("Abbreviation", ""))), "team": str(row.get("TeamName", "")),
-         "points": str(row.get("Points", ""))} for _, row in results_df.iterrows()
+         "points": row.get("Points"), "data_complete": bool(row.get("DataComplete", True))} for _, row in results_df.iterrows()
     ])
     await publish_web(f"voting-invite:{season}:{round_num}", "Приглашаем на голосование", "Оцените этап и выберите пилота дня.", f"/voting?season={season}&round={round_num}")
 

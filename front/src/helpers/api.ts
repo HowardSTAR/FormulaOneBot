@@ -44,6 +44,11 @@ export function apiAssetUrl(
   return url.toString();
 }
 
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) { super(message); this.name = 'ApiError'; this.status = status; }
+}
+
 export function apiRequest<T = unknown>(
   endpoint: string,
   params: Record<string, unknown> = {},
@@ -118,7 +123,7 @@ async function executeApiRequest<T = unknown>(
     if ((e as Error)?.name === 'AbortError') {
       throw new Error('Превышено время ожидания ответа сервера.');
     }
-    throw e;
+    throw new ApiError('Нет соединения с сервером. Проверьте сеть и повторите запрос.', 0);
   } finally {
     window.clearTimeout(timeoutId);
   }
@@ -126,9 +131,7 @@ async function executeApiRequest<T = unknown>(
   const contentType = response.headers.get('content-type') || '';
   if (response.status >= 500) reportError(response.status);
   if (contentType.includes('text/html')) {
-    throw new Error(
-      'Сервер вернул HTML вместо JSON. Убедитесь, что бэкенд запущен (python run_web.py) и приложение открыто с того же домена.'
-    );
+    throw new ApiError('Сервис временно недоступен. Попробуйте повторить запрос.', response.status);
   }
 
   if (!response.ok) {
@@ -142,14 +145,14 @@ async function executeApiRequest<T = unknown>(
     const msg = serverMessage || (response.status === 401
       ? 'Войдите в аккаунт или откройте приложение в Telegram'
       : response.status === 403
-        ? 'Сначала подключите Telegram в разделе «Аккаунт»'
-        : `Ошибка сервера: ${response.status}`);
-    throw new Error(msg);
+        ? 'Нет доступа к этому действию. Проверьте аккаунт и права доступа.'
+        : 'Не удалось получить ответ сервера. Попробуйте повторить запрос.');
+    throw new ApiError(response.status >= 500 ? 'Сервис временно недоступен. Попробуйте повторить запрос.' : msg, response.status);
   }
 
   try {
     return (await response.json()) as T;
   } catch {
-    throw new Error('Сервер вернул неверный ответ (не JSON). Проверьте, что API доступен.');
+    throw new ApiError('Не удалось прочитать ответ сервера. Попробуйте повторить запрос.', response.status);
   }
 }

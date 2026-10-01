@@ -1,4 +1,4 @@
-import { Suspense, useRef, useCallback, useLayoutEffect, useEffect } from "react";
+import { Suspense, useRef, useCallback, useEffect } from "react";
 import { apiRequest } from "../helpers/api";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { hapticImpact } from "../helpers/telegram";
@@ -8,6 +8,7 @@ import { InstallHint } from "./InstallHint";
 import { MobileNav } from "./MobileNav";
 import { analyticsPlatform } from '../helpers/analytics';
 import { EngagementEntry } from './EngagementEntry';
+import { RouteContext } from './RouteContext';
 
 const EDGE_THRESHOLD = 30;
 const SWIPE_THRESHOLD = 60;
@@ -26,18 +27,6 @@ export function SwipeBackLayout() {
     }, 500);
     return () => window.clearTimeout(timer);
   }, [location.pathname]);
-
-  useLayoutEffect(() => {
-    const resetScroll = () => {
-      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    };
-
-    resetScroll();
-    const frameId = window.requestAnimationFrame(resetScroll);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [location.pathname, location.search]);
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
@@ -75,7 +64,7 @@ export function SwipeBackLayout() {
       tracking.current = false;
       if (deltaX >= SWIPE_THRESHOLD && location.pathname !== "/") {
         hapticImpact("light");
-        navigate(-1);
+        if (Number(window.history.state?.idx) > 0) navigate(-1); else navigate('/');
       }
     },
     [navigate, location.pathname]
@@ -93,6 +82,7 @@ export function SwipeBackLayout() {
   return (
     <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className="app-shell">
       <EngagementEntry />
+      <RouteContext />
       <AppHeader />
       <InstallHint />
       <div className="app-content">
