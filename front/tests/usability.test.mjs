@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
+import { posix } from 'node:path';
 import ts from 'typescript';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -70,4 +71,23 @@ test('year and round selectors use labelled native controls with selected values
   const round=renderToStaticMarkup(React.createElement(CustomSelect,{value:2,options:[{value:1,label:'Первый'},{value:2,label:'Второй'}],onChange:()=>{},ariaLabel:'Этап'}));
   assert.match(round,/<select[^>]*aria-label="Этап"/);
   assert.match(round,/<option value="2" selected="">Второй<\/option>/);
+});
+
+test('Docker frontend build includes the legal registers at their resolved import paths', () => {
+  const dockerfile = readFileSync(new URL('../../Dockerfile', import.meta.url), 'utf8');
+  const stage = dockerfile.split(/^FROM .+ AS front-builder\r?$/m)[1]?.split(/^FROM /m)[0];
+  assert.ok(stage, 'frontend builder stage must exist');
+  assert.match(stage, /^WORKDIR \/front\r?$/m);
+  const source = readFileSync(new URL('../src/pages/legal/LicenseRegisterPage.tsx', import.meta.url), 'utf8');
+  const imports = [...source.matchAll(/from ['"]([^'"]+\.md)\?raw['"]/g)].map(match => match[1]);
+  assert.equal(imports.length, 2);
+  const copies = [...stage.matchAll(/^COPY (?!\s*--)(.+)\r?$/gm)].map(match => match[1].trim().split(/\s+/));
+  for (const relative of imports) {
+    const filename = posix.basename(relative);
+    assert.ok(readFileSync(new URL(relative, new URL('../src/pages/legal/LicenseRegisterPage.tsx', import.meta.url))).length);
+    const expected = posix.resolve('/front/src/pages/legal', relative);
+    assert.ok(copies.some(parts => parts.slice(0, -1).includes(filename)
+      && posix.resolve('/front', parts.at(-1), filename) === expected),
+    `${filename} must be copied to ${expected} in the frontend builder`);
+  }
 });

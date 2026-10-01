@@ -20,6 +20,9 @@ COPY front/index.html front/vite.config.ts front/tsconfig*.json ./
 COPY front/public ./public
 COPY --from=race-builder /race-game/dist ./public/race-game
 COPY front/src ./src
+# Legal pages import these root-level registers via ../../../../*.md?raw.
+# Keep them beside /front, matching the repository layout during Vite build.
+COPY THIRD_PARTY_NOTICES.md ASSET_LICENSES.md /
 
 ARG VITE_API_URL=""
 ARG VITE_LEGAL_OPERATOR_NAME=""
