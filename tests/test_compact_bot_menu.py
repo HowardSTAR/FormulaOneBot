@@ -9,7 +9,7 @@ import pytest
 from aiogram import Bot, Dispatcher, Router
 from aiogram.client.session.base import BaseSession
 from aiogram.methods import AnswerCallbackQuery, EditMessageText, SendMessage
-from aiogram.types import CallbackQuery, Chat, InlineKeyboardMarkup, Message, Update, User
+from aiogram.types import CallbackQuery, Chat, InlineKeyboardMarkup, Message, ReplyKeyboardMarkup, Update, User
 
 from app.handlers import insights, menu, start
 from app.utils.bot_menu import MAIN_BUTTONS, SECTIONS, WEB_DESTINATIONS, main_keyboard, section_keyboard
@@ -67,7 +67,10 @@ def test_keyboard_is_two_rows_and_all_old_actions_are_reachable():
     keyboard = main_keyboard()
     assert [len(row) for row in keyboard.keyboard] == [2, 2]
     assert [button.text for row in keyboard.keyboard for button in row] == list(MAIN_BUTTONS)
-    assert keyboard.resize_keyboard and not keyboard.one_time_keyboard
+    payload = keyboard.model_dump(exclude_none=True)
+    assert payload["resize_keyboard"] is True
+    assert payload["is_persistent"] is True
+    assert payload["one_time_keyboard"] is False
     seen, pending, actions = set(), list(MAIN_BUTTONS.values()), set()
     while pending:
         section = pending.pop()
@@ -109,15 +112,35 @@ async def test_main_buttons_escape_year_or_feedback_input(navigation, label):
 async def test_submenus_edit_the_same_message_and_have_back_navigation(navigation):
     bot, dispatcher, state, session = navigation
     await state.set_state("DriversYearState:year")
-    for index, section in enumerate(("stats", "guides", "sections", "home")):
+    for index, section in enumerate(("stats", "guides", "sections")):
         await dispatcher.feed_update(bot, Update(update_id=index, callback_query=clicked(bot, f"nav:section:{section}")))
         assert isinstance(session.methods[-2], AnswerCallbackQuery)
         result = session.methods[-1]
         assert isinstance(result, EditMessageText) and result.message_id == 20
-        if section != "home":
-            assert result.reply_markup.inline_keyboard[-1][0].text.startswith("←")
+        assert result.reply_markup.inline_keyboard[-1][0].text.startswith("←")
     assert await state.get_state() is None
     assert not any(isinstance(method, SendMessage) for method in session.methods)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("pending", [None, "FeedbackState:waiting_for_message", "DriversYearState:year"])
+async def test_home_button_resends_persistent_keyboard_even_when_client_lost_it(navigation, pending):
+    bot, dispatcher, state, session = navigation
+    await state.set_state(pending)
+    await state.update_data(year=1997, feedback="not sent")
+    # Repeated visits must restore the keyboard too; editing identical text cannot do that.
+    for update_id in (1, 2):
+        await dispatcher.feed_update(bot, Update(update_id=update_id, callback_query=clicked(bot, "nav:section:home")))
+        assert isinstance(session.methods[-2], AnswerCallbackQuery)
+        result = session.methods[-1]
+        assert isinstance(result, SendMessage) and result.chat_id == ACTOR.id
+        assert "Главное меню" in result.text
+        assert isinstance(result.reply_markup, ReplyKeyboardMarkup)
+        assert result.reply_markup == main_keyboard()
+        assert result.reply_markup.is_persistent is True
+        assert result.reply_markup.one_time_keyboard is False
+    assert await state.get_state() is None and await state.get_data() == {}
+    assert not any(isinstance(method, EditMessageText) for method in session.methods)
 
 
 @pytest.mark.asyncio
@@ -152,6 +175,8 @@ async def test_restore_menu_clears_pending_input_without_sending_feedback(naviga
     assert isinstance(result, SendMessage)
     assert result.chat_id == ACTOR.id
     assert len(result.reply_markup.keyboard) == 2
+    assert result.reply_markup.is_persistent is True
+    assert result.reply_markup.one_time_keyboard is False
     assert await state.get_state() is None
 
 
@@ -184,6 +209,8 @@ async def test_start_is_one_short_message_and_does_not_change_preferences(naviga
     assert len(session.methods) == 1
     assert len(session.methods[0].text) < 450
     assert len(session.methods[0].reply_markup.keyboard) == 2
+    assert session.methods[0].reply_markup.is_persistent is True
+    assert session.methods[0].reply_markup.one_time_keyboard is False
     assert await state.get_state() is None
 
 
@@ -209,9 +236,10 @@ async def test_unknown_menu_callback_is_safe_and_does_not_clear_input(navigation
 
 
 @pytest.mark.asyncio
-async def test_group_callbacks_cannot_open_personal_actions(navigation):
+@pytest.mark.parametrize("data", ["nav:action:settings", "nav:section:home"])
+async def test_group_callbacks_cannot_open_personal_actions(navigation, data):
     bot, dispatcher, state, session = navigation
-    await dispatcher.feed_update(bot, Update(update_id=1, callback_query=clicked(bot, "nav:action:settings", private=False)))
+    await dispatcher.feed_update(bot, Update(update_id=1, callback_query=clicked(bot, data, private=False)))
     assert len(session.methods) == 1 and isinstance(session.methods[0], AnswerCallbackQuery)
     assert "личном чате" in session.methods[0].text
 

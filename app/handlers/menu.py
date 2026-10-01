@@ -70,7 +70,8 @@ async def section_content(bot, section: str):
 
 async def open_main_menu(message: Message, state: FSMContext):
     await state.clear()
-    await message.answer("Выберите раздел внизу. Остальные действия появятся под сообщением.", reply_markup=main_keyboard())
+    heading, hint, _ = SECTIONS["home"]
+    await message.answer(f"<b>{heading}</b>\n\n{hint}", reply_markup=main_keyboard(), parse_mode="HTML")
 
 
 async def open_section(message: Message, state: FSMContext):
@@ -100,6 +101,11 @@ async def navigate(callback: CallbackQuery, state: FSMContext):
         return
     # Stop Telegram's spinner before waiting for a data source or Mini App URL.
     await safe_answer_callback(callback)
+    if parts[1:] == ["section", "home"]:
+        # editMessageText accepts only inline markup: send the reply keyboard
+        # again so returning home also restores a lost/hidden client keyboard.
+        await open_main_menu(callback.message, state)
+        return
     await state.clear()
     if parts[1] == "section":
         text, keyboard = await section_content(callback.bot, parts[2])

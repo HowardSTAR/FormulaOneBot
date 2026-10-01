@@ -63,6 +63,8 @@ def main_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text=label) for label in labels[i:i + 2]] for i in (0, 2)],
         resize_keyboard=True,
+        is_persistent=True,
+        one_time_keyboard=False,
         input_field_placeholder="Выберите раздел",
     )
 
