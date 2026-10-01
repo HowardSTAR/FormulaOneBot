@@ -76,6 +76,7 @@ CREATE INDEX IF NOT EXISTS idx_recap_news_round ON recap_news_articles(season,ro
 CREATE TABLE IF NOT EXISTS recap_control_checks (
  season INTEGER NOT NULL, round INTEGER NOT NULL, session_key INTEGER NOT NULL,
  updated REAL NOT NULL, next_check REAL NOT NULL, final INTEGER NOT NULL DEFAULT 0,
+ parser_version INTEGER NOT NULL DEFAULT 0,
  PRIMARY KEY(season,round)
 );
 """
@@ -83,6 +84,15 @@ CREATE TABLE IF NOT EXISTS recap_control_checks (
 
 async def ensure_schema(conn):
     await conn.executescript(SCHEMA)
+    columns = {row[1] for row in await (await conn.execute("PRAGMA table_info(recap_control_checks)")).fetchall()}
+    if "parser_version" not in columns:
+        try:
+            await conn.execute("ALTER TABLE recap_control_checks ADD COLUMN parser_version INTEGER NOT NULL DEFAULT 0")
+        except aiosqlite.OperationalError:
+            # Bot and web can migrate the shared database at the same startup.
+            columns = {row[1] for row in await (await conn.execute("PRAGMA table_info(recap_control_checks)")).fetchall()}
+            if "parser_version" not in columns:
+                raise
     await conn.executemany("INSERT OR IGNORE INTO recap_news_sources(source_id,enabled) VALUES(?,?)",
                            [(feed.id, int(feed.enabled_by_default)) for feed in FEEDS])
     # Retire the permission-dependent publisher without deleting its archive.

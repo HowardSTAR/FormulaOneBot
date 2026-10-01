@@ -4,285 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="красивая анимация если данных нет">
+    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="фикс рекап">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/f1_data.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/f1_data.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-03-28_Bahrain_Grand_Prix/2021-03-28_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-03-28_Bahrain_Grand_Prix/2021-03-28_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-04-18_Emilia_Romagna_Grand_Prix/2021-04-18_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-04-18_Emilia_Romagna_Grand_Prix/2021-04-18_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-05-02_Portuguese_Grand_Prix/2021-05-02_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-05-02_Portuguese_Grand_Prix/2021-05-02_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-05-09_Spanish_Grand_Prix/2021-05-09_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-05-09_Spanish_Grand_Prix/2021-05-09_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-05-23_Monaco_Grand_Prix/2021-05-23_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-05-23_Monaco_Grand_Prix/2021-05-23_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-06-06_Azerbaijan_Grand_Prix/2021-06-06_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-06-06_Azerbaijan_Grand_Prix/2021-06-06_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-06-20_French_Grand_Prix/2021-06-20_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-06-20_French_Grand_Prix/2021-06-20_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-06-27_Styrian_Grand_Prix/2021-06-27_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-06-27_Styrian_Grand_Prix/2021-06-27_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-07-04_Austrian_Grand_Prix/2021-07-04_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-07-04_Austrian_Grand_Prix/2021-07-04_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-07-18_British_Grand_Prix/2021-07-18_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-07-18_British_Grand_Prix/2021-07-18_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-08-01_Hungarian_Grand_Prix/2021-08-01_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-08-01_Hungarian_Grand_Prix/2021-08-01_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-08-29_Belgian_Grand_Prix/2021-08-29_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-08-29_Belgian_Grand_Prix/2021-08-29_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-09-05_Dutch_Grand_Prix/2021-09-05_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-09-05_Dutch_Grand_Prix/2021-09-05_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-09-12_Italian_Grand_Prix/2021-09-12_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-09-12_Italian_Grand_Prix/2021-09-12_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-09-26_Russian_Grand_Prix/2021-09-26_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-09-26_Russian_Grand_Prix/2021-09-26_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-10-10_Turkish_Grand_Prix/2021-10-10_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-10-10_Turkish_Grand_Prix/2021-10-10_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-10-24_United_States_Grand_Prix/2021-10-24_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-10-24_United_States_Grand_Prix/2021-10-24_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-11-07_Mexico_City_Grand_Prix/2021-11-07_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-11-07_Mexico_City_Grand_Prix/2021-11-07_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-11-14_São_Paulo_Grand_Prix/2021-11-14_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-11-14_São_Paulo_Grand_Prix/2021-11-14_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-11-21_Qatar_Grand_Prix/2021-11-21_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-11-21_Qatar_Grand_Prix/2021-11-21_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-12-05_Saudi_Arabian_Grand_Prix/2021-12-05_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-12-05_Saudi_Arabian_Grand_Prix/2021-12-05_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-12-12_Abu_Dhabi_Grand_Prix/2021-12-12_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2021/2021-12-12_Abu_Dhabi_Grand_Prix/2021-12-12_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-03-20_Bahrain_Grand_Prix/2022-03-20_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-03-20_Bahrain_Grand_Prix/2022-03-20_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-03-27_Saudi_Arabian_Grand_Prix/2022-03-27_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-03-27_Saudi_Arabian_Grand_Prix/2022-03-27_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-04-10_Australian_Grand_Prix/2022-04-10_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-04-10_Australian_Grand_Prix/2022-04-10_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-04-24_Emilia_Romagna_Grand_Prix/2022-04-24_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-04-24_Emilia_Romagna_Grand_Prix/2022-04-24_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-05-08_Miami_Grand_Prix/2022-05-08_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-05-08_Miami_Grand_Prix/2022-05-08_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-05-22_Spanish_Grand_Prix/2022-05-22_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-05-22_Spanish_Grand_Prix/2022-05-22_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-05-29_Monaco_Grand_Prix/2022-05-29_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-05-29_Monaco_Grand_Prix/2022-05-29_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-06-12_Azerbaijan_Grand_Prix/2022-06-12_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-06-12_Azerbaijan_Grand_Prix/2022-06-12_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-06-19_Canadian_Grand_Prix/2022-06-19_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-06-19_Canadian_Grand_Prix/2022-06-19_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-07-03_British_Grand_Prix/2022-07-03_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-07-03_British_Grand_Prix/2022-07-03_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-07-10_Austrian_Grand_Prix/2022-07-10_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-07-10_Austrian_Grand_Prix/2022-07-10_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-07-24_French_Grand_Prix/2022-07-24_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-07-24_French_Grand_Prix/2022-07-24_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-07-31_Hungarian_Grand_Prix/2022-07-31_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-07-31_Hungarian_Grand_Prix/2022-07-31_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-08-28_Belgian_Grand_Prix/2022-08-28_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-08-28_Belgian_Grand_Prix/2022-08-28_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-09-04_Dutch_Grand_Prix/2022-09-04_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-09-04_Dutch_Grand_Prix/2022-09-04_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-09-11_Italian_Grand_Prix/2022-09-11_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-09-11_Italian_Grand_Prix/2022-09-11_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-10-02_Singapore_Grand_Prix/2022-10-02_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-10-02_Singapore_Grand_Prix/2022-10-02_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-10-09_Japanese_Grand_Prix/2022-10-09_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-10-09_Japanese_Grand_Prix/2022-10-09_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-10-23_United_States_Grand_Prix/2022-10-23_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-10-23_United_States_Grand_Prix/2022-10-23_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-10-30_Mexico_City_Grand_Prix/2022-10-30_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-10-30_Mexico_City_Grand_Prix/2022-10-30_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-11-13_São_Paulo_Grand_Prix/2022-11-13_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-11-13_São_Paulo_Grand_Prix/2022-11-13_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-11-20_Abu_Dhabi_Grand_Prix/2022-11-20_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2022/2022-11-20_Abu_Dhabi_Grand_Prix/2022-11-20_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-03-05_Bahrain_Grand_Prix/2023-03-05_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-03-05_Bahrain_Grand_Prix/2023-03-05_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-03-19_Saudi_Arabian_Grand_Prix/2023-03-19_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-03-19_Saudi_Arabian_Grand_Prix/2023-03-19_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-04-02_Australian_Grand_Prix/2023-04-02_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-04-02_Australian_Grand_Prix/2023-04-02_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-04-30_Azerbaijan_Grand_Prix/2023-04-30_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-04-30_Azerbaijan_Grand_Prix/2023-04-30_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-05-07_Miami_Grand_Prix/2023-05-07_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-05-07_Miami_Grand_Prix/2023-05-07_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-05-28_Monaco_Grand_Prix/2023-05-28_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-05-28_Monaco_Grand_Prix/2023-05-28_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-06-04_Spanish_Grand_Prix/2023-06-04_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-06-04_Spanish_Grand_Prix/2023-06-04_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-06-18_Canadian_Grand_Prix/2023-06-18_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-06-18_Canadian_Grand_Prix/2023-06-18_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-07-02_Austrian_Grand_Prix/2023-07-02_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-07-02_Austrian_Grand_Prix/2023-07-02_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-07-09_British_Grand_Prix/2023-07-09_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-07-09_British_Grand_Prix/2023-07-09_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-07-23_Hungarian_Grand_Prix/2023-07-23_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-07-23_Hungarian_Grand_Prix/2023-07-23_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-07-30_Belgian_Grand_Prix/2023-07-30_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-07-30_Belgian_Grand_Prix/2023-07-30_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-08-27_Dutch_Grand_Prix/2023-08-27_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-08-27_Dutch_Grand_Prix/2023-08-27_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-09-03_Italian_Grand_Prix/2023-09-03_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-09-03_Italian_Grand_Prix/2023-09-03_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-09-17_Singapore_Grand_Prix/2023-09-17_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-09-17_Singapore_Grand_Prix/2023-09-17_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-09-24_Japanese_Grand_Prix/2023-09-24_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-09-24_Japanese_Grand_Prix/2023-09-24_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-10-08_Qatar_Grand_Prix/2023-10-08_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-10-08_Qatar_Grand_Prix/2023-10-08_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-10-22_United_States_Grand_Prix/2023-10-22_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-10-22_United_States_Grand_Prix/2023-10-22_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-10-29_Mexico_City_Grand_Prix/2023-10-29_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-10-29_Mexico_City_Grand_Prix/2023-10-29_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-11-05_São_Paulo_Grand_Prix/2023-11-05_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-11-05_São_Paulo_Grand_Prix/2023-11-05_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-11-18_Las_Vegas_Grand_Prix/2023-11-18_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-11-18_Las_Vegas_Grand_Prix/2023-11-18_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-11-26_Abu_Dhabi_Grand_Prix/2023-11-26_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2023/2023-11-26_Abu_Dhabi_Grand_Prix/2023-11-26_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-03-02_Bahrain_Grand_Prix/2024-03-02_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-03-02_Bahrain_Grand_Prix/2024-03-02_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-03-09_Saudi_Arabian_Grand_Prix/2024-03-09_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-03-09_Saudi_Arabian_Grand_Prix/2024-03-09_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-03-24_Australian_Grand_Prix/2024-03-24_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-03-24_Australian_Grand_Prix/2024-03-24_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-04-07_Japanese_Grand_Prix/2024-04-07_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-04-07_Japanese_Grand_Prix/2024-04-07_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-04-21_Chinese_Grand_Prix/2024-04-21_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-04-21_Chinese_Grand_Prix/2024-04-21_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-05-05_Miami_Grand_Prix/2024-05-05_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-05-05_Miami_Grand_Prix/2024-05-05_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-05-19_Emilia_Romagna_Grand_Prix/2024-05-19_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-05-19_Emilia_Romagna_Grand_Prix/2024-05-19_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-05-26_Monaco_Grand_Prix/2024-05-26_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-05-26_Monaco_Grand_Prix/2024-05-26_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-06-09_Canadian_Grand_Prix/2024-06-09_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-06-09_Canadian_Grand_Prix/2024-06-09_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-06-23_Spanish_Grand_Prix/2024-06-23_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-06-23_Spanish_Grand_Prix/2024-06-23_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-06-30_Austrian_Grand_Prix/2024-06-30_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-06-30_Austrian_Grand_Prix/2024-06-30_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-07-07_British_Grand_Prix/2024-07-07_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-07-07_British_Grand_Prix/2024-07-07_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-07-21_Hungarian_Grand_Prix/2024-07-21_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-07-21_Hungarian_Grand_Prix/2024-07-21_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-07-28_Belgian_Grand_Prix/2024-07-28_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-07-28_Belgian_Grand_Prix/2024-07-28_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-08-25_Dutch_Grand_Prix/2024-08-25_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-08-25_Dutch_Grand_Prix/2024-08-25_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-09-01_Italian_Grand_Prix/2024-09-01_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-09-01_Italian_Grand_Prix/2024-09-01_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-09-15_Azerbaijan_Grand_Prix/2024-09-15_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-09-15_Azerbaijan_Grand_Prix/2024-09-15_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-09-22_Singapore_Grand_Prix/2024-09-22_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-09-22_Singapore_Grand_Prix/2024-09-22_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-10-20_United_States_Grand_Prix/2024-10-20_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-10-20_United_States_Grand_Prix/2024-10-20_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-10-27_Mexico_City_Grand_Prix/2024-10-27_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-10-27_Mexico_City_Grand_Prix/2024-10-27_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-11-03_São_Paulo_Grand_Prix/2024-11-03_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-11-03_São_Paulo_Grand_Prix/2024-11-03_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-11-23_Las_Vegas_Grand_Prix/2024-11-23_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-11-23_Las_Vegas_Grand_Prix/2024-11-23_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-12-01_Qatar_Grand_Prix/2024-12-01_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-12-01_Qatar_Grand_Prix/2024-12-01_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-12-08_Abu_Dhabi_Grand_Prix/2024-12-08_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2024/2024-12-08_Abu_Dhabi_Grand_Prix/2024-12-08_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-03-16_Australian_Grand_Prix/2025-03-15_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-03-16_Australian_Grand_Prix/2025-03-15_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-03-16_Australian_Grand_Prix/2025-03-16_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-03-16_Australian_Grand_Prix/2025-03-16_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-03-23_Chinese_Grand_Prix/2025-03-22_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-03-23_Chinese_Grand_Prix/2025-03-22_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-03-23_Chinese_Grand_Prix/2025-03-23_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-03-23_Chinese_Grand_Prix/2025-03-23_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-06_Japanese_Grand_Prix/2025-04-05_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-06_Japanese_Grand_Prix/2025-04-05_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-06_Japanese_Grand_Prix/2025-04-06_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-06_Japanese_Grand_Prix/2025-04-06_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-13_Bahrain_Grand_Prix/2025-04-12_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-13_Bahrain_Grand_Prix/2025-04-12_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-13_Bahrain_Grand_Prix/2025-04-13_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-13_Bahrain_Grand_Prix/2025-04-13_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-20_Saudi_Arabian_Grand_Prix/2025-04-19_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-20_Saudi_Arabian_Grand_Prix/2025-04-19_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-20_Saudi_Arabian_Grand_Prix/2025-04-20_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-04-20_Saudi_Arabian_Grand_Prix/2025-04-20_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-04_Miami_Grand_Prix/2025-05-03_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-04_Miami_Grand_Prix/2025-05-03_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-04_Miami_Grand_Prix/2025-05-04_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-04_Miami_Grand_Prix/2025-05-04_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-18_Emilia_Romagna_Grand_Prix/2025-05-17_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-18_Emilia_Romagna_Grand_Prix/2025-05-17_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-18_Emilia_Romagna_Grand_Prix/2025-05-18_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-18_Emilia_Romagna_Grand_Prix/2025-05-18_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-25_Monaco_Grand_Prix/2025-05-24_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-25_Monaco_Grand_Prix/2025-05-24_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-25_Monaco_Grand_Prix/2025-05-25_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-05-25_Monaco_Grand_Prix/2025-05-25_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-01_Spanish_Grand_Prix/2025-05-31_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-01_Spanish_Grand_Prix/2025-05-31_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-01_Spanish_Grand_Prix/2025-06-01_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-01_Spanish_Grand_Prix/2025-06-01_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-15_Canadian_Grand_Prix/2025-06-14_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-15_Canadian_Grand_Prix/2025-06-14_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-15_Canadian_Grand_Prix/2025-06-15_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-15_Canadian_Grand_Prix/2025-06-15_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-29_Austrian_Grand_Prix/2025-06-28_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-29_Austrian_Grand_Prix/2025-06-28_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-29_Austrian_Grand_Prix/2025-06-29_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-06-29_Austrian_Grand_Prix/2025-06-29_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-07-06_British_Grand_Prix/2025-07-05_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-07-06_British_Grand_Prix/2025-07-05_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-07-06_British_Grand_Prix/2025-07-06_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-07-06_British_Grand_Prix/2025-07-06_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-07-27_Belgian_Grand_Prix/2025-07-26_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-07-27_Belgian_Grand_Prix/2025-07-26_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-07-27_Belgian_Grand_Prix/2025-07-27_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-07-27_Belgian_Grand_Prix/2025-07-27_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-08-03_Hungarian_Grand_Prix/2025-08-02_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-08-03_Hungarian_Grand_Prix/2025-08-02_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-08-03_Hungarian_Grand_Prix/2025-08-03_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-08-03_Hungarian_Grand_Prix/2025-08-03_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-08-31_Dutch_Grand_Prix/2025-08-30_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-08-31_Dutch_Grand_Prix/2025-08-30_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-08-31_Dutch_Grand_Prix/2025-08-31_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-08-31_Dutch_Grand_Prix/2025-08-31_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-09-07_Italian_Grand_Prix/2025-09-06_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-09-07_Italian_Grand_Prix/2025-09-06_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-09-07_Italian_Grand_Prix/2025-09-07_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-09-07_Italian_Grand_Prix/2025-09-07_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-09-21_Azerbaijan_Grand_Prix/2025-09-20_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-09-21_Azerbaijan_Grand_Prix/2025-09-20_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-09-21_Azerbaijan_Grand_Prix/2025-09-21_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-09-21_Azerbaijan_Grand_Prix/2025-09-21_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-05_Singapore_Grand_Prix/2025-10-04_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-05_Singapore_Grand_Prix/2025-10-04_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-05_Singapore_Grand_Prix/2025-10-05_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-05_Singapore_Grand_Prix/2025-10-05_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-19_United_States_Grand_Prix/2025-10-18_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-19_United_States_Grand_Prix/2025-10-18_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-19_United_States_Grand_Prix/2025-10-19_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-19_United_States_Grand_Prix/2025-10-19_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-26_Mexico_City_Grand_Prix/2025-10-25_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-26_Mexico_City_Grand_Prix/2025-10-25_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-26_Mexico_City_Grand_Prix/2025-10-26_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-10-26_Mexico_City_Grand_Prix/2025-10-26_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-09_São_Paulo_Grand_Prix/2025-11-08_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-09_São_Paulo_Grand_Prix/2025-11-08_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-09_São_Paulo_Grand_Prix/2025-11-09_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-09_São_Paulo_Grand_Prix/2025-11-09_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-22_Las_Vegas_Grand_Prix/2025-11-21_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-22_Las_Vegas_Grand_Prix/2025-11-21_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-22_Las_Vegas_Grand_Prix/2025-11-22_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-22_Las_Vegas_Grand_Prix/2025-11-22_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-30_Qatar_Grand_Prix/2025-11-29_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-30_Qatar_Grand_Prix/2025-11-29_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-30_Qatar_Grand_Prix/2025-11-30_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-11-30_Qatar_Grand_Prix/2025-11-30_Race/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-12-07_Abu_Dhabi_Grand_Prix/2025-12-06_Qualifying/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-12-07_Abu_Dhabi_Grand_Prix/2025-12-06_Qualifying/session_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-12-07_Abu_Dhabi_Grand_Prix/2025-12-07_Race/driver_info.ff1pkl" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/fastf1_cache/2025/2025-12-07_Abu_Dhabi_Grand_Prix/2025-12-07_Race/session_info.ff1pkl" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -298,6 +21,11 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="repair" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
@@ -309,7 +37,7 @@
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
     &quot;url&quot;: &quot;https://github.com/HowardSTAR/FormulaOneBot.git&quot;,
-    &quot;accountId&quot;: &quot;710c08a8-3f0b-4675-86d3-b1873956e3c3&quot;
+    &quot;accountId&quot;: &quot;bf5195d0-0bf9-4307-8816-bfb6e13b6f36&quot;
   }
 }</component>
   <component name="ProjectColorInfo">{
@@ -324,6 +52,8 @@
   <component name="PropertiesComponent">{
   &quot;keyToString&quot;: {
     &quot;DefaultHtmlFileTemplate&quot;: &quot;HTML File&quot;,
+    &quot;Python tests.Python tests in test_prediction_api_sources_live.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python tests.Python tests in tests.executor&quot;: &quot;Run&quot;,
     &quot;Python.fastf1_capabilities_test.executor&quot;: &quot;Run&quot;,
     &quot;Python.main.executor&quot;: &quot;Run&quot;,
     &quot;Python.test_parser.executor&quot;: &quot;Run&quot;,
@@ -353,7 +83,7 @@
       <recent name="$PROJECT_DIR$/web/app" />
     </key>
   </component>
-  <component name="RunManager" selected="Python.main">
+  <component name="RunManager" selected="Python tests.Python tests in test_prediction_api_sources_live.py">
     <configuration name="fastf1_capabilities_test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="FormulaOneBot" />
       <option name="ENV_FILES" value="" />
@@ -386,7 +116,6 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="" />
-      <option name="SDK_NAME" value="Python 3.14 (FormulaOneBot)" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/app" />
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
@@ -424,10 +153,43 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="Python tests in test_prediction_api_sources_live.py" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
+      <module name="FormulaOneBot" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/test_prediction_api_sources_live.py&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Python tests in tests" type="tests" factoryName="Autodetect" temporary="true" nameIsGenerated="true">
+      <module name="FormulaOneBot" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method v="2" />
+    </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.fastf1_capabilities_test" />
+        <item itemvalue="Python tests.Python tests in test_prediction_api_sources_live.py" />
+        <item itemvalue="Python tests.Python tests in tests" />
         <item itemvalue="Python.test_parser" />
+        <item itemvalue="Python.fastf1_capabilities_test" />
+        <item itemvalue="Python tests.Python tests in tests" />
       </list>
     </recent_temporary>
   </component>
@@ -458,335 +220,399 @@
       <workItem from="1768914801741" duration="17575000" />
       <workItem from="1769405571210" duration="601000" />
     </task>
-    <task id="LOCAL-00001" summary="new page">
+    <task id="LOCAL-00075" summary="alert об ошибках">
       <option name="closed" value="true" />
-      <created>1767797595833</created>
-      <option name="number" value="00001" />
-      <option name="presentableId" value="LOCAL-00001" />
+      <created>1788973076572</created>
+      <option name="number" value="00075" />
+      <option name="presentableId" value="LOCAL-00075" />
       <option name="project" value="LOCAL" />
-      <updated>1767797595833</updated>
+      <updated>1788973076572</updated>
     </task>
-    <task id="LOCAL-00002" summary="style">
+    <task id="LOCAL-00076" summary="добавление уведомлений разных сессий">
       <option name="closed" value="true" />
-      <created>1767797974715</created>
-      <option name="number" value="00002" />
-      <option name="presentableId" value="LOCAL-00002" />
+      <created>1789029619470</created>
+      <option name="number" value="00076" />
+      <option name="presentableId" value="LOCAL-00076" />
       <option name="project" value="LOCAL" />
-      <updated>1767797974715</updated>
+      <updated>1789029619470</updated>
     </task>
-    <task id="LOCAL-00003" summary="выввод избранного в боте и в вебаппе">
+    <task id="LOCAL-00077" summary="добавлены портреты при выборе пилота">
       <option name="closed" value="true" />
-      <created>1768347002308</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
+      <created>1789033123371</created>
+      <option name="number" value="00077" />
+      <option name="presentableId" value="LOCAL-00077" />
       <option name="project" value="LOCAL" />
-      <updated>1768347002308</updated>
+      <updated>1789033123371</updated>
     </task>
-    <task id="LOCAL-00004" summary="вывод календаря">
+    <task id="LOCAL-00078" summary="обновление календаря гонки след">
       <option name="closed" value="true" />
-      <created>1768347656726</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
+      <created>1789130585508</created>
+      <option name="number" value="00078" />
+      <option name="presentableId" value="LOCAL-00078" />
       <option name="project" value="LOCAL" />
-      <updated>1768347656726</updated>
+      <updated>1789130585509</updated>
     </task>
-    <task id="LOCAL-00005" summary="вывод пилотов">
+    <task id="LOCAL-00079" summary="обновленные фото пилотов">
       <option name="closed" value="true" />
-      <created>1768348016188</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
+      <created>1789152109324</created>
+      <option name="number" value="00079" />
+      <option name="presentableId" value="LOCAL-00079" />
       <option name="project" value="LOCAL" />
-      <updated>1768348016188</updated>
+      <updated>1789152109324</updated>
     </task>
-    <task id="LOCAL-00006" summary="вывод команды">
+    <task id="LOCAL-00080" summary="включение всем уведомлений, но отключение звука у тех кто отключил их">
       <option name="closed" value="true" />
-      <created>1768375278206</created>
-      <option name="number" value="00006" />
-      <option name="presentableId" value="LOCAL-00006" />
+      <created>1789152693185</created>
+      <option name="number" value="00080" />
+      <option name="presentableId" value="LOCAL-00080" />
       <option name="project" value="LOCAL" />
-      <updated>1768375278206</updated>
+      <updated>1789152693185</updated>
     </task>
-    <task id="LOCAL-00007" summary="вывод корректно команд и пилотов">
+    <task id="LOCAL-00081" summary="доп уведомление о приглошение про прогноз">
       <option name="closed" value="true" />
-      <created>1768378218684</created>
-      <option name="number" value="00007" />
-      <option name="presentableId" value="LOCAL-00007" />
+      <created>1789153036560</created>
+      <option name="number" value="00081" />
+      <option name="presentableId" value="LOCAL-00081" />
       <option name="project" value="LOCAL" />
-      <updated>1768378218684</updated>
+      <updated>1789153036560</updated>
     </task>
-    <task id="LOCAL-00008" summary="вывод корректного расписания выходных">
+    <task id="LOCAL-00082" summary="новый вид трасс и обнлвление мадрида">
       <option name="closed" value="true" />
-      <created>1768381946568</created>
-      <option name="number" value="00008" />
-      <option name="presentableId" value="LOCAL-00008" />
+      <created>1789315138325</created>
+      <option name="number" value="00082" />
+      <option name="presentableId" value="LOCAL-00082" />
       <option name="project" value="LOCAL" />
-      <updated>1768381946568</updated>
+      <updated>1789315138325</updated>
     </task>
-    <task id="LOCAL-00009" summary="работа для избранного вернулась">
+    <task id="LOCAL-00083" summary="новый вид трасс и обнлвление мадрида">
       <option name="closed" value="true" />
-      <created>1768385918934</created>
-      <option name="number" value="00009" />
-      <option name="presentableId" value="LOCAL-00009" />
+      <created>1789315153570</created>
+      <option name="number" value="00083" />
+      <option name="presentableId" value="LOCAL-00083" />
       <option name="project" value="LOCAL" />
-      <updated>1768385918934</updated>
+      <updated>1789315153570</updated>
     </task>
-    <task id="LOCAL-00010" summary="реф">
+    <task id="LOCAL-00084" summary="обновлённая админка">
       <option name="closed" value="true" />
-      <created>1768392615876</created>
-      <option name="number" value="00010" />
-      <option name="presentableId" value="LOCAL-00010" />
+      <created>1789325218068</created>
+      <option name="number" value="00084" />
+      <option name="presentableId" value="LOCAL-00084" />
       <option name="project" value="LOCAL" />
-      <updated>1768392615876</updated>
+      <updated>1789325218068</updated>
     </task>
-    <task id="LOCAL-00011" summary="привожу к красивому">
+    <task id="LOCAL-00085" summary="новая реализация сообщений всем">
       <option name="closed" value="true" />
-      <created>1768398628033</created>
-      <option name="number" value="00011" />
-      <option name="presentableId" value="LOCAL-00011" />
+      <created>1789327571914</created>
+      <option name="number" value="00085" />
+      <option name="presentableId" value="LOCAL-00085" />
       <option name="project" value="LOCAL" />
-      <updated>1768398628033</updated>
+      <updated>1789327571914</updated>
     </task>
-    <task id="LOCAL-00012" summary="привожу к красивому">
+    <task id="LOCAL-00086" summary="просмотр прогнозов">
       <option name="closed" value="true" />
-      <created>1768400926621</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
+      <created>1789329066663</created>
+      <option name="number" value="00086" />
+      <option name="presentableId" value="LOCAL-00086" />
       <option name="project" value="LOCAL" />
-      <updated>1768400926621</updated>
+      <updated>1789329066663</updated>
     </task>
-    <task id="LOCAL-00013" summary="добавление настроек">
+    <task id="LOCAL-00087" summary="обновление базы">
       <option name="closed" value="true" />
-      <created>1768405973977</created>
-      <option name="number" value="00013" />
-      <option name="presentableId" value="LOCAL-00013" />
+      <created>1789330494264</created>
+      <option name="number" value="00087" />
+      <option name="presentableId" value="LOCAL-00087" />
       <option name="project" value="LOCAL" />
-      <updated>1768405973977</updated>
+      <updated>1789330494264</updated>
     </task>
-    <task id="LOCAL-00014" summary="корректный вывод даты">
+    <task id="LOCAL-00088" summary="обновление данных для прогнозов">
       <option name="closed" value="true" />
-      <created>1768616953150</created>
-      <option name="number" value="00014" />
-      <option name="presentableId" value="LOCAL-00014" />
+      <created>1789332617859</created>
+      <option name="number" value="00088" />
+      <option name="presentableId" value="LOCAL-00088" />
       <option name="project" value="LOCAL" />
-      <updated>1768616953150</updated>
+      <updated>1789332617859</updated>
     </task>
-    <task id="LOCAL-00015" summary="добавление настроек, пока только в виде кнопок.">
+    <task id="LOCAL-00089" summary="возможность отправлять ссылки ввиде кнопок">
       <option name="closed" value="true" />
-      <created>1768617413923</created>
-      <option name="number" value="00015" />
-      <option name="presentableId" value="LOCAL-00015" />
+      <created>1789392337032</created>
+      <option name="number" value="00089" />
+      <option name="presentableId" value="LOCAL-00089" />
       <option name="project" value="LOCAL" />
-      <updated>1768617413923</updated>
+      <updated>1789392337032</updated>
     </task>
-    <task id="LOCAL-00016" summary="синхронизация настроек">
+    <task id="LOCAL-00090" summary="фикс">
       <option name="closed" value="true" />
-      <created>1768619366065</created>
-      <option name="number" value="00016" />
-      <option name="presentableId" value="LOCAL-00016" />
+      <created>1789392608188</created>
+      <option name="number" value="00090" />
+      <option name="presentableId" value="LOCAL-00090" />
       <option name="project" value="LOCAL" />
-      <updated>1768619366065</updated>
+      <updated>1789392608188</updated>
     </task>
-    <task id="LOCAL-00017" summary="синхронизация настроек">
+    <task id="LOCAL-00091" summary="Доставка уведомлений и повтор ошибок.">
       <option name="closed" value="true" />
-      <created>1768639736305</created>
-      <option name="number" value="00017" />
-      <option name="presentableId" value="LOCAL-00017" />
+      <created>1789408924894</created>
+      <option name="number" value="00091" />
+      <option name="presentableId" value="LOCAL-00091" />
       <option name="project" value="LOCAL" />
-      <updated>1768639736305</updated>
+      <updated>1789408924894</updated>
     </task>
-    <task id="LOCAL-00018" summary="вывод времени выбранного часового пояса">
+    <task id="LOCAL-00092" summary="Добавил дозагрузку результатов и подтверждаемый пересчёт">
       <option name="closed" value="true" />
-      <created>1768640844205</created>
-      <option name="number" value="00018" />
-      <option name="presentableId" value="LOCAL-00018" />
+      <created>1789409784086</created>
+      <option name="number" value="00092" />
+      <option name="presentableId" value="LOCAL-00092" />
       <option name="project" value="LOCAL" />
-      <updated>1768640844205</updated>
+      <updated>1789409784086</updated>
     </task>
-    <task id="LOCAL-00019" summary="вывод времени выбранного часового пояса">
+    <task id="LOCAL-00093" summary="Центр контроля">
       <option name="closed" value="true" />
-      <created>1768641571007</created>
-      <option name="number" value="00019" />
-      <option name="presentableId" value="LOCAL-00019" />
+      <created>1789410341929</created>
+      <option name="number" value="00093" />
+      <option name="presentableId" value="LOCAL-00093" />
       <option name="project" value="LOCAL" />
-      <updated>1768641571007</updated>
+      <updated>1789410341929</updated>
     </task>
-    <task id="LOCAL-00020" summary="правильная конвертация времени на странице след гонки">
+    <task id="LOCAL-00094" summary="Добавил персональную главную">
       <option name="closed" value="true" />
-      <created>1768643988511</created>
-      <option name="number" value="00020" />
-      <option name="presentableId" value="LOCAL-00020" />
+      <created>1789410722196</created>
+      <option name="number" value="00094" />
+      <option name="presentableId" value="LOCAL-00094" />
       <option name="project" value="LOCAL" />
-      <updated>1768643988511</updated>
+      <updated>1789410722196</updated>
     </task>
-    <task id="LOCAL-00021" summary="правильное отображение дат на главной и след гонки">
+    <task id="LOCAL-00095" summary="апдейт">
       <option name="closed" value="true" />
-      <created>1768644085607</created>
-      <option name="number" value="00021" />
-      <option name="presentableId" value="LOCAL-00021" />
+      <created>1789467530657</created>
+      <option name="number" value="00095" />
+      <option name="presentableId" value="LOCAL-00095" />
       <option name="project" value="LOCAL" />
-      <updated>1768644085607</updated>
+      <updated>1789467530658</updated>
     </task>
-    <task id="LOCAL-00022" summary="красная надпись хихик">
+    <task id="LOCAL-00096" summary="обновлён пиджет">
       <option name="closed" value="true" />
-      <created>1768644941426</created>
-      <option name="number" value="00022" />
-      <option name="presentableId" value="LOCAL-00022" />
+      <created>1789468049784</created>
+      <option name="number" value="00096" />
+      <option name="presentableId" value="LOCAL-00096" />
       <option name="project" value="LOCAL" />
-      <updated>1768644941426</updated>
+      <updated>1789468049784</updated>
     </task>
-    <task id="LOCAL-00023" summary="реф">
+    <task id="LOCAL-00097" summary="обновлён пиджет">
       <option name="closed" value="true" />
-      <created>1768646386572</created>
-      <option name="number" value="00023" />
-      <option name="presentableId" value="LOCAL-00023" />
+      <created>1789676896859</created>
+      <option name="number" value="00097" />
+      <option name="presentableId" value="LOCAL-00097" />
       <option name="project" value="LOCAL" />
-      <updated>1768646386572</updated>
+      <updated>1789676896860</updated>
     </task>
-    <task id="LOCAL-00024" summary="добавим Redis как слой &quot;быстрой памяти&quot;">
+    <task id="LOCAL-00098" summary="фикс">
       <option name="closed" value="true" />
-      <created>1768666899335</created>
-      <option name="number" value="00024" />
-      <option name="presentableId" value="LOCAL-00024" />
+      <created>1789713613073</created>
+      <option name="number" value="00098" />
+      <option name="presentableId" value="LOCAL-00098" />
       <option name="project" value="LOCAL" />
-      <updated>1768666899335</updated>
+      <updated>1789713613073</updated>
     </task>
-    <task id="LOCAL-00025" summary="новые картинки">
+    <task id="LOCAL-00099" summary="добавление сортировки в аналитику">
       <option name="closed" value="true" />
-      <created>1768668866668</created>
-      <option name="number" value="00025" />
-      <option name="presentableId" value="LOCAL-00025" />
+      <created>1790156327695</created>
+      <option name="number" value="00099" />
+      <option name="presentableId" value="LOCAL-00099" />
       <option name="project" value="LOCAL" />
-      <updated>1768668866668</updated>
+      <updated>1790156327695</updated>
     </task>
-    <task id="LOCAL-00026" summary="вывод информации по трассе">
+    <task id="LOCAL-00100" summary="новый иконки">
       <option name="closed" value="true" />
-      <created>1768684148409</created>
-      <option name="number" value="00026" />
-      <option name="presentableId" value="LOCAL-00026" />
+      <created>1790158867941</created>
+      <option name="number" value="00100" />
+      <option name="presentableId" value="LOCAL-00100" />
       <option name="project" value="LOCAL" />
-      <updated>1768684148409</updated>
+      <updated>1790158867941</updated>
     </task>
-    <task id="LOCAL-00027" summary="удаление">
+    <task id="LOCAL-00101" summary="новый иконки">
       <option name="closed" value="true" />
-      <created>1768684154467</created>
-      <option name="number" value="00027" />
-      <option name="presentableId" value="LOCAL-00027" />
+      <created>1790159703344</created>
+      <option name="number" value="00101" />
+      <option name="presentableId" value="LOCAL-00101" />
       <option name="project" value="LOCAL" />
-      <updated>1768684154467</updated>
+      <updated>1790159703344</updated>
     </task>
-    <task id="LOCAL-00028" summary="инфа для трасс">
+    <task id="LOCAL-00102" summary="новый иконки">
       <option name="closed" value="true" />
-      <created>1768684165015</created>
-      <option name="number" value="00028" />
-      <option name="presentableId" value="LOCAL-00028" />
+      <created>1790159743996</created>
+      <option name="number" value="00102" />
+      <option name="presentableId" value="LOCAL-00102" />
       <option name="project" value="LOCAL" />
-      <updated>1768684165015</updated>
+      <updated>1790159743996</updated>
     </task>
-    <task id="LOCAL-00029" summary="svg трассы">
+    <task id="LOCAL-00103" summary="исправления бага базы">
       <option name="closed" value="true" />
-      <created>1768767830727</created>
-      <option name="number" value="00029" />
-      <option name="presentableId" value="LOCAL-00029" />
+      <created>1790410853053</created>
+      <option name="number" value="00103" />
+      <option name="presentableId" value="LOCAL-00103" />
       <option name="project" value="LOCAL" />
-      <updated>1768767830727</updated>
+      <updated>1790410853053</updated>
     </task>
-    <task id="LOCAL-00030" summary="функция отображения картинки">
+    <task id="LOCAL-00104" summary="фикс">
       <option name="closed" value="true" />
-      <created>1768767848602</created>
-      <option name="number" value="00030" />
-      <option name="presentableId" value="LOCAL-00030" />
+      <created>1790680512628</created>
+      <option name="number" value="00104" />
+      <option name="presentableId" value="LOCAL-00104" />
       <option name="project" value="LOCAL" />
-      <updated>1768767848602</updated>
+      <updated>1790680512628</updated>
     </task>
-    <task id="LOCAL-00031" summary="добавления анимаций для трасс">
+    <task id="LOCAL-00105" summary="фиксы">
       <option name="closed" value="true" />
-      <created>1768769090435</created>
-      <option name="number" value="00031" />
-      <option name="presentableId" value="LOCAL-00031" />
+      <created>1790689545858</created>
+      <option name="number" value="00105" />
+      <option name="presentableId" value="LOCAL-00105" />
       <option name="project" value="LOCAL" />
-      <updated>1768769090435</updated>
+      <updated>1790689545858</updated>
     </task>
-    <task id="LOCAL-00032" summary="красивая анимация появления трассы">
+    <task id="LOCAL-00106" summary="фикс предиктов">
       <option name="closed" value="true" />
-      <created>1768916959638</created>
-      <option name="number" value="00032" />
-      <option name="presentableId" value="LOCAL-00032" />
+      <created>1790694094763</created>
+      <option name="number" value="00106" />
+      <option name="presentableId" value="LOCAL-00106" />
       <option name="project" value="LOCAL" />
-      <updated>1768916959638</updated>
+      <updated>1790694094763</updated>
     </task>
-    <task id="LOCAL-00033" summary="вывод статистики">
+    <task id="LOCAL-00107" summary="новый тест на проверку результатов">
       <option name="closed" value="true" />
-      <created>1768920262388</created>
-      <option name="number" value="00033" />
-      <option name="presentableId" value="LOCAL-00033" />
+      <created>1790703981457</created>
+      <option name="number" value="00107" />
+      <option name="presentableId" value="LOCAL-00107" />
       <option name="project" value="LOCAL" />
-      <updated>1768920262388</updated>
+      <updated>1790703981457</updated>
     </task>
-    <task id="LOCAL-00034" summary="сделано нормальное сравнение">
+    <task id="LOCAL-00108" summary="новые резы для прогнозов результатов">
       <option name="closed" value="true" />
-      <created>1768937811032</created>
-      <option name="number" value="00034" />
-      <option name="presentableId" value="LOCAL-00034" />
+      <created>1790707461684</created>
+      <option name="number" value="00108" />
+      <option name="presentableId" value="LOCAL-00108" />
       <option name="project" value="LOCAL" />
-      <updated>1768937811032</updated>
+      <updated>1790707461684</updated>
     </task>
-    <task id="LOCAL-00035" summary="вывод сравнения гонщиков">
+    <task id="LOCAL-00109" summary="фикс для прогнозов результатов">
       <option name="closed" value="true" />
-      <created>1768942415078</created>
-      <option name="number" value="00035" />
-      <option name="presentableId" value="LOCAL-00035" />
+      <created>1790710125718</created>
+      <option name="number" value="00109" />
+      <option name="presentableId" value="LOCAL-00109" />
       <option name="project" value="LOCAL" />
-      <updated>1768942415078</updated>
+      <updated>1790710125718</updated>
     </task>
-    <task id="LOCAL-00036" summary="сохранения данных в гите, чтобы заново ничего не качать">
+    <task id="LOCAL-00110" summary="фикс для прогнозов результатов">
       <option name="closed" value="true" />
-      <created>1768942441456</created>
-      <option name="number" value="00036" />
-      <option name="presentableId" value="LOCAL-00036" />
+      <created>1790712067389</created>
+      <option name="number" value="00110" />
+      <option name="presentableId" value="LOCAL-00110" />
       <option name="project" value="LOCAL" />
-      <updated>1768942441456</updated>
+      <updated>1790712067389</updated>
     </task>
-    <task id="LOCAL-00037" summary="вывод сравнения квалификаций">
+    <task id="LOCAL-00111" summary="История и знакомство с пилотами&#10;Автоматический рекап&#10;В Telegram добавлены команды:&#10;- /history — история и сравнение.&#10;- /driver ALO — справка о пилоте.&#10;- /recap — последняя гонка.&#10;- /recap 2025 15 — конкретный этап.">
       <option name="closed" value="true" />
-      <created>1768943496175</created>
-      <option name="number" value="00037" />
-      <option name="presentableId" value="LOCAL-00037" />
+      <created>1790715512328</created>
+      <option name="number" value="00111" />
+      <option name="presentableId" value="LOCAL-00111" />
       <option name="project" value="LOCAL" />
-      <updated>1768943496175</updated>
+      <updated>1790715512328</updated>
     </task>
-    <task id="LOCAL-00038" summary="данные сезонов">
+    <task id="LOCAL-00112" summary="Добавил кнопки под рассылкой">
       <option name="closed" value="true" />
-      <created>1768944401714</created>
-      <option name="number" value="00038" />
-      <option name="presentableId" value="LOCAL-00038" />
+      <created>1790765483118</created>
+      <option name="number" value="00112" />
+      <option name="presentableId" value="LOCAL-00112" />
       <option name="project" value="LOCAL" />
-      <updated>1768944401714</updated>
+      <updated>1790765483118</updated>
     </task>
-    <task id="LOCAL-00039" summary="новая реализация кэша">
+    <task id="LOCAL-00113" summary="добавлены колизии, новые трассы">
       <option name="closed" value="true" />
-      <created>1769285346435</created>
-      <option name="number" value="00039" />
-      <option name="presentableId" value="LOCAL-00039" />
+      <created>1790774289296</created>
+      <option name="number" value="00113" />
+      <option name="presentableId" value="LOCAL-00113" />
       <option name="project" value="LOCAL" />
-      <updated>1769285346435</updated>
+      <updated>1790774289296</updated>
     </task>
-    <task id="LOCAL-00040" summary="возвращения работы сравнения">
+    <task id="LOCAL-00114" summary="исправлены 2 тарссы">
       <option name="closed" value="true" />
-      <created>1769286472133</created>
-      <option name="number" value="00040" />
-      <option name="presentableId" value="LOCAL-00040" />
+      <created>1790776736368</created>
+      <option name="number" value="00114" />
+      <option name="presentableId" value="LOCAL-00114" />
       <option name="project" value="LOCAL" />
-      <updated>1769286472133</updated>
+      <updated>1790776736368</updated>
     </task>
-    <task id="LOCAL-00041" summary="красивая анимация если данных нет">
+    <task id="LOCAL-00115" summary="новые штуки">
       <option name="closed" value="true" />
-      <created>1769292224261</created>
-      <option name="number" value="00041" />
-      <option name="presentableId" value="LOCAL-00041" />
+      <created>1790799467027</created>
+      <option name="number" value="00115" />
+      <option name="presentableId" value="LOCAL-00115" />
       <option name="project" value="LOCAL" />
-      <updated>1769292224261</updated>
+      <updated>1790799467027</updated>
     </task>
-    <option name="localTasksCounter" value="42" />
+    <task id="LOCAL-00116" summary="группировка кнопок в боте">
+      <option name="closed" value="true" />
+      <created>1790801991809</created>
+      <option name="number" value="00116" />
+      <option name="presentableId" value="LOCAL-00116" />
+      <option name="project" value="LOCAL" />
+      <updated>1790801991809</updated>
+    </task>
+    <task id="LOCAL-00117" summary="новое апи телег">
+      <option name="closed" value="true" />
+      <created>1790805137633</created>
+      <option name="number" value="00117" />
+      <option name="presentableId" value="LOCAL-00117" />
+      <option name="project" value="LOCAL" />
+      <updated>1790805137633</updated>
+    </task>
+    <task id="LOCAL-00118" summary="обновоение фоток">
+      <option name="closed" value="true" />
+      <created>1790807889553</created>
+      <option name="number" value="00118" />
+      <option name="presentableId" value="LOCAL-00118" />
+      <option name="project" value="LOCAL" />
+      <updated>1790807889555</updated>
+    </task>
+    <task id="LOCAL-00119" summary="рефакторинг">
+      <option name="closed" value="true" />
+      <created>1790848317610</created>
+      <option name="number" value="00119" />
+      <option name="presentableId" value="LOCAL-00119" />
+      <option name="project" value="LOCAL" />
+      <updated>1790848317610</updated>
+    </task>
+    <task id="LOCAL-00120" summary="рефакторинг">
+      <option name="closed" value="true" />
+      <created>1790848805332</created>
+      <option name="number" value="00120" />
+      <option name="presentableId" value="LOCAL-00120" />
+      <option name="project" value="LOCAL" />
+      <updated>1790848805332</updated>
+    </task>
+    <task id="LOCAL-00121" summary="рефакторинг">
+      <option name="closed" value="true" />
+      <created>1790851099048</created>
+      <option name="number" value="00121" />
+      <option name="presentableId" value="LOCAL-00121" />
+      <option name="project" value="LOCAL" />
+      <updated>1790851099048</updated>
+    </task>
+    <task id="LOCAL-00122" summary="новый рекап">
+      <option name="closed" value="true" />
+      <created>1790856866525</created>
+      <option name="number" value="00122" />
+      <option name="presentableId" value="LOCAL-00122" />
+      <option name="project" value="LOCAL" />
+      <updated>1790856866525</updated>
+    </task>
+    <task id="LOCAL-00123" summary="фикс рекап">
+      <option name="closed" value="true" />
+      <created>1790858137973</created>
+      <option name="number" value="00123" />
+      <option name="presentableId" value="LOCAL-00123" />
+      <option name="project" value="LOCAL" />
+      <updated>1790858137973</updated>
+    </task>
+    <option name="localTasksCounter" value="124" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -804,32 +630,32 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="добавление настроек, пока только в виде кнопок." />
-    <MESSAGE value="синхронизация настроек" />
-    <MESSAGE value="вывод времени выбранного часового пояса" />
-    <MESSAGE value="правильная конвертация времени на странице след гонки" />
-    <MESSAGE value="правильное отображение дат на главной и след гонки" />
-    <MESSAGE value="красная надпись хихик" />
-    <MESSAGE value="реф" />
-    <MESSAGE value="добавим Redis как слой &quot;быстрой памяти&quot;" />
-    <MESSAGE value="новые картинки" />
-    <MESSAGE value="вывод информации по трассе" />
-    <MESSAGE value="удаление" />
-    <MESSAGE value="инфа для трасс" />
-    <MESSAGE value="svg трассы" />
-    <MESSAGE value="функция отображения картинки" />
-    <MESSAGE value="добавления анимаций для трасс" />
-    <MESSAGE value="красивая анимация появления трассы" />
-    <MESSAGE value="вывод статистики" />
-    <MESSAGE value="сделано нормальное сравнение" />
-    <MESSAGE value="вывод сравнения гонщиков" />
-    <MESSAGE value="сохранения данных в гите, чтобы заново ничего не качать" />
-    <MESSAGE value="вывод сравнения квалификаций" />
-    <MESSAGE value="данные сезонов" />
-    <MESSAGE value="новая реализация кэша" />
-    <MESSAGE value="возвращения работы сравнения" />
-    <MESSAGE value="красивая анимация если данных нет" />
-    <option name="LAST_COMMIT_MESSAGE" value="красивая анимация если данных нет" />
+    <MESSAGE value="Центр контроля" />
+    <MESSAGE value="Добавил персональную главную" />
+    <MESSAGE value="апдейт" />
+    <MESSAGE value="Единые очки. Главная и сравнение используют официальный зачёт, включая спринты. Гоночные показатели подписаны отдельно; отсутствующие данные не выдаются за нули. &#10;&#10;Характеристики трасс. Мадрид отделён от Барселоны, параметры сезона 2026 сверены с официальными карточками F1. Дополнительно исправлены ошибочные совпадения названий трасс. &#10;&#10;Компактная главная. Под ближайшей сессией — короткое актуальное действие вместо большой панели. Добавлено нижнее мобильное меню. &#10;&#10;Прогноз без регистрации. Гость видит правила, пример разбора и может заполнить черновик. Выбор сохраняется при переходе к входу. &#10;&#10;«Мой сезон». Личная история, лучший и средний результат, точность по категориям, изменение места и разбор этапа. Неизвестные результаты не считаются промахами. &#10;&#10;Соревнования с друзьями. Рейтинг отдельного этапа, приватные лиги с приглашениями, сезонный зачёт и достижения. Чужие ответы остаются закрытыми. &#10;&#10;Календарь и результаты. Предстоящие этапы показываются первыми, сессии можно экспортировать в календарь. Карты компактнее, добавлены сводка изменений после гонки и ссылки на объяснения терминов." />
+    <MESSAGE value="Единые очки. Главная и сравнение используют официальный зачёт, включая спринты. Гоночные показатели подписаны отдельно; отсутствующие данные не выдаются за нули. &#10;&#10;Характеристики трасс. Мадрид отделён от Барселоны, параметры сезона 2026 сверены с официальными карточками F1. Дополнительно исправлены ошибочные совпадения названий трасс. &#10;&#10;Компактная главная. Под ближайшей сессией — короткое актуальное действие вместо большой панели. Добавлено нижнее мобильное меню. &#10;&#10;Прогноз без регистрации. Гость видит правила, пример разбора и может заполнить черновик. Выбор сохраняется при переходе к входу. &#10;&#10;«Мой сезон». Личная история, лучший и средний результат, точность по категориям, изменение места и разбор этапа. Неизвестные результаты не считаются промахами. &#10;&#10;Соревнования с друзьями. Рейтинг отдельного этапа, приватные лиги с приглашениями, сезонный зачёт и достижения. Чужие ответы остаются закрытыми. &#10;&#10;Календарь и результаты. Предстоящие этапы показываются первыми, сессии можно экспортировать в календарь. Карты компактнее, добавлены сводка изменений после гонки и ссылки на объяснения терминов." />
+    <MESSAGE value="добавление сортировки в аналитику" />
+    <MESSAGE value="новый иконки" />
+    <MESSAGE value="исправления бага базы" />
+    <MESSAGE value="фикс" />
+    <MESSAGE value="фиксы" />
+    <MESSAGE value="фикс предиктов" />
+    <MESSAGE value="новый тест на проверку результатов" />
+    <MESSAGE value="новые резы для прогнозов результатов" />
+    <MESSAGE value="фикс для прогнозов результатов" />
+    <MESSAGE value="История и знакомство с пилотами&#10;Автоматический рекап&#10;В Telegram добавлены команды:&#10;- /history — история и сравнение.&#10;- /driver ALO — справка о пилоте.&#10;- /recap — последняя гонка.&#10;- /recap 2025 15 — конкретный этап." />
+    <MESSAGE value="Добавил кнопки под рассылкой" />
+    <MESSAGE value="добавлены колизии, новые трассы" />
+    <MESSAGE value="исправлены 2 тарссы" />
+    <MESSAGE value="новые штуки" />
+    <MESSAGE value="группировка кнопок в боте" />
+    <MESSAGE value="новое апи телег" />
+    <MESSAGE value="обновоение фоток" />
+    <MESSAGE value="рефакторинг" />
+    <MESSAGE value="новый рекап" />
+    <MESSAGE value="фикс рекап" />
+    <option name="LAST_COMMIT_MESSAGE" value="фикс рекап" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/FormulaOneBot$fastf1_capabilities_test.coverage" NAME="fastf1_capabilities_test Coverage Results" MODIFIED="1768941910109" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />

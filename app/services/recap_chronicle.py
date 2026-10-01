@@ -19,14 +19,93 @@ from app.services.prediction_race_facts import (
 
 logger = logging.getLogger(__name__)
 SOURCE = "openf1-control"
-SC_TEXT = "Выпущена машина безопасности — гонка проходит за машиной безопасности."
+PARSER_VERSION = 2
+RECHECK_WINDOW = timedelta(days=7)
+LOOKBACK = timedelta(days=10)
+SC_TEXT = "На трассу выпустили машину безопасности — гонка продолжилась за ней."
+VSC_TEXT = "Включили VSC — пилотов обязали соблюдать заданный темп."
+RED_TEXT = "Гонку остановили красным флагом."
 LEGACY_SC_TEXT = "Выпущена машина безопасности — гонка нейтрализована."
+PREVIOUS_SC_TEXT = "Выпущена машина безопасности — гонка проходит за машиной безопасности."
+
+PENALTY_REASONS = {
+    "CAUSING A COLLISION": "за провоцирование столкновения",
+    "SPEEDING IN THE PIT LANE": "за превышение скорости на пит-лейне",
+    "SPEEDING IN PIT LANE": "за превышение скорости на пит-лейне",
+    "TRACK LIMITS": "за нарушение пределов трассы",
+    "LEAVING THE TRACK AND GAINING AN ADVANTAGE": "за выезд за пределы трассы с получением преимущества",
+    "YELLOW FLAG INFRINGEMENT": "за нарушение режима жёлтых флагов",
+    "UNSAFE RELEASE": "за небезопасный выпуск из боксов",
+    "FALSE START": "за фальстарт",
+    "JUMP START": "за фальстарт",
+    "FORCING ANOTHER DRIVER OFF THE TRACK": "за вытеснение другого пилота за пределы трассы",
+    "FAILING TO FOLLOW RACE DIRECTORS INSTRUCTIONS": "за невыполнение указаний дирекции гонки",
+    "OVERTAKING UNDER SAFETY CAR": "за обгон в режиме машины безопасности",
+    "IGNORING BLUE FLAGS": "за игнорирование синих флагов",
+}
+DEPLOYMENT_REASONS = {
+    "DEBRIS": "из-за обломков на трассе",
+    "DEBRIS ON TRACK": "из-за обломков на трассе",
+    "HEAVY RAIN": "из-за сильного дождя",
+    "POOR VISIBILITY": "из-за плохой видимости",
+    "CAUSING A COLLISION": "из-за столкновения",
+    "COLLISION": "из-за столкновения",
+    "CAR STOPPED ON TRACK": "из-за остановившейся на трассе машины",
+}
 
 
 def display_title(title, source_id=SOURCE):
     # Final snapshots are not refetched. Update their wording at read time,
     # leaving stored provenance, moderation and publisher headlines unchanged.
-    return title.replace(LEGACY_SC_TEXT, SC_TEXT) if source_id == SOURCE else title
+    if source_id != SOURCE:
+        return title
+    for old, new in ((LEGACY_SC_TEXT, SC_TEXT), (PREVIOUS_SC_TEXT, SC_TEXT),
+                     ("Включён VSC — пилоты обязаны соблюдать заданный темп.", VSC_TEXT),
+                     ("Красный флаг — гонка остановлена.", RED_TEXT)):
+        title = title.replace(old, new)
+    return re.sub(r": объявлен временной штраф — (\d+) сек\.", r" получил \1-секундный штраф.", title)
+
+
+def reason_tail(message, reasons):
+    # Only a cause stated in this very message is a causal claim. Strip the
+    # optional stewards' incident clock; neighbouring messages are not reasons.
+    tail = message.partition(" - ")[2]
+    tail = re.sub(r"\s*\(\d{1,2}:\d{2}:\d{2}\)\s*$", "", tail).strip().rstrip(".")
+    return reasons.get(tail.replace("'", "").replace("’", ""))
+
+
+def safety_context(date, valid, race_finish):
+    """Direct facts during the deployment, never an inferred crash or culprit."""
+    end = min(race_finish, date + timedelta(minutes=5))
+    endings = {"SAFETY CAR IN THIS LAP", "VIRTUAL SAFETY CAR ENDING",
+               "SAFETY CAR DEPLOYED", "VIRTUAL SAFETY CAR DEPLOYED"}
+    for other_date, row in valid:
+        if date < other_date <= end and str(row.get("message", "")).upper() in endings:
+            end = other_date
+    facts = []
+    for other_date, row in valid:
+        if not date <= other_date <= end or row.get("category") != "Other":
+            continue
+        message = " ".join(str(row.get("message", "")).upper().split())
+        match = re.fullmatch(r"(RECOVERY VEHICLE|MARSHALS) ON TRACK AT TURN (\d{1,2})", message)
+        if match and 0 < int(match[2]) <= 99:
+            turn = int(match[2])
+            if match[1] == "RECOVERY VEHICLE":
+                facts.append((0, other_date, turn, f"В этот период в повороте {turn} работала эвакуационная техника."))
+            else:
+                facts.append((1, other_date, turn, f"В этот период в повороте {turn} работали маршалы."))
+        elif message == "ALL CARS THROUGH THE PIT LANE":
+            facts.append((2, other_date, None, "В этот период машины направили через пит-лейн."))
+    selected, turns, texts = [], set(), set()
+    for fact in sorted(facts):
+        if fact[3] in texts or fact[2] is not None and fact[2] in turns:
+            continue
+        selected.append(fact)
+        turns.add(fact[2])
+        texts.add(fact[3])
+        if len(selected) == 2:
+            break
+    return [fact[3] for fact in sorted(selected, key=lambda fact: fact[1])]
 
 
 def utc(value):
@@ -80,7 +159,7 @@ def build_chronicle(session, messages, drivers, now):
         if not isinstance(row, dict) or row.get("session_key") != key:
             continue
         date = utc(row.get("date"))
-        if date and start <= date <= min(now, end + timedelta(days=1)):
+        if date and start <= date <= min(now, end + RECHECK_WINDOW):
             valid.append((date, row))
     starts = [date for date, row in valid if row.get("category") == "SessionStatus"
               and str(row.get("message", "")).upper() == "SESSION STARTED"]
@@ -99,24 +178,39 @@ def build_chronicle(session, messages, drivers, now):
             continue  # Never describe a formation-lap deployment as a race event.
         message = " ".join(str(row.get("message") or "").upper().split())
         category = row.get("category")
+        action = message.partition(" - ")[0]
         title, kind, score = "", "", 0
         during_race = date <= race_finish
-        if during_race and category == "SafetyCar" and message == "SAFETY CAR DEPLOYED":
+        if during_race and category == "SafetyCar" and action == "SAFETY CAR DEPLOYED":
             title, kind, score = SC_TEXT, "sc", 80
-        elif during_race and category == "SafetyCar" and message == "VIRTUAL SAFETY CAR DEPLOYED":
-            title, kind, score = "Включён VSC — пилоты обязаны соблюдать заданный темп.", "vsc", 70
+            reason = reason_tail(message, DEPLOYMENT_REASONS)
+            if reason:
+                title = f"На трассу выпустили машину безопасности {reason} — гонка продолжилась за ней."
+        elif during_race and category == "SafetyCar" and action == "VIRTUAL SAFETY CAR DEPLOYED":
+            title, kind, score = VSC_TEXT, "vsc", 70
+            reason = reason_tail(message, DEPLOYMENT_REASONS)
+            if reason:
+                title = f"Включили VSC {reason} — пилотов обязали соблюдать заданный темп."
         elif during_race and category == "Flag" and row.get("flag") == "RED" and row.get("scope") == "Track":
-            title, kind, score = "Красный флаг — гонка остановлена.", "red_flag", 100
+            title, kind, score = RED_TEXT, "red_flag", 100
+            reason = reason_tail(message, DEPLOYMENT_REASONS)
+            if reason:
+                title = f"Гонку остановили красным флагом {reason}."
         elif category == "Other" and not any(word in message for word in (
                 "INVESTIGATION", "NOTED", "POSSIBLE", "RESCINDED", "WITHDRAWN", "REVOKED")):
             penalty = re.fullmatch(r"(?:FIA STEWARDS:\s*)?(\d{1,3}) SECONDS? (?:TIME )?PENALTY FOR CAR (\d{1,3})(?:\s+.*)?", message)
             if penalty and 0 < int(penalty[1]) <= 120:
                 name = names.get(penalty[2]) or f"Машина №{penalty[2]}"
-                title, kind, score = f"{name}: объявлен временной штраф — {int(penalty[1])} сек.", "penalty", 90
+                reason = reason_tail(message, PENALTY_REASONS)
+                title, kind, score = f"{name} получил {int(penalty[1])}-секундный штраф" + (f" {reason}" if reason else "") + ".", "penalty", 90
         if not title:
             continue
         lap = row.get("lap_number")
         prefix = "После финиша: " if not during_race else f"Круг {lap}: " if isinstance(lap, int) and 0 < lap < 200 else ""
+        if kind in {"sc", "vsc"}:
+            for detail in safety_context(date, valid, race_finish):
+                if len(prefix + title + " " + detail) <= 240:
+                    title += " " + detail
         token = hashlib.sha256(f"{date.isoformat()}|{message}".encode()).hexdigest()[:16]
         result.append({"title": prefix + title, "category": kind, "score": score,
                        "published": date.timestamp(), "source_id": SOURCE,
@@ -153,32 +247,41 @@ async def _refresh_recent_race_control():
     from app.f1_data import get_season_schedule_short_async
 
     now = datetime.now(timezone.utc)
+    seasons = [now.year]
+    if now - now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0) <= LOOKBACK:
+        seasons.append(now.year - 1)
     async with news.connection() as conn:
         row = await (await conn.execute("SELECT * FROM recap_news_sources WHERE source_id=?", (SOURCE,))).fetchone()
         if not row or not row["enabled"] or row["next_check"] > now.timestamp():
             return
         state = dict(row)
-        checks = {row["round"]: dict(row) for row in await (await conn.execute(
-            "SELECT * FROM recap_control_checks WHERE season=?", (now.year,))).fetchall()}
+        checks = {(row["season"], row["round"]): dict(row) for row in await (await conn.execute(
+            "SELECT * FROM recap_control_checks WHERE season IN (" + ",".join("?" for _ in seasons) + ")", seasons)).fetchall()}
     try:
-        schedule = await asyncio.wait_for(get_season_schedule_short_async(now.year), timeout=15)
-        if not schedule:
+        schedules = await asyncio.gather(*(asyncio.wait_for(get_season_schedule_short_async(season), timeout=15)
+                                           for season in seasons), return_exceptions=True)
+        if not any(isinstance(schedule, list) and schedule for schedule in schedules):
             raise ValueError("Календарь гонок временно недоступен")
         eligible = []
-        for event in schedule:
-            start = utc(event.get("race_start_utc"))
-            checked = checks.get(event.get("round"), {})
-            if (not event.get("is_cancelled") and start and start.year == now.year
-                    and timedelta(hours=1) <= now - start <= timedelta(days=10)
-                    and not checked.get("final") and checked.get("next_check", 0) <= now.timestamp()):
-                eligible.append(event)
+        for season, schedule in zip(seasons, schedules):
+            if not isinstance(schedule, list):
+                continue
+            for event in schedule:
+                start = utc(event.get("race_start_utc"))
+                checked = checks.get((season, event.get("round")), {})
+                upgrade = bool(checked) and checked.get("parser_version", 0) != PARSER_VERSION
+                if (not event.get("is_cancelled") and start and start.year == season
+                        and timedelta(hours=1) <= now - start <= LOOKBACK
+                        and (not checked.get("final") or upgrade)
+                        and (checked.get("next_check", 0) <= now.timestamp() or upgrade)):
+                    eligible.append((season, event, start))
         if not eligible:
             return
         # At most one race per pass, and no laps/telemetry requests.
-        event = max(eligible, key=lambda item: item["round"])
-        sessions = await _cached_prediction_openf1_sessions(now.year)
+        season, event, _ = max(eligible, key=lambda item: item[2])
+        sessions = await _cached_prediction_openf1_sessions(season)
         session = _openf1_race_session(event, [s for s in sessions or [] if s.get("session_name", "Race") == "Race"])
-        if not session or not utc(session.get("date_start")) or utc(session["date_start"]).year != now.year:
+        if not session or not utc(session.get("date_start")) or utc(session["date_start"]).year != season:
             raise ValueError("OpenF1: сессия нужной гонки ещё недоступна")
         end = utc(session.get("date_end"))
         if not end or now < end + timedelta(minutes=5):
@@ -198,12 +301,13 @@ async def _refresh_recent_race_control():
             enabled = await (await conn.execute("SELECT enabled FROM recap_news_sources WHERE source_id=?", (SOURCE,))).fetchone()
             if not enabled or not enabled[0]:
                 return
-            await news.save_candidates(conn, entries, event, now.year, now)
-            await conn.execute("""INSERT INTO recap_control_checks(season,round,session_key,updated,next_check,final)
-                VALUES(?,?,?,?,?,?) ON CONFLICT(season,round) DO UPDATE SET session_key=excluded.session_key,
-                updated=excluded.updated,next_check=excluded.next_check,final=excluded.final""",
-                (now.year, event["round"], session["session_key"], now.timestamp(), now.timestamp() + 3600,
-                 int(now >= end + timedelta(days=1))))
+            await news.save_candidates(conn, entries, event, season, now)
+            delay = 3600 if now < end + timedelta(days=1) else 6 * 3600
+            await conn.execute("""INSERT INTO recap_control_checks(season,round,session_key,updated,next_check,final,parser_version)
+                VALUES(?,?,?,?,?,?,?) ON CONFLICT(season,round) DO UPDATE SET session_key=excluded.session_key,
+                updated=excluded.updated,next_check=excluded.next_check,final=excluded.final,parser_version=excluded.parser_version""",
+                (season, event["round"], session["session_key"], now.timestamp(), now.timestamp() + delay,
+                 int(now >= end + RECHECK_WINDOW), PARSER_VERSION))
             await conn.execute("""UPDATE recap_news_sources SET checked=?,successful=?,next_check=?,failures=0,error=NULL
                 WHERE source_id=?""", (now.timestamp(), now.timestamp(), now.timestamp() + news.INTERVAL, SOURCE))
             await conn.commit()

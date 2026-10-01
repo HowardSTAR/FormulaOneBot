@@ -1,5 +1,5 @@
 """Invented race-control records; no live requests, scoring or Telegram sends."""
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -10,7 +10,7 @@ from app.db import Database
 from app.services import recap_chronicle as chronicle, recap_news as news, race_recap as recap
 from app.utils.telegram_presentation import race_card, race_fallback
 
-NOW = datetime(2026, 9, 27, 14, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 4, 14, tzinfo=timezone.utc)
 EVENT = {'round': 15, 'event_name': 'Azerbaijan Grand Prix', 'race_start_utc': '2026-09-26T11:00:00Z'}
 SESSION = {'session_key': 15000, 'session_type': 'Race', 'session_name': 'Race',
            'date_start': EVENT['race_start_utc'], 'date_end': '2026-09-26T13:00:00Z'}
@@ -47,8 +47,8 @@ def test_templates_chronology_and_after_finish_penalty():
     assert [row['category'] for row in rows] == ['sc', 'vsc', 'red_flag', 'penalty']
     assert rows[0]['title'] == 'Круг 3: ' + chronicle.SC_TEXT
     assert 'остановлена' not in rows[0]['title']  # SC is not a red flag.
-    assert 'гонка остановлена' in rows[2]['title']
-    assert rows[-1]['title'] == 'После финиша: Test Driver: объявлен временной штраф — 10 сек.'
+    assert rows[2]['title'] == 'Круг 10: ' + chronicle.RED_TEXT
+    assert rows[-1]['title'] == 'После финиша: Test Driver получил 10-секундный штраф за провоцирование столкновения.'
     assert all(news.canonical_url(row['url'], news.FEED_BY_ID[chronicle.SOURCE]) for row in rows)
     assert not any('CAUSING' in row['title'] for row in rows)
 
@@ -109,9 +109,13 @@ def test_control_source_links_are_restricted(url):
     assert news.canonical_url(url, news.FEED_BY_ID[chronicle.SOURCE]) is None
 
 
-def mock_background(monkeypatch, messages=None):
+def set_clock(monkeypatch, now):
+    monkeypatch.setattr(chronicle, 'datetime', SimpleNamespace(now=lambda zone: now, fromisoformat=datetime.fromisoformat, fromtimestamp=datetime.fromtimestamp))
+
+
+def mock_background(monkeypatch, messages=None, *, now=NOW):
     from app import f1_data
-    monkeypatch.setattr(chronicle, 'datetime', SimpleNamespace(now=lambda zone: NOW, fromisoformat=datetime.fromisoformat, fromtimestamp=datetime.fromtimestamp))
+    set_clock(monkeypatch, now)
     monkeypatch.setattr(f1_data, 'get_season_schedule_short_async', AsyncMock(return_value=[EVENT]))
     monkeypatch.setattr(chronicle, '_cached_prediction_openf1_sessions', AsyncMock(return_value=[
         {**SESSION, 'session_key': 14999, 'session_type': 'Qualifying', 'date_start': '2026-09-25T11:00:00Z'}, SESSION]))
@@ -188,6 +192,211 @@ async def test_sessions_failure_visible_without_requests(database, monkeypatch):
     state = await (await database.conn.execute('SELECT * FROM recap_news_sources WHERE source_id=?', (chronicle.SOURCE,))).fetchone()
     assert 'HTTP 429' in state['error']
     fetch.assert_not_awaited()
+
+
+@pytest.mark.parametrize('reason,expected', [
+    ('CAUSING A COLLISION (16:11:31)', 'за провоцирование столкновения'),
+    ('SPEEDING IN PIT LANE', 'за превышение скорости на пит-лейне'),
+    ('LEAVING THE TRACK AND GAINING AN ADVANTAGE', 'за выезд за пределы трассы с получением преимущества'),
+    ("FAILING TO FOLLOW RACE DIRECTOR'S INSTRUCTIONS", 'за невыполнение указаний дирекции гонки'),
+    ('UNKNOWN REASON', None),
+])
+def test_only_explicit_recognised_penalty_reasons_are_translated(reason, expected):
+    row = message('FIA STEWARDS: 10 SECOND TIME PENALTY FOR CAR 43 (TST) - ' + reason, '13:10:00')
+    title = chronicle.build_chronicle(SESSION, [*BOUNDARIES, row], DRIVERS, NOW)[0]['title']
+    assert 'получил 10-секундный штраф' in title
+    if expected:
+        assert expected in title
+    else:
+        assert title == 'После финиша: Test Driver получил 10-секундный штраф.'
+
+
+def test_safety_context_is_detail_not_an_inferred_cause_or_driver():
+    messages = [*BOUNDARIES, EVENTS[0],
+                message('RECOVERY VEHICLE ON TRACK AT TURN 6', '11:12:00'),
+                message('MARSHALS ON TRACK AT TURN 6', '11:13:00'),
+                message('MARSHALS ON TRACK AT TURN 8', '11:14:00'),
+                message('ALL CARS THROUGH THE PIT LANE', '11:11:00'),
+                message('CAR 43 RETIRED', '11:10:15')]
+    title = chronicle.build_chronicle(SESSION, messages, DRIVERS, NOW)[0]['title']
+    assert 'в повороте 6 работала эвакуационная техника' in title
+    assert 'в повороте 8 работали маршалы' in title
+    assert 'маршалы' in title and 'машины' not in title  # Two distinct, specific details.
+    assert 'из-за' not in title and 'Test Driver' not in title and 'столкновени' not in title
+
+
+@pytest.mark.parametrize('row', [
+    message('RECOVERY VEHICLE ON TRACK AT TURN 6', '11:09:00'),
+    message('RECOVERY VEHICLE ON TRACK AT TURN 6', '11:20:00'),
+    message('RECOVERY VEHICLE ON TRACK AT TURN 6', '11:12:00', session_key=15001),
+    message('RECOVERY VEHICLE ON TRACK AT TURN 6', '11:12:00', category='Flag'),
+])
+def test_context_outside_this_deployment_is_ignored(row):
+    title = chronicle.build_chronicle(SESSION, [*BOUNDARIES, EVENTS[0], row], DRIVERS, NOW)[0]['title']
+    assert title == 'Круг 3: ' + chronicle.SC_TEXT
+
+
+def test_context_stops_when_safety_car_was_called_in():
+    messages = [*BOUNDARIES, EVENTS[0], message('SAFETY CAR IN THIS LAP', '11:11:00', 'SafetyCar'),
+                message('MARSHALS ON TRACK AT TURN 1', '11:12:00')]
+    assert chronicle.build_chronicle(SESSION, messages, DRIVERS, NOW)[0]['title'] == 'Круг 3: ' + chronicle.SC_TEXT
+
+
+def test_pit_lane_context_and_explicit_deployment_cause():
+    row = message('SAFETY CAR DEPLOYED - DEBRIS ON TRACK', category='SafetyCar')
+    rows = chronicle.build_chronicle(SESSION, [*BOUNDARIES, row,
+        message('ALL CARS THROUGH THE PIT LANE', '11:11:00')], DRIVERS, NOW)
+    assert 'из-за обломков на трассе' in rows[0]['title']
+    assert 'машины направили через пит-лейн' in rows[0]['title']
+
+
+@pytest.mark.parametrize('old,new', [
+    (chronicle.LEGACY_SC_TEXT, chronicle.SC_TEXT),
+    (chronicle.PREVIOUS_SC_TEXT, chronicle.SC_TEXT),
+    ('Включён VSC — пилоты обязаны соблюдать заданный темп.', chronicle.VSC_TEXT),
+    ('Красный флаг — гонка остановлена.', chronicle.RED_TEXT),
+    ('Test Driver: объявлен временной штраф — 10 сек.', 'Test Driver получил 10-секундный штраф.'),
+])
+def test_existing_generated_titles_switch_to_past_tense_not_rss_headlines(old, new):
+    assert chronicle.display_title('Круг 3: ' + old) == 'Круг 3: ' + new
+    assert chronicle.display_title(old, 'autosport') == old
+
+
+async def test_hourly_refresh_and_late_penalty_preserve_moderation(database, monkeypatch):
+    first = datetime(2026, 9, 26, 14, tzinfo=timezone.utc)
+    fetch = mock_background(monkeypatch, [*BOUNDARIES, EVENTS[0]], now=first)
+    await chronicle._refresh_recent_race_control()
+    check = await (await database.conn.execute('SELECT * FROM recap_control_checks')).fetchone()
+    assert check['final'] == 0 and check['next_check'] == first.timestamp() + 3600
+    await database.conn.execute("UPDATE recap_news_articles SET hidden=1 WHERE category='sc'")
+    await database.conn.commit()
+    set_clock(monkeypatch, first + timedelta(minutes=16))
+    await chronicle._refresh_recent_race_control()
+    assert fetch.await_count == 2  # No repeated download before the stage's next check.
+    late = datetime(2026, 9, 28, 14, tzinfo=timezone.utc)
+    penalty = {**EVENTS[-1], 'date': '2026-09-28T10:00:00Z'}
+    fetch = mock_background(monkeypatch, [*BOUNDARIES, EVENTS[0], penalty], now=late)
+    await chronicle._refresh_recent_race_control()
+    result = await chronicle.public_chronicle(2026, 15)
+    assert len(result) == 1 and 'за провоцирование столкновения' in result[0]['title']
+    assert (await (await database.conn.execute('SELECT COUNT(*) FROM recap_news_articles')).fetchone())[0] == 2
+    check = await (await database.conn.execute('SELECT * FROM recap_control_checks')).fetchone()
+    assert check['final'] == 0 and check['next_check'] == late.timestamp() + 6 * 3600
+
+
+def relocated_fixture(date, key):
+    session = {**SESSION, 'session_key': key,
+               'date_start': SESSION['date_start'].replace('2026-09-26', date),
+               'date_end': SESSION['date_end'].replace('2026-09-26', date)}
+    messages = [{**row, 'session_key': key, 'date': row['date'].replace('2026-09-26', date)}
+                for row in [*BOUNDARIES, *EVENTS]]
+    drivers = [{**row, 'session_key': key} for row in DRIVERS]
+    return session, messages, drivers
+
+
+async def test_next_round_is_loaded_after_previous_round_was_finalised(database, monkeypatch):
+    from app import f1_data
+    mock_background(monkeypatch)
+    await chronicle._refresh_recent_race_control()
+    now = NOW + timedelta(minutes=16)
+    set_clock(monkeypatch, now)
+    session, messages, drivers = relocated_fixture('2026-10-03', 15001)
+    event = {**EVENT, 'round': 16, 'race_start_utc': session['date_start']}
+    monkeypatch.setattr(f1_data, 'get_season_schedule_short_async', AsyncMock(return_value=[EVENT, event]))
+    monkeypatch.setattr(chronicle, '_cached_prediction_openf1_sessions', AsyncMock(return_value=[SESSION, session]))
+    async def fetch(path, **params):
+        assert params['session_key'] == 15001
+        return messages if path == 'race_control' else drivers
+    fetch = AsyncMock(side_effect=fetch)
+    monkeypatch.setattr(chronicle, '_prediction_openf1_get', fetch)
+    await chronicle._refresh_recent_race_control()
+    assert fetch.await_count == 2
+    assert len(await chronicle.public_chronicle(2026, 16)) == 4
+    assert len(await chronicle.public_chronicle(2026, 15)) == 4
+    checks = await (await database.conn.execute('SELECT round,final FROM recap_control_checks ORDER BY round')).fetchall()
+    assert [(row['round'], row['final']) for row in checks] == [(15, 1), (16, 0)]
+
+
+async def test_new_parser_refetches_old_final_snapshot_once(database, monkeypatch):
+    now = datetime(2026, 9, 27, 14, tzinfo=timezone.utc)
+    fetch = mock_background(monkeypatch, now=now)
+    await database.conn.execute('INSERT INTO recap_control_checks(season,round,session_key,updated,next_check,final) VALUES(2026,15,15000,?,?,1)',
+                                (now.timestamp(), now.timestamp() + 86400))
+    await database.conn.commit()
+    await chronicle._refresh_recent_race_control()
+    check = await (await database.conn.execute('SELECT * FROM recap_control_checks')).fetchone()
+    assert check['parser_version'] == chronicle.PARSER_VERSION and check['final'] == 0
+    assert any('за провоцирование столкновения' in row['title'] for row in await chronicle.public_chronicle(2026, 15))
+    await chronicle._refresh_recent_race_control()
+    assert fetch.await_count == 2
+
+
+async def test_previous_season_race_keeps_its_year_at_new_year(database, monkeypatch):
+    from app import f1_data
+    now = datetime(2027, 1, 1, 14, tzinfo=timezone.utc)
+    set_clock(monkeypatch, now)
+    session, messages, drivers = relocated_fixture('2026-12-31', 16000)
+    event = {**EVENT, 'race_start_utc': session['date_start']}
+    schedule = AsyncMock(side_effect=lambda year: [event] if year == 2026 else [])
+    monkeypatch.setattr(f1_data, 'get_season_schedule_short_async', schedule)
+    sessions = AsyncMock(return_value=[session])
+    monkeypatch.setattr(chronicle, '_cached_prediction_openf1_sessions', sessions)
+    async def fetch(path, **params):
+        assert params['session_key'] == 16000
+        return messages if path == 'race_control' else drivers
+    monkeypatch.setattr(chronicle, '_prediction_openf1_get', AsyncMock(side_effect=fetch))
+    await chronicle._refresh_recent_race_control()
+    sessions.assert_awaited_once_with(2026)
+    assert len(await chronicle.public_chronicle(2026, 15)) == 4
+    assert await chronicle.public_chronicle(2027, 15) == []
+
+
+async def test_legacy_check_schema_migration_keeps_existing_snapshot(temp_db_path):
+    import aiosqlite
+    async with aiosqlite.connect(temp_db_path) as conn:
+        await conn.execute('CREATE TABLE recap_control_checks(season INTEGER,round INTEGER,session_key INTEGER,updated REAL,next_check REAL,final INTEGER,PRIMARY KEY(season,round))')
+        await conn.execute('INSERT INTO recap_control_checks VALUES(2026,15,15000,1,2,1)')
+        await conn.commit()
+        await news.ensure_schema(conn)
+        await conn.commit()
+        row = await (await conn.execute('SELECT * FROM recap_control_checks')).fetchone()
+        assert row == (2026, 15, 15000, 1, 2, 1, 0)
+        await news.ensure_schema(conn)
+        assert (await (await conn.execute('SELECT COUNT(*) FROM recap_control_checks')).fetchone())[0] == 1
+
+
+async def test_bot_and_web_schema_migration_can_overlap(temp_db_path):
+    import asyncio
+    import aiosqlite
+    async with aiosqlite.connect(temp_db_path) as conn:
+        await conn.execute('CREATE TABLE recap_control_checks(season INTEGER,round INTEGER,session_key INTEGER,updated REAL,next_check REAL,final INTEGER,PRIMARY KEY(season,round))')
+        await conn.commit()
+    async def startup():
+        async with aiosqlite.connect(temp_db_path, timeout=5) as conn:
+            await news.ensure_schema(conn)
+            await conn.commit()
+    await asyncio.gather(startup(), startup())
+    async with aiosqlite.connect(temp_db_path) as conn:
+        columns = await (await conn.execute('PRAGMA table_info(recap_control_checks)')).fetchall()
+        assert [column[1] for column in columns].count('parser_version') == 1
+
+
+async def test_retry_after_rate_limit_recovers_without_requiring_admin(database, monkeypatch):
+    mock_background(monkeypatch)
+    async def limited(path, *, diagnostics=None, **params):
+        diagnostics['http_status'] = 429
+        return None
+    limited_fetch = AsyncMock(side_effect=limited)
+    monkeypatch.setattr(chronicle, '_prediction_openf1_get', limited_fetch)
+    await chronicle._refresh_recent_race_control()
+    await chronicle._refresh_recent_race_control()
+    assert limited_fetch.await_count == 1  # Persisted cooldown, no immediate retry loop.
+    good_fetch = mock_background(monkeypatch, now=NOW + timedelta(minutes=16))
+    await chronicle._refresh_recent_race_control()
+    assert good_fetch.await_count == 2
+    assert len(await chronicle.public_chronicle(2026, 15)) == 4
+    source = await (await database.conn.execute('SELECT * FROM recap_news_sources WHERE source_id=?', (chronicle.SOURCE,))).fetchone()
+    assert source['error'] is None and source['failures'] == 0 and source['successful'] is not None
 
 
 async def test_recap_cache_and_waiting_do_not_gain_unconfirmed_events(database, monkeypatch):
