@@ -1,18 +1,29 @@
-"""Visible activity, without invented progress percentages or completion times."""
+"""Deletable loading messages, with cancellation scoped to the requesting chat.
+
+Draft previews cannot be explicitly deleted and may outlive rich/photo results.
+Use a regular message so every exit can remove the loading UI deterministically.
+"""
 import asyncio
 import secrets
 from contextlib import suppress
 
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
-_active_drafts = {}
+_active_statuses = {}
 
 
-def stop_draft(bot_id, event):
-    if event.chat.type != "private":
+def stop_activity(bot_id: int, callback: CallbackQuery) -> bool:
+    message = callback.message
+    if (not isinstance(message, Message) or message.chat.type != "private"
+            or callback.from_user.is_bot or callback.from_user.id != message.chat.id):
         return False
-    loader = _active_drafts.get((bot_id, event.chat.id, event.message_thread_id, event.draft_id))
-    if not loader:
+    data = callback.data or ""
+    if not data.startswith("activity:stop:"):
+        return False
+    token = data.removeprefix("activity:stop:")
+    loader = _active_statuses.get((bot_id, message.chat.id, message.message_thread_id, token))
+    if (not loader or loader.closed or loader.stopped or not loader.status
+            or loader.status.message_id != message.message_id or loader.work.done()):
         return False
     loader.stopped = True
     loader.work.cancel()
@@ -26,67 +37,65 @@ class ActivityStatus:
         self.status: Message | None = None
         self.task: asyncio.Task | None = None
         self.parse_mode = parse_mode
-        self.native = False
         self.stopped = False
-        self.draft_id = secrets.randbelow(2**31 - 1) + 1
+        self.closed = False
+        self.token = secrets.token_hex(8)
+        self.keyboard = None
         self.key = None
         self.work = None
 
     async def __aenter__(self):
         self.work = asyncio.current_task()
         if isinstance(self.message, Message) and self.message.chat.type == "private":
-            try:
-                await self._draft(self.text)
-                self.native = True
-                self.key = (self.message.bot.id, self.message.chat.id, self.message.message_thread_id, self.draft_id)
-                _active_drafts[self.key] = self
-            except Exception:
-                pass  # A rejected preview must not prevent the underlying operation.
-        if not self.native:
-            self.status = await self.message.answer(f"⏳ {self.text}")
-        self.task = asyncio.create_task(self._typing())
+            self.keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+                InlineKeyboardButton(text="Остановить загрузку", callback_data=f"activity:stop:{self.token}")
+            ]])
+        # A cosmetic loading failure must not prevent delivery of the actual answer.
+        with suppress(Exception):
+            self.status = await self.message.answer(self._status_text(self.text),
+                reply_markup=self.keyboard, parse_mode=self.parse_mode,
+                disable_notification=True, request_timeout=5)
+        if self.status:
+            if self.keyboard:
+                self.key = (self.message.bot.id, self.message.chat.id, self.message.message_thread_id, self.token)
+                _active_statuses[self.key] = self
+            self.task = asyncio.create_task(self._keep_waiting())
         return self
 
-    async def _draft(self, text):
-        await self.message.bot.send_message_draft(
-            chat_id=self.message.chat.id, draft_id=self.draft_id,
-            message_thread_id=self.message.message_thread_id,
-            text=f"⏳ {text}", parse_mode=self.parse_mode,
-            can_stop=True, keep_on_stop=False, request_timeout=5,
-        )
+    @staticmethod
+    def _status_text(text):
+        return text if text.startswith("⏳") else f"⏳ {text}"
 
     async def update(self, text):
+        if self.closed or not self.status:
+            return
         self.text = text
         with suppress(Exception):
-            if self.native:
-                await self._draft(text)
-            elif self.status:
-                await self.status.edit_text(f"⏳ {text}", parse_mode=self.parse_mode)
+            await self.status.edit_text(self._status_text(text), parse_mode=self.parse_mode,
+                                        reply_markup=self.keyboard, request_timeout=5)
 
-    async def _typing(self):
-        elapsed = 0
-        while True:
-            with suppress(Exception):
-                await self.message.bot.send_chat_action(self.message.chat.id, "typing")
-            await asyncio.sleep(4)
-            elapsed += 4
-            if self.native:
-                with suppress(Exception):
-                    await self._draft(self.text + ("\nИсточник ещё отвечает. Повторять запрос не нужно." if elapsed >= 16 else ""))
-            elif elapsed == 16 and self.status:
-                with suppress(Exception):
-                    await self.status.edit_text(f"⏳ {self.text}\nИсточник ещё отвечает. Результат появится здесь; повторять команду не нужно.")
+    async def _keep_waiting(self):
+        # No draft/typing heartbeat can reappear after the result has been sent.
+        await asyncio.sleep(16)
+        await self.update(self.text + "\nЗагрузка ещё продолжается. Повторять запрос не нужно.")
 
     async def __aexit__(self, exc_type, *_):
+        self.closed = True
         if self.key:
-            _active_drafts.pop(self.key, None)
+            _active_statuses.pop(self.key, None)
         if self.task:
             self.task.cancel()
             with suppress(asyncio.CancelledError):
                 await self.task
         if self.status:
-            with suppress(Exception):
-                await self.status.delete()
+            try:
+                await self.status.delete(request_timeout=5)
+            except Exception:
+                # If deletion is rejected, at least retire the loading label/button.
+                text = "Поиск остановлен." if self.stopped else (
+                    "Загрузка не завершена. Попробуйте ещё раз." if exc_type else "Загрузка завершена.")
+                with suppress(Exception):
+                    await self.status.edit_text(text, reply_markup=None, parse_mode=None, request_timeout=5)
         if self.stopped and exc_type is asyncio.CancelledError:
             with suppress(Exception):
                 await self.message.answer("Поиск остановлен. Можно выбрать другой раздел.")

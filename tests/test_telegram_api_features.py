@@ -10,11 +10,11 @@ import pytest
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.session.base import BaseSession
 from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError
-from aiogram.methods import SendMessage, SendRichMessage, SendMessageDraft, AnswerGuestQuery, GetMe
-from aiogram.types import CallbackQuery, Chat, Message, MessageGenerationStopped, Update, User
+from aiogram.methods import SendMessage, SendRichMessage, SendMessageDraft, SendPhoto, DeleteMessage, EditMessageText, SendChatAction, AnswerGuestQuery, AnswerCallbackQuery, GetMe
+from aiogram.types import CallbackQuery, Chat, Message, Update, User
 
 from app.handlers import compare, guest, menu, telegram_features
-from app.utils.activity_status import ActivityStatus, _active_drafts, stop_draft
+from app.utils.activity_status import ActivityStatus, _active_statuses, stop_activity
 from app.utils.telegram_presentation import race_card, race_fallback, review_card, send_card
 from app.utils.time_tools import telegram_time
 
@@ -34,7 +34,7 @@ class LocalSession(BaseSession):
         self.methods.append(method)
         if isinstance(method, GetMe):
             return BOT_USER
-        if isinstance(method, (SendMessage, SendRichMessage)):
+        if isinstance(method, (SendMessage, SendRichMessage, SendPhoto)):
             return Message(message_id=len(self.methods), date=datetime.now(timezone.utc),
                            chat=Chat(id=method.chat_id, type="private" if method.chat_id > 0 else "supergroup"),
                            from_user=BOT_USER, text=getattr(method, "text", None)).as_(bot)
@@ -61,6 +61,13 @@ def message(bot, text="Test", *, group=False):
 def callback(bot, data="personal:review:2026:15", *, group=False):
     return CallbackQuery(id="private-request", from_user=ACTOR, chat_instance="test",
                          message=message(bot, group=group), data=data).as_(bot)
+
+
+def loading_callback(bot, session):
+    sent = next(m for m in session.methods if isinstance(m, SendMessage) and m.text.startswith("⏳"))
+    status = message(bot).model_copy(update={"message_id": session.methods.index(sent) + 1,
+                                             "reply_markup": sent.reply_markup})
+    return callback(bot, sent.reply_markup.inline_keyboard[0][0].callback_data).model_copy(update={"message": status}).as_(bot)
 
 
 def review():
@@ -209,7 +216,7 @@ async def test_league_response_does_not_expose_invitation_tokens(local, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_native_draft_stop_cancels_work_and_only_matching_bot_chat_and_draft(local):
+async def test_loading_stop_cancels_work_only_for_matching_bot_chat_actor_and_message(local):
     bot, session = local
     entered, child_cancelled = asyncio.Event(), asyncio.Event()
     after = []
@@ -226,39 +233,127 @@ async def test_native_draft_stop_cancels_work_and_only_matching_bot_chat_and_dra
         after.append("must not run")
     task = asyncio.create_task(work())
     await entered.wait()
-    sent = next(m for m in session.methods if isinstance(m, SendMessageDraft))
-    event = MessageGenerationStopped(chat=Chat(id=777, type="private"), draft_id=sent.draft_id)
-    assert not stop_draft(bot.id + 1, event)
-    assert not stop_draft(bot.id, event.model_copy(update={"chat": Chat(id=888, type="private")}))
+    sent = next(m for m in session.methods if isinstance(m, SendMessage))
+    event = loading_callback(bot, session)
+    assert not stop_activity(bot.id + 1, event)
+    assert not stop_activity(bot.id, event.model_copy(update={"message": event.message.model_copy(update={"chat": Chat(id=888, type="private")})}))
+    assert not stop_activity(bot.id, event.model_copy(update={"from_user": User(id=888, is_bot=False, first_name="Other")}))
+    assert not stop_activity(bot.id, event.model_copy(update={"from_user": BOT_USER}))
+    assert not stop_activity(bot.id, event.model_copy(update={"message": event.message.model_copy(update={"message_id": 999})}))
+    assert not stop_activity(bot.id, event.model_copy(update={"data": "activity:stop:wrong"}))
+    assert not stop_activity(bot.id, event.model_copy(update={"data": event.data.removeprefix("activity:stop:")}))
+    assert not stop_activity(bot.id, event.model_copy(update={"message": message(bot, group=True)}))
     dispatcher, router = Dispatcher(), Router()
-    router.stopped_message_generation.register(telegram_features.generation_stopped)
+    router.callback_query.register(telegram_features.cancel_activity, F.data.startswith("activity:stop:"))
     dispatcher.include_router(router)
-    await dispatcher.feed_update(bot, Update(update_id=2, stopped_message_generation=event))
-    assert "stopped_message_generation" in dispatcher.resolve_used_update_types()
+    await dispatcher.feed_update(bot, Update(update_id=2, callback_query=event))
     with pytest.raises(asyncio.CancelledError):
         await task
-    assert child_cancelled.is_set() and not after and not _active_drafts
+    assert child_cancelled.is_set() and not after and not _active_statuses
     assert "остановлен" in session.methods[-1].text
-    assert sent.can_stop and not sent.keep_on_stop and '%' not in sent.text
+    assert sent.reply_markup.inline_keyboard[0][0].text == "Остановить загрузку" and '%' not in sent.text
+    assert not stop_activity(bot.id, event)  # an old Stop button cannot cancel another request
 
 
 @pytest.mark.asyncio
-async def test_native_preview_finishes_with_a_persistent_result(local):
+@pytest.mark.parametrize("kind", ["text", "card", "photo"])
+async def test_loading_message_is_deleted_after_any_result_without_a_lingering_draft(local, kind):
     bot, session = local
-    async with ActivityStatus(message(bot), "Готовлю…"):
-        await bot.send_message(chat_id=777, text="Готовый результат")
-    assert isinstance(session.methods[0], SendMessageDraft)
-    assert any(isinstance(m, SendMessage) and m.text == "Готовый результат" for m in session.methods)
-    assert not _active_drafts
+    async with ActivityStatus(message(bot), "Готовлю…") as loader:
+        if kind == "text":
+            result = await bot.send_message(chat_id=777, text="Готовый результат")
+        elif kind == "card":
+            card, text = review_card(review())
+            result = await send_card(bot, 777, card, text)
+        else:
+            result = await bot.send_photo(chat_id=777, photo="LOCAL_TEST_PHOTO")
+    assert isinstance(session.methods[0], SendMessage)
+    assert "Готовлю" in session.methods[0].text
+    assert isinstance(session.methods[-1], DeleteMessage)
+    assert session.methods[-1].message_id == loader.status.message_id != result.message_id
+    assert not any(isinstance(m, SendMessageDraft) for m in session.methods)
+    assert not any(isinstance(m, SendChatAction) for m in session.methods)
+    assert session.methods[0].disable_notification
+    assert loader.task.done()
+    assert not _active_statuses
+
+
+@pytest.mark.asyncio
+async def test_failed_loading_is_deleted_without_hiding_the_original_error(local):
+    bot, session = local
+    with pytest.raises(RuntimeError, match="source failed"):
+        async with ActivityStatus(message(bot), "Загружаю…"):
+            raise RuntimeError("source failed")
+    assert isinstance(session.methods[-1], DeleteMessage) and not _active_statuses
+
+
+@pytest.mark.asyncio
+async def test_failed_deletion_retires_label_and_stop_button_instead_of_leaving_loading(local, monkeypatch):
+    bot, session = local
+    original = session.make_request
+    async def request(active_bot, method, timeout=None):
+        if isinstance(method, DeleteMessage):
+            raise TelegramBadRequest(method=method, message="cannot delete")
+        return await original(active_bot, method, timeout=timeout)
+    monkeypatch.setattr(session, "make_request", request)
+    async with ActivityStatus(message(bot), "Загружаю…"):
+        await bot.send_message(chat_id=777, text="Результат")
+    ended = session.methods[-1]
+    assert isinstance(ended, EditMessageText)
+    assert ended.text == "Загрузка завершена." and ended.reply_markup is None
+    assert ended.message_id == 1 and not _active_statuses
+
+
+@pytest.mark.asyncio
+async def test_progress_keeps_stop_button_and_cannot_restart_completed_loading(local):
+    bot, session = local
+    async with ActivityStatus(message(bot), "Загружаю…") as loader:
+        await loader.update("Получено 2 из 3 этапов")
+        progress = session.methods[-1]
+        assert isinstance(progress, EditMessageText)
+        assert progress.reply_markup == session.methods[0].reply_markup
+        old_button = loading_callback(bot, session)
+    calls = len(session.methods)
+    await loader.update("Запоздавший прогресс")
+    await asyncio.sleep(0)  # yield to any pending cleanup
+    assert len(session.methods) == calls and loader.task.done() and not _active_statuses
+    await telegram_features.cancel_activity(old_button)
+    assert isinstance(session.methods[-1], AnswerCallbackQuery)
+    assert session.methods[-1].text == "Загрузка уже завершена."
+    assert len(session.methods) == calls + 1
+
+
+@pytest.mark.asyncio
+async def test_group_loading_is_deletable_but_never_offers_private_cancellation(local):
+    bot, session = local
+    async with ActivityStatus(message(bot, group=True), "Загружаю…"):
+        assert session.methods[0].reply_markup is None and not _active_statuses
+    assert isinstance(session.methods[-1], DeleteMessage)
+    assert session.methods[-1].chat_id == -100123
+
+
+@pytest.mark.asyncio
+async def test_loading_ui_failure_does_not_block_the_actual_result(local, monkeypatch):
+    bot, session = local
+    original = session.make_request
+    async def request(active_bot, method, timeout=None):
+        if isinstance(method, SendMessage) and method.text.startswith("⏳"):
+            raise TelegramNetworkError(method=method, message="timeout")
+        return await original(active_bot, method, timeout=timeout)
+    monkeypatch.setattr(session, "make_request", request)
+    async with ActivityStatus(message(bot), "Загружаю…") as loader:
+        await bot.send_message(chat_id=777, text="Результат")
+    assert loader.status is None and loader.task is None and not _active_statuses
+    assert len(session.methods) == 1 and session.methods[0].text == "Результат"
 
 
 @pytest.mark.asyncio
 async def test_external_cancellation_is_not_suppressed(local):
-    bot, _ = local
+    bot, session = local
     with pytest.raises(asyncio.CancelledError):
         async with ActivityStatus(message(bot), "Готовлю…"):
             raise asyncio.CancelledError
-    assert not _active_drafts
+    assert not _active_statuses and isinstance(session.methods[-1], DeleteMessage)
 
 
 @pytest.mark.asyncio
@@ -282,11 +377,10 @@ async def test_stopping_comparison_cancels_all_pending_race_requests(local, monk
     monkeypatch.setattr(compare, "create_comparison_image", render)
     task = asyncio.create_task(compare.send_comparison_graph(message(bot), "ALO", "HAM", 2025))
     await asyncio.wait_for(ready.wait(), timeout=2)
-    draft = next(m for m in session.methods if isinstance(m, SendMessageDraft))
-    assert stop_draft(bot.id, MessageGenerationStopped(chat=Chat(id=777, type="private"), draft_id=draft.draft_id))
+    assert stop_activity(bot.id, loading_callback(bot, session))
     with pytest.raises(asyncio.CancelledError):
         await task
-    assert sorted(cancelled) == [1, 2] and not _active_drafts
+    assert sorted(cancelled) == [1, 2] and not _active_statuses
     render.assert_not_called()
 
 
@@ -315,12 +409,13 @@ async def test_parallel_comparison_keeps_points_in_schedule_order(local, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_preview_rejection_retains_legacy_loading(local, monkeypatch):
+async def test_loading_does_not_depend_on_draft_api(local, monkeypatch):
     bot, session = local
     monkeypatch.setattr(bot, "send_message_draft", AsyncMock(side_effect=TelegramBadRequest(method=SendMessageDraft(chat_id=777, draft_id=1, text="test"), message="unsupported")))
     async with ActivityStatus(message(bot), "Загружаю…") as loader:
-        assert loader.status is not None and not loader.native
+        assert loader.status is not None
     assert isinstance(session.methods[0], SendMessage) and "Загружаю" in session.methods[0].text
+    bot.send_message_draft.assert_not_awaited()
 
 
 @pytest.mark.parametrize("query, kind", [("@F1HubTestBot следующая гонка", "next"), ("итоги гонки", "recap"), ("/driver ALO 1997", "driver"), ("сравни ALO HAM", "compare"), ("что такое VSC?", "term"), ("/broadcast attack", "help"), ("мой прогноз", "help"), ("/driver ALO 2026 extra", "help")])

@@ -24,7 +24,8 @@ def roster():
 async def test_status_is_immediate_truthful_and_cleaned_on_success():
     msg, status = message()
     async with ActivityStatus(msg, 'Готовлю справку…') as loader:
-        msg.answer.assert_awaited_once_with('⏳ Готовлю справку…')
+        msg.answer.assert_awaited_once_with('⏳ Готовлю справку…', reply_markup=None, parse_mode=None,
+                                           disable_notification=True, request_timeout=5)
         assert '%' not in msg.answer.call_args.args[0]
         assert loader.task is not None
         await asyncio.sleep(0)
@@ -40,22 +41,17 @@ async def test_status_is_cleaned_on_failure():
     status.delete.assert_awaited_once()
 
 
-async def test_long_wait_explains_source_is_still_answering(monkeypatch):
+async def test_long_wait_explains_work_is_still_running(monkeypatch):
     msg, status = message()
     loader = ActivityStatus(msg, 'Загружаю данные…')
     loader.status = status
-    calls = 0
     async def tick(seconds):
-        nonlocal calls
-        assert seconds == 4
-        calls += 1
-        if calls == 5:
-            raise asyncio.CancelledError
+        assert seconds == 16
     monkeypatch.setattr(activity_status.asyncio, 'sleep', tick)
-    with pytest.raises(asyncio.CancelledError):
-        await loader._typing()
-    assert 'Источник ещё отвечает' in status.edit_text.call_args.args[0]
+    await loader._keep_waiting()
+    assert 'Загрузка ещё продолжается' in status.edit_text.call_args.args[0]
     assert '%' not in status.edit_text.call_args.args[0]
+    msg.bot.send_chat_action.assert_not_awaited()
 
 
 async def test_start_menu_is_compact_and_secondary_actions_remain_discoverable(monkeypatch):

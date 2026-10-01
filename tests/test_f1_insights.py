@@ -72,7 +72,25 @@ def test_start_finish_gain_is_not_called_overtaking():
     result = recap.build_recap(rows, [], [], [], [])
     story = next(item for item in result if item["category"] == "race_move")
     assert "+15" in story["title"]
-    assert "не доказывает" in story["text"]
+    assert story["text"] == "Старт P20 → финиш P5."
+    assert "обгон" not in story["title"].lower() + story["text"].lower()
+
+
+@pytest.mark.parametrize("kind", ["drivers", "teams"])
+def test_championship_gain_is_short_and_keeps_standings_context(kind):
+    before = [driver("a", 1, 100), driver("b", 2, 80), driver("c", 4, 30)]
+    after = [driver("a", 1, 110), driver("c", 2, 90), driver("b", 3, 85)]
+    if kind == "drivers":
+        items = recap.build_recap(race_rows(), before, after, [], [])
+        category = "championship_move"
+    else:
+        items = recap.build_recap(race_rows(), [], [],
+                                 [team(r["driverId"], r["position"], r["points"]) for r in before],
+                                 [team(r["driverId"], r["position"], r["points"]) for r in after])
+        category = "constructors_move"
+    story = next(item for item in items if item["category"] == category)
+    assert "поднялся в зачёте" in story["title"]
+    assert story["text"] == "P4 → P2 (+2 поз.)."
 
 
 def test_classification_without_marker_is_valid_official_frame():

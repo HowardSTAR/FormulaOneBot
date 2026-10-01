@@ -4,21 +4,22 @@ import re
 
 from aiogram import F, Router
 from aiogram.exceptions import TelegramAPIError
-from aiogram.types import CallbackQuery, EphemeralMessageParameters, Message, MessageGenerationStopped
+from aiogram.types import CallbackQuery, EphemeralMessageParameters, Message
 
 from app.db import db
 from app.services.prediction_service import get_personal_prediction_review
 from app.services.prediction_social import list_leagues
-from app.utils.activity_status import stop_draft
+from app.utils.activity_status import stop_activity
 from app.utils.safe_send import safe_answer_callback
 from app.utils.telegram_presentation import review_card, send_card
 
 router = Router(name="telegram_features")
 
 
-@router.stopped_message_generation()
-async def generation_stopped(event: MessageGenerationStopped, bot):
-    stop_draft(bot.id, event)
+@router.callback_query(F.data.startswith("activity:stop:"))
+async def cancel_activity(callback: CallbackQuery):
+    stopped = stop_activity(callback.bot.id, callback)
+    await safe_answer_callback(callback, "Останавливаю загрузку…" if stopped else "Загрузка уже завершена.")
 
 
 async def linked_user_id(telegram_id):

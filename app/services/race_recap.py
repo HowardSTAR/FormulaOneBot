@@ -87,7 +87,7 @@ def build_recap(race: list[dict], before: list[dict], after: list[dict],
             gain, row = max(movers, key=lambda pair: pair[0])
             if gain >= 2 and (team or row.get("driverCode") not in (first_podiums or [])):
                 add(72 if team else 75, category + "_move", f"{name(row)} поднялся в зачёте",
-                    f"P{positions[row[key]]} → P{row['position']} (+{gain} поз.). Это изменение места в сезоне, не число обгонов.")
+                    f"P{positions[row[key]]} → P{row['position']} (+{gain} поз.).")
 
     championship(before, after)
     championship(teams_before, teams_after, True)
@@ -119,12 +119,12 @@ def build_recap(race: list[dict], before: list[dict], after: list[dict],
             gain, row = max(gains, key=lambda pair: pair[0])
             if gain >= 5:
                 add(60, "race_move", f"{row.get('FullName') or row.get('Abbreviation')}: +{gain} позиций",
-                    f"Старт P{row['GridPosition']:g} → финиш P{row['Position']:g}. Это разница классификаций; она не доказывает {gain} обгонов на трассе.")
+                    f"Старт P{row['GridPosition']:g} → финиш P{row['Position']:g}.")
     return [{k: v for k, v in item.items() if k != "priority"}
             for item in sorted(candidates, key=lambda item: -item["priority"])[:3]]
 
 
-@cache_result(ttl=120, key_prefix="race_recap_v2")
+@cache_result(ttl=120, key_prefix="race_recap_v3")
 async def get_race_recap(season: int, round_num: int) -> dict:
     race = await get_race_results_async(season, round_num)
     rows = classified_rows(race)
@@ -168,7 +168,7 @@ async def get_race_recap(season: int, round_num: int) -> dict:
     return {"season": season, "round": round_num,
             "status": "ready" if after and teams_after and (round_num == 1 or before and teams_before) else "partial",
             "items": items, "sources": sources, "updated_at": datetime.now(timezone.utc).isoformat(),
-            "note": "Изменения зачёта — за весь уик-энд, включая спринт и опубликованные корректировки. Первые победы и подиумы — в выбранном сезоне, не в карьере. Причины событий не выводятся из очков."}
+            "note": "Изменения зачёта — за весь уик-энд, включая спринт и опубликованные корректировки."}
 
 
 def format_recap_telegram(recap: dict, spoiler: bool = False) -> str:

@@ -1,4 +1,4 @@
-"""Legacy loader entry point backed by truthful, cancellable native previews."""
+"""Legacy loader entry point backed by deletable, cancellable loading messages."""
 from app.utils.activity_status import ActivityStatus
 
 
