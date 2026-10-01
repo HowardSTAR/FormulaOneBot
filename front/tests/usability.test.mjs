@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { posix } from 'node:path';
 import ts from 'typescript';
+import postcss from 'postcss';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -159,4 +160,50 @@ test('calendar uses one accessible header and mounts details only when expanded'
   const styles=readFileSync(new URL('../src/pages/season/season-filters.css',import.meta.url),'utf8');
   assert.match(styles,/header\.season-page-head \.page-head-controls \{ display: flex !important/);
   assert.doesNotMatch(source,/desktopFactTitles|ТОЛЬКО ЧТО|"LIVE"/);
+});
+
+const consistencySource = readFileSync(new URL('../src/assets/ui-consistency.css', import.meta.url), 'utf8');
+const consistency = postcss.parse(consistencySource);
+const cssRule = selector => consistency.nodes.find(node => node.type === 'rule' && node.selector === selector);
+const cssValue = (rule, property) => rule?.nodes.find(node => node.type === 'decl' && node.prop === property)?.value;
+
+test('shared dropdown styling is eager and explicitly styles popup items, not just the trigger', () => {
+  const app=readFileSync(new URL('../src/App.tsx',import.meta.url),'utf8');
+  assert.match(app,/import "\.\/assets\/ui-consistency.css"/);
+  assert.equal(cssValue(cssRule('#root select'),'color-scheme'),'dark');
+  assert.equal(cssValue(cssRule('#root select'),'min-height'),'48px');
+  const options = consistency.nodes.find(node => node.type === 'rule' && node.selector === '#root select option,\n#root select optgroup');
+  assert.equal(cssValue(options,'color'),'var(--ui-select-text)');
+  assert.equal(cssValue(options,'background-color'),'var(--ui-select-menu-bg)');
+  assert.match(consistencySource,/@media \(forced-colors: active\)/);
+  assert.match(consistencySource,/#root select:disabled,\s*#root select option:disabled/);
+});
+
+test('peer cards stretch by row across public and administrative sections without fixed heights', () => {
+  const rows=consistency.nodes.filter(node => node.type === 'rule' && node.selector.includes('.ui-equal-card-row'));
+  assert.equal(rows.length,2);
+  assert.equal(cssValue(rows[0],'align-items'),'stretch');
+  assert.equal(cssValue(rows[1],'align-self'),'stretch');
+  assert.equal(cssValue(rows[1],'box-sizing'),'border-box');
+  for (const group of ['season-desktop-facts-grid','season-desktop-stats','next-race-desktop-stats','driver-stats-grid',
+    'compare-facts-grid','prediction-grid','settings-fields-grid','account-grid','community-grid','wiki-grid',
+    'pa-scenarios','admin-metric-grid','at-columns','control-metrics']) {
+    for (const rule of rows) assert.ok(rule.selector.includes(`.${group}`),group);
+  }
+  for (const rule of rows) {
+    for (const prop of ['height','max-height','grid-auto-rows','overflow']) assert.equal(cssValue(rule,prop),undefined);
+  }
+});
+
+test('dropdown text has sufficient contrast on both closed and open backgrounds', () => {
+  const tokens=cssRule(':root');
+  const luminance = hex => {
+    const [r,g,b]=hex.slice(1).match(/.{2}/g).map(value=>parseInt(value,16)/255)
+      .map(value=>value <= .04045 ? value/12.92 : ((value+.055)/1.055)**2.4);
+    return .2126*r+.7152*g+.0722*b;
+  };
+  const foreground=luminance(cssValue(tokens,'--ui-select-text'));
+  for (const background of ['--ui-select-bg','--ui-select-menu-bg']) {
+    assert.ok((foreground+.05)/(luminance(cssValue(tokens,background))+.05) >= 4.5,background);
+  }
 });

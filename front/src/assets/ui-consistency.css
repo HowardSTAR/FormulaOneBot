@@ -1,0 +1,119 @@
+/* Loaded eagerly: controls and card rows must not change after visiting a lazy page. */
+:root {
+  --ui-select-bg: #191c23;
+  --ui-select-menu-bg: #1b1e25;
+  --ui-select-text: #f5f5f7;
+  --ui-select-muted: #adb3c0;
+  --ui-select-border: #555b68;
+}
+
+/* Keep native keyboard, touch and assistive-technology behaviour. Explicit option
+   colours prevent white text on the Windows/browser's white popup background. */
+#root select {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 48px !important;
+  padding: 10px 12px !important;
+  border: 1px solid var(--ui-select-border) !important;
+  border-radius: 12px !important;
+  background-color: var(--ui-select-bg) !important;
+  color: var(--ui-select-text) !important;
+  color-scheme: dark !important;
+  font: inherit;
+  cursor: pointer;
+}
+#root select option,
+#root select optgroup {
+  background-color: var(--ui-select-menu-bg) !important;
+  color: var(--ui-select-text) !important;
+}
+#root select option:checked {
+  background-color: #3b2830 !important;
+  color: #fff !important;
+}
+#root select:disabled,
+#root select option:disabled {
+  color: var(--ui-select-muted) !important;
+  cursor: not-allowed;
+}
+#root select:disabled { opacity: .7; }
+#root select:not(:disabled):hover { border-color: #8992a3 !important; }
+#root select:focus-visible { outline: 3px solid #8acbff !important; outline-offset: 3px; }
+
+/* Rich pickers keep their portraits, search and dialogs, sharing the same palette. */
+.driver-picker-trigger,
+.driver-picker-panel,
+.driver-picker-option,
+.compare-driver-options,
+.compare-driver-option {
+  color-scheme: dark;
+}
+.driver-picker-trigger { background-color: var(--ui-select-bg); border-color: var(--ui-select-border); }
+.driver-picker-panel { background-color: var(--ui-select-menu-bg); border-color: var(--ui-select-border); }
+
+/* Equalise peer cards in each row, not unrelated panels or sticky sidebars.
+   Grid's stretch uses the tallest content in that row; no fixed heights or JS
+   measurements, so wrapping, localisation and responsive single columns stay safe.
+   The scoped priority overrides historical !important alignment rules. */
+#root .app-page-main :is(
+  .ui-equal-card-row,
+  .season-desktop-facts-grid, .season-desktop-stats, .season-desktop-session-grid,
+  .season-race-stats, .season-mobile-results-links,
+  .circuit-insights-stats, .next-race-desktop-stats, .next-race-desktop-schedule-grid,
+  .stats-grid, .driver-stats-grid, .constructor-season-metrics, .constructor-drivers-grid,
+  .compare-facts-grid, .drivers-insights-grid, .constructors-season-stats, .constructors-hero-grid,
+  .standings-cards-grid, .menu-grid, .results-grid, .games-list,
+  .index-standings-grid, .index-standings-preview-grid,
+  .prediction-grid, .settings-fields-grid, .account-grid, .account-quick-links,
+  .community-grid, .wiki-grid, .race-recap-list,
+  .pa-stats, .pa-scenarios, .pa-context, .pa-history,
+  .admin-metric-grid, .admin-source-grid, .admin-games-grid,
+  .at-columns, .at-summary, .control-metrics, .pr-manual-grid
+) {
+  align-items: stretch !important;
+}
+#root .app-page-main :is(
+  .ui-equal-card-row,
+  .season-desktop-facts-grid, .season-desktop-stats, .season-desktop-session-grid,
+  .season-race-stats, .season-mobile-results-links,
+  .circuit-insights-stats, .next-race-desktop-stats, .next-race-desktop-schedule-grid,
+  .stats-grid, .driver-stats-grid, .constructor-season-metrics, .constructor-drivers-grid,
+  .compare-facts-grid, .drivers-insights-grid, .constructors-season-stats, .constructors-hero-grid,
+  .standings-cards-grid, .menu-grid, .results-grid, .games-list,
+  .index-standings-grid, .index-standings-preview-grid,
+  .prediction-grid, .settings-fields-grid, .account-grid, .account-quick-links,
+  .community-grid, .wiki-grid, .race-recap-list,
+  .pa-stats, .pa-scenarios, .pa-context, .pa-history,
+  .admin-metric-grid, .admin-source-grid, .admin-games-grid,
+  .at-columns, .at-summary, .control-metrics, .pr-manual-grid
+) > * {
+  box-sizing: border-box;
+  min-width: 0;
+  align-self: stretch !important;
+}
+
+/* Statistic and schedule values align even when their headings wrap. */
+#root .app-page-main :is(.season-desktop-stat-box, .season-race-stat-box, .circuit-stat-box,
+  .next-race-desktop-stat, .season-desktop-session-item) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#root .app-page-main :is(.season-desktop-stat-value, .season-race-stat-value, .circuit-stat-value),
+#root .app-page-main .next-race-desktop-stat > strong,
+#root .app-page-main .season-desktop-session-item > b { margin-top: auto !important; }
+
+@media (max-width: 767px) {
+  #root select { font-size: 16px; }
+}
+@media (forced-colors: active) {
+  #root select, #root select option, #root select optgroup {
+    background-color: Canvas !important;
+    color: CanvasText !important;
+    border-color: ButtonText !important;
+    color-scheme: light dark !important;
+  }
+  #root select:focus-visible { outline-color: Highlight !important; }
+  #root select:disabled, #root select option:disabled { color: GrayText !important; }
+}
