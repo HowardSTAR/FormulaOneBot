@@ -45,7 +45,9 @@ async def database(temp_db_path, monkeypatch):
 def test_templates_chronology_and_after_finish_penalty():
     rows = chronicle.build_chronicle(SESSION, [*BOUNDARIES, *reversed(EVENTS)], DRIVERS, NOW)
     assert [row['category'] for row in rows] == ['sc', 'vsc', 'red_flag', 'penalty']
-    assert 'Круг 3:' in rows[0]['title'] and 'нейтрализована' in rows[0]['title']
+    assert rows[0]['title'] == 'Круг 3: ' + chronicle.SC_TEXT
+    assert 'остановлена' not in rows[0]['title']  # SC is not a red flag.
+    assert 'гонка остановлена' in rows[2]['title']
     assert rows[-1]['title'] == 'После финиша: Test Driver: объявлен временной штраф — 10 сек.'
     assert all(news.canonical_url(row['url'], news.FEED_BY_ID[chronicle.SOURCE]) for row in rows)
     assert not any('CAUSING' in row['title'] for row in rows)
@@ -199,10 +201,30 @@ async def test_recap_cache_and_waiting_do_not_gain_unconfirmed_events(database, 
     assert not (await recap.get_race_recap_with_news(2026, 15))['chronicle']
 
 
+async def test_final_stored_sc_wording_updates_without_refetch_or_database_write(database, monkeypatch):
+    mock_background(monkeypatch)
+    await chronicle._refresh_recent_race_control()
+    old_title = 'Круг 3: ' + chronicle.LEGACY_SC_TEXT
+    await database.conn.execute("UPDATE recap_news_articles SET title=? WHERE category='sc'", (old_title,))
+    await database.conn.commit()
+    fetch = AsyncMock(side_effect=AssertionError('No refetch for a wording change'))
+    monkeypatch.setattr(chronicle, '_prediction_openf1_get', fetch)
+    result = await chronicle.public_chronicle(2026, 15)
+    assert result[0]['title'] == 'Круг 3: ' + chronicle.SC_TEXT
+    stored = await (await database.conn.execute("SELECT title FROM recap_news_articles WHERE category='sc'")).fetchone()
+    assert stored['title'] == old_title
+    assert chronicle.display_title(old_title, 'autosport') == old_title
+    fetch.assert_not_awaited()
+
+
 def test_telegram_presentations_and_spoilers_include_chronicle():
     rows = chronicle.build_chronicle(SESSION, [*BOUNDARIES, *EVENTS], DRIVERS, NOW)
     data = {'status': 'ready', 'items': [], 'chronicle': [{**row, 'publisher': 'OpenF1'} for row in rows]}
     assert 'Ключевые события гонки' in recap.format_recap_telegram(data, spoiler=True)
     assert 'tg-spoiler' in recap.format_recap_telegram(data, spoiler=True)
-    assert 'Журнал дирекции · OpenF1' in race_card('Baku', 2026, 15, [], data).model_dump_json()
+    for rendered in (recap.format_recap_telegram(data), race_card('Baku', 2026, 15, [], data).model_dump_json(),
+                     race_fallback('Baku', 2026, 15, [], data)):
+        assert 'Журнал дирекции' not in rendered
+        assert 'api.openf1.org' not in rendered
+        assert 'Ключевые события гонки' in rendered
     assert 'После финиша' in race_fallback('Baku', 2026, 15, [], data)

@@ -51,7 +51,6 @@ def race_card(event_name, season, round_num, rows, recap):
         blocks.append(InputRichBlockSectionHeading(text="Ключевые события гонки", size=4))
         for item in recap["chronicle"][:4]:
             blocks.append(InputRichBlockParagraph(text=item["title"]))
-        blocks.append(InputRichBlockParagraph(text=[RichTextUrl(text="Журнал дирекции · OpenF1", url=recap["chronicle"][0]["url"])]))
     if recap.get("news"):
         blocks.append(InputRichBlockSectionHeading(text="Интересные моменты гонки", size=4))
         for item in recap["news"][:3]:

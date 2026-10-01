@@ -187,8 +187,7 @@ def format_recap_telegram(recap: dict, spoiler: bool = False) -> str:
     text = "\n\n".join(lines)
     if recap.get("chronicle"):
         events = [f'• {escape(item["title"])}' for item in recap["chronicle"][:4]]
-        url = escape(recap["chronicle"][0]["url"], quote=True)
-        text += '\n\n🏁 <b>Ключевые события гонки</b>\n' + '\n'.join(events) + f'\n<a href="{url}">Журнал дирекции · OpenF1</a>'
+        text += '\n\n🏁 <b>Ключевые события гонки</b>\n' + '\n'.join(events)
     if recap.get("news"):
         headlines = [f'• <a href="{escape(item["url"], quote=True)}">{escape(item["title"])}</a> — {escape(item["publisher"])}'
                      for item in recap["news"][:3]]

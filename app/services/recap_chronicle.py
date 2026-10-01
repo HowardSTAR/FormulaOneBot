@@ -19,6 +19,14 @@ from app.services.prediction_race_facts import (
 
 logger = logging.getLogger(__name__)
 SOURCE = "openf1-control"
+SC_TEXT = "Выпущена машина безопасности — гонка проходит за машиной безопасности."
+LEGACY_SC_TEXT = "Выпущена машина безопасности — гонка нейтрализована."
+
+
+def display_title(title, source_id=SOURCE):
+    # Final snapshots are not refetched. Update their wording at read time,
+    # leaving stored provenance, moderation and publisher headlines unchanged.
+    return title.replace(LEGACY_SC_TEXT, SC_TEXT) if source_id == SOURCE else title
 
 
 def utc(value):
@@ -94,7 +102,7 @@ def build_chronicle(session, messages, drivers, now):
         title, kind, score = "", "", 0
         during_race = date <= race_finish
         if during_race and category == "SafetyCar" and message == "SAFETY CAR DEPLOYED":
-            title, kind, score = "Выпущена машина безопасности — гонка нейтрализована.", "sc", 80
+            title, kind, score = SC_TEXT, "sc", 80
         elif during_race and category == "SafetyCar" and message == "VIRTUAL SAFETY CAR DEPLOYED":
             title, kind, score = "Включён VSC — пилоты обязаны соблюдать заданный темп.", "vsc", 70
         elif during_race and category == "Flag" and row.get("flag") == "RED" and row.get("scope") == "Track":
@@ -124,7 +132,7 @@ async def public_chronicle(season, round_num):
                 WHERE a.source_id=? AND a.season=? AND a.round=? AND a.hidden=0 AND s.enabled=1
                 ORDER BY a.score DESC,a.published LIMIT 200""", (SOURCE, season, round_num))).fetchall()
         valid = [dict(row) for row in rows if news.canonical_url(row["url"], news.FEED_BY_ID[SOURCE])]
-        return [{"title": row["title"], "url": row["url"], "publisher": "OpenF1",
+        return [{"title": display_title(row["title"]), "url": row["url"], "publisher": "OpenF1",
                  "published_at": datetime.fromtimestamp(row["published"], timezone.utc).isoformat()}
                 for row in select_events(valid)]
     except aiosqlite.Error:

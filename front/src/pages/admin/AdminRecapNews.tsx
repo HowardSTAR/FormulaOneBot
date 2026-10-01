@@ -77,7 +77,7 @@ export function AdminRecapNews() {
       {data && !data.items.length && <p>Публикаций пока нет. Проверьте подключение источников выше. Если лента доступна, но подходящих материалов нет, рекап останется статистическим.</p>}
       <div className="at-history">{data?.items.map(article => <article key={article.id}>
         <small>{article.season} · этап {article.round} · {article.event_name} · {date(article.published)}</small>
-        <h3><a href={article.url} target="_blank" rel="noopener noreferrer">{article.title} ↗</a></h3>
+        <h3>{article.source_id === 'openf1-control' ? article.title : <a href={article.url} target="_blank" rel="noopener noreferrer">{article.title} ↗</a>}</h3>
         <p>{data.sources.find(source => source.id === article.source_id)?.publisher || article.source_id} · {article.hidden ? 'Скрыта администратором' : data.sources.find(source => source.id === article.source_id)?.enabled ? article.source_id === 'openf1-control' ? 'Участвует в отборе ключевых событий' : 'Участвует в отборе трёх новостей' : 'Скрыта: источник выключен'}</p>
         <button type="button" onClick={() => toggleArticle(article)}>{article.hidden ? 'Вернуть в отбор' : 'Скрыть публикацию'}</button>
       </article>)}</div>

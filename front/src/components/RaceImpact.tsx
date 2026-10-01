@@ -20,7 +20,6 @@ export function RaceImpact({season, round, rows, recap}: {season: number; round:
       {!!data?.chronicle?.length && <section className="race-news" aria-label="Ключевые события гонки">
         <h3>Ключевые события гонки</h3>
         <ul>{data.chronicle.slice(0, 4).map(item => <li key={item.url}><GlossaryText>{item.title}</GlossaryText></li>)}</ul>
-        <small><a href={data.chronicle[0].url} target="_blank" rel="noopener noreferrer">Журнал дирекции · OpenF1 ↗</a></small>
       </section>}
       {!!data?.news?.length && <section className="race-news" aria-label="Интересные моменты гонки">
         <h3>Интересные моменты гонки</h3>

@@ -36,6 +36,7 @@ async def recap_news_admin(response: Response, season: int = Query(ge=1950, le=2
                            round_num: int | None = Query(None, ge=1, le=30),
                            _: AdminContext = Depends(require_admin_session)):
     from app.services.recap_news import FEEDS
+    from app.services.recap_chronicle import display_title
 
     response.headers["Cache-Control"] = "no-store"
     async with connection() as conn:
@@ -53,7 +54,7 @@ async def recap_news_admin(response: Response, season: int = Query(ge=1950, le=2
                           "error": states.get(feed.id, {}).get("error")}
                          for feed in FEEDS],
             "items": [{"id": row["id"], "season": row["season"], "round": row["round"],
-                       "event_name": row["event_name"], "title": row["title"], "url": row["url"],
+                       "event_name": row["event_name"], "title": display_title(row["title"], row["source_id"]), "url": row["url"],
                        "source_id": row["source_id"], "published": row["published"], "hidden": bool(row["hidden"])}
                       for row in rows]}
 
