@@ -121,6 +121,12 @@ async def main():
 
     # 4. Настраиваем ОДИН планировщик задач
     scheduler = AsyncIOScheduler(timezone="UTC")
+    from app.services.recap_news import refresh_recent_news
+    from app.services.recap_chronicle import refresh_recent_race_control
+    scheduler.add_job(refresh_recent_news, "interval", minutes=15, id="recap_news",
+                      max_instances=1, coalesce=True, misfire_grace_time=60)
+    scheduler.add_job(refresh_recent_race_control, "interval", minutes=15, id="recap_race_control",
+                      max_instances=1, coalesce=True, misfire_grace_time=60)
     scheduler.add_job(settle_forecasts, "interval", minutes=10,
                       id="prediction_analytics_settlement", max_instances=1, coalesce=True)
 
@@ -201,6 +207,8 @@ async def main():
     async def start_background_jobs_after_database(**_kwargs):
         nonlocal result_notification_state_ready
         result_notification_state_ready = await initialize_result_notification_state()
+        scheduler.modify_job("recap_news", next_run_time=datetime.now(timezone.utc))
+        scheduler.modify_job("recap_race_control", next_run_time=datetime.now(timezone.utc))
         scheduler.start()
         # Запускаем прогрев кэша в фоне сразу после подключения БД и baseline.
         asyncio.create_task(warmup_cache())

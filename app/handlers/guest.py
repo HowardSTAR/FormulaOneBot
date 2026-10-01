@@ -12,7 +12,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InlineQuer
 
 from app.f1_data import get_driver_standings_async, get_season_schedule_short_async
 from app.services.driver_guides import get_driver_guide
-from app.services.race_recap import get_race_recap, format_recap_telegram
+from app.services.race_recap import get_race_recap_with_news as get_race_recap, format_recap_telegram
 from app.utils.time_tools import telegram_time
 
 router = Router(name="guest_public_tools")

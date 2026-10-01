@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import type { useRaceRecap } from '../helpers/useRaceRecap';
 import { GlossaryText } from './GlossaryText';
 import { ShareButton } from './ShareButton';
+import '../pages/history/history.css';
 type Row = {code: string; name: string; position: number; points: number; grid_position?: number | null; is_favorite_driver?: boolean; is_favorite_team?: boolean};
 export function RaceImpact({season, round, rows, recap}: {season: number; round: number; rows: Row[]; recap: ReturnType<typeof useRaceRecap>}) {
   const {data, error, reload} = recap;
@@ -16,6 +17,18 @@ export function RaceImpact({season, round, rows, recap}: {season: number; round:
       {!!data?.items.length && <div className="race-recap-list">{data.items.map(item => <article key={item.category}><h3>{item.title}</h3><p><GlossaryText>{item.text}</GlossaryText></p></article>)}</div>}
       {!!data?.items.length && <p className="history-note">Изменения чемпионата — за весь уик-энд. Первые победы и подиумы — в этом сезоне.</p>}
       {!!data?.items.length && <ShareButton options={{kind: 'recap', season, round}}>Отправить главное о гонке</ShareButton>}
+      {!!data?.chronicle?.length && <section className="race-news" aria-label="Ключевые события гонки">
+        <h3>Ключевые события гонки</h3>
+        <ul>{data.chronicle.slice(0, 4).map(item => <li key={item.url}><GlossaryText>{item.title}</GlossaryText></li>)}</ul>
+        <small><a href={data.chronicle[0].url} target="_blank" rel="noopener noreferrer">Журнал дирекции · OpenF1 ↗</a></small>
+      </section>}
+      {!!data?.news?.length && <section className="race-news" aria-label="Интересные моменты гонки">
+        <h3>Интересные моменты гонки</h3>
+        <ul>{data.news.slice(0, 3).map(item => <li key={item.url}>
+          <a href={item.url} target="_blank" rel="noopener noreferrer">{item.title} ↗</a>
+          <small>{item.publisher} · {new Date(item.published_at).toLocaleDateString('ru-RU')}</small>
+        </li>)}</ul>
+      </section>}
       {favorites.length > 0 && <p>Ваше избранное: {favorites.map(r => `${r.code} — P${r.position}, ${r.points} очк.`).join(' · ')}</p>}
       <p><Link to={`/predictions?tab=history&reviewSeason=${season}&reviewRound=${round}`}>Как это повлияло на мой прогноз →</Link></p>
   </section>;

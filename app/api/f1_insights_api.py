@@ -1,10 +1,10 @@
 from datetime import datetime, timezone
 import re
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from typing import Literal
 from app.services.driver_guides import get_driver_guide
-from app.services.race_recap import get_race_recap
+from app.services.race_recap import get_race_recap_with_news as get_race_recap
 from app.services.standings_history import get_standings_history
 
 router = APIRouter(prefix="/api", tags=["F1 insights"])
@@ -28,7 +28,8 @@ async def driver_guide(driverId: str = Query(pattern=r"^[a-z0-9_-]{1,60}$")):
 
 
 @router.get("/race-recap")
-async def race_recap(season: int = Query(ge=1950), round_num: int = Query(ge=1, le=30)):
+async def race_recap(response: Response, season: int = Query(ge=1950), round_num: int = Query(ge=1, le=30)):
     if season > datetime.now(timezone.utc).year:
         raise HTTPException(422, "Сезон ещё не начался")
+    response.headers["Cache-Control"] = "no-store"
     return await get_race_recap(season, round_num)

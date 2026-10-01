@@ -22,6 +22,76 @@ from app.services.web_notifications import push_config
 router = APIRouter(prefix="/api/admin/tools", tags=["administration"])
 
 
+class NewsSourcePermission(BaseModel):
+    enabled: bool
+    permission_confirmed: bool = False
+
+
+class NewsVisibility(BaseModel):
+    hidden: bool
+
+
+@router.get("/recap-news")
+async def recap_news_admin(response: Response, season: int = Query(ge=1950, le=2100),
+                           round_num: int | None = Query(None, ge=1, le=30),
+                           _: AdminContext = Depends(require_admin_session)):
+    from app.services.recap_news import FEEDS
+
+    response.headers["Cache-Control"] = "no-store"
+    async with connection() as conn:
+        states = {row["source_id"]: dict(row) for row in await (await conn.execute("SELECT * FROM recap_news_sources")).fetchall()}
+        clause, params = (" AND a.round=?", [season, round_num]) if round_num is not None else ("", [season])
+        rows = await (await conn.execute("SELECT a.* FROM recap_news_articles a WHERE a.season=?" + clause +
+                                         " ORDER BY a.round DESC,a.score DESC,a.published DESC LIMIT 200", params)).fetchall()
+    return {"sources": [{"id": feed.id, "publisher": feed.publisher, "url": feed.url,
+                          "terms_url": feed.terms_url, "permission_note": feed.permission_note,
+                          "kind": feed.kind, "permission_required": feed.permission_required,
+                          "enabled": bool(states.get(feed.id, {}).get("enabled")),
+                          "checked": states.get(feed.id, {}).get("checked"),
+                          "successful": states.get(feed.id, {}).get("successful"),
+                          "next_check": states.get(feed.id, {}).get("next_check"),
+                          "error": states.get(feed.id, {}).get("error")}
+                         for feed in FEEDS],
+            "items": [{"id": row["id"], "season": row["season"], "round": row["round"],
+                       "event_name": row["event_name"], "title": row["title"], "url": row["url"],
+                       "source_id": row["source_id"], "published": row["published"], "hidden": bool(row["hidden"])}
+                      for row in rows]}
+
+
+@router.patch("/recap-news/sources/{source_id}")
+async def recap_news_source(source_id: str, data: NewsSourcePermission,
+                            actor: AdminContext = Depends(require_admin_session)):
+    from app.services.recap_news import FEED_BY_ID
+
+    if source_id not in FEED_BY_ID:
+        raise HTTPException(404, "Источник не найден")
+    if data.enabled and FEED_BY_ID[source_id].permission_required and not data.permission_confirmed:
+        raise HTTPException(422, "Подтвердите право использования ленты перед подключением")
+    async with connection() as conn:
+        await conn.execute("BEGIN IMMEDIATE")
+        await conn.execute("UPDATE recap_news_sources SET enabled=?,next_check=0,etag=NULL,last_modified=NULL WHERE source_id=?",
+                           (int(data.enabled), source_id))
+        await audit(conn, actor.id, "recap_news.source", {"source_id": source_id, "enabled": data.enabled,
+                                                         "permission_confirmed": data.permission_confirmed})
+        await conn.commit()
+    return {"enabled": data.enabled}
+
+
+@router.patch("/recap-news/articles/{article_id}")
+async def recap_news_visibility(article_id: int, data: NewsVisibility,
+                                actor: AdminContext = Depends(require_admin_session)):
+    async with connection() as conn:
+        await conn.execute("BEGIN IMMEDIATE")
+        row = await (await conn.execute("SELECT id,hidden FROM recap_news_articles WHERE id=?", (article_id,))).fetchone()
+        if not row:
+            raise HTTPException(404, "Публикация не найдена")
+        if bool(row["hidden"]) != data.hidden:
+            await conn.execute("UPDATE recap_news_articles SET hidden=? WHERE id=?", (int(data.hidden), article_id))
+            await audit(conn, actor.id, "recap_news.visibility", {"article_id": article_id, "hidden": data.hidden})
+        await conn.commit()
+    return {"hidden": data.hidden}
+
+
 @router.get('/product-analytics')
 async def product_analytics(response: Response, days: int=Query(30,ge=1,le=90), actor: AdminContext=Depends(require_admin_session)):
     from app.services.product_analytics import report

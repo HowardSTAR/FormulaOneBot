@@ -10,7 +10,7 @@ from aiogram.filters.command import CommandObject
 from aiogram.types import Message, LinkPreviewOptions, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 from app.f1_data import get_season_schedule_short_async, get_driver_standings_async, get_race_results_async
 from app.services.driver_guides import get_driver_guide
-from app.services.race_recap import get_race_recap, format_recap_telegram
+from app.services.race_recap import get_race_recap_with_news as get_race_recap, format_recap_telegram
 from app.utils.mini_app_links import mini_app_button
 from app.utils.activity_status import ActivityStatus
 from app.services.race_recap import classified_rows

@@ -6,7 +6,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
     DisabledButton, InlineKeyboardButton, InlineKeyboardMarkup, InputRichMessage,
     InputRichBlockSectionHeading, InputRichBlockParagraph, InputRichBlockDetails,
-    InputRichBlockTable, RichBlockTableCell,
+    InputRichBlockTable, RichBlockTableCell, RichTextUrl,
 )
 
 
@@ -47,6 +47,15 @@ def race_card(event_name, season, round_num, rows, recap):
         blocks.append(InputRichBlockDetails(summary="Полная классификация", blocks=[table(["Место", "Пилот", "Очки"], cells)]))
     else:
         blocks.append(InputRichBlockParagraph(text=recap.get("note") or "Ждём подтверждённую классификацию."))
+    if recap.get("chronicle"):
+        blocks.append(InputRichBlockSectionHeading(text="Ключевые события гонки", size=4))
+        for item in recap["chronicle"][:4]:
+            blocks.append(InputRichBlockParagraph(text=item["title"]))
+        blocks.append(InputRichBlockParagraph(text=[RichTextUrl(text="Журнал дирекции · OpenF1", url=recap["chronicle"][0]["url"])]))
+    if recap.get("news"):
+        blocks.append(InputRichBlockSectionHeading(text="Интересные моменты гонки", size=4))
+        for item in recap["news"][:3]:
+            blocks.append(InputRichBlockParagraph(text=[RichTextUrl(text=item["title"], url=item["url"]), f' — {item["publisher"]}']))
     blocks.append(InputRichBlockParagraph(text="Изменения чемпионата — за весь уик-энд." + (
         " Часть данных ещё не подтверждена." if recap.get("status") == "partial" else "")))
     return InputRichMessage(blocks=blocks)

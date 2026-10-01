@@ -75,6 +75,8 @@ class Database:
         from app.services.prediction_recovery import SCHEMA as prediction_recovery_schema
         await self.conn.executescript(prediction_recovery_schema)
         from app.admin_notifications_schema import SCHEMA as admin_notifications_schema
+        from app.services.recap_news import ensure_schema as ensure_recap_news_schema
+        await ensure_recap_news_schema(self.conn)
         from app.services.web_notifications import initialize as initialize_web_notifications
         await self.conn.executescript(admin_notifications_schema)
         await initialize_web_notifications(self.conn)

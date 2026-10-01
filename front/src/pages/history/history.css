@@ -38,6 +38,7 @@
 .race-recap-list p { font-size: 14px; line-height: 1.55; margin: 0; color: #c1c3cb; }
 .race-recap-panel summary, .driver-guide summary { cursor: pointer; min-height: 28px; font-weight: 600; }
 .driver-guide { max-width: 1120px; }
+.race-news{margin-top:24px;padding-top:20px;border-top:1px solid #343743}.race-news ul{list-style:none;padding:0;display:grid;gap:14px}.race-news li{padding:14px 16px;border:1px solid #343743;border-radius:12px;min-width:0}.race-news a{display:block;color:#ff8076;line-height:1.5;overflow-wrap:anywhere}.race-news a:focus-visible{outline:3px solid #ff6257;outline-offset:4px}.race-news small{display:block;color:#aeb1ba;margin-top:8px}
 .driver-guide p { line-height: 1.6; }
 @media (max-width: 600px) {
   .history-panel, .race-recap-panel, .driver-guide { padding: 16px; border-radius: 14px; }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { apiRequest } from './api';
 
-type Impact = {status: string; items: {category: string; title: string; text: string}[]; note: string; sources?: {title: string; url: string}[]; updated_at?: string};
+type RecapLink = {title: string; url: string; publisher: string; published_at: string};
+type Impact = {status: string; items: {category: string; title: string; text: string}[]; news?: RecapLink[]; chronicle?: RecapLink[]; note: string; sources?: {title: string; url: string}[]; updated_at?: string};
 
 // Both layouts share one request and retry state, not two parallel source loads.
 export function useRaceRecap(season: number, round: number, enabled: boolean) {

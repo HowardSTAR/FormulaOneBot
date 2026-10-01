@@ -17,12 +17,14 @@ import { useSearchParams } from 'react-router-dom';
 import "./admin.css";
 import { AdminInsights, AdminNotifications, AdminToolDirectory } from "./AdminTools";
 import { AdminControl } from './AdminControl';
+import { AdminRecapNews } from './AdminRecapNews';
 import './admin-workspace.css';
 
 const sections = [
   { id: 'control', label: 'Доставка', hint: 'Очередь, ошибки и статусы', description: 'Посмотрите, какие уведомления требуют внимания. Отправки не запускаются при просмотре.' },
   { id: 'recovery', label: 'Результаты прогнозов', hint: 'Проверка и пересчёт', description: 'Выберите этап или весь сезон. Сначала проверьте изменения, затем подтвердите применение.' },
   { id: 'notifications', label: 'Рассылки сайта', hint: 'Аудитория и предпросмотр', description: 'Подготовьте сообщение, проверьте получателей и подтвердите отправку. Telegram-рассылки здесь не запускаются.' },
+  { id: 'recap-news', label: 'Новости рекапа', hint: 'Источники и публикации', description: 'Подключите разрешённые ленты. Скрывайте неподходящие публикации без изменения результатов гонки и прогнозов.' },
   { id: 'users', label: 'Пользователи', hint: 'Поиск и доступ', description: 'Найдите аккаунт по имени, email или Telegram. Управление ролями доступно супер-администратору.' },
   { id: 'overview', label: 'Аналитика', hint: 'Аудитория и сценарии', description: 'Смотрите посещения, возвращаемость и использование функций. Анонимные браузеры считаются отдельно.' },
   { id: 'games', label: 'Игры', hint: 'Рекорды и модерация', description: 'Статистика игровых результатов. Удаление рекордов требует отдельного подтверждения.' },
@@ -420,6 +422,7 @@ export default function AdminPage() {
 
       {tab === "notifications" && <AdminNotifications adminId={identity?.id} />}
       {tab === "tools" && <AdminToolDirectory />}
+      {tab === 'recap-news' && <AdminRecapNews />}
       {tab === "users" && (
         <section className="admin-users-card">
           <header className="admin-users-tools">
