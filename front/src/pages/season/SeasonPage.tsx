@@ -502,58 +502,57 @@ function SeasonPage() {
                     </span>
                   </button>
                   <div className="season-mobile-card-actions">
-                  <span className="race-status">{statusIcon}</span>
-                  <button
-                    type="button"
-                    className="race-insights-toggle"
-                    onClick={() => toggleRaceFacts(race)}
-                    aria-expanded={areFactsExpanded}
-                    aria-controls={`season-mobile-facts-${race.round}`}
-                    aria-label={`${resultLinks.length ? 'Результаты и факты' : 'Факты'}: ${race.event_name}`}
-                  >
-                    {resultLinks.length ? 'Результаты и факты' : 'Факты'}
-                    <span aria-hidden="true">{areFactsExpanded ? "−" : "+"}</span>
-                  </button>
+                    <span className="race-status">{statusIcon}</span>
+                    <button
+                      type="button"
+                      className="race-insights-toggle"
+                      onClick={() => toggleRaceFacts(race)}
+                      aria-expanded={areFactsExpanded}
+                      aria-controls={`season-mobile-facts-${race.round}`}
+                      aria-label={`${resultLinks.length ? 'Результаты и факты' : 'Факты'}: ${race.event_name}`}
+                    >
+                      {resultLinks.length ? 'Результаты и факты' : 'Факты'}
+                      <span aria-hidden="true">{areFactsExpanded ? "−" : "+"}</span>
+                    </button>
                   </div>
-                </div>
-
-                <div
-                  id={`season-mobile-facts-${race.round}`}
-                  className={`season-stage-expansion season-mobile-stage-expansion ${areFactsExpanded ? "open" : ""}`}
-                  aria-hidden={!areFactsExpanded}
-                >
-                  <div className="season-stage-expansion-inner">
-                    {areFactsExpanded && <div className="season-race-insights season-mobile-race-facts-panel">
-                      {resultLinks.length > 0 && (
-                        <div className="season-mobile-results">
-                          <div className="season-mobile-results-head">Результаты этапа</div>
-                          <div className="season-mobile-results-links">
-                            {resultLinks.map((item) => (
-                              <Link key={item.key} to={item.href} className="season-mobile-result-link">
-                                {item.label}
-                                <span aria-hidden="true">→</span>
-                              </Link>
-                            ))}
+                  <div
+                    id={`season-mobile-facts-${race.round}`}
+                    className={`season-stage-expansion season-mobile-stage-expansion ${areFactsExpanded ? "open" : ""}`}
+                    aria-hidden={!areFactsExpanded}
+                  >
+                    <div className="season-stage-expansion-inner">
+                      {areFactsExpanded && <div className="season-race-insights season-mobile-race-facts-panel">
+                        {resultLinks.length > 0 && (
+                          <div className="season-mobile-results">
+                            <div className="season-mobile-results-head">Результаты этапа</div>
+                            <div className="season-mobile-results-links">
+                              {resultLinks.map((item) => (
+                                <Link key={item.key} to={item.href} className="season-mobile-result-link">
+                                  {item.label}
+                                  <span aria-hidden="true">→</span>
+                                </Link>
+                              ))}
+                            </div>
                           </div>
+                        )}
+                        <div className="season-race-stats">
+                          {insights.stats.map((item) => (
+                            <div className="season-race-stat-box" key={`${race.round}-${item.label}`}>
+                              <div className="season-race-stat-label">{item.label}</div>
+                              <div className="season-race-stat-value">{item.value}</div>
+                            </div>
+                          ))}
                         </div>
-                      )}
-                      <div className="season-race-stats">
-                        {insights.stats.map((item) => (
-                          <div className="season-race-stat-box" key={`${race.round}-${item.label}`}>
-                            <div className="season-race-stat-label">{item.label}</div>
-                            <div className="season-race-stat-value">{item.value}</div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="season-race-facts">
-                        {insights.facts.map((fact) => (
-                          <div className="season-race-fact-item" key={`${race.round}-${fact.title}`}>
-                            <div className="season-race-fact-title">{fact.title}</div>
-                            <div className="season-race-fact-text">{fact.text}</div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>}
+                        <div className="season-race-facts">
+                          {insights.facts.map((fact) => (
+                            <div className="season-race-fact-item" key={`${race.round}-${fact.title}`}>
+                              <div className="season-race-fact-title">{fact.title}</div>
+                              <div className="season-race-fact-text">{fact.text}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>}
+                    </div>
                   </div>
                 </div>
               </div>

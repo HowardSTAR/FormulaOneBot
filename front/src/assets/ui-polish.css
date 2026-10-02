@@ -37,6 +37,9 @@ body .glossary-hint .ui-action-link {
 #root .notification-clock.phase-live { border-color: #ff6259; color: #ffb7b0; }
 #root .notifications-page > label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
 #root .notifications-page article { padding: 20px; }
+#root .driver-profile-navigation { align-items: center; margin: 0 0 16px; gap: 8px; }
+#root .driver-profile-navigation .btn-back { min-height: 44px; box-sizing: border-box; margin: 0; }
+#root .driver-profile-navigation a { font-size: 13px; padding: 10px 12px; }
 
 /* Session information and the calendar action have separate, predictable columns. */
 #root .race-details-page .circuit-header { margin: 20px 0; }
@@ -59,17 +62,27 @@ body .glossary-hint .ui-action-link {
 @media (max-width: 899px) {
   #root .route-home .index-hero-wrap > .personal-home { margin-top: 16px; }
   #root .route-season .season-races-grid { gap: 12px; }
-  #root .route-season .race-card { display: block; min-height: 0; padding: 12px; margin: 0; }
+  #root .route-season .race-card { display: block; min-height: 0; padding: 16px; margin: 0; border-radius: 16px; }
   #root .route-season .race-card.finished { opacity: 1; }
-  #root .route-season .season-mobile-race-open { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; width: 100%; gap: 12px; padding: 0; }
-  #root .route-season .season-mobile-race-open .race-date-box { grid-row: auto; width: 44px; height: 48px; margin: 0; }
+  #root .route-season .season-mobile-race-open { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: center; width: 100%; gap: 12px; padding: 0; font: inherit; }
+  #root .route-season .season-mobile-race-open .race-date-box { grid-row: auto; width: 52px; height: 56px; margin: 0; border-radius: 12px; }
+  #root .route-season .date-day { font-size: 22px; line-height: 1.2; }
+  #root .route-season .date-month { margin-top: 3px; font-size: 11px; }
   #root .route-season .race-info { min-width: 0; }
-  #root .route-season .race-name { font-size: 15px; line-height: 1.35; white-space: normal; }
+  #root .route-season .race-name { margin: 4px 0; font-size: 16px; line-height: 1.35; white-space: normal; }
   #root .route-season .race-round, #root .route-season .race-loc { font-size: 12px; line-height: 1.4; }
-  #root .route-season .season-mobile-card-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px; margin: 6px 0 0; }
-  #root .route-season .season-mobile-card-actions .race-status { margin: 0; font-size: 12px; line-height: 1.4; }
-  #root .route-season .race-insights-toggle { margin: 0; min-height: 44px; padding: 8px 10px; font-size: 12px; }
+  #root .route-season .season-mobile-card-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid #ffffff12; }
+  #root .route-season .season-mobile-card-actions .race-status { margin: 0; max-width: 100%; padding: 5px 8px; border-radius: 6px; background: #ffffff08; color: #bfc3ce; font-size: 12px; line-height: 1.4; }
+  #root .route-season :is(.next, .live, .recent, .cancelled) .race-status { background: #e1060026; color: #ffb4ad; }
+  #root .route-season .race-insights-toggle { margin: 0 0 0 auto; min-height: 44px; padding: 8px 12px; border-radius: 10px; font-size: 12px; font-family: inherit; background: #24191d; }
+  /* Facts belong to the same bordered card and occupy normal document flow. */
+  #root .route-season .season-mobile-stage-expansion { margin: 12px 0 0; transform: none; }
   #root .route-season .season-mobile-stage-expansion:not(.open) { display: none; }
+  #root .route-season .season-mobile-race-facts-panel { margin: 0; padding: 16px 0 0; border: 0; border-top: 1px solid #ffffff12; border-radius: 0; background: transparent; animation: none; }
+  #root .route-season .season-race-stats { gap: 10px; margin-bottom: 16px; }
+  #root .route-season .season-race-stat-box { padding: 10px; background: #ffffff03; border-radius: 10px; }
+  #root .route-season .season-race-facts { gap: 14px; }
+  #root .route-season .season-race-fact-text { color: #bfc3ce; line-height: 1.55; }
   #root .race-details-page .session-row { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; }
   #root .race-details-page .session-calendar { grid-column: 1 / -1; }
   #root .race-details-page .schedule-card { padding: 16px; }

@@ -4,9 +4,35 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="эвристикам Нильсена по календарю">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="обновление подписей(таймера) и выбор за сколько уведомлений">
+      <change beforePath="$PROJECT_DIR$/app/api/miniapp_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/miniapp_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/web_notifications_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/web_notifications_api.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/docs/f1-history-recap.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/f1-history-recap.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/front/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/App.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/components/CalendarDownload.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/CalendarDownload.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/components/DriverGuide.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/DriverGuide.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/components/GlossaryText.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/GlossaryText.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/components/PageFeedback.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/PageFeedback.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/components/RaceImpact.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/RaceImpact.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/components/RequireAdmin.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/RequireAdmin.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/components/SwipeBackLayout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/SwipeBackLayout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/helpers/api.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/helpers/api.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/helpers/telegram.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/helpers/telegram.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/account/AccountPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/account/AccountPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/community/SharePage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/community/SharePage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/constructors/ConstructorsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/constructors/ConstructorsPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/driver-details/DriverDetailsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/driver-details/DriverDetailsPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/drivers/DriversPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/drivers/DriversPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/notifications/NotificationsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/notifications/NotificationsPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/predictions/PredictionsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/predictions/PredictionsPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/predictions/SeasonProgress.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/predictions/SeasonProgress.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/race-details/RaceDetailsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/race-details/RaceDetailsPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/season/SeasonPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/season/SeasonPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/settings/SettingsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/settings/SettingsPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/team-principal/TeamPrincipalPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/team-principal/TeamPrincipalPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_web_notifications.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_web_notifications.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/ux_preview_server.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/ux_preview_server.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -220,14 +246,6 @@
       <workItem from="1768860453876" duration="3031000" />
       <workItem from="1768914801741" duration="17575000" />
       <workItem from="1769405571210" duration="601000" />
-    </task>
-    <task id="LOCAL-00080" summary="включение всем уведомлений, но отключение звука у тех кто отключил их">
-      <option name="closed" value="true" />
-      <created>1789152693185</created>
-      <option name="number" value="00080" />
-      <option name="presentableId" value="LOCAL-00080" />
-      <option name="project" value="LOCAL" />
-      <updated>1789152693185</updated>
     </task>
     <task id="LOCAL-00081" summary="доп уведомление о приглошение про прогноз">
       <option name="closed" value="true" />
@@ -613,7 +631,15 @@
       <option name="project" value="LOCAL" />
       <updated>1790891751269</updated>
     </task>
-    <option name="localTasksCounter" value="129" />
+    <task id="LOCAL-00129" summary="обновление подписей(таймера) и выбор за сколько уведомлений">
+      <option name="closed" value="true" />
+      <created>1790934724710</created>
+      <option name="number" value="00129" />
+      <option name="presentableId" value="LOCAL-00129" />
+      <option name="project" value="LOCAL" />
+      <updated>1790934724710</updated>
+    </task>
+    <option name="localTasksCounter" value="130" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -631,7 +657,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Единые очки. Главная и сравнение используют официальный зачёт, включая спринты. Гоночные показатели подписаны отдельно; отсутствующие данные не выдаются за нули. &#10;&#10;Характеристики трасс. Мадрид отделён от Барселоны, параметры сезона 2026 сверены с официальными карточками F1. Дополнительно исправлены ошибочные совпадения названий трасс. &#10;&#10;Компактная главная. Под ближайшей сессией — короткое актуальное действие вместо большой панели. Добавлено нижнее мобильное меню. &#10;&#10;Прогноз без регистрации. Гость видит правила, пример разбора и может заполнить черновик. Выбор сохраняется при переходе к входу. &#10;&#10;«Мой сезон». Личная история, лучший и средний результат, точность по категориям, изменение места и разбор этапа. Неизвестные результаты не считаются промахами. &#10;&#10;Соревнования с друзьями. Рейтинг отдельного этапа, приватные лиги с приглашениями, сезонный зачёт и достижения. Чужие ответы остаются закрытыми. &#10;&#10;Календарь и результаты. Предстоящие этапы показываются первыми, сессии можно экспортировать в календарь. Карты компактнее, добавлены сводка изменений после гонки и ссылки на объяснения терминов." />
     <MESSAGE value="Единые очки. Главная и сравнение используют официальный зачёт, включая спринты. Гоночные показатели подписаны отдельно; отсутствующие данные не выдаются за нули. &#10;&#10;Характеристики трасс. Мадрид отделён от Барселоны, параметры сезона 2026 сверены с официальными карточками F1. Дополнительно исправлены ошибочные совпадения названий трасс. &#10;&#10;Компактная главная. Под ближайшей сессией — короткое актуальное действие вместо большой панели. Добавлено нижнее мобильное меню. &#10;&#10;Прогноз без регистрации. Гость видит правила, пример разбора и может заполнить черновик. Выбор сохраняется при переходе к входу. &#10;&#10;«Мой сезон». Личная история, лучший и средний результат, точность по категориям, изменение места и разбор этапа. Неизвестные результаты не считаются промахами. &#10;&#10;Соревнования с друзьями. Рейтинг отдельного этапа, приватные лиги с приглашениями, сезонный зачёт и достижения. Чужие ответы остаются закрытыми. &#10;&#10;Календарь и результаты. Предстоящие этапы показываются первыми, сессии можно экспортировать в календарь. Карты компактнее, добавлены сводка изменений после гонки и ссылки на объяснения терминов." />
     <MESSAGE value="добавление сортировки в аналитику" />
     <MESSAGE value="новый иконки" />
@@ -656,7 +681,8 @@
     <MESSAGE value="по эвристика нильсена" />
     <MESSAGE value="фикс докера" />
     <MESSAGE value="эвристикам Нильсена по календарю" />
-    <option name="LAST_COMMIT_MESSAGE" value="эвристикам Нильсена по календарю" />
+    <MESSAGE value="обновление подписей(таймера) и выбор за сколько уведомлений" />
+    <option name="LAST_COMMIT_MESSAGE" value="обновление подписей(таймера) и выбор за сколько уведомлений" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/FormulaOneBot$fastf1_capabilities_test.coverage" NAME="fastf1_capabilities_test Coverage Results" MODIFIED="1768941910109" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />

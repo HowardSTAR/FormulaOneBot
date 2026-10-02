@@ -83,6 +83,7 @@ function DriverDetailsPage() {
   const driverId = searchParams.get("driverId");
   const seasonParam = searchParams.get("season");
   const season = seasonParam ? parseInt(seasonParam, 10) : new Date().getFullYear();
+  const standingsPath = `/drivers?year=${season}`;
 
   const [data, setData] = useState<DriverDetailsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -135,7 +136,7 @@ function DriverDetailsPage() {
   if (error || (!code && !driverId)) {
     return (
       <>
-        <BackButton fallback="/drivers">← <span>Личный зачет</span></BackButton>
+        <BackButton fallback={standingsPath} />
         <PageFeedback message={error || "Не указан пилот"} retry={() => setAttempt(v => v + 1)} parent={{to: "/drivers", label: "Личный зачёт"}} />
       </>
     );
@@ -144,7 +145,7 @@ function DriverDetailsPage() {
   if (loading || !data) {
     return (
       <>
-        <BackButton fallback="/drivers">← <span>Личный зачет</span></BackButton>
+        <BackButton fallback={standingsPath} />
         <div className="loading full-width">
           <div className="spinner" />
           <div>Загрузка карточки пилота...</div>
@@ -169,8 +170,11 @@ function DriverDetailsPage() {
 
   return (
     <>
+      <nav className="ui-section-links driver-profile-navigation" aria-label="Навигация профиля пилота">
+        <BackButton fallback={standingsPath} />
+        <Link to={standingsPath}>Зачёт пилотов · {season}</Link>
+      </nav>
       <div className="driver-details-mobile">
-        <nav className="ui-section-links" aria-label="Родительский раздел"><Link to={`/drivers?year=${season}`}>← К зачёту пилотов · {season}</Link></nav>
 
         <div className="driver-card-header">
           <div className="driver-portrait-wrap">
@@ -285,7 +289,6 @@ function DriverDetailsPage() {
       </div>
 
       <section className="driver-profile-desktop">
-        <nav className="ui-section-links" aria-label="Родительский раздел"><Link to={`/drivers?year=${season}`}>К зачёту пилотов · {season}</Link></nav>
         <header className="driver-profile-desktop-hero">
           <div className="driver-profile-desktop-photo">
             <img src={pilotPortraitUrl(data.code, fullName, season)} alt={fullName} />
