@@ -51,7 +51,7 @@ export function SeasonProgress() {
       {data.achievements.length > 0 && <p>Достижения: {data.achievements.join(' · ')}</p>}
       <h4>Мои этапы</h4>
       <div className="season-progress-rounds">{[...data.history].reverse().map(r => <button key={r.round} onClick={() => setReview(r)}>{r.event_name || `Этап ${r.round}`} <strong>{r.points} / {r.max_points}</strong></button>)}</div>
-      <Link to="/next-race">Следующий уик-энд →</Link>
+      <Link className="ui-action-link" to="/next-race">Следующий уик-энд →</Link>
     </>}
     {review && <PersonalReview season={review.season} round={review.round} onClose={() => setReview(null)} />}
   </section>;

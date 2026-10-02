@@ -5,6 +5,7 @@ type HapticAPI = {
 };
 
 type TelegramWebApp = {
+  openLink?: (url: string) => void;
   initData?: string;
   HapticFeedback?: HapticAPI;
   ready?: () => void;
@@ -12,6 +13,13 @@ type TelegramWebApp = {
   setHeaderColor?: (color: string) => void;
   setBackgroundColor?: (color: string) => void;
 };
+
+/** Must be called synchronously from the user's click. Otherwise use the anchor. */
+export function openExternalLink(url: string): boolean {
+  const tg = getTelegramWebApp();
+  if (!tg?.initData || !tg.openLink || !/^https?:\/\//.test(url)) return false;
+  try { tg.openLink(url); return true; } catch { return false; }
+}
 
 function getTelegramWebApp(): TelegramWebApp | undefined {
   return (window as unknown as { Telegram?: { WebApp?: TelegramWebApp } }).Telegram?.WebApp;

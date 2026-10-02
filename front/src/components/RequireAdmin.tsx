@@ -27,7 +27,7 @@ export function RequireAdmin({ children }: { children: ReactNode }) {
         <span>403</span>
         <h1>Доступ запрещён</h1>
         <p>Административная панель доступна только администраторам.</p>
-        <Link to="/account">Перейти в аккаунт</Link>
+        <Link className="ui-action-link" to="/account">Перейти в аккаунт</Link>
       </div>
     );
   }

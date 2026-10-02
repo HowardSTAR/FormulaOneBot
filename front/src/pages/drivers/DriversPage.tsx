@@ -63,7 +63,6 @@ function DriversPage() {
   );
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dataContext, setDataContext] = useState<{round?: number | null; received: string} | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<{ icon: string; title: string; desc: string } | null>(null);
   const [topConstructors, setTopConstructors] = useState<ConstructorStanding[]>([]);
@@ -88,7 +87,6 @@ function DriversPage() {
     setEmptyMessage(null);
     try {
       const data = await apiRequest<DriversResponse>("/api/drivers", { season });
-      setDataContext({round: data.round, received: new Date().toLocaleTimeString('ru-RU')});
       if (!data.drivers || data.drivers.length === 0) {
         if (season === currentRealYear) {
           setEmptyMessage({
@@ -207,9 +205,7 @@ function DriversPage() {
 
   return (
     <>
-      {!loading && !error && dataContext && <p className="ui-data-context">Сезон {year} · {dataContext.round != null ? `после этапа ${dataContext.round}` : 'этап обновления не указан источником'} · Получено в {dataContext.received}; время обновления источника может отличаться.</p>}
       <BackButton>← <span>Главное меню</span></BackButton>
-      <Link className="standings-history-link" to="/history?kind=drivers">История с 1950 года · сравнить сезоны →</Link>
       <div className="page-head-row">
         <h2 className="page-head-title">Личный зачет</h2>
         <div className="page-head-controls mobile-year-control">
@@ -223,6 +219,7 @@ function DriversPage() {
         </div>
       </div>
 
+      <Link className="standings-history-link" to="/history?kind=drivers">История с 1950 года · сравнить сезоны →</Link>
       <div className="desktop-standings-layout">
         <div className="desktop-standings-board drivers-desktop-shell">
           <div className="desktop-standings-toolbar drivers-desktop-toolbar">
@@ -308,7 +305,7 @@ function DriversPage() {
               </article>
               <article className="drivers-insight-card active">
                 <h4>Как менялось место</h4>
-                <p><Link to="/history?kind=drivers">Сравнить сезоны →</Link></p>
+                <p><Link className="ui-action-link" to="/history?kind=drivers">Сравнить сезоны →</Link></p>
                 <small>Смотрите динамику мест; очки разных эпох начислялись по разным правилам.</small>
               </article>
             </div>

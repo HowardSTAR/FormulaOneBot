@@ -55,6 +55,27 @@ async def store(tmp_path, monkeypatch):
         await conn.commit()
     return service
 
+
+@pytest.mark.asyncio
+async def test_inbox_reminder_clock_uses_persisted_start_not_delivery_time(store):
+    from app.api.web_notifications_api import inbox
+    from datetime import datetime, timezone
+    start = 1791534600.0
+    await store.publish('reminder:2026:17:sprint_quali:60', 'Скоро сессия', 'Через 59 мин.', '/race-details?season=2026&round=17', user_id=1, expires=start)
+    await store.publish('reminder:2026:16:race:15', 'Legacy', 'Старое сообщение', '/', user_id=1)
+    result = await inbox(before=0, user_id=1, category='reminders')
+    by_title = {item['title']: item for item in result['items']}
+    assert by_title['Скоро сессия']['reminder'] == {'kind': 'sprint_quali', 'start_utc': datetime.fromtimestamp(start, timezone.utc).isoformat(), 'duration_minutes': 60}
+    assert by_title['Legacy']['reminder']['start_utc'] is None
+    assert all('expires' not in item and 'event_key' not in item for item in result['items'])
+    assert not (await inbox(before=0, user_id=2, category='reminders'))['items']
+
+
+@pytest.mark.parametrize('key,expires', [('results:2026:17', 100), ('reminder:2026:17:unknown:60', 100)])
+def test_non_session_messages_have_no_reminder_clock(key, expires):
+    from app.api.web_notifications_api import reminder_metadata
+    assert reminder_metadata(key, expires) is None
+
 @pytest.mark.parametrize("endpoint", ["http://fcm.googleapis.com/a", "https://127.0.0.1/a", "https://fcm.googleapis.com.attacker.test/a", "https://fcm.googleapis.com:8000/a", "https://user@fcm.googleapis.com/a"])
 def test_rejects_ssrf_endpoints(endpoint):
     with pytest.raises(ValueError): service.validate_subscription(subscription(endpoint))

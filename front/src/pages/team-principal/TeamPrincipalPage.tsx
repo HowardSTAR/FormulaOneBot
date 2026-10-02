@@ -100,7 +100,7 @@ export default function TeamPrincipalPage() {
         <section className="team-principal-bio">
           <h2>Краткая биография</h2>
           <p>{cleanBiography(principal.bio || "Краткая биография пока недоступна.")}</p>
-          {principal.url && <a href={principal.url} target="_blank" rel="noopener noreferrer">Открыть источник →</a>}
+          {principal.url && <a className="ui-action-link" href={principal.url} target="_blank" rel="noopener noreferrer">Открыть источник →</a>}
         </section>
       </article>
 
@@ -123,7 +123,7 @@ export default function TeamPrincipalPage() {
         <section className="team-principal-desktop-bio">
           <h2>Краткая биография</h2>
           <p>{cleanBiography(principal.bio || "Краткая биография пока недоступна.")}</p>
-          {principal.url && <a href={principal.url} target="_blank" rel="noopener noreferrer">Открыть источник →</a>}
+          {principal.url && <a className="ui-action-link" href={principal.url} target="_blank" rel="noopener noreferrer">Открыть источник →</a>}
         </section>
       </article>
     </>

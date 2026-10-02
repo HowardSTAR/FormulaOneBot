@@ -47,7 +47,6 @@ function ConstructorsPage() {
   );
   const [teams, setTeams] = useState<Constructor[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dataContext, setDataContext] = useState<{round?: number | null; received: string} | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<{ icon: string; title: string; desc?: string } | null>(null);
   const [topDrivers, setTopDrivers] = useState<DriverStanding[]>([]);
@@ -71,7 +70,6 @@ function ConstructorsPage() {
     setEmptyMessage(null);
     try {
       const data = await apiRequest<ConstructorsResponse>("/api/constructors", { season });
-      setDataContext({round: data.round, received: new Date().toLocaleTimeString('ru-RU')});
       if (!data.constructors || data.constructors.length === 0) {
         if (season === currentRealYear) {
           setEmptyMessage({
@@ -184,9 +182,7 @@ function ConstructorsPage() {
 
   return (
     <>
-      {!loading && !error && dataContext && <p className="ui-data-context">Сезон {year} · {dataContext.round != null ? `после этапа ${dataContext.round}` : 'этап обновления не указан источником'} · Получено в {dataContext.received}; время обновления источника может отличаться.</p>}
       <BackButton className="btn-back constructors-back-button">← <span>Главное меню</span></BackButton>
-      <Link className="standings-history-link" to="/history?kind=constructors">История Кубка с 1958 года · сравнить сезоны →</Link>
       <div className="page-head-row">
         <h2 className="page-head-title">Кубок конструкторов</h2>
         <div className="page-head-controls mobile-year-control">
@@ -201,6 +197,7 @@ function ConstructorsPage() {
         </div>
       </div>
 
+      <Link className="standings-history-link" to="/history?kind=constructors">История Кубка с 1958 года · сравнить сезоны →</Link>
       <div className="desktop-standings-layout">
         <div className="desktop-standings-board constructors-desktop-shell">
           <div className="desktop-standings-toolbar constructors-desktop-toolbar">

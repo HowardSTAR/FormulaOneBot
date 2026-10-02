@@ -1,4 +1,5 @@
 import { SingleFlight } from './singleFlight';
+import { dataReceiptKey } from './dataReceipt';
 
 // Точно как в web/app/static/js/common.js — читаем при каждом запросе
 function getInitData(): string {
@@ -71,6 +72,7 @@ async function executeApiRequest<T = unknown>(
   timeoutMs: number = REQUEST_TIMEOUT_MS
 ): Promise<T> {
   const path = (PATH_BASE + endpoint).replace(/\/+/g, '/');
+  const requestedRoute = dataReceiptKey(window.location.pathname, window.location.search);
   const url = API_BASE ? new URL(endpoint, API_BASE) : new URL(path, window.location.origin);
 
   const headers: HeadersInit = {
@@ -151,7 +153,13 @@ async function executeApiRequest<T = unknown>(
   }
 
   try {
-    return (await response.json()) as T;
+    const payload = (await response.json()) as T;
+    // UI receipt only, no source-freshness claim or extra network traffic.
+    if (method === 'GET' && !/^\/api\/(?:auth|account|admin|analytics|settings|favorites)(?:\/|$)/.test(endpoint)
+      && endpoint !== '/api/web-notifications/unread-count') {
+      window.dispatchEvent(new CustomEvent('f1hub:data-received', {detail: {route: requestedRoute, at: Date.now()}}));
+    }
+    return payload;
   } catch {
     throw new ApiError('Не удалось прочитать ответ сервера. Попробуйте повторить запрос.', response.status);
   }

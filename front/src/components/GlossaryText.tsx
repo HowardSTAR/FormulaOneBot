@@ -73,7 +73,7 @@ function Term({ text, item }: { text: string; item: GlossaryItem }) {
         onClick={() => { trigger.current?.focus({ preventScroll: true }); close(); }}>×</button>
       <strong>{item.termRu}</strong><small>{item.termEn}</small>
       <p>{item.definition}</p>
-      <Link to={href} onClick={close}>Подробнее в Wiki →</Link>
+      <Link className="ui-action-link" to={href} onClick={close}>Подробнее в Wiki →</Link>
     </div>, document.body)}
   </>;
 }

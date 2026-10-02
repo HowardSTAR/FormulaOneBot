@@ -500,8 +500,9 @@ function SeasonPage() {
                       <span className="race-name">{race.event_name}</span>
                       <span className="race-loc">📍 {race.location}</span>
                     </span>
-                    <span className="race-status">{statusIcon}</span>
                   </button>
+                  <div className="season-mobile-card-actions">
+                  <span className="race-status">{statusIcon}</span>
                   <button
                     type="button"
                     className="race-insights-toggle"
@@ -513,6 +514,7 @@ function SeasonPage() {
                     {resultLinks.length ? 'Результаты и факты' : 'Факты'}
                     <span aria-hidden="true">{areFactsExpanded ? "−" : "+"}</span>
                   </button>
+                  </div>
                 </div>
 
                 <div

@@ -1,0 +1,77 @@
+/* Navigational actions stay links for browser accessibility, but look like controls. */
+#root .app-page-main :is(.ui-action-link, .standings-history-link, .ui-section-links a,
+  .ui-feedback-actions a, .driver-bio-link, .share-actions a, .personal-home-more a,
+  .personal-home-guest a, .pa-panel > a:not(.pa-news), .community-card p > a,
+  .community-share-row a, .admin-tools h3 > a, .pr-manual-grid a),
+body .glossary-hint .ui-action-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border: 1px solid #ff625950;
+  border-radius: 12px;
+  background: #24191d;
+  color: #ffe0dc;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+#root .app-page-main :is(.ui-action-link, .standings-history-link, .ui-section-links a,
+  .ui-feedback-actions a, .driver-bio-link):hover { background: #382025; border-color: #ff6259; }
+#root :is(.ui-action-link, .calendar-download, .calendar-dialog button):focus-visible {
+  outline: 3px solid #8fcfff; outline-offset: 3px;
+}
+#root .ui-data-receipt { margin: 28px 0 8px; color: #a8acb7; font-size: 12px; line-height: 1.5; text-align: end; }
+#root .driver-guide { margin-bottom: 16px; }
+#root .notification-clock { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; padding: 12px 14px; border-radius: 10px; background: #252831; border: 1px solid #ffffff26; }
+#root .notification-clock strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+#root .notification-clock small { color: #c3c7d1; font-size: 12px; }
+#root .notification-clock.phase-live { border-color: #ff6259; color: #ffb7b0; }
+#root .notifications-page > label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+#root .notifications-page article { padding: 20px; }
+
+/* Session information and the calendar action have separate, predictable columns. */
+#root .race-details-page .circuit-header { margin: 20px 0; }
+#root .race-details-page h1.circuit-title { margin: 0 0 8px; font-size: clamp(24px, 4vw, 40px); line-height: 1.2; }
+#root .race-details-page .schedule-title { margin: 0; font-size: 20px; }
+#root .race-details-page .schedule-timezone { margin: 8px 0 16px; color: #bfc3ce; font-size: 13px; }
+#root .session-list { list-style: none; padding: 0; margin: 0; }
+#root .race-details-page .session-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px 20px; align-items: center; padding: 16px 0; }
+#root .race-details-page .session-name { min-width: 0; font-size: 17px; line-height: 1.4; }
+#root .race-details-page .session-time { min-width: 96px; text-align: right; }
+#root .race-details-page .time-date { white-space: nowrap; }
+#root .calendar-download { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border: 1px solid #ff625950; border-radius: 10px; padding: 8px 12px; background: #24191d; color: #ffe0dc; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; margin: 0; }
+#root .calendar-dialog { width: min(440px, calc(100vw - 32px)); box-sizing: border-box; max-height: calc(100dvh - 48px); overflow: auto; border: 1px solid #535866; border-radius: 18px; padding: 24px; background: #17191f; color: #f5f5f7; box-shadow: 0 16px 60px #0008; }
+#root .calendar-dialog::backdrop { background: #000b; }
+#root .calendar-dialog h2 { margin: 0 0 16px; font-size: 24px; }
+#root .calendar-dialog p { line-height: 1.55; overflow-wrap: anywhere; }
+#root .calendar-dialog .calendar-note { color: #bfc3ce; font-size: 12px; }
+#root .calendar-dialog button { min-height: 44px; border: 1px solid #535866; border-radius: 10px; padding: 10px 16px; background: #252831; color: white; cursor: pointer; }
+
+@media (max-width: 899px) {
+  #root .route-home .index-hero-wrap > .personal-home { margin-top: 16px; }
+  #root .route-season .season-races-grid { gap: 12px; }
+  #root .route-season .race-card { display: block; min-height: 0; padding: 12px; margin: 0; }
+  #root .route-season .race-card.finished { opacity: 1; }
+  #root .route-season .season-mobile-race-open { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; width: 100%; gap: 12px; padding: 0; }
+  #root .route-season .season-mobile-race-open .race-date-box { grid-row: auto; width: 44px; height: 48px; margin: 0; }
+  #root .route-season .race-info { min-width: 0; }
+  #root .route-season .race-name { font-size: 15px; line-height: 1.35; white-space: normal; }
+  #root .route-season .race-round, #root .route-season .race-loc { font-size: 12px; line-height: 1.4; }
+  #root .route-season .season-mobile-card-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px; margin: 6px 0 0; }
+  #root .route-season .season-mobile-card-actions .race-status { margin: 0; font-size: 12px; line-height: 1.4; }
+  #root .route-season .race-insights-toggle { margin: 0; min-height: 44px; padding: 8px 10px; font-size: 12px; }
+  #root .route-season .season-mobile-stage-expansion:not(.open) { display: none; }
+  #root .race-details-page .session-row { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; }
+  #root .race-details-page .session-calendar { grid-column: 1 / -1; }
+  #root .race-details-page .schedule-card { padding: 16px; }
+  #root .race-details-page .time-local { font-size: 20px; }
+}

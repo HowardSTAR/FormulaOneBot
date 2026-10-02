@@ -170,8 +170,7 @@ function DriverDetailsPage() {
   return (
     <>
       <div className="driver-details-mobile">
-        <nav className="ui-section-links" aria-label="Родительский раздел"><Link to={`/drivers?year=${season}`}>К зачёту пилотов · {season}</Link></nav>
-        <BackButton fallback="/drivers">← <span>Личный зачет</span></BackButton>
+        <nav className="ui-section-links" aria-label="Родительский раздел"><Link to={`/drivers?year=${season}`}>← К зачёту пилотов · {season}</Link></nav>
 
         <div className="driver-card-header">
           <div className="driver-portrait-wrap">

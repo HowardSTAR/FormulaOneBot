@@ -48,6 +48,7 @@ from app.api.site_analytics import router as site_analytics_router
 from app.api.f1_insights_api import router as f1_insights_router
 from app.api.engagement_api import router as engagement_router, public_router as engagement_public_router
 from app.api.web_notifications_api import router as web_notifications_router
+from app.api.calendar_api import router as calendar_router
 from app.f1_data import (
     points_for_race_position,
     get_season_schedule_short_async,
@@ -141,6 +142,7 @@ web_app.include_router(admin_router)
 web_app.include_router(admin_tools_router)
 web_app.include_router(prediction_analytics_router)
 web_app.include_router(web_notifications_router)
+web_app.include_router(calendar_router)
 web_app.include_router(f1_insights_router)
 web_app.include_router(engagement_router)
 web_app.include_router(engagement_public_router)

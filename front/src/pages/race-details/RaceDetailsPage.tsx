@@ -38,6 +38,8 @@ function RaceDetailsPage() {
     }
     let cancelled = false;
     async function load() {
+      setLoading(true);
+      setError(null);
       try {
         const [raceData, settingsData] = await Promise.all([
           apiRequest<RaceDetailsResponse>("/api/race-details", { season, round }),
@@ -100,12 +102,13 @@ function RaceDetailsPage() {
       ? new Date(session.utc_iso)
       : session.local
         ? new Date(session.local)
-        : new Date();
+        : new Date(NaN);
     const isPast = sessionDate < now;
     const isActive = !isPast && sessionDate.getTime() - now.getTime() < 86400000;
     let timeStr = "--:--";
     let dateStr = "--";
     try {
+      if (!Number.isFinite(sessionDate.getTime())) throw new Error('Missing time');
       timeStr = sessionDate.toLocaleTimeString("ru-RU", {
         hour: "2-digit",
         minute: "2-digit",
@@ -117,36 +120,39 @@ function RaceDetailsPage() {
         timeZone: userTz,
       });
     } catch {
-      timeStr = sessionDate.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-      dateStr = sessionDate.toLocaleDateString("ru-RU");
+      timeStr = 'Уточняется';
+      dateStr = '';
     }
     return (
-      <div
+      <li
         key={session.name}
         className={`session-row ${isActive ? "active" : ""}`}
-        style={isPast ? { opacity: 0.5 } : undefined}
       >
-        <div className="session-name">{session.name}<CalendarDownload title={`${data.event_name}: ${session.name}`} start={session.utc_iso} /></div>
+        <div className="session-name">{session.name}</div>
         <div className="session-time">
           <div className="time-local">{timeStr}</div>
           <div className="time-date">{dateStr}</div>
         </div>
-      </div>
+        <div className="session-calendar"><CalendarDownload title={`${data.event_name}: ${session.name}`} start={session.utc_iso} /></div>
+      </li>
     );
   });
 
   return (
-    <>
-      <p className="ui-data-context">Время сессий: {timezoneName(userTz)}</p>
+    <div className="race-details-page">
       <BackButton fallback="/season">← <span>Назад</span></BackButton>
       <div className="circuit-header">
-        <div className="circuit-title">{data.event_name}</div>
+        <h1 className="circuit-title">{data.event_name}</h1>
         <div className="circuit-subtitle">
           <span>📍 {data.location}, {data.country}</span>
         </div>
       </div>
 
-      <div className="schedule-card">{sessionsHtml}</div>
+      <section className="schedule-card" aria-labelledby="session-schedule-title">
+        <h2 className="schedule-title" id="session-schedule-title">Расписание сессий</h2>
+        <p className="schedule-timezone">{timezoneName(userTz)}</p>
+        <ol className="session-list">{sessionsHtml}</ol>
+      </section>
 
       <DetailedTrackMap key={`${season}:${data.event_name}`} eventName={data.event_name} location={data.location} season={Number(season)} preview={
         <AnimatedTrackMap eventName={data.event_name} location={data.location} season={Number(season)} className="track-map-container race-details" svgClassName="race-details-track-svg" loadingClassName="circuit-data-pending" />
@@ -159,7 +165,7 @@ function RaceDetailsPage() {
             🏁 Гонка
           </Link>
           <Link to={`/quali-results?mode=archive&season=${season}&round=${round}`} className="race-details-result-link">
-            ⏱ Квала
+            ⏱ Квалификация
           </Link>
           {hasSprint && (
             <>
@@ -167,7 +173,7 @@ function RaceDetailsPage() {
                 ⚡🏁 Спринт
               </Link>
               <Link to={`/sprint-quali-results?mode=archive&season=${season}&round=${round}`} className="race-details-result-link">
-                ⚡⏱ Спринт-квала
+                ⚡⏱ Спринт-квалификация
               </Link>
             </>
           )}
@@ -210,7 +216,7 @@ function RaceDetailsPage() {
           })}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

@@ -224,7 +224,7 @@ function SettingsPage() {
             <div><dt>Звук Telegram</dt><dd>{notificationsEnabled ? "Включён" : "Отключён"}</dd></div>
           </dl>
           <p>Выбрано категорий сессий: {SESSION_OPTIONS.filter(({ bit }) => reminderSessions & bit).length} из 5. Настройки синхронизируются с ботом для связанного аккаунта.</p>
-          <Link to="/notifications">Настроить push на этом устройстве →</Link>
+          <Link className="ui-action-link" to="/notifications">Настроить push на этом устройстве →</Link>
         </aside>
       </div>
 

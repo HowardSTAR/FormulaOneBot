@@ -9,6 +9,7 @@ import { MobileNav } from "./MobileNav";
 import { analyticsPlatform } from '../helpers/analytics';
 import { EngagementEntry } from './EngagementEntry';
 import { RouteContext } from './RouteContext';
+import { DataReceipt } from './DataReceipt';
 
 const EDGE_THRESHOLD = 30;
 const SWIPE_THRESHOLD = 60;
@@ -90,6 +91,7 @@ export function SwipeBackLayout() {
           <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
             <Outlet />
           </Suspense>
+          <DataReceipt />
         </section>
         <LegalFooter />
       </div>

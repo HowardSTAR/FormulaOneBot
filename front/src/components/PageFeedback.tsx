@@ -5,7 +5,7 @@ export function PageFeedback({ message = "Не удалось получить �
     <h2>Не удалось загрузить</h2><p>{message}</p>
     <div className="ui-feedback-actions">
       {retry && <button type="button" className="action-button" onClick={retry}>Повторить</button>}
-      {parent && <Link to={parent.to}>{parent.label}</Link>}
+      {parent && <Link className="ui-action-link" to={parent.to}>{parent.label}</Link>}
     </div>
   </section>;
 }

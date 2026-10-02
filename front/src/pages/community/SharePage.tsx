@@ -28,7 +28,7 @@ export default function SharePage() {
     } catch {setResult({error: 'Приглашение больше не действует.'}); setBusy(false);}
   }
   return <main className="community-page"><BackButton>← Назад</BackButton>
-    {!result.card ? <section className="community-card"><p role={result.error ? 'alert' : 'status'}>{result.error || 'Открываем приглашение…'}</p>{result.error && <Link to="/community">Прогнозы и соревнования →</Link>}</section> : <section className="community-card share-landing">
+    {!result.card ? <section className="community-card"><p role={result.error ? 'alert' : 'status'}>{result.error || 'Открываем приглашение…'}</p>{result.error && <Link className="ui-action-link" to="/community">Прогнозы и соревнования →</Link>}</section> : <section className="community-card share-landing">
       <small>Приглашение в F1Hub</small><h1>{result.card.title}</h1>
       <p>{result.card.subtitle}</p>
       <img src={result.card.image_url} alt={`${result.card.subtitle}: ${result.card.headline}`} />
@@ -36,7 +36,7 @@ export default function SharePage() {
       {result.card.provisional && <p>Данные на момент создания карточки; результат предварительный.</p>}
       <button className="community-primary" disabled={busy} onClick={() => void accept()}>{busy ? 'Открываем…' : result.card.cta}</button>
       <p className="community-note">Просмотр не требует регистрации. Вход понадобится для сохранения прогноза или игрового результата. Вступление в лигу — только после подтверждения.</p>
-      {result.card.mini_app_url && <a href={result.card.mini_app_url}>Открыть в Telegram Mini App →</a>}
+      {result.card.mini_app_url && <a className="ui-action-link" href={result.card.mini_app_url}>Открыть в Telegram Mini App →</a>}
     </section>}
   </main>;
 }

@@ -328,7 +328,7 @@ export default function AccountPage() {
                 Будут удалены профиль, Telegram-привязка, email, сессии, избранное,
                 настройки, голоса, прогнозы и персональные игровые данные.
               </p>
-              <Link to="/account/delete">Подробнее о процедуре</Link>
+              <Link className="ui-action-link" to="/account/delete">Подробнее о процедуре</Link>
             </div>
             {!deletePanelOpen ? (
               <button className="account-danger-button" type="button" onClick={() => setDeletePanelOpen(true)}>

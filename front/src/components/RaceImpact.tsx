@@ -29,6 +29,6 @@ export function RaceImpact({season, round, rows, recap}: {season: number; round:
         </li>)}</ul>
       </details>}
       {favorites.length > 0 && <details><summary>Ваше избранное · {favorites.length}</summary><ul>{favorites.map(row => <li key={row.code}>{row.name} — P{row.position}, {row.points ?? '—'} очк.</li>)}</ul></details>}
-      <p><Link to={`/predictions?tab=history&reviewSeason=${season}&reviewRound=${round}`}>Как это повлияло на мой прогноз →</Link></p>
+      <p><Link className="ui-action-link" to={`/predictions?tab=history&reviewSeason=${season}&reviewRound=${round}`}>Как это повлияло на мой прогноз →</Link></p>
   </section>;
 }

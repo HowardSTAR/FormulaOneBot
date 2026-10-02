@@ -7,11 +7,13 @@ import json
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
+from datetime import datetime, timezone
 
 DRIVERS = [dict(code=code, name=name, driverId=driver_id, position=i+1, points=302-i*30,
                 constructorId='mercedes' if i < 2 else 'ferrari', constructorName='Mercedes' if i < 2 else 'Ferrari')
            for i, (code, name, driver_id) in enumerate([('ANT','Andrea Kimi Antonelli','antonelli'),('RUS','George Russell','russell'),('LEC','Charles Leclerc','leclerc'),('HAM','Lewis Hamilton','hamilton'),('ALO','Fernando Alonso','alonso'),('VER','Max Verstappen','max_verstappen')])]
 SETTINGS = dict(timezone='Etc/GMT-3', notify_before=60, notify_before_minutes=[60], notifications_enabled=True, reminder_sessions=31, results_spoiler=False)
+PREVIEW_CLOCK_START = time.time()
 
 
 def fixture(path, params):
@@ -43,8 +45,7 @@ def fixture(path, params):
     if path=='/api/race-details':
         race = races[min(round_number-1,len(races)-1)]
         return dict(season=year, country='Азербайджан', event_format='conventional',
-                    sessions=[dict(name='Квалификация',utc_iso=race['quali_start_utc']),
-                              dict(name='Гонка',utc_iso=race['race_start_utc'])], **race)
+                    sessions=[dict(name=name,utc_iso=race[key]) for key,name in [('practice1_start_utc','Практика 1'),('practice2_start_utc','Практика 2'),('practice3_start_utc','Практика 3'),('sprint_quali_start_utc','Спринт-квалификация'),('sprint_start_utc','Спринт'),('quali_start_utc','Квалификация'),('race_start_utc','Гонка')] if key in race], **race)
     if path in ['/api/race-results','/api/sprint-results','/api/quali-results','/api/sprint-quali-results','/api/practice-results']:
         rows=[dict(**{k:v for k,v in d.items() if k!='points'},team=d['constructorName'],points=[25,18,15,12,10,8][i],time='1:42.526',gap='+0.837',driver=d['code'],best='1:42.526',q1='1:43.100',q2='1:42.800',q3='1:42.526',laps=51,status='Finished') for i,d in enumerate(DRIVERS)]
         return dict(season=year,round=round_number,race_info={'event_name':f'Test Grand Prix {round_number}'},results=rows,session=int(params.get('session',['1'])[0]),available_sessions=[1,2,3],is_sprint_weekend=False,data_incomplete=False)
@@ -54,7 +55,10 @@ def fixture(path, params):
     if path=='/api/votes/stats': return dict(stats=[dict(round=15,avg=4,count=3)])
     if path=='/api/votes/driver-stats': return dict(stats=[dict(driver_code='RUS',count=2)])
     if path=='/api/web-notifications/unread-count': return {'unread':1}
-    if path=='/api/web-notifications': return dict(items=[dict(id=1,title='Итоги гонки',body='\n'.join(f'P{i+1} · {d["name"]} · {d["constructorName"]} · 0' for i,d in enumerate(DRIVERS)),url='/race-results?season=2026&round=15',created_at=time.time()-86400,read_at=None,historical_snapshot=True)],unread=1,next_before=None,push={'enabled':False,'public_key':''})
+    if path=='/api/predictions/current': return dict(status='ok',season=2026,round=17,event_name='Test Grand Prix 17',is_open=True,opens_at_utc='2026-10-01T00:00:00Z',deadline_utc='2026-10-10T12:00:00Z',prediction=None)
+    if path=='/api/predictions/personal-season': return dict(latest=None,history=[],points=0,rank=None)
+    if path=='/api/web-notifications':
+        return dict(items=[dict(id=4-i,title='Скоро сессия',body='🏎 Скоро свободные заезды — FP2!\n\nЧерез 59 мин. старт: Test Grand Prix 16\n📍 Трасса: Сахир\nНачало в 14:00 (по вашему времени)',url='/race-details?season=2026&round=16',created_at=time.time()-3600,read_at=None,reminder=dict(kind='practice2',start_utc=datetime.fromtimestamp(PREVIEW_CLOCK_START+offset,timezone.utc).isoformat(),duration_minutes=60)) for i,offset in enumerate([3600,-300,-7200])]+[dict(id=1,title='Итоги гонки',body='\n'.join(f'P{i+1} · {d["name"]} · {d["constructorName"]} · 0' for i,d in enumerate(DRIVERS)),url='/race-results?season=2026&round=15',created_at=time.time()-86400,read_at=None,historical_snapshot=True)],unread=4,next_before=None,push={'enabled':False,'public_key':''})
     if path=='/api/favorites': return dict(drivers=['ALO'],teams=['ferrari'])
     if path=='/api/driver-guide': return dict(guide=None)
     if path in ['/api/race-recap','/api/f1/race-recap']: return dict(status='ready',items=[],chronicle=[],news=[])
@@ -67,6 +71,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         url=urlsplit(self.path)
         params=parse_qs(url.query)
+        if url.path == '/api/calendar/session.ics':
+            # Use the real pure export helper, never production application startup.
+            from app.api.calendar_api import session_calendar
+            content = session_calendar(params['title'][0], params['start'][0])
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/calendar; charset=utf-8')
+            self.send_header('Content-Disposition', 'attachment; filename="f1-session.ics"')
+            self.end_headers()
+            self.wfile.write(content.encode())
+            return
         # Delayed historical response verifies that a new year wins the race.
         if url.path=='/api/season' and params.get('season')==['2025']: time.sleep(1)
         value=fixture(url.path,params)

@@ -4,8 +4,10 @@ import { apiRequest } from "../../helpers/api";
 import { BackButton } from "../../components/BackButton";
 import "./notifications.css";
 import { notificationBody } from '../../helpers/notificationPresentation';
+import { reminderBody, reminderClock, type ReminderTiming } from '../../helpers/reminderClock';
+import { visibleInterval } from '../../helpers/visibleInterval';
 
-type Item = { id: number; title: string; body: string; url: string; created_at: number; read_at: number | null; historical_snapshot?: boolean; priority?: "minimal" | "low" | "medium" | "critical" | "blocking" | null };
+type Item = { id: number; title: string; body: string; url: string; created_at: number; read_at: number | null; reminder?: ReminderTiming | null; historical_snapshot?: boolean; priority?: "minimal" | "low" | "medium" | "critical" | "blocking" | null };
 const priorityNames = { minimal: "Минимальный", low: "Низкий", medium: "Средний", critical: "Критический", blocking: "Блокирующий" };
 type Inbox = { items: Item[]; unread: number; next_before: number | null; push: { enabled: boolean; public_key: string } };
 function keyBytes(key: string) {
@@ -19,6 +21,12 @@ export default function NotificationsPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [category, setCategory] = useState('all');
+  const [now, setNow] = useState(() => Date.now());
+  const hasReminders = !!data?.items.some(item => item.reminder);
+  useEffect(() => {
+    if (!hasReminders) return;
+    return visibleInterval(() => setNow(Date.now()), 1000);
+  }, [hasReminders]);
   const requestSequence = useRef(0);
   const [subscribed, setSubscribed] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
@@ -123,13 +131,18 @@ export default function NotificationsPage() {
     {!data ? !error && <p role="status">Загружаем уведомления…</p> : <>
       <div className="notifications-toolbar"><span>Непрочитанных в разделе: {data.unread}</span><button disabled={!data.unread} onClick={markRead}>Отметить прочитанными до этой даты</button></div>
       {!data.items.length && <p className="notifications-empty">Здесь появятся новые события. Прошедшие уведомления не рассылаются повторно.</p>}
-      {data.items.map(item => <article key={item.id} className={item.read_at ? "" : "is-unread"}>
+      {data.items.map(item => {
+        const clock = item.reminder ? reminderClock(item.reminder, now) : null;
+        const presentation = notificationBody(item.body, item.url);
+        return <article key={item.id} className={item.read_at ? "" : "is-unread"}>
         {item.priority && <span className={`notification-priority priority-${item.priority}`}>{priorityNames[item.priority]} приоритет</span>}
-        <time>{new Date(item.created_at*1000).toLocaleString("ru-RU")}</time><h2>{item.title}</h2><p>{notificationBody(item.body,item.url).body}</p>
-        {notificationBody(item.body,item.url).uncertainPoints && <p className="ui-warning">Очки в этом архивном сообщении не подтверждены. Проверьте актуальную классификацию по кнопке ниже.</p>}
+        <time dateTime={new Date(item.created_at*1000).toISOString()}>{new Date(item.created_at*1000).toLocaleString("ru-RU")}</time><h2>{clock ? 'Сессия уик-энда' : item.title}</h2>
+        {clock && <div className={`notification-clock phase-${clock.phase}`} aria-label="Статус сессии"><strong>{clock.label}</strong>{clock.estimated && <small>По расписанию</small>}</div>}
+        <p>{clock ? reminderBody(presentation.body) : presentation.body}</p>
+        {presentation.uncertainPoints && <p className="ui-warning">Очки в этом архивном сообщении не подтверждены. Проверьте актуальную классификацию по кнопке ниже.</p>}
         {(item.historical_snapshot ?? /-results|^\/predictions|^\/voting/.test(item.url)) && <p className="ui-data-context">Итог на момент отправки. После уточнения данных или пересчёта значения могли измениться.</p>}
-        <Link to={item.url}>{item.historical_snapshot ? 'Актуальный результат' : 'Открыть'} →</Link>
-      </article>)}
+        <Link className="ui-action-link" to={item.url}>{item.historical_snapshot ? 'Актуальный результат' : clock ? 'Расписание сессий' : 'Открыть'} →</Link>
+      </article>})}
       {data.next_before && <button disabled={busy} onClick={more}>Показать ещё</button>}
     </>}
   </div>;

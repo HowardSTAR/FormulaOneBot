@@ -278,7 +278,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
             <strong>Telegram не привязан</strong>
             <span>Прогнозы доступны полностью. Привяжите Telegram только если хотите получать уведомления о результатах.</span>
           </div>
-          <Link to="/account">Привязать Telegram</Link>
+          <Link className="ui-action-link" to="/account">Привязать Telegram</Link>
         </aside>
       )}
 

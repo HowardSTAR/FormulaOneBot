@@ -1,5 +1,6 @@
 import json
 import time
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import Literal
@@ -24,10 +25,28 @@ async def inbox(before: int = Query(0, ge=0), user_id: int = Depends(require_hyb
         visible = "(event_key NOT LIKE 'admin-error:%' OR EXISTS(SELECT 1 FROM users u WHERE u.id=web_notifications.user_id AND u.role IN ('admin','superadmin') AND u.archived_at IS NULL))"
         category_filter = {'results': "url LIKE '%-results%'", 'predictions': "url LIKE '/predictions%'", 'voting': "url LIKE '/voting%'", 'reminders': "event_key LIKE 'reminder:%'", 'admin': "event_key LIKE 'admin-error:%'"}.get(category, '1=1')
         visible += f" AND ({category_filter})"
-        rows = await (await conn.execute(f"SELECT id,title,body,url,created_at,read_at,event_key FROM web_notifications WHERE user_id=? AND (?=0 OR id<?) AND {visible} ORDER BY id DESC LIMIT 31", (user_id,before,before))).fetchall()
+        rows = await (await conn.execute(f"SELECT id,title,body,url,created_at,read_at,event_key,e.expires FROM web_notifications LEFT JOIN web_notification_expirations e ON e.notification_id=web_notifications.id WHERE user_id=? AND (?=0 OR id<?) AND {visible} ORDER BY id DESC LIMIT 31", (user_id,before,before))).fetchall()
         unread = await (await conn.execute(f"SELECT COUNT(*) FROM web_notifications WHERE user_id=? AND read_at IS NULL AND {visible}", (user_id,))).fetchone()
-        items = [{**{k:r[k] for k in r.keys() if k != 'event_key'}, "historical_snapshot": '-results' in r['url'] or r['url'].startswith(('/predictions', '/voting')), "priority": r["event_key"].split(":")[1] if r["event_key"].startswith("admin-error:") else None} for r in rows[:30]]
+        items = [{**{k:r[k] for k in r.keys() if k not in {'event_key', 'expires'}}, "historical_snapshot": '-results' in r['url'] or r['url'].startswith(('/predictions', '/voting')), "priority": r["event_key"].split(":")[1] if r["event_key"].startswith("admin-error:") else None,
+                  "reminder": reminder_metadata(r['event_key'], r['expires'])} for r in rows[:30]]
         return {"items":items, "next_before":rows[29]["id"] if len(rows)>30 else None, "unread":unread[0], "push":push_config()}
+
+
+def reminder_metadata(event_key, expires):
+    # The stored push expiration is the scheduled UTC start, not created_at +
+    # lead time (delivery can be delayed). Never infer a start from message text.
+    if not event_key.startswith('reminder:'):
+        return None
+    from app.services.reminder_status import SESSION_MINUTES
+    parts = event_key.split(':')
+    kind = parts[3] if len(parts) == 5 else ''
+    if kind not in SESSION_MINUTES:
+        return None
+    try:
+        start = datetime.fromtimestamp(float(expires), timezone.utc).isoformat() if expires is not None else None
+    except (ValueError, TypeError, OverflowError, OSError):
+        start = None
+    return {'kind': kind, 'start_utc': start, 'duration_minutes': SESSION_MINUTES[kind]}
 
 class ReadBody(BaseModel):
     through_id: int = Field(ge=1)
