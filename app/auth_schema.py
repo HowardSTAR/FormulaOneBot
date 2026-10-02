@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS users (
     email_verified INTEGER NOT NULL DEFAULT 0 CHECK (email_verified IN (0, 1)),
     timezone TEXT NOT NULL DEFAULT 'Europe/Moscow',
     notify_before INTEGER NOT NULL DEFAULT 60,
+    notify_before_mask INTEGER CHECK (notify_before_mask BETWEEN 0 AND 31),
     notifications_enabled INTEGER NOT NULL DEFAULT 0 CHECK (notifications_enabled IN (0, 1)),
     reminder_sessions INTEGER NOT NULL DEFAULT 31 CHECK (reminder_sessions BETWEEN 0 AND 31),
     results_spoiler INTEGER NOT NULL DEFAULT 0 CHECK (results_spoiler IN (0, 1)),
@@ -81,7 +82,7 @@ async def _rebuild_users(conn: aiosqlite.Connection) -> None:
             INSERT INTO users_auth_migration (
                 id, email, password_hash, telegram_id, display_name,
                 telegram_username, role, email_verified,
-                timezone, notify_before, notifications_enabled, reminder_sessions, results_spoiler,
+                timezone, notify_before, notify_before_mask, notifications_enabled, reminder_sessions, results_spoiler,
                 created_at, updated_at, archived_at
             )
             SELECT
@@ -95,6 +96,7 @@ async def _rebuild_users(conn: aiosqlite.Connection) -> None:
                 {old_or_default('email_verified', '0')},
                 COALESCE({old_or_default('timezone', "'Europe/Moscow'")}, 'Europe/Moscow'),
                 COALESCE({old_or_default('notify_before', '60')}, 60),
+                {old_or_default('notify_before_mask', 'NULL')},
                 COALESCE({old_or_default('notifications_enabled', '0')}, 0),
                 COALESCE({old_or_default('reminder_sessions', '31')}, 31),
                 COALESCE({old_or_default('results_spoiler', '0')}, 0),
@@ -120,6 +122,12 @@ async def ensure_auth_schema(conn: aiosqlite.Connection) -> None:
     await conn.execute(CREATE_USERS_SQL)
     if await _users_need_rebuild(conn):
         await _rebuild_users(conn)
+    if "notify_before_mask" not in {row["name"] for row in await _table_info(conn, "users")}:
+        try:
+            await conn.execute("ALTER TABLE users ADD COLUMN notify_before_mask INTEGER CHECK (notify_before_mask BETWEEN 0 AND 31)")
+        except aiosqlite.OperationalError as exc:
+            if "duplicate column name" not in str(exc).lower():
+                raise
     if "reminder_sessions" not in {row["name"] for row in await _table_info(conn, "users")}:
         await conn.execute("ALTER TABLE users ADD COLUMN reminder_sessions INTEGER NOT NULL DEFAULT 31 CHECK (reminder_sessions BETWEEN 0 AND 31)")
     if "results_spoiler" not in {row["name"] for row in await _table_info(conn, "users")}:

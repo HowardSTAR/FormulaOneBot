@@ -27,7 +27,7 @@ from app.db import (
     get_favorite_drivers, get_favorite_teams,
     remove_favorite_driver, add_favorite_driver,
     remove_favorite_team, add_favorite_team,
-    get_user_settings, update_user_setting,
+    get_user_settings, update_user_setting, get_or_create_user,
     save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
     get_driver_vote_round_winners,
     get_reaction_profile, upsert_reaction_profile,
@@ -204,6 +204,15 @@ class SettingsRequest(BaseModel):
     notifications_enabled: bool = False
     reminder_sessions: Optional[int] = Field(default=None, ge=0, le=31, strict=True)
     results_spoiler: Optional[bool] = None
+    notify_before_minutes: Optional[List[int]] = Field(default=None, max_length=5)
+
+    @field_validator("notify_before_minutes", mode="before")
+    @classmethod
+    def validate_intervals(cls, value):
+        if value is not None:
+            from app.session_reminders import interval_mask, reminder_intervals
+            return reminder_intervals(interval_mask(value))
+        return value
 
 
 class PredictionProfileRequest(BaseModel):
@@ -236,7 +245,7 @@ class AdminFeedbackRequest(BaseModel):
 async def api_get_settings(user_id: Optional[int] = Depends(get_optional_user_id)):
     """Получить текущие настройки пользователя. Для гостя возвращает дефолт."""
     if user_id is None:
-        return {"timezone": "UTC", "notify_before": 60, "notifications_enabled": False, "reminder_sessions": 31, "results_spoiler": False}
+        return {"timezone": "UTC", "notify_before": 60, "notify_before_minutes": [60], "notifications_enabled": False, "reminder_sessions": 31, "results_spoiler": False}
     return await get_user_settings(user_id)
 
 
@@ -246,32 +255,31 @@ async def api_save_settings(
         user_id: int = Depends(get_current_user_id)
 ):
     """Сохранить настройки."""
-    await update_user_setting(user_id, "timezone", settings.timezone)
-    await update_user_setting(user_id, "notify_before", settings.notify_before)
-
-    # ДОБАВИТЬ СОХРАНЕНИЕ НОВОГО ПОЛЯ В БД:
-    await update_user_setting(user_id, "notifications_enabled", int(settings.notifications_enabled))
-    if settings.reminder_sessions is not None:
-        await update_user_setting(user_id, "reminder_sessions", settings.reminder_sessions)
-    if settings.results_spoiler is not None:
-        await update_user_setting(user_id, "results_spoiler", int(settings.results_spoiler))
-    return {"status": "ok"}
+    account_id = await get_or_create_user(user_id)
+    return await api_save_account_settings(settings, account_id)
 
 
 @web_app.get("/api/account/settings")
 async def api_account_settings(user_id: int = Depends(get_prediction_user_id)):
-    async with db.conn.execute("SELECT timezone,notify_before,notifications_enabled,reminder_sessions,results_spoiler FROM users WHERE id=?", (user_id,)) as cursor:
+    async with db.conn.execute("SELECT timezone,notify_before,notifications_enabled,reminder_sessions,results_spoiler,notify_before_mask FROM users WHERE id=?", (user_id,)) as cursor:
         row = await cursor.fetchone()
     if row is None:
         raise HTTPException(404, "Account not found")
-    return dict(row)
+    from app.session_reminders import reminder_intervals
+    result = dict(row)
+    result["notify_before_minutes"] = reminder_intervals(result.pop("notify_before_mask"), result["notify_before"])
+    return result
 
 
 @web_app.post("/api/account/settings")
 async def api_save_account_settings(settings: SettingsRequest, user_id: int = Depends(get_prediction_user_id)):
+    from app.session_reminders import interval_mask
+    minutes = settings.notify_before_minutes
+    mask = interval_mask(minutes) if minutes is not None else None
+    legacy = minutes[0] if minutes else settings.notify_before
     async with db.write_lock:
-        await db.conn.execute("UPDATE users SET timezone=?,notify_before=?,notifications_enabled=?,reminder_sessions=COALESCE(?,reminder_sessions),results_spoiler=COALESCE(?,results_spoiler) WHERE id=?",
-                              (settings.timezone,settings.notify_before,int(settings.notifications_enabled),settings.reminder_sessions,
+        await db.conn.execute("UPDATE users SET timezone=?,notify_before=?,notify_before_mask=COALESCE(?,notify_before_mask),notifications_enabled=?,reminder_sessions=COALESCE(?,reminder_sessions),results_spoiler=COALESCE(?,results_spoiler),updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                              (settings.timezone,legacy,mask,int(settings.notifications_enabled),settings.reminder_sessions,
                                int(settings.results_spoiler) if settings.results_spoiler is not None else None,user_id))
         await db.conn.commit()
     return {"status": "ok"}

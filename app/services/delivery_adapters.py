@@ -93,16 +93,20 @@ async def dispatch(bot, row):
     from app.services.telegram_outbox import connection
     from app.utils.safe_send import _apply_sound_preference
     from app.utils.notifications import is_quiet_hours
-    from app.session_reminders import session_enabled
+    from app.session_reminders import session_enabled, reminder_enabled
     async with connection() as conn:
         progress = await (await conn.execute('SELECT step FROM delivery_progress WHERE event_key=? AND recipient=?', (row['event_key'],row['telegram_id']))).fetchone()
-        owner = await (await conn.execute('SELECT timezone,reminder_sessions,role FROM users WHERE telegram_id=? AND archived_at IS NULL',(row['telegram_id'],))).fetchone()
+        owner = await (await conn.execute('SELECT timezone,reminder_sessions,role,notify_before,notify_before_mask FROM users WHERE telegram_id=? AND archived_at IS NULL',(row['telegram_id'],))).fetchone()
     if row['event_key'].startswith('reminder:') and row['telegram_id'] > 0:
-        if not owner or not session_enabled(owner['reminder_sessions'],row['event_key'].split(':')[3]):
+        parts = row['event_key'].split(':')
+        if not owner or len(parts) < 5 or not session_enabled(owner['reminder_sessions'],parts[3]) or not reminder_enabled(owner['notify_before_mask'], owner['notify_before'], row['event_key']):
             return 'cancelled','preference_changed',None,0
     step = progress[0] if progress else 0
     action = payload['actions'][step]
     kwargs = decode(action['kwargs'])
+    if action['method'] == 'edit_message_text':
+        from app.services.reminder_status import dispatch_reminder_edit
+        return await dispatch_reminder_edit(bot, row, kwargs)
     kwargs['disable_notification'] = bool(kwargs.get('disable_notification')) or is_quiet_hours(owner['timezone'] if owner else row['timezone'])
     if isinstance(kwargs.get('reply_markup'),dict):
         kwargs['reply_markup'] = InlineKeyboardMarkup.model_validate(kwargs['reply_markup'])
@@ -129,16 +133,16 @@ async def dispatch(bot, row):
 
 async def dispatch_push(row, payload):
     from app.services.web_notifications import connection, validate_subscription, push_config
-    from app.session_reminders import session_enabled
+    from app.session_reminders import session_enabled, reminder_enabled
     from pywebpush import webpush, WebPushException
     async with connection() as conn:
-        sub = await (await conn.execute('SELECT s.subscription,u.role,u.reminder_sessions FROM web_push_subscriptions s JOIN users u ON u.id=s.user_id WHERE s.id=? AND u.archived_at IS NULL', (row['telegram_id'],))).fetchone()
+        sub = await (await conn.execute('SELECT s.subscription,u.role,u.reminder_sessions,u.notify_before,u.notify_before_mask FROM web_push_subscriptions s JOIN users u ON u.id=s.user_id WHERE s.id=? AND u.archived_at IS NULL', (row['telegram_id'],))).fetchone()
     if not sub:
         return 'cancelled','subscription_removed',None,0
     key = payload['event_key']
     if key.startswith('admin-error:') and sub['role'] not in {'admin','superadmin'}:
         return 'cancelled','role_changed',None,0
-    if key.startswith('reminder:') and (len(key.split(':')) != 5 or not session_enabled(sub['reminder_sessions'], key.split(':')[3])):
+    if key.startswith('reminder:') and (len(key.split(':')) != 5 or not session_enabled(sub['reminder_sessions'], key.split(':')[3]) or not reminder_enabled(sub['notify_before_mask'], sub['notify_before'], key)):
         return 'cancelled','preference_changed',None,0
     if not push_config()['enabled']:
         return 'retry','push_not_configured',None,time.time()+300

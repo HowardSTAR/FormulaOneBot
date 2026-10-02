@@ -7,8 +7,9 @@ import { visibleInterval } from "../../helpers/visibleInterval";
 import "../../assets/personal-pages.css";
 import { Link, useBlocker } from 'react-router-dom';
 import { timezoneName } from '../../helpers/presentation';
+import { NOTIFY_OPTIONS, selectedIntervals, toggleInterval } from '../../helpers/reminderIntervals';
 
-type SettingsResponse = { timezone?: string; notify_before?: number; notifications_enabled?: boolean; reminder_sessions?: number; results_spoiler?: boolean };
+type SettingsResponse = { timezone?: string; notify_before?: number; notify_before_minutes?: number[]; notifications_enabled?: boolean; reminder_sessions?: number; results_spoiler?: boolean };
 const SESSION_OPTIONS = [
   { bit: 1, label: "Свободные заезды", detail: "FP1, FP2 и FP3" },
   { bit: 2, label: "Квалификация", detail: "Борьба за стартовую решётку" },
@@ -44,17 +45,11 @@ const TIMEZONES = [
   { value: "Etc/GMT-11", label: "UTC+11 (Хониара, Нумеа, Магадан)" },
   { value: "Etc/GMT-12", label: "UTC+12 (Веллингтон, Сува, Тарава)" },
 ].map(item => ({...item, label: timezoneName(item.value)}));
-const NOTIFY_OPTIONS = [
-  { value: 15, label: "15 минут" },
-  { value: 30, label: "30 минут" },
-  { value: 60, label: "1 час" },
-  { value: 120, label: "2 часа" },
-  { value: 1440, label: "24 часа" },
-];
 
 function SettingsPage() {
   const [timezone, setTimezone] = useState("Etc/GMT-3");
   const [notifyBefore, setNotifyBefore] = useState(60);
+  const [notifyBeforeMinutes, setNotifyBeforeMinutes] = useState<number[]>([60]);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [reminderSessions, setReminderSessions] = useState(31);
   const [resultsSpoiler, setResultsSpoiler] = useState(false);
@@ -65,7 +60,7 @@ function SettingsPage() {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState('');
   const [attempt, setAttempt] = useState(0);
-  const draft = JSON.stringify({timezone, notify_before: notifyBefore, notifications_enabled: notificationsEnabled, reminder_sessions: reminderSessions, results_spoiler: resultsSpoiler});
+  const draft = JSON.stringify({timezone, notify_before: notifyBeforeMinutes[0] ?? notifyBefore, notify_before_minutes: notifyBeforeMinutes, notifications_enabled: notificationsEnabled, reminder_sessions: reminderSessions, results_spoiler: resultsSpoiler});
   const dirty = loaded && draft !== saved;
   const blocker = useBlocker(({currentLocation, nextLocation}) => dirty && currentLocation.pathname !== nextLocation.pathname);
   useEffect(() => {
@@ -104,10 +99,12 @@ function SettingsPage() {
         if (cancelled) return;
         if (s?.timezone) setTimezone(s.timezone);
         if (s?.notify_before != null) setNotifyBefore(s.notify_before);
+        const intervals = selectedIntervals(s.notify_before_minutes, s.notify_before ?? 60);
+        setNotifyBeforeMinutes(intervals);
         if (s?.notifications_enabled !== undefined) setNotificationsEnabled(Boolean(s.notifications_enabled));
         setReminderSessions(s.reminder_sessions ?? 31);
         setResultsSpoiler(Boolean(s.results_spoiler));
-        setSaved(JSON.stringify({timezone: s.timezone || 'Etc/GMT-3', notify_before: s.notify_before ?? 60, notifications_enabled: Boolean(s.notifications_enabled), reminder_sessions: s.reminder_sessions ?? 31, results_spoiler: Boolean(s.results_spoiler)}));
+        setSaved(JSON.stringify({timezone: s.timezone || 'Etc/GMT-3', notify_before: intervals[0] ?? s.notify_before ?? 60, notify_before_minutes: intervals, notifications_enabled: Boolean(s.notifications_enabled), reminder_sessions: s.reminder_sessions ?? 31, results_spoiler: Boolean(s.results_spoiler)}));
         setLoaded(true);
       })
       .catch(() => { if (!cancelled) setError("Не удалось загрузить настройки. Попробуйте повторить запрос."); });
@@ -122,7 +119,7 @@ function SettingsPage() {
     try {
       await apiRequest(
         "/api/account/settings",
-        { timezone, notify_before: notifyBefore, notifications_enabled: notificationsEnabled, reminder_sessions: reminderSessions, results_spoiler: resultsSpoiler },
+        JSON.parse(draft),
         "POST"
       );
       setToast(true);
@@ -136,7 +133,7 @@ function SettingsPage() {
   };
 
   const timezoneLabel = TIMEZONES.find((item) => item.value === timezone)?.label || timezone;
-  const notifyLabel = NOTIFY_OPTIONS.find((item) => item.value === notifyBefore)?.label || `${notifyBefore} минут`;
+  const notifyLabel = notifyBeforeMinutes.map(minutes => NOTIFY_OPTIONS.find(item => item.value === minutes)?.label || `${minutes} минут`).join(', ');
   let localHour: number | null = null;
   try { localHour = Number(new Intl.DateTimeFormat('en', {timeZone: timezone, hour: 'numeric', hourCycle: 'h23'}).format(new Date(clockTick))); } catch { /* Unknown timezone must not crash settings. */ }
   const quietNow = !notificationsEnabled || localHour === null || localHour >= 21 || localHour < 10;
@@ -166,11 +163,19 @@ function SettingsPage() {
               <CustomSelect ariaLabel="Часовой пояс" options={TIMEZONES} value={timezone} onChange={(v) => setTimezone(String(v))} disabled={!loaded || saving} />
               <div className="timezone-preview">{timePreview}</div>
             </div>
-            <div className="setting-card">
-              <div className="setting-label">Уведомлять заранее</div>
-              <CustomSelect ariaLabel="За сколько времени напоминать" options={NOTIFY_OPTIONS} value={notifyBefore} onChange={(v) => setNotifyBefore(Number(v))} disabled={!loaded || saving} />
-              <div className="setting-card-note">Перед началом каждой важной сессии</div>
-            </div>
+            <fieldset className="setting-card reminder-intervals" disabled={!loaded || saving} aria-describedby="reminder-intervals-hint">
+              <legend className="setting-label">Уведомлять заранее</legend>
+              <p id="reminder-intervals-hint" className="setting-card-note">Можно выбрать несколько интервалов — по одному напоминанию в каждый выбранный момент.</p>
+              <div className="reminder-interval-grid">
+                {NOTIFY_OPTIONS.map(({value, label}) => (
+                  <label key={value} className={`reminder-interval ${notifyBeforeMinutes.includes(value) ? 'is-selected' : ''}`}>
+                    <input type="checkbox" checked={notifyBeforeMinutes.includes(value)} onChange={() => { hapticSelection(); setNotifyBeforeMinutes(current => toggleInterval(current, value)); }} />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </div>
+              {notifyBeforeMinutes.length === 0 && <p className="setting-card-note" role="status">Напоминания о старте выключены. Результаты и другие сообщения остаются без изменений.</p>}
+            </fieldset>
           </div>
 
           <div className="settings-section-heading settings-notifications-heading">
@@ -215,7 +220,7 @@ function SettingsPage() {
           <dl>
             <div><dt>Локальное время</dt><dd>{timePreview.replace("Сейчас: ", "")}</dd></div>
             <div><dt>Часовой пояс</dt><dd>{timezoneLabel}</dd></div>
-            <div><dt>Напоминание</dt><dd>За {notifyLabel}</dd></div>
+            <div><dt>Напоминания</dt><dd>{notifyBeforeMinutes.length && reminderSessions ? `За ${notifyLabel}` : 'Отключены'}</dd></div>
             <div><dt>Звук Telegram</dt><dd>{notificationsEnabled ? "Включён" : "Отключён"}</dd></div>
           </dl>
           <p>Выбрано категорий сессий: {SESSION_OPTIONS.filter(({ bit }) => reminderSessions & bit).length} из 5. Настройки синхронизируются с ботом для связанного аккаунта.</p>

@@ -80,16 +80,17 @@ def is_quiet_hours(tz_name: str) -> bool:
 
 
 def format_time_left(minutes_left: int) -> str:
+    if minutes_left <= 0: return "УЖЕ ИДЁТ"
     if minutes_left >= 20 * 60: return "Уже завтра"
     hours = minutes_left // 60
     minutes = int(minutes_left % 60)
     parts = []
     if hours > 0: parts.append(f"{int(hours)} ч.")
     if minutes > 0: parts.append(f"{minutes} мин.")
-    return f"Через {' '.join(parts)}"
+    return f"Через {' '.join(parts)}" if parts else "Менее чем через минуту"
 
 
-from app.session_reminders import session_enabled
+from app.session_reminders import session_enabled, reminder_intervals
 
 
 def _event_reminder_key(event_kind: str, notify_before: int) -> tuple[bool, int]:
@@ -116,8 +117,10 @@ def get_notification_text(
     for_quali: bool = False,
     event_kind: str | None = None,
     for_group: bool = False,
+    phase: str | None = None,
+    estimated: bool = False,
 ) -> str:
-    """Генерирует текст для ГОНКИ/КВАЛИ/СПРИНТА/СПРИНТ-КВАЛЫ. for_group=True — без строки «Начало в HH:MM»."""
+    """Reminder and in-place lifecycle text; groups omit the absolute time line."""
     if event_kind is None:
         event_kind = "quali" if for_quali else "race"
     event_name = html.escape(str(race.get('event_name') or 'Гран-при'))
@@ -143,47 +146,46 @@ def get_notification_text(
         start_time_str = "??:??"
         start_date_str = "??.??.????"
 
+    if phase is None:
+        from app.services.reminder_status import session_phase, parse_utc
+        started = parse_utc(dt_str)
+        if started:
+            phase, estimated = session_phase(race, event_kind, started-timedelta(minutes=minutes_left))
+        else:
+            phase = "before" if minutes_left > 0 else "unknown"
+    titles = {
+        "race": ("🏎", "Гонка", "Скоро гонка"),
+        "quali": ("⏱", "Квалификация", "Скоро квалификация"),
+        "sprint_quali": ("⏱", "Спринт-квалификация", "Скоро спринт-квалификация"),
+        "sprint": ("⚡", "Спринт", "Скоро спринт"),
+        **{f"practice{i}": ("🏎", f"Свободные заезды — FP{i}", f"Скоро свободные заезды — FP{i}") for i in (1, 2, 3)},
+    }
+    emoji, title, upcoming_title = titles.get(event_kind, titles["race"])
     time_suffix = " (UTC)" if user_tz_name == "UTC" else " (по вашему времени)"
     local_time = telegram_time(dt_str, user_tz_name, fallback=start_time_str + time_suffix)
-    countdown = telegram_time(dt_str, user_tz_name, relative=True, fallback=format_time_left(minutes_left))
-    time_line = "" if for_group else f"⏰ Начало в {local_time}\n"
-    if event_kind in ("practice1", "practice2", "practice3"):
-        return (f"🏎 Скоро свободные заезды — FP{event_kind[-1]}!\n\n"
-                f"{countdown} старт: {event_name}\n"
-                f"📍 Трасса: {race.get('location', '')}\n"
-                f"📅 Дата: {start_date_str}\n{time_line}")
-
-    if event_kind == "quali":
-        return (
-            f"⏱ Скоро квалификация!\n\n"
-            f"{countdown} старт: {event_name}\n"
-            f"📍 Трасса: {race.get('location', '')}\n"
-            f"📅 Дата: {start_date_str}\n"
-            f"{time_line}"
-        )
-    if event_kind == "sprint_quali":
-        return (
-            f"⏱ Скоро спринт-квалификация!\n\n"
-            f"{countdown} старт: {event_name}\n"
-            f"📍 Трасса: {race.get('location', '')}\n"
-            f"📅 Дата: {start_date_str}\n"
-            f"{time_line}"
-        )
-    if event_kind == "sprint":
-        return (
-            f"⚡ Скоро спринт!\n\n"
-            f"{countdown} старт: {event_name}\n"
-            f"📍 Трасса: {race.get('location', '')}\n"
-            f"📅 Дата: {start_date_str}\n"
-            f"{time_line}"
-        )
-    return (
-        f"🏎 Скоро гонка!\n\n"
-        f"{countdown} старт: {event_name} 🏁\n"
-        f"📍 Трасса: {race.get('location', '')}\n"
-        f"📅 Дата: {start_date_str}\n"
-        f"{time_line}"
-    )
+    if phase == "before":
+        heading = f"{emoji} {upcoming_title}!"
+        countdown = telegram_time(dt_str, user_tz_name, relative=True, fallback=format_time_left(minutes_left))
+        event_line = f"{countdown} старт: {event_name}" + (" 🏁" if event_kind == "race" else "")
+        time_label = "Начало в"
+    elif phase == "finished":
+        heading = f"{emoji} {title}"
+        label = "Этап прошёл" if event_kind == "race" else "Сессия прошла"
+        event_line = f"🏁 {label}: {event_name}"
+        time_label = "Начало было в"
+    elif phase == "cancelled":
+        heading = f"{emoji} {title} — отмена"
+        event_line = f"Сессия отменена: {event_name}"
+        time_label = "Планировалось начало в"
+    else:
+        heading = f"{emoji} {title} — УЖЕ ИДЁТ" if phase == "live" else f"{emoji} {title}"
+        event_line = event_name
+        time_label = "Начало было в"
+    time_line = "" if for_group else f"⏰ {time_label} {local_time}\n"
+    schedule_note = "Статус по расписанию.\n" if estimated else ""
+    return (f"{heading}\n\n{event_line}\n"
+            f"📍 Трасса: {html.escape(str(race.get('location') or ''))}\n"
+            f"📅 Дата: {start_date_str}\n{time_line}{schedule_note}")
 
 
 async def get_users_with_settings(notifications_only: bool = False):
@@ -194,7 +196,7 @@ async def get_users_with_settings(notifications_only: bool = False):
     if not db.conn: await db.connect()
     try:
         q = (
-            "SELECT telegram_id, timezone, notify_before, notifications_enabled, reminder_sessions, results_spoiler "
+            "SELECT telegram_id, timezone, notify_before, notifications_enabled, reminder_sessions, results_spoiler, notify_before_mask "
             "FROM users WHERE telegram_id IS NOT NULL AND archived_at IS NULL"
         )
         async with db.conn.execute(q) as cursor:
@@ -286,10 +288,15 @@ async def check_and_send_notifications(bot: Bot):
         try:
             tg_id = user[0]
             tz = user[1] or "Europe/Moscow"
-            notify_min = user[2] or 1440
+            intervals = reminder_intervals(user[6] if len(user) > 6 else None, user[2])
 
             for race, mins, event_kind in upcoming_event:
                 if not session_enabled(user[4] if len(user) > 4 else None, event_kind):
+                    continue
+                # Allowed lead times are at least 15 minutes apart: at most one
+                # can fall into the +/-1 minute window on this scheduler tick.
+                notify_min = next((value for value in intervals if abs(mins - value) <= half_window), None)
+                if notify_min is None:
                     continue
                 # The prediction-closing notice already says that qualifying
                 # starts in two hours and links to the form. Do not send a

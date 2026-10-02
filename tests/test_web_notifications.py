@@ -42,7 +42,7 @@ async def store(tmp_path, monkeypatch):
     monkeypatch.setattr(service, "db", SimpleNamespace(db_path=tmp_path/"notifications.db"))
     monkeypatch.setattr('app.services.telegram_outbox.db', service.db)
     async with service.connection() as conn:
-        await conn.executescript("""CREATE TABLE users(id INTEGER PRIMARY KEY,archived_at TEXT,role TEXT DEFAULT 'user',timezone TEXT DEFAULT 'UTC',notify_before INTEGER DEFAULT 60,reminder_sessions INTEGER DEFAULT 31);
+        await conn.executescript("""CREATE TABLE users(id INTEGER PRIMARY KEY,archived_at TEXT,role TEXT DEFAULT 'user',timezone TEXT DEFAULT 'UTC',notify_before INTEGER DEFAULT 60,notify_before_mask INTEGER,reminder_sessions INTEGER DEFAULT 31);
         INSERT INTO users(id,archived_at) VALUES(1,NULL),(2,NULL);
         CREATE TABLE favorite_drivers(user_id INTEGER,driver_code TEXT);
         CREATE TABLE favorite_teams(user_id INTEGER,constructor_name TEXT);
@@ -63,6 +63,41 @@ def test_validates_key_sizes():
     service.validate_subscription(subscription())
     data = subscription(); data["keys"]["auth"] = "a"
     with pytest.raises(ValueError): service.validate_subscription(data)
+
+
+@pytest.mark.asyncio
+async def test_web_multiple_intervals_independent_deduplicated_and_empty(store, monkeypatch):
+    from datetime import datetime, timezone
+    from unittest.mock import AsyncMock
+    from app.session_reminders import interval_mask
+    baseline = time.time()
+    start = baseline + 1440 * 60
+    monkeypatch.setattr(store, 'dispatch_push', AsyncMock())
+    monkeypatch.setattr('app.f1_data.get_season_schedule_short_async', AsyncMock(return_value=[dict(round=16, event_name='Test', race_start_utc=datetime.fromtimestamp(start, timezone.utc).isoformat())]))
+    async with store.connection() as conn:
+        await conn.execute('UPDATE web_notification_members SET joined_at=?', (baseline-5,))
+        await conn.execute('UPDATE users SET notify_before_mask=? WHERE id=1', (interval_mask([15,60,1440]),))
+        await conn.execute('UPDATE users SET notify_before_mask=0 WHERE id=2')
+        await conn.commit()
+    for minutes in (1440,120,60,30,15):
+        # Poll just after the due time, not at a float/microsecond boundary.
+        monkeypatch.setattr(store.time, 'time', lambda minutes=minutes: start-minutes*60+1)
+        await store.poll_web_notifications(not_before=baseline-10)
+        await store.poll_web_notifications(not_before=baseline-10)
+    async with store.connection() as conn:
+        rows = await (await conn.execute('SELECT user_id,event_key FROM web_notifications ORDER BY id')).fetchall()
+    assert [(row['user_id'], int(row['event_key'].split(':')[4])) for row in rows] == [(1,1440),(1,60),(1,15)]
+
+
+@pytest.mark.asyncio
+async def test_pending_push_removed_interval_is_cancelled(store, monkeypatch):
+    from app.services.delivery_adapters import dispatch_push
+    monkeypatch.setitem(sys.modules, 'pywebpush', SimpleNamespace(webpush=lambda **kwargs: pytest.fail('Push must not be sent'), WebPushException=Exception))
+    async with store.connection() as conn:
+        await conn.execute('UPDATE users SET notify_before_mask=1 WHERE id=1')
+        await conn.commit()
+    result = await dispatch_push({'telegram_id': 1}, {'event_key': 'reminder:2026:16:race:60'})
+    assert result[:2] == ('cancelled','preference_changed')
 
 
 @pytest.mark.asyncio

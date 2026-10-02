@@ -118,7 +118,8 @@ async def test_button_colors_follow_action_semantics_without_coloring_cancel():
     assert confirmation[0][0].style == "success" and confirmation[-1][0].style is None
     intervals = [b for row in get_notify_keyboard(60).inline_keyboard for b in row]
     assert next(b for b in intervals if b.callback_data == "set_not:60").style == "success"
-    assert all(b.style is None for b in intervals if b.callback_data != "set_not:60")
+    assert all(b.style is None for b in intervals if b.callback_data.startswith("set_not:") and b.callback_data != "set_not:60")
+    assert next(b for b in intervals if b.callback_data == "back_to_settings").style == "primary"
     edit = AsyncMock()
     await ask_clear_drivers(SimpleNamespace(message=SimpleNamespace(edit_text=edit)))
     actions = edit.await_args.kwargs["reply_markup"].inline_keyboard[0]

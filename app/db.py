@@ -524,12 +524,14 @@ async def get_user_settings(telegram_id) -> dict:
     await get_or_create_user(tg_id)
 
     # Ищем по telegram_id и достаем новый столбец notifications_enabled
-    async with db.conn.execute("SELECT timezone, notify_before, notifications_enabled, reminder_sessions, results_spoiler FROM users WHERE telegram_id = ?",
+    async with db.conn.execute("SELECT timezone, notify_before, notifications_enabled, reminder_sessions, results_spoiler, notify_before_mask FROM users WHERE telegram_id = ?",
                                (tg_id,)) as cursor:
         row = await cursor.fetchone()
         if row:
+            from app.session_reminders import reminder_intervals
             keys = row.keys() if hasattr(row, 'keys') else []
             return {
+                "notify_before_minutes": reminder_intervals(row[5], row[1]),
                 "reminder_sessions": row[3],
                 "results_spoiler": bool(row[4]),
                 "timezone": row['timezone'] if 'timezone' in keys else row[0] or "Europe/Moscow",
@@ -538,7 +540,26 @@ async def get_user_settings(telegram_id) -> dict:
                 "notifications_enabled": bool(
                     row['notifications_enabled'] if 'notifications_enabled' in keys else row[2])
             }
-        return {"timezone": "Europe/Moscow", "notify_before": 60, "notifications_enabled": False, "reminder_sessions": 31, "results_spoiler": False}
+        return {"timezone": "Europe/Moscow", "notify_before": 60, "notify_before_minutes": [60], "notifications_enabled": False, "reminder_sessions": 31, "results_spoiler": False}
+
+
+async def toggle_notification_interval(telegram_id: int, minutes: int) -> list[int]:
+    from app.session_reminders import INTERVAL_BITS, reminder_intervals
+    if type(minutes) is not int or minutes not in INTERVAL_BITS:
+        raise ValueError("Invalid reminder interval")
+    await get_or_create_user(telegram_id)
+    async with db.write_lock:
+        # One SQL update, not read-modify-write: bot/web use separate processes
+        # and their Python locks alone cannot protect the shared SQLite file.
+        cases = " ".join(f"WHEN {value} THEN {bit}" for value, bit in INTERVAL_BITS.items())
+        current = f"COALESCE(notify_before_mask, CASE notify_before {cases} ELSE 4 END)"
+        cursor = await db.conn.execute(
+            f"UPDATE users SET notify_before_mask=({current} | ?) - ({current} & ?),updated_at=CURRENT_TIMESTAMP WHERE telegram_id=? RETURNING notify_before_mask",
+            (INTERVAL_BITS[minutes], INTERVAL_BITS[minutes], telegram_id))
+        row = await cursor.fetchone()
+        await cursor.close()
+        await db.conn.commit()
+    return reminder_intervals(row[0])
 
 
 async def update_user_setting(telegram_id, key: str, value: Any) -> None:

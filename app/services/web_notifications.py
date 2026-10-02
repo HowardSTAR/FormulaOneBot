@@ -162,11 +162,11 @@ async def poll_web_notifications(*, not_before: float):
     season = datetime.now(timezone.utc).year
     schedule = await get_season_schedule_short_async(season) or []
     async with connection() as conn:
-        members = await (await conn.execute("SELECT u.id,u.timezone,u.notify_before,u.reminder_sessions,m.joined_at FROM web_notification_members m JOIN users u ON u.id=m.user_id WHERE u.archived_at IS NULL")).fetchall()
+        members = await (await conn.execute("SELECT u.id,u.timezone,u.notify_before,u.notify_before_mask,u.reminder_sessions,m.joined_at FROM web_notification_members m JOIN users u ON u.id=m.user_id WHERE u.archived_at IS NULL")).fetchall()
     for event in schedule:
         if event.get("is_cancelled") or not event.get("round"):
             continue
-        from app.session_reminders import SESSION_BITS, session_enabled
+        from app.session_reminders import SESSION_BITS, session_enabled, reminder_intervals
         for kind in SESSION_BITS:
             if event.get("is_testing") and kind != "race":
                 continue
@@ -182,10 +182,10 @@ async def poll_web_notifications(*, not_before: float):
             for user in members:
                 if not session_enabled(user["reminder_sessions"], kind):
                     continue
-                minutes = int(user["notify_before"] or 60)
-                due = start.timestamp() - minutes * 60
-                if due < max(not_before,user["joined_at"]) or not 0 <= now-due <= 90:
-                    continue
-                text = get_notification_text(event,user["timezone"] or "Europe/Moscow",(start.timestamp()-now)/60,event_kind=kind)
-                await publish_safely(f"reminder:{season}:{event['round']}:{kind}:{minutes}", "Скоро сессия", text,
-                    f"/race-details?season={season}&round={event['round']}", user_id=user["id"], expires=start.timestamp())
+                for minutes in reminder_intervals(user["notify_before_mask"], user["notify_before"]):
+                    due = start.timestamp() - minutes * 60
+                    if due < max(not_before,user["joined_at"]) or not 0 <= now-due <= 90:
+                        continue
+                    text = get_notification_text(event,user["timezone"] or "Europe/Moscow",(start.timestamp()-now)/60,event_kind=kind)
+                    await publish_safely(f"reminder:{season}:{event['round']}:{kind}:{minutes}", "Скоро сессия", text,
+                        f"/race-details?season={season}&round={event['round']}", user_id=user["id"], expires=start.timestamp())

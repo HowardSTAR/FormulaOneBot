@@ -1,7 +1,7 @@
 """Local UX fixtures only: no database, bot, upstream requests or delivery jobs.
 
 Run beside Vite with F1HUB_PREVIEW_API=http://127.0.0.1:8009.
-Unknown endpoints fail explicitly; POSTs never persist anything.
+Unknown endpoints fail explicitly; settings POSTs only update this process's RAM.
 """
 import json
 import time
@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlsplit
 DRIVERS = [dict(code=code, name=name, driverId=driver_id, position=i+1, points=302-i*30,
                 constructorId='mercedes' if i < 2 else 'ferrari', constructorName='Mercedes' if i < 2 else 'Ferrari')
            for i, (code, name, driver_id) in enumerate([('ANT','Andrea Kimi Antonelli','antonelli'),('RUS','George Russell','russell'),('LEC','Charles Leclerc','leclerc'),('HAM','Lewis Hamilton','hamilton'),('ALO','Fernando Alonso','alonso'),('VER','Max Verstappen','max_verstappen')])]
+SETTINGS = dict(timezone='Etc/GMT-3', notify_before=60, notify_before_minutes=[60], notifications_enabled=True, reminder_sessions=31, results_spoiler=False)
 
 
 def fixture(path, params):
@@ -24,7 +25,7 @@ def fixture(path, params):
     races[16].update(date=f'{year}-10-11',race_start_utc=f'{year}-10-11T14:00:00Z',quali_start_utc=f'{year}-10-10T14:00:00Z',practice1_start_utc=f'{year}-10-09T10:00:00Z',sprint_quali_start_utc=f'{year}-10-09T14:00:00Z',sprint_start_utc=f'{year}-10-10T10:00:00Z')
     if path=='/api/auth/me': return dict(id=1,email='qa@example.test',telegram_id=1,email_verified=True,role='superadmin',display_name='UX test',telegram_username='ux_test')
     if path=='/api/admin/me': return dict(id=1,role='superadmin')
-    if path in ['/api/settings','/api/account/settings']: return dict(timezone='Etc/GMT-3',notify_before=60,notifications_enabled=True,reminder_sessions=31,results_spoiler=False)
+    if path in ['/api/settings','/api/account/settings']: return SETTINGS.copy()
     if path=='/api/drivers': return dict(season=year,round=15,drivers=DRIVERS)
     if path=='/api/constructors': return dict(season=year,round=15,constructors=[dict(position=1,name='Mercedes',constructorId='mercedes',points=538),dict(position=2,name='Ferrari',constructorId='ferrari',points=378)])
     if path=='/api/constructor-details': return dict(constructorId='ferrari',name='Ferrari',nationality='Italian',url='',bio='Краткая биография команды [12].',season=year,drivers=[],principal=None,season_stats=dict(position=2,points=378,points_source='standings',grand_prix_points=330,standings_round=15,grand_prix_races=15,grand_prix_wins=2,grand_prix_podiums=5,grand_prix_poles=3),career_stats=dict(grand_prix_entered=2,grand_prix_events=1,career_points=33,highest_race_finish=dict(position=2,count=1),podiums=2,pole_positions=1,world_championships=16))
@@ -75,7 +76,12 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(value if value is not None else {'detail':'Тестовый источник: сценарий недоступен'},ensure_ascii=False).encode())
 
     def do_POST(self):
-        self.send_response(200 if self.path.startswith('/api/analytics/') else 405)
+        is_settings = self.path in ['/api/settings', '/api/account/settings']
+        body = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        if is_settings:
+            values = json.loads(body)
+            SETTINGS.update({key: value for key, value in values.items() if key in SETTINGS})
+        self.send_response(200 if is_settings or self.path.startswith('/api/analytics/') else 405)
         self.send_header('Content-Type','application/json')
         self.end_headers()
         self.wfile.write(b'{"ok":true}')

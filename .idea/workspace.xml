@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="фикс рекап">
+    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="эвристикам Нильсена по календарю">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/f1-history-recap.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/f1-history-recap.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -219,46 +220,6 @@
       <workItem from="1768860453876" duration="3031000" />
       <workItem from="1768914801741" duration="17575000" />
       <workItem from="1769405571210" duration="601000" />
-    </task>
-    <task id="LOCAL-00075" summary="alert об ошибках">
-      <option name="closed" value="true" />
-      <created>1788973076572</created>
-      <option name="number" value="00075" />
-      <option name="presentableId" value="LOCAL-00075" />
-      <option name="project" value="LOCAL" />
-      <updated>1788973076572</updated>
-    </task>
-    <task id="LOCAL-00076" summary="добавление уведомлений разных сессий">
-      <option name="closed" value="true" />
-      <created>1789029619470</created>
-      <option name="number" value="00076" />
-      <option name="presentableId" value="LOCAL-00076" />
-      <option name="project" value="LOCAL" />
-      <updated>1789029619470</updated>
-    </task>
-    <task id="LOCAL-00077" summary="добавлены портреты при выборе пилота">
-      <option name="closed" value="true" />
-      <created>1789033123371</created>
-      <option name="number" value="00077" />
-      <option name="presentableId" value="LOCAL-00077" />
-      <option name="project" value="LOCAL" />
-      <updated>1789033123371</updated>
-    </task>
-    <task id="LOCAL-00078" summary="обновление календаря гонки след">
-      <option name="closed" value="true" />
-      <created>1789130585508</created>
-      <option name="number" value="00078" />
-      <option name="presentableId" value="LOCAL-00078" />
-      <option name="project" value="LOCAL" />
-      <updated>1789130585509</updated>
-    </task>
-    <task id="LOCAL-00079" summary="обновленные фото пилотов">
-      <option name="closed" value="true" />
-      <created>1789152109324</created>
-      <option name="number" value="00079" />
-      <option name="presentableId" value="LOCAL-00079" />
-      <option name="project" value="LOCAL" />
-      <updated>1789152109324</updated>
     </task>
     <task id="LOCAL-00080" summary="включение всем уведомлений, но отключение звука у тех кто отключил их">
       <option name="closed" value="true" />
@@ -612,7 +573,47 @@
       <option name="project" value="LOCAL" />
       <updated>1790858137973</updated>
     </task>
-    <option name="localTasksCounter" value="124" />
+    <task id="LOCAL-00124" summary="фикс рекап">
+      <option name="closed" value="true" />
+      <created>1790861139095</created>
+      <option name="number" value="00124" />
+      <option name="presentableId" value="LOCAL-00124" />
+      <option name="project" value="LOCAL" />
+      <updated>1790861139095</updated>
+    </task>
+    <task id="LOCAL-00125" summary="по эвристика нильсена">
+      <option name="closed" value="true" />
+      <created>1790887919299</created>
+      <option name="number" value="00125" />
+      <option name="presentableId" value="LOCAL-00125" />
+      <option name="project" value="LOCAL" />
+      <updated>1790887919299</updated>
+    </task>
+    <task id="LOCAL-00126" summary="фикс докера">
+      <option name="closed" value="true" />
+      <created>1790888280737</created>
+      <option name="number" value="00126" />
+      <option name="presentableId" value="LOCAL-00126" />
+      <option name="project" value="LOCAL" />
+      <updated>1790888280737</updated>
+    </task>
+    <task id="LOCAL-00127" summary="эвристикам Нильсена по календарю">
+      <option name="closed" value="true" />
+      <created>1790890426195</created>
+      <option name="number" value="00127" />
+      <option name="presentableId" value="LOCAL-00127" />
+      <option name="project" value="LOCAL" />
+      <updated>1790890426195</updated>
+    </task>
+    <task id="LOCAL-00128" summary="эвристикам Нильсена по календарю">
+      <option name="closed" value="true" />
+      <created>1790891751269</created>
+      <option name="number" value="00128" />
+      <option name="presentableId" value="LOCAL-00128" />
+      <option name="project" value="LOCAL" />
+      <updated>1790891751269</updated>
+    </task>
+    <option name="localTasksCounter" value="129" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -630,9 +631,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Центр контроля" />
-    <MESSAGE value="Добавил персональную главную" />
-    <MESSAGE value="апдейт" />
     <MESSAGE value="Единые очки. Главная и сравнение используют официальный зачёт, включая спринты. Гоночные показатели подписаны отдельно; отсутствующие данные не выдаются за нули. &#10;&#10;Характеристики трасс. Мадрид отделён от Барселоны, параметры сезона 2026 сверены с официальными карточками F1. Дополнительно исправлены ошибочные совпадения названий трасс. &#10;&#10;Компактная главная. Под ближайшей сессией — короткое актуальное действие вместо большой панели. Добавлено нижнее мобильное меню. &#10;&#10;Прогноз без регистрации. Гость видит правила, пример разбора и может заполнить черновик. Выбор сохраняется при переходе к входу. &#10;&#10;«Мой сезон». Личная история, лучший и средний результат, точность по категориям, изменение места и разбор этапа. Неизвестные результаты не считаются промахами. &#10;&#10;Соревнования с друзьями. Рейтинг отдельного этапа, приватные лиги с приглашениями, сезонный зачёт и достижения. Чужие ответы остаются закрытыми. &#10;&#10;Календарь и результаты. Предстоящие этапы показываются первыми, сессии можно экспортировать в календарь. Карты компактнее, добавлены сводка изменений после гонки и ссылки на объяснения терминов." />
     <MESSAGE value="Единые очки. Главная и сравнение используют официальный зачёт, включая спринты. Гоночные показатели подписаны отдельно; отсутствующие данные не выдаются за нули. &#10;&#10;Характеристики трасс. Мадрид отделён от Барселоны, параметры сезона 2026 сверены с официальными карточками F1. Дополнительно исправлены ошибочные совпадения названий трасс. &#10;&#10;Компактная главная. Под ближайшей сессией — короткое актуальное действие вместо большой панели. Добавлено нижнее мобильное меню. &#10;&#10;Прогноз без регистрации. Гость видит правила, пример разбора и может заполнить черновик. Выбор сохраняется при переходе к входу. &#10;&#10;«Мой сезон». Личная история, лучший и средний результат, точность по категориям, изменение места и разбор этапа. Неизвестные результаты не считаются промахами. &#10;&#10;Соревнования с друзьями. Рейтинг отдельного этапа, приватные лиги с приглашениями, сезонный зачёт и достижения. Чужие ответы остаются закрытыми. &#10;&#10;Календарь и результаты. Предстоящие этапы показываются первыми, сессии можно экспортировать в календарь. Карты компактнее, добавлены сводка изменений после гонки и ссылки на объяснения терминов." />
     <MESSAGE value="добавление сортировки в аналитику" />
@@ -655,7 +653,10 @@
     <MESSAGE value="рефакторинг" />
     <MESSAGE value="новый рекап" />
     <MESSAGE value="фикс рекап" />
-    <option name="LAST_COMMIT_MESSAGE" value="фикс рекап" />
+    <MESSAGE value="по эвристика нильсена" />
+    <MESSAGE value="фикс докера" />
+    <MESSAGE value="эвристикам Нильсена по календарю" />
+    <option name="LAST_COMMIT_MESSAGE" value="эвристикам Нильсена по календарю" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/FormulaOneBot$fastf1_capabilities_test.coverage" NAME="fastf1_capabilities_test Coverage Results" MODIFIED="1768941910109" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />

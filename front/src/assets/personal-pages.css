@@ -456,6 +456,21 @@
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 }
+.reminder-intervals { min-width: 0; margin: 0; }
+.reminder-intervals legend { padding: 0 6px; }
+.reminder-intervals .setting-card-note { margin: 0 0 14px; color: #b0b3bb; font-size: 13px; line-height: 1.5; }
+.reminder-interval-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.reminder-interval { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 10px 12px; border: 1px solid #444650; border-radius: 10px; background: #1c1e25; cursor: pointer; }
+.reminder-interval.is-selected { border-color: #ec4545; background: #341b20; }
+.reminder-interval input { width: 20px; height: 20px; margin: 0; accent-color: #e33d3d; flex-shrink: 0; }
+.reminder-interval:focus-within { outline: 2px solid #a7d7ff; outline-offset: 2px; }
+.reminder-intervals:disabled .reminder-interval { opacity: .55; cursor: not-allowed; }
+.reminder-interval-grid .reminder-interval:last-child { grid-column: 1 / -1; }
+@media (max-width: 360px) {
+  .reminder-interval { padding-inline: 8px; gap: 6px; font-size: 13px; }
+  .reminder-interval span { white-space: nowrap; }
+}
+
 .session-reminder-options { border: 0; padding: 0; margin: 28px 0 0; min-width: 0; }
 .session-reminder-options legend { font-size: 18px; font-weight: 800; }
 .session-reminder-options > p { color: #a9a9b3; font-size: 14px; line-height: 1.6; }

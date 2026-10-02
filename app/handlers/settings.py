@@ -6,7 +6,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from app.db import get_user_settings, update_user_setting
+from app.db import get_user_settings, update_user_setting, toggle_notification_interval
 from app.db import db
 from app.session_reminders import SESSION_OPTIONS
 from app.utils.safe_send import safe_answer_callback
@@ -97,7 +97,7 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
     user_settings = await get_user_settings(user_id)
 
     tz = user_settings.get("timezone", "Europe/Moscow")
-    notify_before = user_settings.get("notify_before", 60)
+    intervals = user_settings["notify_before_minutes"]
     notifications_enabled = user_settings.get("notifications_enabled", False)
     results_spoiler = user_settings.get("results_spoiler", False)
 
@@ -111,15 +111,16 @@ async def _show_main_settings(message_or_callback, state: FSMContext, user_id: i
         tz_label = "Europe/Moscow (Москва, Минск, Стамбул)"
 
     # 3. Форматируем время
-    notify_str = format_notify_time(notify_before)
+    notify_str = ", ".join(format_notify_time(value) for value in intervals) if intervals else "выключено"
 
     # 4. Форматируем статус уведомлений
     notif_status = "🔔 Со звуком" if notifications_enabled else "🔕 Без звука"
+    reminder_line = f"⏰ <b>Напоминать за:</b> {notify_str} до выбранных сессий\n" if intervals else "⏰ <b>Напоминания о старте:</b> выключены\n"
 
     text = (
         "⚙️ <b>Настройки TurboTears</b>\n\n"
         f"🌍 <b>Часовой пояс:</b> {tz_label}\n"
-        f"⏰ <b>Напоминать за:</b> {notify_str} до выбранных сессий\n"
+        f"{reminder_line}"
         f"<b>Звук сообщений Telegram:</b> {notif_status}\n\n"
         f"<b>Результаты:</b> {'фото скрыты спойлером' if results_spoiler else 'видны сразу'}\n\n"
         "Сообщения приходят в обоих режимах. «Без звука» отключает только звук в Telegram.\n\n"
@@ -159,14 +160,26 @@ def get_tz_keyboard():
     return kb.as_markup()
 
 
-def get_notify_keyboard(current_val: int):
+def get_notify_keyboard(current_val: int | list[int]):
+    selected = {current_val} if isinstance(current_val, int) else set(current_val)
     kb = InlineKeyboardBuilder()
     for label, val in NOTIFY_OPTIONS.items():
-        mark = "✅ " if val == current_val else ""
-        kb.button(text=f"{mark}{label}", callback_data=f"set_not:{val}", style="success" if val == current_val else None)
-    kb.button(text="« Назад", callback_data="back_to_settings")
+        mark = "✅ " if val in selected else ""
+        kb.button(text=f"{mark}{label}", callback_data=f"set_not:{val}", style="success" if val in selected else None)
+    kb.button(text="Готово", callback_data="back_to_settings", style="primary")
     kb.adjust(2)
     return kb.as_markup()
+
+
+async def show_notify_settings(callback, state):
+    settings = await get_user_settings(callback.from_user.id)
+    selected = settings["notify_before_minutes"]
+    summary = ", ".join(format_notify_time(value) for value in selected) if selected else "напоминания о старте выключены"
+    await callback.message.edit_text(
+        "⏰ <b>Когда напоминать о выбранных сессиях?</b>\n\n"
+        "Можно выбрать несколько интервалов. Нажмите ещё раз, чтобы снять отметку. Изменения сохраняются сразу.\n\n"
+        f"Выбрано: {summary}.", reply_markup=get_notify_keyboard(selected), parse_mode="HTML")
+    await state.set_state(SettingsSG.choosing_notify)
 
 
 async def show_session_settings(callback, state):
@@ -259,23 +272,23 @@ async def cb_set_tz(callback: types.CallbackQuery, state: FSMContext):
 
 @settings_router.callback_query(F.data == "change_notify", SettingsSG.main_menu)
 async def cb_change_notify(callback: types.CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    current_not = data.get("settings", {}).get("notify_before", 60)
-
-    text = "⏰ <b>За сколько времени предупреждать о выбранных сессиях?</b>"
-    await callback.message.edit_text(text, reply_markup=get_notify_keyboard(current_not), parse_mode="HTML")
-    await state.set_state(SettingsSG.choosing_notify)
+    await safe_answer_callback(callback)
+    await show_notify_settings(callback, state)
 
 
 @settings_router.callback_query(F.data.startswith("set_not:"), SettingsSG.choosing_notify)
 async def cb_set_notify(callback: types.CallbackQuery, state: FSMContext):
-    minutes = int(callback.data.split(":")[1])
-    await update_user_setting(callback.from_user.id, "notify_before", minutes)
-    await _show_main_settings(callback, state, callback.from_user.id, is_edit=True)
+    await safe_answer_callback(callback)
+    value = callback.data.split(":", 1)[1]
+    if value not in {str(minutes) for minutes in NOTIFY_OPTIONS.values()}:
+        return
+    await toggle_notification_interval(callback.from_user.id, int(value))
+    await show_notify_settings(callback, state)
 
 
 @settings_router.callback_query(F.data == "back_to_settings")
 async def cb_back(callback: types.CallbackQuery, state: FSMContext):
+    await safe_answer_callback(callback)
     await _show_main_settings(callback, state, callback.from_user.id, is_edit=True)
 
 

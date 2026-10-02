@@ -13,10 +13,10 @@ async def sound_db(monkeypatch):
         await conn.executescript('''
             CREATE TABLE users(id INTEGER, telegram_id INTEGER, timezone TEXT,
                 notify_before INTEGER, notifications_enabled INTEGER,
-                reminder_sessions INTEGER, results_spoiler INTEGER, archived_at TEXT);
-            INSERT INTO users VALUES(1,101,'UTC',60,0,31,0,NULL);
-            INSERT INTO users VALUES(2,102,'UTC',60,1,31,1,NULL);
-            INSERT INTO users VALUES(3,103,'UTC',60,0,31,0,'archived');
+                reminder_sessions INTEGER, results_spoiler INTEGER, archived_at TEXT, notify_before_mask INTEGER);
+            INSERT INTO users VALUES(1,101,'UTC',60,0,31,0,NULL,NULL);
+            INSERT INTO users VALUES(2,102,'UTC',60,1,31,1,NULL,NULL);
+            INSERT INTO users VALUES(3,103,'UTC',60,0,31,0,'archived',NULL);
             CREATE TABLE favorite_drivers(user_id INTEGER, driver_code TEXT);
             CREATE TABLE favorite_teams(user_id INTEGER, constructor_name TEXT);
             INSERT INTO favorite_drivers VALUES(1,'STR');

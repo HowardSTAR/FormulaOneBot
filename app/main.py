@@ -204,6 +204,11 @@ async def main():
         drain_telegram_outbox, "interval", seconds=30, args=[bot],
         id="telegram_outbox", replace_existing=True, max_instances=1, coalesce=True,
     )
+    from app.services.reminder_status import refresh_reminder_messages
+    scheduler.add_job(
+        refresh_reminder_messages, "interval", seconds=30,
+        id="reminder_status", replace_existing=True, max_instances=1, coalesce=True,
+    )
     async def start_background_jobs_after_database(**_kwargs):
         nonlocal result_notification_state_ready
         result_notification_state_ready = await initialize_result_notification_state()
