@@ -111,7 +111,7 @@ function RaceGamePage() {
           ref={frame}
           className="race-game-frame"
           src={`/race-game/index.html${gameParams.size ? '?' + gameParams.toString() : ''}`}
-          title="Emerald Loop — пиксельная гонка"
+          title="Заезд на трассе"
           allow="fullscreen"
         />
       )}

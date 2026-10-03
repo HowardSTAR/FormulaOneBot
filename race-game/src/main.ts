@@ -17,7 +17,7 @@ const entryParams = new URLSearchParams(window.location.search)
 let challengeToken = entryParams.get('challenge') || ''
 if (!/^[A-Za-z0-9_-]{32}$/.test(challengeToken)) challengeToken = ''
 let challengeRun: {track_id: string; name: string; time_ms: number; ghost: GhostRun; entries: {name: string; time_ms: number}[]} | null = null
-let weeklyTrackId = ''
+let entryNotice = ''
 try {
   selectedTrack = tracks.find(track => track.id === localStorage.getItem(SELECTED_TRACK_KEY)) ?? tracks[0]
 } catch { /* Storage is optional. */ }
@@ -91,8 +91,6 @@ const ui = {
   lap: $('#lap-value'),
   time: $('#time-value'),
   speed: $('#speed-value'),
-  surface: $('#surface-chip'),
-  surfaceLabel: $('#surface-chip b'),
   countdown: $('#countdown'),
   modal: $('#race-modal'),
   modalTitle: $('#modal-title'),
@@ -123,7 +121,6 @@ const ui = {
   ghostMenuCopy: $('#menu-ghost-copy'),
   trackName: $('#track-name'),
   trackFormat: $('#track-format'),
-  trackSelect: $('#track-select') as HTMLSelectElement,
   trackDescription: $('#track-description'),
   trackPreview: $('#track-preview'),
   menuTrackName: $('#menu-track-name'),
@@ -141,7 +138,6 @@ const syncTrackControls = (): void => {
   ui.trackName.textContent = selectedTrack.name.toUpperCase()
   ui.trackFormat.textContent = selectedTrack.format
   ui.menuTrackName.textContent = selectedTrack.name
-  ui.trackSelect.value = selectedTrack.id
   ui.trackDescription.textContent = selectedTrack.description
   const namespace = 'http://www.w3.org/2000/svg'
   const map = document.createElementNS(namespace, 'svg')
@@ -164,14 +160,7 @@ const syncTrackControls = (): void => {
   ui.archive.hidden = selectedTrack.id !== 'emerald-loop-v2'
   ui.currentRanking.hidden = true
 }
-for (const track of tracks) {
-  const option = document.createElement('option')
-  option.value = track.id
-  option.textContent = `${track.name} · ${track.format}`
-  ui.trackSelect.append(option)
-}
 syncTrackControls()
-ui.trackSelect.disabled = true
 ui.start.disabled = true
 ui.start.textContent = 'ЗАГРУЗКА…'
 ui.introLeaderboard.disabled = true
@@ -446,7 +435,6 @@ class RaceScene extends Phaser.Scene {
   private telemetry: GhostSample[] = []
   private lastTelemetrySampleAt = -TELEMETRY_SAMPLE_INTERVAL_MS
   private practiceRun = false
-  private collisionUntil = 0
   private runVersion = 0
 
   constructor() {
@@ -486,7 +474,7 @@ class RaceScene extends Phaser.Scene {
       .setDisplaySize(50, 75)
       .setDepth(11)
       .setTint(0x79e9ff)
-      .setAlpha(0.5)
+      .setAlpha(0.25)
       .setVisible(false)
 
     this.ghostLabel = this.add.text(centerLine[0].x, centerLine[0].y - 44, '', {
@@ -499,7 +487,7 @@ class RaceScene extends Phaser.Scene {
     })
       .setOrigin(0.5, 1)
       .setDepth(12)
-      .setAlpha(0.9)
+      .setAlpha(0.45)
       .setVisible(false)
 
     this.keys = this.input.keyboard!.addKeys({
@@ -537,7 +525,6 @@ class RaceScene extends Phaser.Scene {
     this.resetRace()
     this.updateCameraZoom()
     activeScene = this
-    ui.trackSelect.disabled = Boolean(challengeRun || weeklyTrackId)
     ui.start.disabled = false
     ui.introLeaderboard.disabled = false
     ui.menuButton.disabled = false
@@ -631,30 +618,6 @@ class RaceScene extends Phaser.Scene {
     this.startRace()
   }
 
-  selectTrack(track: Track): void {
-    if (selectedTrack.id === track.id) return
-    this.closeGameMenu()
-    this.clearTouchState()
-    this.input.keyboard?.resetKeys()
-    this.runVersion += 1
-    ghostRequestVersion += 1
-    leaderboardRequestVersion += 1
-    activateTrack(track)
-    try { localStorage.setItem(SELECTED_TRACK_KEY, track.id) } catch { /* Storage is optional. */ }
-    syncTrackControls()
-    ui.trackSelect.disabled = true
-    ui.start.disabled = true
-    this.ghost = null
-    this.scene.restart()
-  }
-
-  openTrackPicker(): void {
-    this.closeGameMenu()
-    this.input.keyboard?.resetKeys()
-    this.resetRace()
-    ui.trackSelect.focus()
-  }
-
   setGhostEnabled(enabled: boolean): void {
     ghostEnabled = enabled
     persistGhostPreference()
@@ -717,13 +680,11 @@ class RaceScene extends Phaser.Scene {
     this.velocity.set(0, 0)
     this.updateCarRotation()
     this.setSurfaceState(true)
-    if (this.practiceRun) ui.surfaceLabel.textContent = 'ТРЕНИРОВКА · БЕЗ РЕКОРДА'
   }
 
   private resetRace(): void {
     this.runVersion += 1
     this.practiceRun = false
-    this.collisionUntil = 0
     this.raceState = 'ready'
     this.elapsedTime = 0
     this.currentLap = 1
@@ -742,7 +703,7 @@ class RaceScene extends Phaser.Scene {
     ui.time.textContent = formatTime(0)
     ui.speed.textContent = '0'
     ui.modalTitle.textContent = selectedTrack.name
-    ui.modalCopy.textContent = 'Три круга · столкновения замедляют · возврат ↺ — тренировка без рекорда.'
+    ui.modalCopy.textContent = entryNotice || 'Проедьте три круга как можно быстрее.'
     ui.start.textContent = 'НАЧАТЬ ЗАЕЗД'
     ui.restart.hidden = true
     ui.resultRow.hidden = true
@@ -751,7 +712,6 @@ class RaceScene extends Phaser.Scene {
     ui.countdown.textContent = ''
     ui.countdown.classList.remove('is-go')
     ui.pause.textContent = 'Ⅱ'
-    ui.surface.dataset.ready = 'false'
     this.setSurfaceState(true)
     this.updateGhost()
   }
@@ -804,9 +764,6 @@ class RaceScene extends Phaser.Scene {
     const movement = advanceWithCollisions(this.car, this.velocity, this.heading, delta, colliders)
     this.car.setPosition(movement.x, movement.y)
     this.velocity.set(movement.vx, movement.vy)
-    if (movement.impact > 35) this.collisionUntil = this.elapsedTime + 550
-    ui.surfaceLabel.textContent = this.elapsedTime < this.collisionUntil ? 'СТОЛКНОВЕНИЕ'
-      : this.practiceRun ? 'ТРЕНИРОВКА · БЕЗ РЕКОРДА' : this.onRoad ? 'НА ТРАССЕ' : 'ВНЕ ТРАССЫ'
 
     if (!this.onRoad && this.velocity.lengthSq() > 2_500 && Math.random() < delta * 26) {
       const backX = this.car.x - Math.cos(this.heading) * 24
@@ -941,11 +898,7 @@ class RaceScene extends Phaser.Scene {
   }
 
   private setSurfaceState(onRoad: boolean): void {
-    if (this.onRoad === onRoad && ui.surface.dataset.ready === 'true') return
     this.onRoad = onRoad
-    ui.surface.dataset.ready = 'true'
-    ui.surface.classList.toggle('is-offroad', !onRoad)
-    ui.surfaceLabel.textContent = onRoad ? 'НА ТРАССЕ' : 'ВНЕ ТРАССЫ'
   }
 
   private clearTouchState(): void {
@@ -1046,13 +999,8 @@ ui.menuLeaderboard.addEventListener('click', () => {
 })
 ui.introLeaderboard.addEventListener('click', () => activeScene?.openGameMenu(true))
 ui.leaderboardBack.addEventListener('click', () => showMenuView('main'))
-$('#menu-tracks-button').addEventListener('click', () => activeScene?.openTrackPicker())
 ui.archive.addEventListener('click', () => { void loadLeaderboard('emerald-loop-v1') })
 ui.currentRanking.addEventListener('click', () => { void loadLeaderboard() })
-ui.trackSelect.addEventListener('change', () => {
-  const track = tracks.find(item => item.id === ui.trackSelect.value)
-  if (track) activeScene?.selectTrack(track)
-})
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) activeScene?.pauseWhenHidden()
@@ -1093,24 +1041,18 @@ async function bootGame(): Promise<void> {
     } catch {
       challengeToken = ''
       ui.challengeTitle.textContent = 'Вызов истёк или отозван'
-      ui.challengeCopy.textContent = 'Обычный заезд доступен. Выберите трассу и создайте собственный вызов.'
+      ui.challengeCopy.textContent = 'Можно проехать обычный заезд и поделиться своим результатом.'
     }
   } else if (entryParams.get('weekly') === '1') {
-    ui.challengePanel.hidden = false
-    ui.challengeTitle.textContent = 'Загружаем трассу недели…'
     try {
       const response = await fetch('/api/engagement/weekly', {signal: AbortSignal.timeout(15000), cache: 'no-store'})
       if (!response.ok) throw new Error('Трасса недели недоступна')
       const data = await response.json() as {track_id: string; end: string}
       const track = tracks.find(track => track.id === data.track_id)
       if (!track) throw new Error('Версия трассы недоступна')
-      weeklyTrackId = data.track_id
       activateTrack(track); syncTrackControls()
-      ui.challengeTitle.textContent = 'Трасса недели'
-      ui.challengeCopy.textContent = `Заезд участвует в недельном рейтинге до ${new Date(data.end).toLocaleString('ru-RU')}. Постоянные рекорды остаются без изменений.`
     } catch {
-      ui.challengeTitle.textContent = 'Недельный рейтинг временно недоступен'
-      ui.challengeCopy.textContent = 'Можно проехать обычный заезд. Трасса недели определяется сервером; её участие сейчас не подтверждено.'
+      entryNotice = 'Не удалось загрузить трассу. Можно проехать обычный заезд.'
     }
   }
 const game = new Phaser.Game({

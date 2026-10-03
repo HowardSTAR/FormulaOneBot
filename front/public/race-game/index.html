@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#07100d" />
     <meta name="description" content="Emerald Loop — пиксельная браузерная гонка на вымышленном болиде с открытыми колёсами." />
     <title>Emerald Loop — браузерная гонка</title>
-    <script type="module" crossorigin src="./assets/index-ClDr28qF.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-Cxm91b8b.css">
+    <script type="module" crossorigin src="./assets/index-vI7Bzh0V.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-CDa9u9UA.css">
   </head>
   <body>
     <main id="app" aria-label="Игра Emerald Loop">
@@ -31,41 +31,39 @@
         </div>
       </section>
 
-      <div class="surface-chip" id="surface-chip"><span></span><b>НА ТРАССЕ</b></div>
       <div class="countdown" id="countdown" aria-live="polite"></div>
 
       <section class="modal is-visible" id="race-modal" aria-live="polite">
         <div class="modal-card">
-          <p class="eyebrow">ПИКСЕЛЬНЫЙ ЗАЕЗД</p>
-          <h1 id="modal-title">Emerald Loop</h1>
-          <p id="modal-copy">Три круга по оригинальной трассе. Удерживайте скорость, аккуратно проходите повороты и не теряйте время на траве.</p>
-          <div class="track-picker">
-            <label for="track-select">Трасса · отдельные рекорды</label>
-            <select id="track-select" aria-describedby="track-description track-switch-note"></select>
-            <div id="track-preview" class="track-preview"></div>
-            <p id="track-description"></p>
-            <small id="track-switch-note">Смена трассы начинает новый заезд.</small>
+          <div class="race-intro">
+            <p class="eyebrow">ЗАЕЗД НА ТРАССЕ</p>
+            <h1 id="modal-title">Emerald Loop</h1>
+            <p id="modal-copy">Проедьте три круга как можно быстрее.</p>
+            <div class="track-summary">
+              <div id="track-preview" class="track-preview" role="img" aria-label="Превью трассы"></div>
+              <p id="track-description"></p>
+            </div>
           </div>
-          <p class="touch-guide">Поворачивайте джойстиком слева. Газ и тормоз — кнопки справа. Кнопка ↺ возвращает машину на трассу; пауза — справа сверху.</p>
+          <p class="touch-guide">Руль — джойстик слева.<br>Газ и тормоз — справа.<br>↺ — возврат без рекорда, Ⅱ — пауза.</p>
           <div class="control-guide keyboard-guide">
             <div><span>↑</span><b>Газ</b><small>W / ↑ / пробел</small></div>
             <div><span>← →</span><b>Поворот</b><small>A D / стрелки</small></div>
             <div><span>↓</span><b>Тормоз</b><small>S / ↓</small></div>
+            <p class="control-shortcuts">R — возврат без рекорда · P — пауза</p>
           </div>
           <div class="result-row" id="result-row" hidden>
             <span>Результат<strong id="result-time">—</strong></span>
             <span>Лучшее<strong id="best-time">—</strong></span>
           </div>
           <button id="start-button" class="primary-button" type="button">НАЧАТЬ ЗАЕЗД</button>
-          <section id="challenge-panel" class="challenge-panel" hidden aria-label="Вызов друга"><strong id="challenge-title"></strong><p id="challenge-copy"></p><ol id="challenge-ranking"></ol><a href="/community" target="_top">Другие соревнования →</a></section>
-          <button id="share-race-button" class="restart-button" type="button" hidden>Бросить вызов другу</button>
+          <small class="race-share-note">Нажимая «Начать заезд», вы соглашаетесь на создание публичной карточки с игровым именем и лучшим заездом, когда делитесь результатом. Ссылка действует 30 дней.</small>
+          <section id="challenge-panel" class="challenge-panel" hidden aria-label="Вызов друга"><strong id="challenge-title"></strong><p id="challenge-copy"></p><ol id="challenge-ranking"></ol></section>
+          <button id="share-race-button" class="restart-button" type="button" hidden>Поделиться заездом</button>
           <div class="modal-quick-links">
             <button id="restart-button" class="restart-button" type="button" hidden>Начать заново</button>
             <a href="/" target="_top">На главную</a>
             <button id="intro-leaderboard-button" type="button">Таблица лидеров</button>
           </div>
-          <p class="mobile-note">Слева — джойстик руля, справа — газ и тормоз. Призрак повторяет рекорд этой трассы. Возврат ↺ переводит заезд в тренировку без рекорда.</p>
-          <details class="fullscreen-help"><summary>Как убрать панель браузера?</summary><p>На iPhone: Safari → Поделиться → На экран «Домой». Запустите TurboTears с иконки. На Android полноэкранный режим включается при нажатии «Начать заезд», если браузер его поддерживает.</p></details>
         </div>
       </section>
 
@@ -86,9 +84,6 @@
             </button>
             <button id="menu-continue-button" class="menu-action is-primary" type="button">
               <span aria-hidden>▶</span><b>Продолжить</b><small>Вернуться к заезду</small>
-            </button>
-            <button id="menu-tracks-button" class="menu-action" type="button">
-              <span aria-hidden="true">▱</span><b>Выбрать трассу</b><small>Сбросить заезд и открыть четыре маршрута</small>
             </button>
             <button id="menu-ghost-toggle" class="menu-action ghost-menu-toggle" type="button" aria-pressed="true">
               <span aria-hidden>◌</span><b id="menu-ghost-label">Ghost Racer: ON</b><small id="menu-ghost-copy">Загрузка лучшего заезда…</small>
@@ -128,7 +123,6 @@
         </div>
       </section>
 
-      <div class="desktop-hint">WASD / СТРЕЛКИ — УПРАВЛЕНИЕ · R — НА ТРАССУ · P — ПАУЗА</div>
     </main>
   </body>
 </html>

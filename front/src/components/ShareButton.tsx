@@ -4,6 +4,71 @@ import { sendCard, sharingEvent, type ShareCard, type ShareOptions } from '../he
 import './sharing.css';
 
 export function ShareComposer({options, onClose}: {options: ShareOptions; onClose: () => void}) {
+  return options.kind === 'race'
+    ? <RaceShareComposer key={options.track_id} options={options} onClose={onClose} />
+    : <ConfirmedShareComposer options={options} onClose={onClose} />;
+}
+
+async function copyRaceLink(card: ShareCard): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(card.share_url);
+    void sharingEvent(card.token, 'share_copied');
+    return true;
+  } catch { return false; }
+}
+
+function RaceShareComposer({options, onClose}: {options: ShareOptions; onClose: () => void}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const link = useRef<HTMLInputElement>(null);
+  const request = useRef<Promise<ShareCard> | null>(null);
+  const [card, setCard] = useState<ShareCard | null>(null);
+  const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
+  const [attempt, setAttempt] = useState(0);
+  const [copying, setCopying] = useState(false);
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const element = dialog.current;
+    element?.showModal();
+    return () => { element?.close(); previous?.focus(); };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    // Reuse the pending creation during StrictMode's effect replay.
+    request.current ??= apiRequest<ShareCard>('/api/engagement/shares', {...options, consent: true}, 'POST', 150000);
+    void request.current.then(async created => {
+      if (!active) return;
+      setCard(created);
+      const copied = await copyRaceLink(created);
+      if (active) setStatus(copied ? 'Ссылка скопирована' : 'Нажмите «Скопировать» или скопируйте ссылку из поля.');
+    }).catch(e => {
+      if (active) setError(e instanceof Error ? e.message : 'Не удалось создать карточку');
+    });
+    return () => { active = false; };
+  }, [options, attempt]);
+  async function copy() {
+    if (!card || copying) return;
+    setCopying(true);
+    const copied = await copyRaceLink(card);
+    setStatus(copied ? 'Ссылка скопирована' : 'Выделите и скопируйте ссылку в поле.');
+    if (!copied) { link.current?.focus(); link.current?.select(); }
+    setCopying(false);
+  }
+  return <dialog ref={dialog} className="share-dialog race-share-dialog" aria-labelledby="race-share-heading" onCancel={onClose}>
+    <header><h2 id="race-share-heading">Поделиться заездом</h2><button type="button" onClick={onClose} aria-label="Закрыть ссылку">×</button></header>
+    {card ? <>
+      <p>Карточка создана. Друг сможет проехать эту трассу с вашим призраком. Ссылка действует 30 дней.</p>
+      <div className="race-share-link-row">
+        <input ref={link} type="url" aria-label="Ссылка на заезд" readOnly value={card.share_url} onFocus={e => e.target.select()} />
+        <button type="button" className="share-primary" disabled={copying} onClick={() => void copy()}>Скопировать</button>
+      </div>
+    </> : !error && <p role="status">Готовим ссылку на заезд…</p>}
+    {status && <p className="race-share-status" role="status">{status}</p>}
+    {error && <><p role="alert">{error}</p><button type="button" onClick={() => { request.current = null; setError(''); setAttempt(value => value + 1); }}>Повторить</button></>}
+  </dialog>;
+}
+
+function ConfirmedShareComposer({options, onClose}: {options: ShareOptions; onClose: () => void}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [card, setCard] = useState<ShareCard | null>(null);
   const [busy, setBusy] = useState(false);
