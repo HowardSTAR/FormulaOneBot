@@ -32,13 +32,17 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
         }} });
       });
       await page.route('**/api/**', route => {
-        const path = new URL(route.request().url()).pathname;
+        const requestUrl = new URL(route.request().url());
+        const path = requestUrl.pathname;
         if (path === '/api/engagement/shares') {
           creations.push(route.request().postDataJSON());
           if (failCreation) return route.fulfill({ status: 503, json: {detail: 'Не удалось создать карточку'} });
           return route.fulfill({ json: {token, kind: 'race', share_url: shareUrl, title: track.name, headline: '02:00.000'} });
         }
-        const json = path === '/api/engagement/weekly' ? {track_id: track.id, end: '2026-10-05T00:00:00Z'}
+        const requestedTrack = requestUrl.searchParams.get('track_id') || track.id;
+        const json = path.startsWith('/api/engagement/challenges/') ? {track_id: track.id, name:'Друг',time_ms:120000,ghost,entries:[]}
+          : path === '/api/engagement/weekly' ? {track_id: track.id, end: '2026-10-05T00:00:00Z'}
+          : path === '/api/race-game-leaderboard' ? {track_id:requestedTrack,ghost,entries:[],me:null}
           : path.includes('/race-game/') ? {track_id: track.id, ghost, entries: [], me: null}
           : path === '/api/next-race' ? {status: 'none'} : {};
         return route.fulfill({ json });
@@ -62,7 +66,9 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
       assert.equal(await frame.locator('#modal-title').textContent(), track.name);
       assert.ok(await frame.locator('#track-preview svg').isVisible());
       assert.equal(await frame.locator('#track-description').textContent(), track.description);
-      for (const selector of ['#track-select', '#menu-tracks-button', '.fullscreen-help', '.mobile-note', '.surface-chip', '.desktop-hint', '#challenge-panel a']) {
+      assert.ok(await frame.getByRole('combobox', {name: 'Выбрать трассу'}).isVisible());
+      assert.equal(await frame.locator('#track-select option').count(), tracks.length);
+      for (const selector of ['#menu-tracks-button', '.fullscreen-help', '.mobile-note', '.surface-chip', '.desktop-hint', '#challenge-panel a']) {
         assert.equal(await frame.locator(selector).count(), 0, selector);
       }
       assert.equal(await frame.locator('#challenge-panel').isVisible(), false);
@@ -78,6 +84,10 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
       assert.ok(dimensions.bottom <= dimensions.cardBottom, 'Start is visible without scrolling');
       assert.equal(dimensions.overflow, false);
       const quickLinks = await frame.locator('.modal-quick-links').evaluate(el => ({bottom: el.getBoundingClientRect().bottom, viewport: innerHeight}));
+      if (quickLinks.bottom > quickLinks.viewport) {
+        await page.screenshot({path:'artifacts/race-select-short-failure.png'});
+        console.error(await frame.locator('.modal-card').evaluate(card => [...card.children].map(el => ({class:el.className,height:el.getBoundingClientRect().height,top:el.getBoundingClientRect().top,bottom:el.getBoundingClientRect().bottom}))));
+      }
       assert.ok(quickLinks.bottom <= quickLinks.viewport, 'Intro actions fit the viewport');
       await page.screenshot({ path: `artifacts/race-intro-simple-${viewport.width}-${viewport.height}.png` });
 
@@ -122,6 +132,30 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
         await page.keyboard.press('Escape');
       }
       if (viewport.width === 1440) {
+        const picker = frame.getByRole('combobox', {name:'Выбрать трассу'});
+        for (const nextTrack of tracks) {
+          await picker.selectOption(nextTrack.id);
+          await start.waitFor();
+          await page.waitForFunction(() => {
+            const button = document.querySelector('.race-game-frame')?.contentDocument?.querySelector('#start-button');
+            return button && !button.disabled;
+          });
+          assert.equal(await frame.locator('#modal-title').textContent(),nextTrack.name);
+          assert.equal(await frame.locator('#track-description').textContent(),nextTrack.description);
+          assert.equal(await frame.locator('#track-name').textContent(),nextTrack.name.toUpperCase());
+          assert.equal(await frame.locator('#time-value').textContent(),'00:00.000');
+          assert.ok(await frame.locator('#track-preview polyline').getAttribute('points') === [...nextTrack.centerLine,nextTrack.centerLine[0]].map(point=>point.join(',')).join(' '));
+          assert.equal(await frame.locator('body').evaluate(() => localStorage.getItem('emerald-loop-selected-track')),nextTrack.id);
+          await page.screenshot({path:`artifacts/race-select-${nextTrack.id}.png`});
+        }
+        await picker.selectOption(track.id);
+        await frame.locator('#modal-title').getByText(track.name,{exact:true}).waitFor();
+        await picker.focus();
+        await page.keyboard.press('ArrowDown');
+        assert.equal(await frame.locator('#time-value').textContent(),'00:00.000','Native arrow keys must not start the race');
+        await picker.selectOption(track.id);
+        await start.waitFor();
+        await page.waitForFunction(() => !document.querySelector('.race-game-frame').contentDocument.querySelector('#start-button').disabled);
         await start.click();
         await frame.locator('#time-value').evaluate(el => new Promise(resolve => {
           const check = () => { if (el.textContent !== '00:00.000') { observer.disconnect(); resolve(); } };
@@ -130,6 +164,18 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
         await page.screenshot({path: 'artifacts/race-ghost-subtle.png'});
         assert.equal(await frame.locator('.surface-chip').count(), 0);
         assert.equal(await frame.locator('.desktop-hint').count(), 0);
+        // A new track leaves the friend challenge and uses the newly selected track for sharing.
+        await page.goto(`${base}/race-game?challenge=${token}`);
+        await frame.getByRole('combobox',{name:'Выбрать трассу'}).waitFor();
+        await frame.locator('#challenge-title').getByText('Вызов: Друг',{exact:true}).waitFor();
+        const other = tracks.find(item=>item.id !== track.id);
+        await frame.locator('#track-select').selectOption(other.id);
+        await frame.locator('#modal-title').getByText(other.name,{exact:true}).waitFor();
+        assert.equal(await frame.locator('#challenge-panel').isVisible(),false);
+        await frame.locator('#share-race-button').evaluate(el=>{el.hidden=false;});
+        await frame.locator('#share-race-button').click();
+        await dialog.getByText('Ссылка скопирована',{exact:true}).waitFor();
+        assert.equal(creations.at(-1).track_id,other.id);
       }
       assert.deepEqual(errors, []);
       await context.close();

@@ -65,6 +65,7 @@ async def lifecycle(temp_db_path, monkeypatch):
     await database.conn.commit()
     monkeypatch.setattr(outbox, 'db', database)
     monkeypatch.setattr(status, 'utc_now', lambda: NOW)
+    monkeypatch.setattr(outbox, 'time', SimpleNamespace(time=lambda: status.utc_now().timestamp()))
     schedule = AsyncMock(return_value=[event()])
     monkeypatch.setattr('app.f1_data.get_season_schedule_short_async', schedule)
     yield database, schedule
@@ -187,3 +188,58 @@ async def test_edit_requires_matching_original_receipt(lifecycle):
     await outbox.drain(bot)
     bot.edit_message_text.assert_not_awaited()
     assert await outbox.delivery_counts(f'reminder-state:{key}:live') == {'cancelled':1}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('kind', ['quali', 'sprint_quali'])
+async def test_prediction_closing_updates_each_recipient_after_restart(lifecycle, monkeypatch, kind):
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+    _, schedule = lifecycle
+    schedule.return_value = [event(kind, ago=10, quali_start_utc=(NOW+timedelta(days=1)).isoformat())
+                             if kind == 'sprint_quali' else event(kind, ago=10)]
+    key = 'prediction:closing:2026:16'
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(
+        text='🔮 Сделать прогноз', web_app=WebAppInfo(url='https://example.test/predictions?tab=form'))]])
+    await outbox.enqueue(key, 'Old countdown', keyboard, [(1,'UTC'), (2,'UTC')], NOW.timestamp()+86400)
+    async with outbox.connection() as conn:
+        await conn.execute("UPDATE telegram_deliveries SET status='sent',message_id=telegram_id+100 WHERE event_key=?", (key,))
+        await conn.commit()
+    bot = SimpleNamespace(edit_message_text=AsyncMock(), send_message=AsyncMock())
+    await status.refresh_reminder_messages(batch_size=1)
+    await status.refresh_reminder_messages(batch_size=1)
+    await outbox.drain(bot)
+    assert bot.edit_message_text.await_count == 2
+    for call in bot.edit_message_text.await_args_list:
+        assert 'идёт' in call.kwargs['text'] and 'Приём прогнозов закрыт' in call.kwargs['text']
+        assert 'Test &lt;GP&gt;' in call.kwargs['text']
+        assert 'format="r"' not in call.kwargs['text'] and 'назад' not in call.kwargs['text']
+        button = call.kwargs['reply_markup'].inline_keyboard[0][0]
+        assert button.text == '🔮 Мой прогноз' and button.web_app.url.endswith('?tab=form')
+        assert call.kwargs['message_id'] == call.kwargs['chat_id'] + 100
+    monkeypatch.setattr(status, 'utc_now', lambda: NOW+timedelta(hours=2))
+    await status.refresh_reminder_messages()
+    await status.refresh_reminder_messages()
+    await outbox.drain(bot)
+    assert bot.edit_message_text.await_count == 4
+    assert all('закончилась' in call.kwargs['text'] for call in bot.edit_message_text.await_args_list[-2:])
+    bot.send_message.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_prediction_late_live_edit_never_overwrites_finished(lifecycle, monkeypatch):
+    _, schedule = lifecycle
+    schedule.return_value = [event('quali', ago=10)]
+    key = 'prediction:closing:2026:16'
+    await outbox.enqueue(key, 'Old', None, [(1,'UTC')], NOW.timestamp()+86400)
+    async with outbox.connection() as conn:
+        await conn.execute("UPDATE telegram_deliveries SET status='sent',message_id=123 WHERE event_key=?", (key,))
+        await conn.commit()
+    await status.refresh_reminder_messages()
+    monkeypatch.setattr(status, 'utc_now', lambda: NOW+timedelta(hours=2))
+    await status.refresh_reminder_messages()
+    bot = SimpleNamespace(edit_message_text=AsyncMock(), send_message=AsyncMock())
+    await outbox.drain(bot)
+    bot.edit_message_text.assert_awaited_once()
+    assert 'закончилась' in bot.edit_message_text.await_args.kwargs['text']
+    assert await outbox.delivery_counts(f'prediction-state:{key}:1:live') == {'cancelled': 1}
+    bot.send_message.assert_not_awaited()

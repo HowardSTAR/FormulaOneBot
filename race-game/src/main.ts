@@ -123,6 +123,7 @@ const ui = {
   trackFormat: $('#track-format'),
   trackDescription: $('#track-description'),
   trackPreview: $('#track-preview'),
+  trackSelect: $('#track-select') as HTMLSelectElement,
   menuTrackName: $('#menu-track-name'),
   leaderboardTrackName: $('#leaderboard-track-name'),
   archive: $('#legacy-leaderboard-button') as HTMLButtonElement,
@@ -135,6 +136,7 @@ const ui = {
 }
 
 const syncTrackControls = (): void => {
+  ui.trackSelect.value = selectedTrack.id
   ui.trackName.textContent = selectedTrack.name.toUpperCase()
   ui.trackFormat.textContent = selectedTrack.format
   ui.menuTrackName.textContent = selectedTrack.name
@@ -160,6 +162,12 @@ const syncTrackControls = (): void => {
   ui.archive.hidden = selectedTrack.id !== 'emerald-loop-v2'
   ui.currentRanking.hidden = true
 }
+ui.trackSelect.replaceChildren(...tracks.map(track => {
+  const option = document.createElement('option')
+  option.value = track.id
+  option.textContent = track.name
+  return option
+}))
 syncTrackControls()
 ui.start.disabled = true
 ui.start.textContent = 'ЗАГРУЗКА…'
@@ -528,6 +536,7 @@ class RaceScene extends Phaser.Scene {
     ui.start.disabled = false
     ui.introLeaderboard.disabled = false
     ui.menuButton.disabled = false
+    ui.trackSelect.disabled = false
     syncGhostControls(null)
     void loadGhost()
     const refreshGhost = window.setInterval(() => {
@@ -616,6 +625,34 @@ class RaceScene extends Phaser.Scene {
     this.input.keyboard?.resetKeys()
     this.cameras.main.centerOn(this.car.x, this.car.y)
     this.startRace()
+  }
+
+  selectTrack(track: Track): void {
+    if (track.id === selectedTrack.id) return
+    this.runVersion += 1
+    ghostRequestVersion += 1
+    leaderboardRequestVersion += 1
+    this.closeGameMenu()
+    this.clearTouchState()
+    this.input.keyboard?.resetKeys()
+    challengeToken = ''
+    challengeRun = null
+    this.setGhost(null)
+    entryNotice = ''
+    ui.challengePanel.hidden = true
+    activateTrack(track)
+    syncTrackControls()
+    try { localStorage.setItem(SELECTED_TRACK_KEY, track.id) } catch { /* Storage is optional. */ }
+    const url = new URL(window.location.href)
+    url.searchParams.set('track', track.id)
+    url.searchParams.delete('weekly')
+    url.searchParams.delete('challenge')
+    window.history.replaceState(null, '', url)
+    ui.trackSelect.disabled = true
+    ui.start.disabled = true
+    ui.introLeaderboard.disabled = true
+    ui.menuButton.disabled = true
+    this.scene.restart()
   }
 
   setGhostEnabled(enabled: boolean): void {
@@ -983,6 +1020,13 @@ ui.start.addEventListener('click', () => {
   else activeScene.startRace()
 })
 ui.reset.addEventListener('click', () => activeScene?.resetToTrack())
+ui.trackSelect.addEventListener('change', () => {
+  const track = tracks.find(track => track.id === ui.trackSelect.value)
+  if (track) activeScene?.selectTrack(track)
+  ui.trackSelect.blur()
+})
+// Arrow keys and space belong to the native picker while it has focus.
+for (const type of ['keydown', 'keyup']) ui.trackSelect.addEventListener(type, event => event.stopPropagation())
 ui.restart.addEventListener('click', () => activeScene?.restartRace())
 ui.menuRestart.addEventListener('click', () => activeScene?.restartRace())
 ui.pause.addEventListener('click', () => activeScene?.togglePause())

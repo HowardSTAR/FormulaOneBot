@@ -4,7 +4,7 @@ import html
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -124,9 +124,15 @@ async def mine(response: Response, user_id: int = Depends(require_hybrid_user_id
 
 
 @router.get('/weekly')
-async def weekly(response: Response):
+async def weekly(response: Response, period: Literal['current', 'previous'] = 'current', week: date | None = None):
     response.headers['Cache-Control'] = 'no-store'
-    return await service.weekly()
+    now = datetime.now(timezone.utc)
+    if week is not None:
+        requested = datetime.combine(week, datetime.min.time(), tzinfo=timezone.utc)
+        if week.weekday() != 0 or requested >= service.weekly_period(now)[1]:
+            raise HTTPException(422, 'Выберите начало завершённой недели — понедельник.')
+        return await service.weekly(requested)
+    return await service.weekly(now - timedelta(days=7) if period == 'previous' else now)
 
 
 @router.get('/challenges/{token}')

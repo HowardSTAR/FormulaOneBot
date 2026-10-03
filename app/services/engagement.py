@@ -304,9 +304,9 @@ def weekly_period(now=None):
     return track, start, start + timedelta(days=7)
 
 
-async def weekly():
-    track, start, end = weekly_period()
-    scores = await (await db.conn.execute("SELECT p.display_name name,MIN(s.time_ms) time_ms FROM race_game_scores s JOIN reaction_leaderboard_profiles p USING(telegram_id) WHERE s.track_id=? AND p.leaderboard_opt_in=1 AND datetime(s.created_at)>=datetime(?) AND datetime(s.created_at)<datetime(?) GROUP BY s.telegram_id,p.display_name ORDER BY time_ms LIMIT 50", (track["id"], start.isoformat(), end.isoformat()))).fetchall()
+async def weekly(now=None):
+    track, start, end = weekly_period(now)
+    scores = await (await db.conn.execute("SELECT p.display_name name,MIN(s.time_ms) time_ms FROM race_game_scores s JOIN reaction_leaderboard_profiles p USING(telegram_id) WHERE s.track_id=? AND p.leaderboard_opt_in=1 AND datetime(s.created_at)>=datetime(?) AND datetime(s.created_at)<datetime(?) GROUP BY s.telegram_id,p.display_name ORDER BY time_ms,s.telegram_id LIMIT 50", (track["id"], start.isoformat(), end.isoformat()))).fetchall()
     return {"track_id": track["id"], "name": track["name"], "start": start.isoformat(), "end": end.isoformat(), "entries": [dict(r) for r in scores]}
 
 

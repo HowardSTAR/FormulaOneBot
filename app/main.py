@@ -205,6 +205,11 @@ async def main():
         id="telegram_outbox", replace_existing=True, max_instances=1, coalesce=True,
     )
     from app.services.reminder_status import refresh_reminder_messages
+    from app.services.weekly_race_notifications import check_and_notify_weekly_race
+    scheduler.add_job(
+        check_and_notify_weekly_race, "interval", seconds=30, args=[bot],
+        id="weekly_race_notifications", replace_existing=True, max_instances=1, coalesce=True,
+    )
     scheduler.add_job(
         refresh_reminder_messages, "interval", seconds=30,
         id="reminder_status", replace_existing=True, max_instances=1, coalesce=True,

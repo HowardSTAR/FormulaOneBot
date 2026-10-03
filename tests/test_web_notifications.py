@@ -71,6 +71,23 @@ async def test_inbox_reminder_clock_uses_persisted_start_not_delivery_time(store
     assert not (await inbox(before=0, user_id=2, category='reminders'))['items']
 
 
+@pytest.mark.asyncio
+async def test_weekly_recap_appears_in_results_and_queues_web_push(store):
+    from app.api.web_notifications_api import inbox
+    from app.services import telegram_outbox
+    await store.publish('weekly-race:2026-10-05', 'Итоги заезда недели', 'Победитель: Pilot',
+                        '/community?weekly=previous', expires=time.time()+3600)
+    await store.publish('weekly-race:2026-10-05', 'Duplicate', 'Duplicate', '/community')
+    await store.dispatch_push(not_before=0)
+    items = (await inbox(before=0, user_id=1, category='results'))['items']
+    assert len(items) == 1 and items[0]['historical_snapshot']
+    assert items[0]['url'] == '/community?weekly=previous'
+    async with telegram_outbox.connection() as conn:
+        payloads = await (await conn.execute("SELECT payload FROM delivery_payloads WHERE channel='webpush'")).fetchall()
+    assert len(payloads) == 1
+    assert json.loads(payloads[0][0])['data']['url'] == '/community?weekly=previous'
+
+
 @pytest.mark.parametrize('key,expires', [('results:2026:17', 100), ('reminder:2026:17:unknown:60', 100)])
 def test_non_session_messages_have_no_reminder_clock(key, expires):
     from app.api.web_notifications_api import reminder_metadata

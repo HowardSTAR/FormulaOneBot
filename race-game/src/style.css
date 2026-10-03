@@ -313,6 +313,25 @@ button:disabled, select:disabled { opacity: 0.55; cursor: wait; }
 
 .track-preview svg { width: 100%; height: 100%; }
 
+.track-details { flex: 1; min-width: 0; }
+#track-select {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(245, 236, 210, 0.22);
+  border-radius: 10px;
+  background: #14271f;
+  color: #f5ecd2;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  color-scheme: dark;
+}
+#track-select:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+#track-select:disabled { opacity: 0.6; cursor: wait; }
+
 .eyebrow {
   margin: 0 0 8px;
   color: var(--mint);
@@ -947,6 +966,7 @@ button:disabled, select:disabled { opacity: 0.55; cursor: wait; }
   .track-summary { margin: 8px 0 0; gap: 10px; }
   .track-preview { flex-basis: 90px; height: 60px; }
   .track-summary p { font-size: 11px; }
+  #track-select { font-size: 12px; margin-bottom: 5px; padding: 6px 8px; }
   .modal-card > :is(.control-guide, .touch-guide) { grid-column: 2; grid-row: 1; margin: 0; }
   .control-guide > div { padding: 10px 4px; }
   .modal-card > :is(.result-row, .primary-button, .race-share-note, .challenge-panel, #share-race-button, .modal-quick-links) { grid-column: 1 / -1; }
@@ -963,10 +983,11 @@ button:disabled, select:disabled { opacity: 0.55; cursor: wait; }
 }
 
 @media (max-height: 340px) and (orientation: landscape) {
-  .modal-card { padding: 10px 20px; gap: 4px 16px; }
-  .race-intro > .eyebrow { margin-bottom: 4px; font-size: 8px; }
+  .modal-card { padding: 8px 20px; gap: 3px 16px; }
+  .race-intro > .eyebrow { display: none; }
   .modal-card h1 { font-size: 24px; }
-  .race-intro > #modal-copy { margin: 6px 0; font-size: 11px; line-height: 1.35; }
+  .race-intro > #modal-copy { margin: 4px 0; font-size: 11px; line-height: 1.35; }
+  .track-summary { margin-top: 4px; }
   .track-preview { flex-basis: 74px; height: 44px; }
   .track-summary p { font-size: 10px; line-height: 1.4; }
   .race-share-note { font-size: 9px; line-height: 1.4; }

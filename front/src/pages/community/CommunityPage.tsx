@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../../helpers/api';
 import { useAuthState } from '../../helpers/auth';
 import { BackButton } from '../../components/BackButton';
@@ -10,7 +10,12 @@ type Mine = {referrals: {arrived: number; activated: number; returned: number}; 
 const time = (ms: number) => `${Math.floor(ms / 60000)}:${(ms / 1000 % 60).toFixed(3).padStart(6, '0')}`;
 export default function CommunityPage() {
   const auth = useAuthState();
+  const [search] = useSearchParams();
+  const previousWeek = search.get('week');
   const [weekly, setWeekly] = useState<Weekly | null>(null), [mine, setMine] = useState<Mine | null>(null);
+  const [previous, setPrevious] = useState<Weekly | null>(null);
+  const [showPrevious, setShowPrevious] = useState(search.get('weekly') === 'previous');
+  const [previousError, setPreviousError] = useState(false);
   const [error, setError] = useState(''), [version, setVersion] = useState(0), [busy, setBusy] = useState('');
   useEffect(() => {
     let active = true;
@@ -18,6 +23,14 @@ export default function CommunityPage() {
     if (auth.signedIn) apiRequest<Mine>('/api/engagement/mine').then(data => {if (active) setMine(data);}).catch(() => {if (active) setError('Личный раздел временно недоступен.');});
     return () => {active = false;};
   }, [auth.signedIn, version]);
+  useEffect(() => {
+    if (!showPrevious) return;
+    let active = true;
+    apiRequest<Weekly>(`/api/engagement/weekly?period=previous${previousWeek ? `&week=${encodeURIComponent(previousWeek)}` : ''}`).then(data => {
+      if (active) {setPrevious(data); setPreviousError(false);}
+    }).catch(() => {if (active) setPreviousError(true);});
+    return () => {active = false;};
+  }, [showPrevious, version, previousWeek]);
   async function revoke(token: string) {
     setBusy(token); setError('');
     try {await apiRequest(`/api/engagement/shares/${token}/revoke`, {}, 'POST'); setVersion(v => v + 1);}
@@ -28,12 +41,20 @@ export default function CommunityPage() {
     {error && <p role="alert">{error} <button onClick={() => {setError(''); setVersion(v => v + 1);}}>Повторить</button></p>}
     <div className="community-grid">
       <section className="community-card"><small>Каждую неделю — новый старт</small><h2>Трасса недели</h2>
-        {!weekly ? <p role="status">Загружаем соревнование…</p> : <><h3>{weekly.name}</h3><p>До {new Date(weekly.end).toLocaleString('ru-RU', {day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'})}. Граница недели — понедельник, 00:00 UTC.</p>
+        {!weekly ? <p role="status">Загружаем соревнование…</p> : <><h3>{weekly.name}</h3><p><strong>{Date.now() < new Date(weekly.end).getTime() ? 'Идёт' : 'Закончилась'}</strong> · До {new Date(weekly.end).toLocaleString('ru-RU', {day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit'})}.</p>
           <Link className="community-primary" to={`/race-game?track=${weekly.track_id}&weekly=1`}>Проехать три круга →</Link>
           <ol className="community-ranking">{weekly.entries.slice(0, 10).map((entry, i) => <li key={i}><span>{entry.name}</span><strong>{time(entry.time_ms)}</strong></li>)}</ol>
           {!weekly.entries.length && <p>Пока нет заездов — можно открыть таблицу первым.</p>}
           <small>Считаются сохранённые заезды этой недели. Постоянные рекорды не обнуляются.</small>
         </>}
+        <p><button aria-expanded={showPrevious} aria-controls="previous-week-results" onClick={() => setShowPrevious(value => !value)}>{showPrevious ? 'Скрыть итоги прошлой недели' : 'Итоги прошлой недели'}</button></p>
+        {showPrevious && <div id="previous-week-results" className="community-previous">
+          <h3>Итоги недели · Закончилась</h3>
+          {previousError ? <p role="alert">Не удалось загрузить итоги. <button onClick={() => setVersion(v => v + 1)}>Повторить</button></p> : !previous ? <p role="status">Загружаем итоги…</p> : <><p>{previous.name} · {new Date(previous.start).toLocaleDateString('ru-RU')} — {new Date(previous.end).toLocaleDateString('ru-RU')}</p>
+            <ol className="community-ranking">{previous.entries.slice(0, 10).map((entry, i) => <li key={i}><span>{entry.time_ms === previous.entries[0].time_ms ? '🏆 ' : ''}{entry.name}</span><strong>{time(entry.time_ms)}</strong></li>)}</ol>
+            {!previous.entries.length && <p>Сохранённых заездов не было — победителя нет.</p>}
+          </>}
+        </div>}
       </section>
       <section className="community-card"><h2>Ваш следующий уик-энд</h2><p>Сохраните прогноз, а после гонки получите личный разбор и карточку результата.</p><Link className="community-primary" to="/predictions">Мой прогноз →</Link><p><Link to={auth.signedIn ? '/predictions?tab=leagues' : '/account?returnTo=leagues'}>Создать лигу или мини-чемпионат →</Link></p>{auth.signedIn && <><p><Link to="/predictions?tab=history">Мой сезон и разбор этапа →</Link></p><p><Link to="/settings">Выбрать напоминания →</Link></p></>}<small>Напоминания управляются вашими настройками. Ежедневных серий и штрафов за пропуски нет.</small></section>
     </div>

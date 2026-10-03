@@ -198,6 +198,20 @@ async def test_weekly_ranking_does_not_reset_all_time_records(api_client):
 
 
 @pytest.mark.asyncio
+async def test_weekly_results_links_keep_the_requested_week(api_client):
+    _, current_start, _ = engagement.weekly_period()
+    start = current_start-timedelta(days=14)
+    result = await api_client.get('/api/engagement/weekly', params={'week': start.date().isoformat()})
+    assert result.status_code == 200
+    assert result.json()['start'] == start.isoformat()
+    assert result.json()['end'] == (start+timedelta(days=7)).isoformat()
+    previous = await api_client.get('/api/engagement/weekly?period=previous')
+    assert previous.json()['end'] == current_start.isoformat()
+    for week in ['broken', current_start.date().isoformat(), (start+timedelta(days=1)).date().isoformat()]:
+        assert (await api_client.get('/api/engagement/weekly', params={'week': week})).status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_public_history_and_recap_share_exact_context_without_accounts(api_client, monkeypatch):
     web_app.dependency_overrides[optional_account] = lambda: None
     from app.services import race_recap, standings_history
