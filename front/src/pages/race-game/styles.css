@@ -12,10 +12,11 @@
 
 .race-game-frame {
   position: absolute;
-  inset: 0;
+  top: var(--app-safe-top, 0px);
+  left: var(--app-safe-left, 0px);
   display: block;
-  width: 100%;
-  height: 100%;
+  width: calc(100% - var(--app-safe-left, 0px) - var(--app-safe-right, 0px));
+  height: calc(100% - var(--app-safe-top, 0px) - var(--app-safe-bottom, 0px));
   border: 0;
   background: #07100d;
 }
@@ -29,7 +30,7 @@
   inset: 0;
   display: grid;
   place-items: safe center;
-  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  padding: max(20px, var(--app-safe-top, 0px)) max(20px, var(--app-safe-right, 0px)) max(20px, var(--app-safe-bottom, 0px)) max(20px, var(--app-safe-left, 0px));
   background:
     radial-gradient(circle at 50% 32%, rgba(49, 180, 143, 0.24), transparent 42%),
     linear-gradient(145deg, #07100d, #0b1b17 58%, #07100d);

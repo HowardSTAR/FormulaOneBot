@@ -39,3 +39,14 @@ artifacts/posthog-signup.jpg
 artifacts/git-integration-*
 artifacts/deploy-usability-*.sh
 artifacts/prepare-usability-release.py
+
+# Generated media previews and backups; production media stays in its asset folders.
+artifacts/**/*.png
+artifacts/**/*.jpg
+artifacts/**/*.jpeg
+.tmp/**/*.png
+.tmp/**/*.jpg
+.tmp/**/*.jpeg
+.tmp/**/*.zip
+race-game/node_modules/phaser/changelog/**/*.png
+.app-assets.tmp.zip

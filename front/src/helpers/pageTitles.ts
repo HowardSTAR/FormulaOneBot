@@ -2,7 +2,7 @@ export const pageTitles: Record<string, string> = {
   '/': 'Обзор', '/account': 'Аккаунт', '/compare': 'Сравнение', '/prediction-analytics': 'Аналитика предсказаний',
   '/constructor-details': 'Карточка команды', '/team-principal': 'Руководитель команды', '/constructors': 'Кубок конструкторов',
   '/driver-details': 'Карточка пилота', '/drivers': 'Личный зачёт', '/history': 'История чемпионата', '/community': 'С друзьями',
-  '/favorites': 'Избранное', '/next-race': 'Следующая гонка', '/quali-results': 'Квалификация', '/race-details': 'Гран-при',
+  '/favorites': 'Избранное', '/next-race': 'Гран-при', '/quali-results': 'Квалификация', '/race-details': 'Гран-при',
   '/race-results': 'Результаты гонки', '/reaction-game': 'Тест реакции', '/reflex-grid-game': 'Reflex Grid', '/race-game': 'Emerald Loop',
   '/predictions': 'Прогнозы', '/practice-results': 'Свободные заезды', '/contact-admin': 'Обратная связь', '/reset-password': 'Сброс пароля',
   '/settings': 'Настройки', '/season': 'Календарь', '/sprint-quali-results': 'Спринт-квалификация', '/sprint-results': 'Спринт',

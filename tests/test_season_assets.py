@@ -1,4 +1,5 @@
 from pathlib import Path
+import zipfile
 
 from PIL import Image
 
@@ -91,14 +92,15 @@ def test_each_supported_season_has_complete_pilot_and_team_assets():
     for season, expected in EXPECTED_PILOTS.items():
         assert _asset_stems(ASSETS_ROOT / season / "pilots") == expected
     for season, expected in EXPECTED_TEAMS.items():
-        assert _asset_stems(ASSETS_ROOT / season / "teams") == expected
+        category = "team-logos" if season == "2026" else "teams"
+        assert _asset_stems(ASSETS_ROOT / season / category) == expected
 
 
 def test_all_season_assets_have_real_transparency_and_clean_names():
     for season_dir in ASSETS_ROOT.iterdir():
         if not season_dir.is_dir():
             continue
-        for category in ("pilots", "teams", "cars"):
+        for category in ("pilots", "teams", "team-logos", "cars"):
             category_dir = season_dir / category
             if not category_dir.exists():
                 continue
@@ -115,3 +117,21 @@ def test_all_season_assets_have_real_transparency_and_clean_names():
                         assert image.size == (600, 900) and image.mode == "RGB"
                     continue
                 _assert_transparent(path)
+
+
+def test_asset_archive_matches_runtime_files_and_has_no_obsolete_media():
+    with zipfile.ZipFile(ASSETS_ROOT.parents[1] / "app-assets.zip") as archive:
+        names = [entry.filename for entry in archive.infolist() if not entry.is_dir()]
+        assert len(names) == len(set(names))
+        assert archive.testzip() is None
+        extracted = {
+            path.relative_to(ASSETS_ROOT.parents[1]).as_posix(): path
+            for path in ASSETS_ROOT.rglob("*")
+            if path.is_file()
+        }
+        assert set(names) == set(extracted)
+        for name, path in extracted.items():
+            assert archive.read(name) == path.read_bytes(), name
+        assert not any("/verified-pilots/" in name or "/2026/teams/" in name for name in names)
+        for font in ("NotoColorEmoji-Regular.ttf", "Jost-SemiBoldItalic.ttf"):
+            assert f"app/assets/fonts/{font}" not in names

@@ -1,6 +1,7 @@
 import { timezoneName } from '../../helpers/presentation';
 import { GlossaryText } from "../../components/GlossaryText";
 import { useState, useEffect } from "react";
+import { Link, useSearchParams } from 'react-router-dom';
 import { BackButton } from "../../components/BackButton";
 import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
 import { DetailedTrackMap } from "../../components/DetailedTrackMap";
@@ -19,12 +20,43 @@ type NextRaceResponse = {
   season?: number;
   round?: number;
   date?: string;
+  sessions?: Session[];
 };
-type Session = { name: string; utc_iso?: string; utc?: string };
+type Session = { name: string; utc_iso?: string; utc?: string; _time?: string; _date?: string };
 type ScheduleResponse = { sessions?: Session[] };
+type RaceDetailsResponse = Omit<NextRaceResponse, 'status'> & ScheduleResponse & { event_format?: string };
 type SettingsResponse = { timezone?: string };
 
+function SessionSchedule({sessions}: {sessions: Session[]}) {
+  return <ol className="weekend-session-list">
+    {sessions.map((session, index) => <li className="weekend-session" key={`${session.name}-${index}`}>
+      <div className="weekend-session-name">{session.name}</div>
+      <div className="weekend-session-time"><strong>{session._time || 'Уточняется'}</strong>
+        {session._date && <><span aria-hidden="true"> | </span><span>{session._date}</span></>}
+      </div>
+    </li>)}
+  </ol>;
+}
+
+function StageResults({season, round, sessions}: {season: number | null; round: number | null; sessions: Session[]}) {
+  if (!season || !round) return null;
+  const sprint = sessions.some(session => /спринт|sprint/i.test(session.name));
+  const query = `?mode=archive&season=${season}&round=${round}`;
+  return <section className="weekend-results" aria-label="Результаты этапа">
+    <h3>Результаты этапа</h3>
+    <div className="weekend-results-links">
+      <Link className="ui-action-link" to={`/race-results${query}`}>Гонка →</Link>
+      <Link className="ui-action-link" to={`/quali-results${query}`}>Квалификация →</Link>
+      {sprint && <><Link className="ui-action-link" to={`/sprint-results${query}`}>Спринт →</Link>
+        <Link className="ui-action-link" to={`/sprint-quali-results${query}`}>Спринт-квалификация →</Link></>}
+    </div>
+  </section>;
+}
+
 function NextRacePage() {
+  const [searchParams] = useSearchParams();
+  const selectedSeason = searchParams.get('season');
+  const selectedRound = searchParams.get('round');
   const [title, setTitle] = useState("Загрузка...");
   const [location, setLocation] = useState("...");
   const [eventName, setEventName] = useState<string | null>(null);
@@ -45,12 +77,29 @@ function NextRacePage() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
+      setLoading(true);
+      setError(null);
+      setEventName(null);
+      setSessions([]);
+      setTitle('Загрузка...');
+      setLocation('...');
+      setLayoutPhase('draw');
       try {
+        const selected = selectedSeason !== null || selectedRound !== null;
+        if (selected && (!/^\d{4}$/.test(selectedSeason ?? '') || !/^\d{1,2}$/.test(selectedRound ?? '')
+          || Number(selectedSeason) < 1950 || Number(selectedSeason) > 2100
+          || Number(selectedRound) < 1 || Number(selectedRound) > 30)) {
+          throw new Error('Некорректный сезон или номер этапа');
+        }
         const [raceRes, settingsRes] = await Promise.allSettled([
-          apiRequest<NextRaceResponse>("/api/next-race"),
+          selected
+            ? apiRequest<RaceDetailsResponse>('/api/race-details', {season: selectedSeason, round: selectedRound})
+              .then(data => ({...data, status: 'ok', season: Number(selectedSeason), round: Number(selectedRound)}))
+            : apiRequest<NextRaceResponse>("/api/next-race"),
           apiRequest<SettingsResponse>("/api/settings"),
         ]);
-        const raceData = raceRes.status === "fulfilled" ? raceRes.value : { status: "error" };
+        if (raceRes.status === 'rejected') throw raceRes.reason;
+        const raceData = raceRes.value;
         const settings = settingsRes.status === "fulfilled" ? settingsRes.value : { timezone: "UTC" };
         const userTz = getDisplayTimezone(settings?.timezone);
 
@@ -72,7 +121,9 @@ function NextRacePage() {
         setRaceSeason(raceData.season ?? null);
         setLocation(`${raceData.country || ""}, ${raceData.location || ""}`);
 
-        const scheduleData = await apiRequest<ScheduleResponse>("/api/weekend-schedule", {
+        const scheduleData: ScheduleResponse = selected
+          ? {sessions: raceData.sessions || []}
+          : await apiRequest<ScheduleResponse>("/api/weekend-schedule", {
           season: raceData.season!,
           round_number: raceData.round!,
         });
@@ -80,7 +131,7 @@ function NextRacePage() {
 
         const raceSession =
           scheduleData.sessions?.find((s) => s.name === "Гонка" || s.name === "Race");
-        if (raceSession?.utc_iso) {
+        if (raceSession?.utc_iso && Number.isFinite(Date.parse(raceSession.utc_iso))) {
           const dateObj = new Date(raceSession.utc_iso);
           setRaceDateText(
             dateObj.toLocaleDateString("ru-RU", {
@@ -97,16 +148,16 @@ function NextRacePage() {
             })
           );
         } else {
-          setRaceDateText(raceData.date || "TBA");
+          setRaceDateText(raceData.date || "Уточняется");
           setRaceTimeText("--:--");
         }
 
         if (scheduleData.sessions?.length) {
           setSessions(
             scheduleData.sessions.map((s) => {
-              let time = "--:--";
-              let date = "--.--";
-              if (s.utc_iso) {
+              let time = "Уточняется";
+              let date = "";
+              if (s.utc_iso && Number.isFinite(Date.parse(s.utc_iso))) {
                 try {
                   const d = new Date(s.utc_iso);
                   time = d.toLocaleTimeString("ru-RU", {
@@ -120,7 +171,7 @@ function NextRacePage() {
                     month: "2-digit",
                   });
                 } catch {
-                  time = s.utc || "--:--";
+                  time = "Уточняется";
                 }
               }
               return { ...s, _time: time, _date: date };
@@ -144,7 +195,7 @@ function NextRacePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [selectedSeason, selectedRound]);
 
   useEffect(() => {
     if (loading) return;
@@ -165,24 +216,15 @@ function NextRacePage() {
     sessionsCount: sessions.length,
   });
 
-  const desktopSessions = sessions.map((s) => {
-    const d = s.utc_iso ? new Date(s.utc_iso) : null;
-    const day =
-      d && !Number.isNaN(d.getTime())
-        ? d.toLocaleDateString("ru-RU", { weekday: "long" }).toUpperCase()
-        : "СЕССИЯ";
-    const date =
-      d && !Number.isNaN(d.getTime())
-        ? d.toLocaleDateString("ru-RU", { month: "short", day: "numeric" }).toUpperCase()
-        : "--";
-    const time = "_time" in s ? (s as Session & { _time: string })._time : "--:--";
-    return { ...s, _day: day, _dateLabel: date, _timeLabel: time };
-  });
+  if (error || (!loading && !eventName)) return <>
+    <BackButton fallback="/season" />
+    <div className={error ? 'error' : 'loading'} role={error ? 'alert' : 'status'}>{error || title}</div>
+  </>;
 
   return (
     <>
       <div className="next-race-mobile">
-        <BackButton>← <span>Главное меню</span></BackButton>
+        <BackButton fallback="/season" />
         <h2>{title}</h2>
         <p style={{ marginBottom: 20, opacity: 0.7 }}>{location}</p>
 
@@ -211,6 +253,7 @@ function NextRacePage() {
         </div>
         )}
         <h3 style={{ marginLeft: 4 }}>Расписание уикенда</h3>
+        {!loading && !isCancelled && eventName && <CalendarDownload title={eventName} season={raceSeason ?? 0} round={raceRound ?? 0} sessions={sessions} />}
         <div className="standings-list">
           {loading && (
             <div className="loading">
@@ -221,29 +264,12 @@ function NextRacePage() {
           {!loading && sessions.length === 0 && !error && (
             <div style={{ padding: 20, textAlign: "center" }}>Нет расписания</div>
           )}
-          {!loading &&
-            sessions.length > 0 &&
-            sessions.map((s, i) => (
-              <div key={i} className="standings-item">
-                <div className="standings-info">
-                  <div className="standings-name" style={{ fontSize: 16 }}>
-                    {s.name}
-                    <CalendarDownload title={`${eventName}: ${s.name}`} start={s.utc_iso || s.utc} />
-                  </div>
-                  <div className="standings-code" style={{ color: "var(--text-secondary)", marginTop: 4 }}>
-                    <span style={{ color: "var(--primary)", fontWeight: 700 }}>
-                      {"_time" in s ? (s as Session & { _time: string; _date: string })._time : "--:--"}
-                    </span>
-                    <span style={{ margin: "0 6px", opacity: 0.3 }}>|</span>
-                    {"_date" in s ? (s as Session & { _time: string; _date: string })._date : "--.--"}
-                  </div>
-                </div>
-              </div>
-            ))}
+          {!loading && <SessionSchedule sessions={sessions} />}
         </div>
 
         {!loading && eventName && (
           <>
+            <StageResults season={raceSeason} round={raceRound} sessions={sessions} />
             <section className="next-race-stage-data-section">
               <div className="circuit-insights-card">
                 <div className="circuit-insights-title">Данные по этапу</div>
@@ -289,6 +315,7 @@ function NextRacePage() {
       {!loading && (eventName || title) && (
         <section className="next-race-desktop">
           <div className="next-race-desktop-main">
+            <BackButton fallback="/season" />
             <header className="next-race-desktop-hero">
               <div className="next-race-desktop-left">
                 <div className="next-race-desktop-round">
@@ -348,20 +375,10 @@ function NextRacePage() {
                 <h2>Расписание</h2>
                 <span>Время: {displayTimezone}</span>
               </div>
-              <div className="next-race-desktop-schedule-grid">
-                {desktopSessions.map((s, i) => (
-                  <article key={`${s.name}-${i}`} className={i === desktopSessions.length - 1 ? "active" : ""}>
-                    <u>{s._day}</u>
-                    <h5>{s.name}</h5>
-                    <div>
-                      <b>{s._timeLabel}</b>
-                      <small>{s._dateLabel}</small>
-                    </div>
-                    <CalendarDownload title={`${eventName}: ${s.name}`} start={s.utc_iso || s.utc} />
-                  </article>
-                ))}
-              </div>
+              {!isCancelled && eventName && <CalendarDownload title={eventName} season={raceSeason ?? 0} round={raceRound ?? 0} sessions={sessions} />}
+              {sessions.length ? <SessionSchedule sessions={sessions} /> : <p>Нет расписания</p>}
             </section>
+            <StageResults season={raceSeason} round={raceRound} sessions={sessions} />
 
             <section className="next-race-desktop-facts">
               <article className="next-race-desktop-overview">

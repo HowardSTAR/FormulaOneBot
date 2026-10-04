@@ -1,3 +1,25 @@
+/* Share the same neutral session cards between desktop and mobile. */
+#root .route-next-race .weekend-session-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+#root .route-next-race .weekend-session {
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--surface-color);
+  color: var(--text-primary);
+}
+#root .route-next-race .weekend-session-name { font-size: 16px; font-weight: 600; line-height: 1.4; }
+#root .route-next-race .weekend-session-time { margin-top: 4px; font-size: 14px; color: var(--text-secondary); }
+#root .route-next-race .weekend-session-time strong { color: var(--primary); font-weight: 700; }
+#root .route-next-race .weekend-results { margin: 20px 0; }
+#root .route-next-race .weekend-results h3 { margin: 0 0 12px; }
+#root .route-next-race .weekend-results-links { display: flex; flex-wrap: wrap; gap: 8px; }
+
 /* The split animation must not squeeze the date and circuit into half a phone. */
 @media (max-width: 899px) {
   .app-page-main.route-next-race .next-race-hero.split {

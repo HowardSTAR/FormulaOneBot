@@ -382,7 +382,7 @@ function SeasonPage() {
                   </div>)}
                 </div>
                 <div className="season-selected-actions">
-                  <Link className="season-calendar-action primary" to={`/race-details?season=${year}&round=${desktopRace.round}`}>Расписание и трасса →</Link>
+                  <Link className="season-calendar-action primary" to={`/next-race?season=${year}&round=${desktopRace.round}`}>Расписание и трасса →</Link>
                   {selectedResultLinks.map(link => <Link className="season-calendar-action" key={link.key} to={link.href}>Результаты: {link.label}</Link>)}
                 </div>
                 <div className="season-desktop-stats">
@@ -488,7 +488,7 @@ function SeasonPage() {
                   <button
                     type="button"
                     className="season-mobile-race-open"
-                    onClick={() => navigate(`/race-details?season=${year}&round=${race.round}`)}
+                    onClick={() => navigate(`/next-race?season=${year}&round=${race.round}`)}
                     aria-label={`Открыть ${race.event_name}`}
                   >
                     <span className="race-date-box">

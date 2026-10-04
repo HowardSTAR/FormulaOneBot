@@ -39,10 +39,11 @@ test('unreviewed season and circuit show an honest contour fallback',()=>{
 test('regular panel remains available for embedding',()=>{
   assert.match(render('Italian Grand Prix',2026,false),/Подробная карта трассы/);
 });
-test('both routes pass their actual season and a clickable preview',async()=>{
+test('the shared stage page passes its actual season and legacy links redirect',async()=>{
   const next=await readFile(new URL('../src/pages/next-race/NextRacePage.tsx',import.meta.url),'utf8');
   const details=await readFile(new URL('../src/pages/race-details/RaceDetailsPage.tsx',import.meta.url),'utf8');
   assert.equal((next.match(/<DetailedTrackMap /g)||[]).length,2);
   assert.match(next,/setRaceSeason\(raceData\.season/);
-  assert.match(details,/season=\{Number\(season\)\} preview=/);
+  assert.match(details,/pathname: '\/next-race'/);
+  assert.match(details,/search: location.search/);
 });

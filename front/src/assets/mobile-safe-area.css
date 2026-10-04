@@ -8,6 +8,12 @@
   --mobile-nav-space: calc(84px + var(--app-safe-bottom));
 }
 .back-button-icon { display: none; }
+/* Native mobile Telegram can be fullscreen in landscape and on tablets too. */
+html[data-telegram-mobile="true"] #root .root {
+  padding-top: calc(16px + var(--app-safe-top));
+  padding-left: calc(16px + var(--app-safe-left));
+  padding-right: calc(16px + var(--app-safe-right));
+}
 @media (max-width: 767px) {
   #root .root {
     padding-top: calc(16px + var(--app-safe-top));

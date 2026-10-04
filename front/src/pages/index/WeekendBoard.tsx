@@ -13,7 +13,7 @@ export function WeekendBoard({ race, sessions, timezone, total, loaded }: {
     .map(s => ({ ...s, date: new Date(s.utc_iso!) })).sort((a, b) => +a.date - +b.date);
   const active = rows.find(s => now >= +s.date && now < +s.date + 90 * 60000)
     || rows.find(s => +s.date > now);
-  const details = race?.round ? `/race-details?season=${race.season}&round=${race.round}` : '/next-race';
+  const details = race?.round ? `/next-race?season=${race.season}&round=${race.round}` : '/next-race';
   return <section className="weekend-board">
     <div className="weekend-board-top"><span>Этап {race?.round || '—'}{total > 0 ? ` из ${total}` : ''}</span>
       <Link to="/season" data-analytics-action="calendar_open">Весь сезон →</Link></div>

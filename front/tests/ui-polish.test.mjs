@@ -49,14 +49,13 @@ test('calendar filters keep receipt, but another season or race does not', async
   assert.notEqual(dataReceiptKey('/season', '?year=1997'), dataReceiptKey('/season', ''));
   assert.notEqual(dataReceiptKey('/race-details', '?season=2026&round=16'), dataReceiptKey('/race-details', '?season=2026&round=17'));
 });
-test('calendar action uses a focus-managed dialog and real HTTP export, no data URI', () => {
+test('calendar action downloads the whole weekend directly without a site dialog', () => {
   const component = source('../src/components/CalendarDownload.tsx');
-  assert.match(component, /showModal\(\)/);
-  assert.match(component, /aria-labelledby/);
-  assert.match(component, /onCancel/);
-  assert.match(component, /\/api\/calendar\/session\.ics/);
+  assert.ok(!component.includes('<dialog'));
+  assert.match(component, /\/api\/calendar\/weekend\.ics/);
   assert.ok(!component.includes('data:text/calendar'));
-  assert.match(component, /Добавление нужно подтвердить/);
+  assert.match(component, /Импорт нужно подтвердить/);
+  assert.match(component, /Скачать весь этап/);
 });
 test('shared buttons and compact layout are eager, no fixed card heights', () => {
   assert.match(source('../src/App.tsx'), /ui-polish\.css/);
@@ -64,5 +63,5 @@ test('shared buttons and compact layout are eager, no fixed card heights', () =>
   postcss.parse(css);
   assert.match(css, /min-height: 44px/);
   assert.match(css, /index-hero-wrap > \.personal-home \{ margin-top: 16px/);
-  assert.match(css, /session-calendar \{ grid-column: 1 \/ -1/);
+  assert.match(css, /session-row \{ display: grid; grid-template-columns: minmax\(0, 1fr\) auto;/);
 });

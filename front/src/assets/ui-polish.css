@@ -47,17 +47,13 @@ body .glossary-hint .ui-action-link {
 #root .race-details-page .schedule-title { margin: 0; font-size: 20px; }
 #root .race-details-page .schedule-timezone { margin: 8px 0 16px; color: #bfc3ce; font-size: 13px; }
 #root .session-list { list-style: none; padding: 0; margin: 0; }
-#root .race-details-page .session-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px 20px; align-items: center; padding: 16px 0; }
+#root .race-details-page .session-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px 20px; align-items: center; padding: 16px 0; }
 #root .race-details-page .session-name { min-width: 0; font-size: 17px; line-height: 1.4; }
 #root .race-details-page .session-time { min-width: 96px; text-align: right; }
 #root .race-details-page .time-date { white-space: nowrap; }
 #root .calendar-download { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; border: 1px solid #ff625950; border-radius: 10px; padding: 8px 12px; background: #24191d; color: #ffe0dc; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; margin: 0; }
-#root .calendar-dialog { width: min(440px, calc(100vw - 32px)); box-sizing: border-box; max-height: calc(100dvh - 48px); overflow: auto; border: 1px solid #535866; border-radius: 18px; padding: 24px; background: #17191f; color: #f5f5f7; box-shadow: 0 16px 60px #0008; }
-#root .calendar-dialog::backdrop { background: #000b; }
-#root .calendar-dialog h2 { margin: 0 0 16px; font-size: 24px; }
-#root .calendar-dialog p { line-height: 1.55; overflow-wrap: anywhere; }
-#root .calendar-dialog .calendar-note { color: #bfc3ce; font-size: 12px; }
-#root .calendar-dialog button { min-height: 44px; border: 1px solid #535866; border-radius: 10px; padding: 10px 16px; background: #252831; color: white; cursor: pointer; }
+#root .calendar-weekend { margin: 12px 0 20px; }
+#root .calendar-weekend .calendar-note { margin: 8px 0 0; max-width: 560px; color: #bfc3ce; font-size: 13px; line-height: 1.5; }
 
 @media (max-width: 899px) {
   #root .route-home .index-hero-wrap > .personal-home { margin-top: 16px; }
@@ -84,7 +80,6 @@ body .glossary-hint .ui-action-link {
   #root .route-season .season-race-facts { gap: 14px; }
   #root .route-season .season-race-fact-text { color: #bfc3ce; line-height: 1.55; }
   #root .race-details-page .session-row { grid-template-columns: minmax(0, 1fr) auto; gap: 10px 12px; }
-  #root .race-details-page .session-calendar { grid-column: 1 / -1; }
   #root .race-details-page .schedule-card { padding: 16px; }
   #root .race-details-page .time-local { font-size: 20px; }
 }

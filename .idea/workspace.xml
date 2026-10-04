@@ -4,8 +4,22 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="фикс трассы и онбординг добавление">
+    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="защита от смахивания">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/api/calendar_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/calendar_api.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/assets/mobile-safe-area.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/assets/mobile-safe-area.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/assets/ui-polish.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/assets/ui-polish.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/components/CalendarDownload.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/CalendarDownload.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/helpers/pageTitles.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/helpers/pageTitles.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/index/WeekendBoard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/index/WeekendBoard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/next-race/NextRacePage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/next-race/NextRacePage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/next-race/next-race-mobile.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/next-race/next-race-mobile.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/race-details/RaceDetailsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/race-details/RaceDetailsPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/race-game/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/race-game/styles.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/season/SeasonPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/season/SeasonPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/tests/detailed-map-disclosure.test.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/front/tests/detailed-map-disclosure.test.mjs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/tests/ui-polish.test.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/front/tests/ui-polish.test.mjs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_calendar_export.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_calendar_export.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -219,14 +233,6 @@
       <workItem from="1768860453876" duration="3031000" />
       <workItem from="1768914801741" duration="17575000" />
       <workItem from="1769405571210" duration="601000" />
-    </task>
-    <task id="LOCAL-00086" summary="просмотр прогнозов">
-      <option name="closed" value="true" />
-      <created>1789329066663</created>
-      <option name="number" value="00086" />
-      <option name="presentableId" value="LOCAL-00086" />
-      <option name="project" value="LOCAL" />
-      <updated>1789329066663</updated>
     </task>
     <task id="LOCAL-00087" summary="обновление базы">
       <option name="closed" value="true" />
@@ -612,7 +618,15 @@
       <option name="project" value="LOCAL" />
       <updated>1791122530542</updated>
     </task>
-    <option name="localTasksCounter" value="135" />
+    <task id="LOCAL-00135" summary="защита от смахивания">
+      <option name="closed" value="true" />
+      <created>1791140371419</created>
+      <option name="number" value="00135" />
+      <option name="presentableId" value="LOCAL-00135" />
+      <option name="project" value="LOCAL" />
+      <updated>1791140371419</updated>
+    </task>
+    <option name="localTasksCounter" value="136" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -630,7 +644,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="исправления бага базы" />
     <MESSAGE value="фиксы" />
     <MESSAGE value="фикс предиктов" />
     <MESSAGE value="новый тест на проверку результатов" />
@@ -655,7 +668,8 @@
     <MESSAGE value="фикс экранов гонки" />
     <MESSAGE value="фикс" />
     <MESSAGE value="фикс трассы и онбординг добавление" />
-    <option name="LAST_COMMIT_MESSAGE" value="фикс трассы и онбординг добавление" />
+    <MESSAGE value="защита от смахивания" />
+    <option name="LAST_COMMIT_MESSAGE" value="защита от смахивания" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/FormulaOneBot$fastf1_capabilities_test.coverage" NAME="fastf1_capabilities_test Coverage Results" MODIFIED="1768941910109" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
