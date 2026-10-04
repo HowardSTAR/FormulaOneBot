@@ -146,7 +146,7 @@ async def test_binary_photo_and_group_delivery(queue):
 @pytest.mark.asyncio
 @pytest.mark.parametrize('original_rich', [True, False])
 async def test_rich_upgrade_preserves_frozen_delivery_and_deduplicates(queue, monkeypatch, original_rich):
-    from aiogram.types import InputRichMessage
+    from aiogram.types import InputRichMessage, BufferedInputFile
     from app.services.delivery_adapters import queued_photo, queued_rich_message
     from app.utils.telegram_presentation import race_card, personal_buttons
     monkeypatch.setenv('TELEGRAM_RICH_MESSAGES', '1')
@@ -157,7 +157,8 @@ async def test_rich_upgrade_preserves_frozen_delivery_and_deduplicates(queue, mo
         send_photo=AsyncMock(return_value=SimpleNamespace(message_id=32)),
         send_message=AsyncMock(),
     )
-    card = race_card('Test GP', 2026, 15, [{'pos': 1, 'driver': 'RUS', 'points': 25}], {'items': []})
+    card = race_card('Test GP', 2026, 15, [{'pos': 1, 'driver': 'RUS', 'points': 25}], {'items': []},
+                     photo=BufferedInputFile(b'rich-png', filename='results.png'))
     async def rich():
         await queued_rich_message(bot, -100, card, 'Full fallback', delivery_key='race-photo:2026:15', reply_markup=personal_buttons(2026, 15))
     async def photo():
@@ -173,6 +174,8 @@ async def test_rich_upgrade_preserves_frozen_delivery_and_deduplicates(queue, mo
         bot.send_rich_message.assert_awaited_once()
         sent = bot.send_rich_message.await_args.kwargs
         assert isinstance(sent['rich_message'], InputRichMessage)
+        image = next(block for block in sent['rich_message'].blocks if block.type == 'photo')
+        assert isinstance(image.photo.media, BufferedInputFile) and image.photo.media.data == b'rich-png'
         assert sent['chat_id'] == -100
         assert sent['reply_markup'].inline_keyboard[-1][0].callback_data == 'personal:review:2026:15'
     else:

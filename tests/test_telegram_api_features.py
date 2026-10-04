@@ -91,6 +91,25 @@ def test_cards_are_compact_and_full_classification_is_collapsed():
     assert "Pilot 22" in race_fallback("Test GP", 2026, 15, rows, {"items": []})
 
 
+def test_race_image_replaces_tables_and_keeps_recap_and_news(local):
+    from aiogram.types import BufferedInputFile
+    bot, session = local
+    rows = [{"pos": i, "driver": f"Pilot {i}", "points": 25 if i == 1 else 0} for i in range(1, 23)]
+    recap = {"items": [{"title": "Winner", "text": "Verified points"}],
+             "chronicle": [{"title": "Lap 9: Safety car"}],
+             "news": [{"title": "Race report", "url": "https://example.com/report", "publisher": "Source"}]}
+    card = race_card("Test GP", 2026, 16, rows, recap, photo=BufferedInputFile(b"png-test", filename="results.png"))
+    assert [b.type for b in card.blocks].count("photo") == 1
+    assert not any(b.type in {"table", "details"} for b in card.blocks)
+    blocks = [b.text for b in card.blocks if hasattr(b, "text")]
+    assert "Winner" in blocks and "Verified points" in blocks and "Lap 9: Safety car" in blocks
+    assert any(isinstance(text, list) and text[0].url == "https://example.com/report" for text in blocks)
+    files = {}
+    payload = session.prepare_value(card, bot=bot, files=files)
+    assert len(files) == 1 and next(iter(files.values())).data == b"png-test"
+    assert "attach://" in payload
+
+
 def test_review_keeps_unknown_data_and_multiple_first_retirements_distinct():
     card, fallback = review_card(review())
     data = card.model_dump_json()

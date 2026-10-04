@@ -7,6 +7,7 @@ from aiogram.types import (
     DisabledButton, InlineKeyboardButton, InlineKeyboardMarkup, InputRichMessage,
     InputRichBlockSectionHeading, InputRichBlockParagraph, InputRichBlockDetails,
     InputRichBlockTable, RichBlockTableCell, RichTextUrl,
+    InputRichBlockPhoto, InputMediaPhoto,
 )
 
 
@@ -35,14 +36,18 @@ def table(headers, rows):
     ])
 
 
-def race_card(event_name, season, round_num, rows, recap):
+def race_card(event_name, season, round_num, rows, recap, *, photo=None):
     """Rows are the already verified classification, not live positions."""
     ordered = sorted(rows, key=lambda row: int(row["pos"]) if str(row.get("pos", "")).isdigit() else 999)
     cells = [[row.get("pos", "—"), row.get("driver", "—"), row.get("points", "—")] for row in ordered]
     blocks = [InputRichBlockSectionHeading(text=f"{event_name} · {season}, этап {round_num}", size=3)]
     for item in recap.get("items", [])[:3]:
         blocks.extend([InputRichBlockSectionHeading(text=item["title"], size=5), InputRichBlockParagraph(text=item["text"])])
-    if cells:
+    if cells and photo is not None:
+        blocks.append(InputRichBlockPhoto(photo=InputMediaPhoto(
+            media=photo, parse_mode=None, show_caption_above_media=False,
+        )))
+    elif cells:
         blocks.append(table(["Место", "Пилот", "Очки"], cells[:5]))
         blocks.append(InputRichBlockDetails(summary="Полная классификация", blocks=[table(["Место", "Пилот", "Очки"], cells)]))
     else:

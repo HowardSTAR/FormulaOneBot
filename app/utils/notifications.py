@@ -6,6 +6,7 @@ from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from aiogram import Bot
+from aiogram.types import BufferedInputFile
 from app.utils.mini_app_links import mini_app_button
 from app.services.race_recap import get_race_recap, recap_caption
 from app.utils.telegram_presentation import race_card, race_fallback, personal_buttons, rich_enabled
@@ -1095,10 +1096,8 @@ async def check_and_send_results(bot: Bot):
 
     notification_recipients = [(u[0], u[1] or "Europe/Moscow", bool(u[5]) if len(u) > 5 else False) for u in notifications_users]
     use_rich = rich_enabled()
-    # Do not render a PNG when all recipients will receive native tables.
-    photo_bytes_generic = None
-    if not use_rich or any(hide for _, _, hide in notification_recipients):
-        photo_bytes_generic = (await asyncio.to_thread(_render_race_image, None)).getvalue()
+    # One verified classification image is shared by rich and ordinary sends.
+    photo_bytes_generic = (await asyncio.to_thread(_render_race_image, None)).getvalue()
     await web_classification(season, round_num, f"{race_info.get('event_name', 'Гран-при')} · Итоги гонки", "race-results", [
         {"position": str(row.get("Position", "—")), "code": str(row.get("Abbreviation", "")),
          "name": str(row.get("FullName", row.get("Abbreviation", ""))), "team": str(row.get("TeamName", "")),
@@ -1123,7 +1122,7 @@ async def check_and_send_results(bot: Bot):
             constructor_results_by_name[team_name].append(row)
 
     sent_count = 0
-    # Native classification or a spoiler image; favorites remain separate.
+    # Classification image and recap in one rich message, or a spoiler photo.
     try:
         recap = await asyncio.wait_for(get_race_recap(season, round_num), timeout=15)
     except Exception:
@@ -1134,7 +1133,8 @@ async def check_and_send_results(bot: Bot):
         season=season, round=round_num, mode="archive",
     )
     results_keyboard = personal_buttons(season, round_num, results_keyboard)
-    card = race_card(event_name, season, round_num, rows_for_image, recap)
+    card = race_card(event_name, season, round_num, rows_for_image, recap,
+                     photo=BufferedInputFile(photo_bytes_generic, filename=f'race-{season}-{round_num}.png'))
     fallback = race_fallback(event_name, season, round_num, rows_for_image, recap)
     for tg_id, tz, hide_results in notification_recipients:
         if use_rich and not hide_results:

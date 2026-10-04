@@ -581,7 +581,12 @@ async def test_race_results_send_image_and_separate_favorites_message(monkeypatc
         assert keyboard.inline_keyboard[-1][0].callback_data.endswith(":9")
     if 111 in expected_photos:
         assert m_photo.await_args_list[0].kwargs["has_spoiler"] is spoiler
-    assert m_render.call_count == (1 if not native or spoiler else 0)
+    assert m_render.call_count == 1
+    for sent in m_rich.await_args_list:
+        card = sent.args[2]
+        photo = next(block for block in card.blocks if block.type == 'photo')
+        assert photo.photo.media.data == b'test-image'
+        assert not any(block.type == 'table' for block in card.blocks)
     favorite_texts = [call.args[2] for call in m_message.await_args_list if len(call.args) >= 3]
     assert any("Пилоты" in text and "Команды" in text for text in favorite_texts)
     assert m_set_round.await_count == 1
