@@ -43,7 +43,7 @@ case "${1:?stage required}" in
     mkdir -p .ci-logs .ci-fastf1-cache .ci-f1bot-cache
     docker run --rm --name "f1hub-ci-python-$BUILD_NUMBER" --memory=768m --cpus=1 \
       --user "$(id -u):$(id -g)" -e HOME=/tmp -e BOT_TOKEN=123456:TEST \
-      -e ADMIN_IDS=100000001 -e ADMIN_TELEGRAM_ID=100000001 \
+      -e ADMIN_IDS=100000001 -e ADMIN_TELEGRAM_ID=100000001 -e ADMIN_EMAIL=ci-admin@example.com \
       -e DATABASE_PATH=/app/data/ci.db -e REDIS_URL= -e APP_ENV=test \
       -v "$WORKSPACE/tests:/app/tests:ro" -v "$WORKSPACE/pytest.ini:/app/pytest.ini:ro" \
       -v "$WORKSPACE/app-assets.zip:/app/app-assets.zip:ro" \
