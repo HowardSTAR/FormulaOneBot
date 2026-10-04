@@ -83,8 +83,8 @@ export function PersonalHome({ auth, timezone }: { auth: AuthState; timezone: st
     window.addEventListener(AUTH_CHANGED_EVENT, reset);
     return () => window.removeEventListener(AUTH_CHANGED_EVENT, reset);
   }, []);
-  if (!auth.loaded) return <section className="personal-home" aria-busy="true"><p>Загружаем личный раздел…</p></section>;
-  return <section className="personal-home" aria-label="Мой уик-энд">
+  if (!auth.loaded) return <section className="personal-home" data-onboarding="predictions" aria-busy="true"><p>Загружаем личный раздел…</p></section>;
+  return <section className="personal-home" data-onboarding="predictions" aria-label="Мой уик-энд">
     {auth.signedIn ? <PersonalCards key={identityVersion} timezone={timezone} personalized={auth.personalized} /> : <div className="personal-home-guest"><span>Ваш прогноз на следующий этап</span><Link to="/predictions">Попробовать →</Link></div>}
   </section>;
 }

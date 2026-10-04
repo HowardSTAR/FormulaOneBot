@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { resolveCircuitAsset } from "../assets/circuitAsset";
+import './animated-track-map.css';
 
 type AnimatedTrackMapProps = {
   eventName: string;

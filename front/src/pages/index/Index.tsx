@@ -11,6 +11,7 @@ import Hero from "./Hero";
 import IndexIcon from "./IndexIcon";
 import { WeekendBoard, QuickAccess } from './WeekendBoard';
 import { PersonalHome } from './PersonalHome';
+import { FirstVisitGuide } from '../../components/FirstVisitGuide';
 
 export type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
 
@@ -125,6 +126,7 @@ function IndexPage() {
 
   return (
     <>
+      <FirstVisitGuide ready={loaded} timezone={displayTz} />
       {desktop ? <div className="index-desktop-shell index-dashboard">
         <section className="index-dashboard-top">
           <div className="index-hero-wrap index-desktop-hero-wrap">

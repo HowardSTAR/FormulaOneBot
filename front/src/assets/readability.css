@@ -25,7 +25,6 @@
 .race-recap-fold>summary{font-size:17px;font-weight:600;cursor:pointer;min-height:44px;display:flex;align-items:center;gap:10px}.race-recap-fold>summary::before{content:'›';font-size:24px}.race-recap-fold[open]>summary::before{transform:rotate(90deg)}
 .app-shell .unified-results-table .race-results-desktop-table-head{font-size:14px}
 .app-shell .team-principal-desktop>.btn-back{display:inline-flex!important;margin-bottom:18px}
-.app-shell .app-page-main .animated-track-svg .track-outline.track-route-border{stroke:#ff847b!important;stroke-width:3px!important;vector-effect:non-scaling-stroke!important;opacity:1!important;filter:none!important}
 .favorites-past{padding:16px;margin:14px 0;border:1px solid #657187;border-radius:12px;color:#d3dceb}.favorites-past button{min-height:44px;padding:10px 14px;margin:4px 8px 4px 0;color:#fff;border:1px solid #69758a;background:#293344;border-radius:8px;font-size:15px}
 .community-secondary{display:inline-flex;min-height:48px;align-items:center;padding:12px 20px;border:1px solid #657187;border-radius:12px;color:#fff!important;background:#263041;font-weight:600}
 .calendar-dialog details{margin:16px 0;font-size:15px}.calendar-dialog summary{min-height:44px;cursor:pointer}

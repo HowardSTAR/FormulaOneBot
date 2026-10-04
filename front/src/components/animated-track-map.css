@@ -1,0 +1,29 @@
+/* Both strokes use screen pixels: the dark surface must never cover the red
+   border when a small SVG viewBox is enlarged in a hero or calendar card. */
+.app-shell .app-page-main .animated-track-svg svg {
+  overflow: visible !important;
+  filter: none !important;
+}
+.app-shell .app-page-main .animated-track-svg .track-outline.track-route-border,
+.app-shell .app-page-main .animated-track-svg .track-outline.track-route-surface {
+  fill: none !important;
+  opacity: 1 !important;
+  vector-effect: non-scaling-stroke !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  transition: none !important;
+}
+.app-shell .app-page-main .animated-track-svg .track-outline.track-route-border {
+  stroke: #ff3028 !important;
+  stroke-width: 5px !important;
+  filter: drop-shadow(0 0 3px #ff3028) drop-shadow(0 0 9px #e1060099) !important;
+}
+.app-shell .app-page-main .animated-track-svg .track-outline.track-route-surface {
+  stroke: #351012 !important;
+  stroke-width: 2px !important;
+  filter: none !important;
+}
+.app-shell .app-page-main .animated-track-svg .track-fill {
+  fill: none !important;
+  stroke: none !important;
+}

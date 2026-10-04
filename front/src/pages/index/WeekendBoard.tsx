@@ -17,10 +17,11 @@ export function WeekendBoard({ race, sessions, timezone, total, loaded }: {
   return <section className="weekend-board">
     <div className="weekend-board-top"><span>Этап {race?.round || '—'}{total > 0 ? ` из ${total}` : ''}</span>
       <Link to="/season" data-analytics-action="calendar_open">Весь сезон →</Link></div>
-    <h2>Расписание уик-энда</h2>
+    <h2 data-onboarding={!rows.length ? 'schedule' : undefined}>Расписание уик-энда</h2>
     <div className="weekend-board-location"><span>📍 {race?.location || race?.country || 'Место уточняется'}</span>
       <span>Время: {formatTimezoneLabel(timezone)}</span></div>
     <div className="weekend-board-sessions">{rows.map(s => <Link key={`${s.name}:${s.utc_iso}`} to={details}
+      data-onboarding={s === (active || rows[0]) ? 'schedule' : undefined}
       data-analytics-action="session_open" className={`weekend-board-row${s === active ? ' is-current' : ''}`}>
       <span className="weekend-board-date"><strong>{s.date.toLocaleDateString('ru-RU', {timeZone: timezone, weekday: 'short'})}</strong>
         <span>{s.date.toLocaleDateString('ru-RU', {timeZone: timezone, day: 'numeric', month: 'short'}).replace(/\.$/, '')}</span></span>
@@ -42,6 +43,6 @@ export function QuickAccess({season}: {season: number}) {
     {to: '/wiki', icon: 'wiki' as const, title: 'Справочник F1', text: 'Термины и правила простыми словами', action: 'wiki_open'},
   ];
   return <section className="quick-access"><h2>Быстрый доступ</h2><div>{links.map(item =>
-    <Link key={item.to} to={item.to} data-analytics-action={item.action}><IndexIcon name={item.icon}/>
+    <Link key={item.to} to={item.to} data-analytics-action={item.action} data-onboarding={item.to === '/race-results' ? 'results' : undefined}><IndexIcon name={item.icon}/>
       <span><strong>{item.title}</strong><small>{item.text}</small></span><b aria-hidden>›</b></Link>)}</div></section>;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { INSTALL_HINT_KEY, mobilePlatform, shouldShowInstallHint } from "../helpers/installHint";
 import "./InstallHint.css";
+import { ONBOARDING_CHANGED } from '../helpers/onboarding';
 
 type InstallEvent = Event & { prompt(): Promise<void>; userChoice: Promise<{ outcome: string }> };
 type HintState = { count?: number; lastShown?: number; dismissed?: boolean };
@@ -27,14 +28,21 @@ export function InstallHint() {
     window.addEventListener("beforeinstallprompt", before);
     window.addEventListener("appinstalled", hide);
     mode.addEventListener("change", modeChanged);
-    const timer = window.setTimeout(() => {
-      const state = readState();
-      if (installed() || !shouldShowInstallHint(state, Date.now())) return;
-      saveState({ ...state, count: (state.count ?? 0) + 1, lastShown: Date.now() });
-      setPlatform(device);
-    }, 1500);
+    let timer: number;
+    const scheduleHint = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const state = readState();
+        if (document.documentElement.dataset.onboardingActive || installed() || !shouldShowInstallHint(state, Date.now())) return;
+        saveState({ ...state, count: (state.count ?? 0) + 1, lastShown: Date.now() });
+        setPlatform(device);
+      }, 1500);
+    };
+    scheduleHint();
+    window.addEventListener(ONBOARDING_CHANGED, scheduleHint);
     return () => {
       clearTimeout(timer);
+      window.removeEventListener(ONBOARDING_CHANGED, scheduleHint);
       window.removeEventListener("beforeinstallprompt", before);
       window.removeEventListener("appinstalled", hide);
       mode.removeEventListener("change", modeChanged);
