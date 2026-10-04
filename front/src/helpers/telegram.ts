@@ -7,9 +7,17 @@ type HapticAPI = {
 type TelegramWebApp = {
   openLink?: (url: string) => void;
   initData?: string;
+  platform?: string;
   HapticFeedback?: HapticAPI;
   ready?: () => void;
   expand?: () => void;
+  isFullscreen?: boolean;
+  requestFullscreen?: () => void;
+  exitFullscreen?: () => void;
+  isVersionAtLeast?: (version: string) => boolean;
+  isVerticalSwipesEnabled?: boolean;
+  disableVerticalSwipes?: () => void;
+  enableVerticalSwipes?: () => void;
   setHeaderColor?: (color: string) => void;
   setBackgroundColor?: (color: string) => void;
 };
@@ -23,6 +31,30 @@ export function openExternalLink(url: string): boolean {
 
 function getTelegramWebApp(): TelegramWebApp | undefined {
   return (window as unknown as { Telegram?: { WebApp?: TelegramWebApp } }).Telegram?.WebApp;
+}
+
+/** Protect game gestures in the host window, including gestures inside its iframe. */
+export function suspendTelegramVerticalSwipes(): () => void {
+  const tg = getTelegramWebApp();
+  if (!tg?.initData || !tg.isVersionAtLeast?.("7.7")
+    || !tg.disableVerticalSwipes || !tg.enableVerticalSwipes) {
+    return () => {};
+  }
+  const wasEnabled = tg.isVerticalSwipesEnabled !== false;
+  try {
+    tg.disableVerticalSwipes();
+  } catch (e) {
+    console.warn("Telegram swipe setup error", e);
+    return () => {};
+  }
+  return () => {
+    if (!wasEnabled) return;
+    try {
+      tg.enableVerticalSwipes?.();
+    } catch (e) {
+      console.warn("Telegram swipe restore error", e);
+    }
+  };
 }
 
 function getHaptic(): HapticAPI | undefined {
@@ -55,6 +87,20 @@ export function initTelegram(): boolean {
     tg.setBackgroundColor?.(bgColor);
   } catch (e) {
     console.warn("Telegram WebApp init error", e);
+  }
+  const mobile = ["ios", "android", "android_x"].includes(tg.platform ?? "");
+  if (mobile) document.documentElement.dataset.telegramMobile = "true";
+  try {
+    if (tg.isVersionAtLeast?.("8.0")) {
+      if (mobile && !tg.isFullscreen) {
+        tg.requestFullscreen?.();
+      } else if (!mobile && tg.isFullscreen) {
+        // Also handle links/configuration that explicitly launch in fullscreen.
+        tg.exitFullscreen?.();
+      }
+    }
+  } catch (e) {
+    console.warn("Telegram fullscreen setup error", e);
   }
   return true;
 }

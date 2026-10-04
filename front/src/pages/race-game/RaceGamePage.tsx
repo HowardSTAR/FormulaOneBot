@@ -6,6 +6,7 @@ import { ShareComposer } from '../../components/ShareButton';
 import { pendingInvitation, rememberInvitation, sharingEvent, validShareToken, type ShareOptions } from '../../helpers/sharing';
 import { useAuthState } from '../../helpers/auth';
 import { useLocation } from 'react-router-dom';
+import { suspendTelegramVerticalSwipes } from '../../helpers/telegram';
 
 function isPhoneDevice() {
   const userAgent = navigator.userAgent || "";
@@ -17,6 +18,7 @@ function isPhoneDevice() {
 }
 
 function RaceGamePage() {
+  useEffect(() => suspendTelegramVerticalSwipes(), []);
   useEffect(() => { document.title = 'Emerald Loop · F1Hub — проект TurboTears'; }, []);
   const location = useLocation();
   const auth = useAuthState();

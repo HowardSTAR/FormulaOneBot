@@ -15,6 +15,18 @@ be held simultaneously. Gas is above brake. iPhone Safari chrome cannot be hidde
 reliably by rotation; launch the installed Home Screen web app. Supported browsers
 receive a fullscreen request on the Start button's user gesture.
 
+Keep BotFather's Main App launch mode at Fullsize for a resizable desktop window.
+On startup, native iOS/Android Telegram clients supporting SDK 8.0+ request
+fullscreen; desktop and web clients stay windowed, exiting fullscreen if a link
+or launch setting requested it. Older mobile clients retain Fullsize. Device and
+Telegram content safe-area insets protect the page and racing iframe in fullscreen,
+including landscape orientation.
+The race page disables Telegram's vertical minimize/close swipes through the parent
+Mini App SDK (7.7+) while mounted, including steering gestures inside the game
+iframe, and restores the prior enabled state when leaving the page. Swiping the
+Telegram header can still close/minimize the app. Older clients without this API
+retain their default swipe behavior; fullscreen is not required for this fix.
+
 `npm run build` in `front` now builds `race-game`, copies its generated assets, then
 builds the site. Install both projects' npm dependencies first. Docker also builds
 the game from source. `npm run build:front` is only for a prebuilt game.
