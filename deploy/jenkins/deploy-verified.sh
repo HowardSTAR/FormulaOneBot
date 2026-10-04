@@ -6,6 +6,7 @@ previous=$(docker inspect formulaonebot-web-1 --format '{{.Image}}')
 previous_bot=$(docker inspect formulaonebot-bot-1 --format '{{.Image}}')
 test "$previous" = "$previous_bot"
 candidate=$(docker image inspect "$APP_IMAGE" --format '{{.Id}}')
+retired=$(docker image inspect formulaonebot-rollback:previous --format '{{.Id}}' 2>/dev/null || true)
 if [ "$candidate" = "$previous" ]; then
   printf '{"status":"unchanged"}\n' > /reports/deployment.json
   exit 0
@@ -53,4 +54,8 @@ for host in ["f1hub.ru","www.f1hub.ru"]:
 '
 printf '{"status":"deployed"}\n' > /reports/deployment.json
 trap - EXIT INT TERM
+if [ -n "$retired" ] && [ "$retired" != "$previous" ] && [ "$retired" != "$candidate" ]; then
+  # Remove only the former rollback image, after the new release is healthy.
+  docker image rm "$retired" >/dev/null 2>&1 || true
+fi
 echo 'Verified image deployed. Previous image remains available for rollback.'

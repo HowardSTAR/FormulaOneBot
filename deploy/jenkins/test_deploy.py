@@ -12,7 +12,8 @@ p=pathlib.Path(os.environ['VALIDATION_DIR']); args=sys.argv[1:]
 with (p/'calls.jsonl').open('a') as f: f.write(json.dumps(args)+'\\n')
 mode=os.environ['VALIDATION_MODE']
 if args[0]=='inspect': print('sha256:old')
-elif args[:2]==['image','inspect']: print('sha256:old' if mode=='unchanged' else 'sha256:new')
+elif args[:2]==['image','inspect']:
+ print('sha256:retired' if args[2]=='formulaonebot-rollback:previous' else ('sha256:old' if mode=='unchanged' else 'sha256:new'))
 elif args[0]=='compose':
  n=int((p/'count').read_text())+1 if (p/'count').exists() else 1
  (p/'count').write_text(str(n))
@@ -48,12 +49,14 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual((code, status), (0, 'deployed'))
         self.assertIn(['tag', 'sha256:new', 'formulaonebot-app:latest'], calls)
         self.assertIn(['tag', 'sha256:old', 'formulaonebot-rollback:previous'], calls)
+        self.assertIn(['image', 'rm', 'sha256:retired'], calls)
 
     def test_failed_rollout_restores_previous_image(self):
         code, status, calls = self.scenario('rollout_failure')
         self.assertNotEqual(code, 0)
         self.assertEqual(status, 'rolled_back')
         self.assertIn(['tag', 'sha256:old', 'formulaonebot-app:latest'], calls)
+        self.assertNotIn(['image', 'rm', 'sha256:retired'], calls)
 
     def test_failed_public_health_check_also_rolls_back(self):
         code, status, calls = self.scenario('public_failure')

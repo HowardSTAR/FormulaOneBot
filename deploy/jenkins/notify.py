@@ -13,10 +13,12 @@ def main():
     totals = dict(tests=0, failures=0, errors=0, skipped=0)
     for path in reports.glob('*.xml'):
         root = ET.parse(path).getroot()
-        suites = [root] if root.tag == 'testsuite' else root.findall('testsuite')
-        for suite in suites:
-            for key in totals:
-                totals[key] += int(suite.get(key, '0'))
+        # Node emits testcases directly under testsuites; pytest nests them.
+        # Count individual cases so both layouts work without counting totals twice.
+        for case in root.iter('testcase'):
+            totals['tests'] += 1
+            for key, tag in [('failures', 'failure'), ('errors', 'error'), ('skipped', 'skipped')]:
+                totals[key] += int(case.find(tag) is not None)
     result = os.environ.get('CI_RESULT', 'UNKNOWN')
     deployment = 'not_started'
     if (reports / 'deployment.json').exists():
