@@ -1,4 +1,5 @@
 FROM node:20-alpine AS race-builder
+ENV NODE_OPTIONS=--max-old-space-size=512
 WORKDIR /race-game
 COPY race-game/package*.json ./
 RUN npm ci --no-audit --no-fund
@@ -9,6 +10,7 @@ COPY app/race_tracks.json /app/race_tracks.json
 RUN npm run build
 
 FROM node:20-alpine AS front-builder
+ENV NODE_OPTIONS=--max-old-space-size=512
 
 WORKDIR /front
 
@@ -39,12 +41,9 @@ RUN npm run build:front
 
 FROM python:3.11-slim
 
-ARG APP_VERSION=1.0.0
-ENV APP_VERSION=$APP_VERSION \
-    PYTHONDONTWRITEBYTECODE=1 \
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
-LABEL version=$APP_VERSION
 
 WORKDIR /app
 
@@ -73,5 +72,10 @@ COPY run_web.py .
 COPY --from=front-builder /front/dist ./front/dist
 
 RUN mkdir -p logs fastf1_cache data
+
+# Release metadata must not invalidate the expensive dependency layers.
+ARG APP_VERSION=1.0.0
+ENV APP_VERSION=$APP_VERSION
+LABEL version=$APP_VERSION
 
 CMD ["uvicorn", "app.api.miniapp_api:web_app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

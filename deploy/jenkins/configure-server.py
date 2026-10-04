@@ -66,8 +66,9 @@ def prepare():
                 public_args['VITE_' + key.strip()] = value.strip().strip('"').strip("'")
     (target / 'build.env').write_text(''.join(f'{k}={v}\n' for k, v in public_args.items()))
     # Give this CI builder an explicit memory/CPU limit and run one build task at a time.
-    (target / 'buildkitd.toml').write_text('[worker.oci]\n  max-parallelism = 1\n  gc = true\n  gckeepstorage = 1500\n')
-    run('docker', 'builder', 'prune', '--force', '--filter', 'until=168h', '--keep-storage', '1GB')
+    (target / 'buildkitd.toml').write_text('[worker.oci]\n  max-parallelism = 1\n  gc = true\n  reservedSpace = "256MB"\n  maxUsedSpace = "1500MB"\n  minFreeSpace = "2500MB"\n')
+    run('docker', 'buildx', 'prune', '--builder', 'default', '--all', '--force',
+        '--max-used-space', '512MB', '--reserved-space', '0B')
     print('Prepared CI configuration; protected backup:', backup)
 
 

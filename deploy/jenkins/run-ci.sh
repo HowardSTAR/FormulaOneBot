@@ -5,7 +5,8 @@ case "${1:?stage required}" in
   build)
     test -f app-assets.zip
     test -f Dockerfile
-    docker builder prune --force --filter until=168h --keep-storage 1GB
+    docker buildx prune --builder default --all --force --max-used-space 512MB --reserved-space 0B
+    docker buildx prune --builder f1hub-ci --all --force --max-used-space 1500MB --reserved-space 256MB
     available_kb=$(df -Pk "$WORKSPACE" | awk 'NR==2 {print $4}')
     if (( available_kb < 2500000 )); then
       echo 'Less than 2.5 GB free. Build stopped before production is changed.' >&2
@@ -89,7 +90,7 @@ case "${1:?stage required}" in
       docker rm -f "f1hub-ci-$part-$BUILD_NUMBER" >/dev/null 2>&1 || true
     done
     docker image rm "$APP_IMAGE" >/dev/null 2>&1 || true
-    docker buildx prune --builder f1hub-ci --force --keep-storage 1500MB >/dev/null 2>&1 || true
+    docker buildx prune --builder f1hub-ci --all --force --max-used-space 1500MB --reserved-space 256MB >/dev/null 2>&1 || true
     ;;
   *) echo 'Unknown CI stage' >&2; exit 2 ;;
 esac
