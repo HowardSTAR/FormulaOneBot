@@ -129,7 +129,13 @@ export function FirstVisitGuide() {
       if (prepared) return;
       prepared = true;
       preview.scrollTo({ top: 0, behavior: 'instant' });
-      const top = Math.max(0, target.getBoundingClientRect().top - preview.getBoundingClientRect().top - 20);
+      const rect = target.getBoundingClientRect();
+      const targetTop = rect.top - preview.getBoundingClientRect().top;
+      // Keep the heading and surrounding context when the control is already
+      // visible. Only bring deeper sections to the top of the workspace.
+      const top = rect.height > preview.clientHeight * .5
+        ? Math.max(0, targetTop - 20)
+        : Math.max(0, targetTop + rect.height - preview.clientHeight + 20);
       preview.scrollTo({ top, behavior: reducedMotion() ? 'instant' : 'smooth' });
       updatePhase('entering');
       enterTimer = window.setTimeout(() => {

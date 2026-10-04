@@ -74,6 +74,15 @@ async function checkTrack(page, selector) {
         assert.ok((await guide.innerText()).includes(`${index + 1} / ${steps.length}`));
         await checkCard(page);
         await page.locator(`.first-visit-highlight[data-tour-route="${route}"]`).waitFor();
+        if ([1, 2].includes(index)) {
+          const heading = page.locator('.app-page-main h1:visible, .app-page-main h2:visible').first();
+          const headingPosition = await heading.evaluate(node => {
+            const h = node.getBoundingClientRect(), p = document.querySelector('.app-content').getBoundingClientRect();
+            return { top: h.top, bottom: h.bottom, pageTop: p.top, pageBottom: p.bottom };
+          });
+          assert.ok(headingPosition.top >= headingPosition.pageTop && headingPosition.bottom <= headingPosition.pageBottom,
+            `Keep the page heading visible: ${width} ${route} ${JSON.stringify(headingPosition)}`);
+        }
         if (index === 2) {
           await guide.getByRole('button', { name: 'Назад', exact: true }).click();
           await page.waitForFunction(() => location.pathname === '/season');
@@ -81,6 +90,7 @@ async function checkTrack(page, selector) {
           await guide.getByRole('button', { name: 'Дальше →' }).click();
           await guide.getByRole('heading', { name: title, exact: true }).waitFor();
           await page.locator(`.first-visit-highlight[data-tour-route="${route}"]`).waitFor();
+          await checkCard(page);
         }
         if (index === 7) {
           const search = page.locator('.wiki-controls input');
