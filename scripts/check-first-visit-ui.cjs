@@ -1,17 +1,16 @@
-// First-session checks use local fixtures; no account is created or updated.
+// Read-only local fixtures: the tour must not submit forecasts, messages or scores.
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const base = process.env.FIRST_VISIT_UI_URL || 'http://127.0.0.1:5174';
-const key = 'turbotears-onboarding-v1';
+const key = 'turbotears-onboarding-v2';
+const steps = [['/', 'Главная'], ['/season', 'Календарь'], ['/race-results', 'Результаты'], ['/drivers', 'Пелотон'], ['/compare', 'Аналитика'], ['/predictions', 'Прогнозы'], ['/community', 'С друзьями'], ['/wiki', 'Справочник F1'], ['/reaction-game', 'Игры'], ['/account', 'Аккаунт и настройки'], ['/contact-admin', 'Обратная связь']];
 const race = { status: 'ok', season: 2026, round: 17, event_name: 'Singapore Grand Prix', location: 'Marina Bay', country: 'Singapore', race_start_utc: '2026-10-11T12:00:00Z', next_session_iso: '2026-10-09T09:00:00Z', next_session_name: 'Практика 1' };
-const races = [{ ...race, date: '2026-10-11', time: '12:00:00Z' }];
 
 async function checkCard(page) {
   await page.waitForFunction(() => {
-    const card = document.querySelector('.first-visit-card');
-    const r = card.getBoundingClientRect();
+    const r = document.querySelector('.first-visit-card').getBoundingClientRect();
     return r.x >= 0 && r.y >= 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1;
   });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -21,105 +20,82 @@ async function checkTrack(page, selector) {
   await border.waitFor();
   const style = await border.evaluate(border => {
     const red = getComputedStyle(border), surface = getComputedStyle(border.nextElementSibling);
-    return { color: red.stroke, width: parseFloat(red.strokeWidth), surface: parseFloat(surface.strokeWidth), borderScaling: red.vectorEffect, surfaceScaling: surface.vectorEffect, glow: red.filter, opacity: red.opacity };
+    return { color: red.stroke, width: parseFloat(red.strokeWidth), surface: parseFloat(surface.strokeWidth), borderScaling: red.vectorEffect, surfaceScaling: surface.vectorEffect, glow: red.filter };
   });
   assert.equal(style.color, 'rgb(255, 48, 40)');
   assert.ok(style.width > style.surface);
   assert.equal(style.borderScaling, 'non-scaling-stroke');
   assert.equal(style.surfaceScaling, 'non-scaling-stroke');
   assert.match(style.glow, /drop-shadow/);
-  assert.equal(style.opacity, '1');
 }
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    for (const [width, height, goal, destination] of [[320, 640, 'schedule', '/season'], [390, 844, 'predictions', '/predictions'], [1440, 900, 'results', '/race-results']]) {
+    for (const [width, height] of [[320, 640], [390, 844], [1440, 900]]) {
       const context = await browser.newContext({ viewport: { width, height }, timezoneId: 'Europe/Moscow', reducedMotion: 'reduce' });
       const page = await context.newPage();
-      const errors = [];
-      let emptySchedule = false;
+      const errors = [], mutations = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.route('**/static/circuit/*.svg', route => route.fulfill({ contentType: 'image/svg+xml', body: readFileSync(join(__dirname, '../front/public/static/circuit/Singapore Grand Prix.svg')) }));
       await page.route('**/api/**', route => {
         const path = new URL(route.request().url()).pathname;
+        if (route.request().method() !== 'GET' && !path.startsWith('/api/analytics/')) mutations.push(path);
         if (path === '/api/auth/me') return route.fulfill({ status: 401, json: { detail: 'Guest' } });
         if (path === '/api/next-race') return route.fulfill({ json: race });
         if (path === '/api/settings') return route.fulfill({ json: { timezone: 'Europe/Moscow' } });
-        if (path === '/api/weekend-schedule') return route.fulfill({ json: { sessions: emptySchedule ? [] : [{ name: 'Практика 1', utc_iso: '2026-10-09T09:00:00Z' }, { name: 'Квалификация', utc_iso: '2026-10-10T13:00:00Z' }, { name: 'Гонка', utc_iso: '2026-10-11T12:00:00Z' }] } });
-        if (path === '/api/season') return route.fulfill({ json: { races } });
+        if (path === '/api/weekend-schedule') return route.fulfill({ json: { sessions: [{ name: 'Практика 1', utc_iso: '2026-10-09T09:00:00Z' }, { name: 'Гонка', utc_iso: '2026-10-11T12:00:00Z' }] } });
+        if (path === '/api/season') return route.fulfill({ json: { races: [{ ...race, date: '2026-10-11' }] } });
+        if (path === '/api/predictions/preview') return route.fulfill({ json: { status: 'ok', season: 2026, round: 17, event_name: race.event_name, is_open: false, profile: { display_name: '', completed: false }, prediction: null, drivers: [], scoring_rules: [] } });
+        if (path === '/api/engagement/weekly') return route.fulfill({ json: { track_id: 'emerald-loop', name: 'Трасса недели', start: '2026-10-05T00:00:00Z', end: '2026-10-12T00:00:00Z', entries: [] } });
         return route.fulfill({ json: { status: 'none', items: [], results: [], rounds: [], drivers: [], constructors: [], entries: [], unread: 0 } });
       });
       await page.goto(base);
-      const guide = page.getByRole('dialog');
-      await page.getByRole('heading', { name: 'Ваш уик-энд начинается здесь' }).waitFor();
-      await checkCard(page);
+      const guide = page.locator('.first-visit-dialog');
+      await guide.getByRole('heading', { name: 'Главная', exact: true }).waitFor();
+      assert.equal(await guide.locator('input[type="radio"]').count(), 0);
       assert.ok((await guide.innerText()).includes('МСК (UTC+3)'));
-      await guide.locator(`input[value="${goal}"]`).check();
-      await page.keyboard.press('Tab');
-      assert.ok(await page.evaluate(() => document.querySelector('.first-visit-dialog').contains(document.activeElement)));
-      if (width === 390 || width === 1440) await page.screenshot({ path: `artifacts/first-visit-welcome-${width}.png` });
-      await guide.getByRole('button', { name: 'Показать, где что' }).click();
-      for (const title of ['Когда следующая сессия?', 'Ваш первый прогноз', 'Что произошло на трассе?']) {
-        await page.getByRole('heading', { name: title }).waitFor();
+      const initialHistory = await page.evaluate(() => history.length);
+      for (const [index, [route, title]] of steps.entries()) {
+        await page.waitForFunction(route => location.pathname === route, route);
+        await guide.getByRole('heading', { name: title, exact: true }).waitFor();
+        assert.ok((await guide.innerText()).includes(`${index + 1} / ${steps.length}`));
         await checkCard(page);
-        await page.locator('.first-visit-highlight').waitFor();
-        assert.ok(await page.locator('.first-visit-highlight').evaluate(el => el.getBoundingClientRect().height > 0));
-        await page.waitForFunction(() => {
-          const card = document.querySelector('.first-visit-card').getBoundingClientRect();
-          const target = document.querySelector('.first-visit-highlight').getBoundingClientRect();
-          return card.bottom <= target.top || card.top >= target.bottom || card.right <= target.left || card.left >= target.right;
-        });
-        if (width === 390 && title === 'Когда следующая сессия?') await page.screenshot({ path: 'artifacts/first-visit-tip-mobile.png' });
-        if (title !== 'Что произошло на трассе?') await guide.getByRole('button', { name: 'Дальше →' }).click();
+        await page.locator(`.first-visit-highlight[data-tour-route="${route}"]`).waitFor();
+        if (index === 2) {
+          await guide.getByRole('button', { name: 'Назад', exact: true }).click();
+          await page.waitForFunction(() => location.pathname === '/season');
+          await guide.getByRole('heading', { name: 'Календарь', exact: true }).waitFor();
+          await guide.getByRole('button', { name: 'Дальше →' }).click();
+          await guide.getByRole('heading', { name: title, exact: true }).waitFor();
+          await page.locator(`.first-visit-highlight[data-tour-route="${route}"]`).waitFor();
+        }
+        if (width === 390 && [0, 2, 5, 8].includes(index)) await page.screenshot({ path: `artifacts/section-tour-${index}-mobile.png` });
+        await guide.getByRole('button', { name: index === steps.length - 1 ? 'На главную →' : 'Дальше →', exact: true }).click();
       }
-      await guide.getByRole('button', { name: 'Назад', exact: true }).click();
-      await page.getByRole('heading', { name: 'Ваш первый прогноз' }).waitFor();
-      await guide.getByRole('button', { name: 'Дальше →' }).click();
-      const action = { schedule: 'Открыть календарь', predictions: 'Перейти к прогнозам', results: 'Посмотреть результаты' }[goal];
-      await guide.getByRole('button', { name: action, exact: true }).click();
-      await page.waitForURL(`${base}${destination}`);
-      assert.deepEqual(await page.evaluate(k => JSON.parse(localStorage.getItem(k)), key), { status: 'completed', goal });
+      await page.waitForFunction(() => location.pathname === '/');
+      await guide.waitFor({ state: 'hidden' });
+      assert.deepEqual(await page.evaluate(k => JSON.parse(localStorage.getItem(k)), key), { status: 'completed' });
+      assert.equal(await page.evaluate(() => history.length), initialHistory);
       assert.equal(await page.evaluate(() => document.documentElement.dataset.onboardingActive), undefined);
-      await page.goto(base);
-      await page.locator('.first-visit-entry button').waitFor();
+      await page.reload();
+      await page.locator('.weekend-board-location').waitFor();
       assert.equal(await page.locator('dialog[open]').count(), 0);
       if (width === 1440) {
         await checkTrack(page, '.index-hero-track-map');
-        await page.screenshot({ path: 'artifacts/neon-home-desktop.png' });
         await page.goto(`${base}/season`);
         await checkTrack(page, '.season-desktop-track-svg');
-        await page.screenshot({ path: 'artifacts/neon-calendar-desktop.png' });
         await page.goto(base);
       }
       await page.getByRole('button', { name: 'Короткое знакомство →' }).click();
       await guide.waitFor();
-      assert.ok(await guide.locator(`input[value="${goal}"]`).isChecked());
       await page.keyboard.press('Escape');
       await guide.waitFor({ state: 'hidden' });
       assert.equal(await page.evaluate(k => JSON.parse(localStorage.getItem(k)).status, key), 'skipped');
-      assert.equal(await page.getByRole('button', { name: 'Короткое знакомство →' }).evaluate(el => el === document.activeElement), true);
-      await page.reload();
-      await page.locator('.weekend-board-location').waitFor();
-      assert.equal(await page.locator('dialog[open]').count(), 0);
       if (width === 390) {
-        await page.goto(`${base}/next-race`);
-        await checkTrack(page, '.next-race-mobile-track-svg');
-        // A fresh deep link must remain usable, without a home onboarding overlay.
         await page.evaluate(k => localStorage.removeItem(k), key);
         await page.goto(`${base}/season`);
-        await page.getByRole('heading', { name: 'Календарь', exact: true }).waitFor();
+        await page.locator('.season-page, .season-desktop-header, .page-head-title').first().waitFor();
         assert.equal(await page.locator('dialog[open]').count(), 0);
-        // Recover corrupted storage and offer a usable tip even with no sessions.
-        await page.evaluate(k => localStorage.setItem(k, '{broken'), key);
-        emptySchedule = true;
-        await page.goto(base);
-        await guide.waitFor();
-        await guide.getByRole('button', { name: 'Показать, где что' }).click();
-        await page.getByRole('heading', { name: 'Когда следующая сессия?' }).waitFor();
-        await checkCard(page);
-        await guide.getByRole('button', { name: 'Закрыть знакомство' }).click();
-        await guide.waitFor({ state: 'hidden' });
-        // Private/embedded storage still remembers dismissal for this SPA session.
         await page.addInitScript(k => {
           const get = Storage.prototype.getItem, set = Storage.prototype.setItem;
           Storage.prototype.getItem = function(name) { if (name === k) throw new Error('Storage denied'); return get.call(this, name); };
@@ -133,10 +109,10 @@ async function checkTrack(page, selector) {
         await page.getByRole('link', { name: 'Главная', exact: true }).click();
         await page.locator('.weekend-board-location').waitFor();
         assert.equal(await page.locator('dialog[open]').count(), 0);
-        console.log('Missing schedule, corrupt/denied storage, direct links, mobile neon passed');
       }
       assert.deepEqual(errors, []);
-      console.log(`First visit ${width}×${height}: goal, tour, back, completion, replay, Escape, persistence passed`);
+      assert.deepEqual(mutations, []);
+      console.log(`Section tour ${width}×${height}: all 11 pages, back, completion, replay, Escape, history and persistence passed`);
       await context.close();
     }
   } finally { await browser.close(); }

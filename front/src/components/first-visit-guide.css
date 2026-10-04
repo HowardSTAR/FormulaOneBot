@@ -11,21 +11,16 @@
 .first-visit-card p { margin: 12px 0; font-size: 15px; line-height: 1.55; color: #d2dae6; }
 .first-visit-dialog button { min-height: 44px; font: inherit; font-weight: 700; cursor: pointer; }
 .first-visit-dialog .first-visit-close { flex-shrink: 0; width: 44px; border: 1px solid #64606b; border-radius: 50%; background: #ffffff08; color: #fff; font-size: 26px; line-height: 1; }
-.first-visit-goals { display: grid; gap: 10px; margin: 22px 0 18px; padding: 0; border: 0; }
-.first-visit-goals legend { margin-bottom: 10px; color: #fff; font-size: 14px; font-weight: 700; }
-.first-visit-goals label { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px 12px; border: 1px solid #47505f; border-radius: 14px; background: #ffffff04; cursor: pointer; }
-.first-visit-goals label.is-selected { border-color: #ff6a60; background: #e106001a; }
-.first-visit-goals input { position: absolute; right: 12px; width: 18px; height: 18px; margin: 0; accent-color: #ff5147; }
-.first-visit-goals label > span:last-child { padding-right: 24px; }
-.first-visit-icon { width: 32px; flex-shrink: 0; text-align: center; font-size: 25px; color: #ff8c83; }
-.first-visit-goals strong { display: block; font-size: 15px; color: #fff; }
-.first-visit-goals small { display: block; margin-top: 5px; font-size: 13px; line-height: 1.4; color: #b9c4d5; }
+.first-visit-progress { display: flex; gap: 4px; margin-top: 12px; }
+.first-visit-progress i { flex: 1; height: 3px; border-radius: 2px; background: #46505f; }
+.first-visit-progress i.is-done { background: #ff6157; }
 .first-visit-card .first-visit-timezone { padding: 12px; border: 1px solid #424955; border-radius: 12px; background: #ffffff04; font-size: 13px; }
 .first-visit-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
 .first-visit-dialog .first-visit-primary { flex: 1; padding: 12px 16px; border: 1px solid #ff6157; border-radius: 12px; background: #d91a12; color: #fff; }
+.first-visit-dialog .first-visit-primary:disabled { opacity: .55; cursor: wait; }
 .first-visit-dialog .first-visit-secondary { padding: 10px 6px; border: 0; background: transparent; color: #d1d9e6; font-size: 13px; }
 .first-visit-note { display: block; margin-top: 16px; font-size: 12px; line-height: 1.4; color: #aeb9cc; }
-.first-visit-dialog :is(button,input):focus-visible, .first-visit-goals label:focus-within { outline: 2px solid #ffaaa2; outline-offset: 4px; }
+.first-visit-dialog button:focus-visible { outline: 2px solid #ffaaa2; outline-offset: 4px; }
 .first-visit-highlight { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px #080b12cc; outline: 2px solid #ff675d; pointer-events: none; }
 .is-tour .first-visit-card { position: fixed; width: min(380px, calc(100% - 24px)); }
 html[data-onboarding-active] .install-hint { display: none; }

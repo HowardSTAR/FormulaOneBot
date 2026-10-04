@@ -9,6 +9,7 @@ import { trackScreen } from '../helpers/analytics';
 import { EngagementEntry } from './EngagementEntry';
 import { RouteContext } from './RouteContext';
 import { DataReceipt } from './DataReceipt';
+import { FirstVisitGuide } from './FirstVisitGuide';
 
 const EDGE_THRESHOLD = 30;
 const SWIPE_THRESHOLD = 60;
@@ -86,6 +87,7 @@ export function SwipeBackLayout() {
       <InstallHint />
       <div className="app-content">
         <section className={`app-page-main route-${routeKey}`}>
+          <FirstVisitGuide />
           <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
             <Outlet />
           </Suspense>

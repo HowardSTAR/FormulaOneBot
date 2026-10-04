@@ -1318,6 +1318,111 @@ async def formula1_get_practice_for_round(
     return _parse_formula1_practice_table(results_html or "", limit)
 
 
+def _parse_formula1_race_table(page_html: str) -> pd.DataFrame:
+    """Keep the official points and retirement labels, including unclassified cars."""
+    if not page_html:
+        return pd.DataFrame()
+    try:
+        document = lxml_html.fromstring(page_html)
+    except (TypeError, ValueError):
+        return pd.DataFrame()
+    for table in document.xpath("//table"):
+        headers = [" ".join(cell.text_content().split()) for cell in table.xpath(".//th")]
+        if not {"Pos.", "Driver", "Team", "Laps", "Time / Retired", "Pts."}.issubset(headers):
+            continue
+        results = []
+        for row in table.xpath(".//tbody/tr"):
+            cells = [" ".join(cell.text_content().split()) for cell in row.xpath("./td")]
+            if len(cells) != len(headers):
+                return pd.DataFrame()
+            values = dict(zip(headers, cells))
+            label = values["Driver"]
+            code = re.search(r"([A-Z]{3})$", label)
+            try:
+                points = float(values["Pts."])
+                laps = int(values["Laps"])
+            except (ValueError, TypeError):
+                return pd.DataFrame()
+            if not code or not pd.notna(points) or points < 0 or points == float('inf'):
+                return pd.DataFrame()
+            name = label[:code.start()].strip()
+            first, _, last = name.partition(' ')
+            position_label = values["Pos."]
+            if not position_label.isdigit() and position_label not in {"NC", "DQ", "DSQ"}:
+                return pd.DataFrame()
+            position = int(position_label) if position_label.isdigit() else len(results) + 1
+            timing = values["Time / Retired"]
+            status = "Disqualified" if position_label in {"DQ", "DSQ"} else "DNF" if timing in {"DNF", "DNS", "DSQ"} else "Finished" if position == 1 or timing.startswith('+') else timing
+            results.append({"Position": position, "Abbreviation": code.group(1),
+                            "FirstName": first, "LastName": last, "TeamName": values["Team"],
+                            "DriverNumber": values.get("No.", ""), "Laps": laps,
+                            "Points": points, "Time": timing if status == "Finished" else None,
+                            "Status": status, "DataComplete": True})
+        # An empty or partially published table must never become a classification.
+        if len(results) < 10 or results[0]["Position"] != 1 or results[0]["Points"] <= 0:
+            return pd.DataFrame()
+        codes = [row["Abbreviation"] for row in results]
+        positions = [row["Position"] for row in results]
+        if len(codes) != len(set(codes)) or positions != list(range(1, len(results) + 1)):
+            return pd.DataFrame()
+        return pd.DataFrame(results)
+    return pd.DataFrame()
+
+
+@cache_result(ttl=300, key_prefix="formula1_race_v1")
+async def formula1_get_race_for_round(season: int, round_number: int) -> pd.DataFrame:
+    """Resolve the requested round from the official season index, never from latest."""
+    if season < 1950 or not 1 <= round_number <= 100:
+        return pd.DataFrame()
+    snapshot_path = _cache_dir / 'published_race_results' / f'{season}-{round_number}.json'
+    def saved_result():
+        try:
+            import json
+            snapshot = json.loads(snapshot_path.read_text(encoding='utf-8'))
+            if not isinstance(snapshot, dict):
+                return pd.DataFrame()
+            source_pattern = rf'https://www\.formula1\.com/en/results/{season}/races/\d+/[a-z0-9-]+/race-result'
+            if snapshot.get('season') != season or snapshot.get('round') != round_number or not re.fullmatch(source_pattern, snapshot.get('source_url', '')):
+                return pd.DataFrame()
+            return _parse_formula1_race_table(snapshot.get('table_html', ''))
+        except (OSError, ValueError, TypeError):
+            return pd.DataFrame()
+    index = await _formula1_get_text(f"https://www.formula1.com/en/results/{season}/races")
+    links = list(dict.fromkeys(re.findall(
+        rf"/en/results/{season}/races/(\d+)/([a-z0-9-]+)/race-result", index or "")))
+    if round_number > len(links):
+        return await asyncio.to_thread(saved_result)
+    race_id, slug = links[round_number - 1]
+    source_url = f"https://www.formula1.com/en/results/{season}/races/{race_id}/{slug}/race-result"
+    html = await _formula1_get_text(source_url)
+    result = _parse_formula1_race_table(html or "")
+    if result.empty:
+        return await asyncio.to_thread(saved_result)
+    # Retain the published table across provider outages and container rebuilds.
+    def preserve():
+        import json
+        document = lxml_html.fromstring(html)
+        table = next(table for table in document.xpath('//table') if not _parse_formula1_race_table(lxml_html.tostring(table, encoding='unicode')).empty)
+        snapshot = {'season': season, 'round': round_number, 'source_url': source_url,
+                    'checked_at': datetime.now(timezone.utc).isoformat(),
+                    'table_html': lxml_html.tostring(table, encoding='unicode')}
+        snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=snapshot_path.parent, delete=False) as output:
+                temporary = pathlib.Path(output.name)
+                json.dump(snapshot, output, ensure_ascii=False)
+            temporary.replace(snapshot_path)
+        finally:
+            if temporary and temporary.exists():
+                temporary.unlink()
+    try:
+        await asyncio.to_thread(preserve)
+    except (OSError, ValueError, StopIteration) as exc:
+        logger.debug('Could not retain published race classification: %s', exc)
+    return result
+
+
 async def openf1_get_quali_results_live(season: int, limit: int = 100) -> tuple[int | None, list[dict]]:
     """
     Результаты квалификации из OpenF1 (моментально после сессии).
@@ -1920,7 +2025,7 @@ async def _get_zero_point_constructor_standings() -> pd.DataFrame:
             return pd.DataFrame()
 
 
-@cache_result(ttl=86400, key_prefix="race_res")
+@cache_result(ttl=300, key_prefix="race_res_v2")
 async def _get_race_results_fastf1_async(season: int, round_number: int):
     return await _run_sync(get_race_results_df, season, round_number)
 
@@ -1928,8 +2033,11 @@ async def _get_race_results_fastf1_async(season: int, round_number: int):
 async def get_race_results_async(season: int, round_number: int):
     """Use classified results with points when available; OpenF1 positions are provisional."""
     official = await _get_race_results_fastf1_async(season, round_number)
-    if official is not None and not official.empty:
+    if official is not None and not official.empty and "Points" in official and pd.to_numeric(official["Points"], errors="coerce").fillna(0).gt(0).any():
         return official
+    published = await formula1_get_race_for_round(season, round_number)
+    if published is not None and not published.empty:
+        return published
     live = await openf1_get_race_results_live(season, round_number)
     if live is not None and not live.empty:
         live["DataComplete"] = False

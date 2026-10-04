@@ -39,10 +39,86 @@ async def test_race_results_prefer_classification_to_live_positions():
 async def test_live_positions_are_explicitly_provisional():
     live_rows = pd.DataFrame([{"Position": 1, "Abbreviation": "VER", "Points": 0}])
     with patch("app.f1_data._get_race_results_fastf1_async", new_callable=AsyncMock, return_value=pd.DataFrame()), \
+         patch("app.f1_data.formula1_get_race_for_round", new_callable=AsyncMock, return_value=pd.DataFrame()), \
          patch("app.f1_data.openf1_get_race_results_live", new_callable=AsyncMock, return_value=live_rows):
         from app.f1_data import get_race_results_async
         result = await get_race_results_async(2026, 15)
     assert result["DataComplete"].tolist() == [False]
+
+
+def official_race_html():
+    codes = ['VER', 'ANT', 'HAM', 'LEC', 'HAD', 'PIA', 'LAW', 'ALO', 'NOR', 'LIN', 'RUS', 'ALB']
+    rows = ''.join(f'<tr><td>{index + 1 if index < 11 else "NC"}</td><td>{index + 1}</td>'
+                   f'<td>Driver Name {code}</td><td>Team</td><td>{55 if index < 10 else 7}</td>'
+                   f'<td>{"1:47:14.808" if index == 0 else "+2.307s" if index < 10 else "DNF"}</td>'
+                   f'<td>{25 if index == 0 else 18 if index == 1 else 0}</td></tr>'
+                   for index, code in enumerate(codes))
+    return '<table><thead><tr>' + ''.join(f'<th>{name}</th>' for name in ['Pos.', 'No.', 'Driver', 'Team', 'Laps', 'Time / Retired', 'Pts.']) + '</tr></thead><tbody>' + rows + '</tbody></table>'
+
+
+def test_official_race_table_preserves_points_gaps_and_unclassified_retirements():
+    from app.f1_data import _parse_formula1_race_table
+    result = _parse_formula1_race_table(official_race_html())
+    assert len(result) == 12
+    assert result.iloc[0]['Points'] == 25
+    assert result.iloc[1]['Time'] == '+2.307s'
+    assert result.iloc[-1]['Abbreviation'] == 'ALB'
+    assert result.iloc[-1]['Position'] == 12
+    assert result.iloc[-1]['Status'] == 'DNF'
+    assert result.iloc[-1]['Points'] == 0
+
+
+def test_official_race_table_rejects_partial_and_invalid_points():
+    from app.f1_data import _parse_formula1_race_table
+    for page in ['', '<html>Coming soon</html>', official_race_html().replace('<td>25</td>', '<td>—</td>'),
+                 official_race_html().replace('<td>25</td>', '<td>0</td>'), official_race_html().replace('ANT', 'VER')]:
+        assert _parse_formula1_race_table(page).empty
+
+
+@pytest.mark.asyncio
+async def test_incomplete_fastf1_uses_official_published_classification():
+    from app.f1_data import get_race_results_async, _parse_formula1_race_table
+    published = _parse_formula1_race_table(official_race_html())
+    stale = pd.DataFrame([{'Position': 1, 'Abbreviation': 'VER', 'Points': 0}])
+    with patch('app.f1_data._get_race_results_fastf1_async', new_callable=AsyncMock, return_value=stale), \
+         patch('app.f1_data.formula1_get_race_for_round', new_callable=AsyncMock, return_value=published) as fallback, \
+         patch('app.f1_data.openf1_get_race_results_live', new_callable=AsyncMock) as live:
+        assert (await get_race_results_async(2026, 16)).equals(published)
+        fallback.assert_awaited_once_with(2026, 16)
+        live.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_official_race_resolves_requested_round_and_never_uses_latest(tmp_path, monkeypatch):
+    monkeypatch.setattr('app.f1_data._cache_dir', tmp_path)
+    from app.f1_data import formula1_get_race_for_round
+    # Calling the undecorated loader keeps this fixture isolated from disk/Redis.
+    index = '<a href="/en/results/2098/races/1/australia/race-result">One</a><a href="/en/results/2098/races/2/bahrain/race-result">Two</a>'
+    with patch('app.f1_data._formula1_get_text', new_callable=AsyncMock, side_effect=[index, official_race_html()]) as request:
+        result = await formula1_get_race_for_round.__wrapped__(2098, 2)
+        assert len(result) == 12
+        assert request.await_args_list[-1].args[0] == 'https://www.formula1.com/en/results/2098/races/2/bahrain/race-result'
+
+
+@pytest.mark.asyncio
+async def test_published_snapshot_survives_provider_outage_and_validates_identity(tmp_path, monkeypatch):
+    import json
+    from app.f1_data import formula1_get_race_for_round
+    monkeypatch.setattr('app.f1_data._cache_dir', tmp_path)
+    folder = tmp_path / 'published_race_results'
+    folder.mkdir()
+    path = folder / '2026-16.json'
+    snapshot = {'season': 2026, 'round': 16, 'source_url': 'https://www.formula1.com/en/results/2026/races/1308/bahrain/race-result', 'table_html': official_race_html()}
+    path.write_text(json.dumps(snapshot), encoding='utf-8')
+    with patch('app.f1_data._formula1_get_text', new_callable=AsyncMock, return_value=None):
+        assert len(await formula1_get_race_for_round.__wrapped__(2026, 16)) == 12
+        snapshot['round'] = 15
+        path.write_text(json.dumps(snapshot), encoding='utf-8')
+        assert (await formula1_get_race_for_round.__wrapped__(2026, 16)).empty
+        snapshot['round'] = 16
+        snapshot['source_url'] = 'https://example.test/results'
+        path.write_text(json.dumps(snapshot), encoding='utf-8')
+        assert (await formula1_get_race_for_round.__wrapped__(2026, 16)).empty
 
 
 @pytest.mark.asyncio
