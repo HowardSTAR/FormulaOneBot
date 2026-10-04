@@ -17,6 +17,7 @@ export function RouteContext() {
     const samePage = previousPath.current === location.pathname;
     previousPath.current = location.pathname;
     const restore = () => {
+      if (document.documentElement.dataset.onboardingActive) return;
       if (target != null) window.scrollTo(0, target);
       else if (!samePage) window.scrollTo(0, 0);
     };

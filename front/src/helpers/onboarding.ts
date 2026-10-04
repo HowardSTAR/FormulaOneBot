@@ -1,17 +1,17 @@
 export const ONBOARDING_KEY = 'turbotears-onboarding-v2';
 export const ONBOARDING_CHANGED = 'turbotears-onboarding-changed';
 export const onboardingSteps = [
-  { route: '/', title: 'Главная', target: '#hero-sub', text: 'Ближайшая сессия, отсчёт до старта и расписание уик-энда. Отсюда удобно начинать перед каждой гонкой.' },
-  { route: '/season', title: 'Календарь', text: 'Все этапы сезона и время сессий. Выберите этап, чтобы посмотреть расписание, трассу и доступные результаты.' },
-  { route: '/race-results', title: 'Результаты', text: 'Итоги гонок, квалификаций, спринтов и практик. Переключайте сезон и этап, чтобы открыть нужную сессию.' },
-  { route: '/drivers', title: 'Пелотон', text: 'Зачёт пилотов и команд, очки и карточки участников. Нажмите на пилота или команду, чтобы узнать подробности.' },
-  { route: '/compare', title: 'Аналитика', text: 'Сравнивайте пилотов и команды. В истории сезонов можно проследить, как менялся чемпионат.' },
-  { route: '/predictions', title: 'Прогнозы', text: 'Выберите исходы следующего этапа до указанного срока. После гонки появятся очки и личный разбор; для сохранения нужен аккаунт.' },
-  { route: '/community', title: 'С друзьями', text: 'Соревнуйтесь на трассе недели, создавайте лиги прогнозов и делитесь карточками результатов.' },
-  { route: '/wiki', title: 'Справочник F1', text: 'Правила, флаги и гоночные термины простыми словами. Введите незнакомый термин в поиск.' },
-  { route: '/reaction-game', title: 'Игры', text: 'Проверьте реакцию на светофоре. В меню игр также есть Reflex Grid и пиксельная гонка Emerald Loop.' },
-  { route: '/account', title: 'Аккаунт и настройки', text: 'После входа доступны личные результаты и настройки часового пояса и напоминаний. Привяжите Telegram для избранного и голосования.' },
-  { route: '/contact-admin', title: 'Обратная связь', text: 'Нашли ошибку или хотите предложить улучшение? Здесь можно написать администратору. Знакомство завершено — возвращаемся на главную.' },
+  { route: '/', title: 'Главная', target: '.weekend-board', text: 'Здесь ближайшие сессии и время старта. Строка расписания открывает подробности этапа.' },
+  { route: '/season', title: 'Календарь', target: '.season-filters', text: 'Переключайте предстоящие и прошедшие этапы. Нажмите на название гонки, чтобы открыть трассу и расписание.' },
+  { route: '/race-results', title: 'Результаты', target: '.race-results-desktop-controls, .race-results-mobile .segmented-tabs, .segmented-tabs', text: 'Последняя гонка — в первой вкладке. В архиве можно выбрать сезон и этап; ниже показана классификация.' },
+  { route: '/drivers', title: 'Пелотон', target: '.drivers-standings-table, .standings-cards-grid', text: 'Места и очки пилотов. Откройте карточку участника; зачёт команд доступен в меню пелотона.' },
+  { route: '/compare', title: 'Аналитика', target: '.compare-controls-panel', text: 'Выберите пилотов или команды для сравнения. Статистика и график появятся под этими настройками.' },
+  { route: '/predictions', title: 'Прогнозы', target: '.predictions-tabs', text: 'Здесь прогноз на этап и его правила. После гонки — очки и личный разбор; для сохранения нужен аккаунт.' },
+  { route: '/community', title: 'С друзьями', target: '.community-grid', text: 'Трасса недели, лиги прогнозов и общие результаты. Страницу можно прокручивать и изучать прямо сейчас.' },
+  { route: '/wiki', title: 'Справочник F1', target: '.wiki-controls', text: 'Введите термин в поиск или выберите категорию. Ниже — правила, флаги и объяснения простыми словами.' },
+  { route: '/reaction-game', title: 'Игры', target: '.reaction-board, .reaction-desktop-scene', text: 'Светофор помогает проверить реакцию. Другие игры — Reflex Grid и Emerald Loop — доступны в меню игр.' },
+  { route: '/account', title: 'Аккаунт и настройки', target: '.account-tabs, .account-grid, .account-hero', text: 'Вход, личные результаты и привязка Telegram. Часовой пояс и напоминания меняются в настройках.' },
+  { route: '/contact-admin', title: 'Обратная связь', target: '.contact-admin-form, .contact-admin-page header', text: 'Здесь можно сообщить об ошибке или предложить улучшение. Все основные разделы пройдены.' },
 ] as const;
 type OnboardingState = { status: 'completed' | 'skipped' };
 let sessionState: OnboardingState | null = null;

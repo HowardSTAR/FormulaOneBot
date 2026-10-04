@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useHeroData } from '../context/useHeroData';
@@ -6,129 +6,166 @@ import { formatTimezoneLabel, getDisplayTimezone } from '../helpers/timezone';
 import { ONBOARDING_CHANGED, onboardingSteps, readOnboarding, saveOnboarding } from '../helpers/onboarding';
 import './first-visit-guide.css';
 
-type Highlight = { top: number; left: number; width: number; height: number; route: string };
+type Phase = 'leaving' | 'loading' | 'entering' | 'ready';
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+/** A guided workspace: the real page scrolls beside/above the instructions. */
 export function FirstVisitGuide() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { loaded, userTz } = useHeroData();
   const [stage, setStage] = useState<number | null>(() => readOnboarding() ? null : 0);
   const [started, setStarted] = useState(false);
-  const [highlight, setHighlight] = useState<Highlight | null>(null);
-  const [viewport, setViewport] = useState(() => ({ width: innerWidth, height: innerHeight, cardHeight: 280, top: 12, bottom: 12, left: 12, right: 12 }));
-  const dialog = useRef<HTMLDialogElement>(null);
-  const card = useRef<HTMLDivElement>(null);
+  const [phase, setPhase] = useState<Phase>('loading');
+  const phaseRef = useRef<Phase>('loading');
+  const changingRoute = useRef(false);
+  const changeTimer = useRef<number | null>(null);
+  const panel = useRef<HTMLElement>(null);
   const replay = useRef<HTMLButtonElement>(null);
   const active = stage !== null && (started || pathname === '/' && loaded);
   const step = onboardingSteps[stage ?? 0];
   const timezone = formatTimezoneLabel(getDisplayTimezone(userTz));
+  const updatePhase = useCallback((next: Phase) => { phaseRef.current = next; setPhase(next); }, []);
 
-  useEffect(() => {
+  const finish = useCallback((status: 'completed' | 'skipped') => {
+    if (changeTimer.current !== null) window.clearTimeout(changeTimer.current);
+    changingRoute.current = false;
+    saveOnboarding(status);
+    setStage(null);
+    setStarted(false);
+    updatePhase('loading');
+    if (status === 'completed') navigate('/', { replace: true });
+  }, [navigate, updatePhase]);
+
+  const goTo = (index: number) => {
+    if (!active) {
+      setStarted(true);
+      setStage(index);
+      updatePhase('loading');
+      navigate(onboardingSteps[index].route, { replace: true });
+      return;
+    }
+    if (phaseRef.current !== 'ready') return;
+    setStarted(true);
+    changingRoute.current = true;
+    updatePhase('leaving');
+    changeTimer.current = window.setTimeout(() => {
+      setStage(index);
+      updatePhase('loading');
+      navigate(onboardingSteps[index].route, { replace: true });
+    }, reducedMotion() ? 0 : 180);
+  };
+
+  useLayoutEffect(() => {
     if (!active) return;
-    const node = dialog.current;
-    const replayButton = replay.current;
+    const root = document.documentElement;
     const previousFocus = document.activeElement;
-    const overflow = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = 'hidden';
-    document.documentElement.dataset.onboardingActive = 'true';
+    const replayButton = replay.current;
+    const overflow = root.style.overflow;
+    const previousHeight = root.style.getPropertyValue('--onboarding-panel-height');
+    root.style.overflow = 'hidden';
+    root.dataset.onboardingActive = 'true';
+    const measure = () => root.style.setProperty('--onboarding-panel-height', `${panel.current?.offsetHeight || 210}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    if (panel.current) observer.observe(panel.current);
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') finish('skipped'); };
+    window.addEventListener('keydown', escape);
     window.dispatchEvent(new Event(ONBOARDING_CHANGED));
-    node?.showModal();
+    panel.current?.focus({ preventScroll: true });
     return () => {
-      node?.close();
-      document.documentElement.style.overflow = overflow;
-      delete document.documentElement.dataset.onboardingActive;
+      observer.disconnect();
+      window.removeEventListener('keydown', escape);
+      if (changeTimer.current !== null) window.clearTimeout(changeTimer.current);
+      root.style.overflow = overflow;
+      if (previousHeight) root.style.setProperty('--onboarding-panel-height', previousHeight);
+      else root.style.removeProperty('--onboarding-panel-height');
+      delete root.dataset.onboardingActive;
+      delete root.dataset.onboardingPhase;
       window.dispatchEvent(new Event(ONBOARDING_CHANGED));
       if (previousFocus instanceof HTMLElement && previousFocus !== document.body && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
       else if (replayButton?.isConnected) replayButton.focus({ preventScroll: true });
     };
-  }, [active]);
+  }, [active, finish]);
+
+  useLayoutEffect(() => {
+    if (active) document.documentElement.dataset.onboardingPhase = phase;
+  }, [active, phase]);
 
   useEffect(() => {
-    if (!active) return;
-    let target: HTMLElement | undefined;
+    if (!active || pathname === step.route || changingRoute.current) return;
+    // Follow page navigation, including deliberate exits to detail pages.
+    const index = onboardingSteps.findIndex(item => item.route === pathname);
+    const frame = requestAnimationFrame(() => {
+      if (index < 0) finish('skipped');
+      else { setStage(index); updatePhase('loading'); }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [active, pathname, step.route, finish, updatePhase]);
+
+  useEffect(() => {
+    if (!active || pathname !== step.route) return;
+    const preview = document.querySelector<HTMLElement>('.app-content');
     const scope = document.querySelector<HTMLElement>('.app-page-main');
-    const position = () => {
-      const cardHeight = card.current?.offsetHeight || 280;
-      const padding = dialog.current ? getComputedStyle(dialog.current) : null;
-      const top = parseFloat(padding?.paddingTop || '12'), bottom = parseFloat(padding?.paddingBottom || '12');
-      const left = parseFloat(padding?.paddingLeft || '12'), right = parseFloat(padding?.paddingRight || '12');
-      setViewport(previous => previous.width === innerWidth && previous.height === innerHeight && previous.cardHeight === cardHeight && previous.top === top && previous.bottom === bottom && previous.left === left && previous.right === right
-        ? previous : { width: innerWidth, height: innerHeight, cardHeight, top, bottom, left, right });
-      if (pathname !== step.route) { setHighlight(null); return; }
-      const selector = 'target' in step ? step.target : 'h1, h2';
-      const nextTarget = Array.from(scope?.querySelectorAll<HTMLElement>(selector) || []).find(node => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden');
-      if (!nextTarget) { setHighlight(null); return; }
-      if (target !== nextTarget) {
-        target = nextTarget;
-        target.scrollIntoView({ block: 'start', behavior: 'instant' });
-        window.scrollBy({ top: -top - 12, behavior: 'instant' });
-      }
-      const rect = target.getBoundingClientRect();
-      const highlightTop = Math.max(top, rect.top - 6), highlightLeft = Math.max(left, rect.left - 6);
-      setHighlight({ top: highlightTop, left: highlightLeft, width: Math.max(0, Math.min(innerWidth - right, rect.right + 6) - highlightLeft), height: Math.max(0, Math.min(innerHeight - bottom, rect.bottom + 6) - highlightTop), route: pathname });
+    let target: HTMLElement | undefined;
+    let prepared = false;
+    let enterTimer: number | undefined;
+    const unmark = () => {
+      target?.classList.remove('first-visit-highlight');
+      if (target) delete target.dataset.tourRoute;
     };
-    const frame = requestAnimationFrame(position);
-    card.current?.focus({ preventScroll: true });
-    window.addEventListener('resize', position);
-    window.addEventListener('scroll', position, true);
-    const resize = new ResizeObserver(position);
-    if (card.current) resize.observe(card.current);
-    if (dialog.current) resize.observe(dialog.current);
-    const mutations = new MutationObserver(position);
-    if (scope) mutations.observe(scope, { childList: true, subtree: true });
+    const prepare = () => {
+      if (!preview || !scope || scope.querySelector('.route-loading')) return;
+      const visible = (node: HTMLElement) => node.getBoundingClientRect().height > 0 && getComputedStyle(node).visibility !== 'hidden';
+      const candidate = Array.from(scope.querySelectorAll<HTMLElement>(step.target)).find(visible)
+        || Array.from(scope.querySelectorAll<HTMLElement>('h1, h2')).find(visible);
+      if (!candidate) return;
+      if (candidate !== target) {
+        unmark();
+        target = candidate;
+        target.classList.add('first-visit-highlight');
+        target.dataset.tourRoute = step.route;
+      }
+      if (prepared) return;
+      prepared = true;
+      preview.scrollTo({ top: 0, behavior: 'instant' });
+      const top = Math.max(0, target.getBoundingClientRect().top - preview.getBoundingClientRect().top - 20);
+      preview.scrollTo({ top, behavior: reducedMotion() ? 'instant' : 'smooth' });
+      updatePhase('entering');
+      enterTimer = window.setTimeout(() => {
+        changingRoute.current = false;
+        updatePhase('ready');
+      }, reducedMotion() ? 0 : 340);
+    };
+    const frame = requestAnimationFrame(prepare);
+    const observer = new MutationObserver(prepare);
+    if (scope) observer.observe(scope, { childList: true, subtree: true });
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener('resize', position);
-      window.removeEventListener('scroll', position, true);
-      resize.disconnect();
-      mutations.disconnect();
+      if (enterTimer !== undefined) window.clearTimeout(enterTimer);
+      observer.disconnect();
+      unmark();
     };
-  }, [active, step, pathname]);
-
-  const finish = (status: 'completed' | 'skipped') => {
-    saveOnboarding(status);
-    setStage(null);
-    setStarted(false);
-    if (status === 'completed') { navigate('/', { replace: true }); window.scrollTo({ top: 0, behavior: 'instant' }); }
-  };
-  const goTo = (index: number) => {
-    setStarted(true);
-    setStage(index);
-    navigate(onboardingSteps[index].route, { replace: true });
-  };
-  const height = viewport.cardHeight;
-  const width = Math.min(380, viewport.width - viewport.left - viewport.right);
-  const visibleHighlight = highlight?.route === pathname && pathname === step.route ? highlight : null;
-  const cardStyle = visibleHighlight ? {
-    width,
-    left: Math.max(viewport.left, Math.min(visibleHighlight.left, viewport.width - width - viewport.right)),
-    top: visibleHighlight.top + visibleHighlight.height + height + 12 <= viewport.height - viewport.bottom
-      ? visibleHighlight.top + visibleHighlight.height + 12
-      : visibleHighlight.top - height - 12 >= viewport.top ? visibleHighlight.top - height - 12 : Math.max(viewport.top, Math.min((viewport.height - height) / 2, viewport.height - viewport.bottom - height)),
-  } : undefined;
+  }, [active, pathname, step, updatePhase]);
 
   return <>
     {pathname === '/' && <div className="first-visit-entry"><span>Все разделы TurboTears</span><button ref={replay} type="button" onClick={() => goTo(0)}>Короткое знакомство →</button></div>}
-    {createPortal(<dialog ref={dialog} className="first-visit-dialog is-tour" aria-labelledby="first-visit-title" aria-describedby="first-visit-description"
-      onCancel={event => { event.preventDefault(); finish('skipped'); }}>
-      {visibleHighlight && <div className="first-visit-highlight" data-tour-route={visibleHighlight.route} aria-hidden="true" style={visibleHighlight} />}
-      <div className="first-visit-card" ref={card} tabIndex={-1} style={cardStyle}>
-        <div className="first-visit-top"><span>ЗНАКОМСТВО · {(stage ?? 0) + 1} / {onboardingSteps.length}</span>
-          <button type="button" className="first-visit-close" aria-label="Закрыть знакомство" onClick={() => finish('skipped')}>×</button></div>
-        <div className="first-visit-progress" aria-hidden="true">{onboardingSteps.map((item, index) => <i key={item.route} className={index <= (stage ?? 0) ? 'is-done' : ''} />)}</div>
-        <h2 id="first-visit-title">{step.title}</h2>
-        <p id="first-visit-description">{step.text}</p>
-        {!visibleHighlight && <p className="first-visit-note" role="status">Открываем раздел…</p>}
-        {stage === 0 && <p className="first-visit-timezone">Время сессий: {timezone}. Часовой пояс можно изменить в настройках.</p>}
-        <div className="first-visit-actions">
-          <button type="button" className="first-visit-secondary" onClick={() => finish('skipped')}>Пропустить</button>
-          {(stage ?? 0) > 0 && <button type="button" className="first-visit-secondary" aria-label="Назад" onClick={() => goTo((stage ?? 0) - 1)}><span aria-hidden="true">←</span></button>}
-          <button type="button" className="first-visit-primary" disabled={!visibleHighlight} onClick={() => stage === onboardingSteps.length - 1 ? finish('completed') : goTo((stage ?? 0) + 1)}>
-            {stage === onboardingSteps.length - 1 ? 'На главную →' : 'Дальше →'}
-          </button>
-        </div>
-        {stage === 0 && <small className="first-visit-note">Один маршрут по главным разделам. Можно пропустить и повторить на главной.</small>}
+    {active && createPortal(<aside ref={panel} className="first-visit-guide first-visit-card" tabIndex={-1} aria-label="Знакомство с приложением" aria-describedby="first-visit-description" data-phase={phase}>
+      <div className="first-visit-top"><span>ЗНАКОМСТВО · {(stage ?? 0) + 1} / {onboardingSteps.length}</span>
+        <button type="button" className="first-visit-close" aria-label="Закрыть знакомство" onClick={() => finish('skipped')}>×</button></div>
+      <div className="first-visit-progress" aria-hidden="true">{onboardingSteps.map((item, index) => <i key={item.route} className={index <= (stage ?? 0) ? 'is-done' : ''} />)}</div>
+      <div className="first-visit-copy" key={step.route} aria-live="polite" aria-atomic="true">
+        <h2>{step.title}</h2><p id="first-visit-description">{step.text}</p>
+        {stage === 0 && <small className="first-visit-timezone">Время сессий: {timezone}</small>}
       </div>
-    </dialog>, document.body)}
+      <div className="first-visit-actions">
+        <button type="button" className="first-visit-secondary" onClick={() => finish('skipped')}>Пропустить</button>
+        {(stage ?? 0) > 0 && <button type="button" className="first-visit-secondary" disabled={phase !== 'ready'} aria-label="Назад" onClick={() => goTo((stage ?? 0) - 1)}><span aria-hidden="true">←</span></button>}
+        <button type="button" className="first-visit-primary" disabled={phase !== 'ready'} onClick={() => stage === onboardingSteps.length - 1 ? finish('completed') : goTo((stage ?? 0) + 1)}>
+          {phase === 'leaving' || phase === 'loading' ? 'Открываем…' : stage === onboardingSteps.length - 1 ? 'На главную →' : 'Дальше →'}
+        </button>
+      </div>
+      <small className="first-visit-note">Страницу можно прокручивать и пробовать её элементы.</small>
+    </aside>, document.body)}
   </>;
 }

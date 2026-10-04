@@ -85,10 +85,10 @@ export function SwipeBackLayout() {
       <RouteContext />
       <AppHeader />
       <InstallHint />
+      <FirstVisitGuide />
       <div className="app-content">
         <section className={`app-page-main route-${routeKey}`}>
-          <FirstVisitGuide />
-          <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
+          <Suspense key={location.pathname} fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
             <Outlet />
           </Suspense>
           <DataReceipt />

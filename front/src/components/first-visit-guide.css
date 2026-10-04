@@ -1,35 +1,75 @@
 .first-visit-entry { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 14px; font-size: 13px; color: #adb6c6; }
 .first-visit-entry button { min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: #ff8c83; font: inherit; cursor: pointer; }
-.first-visit-dialog { position: fixed; inset: 0; width: 100%; max-width: none; height: 100dvh; max-height: none; margin: 0; padding: 12px; border: 0; background: transparent; color: #f9fafc; box-sizing: border-box; overflow: hidden; }
-.first-visit-dialog[open] { display: grid; place-items: center; }
-.first-visit-dialog::backdrop { background: #080b12cc; }
-.first-visit-dialog.is-tour:has(.first-visit-highlight)::backdrop { background: transparent; }
-.first-visit-card { position: relative; width: min(520px, 100%); box-sizing: border-box; padding: 26px; border: 1px solid #6d3c41; border-radius: 22px; background: radial-gradient(ellipse at top left, #402024, #171b23 65%); box-shadow: 0 20px 70px #0009; max-height: calc(100dvh - 24px); overflow-y: auto; text-align: left; }
-.first-visit-card:focus { outline: none; }
-.first-visit-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #ff9d94; font-size: 11px; font-weight: 800; letter-spacing: .09em; }
-.first-visit-card h2 { margin: 16px 0 12px; font-size: clamp(24px, 5vw, 32px); line-height: 1.12; color: #fff; font-weight: 800; font-style: normal; }
-.first-visit-card p { margin: 12px 0; font-size: 15px; line-height: 1.55; color: #d2dae6; }
-.first-visit-dialog button { min-height: 44px; font: inherit; font-weight: 700; cursor: pointer; }
-.first-visit-dialog .first-visit-close { flex-shrink: 0; width: 44px; border: 1px solid #64606b; border-radius: 50%; background: #ffffff08; color: #fff; font-size: 26px; line-height: 1; }
-.first-visit-progress { display: flex; gap: 4px; margin-top: 12px; }
-.first-visit-progress i { flex: 1; height: 3px; border-radius: 2px; background: #46505f; }
+.first-visit-guide { position: fixed; z-index: 200; bottom: calc(12px + var(--app-safe-bottom)); left: calc(12px + var(--app-safe-left)); right: calc(12px + var(--app-safe-right)); box-sizing: border-box; padding: 14px 16px; border: 1px solid #a34e49; border-radius: 18px; background: #191d25; color: #f9fafc; box-shadow: 0 4px 20px #0004; max-height: calc(45dvh - var(--app-safe-bottom)); overflow-y: auto; animation: first-visit-arrive 300ms ease both; }
+.first-visit-guide:focus { outline: none; }
+.first-visit-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #ffa298; font-size: 11px; font-weight: 800; letter-spacing: .06em; }
+.first-visit-guide button { min-height: 44px; font: inherit; font-weight: 700; cursor: pointer; }
+.first-visit-guide .first-visit-close { width: 44px; flex-shrink: 0; margin: -8px -6px -8px 0; border: 0; border-radius: 12px; background: transparent; color: #dce1eb; font-size: 25px; }
+.first-visit-progress { display: flex; gap: 4px; margin: 10px 0; }
+.first-visit-progress i { flex: 1; height: 3px; border-radius: 2px; background: #46505f; transition: background-color 240ms ease; }
 .first-visit-progress i.is-done { background: #ff6157; }
-.first-visit-card .first-visit-timezone { padding: 12px; border: 1px solid #424955; border-radius: 12px; background: #ffffff04; font-size: 13px; }
-.first-visit-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 20px; }
-.first-visit-dialog .first-visit-primary { flex: 1; padding: 12px 16px; border: 1px solid #ff6157; border-radius: 12px; background: #d91a12; color: #fff; }
-.first-visit-dialog .first-visit-primary:disabled { opacity: .55; cursor: wait; }
-.first-visit-dialog .first-visit-secondary { padding: 10px 6px; border: 0; background: transparent; color: #d1d9e6; font-size: 13px; }
-.first-visit-note { display: block; margin-top: 16px; font-size: 12px; line-height: 1.4; color: #aeb9cc; }
-.first-visit-dialog button:focus-visible { outline: 2px solid #ffaaa2; outline-offset: 4px; }
-.first-visit-highlight { position: fixed; border-radius: 14px; box-shadow: 0 0 0 9999px #080b12cc; outline: 2px solid #ff675d; pointer-events: none; }
-.is-tour .first-visit-card { position: fixed; width: min(380px, calc(100% - 24px)); }
-html[data-onboarding-active] .install-hint { display: none; }
-@media (max-width: 520px) {
-  .first-visit-card { padding: 20px; border-radius: 18px; }
+.first-visit-copy { animation: first-visit-copy 300ms ease both; }
+.first-visit-guide[data-phase="leaving"] .first-visit-copy { animation: first-visit-depart 180ms ease both; }
+.first-visit-guide h2 { margin: 0 0 6px; font-size: 20px; line-height: 1.2; color: #fff; font-weight: 800; font-style: normal; }
+.first-visit-guide p { margin: 0; font-size: 14px; line-height: 1.45; color: #d9e0ed; }
+.first-visit-timezone { display: block; margin-top: 6px; font-size: 12px; line-height: 1.4; color: #bcc8da; }
+.first-visit-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
+.first-visit-guide .first-visit-primary { flex: 1; padding: 10px 14px; border: 1px solid #ff6157; border-radius: 12px; background: #d91a12; color: #fff; }
+.first-visit-guide button:disabled { opacity: .6; cursor: wait; }
+.first-visit-guide .first-visit-secondary { min-width: 44px; padding: 10px 6px; border: 0; border-radius: 8px; background: transparent; color: #d9e0ed; font-size: 13px; }
+.first-visit-note { display: block; margin-top: 8px; font-size: 11px; line-height: 1.35; color: #b1bdcf; }
+.first-visit-guide button:focus-visible { outline: 2px solid #ffaaa2; outline-offset: 2px; }
+/* Highlight the actual control without covering or darkening the page. */
+.first-visit-highlight { outline: 2px solid #ff675d !important; outline-offset: 5px; border-radius: 12px; transition: outline-color 280ms ease; }
+html[data-onboarding-active] .first-visit-entry,
+html[data-onboarding-active] .install-hint,
+html[data-onboarding-active] .mobile-primary-nav,
+html[data-onboarding-active] .legal-footer,
+html[data-onboarding-active] .reaction-modal-overlay,
+html[data-onboarding-active] button.scroll-to-top { display: none !important; }
+html[data-onboarding-active] .app-shell { padding-bottom: 0 !important; }
+html[data-onboarding-active] .app-page-main { min-height: 0 !important; transition: opacity 180ms ease, transform 260ms ease; }
+html[data-onboarding-phase="leaving"] .app-page-main { opacity: 0; transform: translateY(-6px); pointer-events: none; }
+html[data-onboarding-phase="loading"] .app-page-main { opacity: 0; transform: translateY(8px); pointer-events: none; }
+html[data-onboarding-phase="entering"] .app-page-main { opacity: 1; transform: translateY(0); pointer-events: none; }
+html[data-onboarding-phase="ready"] .app-page-main { opacity: 1; transform: translateY(0); }
+html[data-onboarding-active] .app-content { min-height: 0 !important; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; box-sizing: border-box; transition: height 280ms ease; }
+@media (max-width: 1199px) {
+  .first-visit-note { display: none; }
+  html[data-onboarding-active] .app-header { display: none !important; }
+  html[data-onboarding-active] #root .root { max-width: none !important; margin: 0 !important; padding-top: calc(12px + var(--app-safe-top)) !important; padding-bottom: 0 !important; }
+  html[data-onboarding-active] #root .app-content { margin: 0 !important; padding: 12px !important; height: calc(100dvh - var(--app-safe-top) - var(--app-safe-bottom) - var(--onboarding-panel-height, 210px) - 36px); border: 1px solid #3d4655; border-radius: 16px; }
   .first-visit-entry { justify-content: space-between; }
 }
-@media (max-width: 359px) {
-  .first-visit-card { padding: 16px; }
-  .first-visit-actions { gap: 4px; }
-  .first-visit-dialog .first-visit-primary { padding: 12px 8px; font-size: 13px; }
+@media (min-width: 768px) and (max-width: 1199px) {
+  html[data-onboarding-active] #root .root { padding-left: calc(12px + var(--app-safe-left)) !important; padding-right: calc(12px + var(--app-safe-right)) !important; }
+}
+@media (min-width: 1200px) {
+  .first-visit-guide { top: 24px; bottom: auto; left: auto; right: 20px; width: 320px; padding: 22px; max-height: calc(100dvh - 48px); }
+  .first-visit-guide h2 { margin: 16px 0 10px; font-size: 26px; }
+  .first-visit-guide p { font-size: 15px; line-height: 1.6; }
+  .first-visit-progress { margin: 14px 0; }
+  .first-visit-actions { margin-top: 22px; }
+  .first-visit-note { font-size: 12px; margin-top: 14px; }
+  html[data-onboarding-active] #root .app-content { margin-right: 360px !important; height: calc(100dvh - 24px); }
+}
+@media (max-height: 500px) and (max-width: 1199px) {
+  .first-visit-guide { padding: 10px 14px; }
+  .first-visit-guide h2 { font-size: 17px; }
+  .first-visit-guide p { font-size: 13px; }
+  .first-visit-note, .first-visit-timezone { display: none; }
+  .first-visit-actions { margin-top: 8px; }
+  .first-visit-progress { margin: 6px 0; }
+}
+@media (min-width: 650px) and (max-height: 500px) and (max-width: 1199px) {
+  .first-visit-guide { top: calc(12px + var(--app-safe-top)); bottom: auto; left: auto; width: 280px; max-height: calc(100dvh - var(--app-safe-top) - var(--app-safe-bottom) - 24px); }
+  html[data-onboarding-active] #root .root { padding-right: calc(304px + var(--app-safe-right)) !important; }
+  html[data-onboarding-active] #root .app-content { height: calc(100dvh - var(--app-safe-top) - var(--app-safe-bottom) - 24px); }
+}
+@keyframes first-visit-arrive { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes first-visit-copy { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes first-visit-depart { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .first-visit-guide, .first-visit-copy, .first-visit-guide[data-phase="leaving"] .first-visit-copy { animation: none; }
+  .first-visit-progress i, .first-visit-highlight, html[data-onboarding-active] .app-page-main, html[data-onboarding-active] .app-content { transition: none; }
 }

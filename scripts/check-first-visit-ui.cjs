@@ -9,11 +9,23 @@ const steps = [['/', 'Главная'], ['/season', 'Календарь'], ['/ra
 const race = { status: 'ok', season: 2026, round: 17, event_name: 'Singapore Grand Prix', location: 'Marina Bay', country: 'Singapore', race_start_utc: '2026-10-11T12:00:00Z', next_session_iso: '2026-10-09T09:00:00Z', next_session_name: 'Практика 1' };
 
 async function checkCard(page) {
+  await page.waitForFunction(() => document.documentElement.dataset.onboardingPhase === 'ready');
   await page.waitForFunction(() => {
     const r = document.querySelector('.first-visit-card').getBoundingClientRect();
     return r.x >= 0 && r.y >= 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1;
   });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  const workspace = await page.evaluate(() => {
+    const p = document.querySelector('.app-content').getBoundingClientRect();
+    const c = document.querySelector('.first-visit-guide').getBoundingClientRect();
+    return { separate: p.right <= c.left || p.bottom <= c.top, height: p.height,
+      opacity: getComputedStyle(document.querySelector('.app-page-main')).opacity,
+      darkOverlay: !!document.querySelector('.first-visit-backdrop, .first-visit-dialog') };
+  });
+  assert.ok(workspace.separate, 'Instructions must have their own space outside the page');
+  assert.ok(workspace.height >= 320, `Portrait page must retain enough room to read and scroll: ${JSON.stringify(workspace)}`);
+  assert.equal(workspace.opacity, '1');
+  assert.equal(workspace.darkOverlay, false);
 }
 async function checkTrack(page, selector) {
   const border = page.locator(`${selector} .track-route-border:visible`).first();
@@ -32,7 +44,7 @@ async function checkTrack(page, selector) {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
     for (const [width, height] of [[320, 640], [390, 844], [1440, 900]]) {
-      const context = await browser.newContext({ viewport: { width, height }, timezoneId: 'Europe/Moscow', reducedMotion: 'reduce' });
+      const context = await browser.newContext({ viewport: { width, height }, timezoneId: 'Europe/Moscow', reducedMotion: width === 390 ? 'no-preference' : 'reduce' });
       const page = await context.newPage();
       const errors = [], mutations = [];
       page.on('pageerror', error => errors.push(error.message));
@@ -50,8 +62,9 @@ async function checkTrack(page, selector) {
         return route.fulfill({ json: { status: 'none', items: [], results: [], rounds: [], drivers: [], constructors: [], entries: [], unread: 0 } });
       });
       await page.goto(base);
-      const guide = page.locator('.first-visit-dialog');
+      const guide = page.locator('.first-visit-guide');
       await guide.getByRole('heading', { name: 'Главная', exact: true }).waitFor();
+      await checkCard(page);
       assert.equal(await guide.locator('input[type="radio"]').count(), 0);
       assert.ok((await guide.innerText()).includes('МСК (UTC+3)'));
       const initialHistory = await page.evaluate(() => history.length);
@@ -69,8 +82,19 @@ async function checkTrack(page, selector) {
           await guide.getByRole('heading', { name: title, exact: true }).waitFor();
           await page.locator(`.first-visit-highlight[data-tour-route="${route}"]`).waitFor();
         }
-        if (width === 390 && [0, 2, 5, 8].includes(index)) await page.screenshot({ path: `artifacts/section-tour-${index}-mobile.png` });
+        if (index === 7) {
+          const search = page.locator('.wiki-controls input');
+          await search.fill('флаг');
+          assert.equal(await search.inputValue(), 'флаг');
+        }
+        if (width === 390 && [0, 1, 2, 5, 8].includes(index)) await page.screenshot({ path: `artifacts/section-tour-${index}-mobile.png` });
+        if (width === 1440 && index === 1) await page.screenshot({ path: 'artifacts/section-tour-desktop.png' });
         await guide.getByRole('button', { name: index === steps.length - 1 ? 'На главную →' : 'Дальше →', exact: true }).click();
+        if (width === 390 && index === 0) {
+          assert.equal(await page.evaluate(() => document.documentElement.dataset.onboardingPhase), 'leaving');
+          assert.equal(await page.evaluate(() => location.pathname), '/', 'Outgoing page remains mounted during its fade');
+          assert.equal(await guide.locator('.first-visit-primary').isDisabled(), true);
+        }
       }
       await page.waitForFunction(() => location.pathname === '/');
       await guide.waitFor({ state: 'hidden' });

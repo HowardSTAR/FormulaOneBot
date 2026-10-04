@@ -44,8 +44,4 @@
   button.scroll-to-top.scroll-to-top { bottom: calc(var(--mobile-nav-space) + 12px); }
   #root .settings-page .settings-save-bar { bottom: calc(var(--mobile-nav-space) + 12px); }
   .install-hint.install-hint { bottom: calc(var(--mobile-nav-space) + 12px); max-height: calc(100dvh - var(--mobile-nav-space) - var(--app-safe-top) - 36px); }
-  .first-visit-dialog.is-tour {
-    padding: calc(12px + var(--app-safe-top)) calc(12px + var(--app-safe-right)) calc(12px + var(--app-safe-bottom)) calc(12px + var(--app-safe-left));
-  }
-  .first-visit-dialog .first-visit-card { width: min(380px, calc(100vw - 24px - var(--app-safe-left) - var(--app-safe-right))); max-height: calc(100dvh - 24px - var(--app-safe-top) - var(--app-safe-bottom)); }
 }
