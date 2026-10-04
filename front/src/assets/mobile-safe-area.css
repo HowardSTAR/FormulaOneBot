@@ -1,0 +1,51 @@
+/* Telegram publishes both device and host-control insets through its SDK.
+   env() covers Safari/PWA; max() avoids counting the device inset twice. */
+:root {
+  --app-safe-top: calc(max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px));
+  --app-safe-bottom: calc(max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px)) + var(--tg-content-safe-area-inset-bottom, 0px));
+  --app-safe-left: calc(max(env(safe-area-inset-left, 0px), var(--tg-safe-area-inset-left, 0px)) + var(--tg-content-safe-area-inset-left, 0px));
+  --app-safe-right: calc(max(env(safe-area-inset-right, 0px), var(--tg-safe-area-inset-right, 0px)) + var(--tg-content-safe-area-inset-right, 0px));
+  --mobile-nav-space: calc(84px + var(--app-safe-bottom));
+}
+.back-button-icon { display: none; }
+@media (max-width: 767px) {
+  #root .root {
+    padding-top: calc(16px + var(--app-safe-top));
+    padding-left: calc(16px + var(--app-safe-left));
+    padding-right: calc(16px + var(--app-safe-right));
+  }
+  #root .app-shell { padding-bottom: var(--mobile-nav-space); }
+  #root .mobile-primary-nav {
+    bottom: calc(12px + var(--app-safe-bottom));
+    left: calc(12px + var(--app-safe-left));
+    right: calc(12px + var(--app-safe-right));
+    padding: 4px;
+    border: 1px solid #424650;
+    border-radius: 18px;
+    box-shadow: 0 8px 28px #0008;
+  }
+  #root .btn-back {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  #root .btn-back .back-button-icon { display: block; flex-shrink: 0; }
+  #root .btn-back .back-button-label { display: none; }
+  .mobile-menu-dialog[open] {
+    margin-bottom: calc(12px + var(--app-safe-bottom));
+    width: calc(100% - 24px - var(--app-safe-left) - var(--app-safe-right));
+    max-height: calc(100dvh - 24px - var(--app-safe-top) - var(--app-safe-bottom));
+    border-radius: 20px;
+  }
+  .mobile-menu-dialog .mobile-menu-content { padding-bottom: 20px; }
+  button.scroll-to-top.scroll-to-top { bottom: calc(var(--mobile-nav-space) + 12px); }
+  #root .settings-page .settings-save-bar { bottom: calc(var(--mobile-nav-space) + 12px); }
+  .install-hint.install-hint { bottom: calc(var(--mobile-nav-space) + 12px); max-height: calc(100dvh - var(--mobile-nav-space) - var(--app-safe-top) - 36px); }
+  .first-visit-dialog.is-tour {
+    padding: calc(12px + var(--app-safe-top)) calc(12px + var(--app-safe-right)) calc(12px + var(--app-safe-bottom)) calc(12px + var(--app-safe-left));
+  }
+  .first-visit-dialog .first-visit-card { width: min(380px, calc(100vw - 24px - var(--app-safe-left) - var(--app-safe-right))); max-height: calc(100dvh - 24px - var(--app-safe-top) - var(--app-safe-bottom)); }
+}
