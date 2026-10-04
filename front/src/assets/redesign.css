@@ -3,7 +3,7 @@
 @media (min-width: 900px) {
   .app-content {
     margin-left: 216px !important;
-    padding: 16px 22px 26px !important;
+    padding: var(--page-gutter) var(--page-gutter) 32px !important;
   }
 
   .app-header {
@@ -858,8 +858,8 @@
 @media (min-width: 900px) and (max-width: 1020px) {
   .app-content {
     margin-left: 196px !important;
-    padding-right: 16px !important;
-    padding-left: 16px !important;
+    padding-right: var(--page-gutter) !important;
+    padding-left: var(--page-gutter) !important;
   }
 
   .app-header {
@@ -3212,7 +3212,7 @@
 
   .app-content {
     margin-left: 236px !important;
-    padding: 18px 28px 30px !important;
+    padding: var(--page-gutter) var(--page-gutter) 32px !important;
   }
 
   .app-page-main {

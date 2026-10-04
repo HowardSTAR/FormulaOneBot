@@ -413,10 +413,12 @@ function PredictionsContent({ guest }: { guest: boolean }) {
 
       {!loading && tab === "leaderboard" && (
         <section className="prediction-leaderboard">
-          <label>Рейтинг этапа <select value={stageRound} onChange={e => setStageRound(Number(e.target.value))}>
-            <option value={0}>Выберите этап</option>{rounds.map(r => <option key={r.round} value={r.round}>{r.event_name}</option>)}
-          </select></label>
-          {stageRound > 0 && <StageScores entries={entries} round={stageRound} />}
+          <div className="prediction-stage-panel">
+            <label className="prediction-stage-filter">Рейтинг этапа <select value={stageRound} onChange={e => setStageRound(Number(e.target.value))}>
+              <option value={0}>Выберите этап</option>{rounds.map(r => <option key={r.round} value={r.round}>{r.event_name}</option>)}
+            </select></label>
+            {stageRound > 0 && <StageScores entries={entries} round={stageRound} />}
+          </div>
           <div className="prediction-leaderboard-title">
             <div>
               <span>Зачёт сезона · {leaderboardSeason ?? current?.season}</span>
@@ -424,8 +426,8 @@ function PredictionsContent({ guest }: { guest: boolean }) {
             </div>
             <button onClick={() => setShowAllStages(v => !v)}>{showAllStages ? "Последние 3 этапа" : "Показать все этапы"}</button>
           </div>
+          <p className="prediction-leaderboard-hint">Нажмите на очки в своей строке, чтобы открыть личный разбор прогноза. Другие участники его не видят.</p>
           <div className="prediction-leaderboard-scroll">
-            <p>Нажмите на очки в своей строке, чтобы открыть личный разбор прогноза. Другие участники его не видят.</p>
             <table>
               <thead>
                 <tr>
