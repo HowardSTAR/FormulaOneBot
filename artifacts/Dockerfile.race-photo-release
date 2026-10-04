@@ -1,0 +1,6 @@
+FROM formulaonebot-app:e7155cbb9806aa4a03bfa0cd631ba6aa9586d8e4
+ARG APP_VERSION
+ENV APP_VERSION=$APP_VERSION
+LABEL version=$APP_VERSION
+COPY app/utils/notifications.py /app/app/utils/notifications.py
+COPY app/utils/telegram_presentation.py /app/app/utils/telegram_presentation.py

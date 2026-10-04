@@ -1,0 +1,38 @@
+FROM node:20-alpine AS race-builder
+WORKDIR /race-game
+COPY race-game/package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY race-game/index.html race-game/tsconfig.json race-game/vite.config.ts ./
+COPY race-game/src ./src
+COPY race-game/public ./public
+COPY app/race_tracks.json /app/race_tracks.json
+RUN npm run build
+
+FROM node:20-alpine AS front-builder
+WORKDIR /front
+COPY front/package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY front/index.html front/vite.config.ts front/tsconfig*.json ./
+COPY front/public ./public
+COPY --from=race-builder /race-game/dist ./public/race-game
+COPY front/src ./src
+COPY THIRD_PARTY_NOTICES.md ASSET_LICENSES.md /
+ARG VITE_API_URL=""
+ARG VITE_LEGAL_OPERATOR_NAME=""
+ARG VITE_LEGAL_OPERATOR_ADDRESS=""
+ARG VITE_LEGAL_CONTACT_EMAIL=""
+ARG VITE_DATA_STORAGE_LOCATION=""
+ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_LEGAL_OPERATOR_NAME=${VITE_LEGAL_OPERATOR_NAME} \
+    VITE_LEGAL_OPERATOR_ADDRESS=${VITE_LEGAL_OPERATOR_ADDRESS} \
+    VITE_LEGAL_CONTACT_EMAIL=${VITE_LEGAL_CONTACT_EMAIL} \
+    VITE_DATA_STORAGE_LOCATION=${VITE_DATA_STORAGE_LOCATION}
+RUN npm run build:front
+
+# This release changes only the frontend. Keep the running, verified Python
+# runtime and rebuild the frontend using the same arguments as normal Compose.
+FROM formulaonebot-app:2aaa708204ae7ad2b40b2774a7bf5186d3c5f8c3
+ARG APP_VERSION
+ENV APP_VERSION=$APP_VERSION
+LABEL version=$APP_VERSION
+COPY --from=front-builder /front/dist /app/front/dist

@@ -1,0 +1,4 @@
+services:
+  web:
+    build:
+      dockerfile: /root/f1hub-race-photo/Dockerfile.race-photo-release

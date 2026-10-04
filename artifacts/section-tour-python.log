@@ -1,0 +1,2358 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\PyCharmProject\FormulaOneBot
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.12.1, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 769 items
+
+tests\test_account_auth.py
+[CHECK] tests/test_account_auth.py::test_yandex_postbox_api_signature_does_not_expose_secret -> test yandex postbox api signature does not expose secret
+.
+tests\test_account_auth.py
+[CHECK] tests/test_account_auth.py::test_legacy_users_schema_is_migrated_without_losing_ids -> Legacy Telegram users and related rows survive the nullable-ID auth migration.
+.
+tests\test_account_auth.py
+[CHECK] tests/test_account_auth.py::test_registration_verification_and_login -> A code verifies email, creates a session, and never appears in SQLite plaintext.
+.
+tests\test_account_auth.py
+[CHECK] tests/test_account_auth.py::test_password_reset_is_one_time_and_revokes_sessions -> test password reset is one time and revokes sessions
+.
+tests\test_account_auth.py
+[CHECK] tests/test_account_auth.py::test_change_password_keeps_current_session_and_revokes_others -> test change password keeps current session and revokes others
+.
+tests\test_account_auth.py
+[CHECK] tests/test_account_auth.py::test_link_without_duplicate_attaches_telegram_id -> A fresh Telegram identity is attached to the existing web user record.
+.
+tests\test_account_auth.py
+[CHECK] tests/test_account_auth.py::test_deep_link_is_bound_to_first_telegram_account -> A forwarded link cannot be approved by a Telegram account that did not open it first.
+.
+tests\test_account_auth.py
+[CHECK] tests/test_account_auth.py::test_keep_web_merge_moves_telegram_data -> keep_web preserves web ID and moves Telegram favorites before deleting the duplicate.
+.
+tests\test_account_auth.py
+[CHECK] tests/test_account_auth.py::test_keep_telegram_merge_moves_web_session_and_credentials -> keep_telegram preserves Telegram ID while web sessions and credentials follow it.
+.
+tests\test_account_auth.py
+[CHECK] tests/test_account_auth.py::test_bot_generated_code_links_on_website -> The reverse manual flow stores bot code in SQLite and consumes it once on the website.
+.
+tests\test_admin_api.py
+[CHECK] tests/test_admin_api.py::test_primary_admin_identity_is_loaded_from_environment -> test primary admin identity is loaded from environment
+.
+tests\test_admin_api.py
+[CHECK] tests/test_admin_api.py::test_admin_endpoints_require_role_and_protect_primary_superadmin -> test admin endpoints require role and protect primary superadmin
+.
+tests\test_admin_api.py
+[CHECK] tests/test_admin_api.py::test_admin_metrics_split_site_bot_and_total -> test admin metrics split site bot and total
+.
+tests\test_admin_api.py
+[CHECK] tests/test_admin_api.py::test_admin_users_supports_server_side_sorting -> Пагинация пользователей сортируется на сервере по разрешённым колонкам.
+.
+tests\test_admin_api.py
+[CHECK] tests/test_admin_api.py::test_admin_can_clear_all_game_records_or_only_one_users_records -> Game cleanup preserves profiles and never removes another player's rows by accident.
+.
+tests\test_admin_tools.py
+[CHECK] tests/test_admin_tools.py::test_product_report_counts_ordered_funnel_and_is_private -> test product report counts ordered funnel and is private
+.
+tests\test_admin_tools.py
+[CHECK] tests/test_admin_tools.py::test_control_summary_filters_pagination_and_auth -> test control summary filters pagination and auth
+.
+tests\test_admin_tools.py
+[CHECK] tests/test_admin_tools.py::test_telegram_delivery_log_is_admin_only -> test telegram delivery log is admin only
+.
+tests\test_admin_tools.py
+[CHECK] tests/test_admin_tools.py::test_preview_is_inert_and_send_is_idempotent -> test preview is inert and send is idempotent
+.
+tests\test_admin_tools.py
+[CHECK] tests/test_admin_tools.py::test_filters_snapshot_archive_expiry_and_author -> test filters snapshot archive expiry and author
+.
+tests\test_admin_tools.py
+[CHECK] tests/test_admin_tools.py::test_validations_and_insights -> test validations and insights
+.
+tests\test_admin_tools.py
+[CHECK] tests/test_admin_tools.py::test_push_is_opt_in_and_queued_only_for_frozen_audience -> test push is opt in and queued only for frozen audience
+.
+tests\test_admin_tools.py
+[CHECK] tests/test_admin_tools.py::test_role_and_csrf_checks_are_not_bypassed -> test role and csrf checks are not bypassed
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_season_schedule -> GET /api/season — расписание сезона.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_season_default_year -> GET /api/season без season — текущий год.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_season_completed_only_race_filters_future_rounds -> GET /api/season?completed_only=1&session_type=race — возвращает только прошедшие этапы гонок.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_season_completed_only_quali_filters_by_quali_time -> GET /api/season?completed_only=1&session_type=quali — фильтрует по времени квалификации.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_season_sprint_archives_exclude_standard_weekends[sprint] -> Архивы спринтов содержат только этапы с официальным спринт-форматом.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_season_sprint_archives_exclude_standard_weekends[sprint_quali] -> Архивы спринтов содержат только этапы с официальным спринт-форматом.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_drivers -> GET /api/drivers — список пилотов.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_drivers_current_season_uses_latest_standings_not_last_race -> GET /api/drivers (текущий сезон) — должен брать актуальный зачет (round=None), включая спринт-очки.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_constructors -> GET /api/constructors — список команд.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_driver_details_400 -> GET /api/driver-details без code/driverId — 400.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_driver_details_404 -> GET /api/driver-details — пилот не найден.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_driver_details_ok -> GET /api/driver-details — успешный ответ.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_constructor_details_400 -> GET /api/constructor-details без constructorId — 400.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_constructor_details_ok -> GET /api/constructor-details — успешный ответ.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_settings_get -> GET /api/settings — настройки (с подменой auth).
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_settings_get_guest_returns_defaults -> GET /api/settings без Telegram auth — дефолтные настройки гостя.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_settings_save -> POST /api/settings — сохранение настроек.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_favorites -> GET /api/favorites — список избранного.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_toggle_favorite_driver -> POST /api/favorites/driver — добавить/удалить пилота.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_toggle_favorite_team -> POST /api/favorites/team — добавить/удалить команду.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_next_race -> GET /api/next-race — ближайшая гонка.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_next_race_guest_without_auth -> GET /api/next-race без Telegram auth — публично доступен.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_weekend_schedule -> GET /api/weekend-schedule — расписание уикенда.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_votes_race -> POST /api/votes/race — оценка гонки.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_votes_race_invalid_rating -> POST /api/votes/race — невалидный rating.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_votes_me -> GET /api/votes/me возвращает голос из гибридной веб/Telegram-сессии.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_game_profile_is_shared_by_all_leaderboards -> POST/GET игрового профиля сохраняет одно имя для всех мини-игр.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_game_profile_save_no_longer_returns_method_not_allowed -> Маршрут сохранения имени принимает POST вместо ответа 405.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_first_race_finish_auto_enrolls_missing_game_profile -> A first-time Emerald Loop player must not lose a completed race to a missing profile.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_race_finish_respects_explicit_leaderboard_opt_out -> Automatic enrollment must never override a profile that explicitly disabled participation.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_race_game_rejects_invalid_ghost_telemetry -> Ghost telemetry is bounded and must have a strictly increasing timeline.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_race_game_ghost_never_substitutes_a_slower_replay -> The global-best toggle must not play a slower run under a leader's name.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_votes_stats -> GET /api/votes/stats — статистика оценок гонок.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_votes_driver_stats -> GET /api/votes/driver-stats — голоса за пилотов дня.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_compare -> GET /api/compare — сравнение пилотов.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_compare_multi_returns_dynamic_driver_series -> GET /api/compare/multi загружает сезон один раз для произвольного числа пилотов.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_compare_multi_supports_single_driver -> Мультисравнение сохраняет рабочее состояние при одном выбранном пилоте.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_compare_prefers_quali_positions_for_q_score -> GET /api/compare — q_score считается по квалификации, даже если в race-данных нет Grid.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_compare_includes_recent_round_when_results_already_available -> GET /api/compare — не ждёт +1ч, если у только что завершившейся гонки уже есть результаты.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_compare_teams -> GET /api/compare/teams — сравнение команд.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_compare_teams_multi_returns_dynamic_series -> Multi-team comparison returns one reactive series per selected constructor.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_race_details -> GET /api/race-details — детали этапа.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_race_details_404 -> GET /api/race-details — этап не найден.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_quali_results -> GET /api/quali-results — результаты квалификации.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_practice_results_hides_fp2_fp3_on_sprint_weekend -> Спринт-этап возвращает только FP1 и не запрашивает отсутствующую FP2.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_practice_results_returns_standard_fp3 -> Обычный этап поддерживает P1/P2/P3 и возвращает классификацию FP3.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_latest_practice_falls_back_to_previous_available_round -> Latest mode remains useful while the current round's provider is temporarily blocked.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_sprint_results -> GET /api/sprint-results — результаты последнего спринта.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_sprint_quali_results -> GET /api/sprint-quali-results — результаты последней спринт-квалификации.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_sprint_result_endpoints_reject_standard_archive_rounds[/api/sprint-results-get_sprint_results_async] -> Прямой запрос обычного этапа не запускает загрузчик спринт-результатов.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_sprint_result_endpoints_reject_standard_archive_rounds[/api/sprint-quali-results-get_sprint_quali_results_async] -> Прямой запрос обычного этапа не запускает загрузчик спринт-результатов.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_sprint_results_uses_sprint_time_even_if_race_date_future -> GET /api/sprint-results — учитывает sprint_start_utc, даже если date этапа ещё в будущем.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_sprint_quali_results_uses_sq_time_even_if_race_date_future -> GET /api/sprint-quali-results — учитывает sprint_quali_start_utc, даже если date этапа в будущем.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_sprint_results_latest_ignores_new_standard_weekend -> Latest спринт не заменяется более новым обычным этапом без спринта.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_sprint_quali_latest_ignores_new_standard_weekend -> Latest спринт-квала не заменяется более новым обычным этапом.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_notifications_get -> GET /api/settings/notifications.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_notifications_post -> POST /api/settings/notifications.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_race_results -> GET /api/race-results — результаты последней гонки.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_race_results_falls_back_to_previous_round_with_data -> GET /api/race-results — если у последнего завершенного этапа пусто, берет предыдущий с данными.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_race_results_preserves_available_previous_round_when_new_weekend_started -> GET /api/race-results — начало нового уикенда не скрывает последнюю завершённую гонку.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_quali_results_preserves_available_previous_round_when_new_weekend_started -> GET /api/quali-results — начало нового уикенда не скрывает последнюю доступную квалификацию.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_quali_latest_replaces_stale_cached_round -> Latest перепроверяет новый этап через тот же round-provider, что и Архив.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_sprint_results_preserves_available_previous_round_when_new_weekend_started -> Начало нового уикенда не скрывает последний доступный спринт.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_sprint_quali_results_preserves_available_previous_round_when_new_weekend_started -> Начало нового уикенда не скрывает последний доступный спринт-квалификацию.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_quali_results_archive_round_provider_error_returns_empty_not_500 -> GET /api/quali-results?round=N — при ошибке источника не падает 500, возвращает пустой ответ.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_race_results_archive_round_bypasses_reset -> GET /api/race-results?round=N — архивный запрос не скрывается reset-логикой нового уикенда.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_race_results_latest_falls_back_when_latest_round_incomplete -> GET /api/race-results — если последний завершенный этап с неполными данными, берется предыдущий полный.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_car_image_404 -> GET /api/car-image — машина не найдена.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_team_logo_404 -> GET /api/team-logo — логотип не найден.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_pilot_portrait_uses_local_season_file_and_crops_head -> GET /api/pilot-portrait — берёт локальный файл сезона и сильно кропает верх.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_pilot_portrait_preserves_ready_transparent_headshot -> Готовый квадратный PNG с альфой не обрезается повторно.
+.
+tests\test_api.py
+[CHECK] tests/test_api.py::test_api_static_not_api_route -> Запрос api/xxx без реального эндпоинта — 404.
+.
+tests\test_auth_api.py
+[CHECK] tests/test_auth_api.py::test_email_session_csrf_and_link_endpoint -> test email session csrf and link endpoint
+.
+tests\test_auth_api.py
+[CHECK] tests/test_auth_api.py::test_account_deletion_removes_linked_personal_data -> Authenticated deletion removes the account and Telegram-keyed personal records.
+.
+tests\test_auth_api.py
+[CHECK] tests/test_auth_api.py::test_linked_web_session_can_use_personalized_api -> test linked web session can use personalized api
+.
+tests\test_auth_api.py
+[CHECK] tests/test_auth_api.py::test_email_only_session_can_save_and_load_predictions -> Email-only account owns predictions by users.id without a Telegram link.
+.
+tests\test_auth_api.py
+[CHECK] tests/test_auth_api.py::test_forgot_password_email_link_resets_password_via_http -> test forgot password email link resets password via http
+.
+tests\test_bot_comparison.py
+[CHECK] tests/test_bot_comparison.py::test_actual_dispatcher_season_pair_and_graph_not_standings[drivers] -> test actual dispatcher season pair and graph not standings[drivers]
+.
+tests\test_bot_comparison.py
+[CHECK] tests/test_bot_comparison.py::test_actual_dispatcher_season_pair_and_graph_not_standings[teams] -> test actual dispatcher season pair and graph not standings[teams]
+.
+tests\test_bot_comparison.py
+[CHECK] tests/test_bot_comparison.py::test_picker_is_paged_and_callbacks_use_indices_not_historical_codes -> test picker is paged and callbacks use indices not historical codes
+.
+tests\test_bot_comparison.py
+[CHECK] tests/test_bot_comparison.py::test_points_include_sprint_and_latest_equals_table[drivers-ids0] -> test points include sprint and latest equals table[drivers-ids0]
+.
+tests\test_bot_comparison.py
+[CHECK] tests/test_bot_comparison.py::test_points_include_sprint_and_latest_equals_table[teams-ids1] -> test points include sprint and latest equals table[teams-ids1]
+.
+tests\test_bot_comparison.py
+[CHECK] tests/test_bot_comparison.py::test_missing_snapshot_is_gap_and_legitimate_absence_is_zero -> test missing snapshot is gap and legitimate absence is zero
+.
+tests\test_bot_comparison.py
+[CHECK] tests/test_bot_comparison.py::test_snapshot_from_another_round_is_not_relabelled -> test snapshot from another round is not relabelled
+.
+tests\test_bot_comparison.py
+[CHECK] tests/test_bot_comparison.py::test_same_three_letter_code_still_matches_stable_driver_identity -> test same three letter code still matches stable driver identity
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_build_next_race_payload_ok -> build_next_race_payload возвращает данные о ближайшей гонке.
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_build_next_race_payload_cancelled_next_event -> build_next_race_payload помечает ближайший этап как отменённый, если is_cancelled=True в расписании.
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_build_next_race_payload_no_schedule -> build_next_race_payload — нет расписания.
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_build_next_race_payload_season_finished -> build_next_race_payload — сезон завершён (все гонки в прошлом).
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_parse_season_from_text_default -> _parse_season_from_text — по умолчанию текущий год.
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_parse_season_from_text_with_year -> _parse_season_from_text — год в аргументе.
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_parse_season_from_text_invalid -> _parse_season_from_text — нечисловой аргумент.
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_build_drivers_keyboard -> build_drivers_keyboard создаёт клавиатуру с пилотами.
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_build_drivers_keyboard_exclude -> build_drivers_keyboard с exclude_code не показывает этого пилота.
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_validate_f1_year_valid -> validate_f1_year — валидные годы.
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_validate_f1_year_too_old -> validate_f1_year — до 1950.
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_validate_f1_year_future -> validate_f1_year — будущий год.
+.
+tests\test_bot_handlers.py
+[CHECK] tests/test_bot_handlers.py::test_build_utc_zones_with_capitals_labels -> Список UTC-зон для бота содержит подписи со столицами.
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_three_buttons_preserve_rich_body_and_order -> test three buttons preserve rich body and order
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_multiple_buttons_allow_blank_lines_and_optional_separator -> test multiple buttons allow blank lines and optional separator
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_multiple_buttons_reject_entire_block[/button X | /history] -> test invalid multiple buttons reject entire block[/button X | /history]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_multiple_buttons_reject_entire_block[Hello\n/button X | /history\nOther text\n/button Y | /drivers] -> test invalid multiple buttons reject entire block[Hello\n/button X | /history\nOther text\n/button Y | /drivers]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_multiple_buttons_reject_entire_block[Hello\n/button X | /history\n/button Y | javascript:alert(1)] -> test invalid multiple buttons reject entire block[Hello\n/button X | /history\n/button Y | javascript:alert(1)]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_multiple_buttons_reject_entire_block[Hello\n/button X | /history\n/button Y | //evil.test] -> test invalid multiple buttons reject entire block[Hello\n/button X | /history\n/button Y | //evil.test]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_multiple_buttons_reject_entire_block[Hello\n/button X | /history\n/button] -> test invalid multiple buttons reject entire block[Hello\n/button X | /history\n/button]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_multiple_buttons_reject_entire_block[Hello\n/button X | /history\n/button | /drivers] -> test invalid multiple buttons reject entire block[Hello\n/button X | /history\n/button | /drivers]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_multiple_buttons_reject_entire_block[Hello\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history] -> test invalid multiple buttons reject entire block[Hello\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history\n/button X | /history]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_ten_buttons_and_formatting_mismatch -> test ten buttons and formatting mismatch
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_button_parser_preserves_rich_text -> test button parser preserves rich text
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_formatted_button_footer_preserves_body_and_closes_tags[<b>\u041f\u0440\u0438\u0432\u0435\u0442 \u2764\ufe0f</b>\n\n<b>/button \u2b50\ufe0f \u041e\u0431\u0440\u0430\u0442\u043d\u0430\u044f \u0441\u0432\u044f\u0437\u044c /contact-admin</b>] -> test formatted button footer preserves body and closes tags[<b>\u041f\u0440\u0438\u0432\u0435\u0442 \u2764\ufe0f</b>\n\n<b>/button \u2b50\ufe0f \u041e\u0431\u0440\u0430\u0442\u043d\u0430\u044f \u0441\u0432\u044f\u0437\u044c /contact-admin</b>]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_formatted_button_footer_preserves_body_and_closes_tags[<b>\u041f\u0440\u0438\u0432\u0435\u0442 \u2764\ufe0f\n\n/button \u2b50\ufe0f \u041e\u0431\u0440\u0430\u0442\u043d\u0430\u044f \u0441\u0432\u044f\u0437\u044c /contact-admin</b>] -> test formatted button footer preserves body and closes tags[<b>\u041f\u0440\u0438\u0432\u0435\u0442 \u2764\ufe0f\n\n/button \u2b50\ufe0f \u041e\u0431\u0440\u0430\u0442\u043d\u0430\u044f \u0441\u0432\u044f\u0437\u044c /contact-admin</b>]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_formatted_button_footer_preserves_body_and_closes_tags[<b>\u041f\u0440\u0438\u0432\u0435\u0442 \u2764\ufe0f</b>\n\n/button <tg-emoji emoji-id="123">\u2b50\ufe0f</tg-emoji> \u041e\u0431\u0440\u0430\u0442\u043d\u0430\u044f \u0441\u0432\u044f\u0437\u044c /contact-admin] -> test formatted button footer preserves body and closes tags[<b>\u041f\u0440\u0438\u0432\u0435\u0442 \u2764\ufe0f</b>\n\n/button <tg-emoji emoji-id="123">\u2b50\ufe0f</tg-emoji> \u041e\u0431\u0440\u0430\u0442\u043d\u0430\u044f \u0441\u0432\u044f\u0437\u044c /contact-admin]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_formatted_button_footer_preserves_body_and_closes_tags[<b>\u041f\u0440\u0438\u0432\u0435\u0442 \u2764\ufe0f</b>\n\n/button \u2b50\ufe0f \u041e\u0431\u0440\u0430\u0442\u043d\u0430\u044f \u0441\u0432\u044f\u0437\u044c <a href="https://example.test">/contact-admin</a>] -> test formatted button footer preserves body and closes tags[<b>\u041f\u0440\u0438\u0432\u0435\u0442 \u2764\ufe0f</b>\n\n/button \u2b50\ufe0f \u041e\u0431\u0440\u0430\u0442\u043d\u0430\u044f \u0441\u0432\u044f\u0437\u044c <a href="https://example.test">/contact-admin</a>]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_button_cut_preserves_html_entities_and_nested_formatting -> test button cut preserves html entities and nested formatting
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_directives_rejected[/button X | javascript:alert(1)] -> test invalid directives rejected[/button X | javascript:alert(1)]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_directives_rejected[/button X | //evil.test/predictions] -> test invalid directives rejected[/button X | //evil.test/predictions]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_directives_rejected[/button X | https://user:pass@example.com] -> test invalid directives rejected[/button X | https://user:pass@example.com]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_directives_rejected[/button X | /%2fevil.test] -> test invalid directives rejected[/button X | /%2fevil.test]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_directives_rejected[/button | /predictions] -> test invalid directives rejected[/button | /predictions]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_directives_rejected[/button X | /predictions\nmore] -> test invalid directives rejected[/button X | /predictions\nmore]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_directives_rejected[/button X | /predictions\n/button Y | /voting] -> test invalid directives rejected[/button X | /predictions\n/button Y | /voting]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_arbitrary_destinations_and_optional_separator[/contact-admin] -> test arbitrary destinations and optional separator[/contact-admin]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_arbitrary_destinations_and_optional_separator[/news?tag=a&tag=b#latest] -> test arbitrary destinations and optional separator[/news?tag=a&tag=b#latest]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_arbitrary_destinations_and_optional_separator[https://t.me/example] -> test arbitrary destinations and optional separator[https://t.me/example]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_arbitrary_destinations_and_optional_separator[https://example.com/post?id=1] -> test arbitrary destinations and optional separator[https://example.com/post?id=1]
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_external_link_preview_needs_no_miniapp_config -> test external link preview needs no miniapp config
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_preview_only_then_double_click_sends_once -> test preview only then double click sends once
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_owner_cancel_expiry_and_replacement -> test owner cancel expiry and replacement
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_missing_configuration_no_confirmation -> test missing configuration no confirmation
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_album_uses_separate_button_message -> test album uses separate button message
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_three_buttons_preview_is_private_and_footer_is_removed -> test three buttons preview is private and footer is removed
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_invalid_third_button_has_no_preview_or_draft -> test invalid third button has no preview or draft
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_confirmation_captures_all_three_buttons -> test confirmation captures all three buttons
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_delivery_serialization_preserves_three_miniapp_buttons[photos0] -> Capture is inert: exercise the actual delivery path without Telegram or DB writes.
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_delivery_serialization_preserves_three_miniapp_buttons[photos1] -> Capture is inert: exercise the actual delivery path without Telegram or DB writes.
+.
+tests\test_broadcast_preview.py
+[CHECK] tests/test_broadcast_preview.py::test_delivery_serialization_preserves_three_miniapp_buttons[photos2] -> Capture is inert: exercise the actual delivery path without Telegram or DB writes.
+.
+tests\test_calendar_export.py
+[CHECK] tests/test_calendar_export.py::test_calendar_exports_utc_and_folds_multibyte_lines -> test calendar exports utc and folds multibyte lines
+.
+tests\test_calendar_export.py
+[CHECK] tests/test_calendar_export.py::test_calendar_title_cannot_inject_ics_properties -> test calendar title cannot inject ics properties
+.
+tests\test_calendar_export.py
+[CHECK] tests/test_calendar_export.py::test_calendar_rejects_unknown_or_timezone_ambiguous_starts[bad] -> test calendar rejects unknown or timezone ambiguous starts[bad]
+.
+tests\test_calendar_export.py
+[CHECK] tests/test_calendar_export.py::test_calendar_rejects_unknown_or_timezone_ambiguous_starts[] -> test calendar rejects unknown or timezone ambiguous starts[]
+.
+tests\test_calendar_export.py
+[CHECK] tests/test_calendar_export.py::test_calendar_rejects_unknown_or_timezone_ambiguous_starts[2026-10-09T12:30:00] -> test calendar rejects unknown or timezone ambiguous starts[2026-10-09T12:30:00]
+.
+tests\test_calendar_export.py
+[CHECK] tests/test_calendar_export.py::test_calendar_rejects_unknown_or_timezone_ambiguous_starts[2026-10-09] -> test calendar rejects unknown or timezone ambiguous starts[2026-10-09]
+.
+tests\test_calendar_export.py
+[CHECK] tests/test_calendar_export.py::test_calendar_rejects_unknown_or_timezone_ambiguous_starts[99999999] -> test calendar rejects unknown or timezone ambiguous starts[99999999]
+.
+tests\test_calendar_export.py
+[CHECK] tests/test_calendar_export.py::test_calendar_http_download_is_public_bounded_and_not_html -> test calendar http download is public bounded and not html
+.
+tests\test_classification_card.py
+[CHECK] tests/test_classification_card.py::test_card_keeps_full_grid_and_telegram_friendly_dimensions[RACE CLASSIFICATION] -> test card keeps full grid and telegram friendly dimensions[RACE CLASSIFICATION]
+.
+tests\test_classification_card.py
+[CHECK] tests/test_classification_card.py::test_card_keeps_full_grid_and_telegram_friendly_dimensions[QUALIFYING CLASSIFICATION] -> test card keeps full grid and telegram friendly dimensions[QUALIFYING CLASSIFICATION]
+.
+tests\test_classification_card.py
+[CHECK] tests/test_classification_card.py::test_card_keeps_full_grid_and_telegram_friendly_dimensions[SPRINT QUALIFYING] -> test card keeps full grid and telegram friendly dimensions[SPRINT QUALIFYING]
+.
+tests\test_classification_card.py
+[CHECK] tests/test_classification_card.py::test_portraits_missing_or_broken_do_not_block_results -> test portraits missing or broken do not block results
+.
+tests\test_classification_card.py
+[CHECK] tests/test_classification_card.py::test_qualifying_fallback_on_partial_or_failed_primary[payload0] -> test qualifying fallback on partial or failed primary[payload0]
+.
+tests\test_classification_card.py
+[CHECK] tests/test_classification_card.py::test_qualifying_fallback_on_partial_or_failed_primary[payload1] -> test qualifying fallback on partial or failed primary[payload1]
+.
+tests\test_classification_card.py
+[CHECK] tests/test_classification_card.py::test_qualifying_fallback_on_partial_or_failed_primary[payload2] -> test qualifying fallback on partial or failed primary[payload2]
+.
+tests\test_classification_card.py
+[CHECK] tests/test_classification_card.py::test_qualifying_uses_finished_round_and_retries_wrong_round -> test qualifying uses finished round and retries wrong round
+.
+tests\test_classification_card.py
+[CHECK] tests/test_classification_card.py::test_old_voting_results_are_skipped_without_telegram -> test old voting results are skipped without telegram
+.
+tests\test_classification_card.py
+[CHECK] tests/test_classification_card.py::test_partial_delivery_retries_only_failed_recipient -> test partial delivery retries only failed recipient
+.
+tests\test_classification_card.py
+[CHECK] tests/test_classification_card.py::test_startup_does_not_send_old_predictions_but_still_scores -> test startup does not send old predictions but still scores
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_keyboard_is_two_rows_and_all_old_actions_are_reachable -> test keyboard is two rows and all old actions are reachable
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_main_buttons_escape_year_or_feedback_input[\U0001f3c1 \u0423\u0438\u043a-\u044d\u043d\u0434] -> test main buttons escape year or feedback input[\U0001f3c1 \u0423\u0438\u043a-\u044d\u043d\u0434]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_main_buttons_escape_year_or_feedback_input[\U0001f52e \u041f\u0440\u043e\u0433\u043d\u043e\u0437\u044b] -> test main buttons escape year or feedback input[\U0001f52e \u041f\u0440\u043e\u0433\u043d\u043e\u0437\u044b]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_main_buttons_escape_year_or_feedback_input[\U0001f4da \u0420\u0430\u0437\u0434\u0435\u043b\u044b] -> test main buttons escape year or feedback input[\U0001f4da \u0420\u0430\u0437\u0434\u0435\u043b\u044b]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_main_buttons_escape_year_or_feedback_input[\U0001f464 \u041c\u043e\u0451] -> test main buttons escape year or feedback input[\U0001f464 \u041c\u043e\u0451]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_submenus_edit_the_same_message_and_have_back_navigation -> test submenus edit the same message and have back navigation
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_home_button_resends_persistent_keyboard_even_when_client_lost_it[None] -> test home button resends persistent keyboard even when client lost it[None]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_home_button_resends_persistent_keyboard_even_when_client_lost_it[FeedbackState:waiting_for_message] -> test home button resends persistent keyboard even when client lost it[FeedbackState:waiting for message]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_home_button_resends_persistent_keyboard_even_when_client_lost_it[DriversYearState:year] -> test home button resends persistent keyboard even when client lost it[DriversYearState:year]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[next] -> test callbacks reuse actions with clicker not bot identity[next]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[calendar] -> test callbacks reuse actions with clicker not bot identity[calendar]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[recap] -> test callbacks reuse actions with clicker not bot identity[recap]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[drivers] -> test callbacks reuse actions with clicker not bot identity[drivers]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[teams] -> test callbacks reuse actions with clicker not bot identity[teams]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[compare] -> test callbacks reuse actions with clicker not bot identity[compare]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[history] -> test callbacks reuse actions with clicker not bot identity[history]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[guide] -> test callbacks reuse actions with clicker not bot identity[guide]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[community] -> test callbacks reuse actions with clicker not bot identity[community]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[favorites] -> test callbacks reuse actions with clicker not bot identity[favorites]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[settings] -> test callbacks reuse actions with clicker not bot identity[settings]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_callbacks_reuse_actions_with_clicker_not_bot_identity[feedback] -> test callbacks reuse actions with clicker not bot identity[feedback]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_restore_menu_clears_pending_input_without_sending_feedback[/menu] -> test restore menu clears pending input without sending feedback[/menu]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_restore_menu_clears_pending_input_without_sending_feedback[/cancel] -> test restore menu clears pending input without sending feedback[/cancel]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_driver_year_input_still_works_after_opening_from_submenu -> test driver year input still works after opening from submenu
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_start_is_one_short_message_and_does_not_change_preferences -> test start is one short message and does not change preferences
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_group_start_has_no_private_keyboard_or_account_changes -> test group start has no private keyboard or account changes
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_unknown_menu_callback_is_safe_and_does_not_clear_input[nav:action:unknown] -> test unknown menu callback is safe and does not clear input[nav:action:unknown]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_unknown_menu_callback_is_safe_and_does_not_clear_input[nav:section:unknown] -> test unknown menu callback is safe and does not clear input[nav:section:unknown]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_unknown_menu_callback_is_safe_and_does_not_clear_input[nav:action:settings:other] -> test unknown menu callback is safe and does not clear input[nav:action:settings:other]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_unknown_menu_callback_is_safe_and_does_not_clear_input[nav:] -> test unknown menu callback is safe and does not clear input[nav:]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_group_callbacks_cannot_open_personal_actions[nav:action:settings] -> test group callbacks cannot open personal actions[nav:action:settings]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_group_callbacks_cannot_open_personal_actions[nav:section:home] -> test group callbacks cannot open personal actions[nav:section:home]
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_miniapp_buttons_keep_exact_destinations_and_timeout_has_a_back_button -> test miniapp buttons keep exact destinations and timeout has a back button
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_all_drivers_remain_available_in_small_editable_pages -> test all drivers remain available in small editable pages
+.
+tests\test_compact_bot_menu.py
+[CHECK] tests/test_compact_bot_menu.py::test_driver_page_acknowledges_before_loading_and_rejects_invalid_input -> test driver page acknowledges before loading and rejects invalid input
+.
+tests\test_db.py
+[CHECK] tests/test_db.py::test_get_or_create_user -> get_or_create_user создаёт пользователя при первом обращении.
+.
+tests\test_db.py
+[CHECK] tests/test_db.py::test_get_user_settings_default -> get_user_settings возвращает настройки по умолчанию.
+.
+tests\test_db.py
+[CHECK] tests/test_db.py::test_update_user_setting -> update_user_setting сохраняет значение.
+.
+tests\test_db.py
+[CHECK] tests/test_db.py::test_favorite_drivers -> Добавление и удаление избранных пилотов.
+.
+tests\test_db.py
+[CHECK] tests/test_db.py::test_favorite_teams -> Добавление и удаление избранных команд.
+.
+tests\test_db.py
+[CHECK] tests/test_db.py::test_race_votes -> Сохранение и получение оценок гонок.
+.
+tests\test_db.py
+[CHECK] tests/test_db.py::test_driver_votes -> Сохранение и получение голосов за пилота дня.
+.
+tests\test_db.py
+[CHECK] tests/test_db.py::test_get_race_vote_stats -> get_race_vote_stats возвращает средние оценки.
+.
+tests\test_db.py
+[CHECK] tests/test_db.py::test_get_driver_vote_stats -> get_driver_vote_stats возвращает голоса за пилотов.
+.
+tests\test_db.py
+[CHECK] tests/test_db.py::test_get_driver_vote_round_winners -> Победитель «Пилота дня» рассчитывается отдельно для каждого этапа.
+.
+tests\test_db_receipts.py
+[CHECK] tests/test_db_receipts.py::test_receipt_survives_stale_read_on_shared_connection -> test receipt survives stale read on shared connection
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_card_is_opt_in_curated_and_revoke_is_owner_only -> test card is opt in curated and revoke is owner only
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_unfinished_and_provisional_predictions_are_not_final -> test unfinished and provisional predictions are not final
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_guest_cannot_share_private_data_and_cross_site_is_rejected -> test guest cannot share private data and cross site is rejected
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_racing_challenge_requires_saved_record_and_matching_track -> test racing challenge requires saved record and matching track
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_cup_counts_only_selected_future_rounds_and_invite_is_revocable -> test cup counts only selected future rounds and invite is revocable
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_cup_cannot_use_closed_rounds_or_less_than_three_events -> test cup cannot use closed rounds or less than three events
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_referral_only_activates_on_real_save_and_no_self_referrals -> test referral only activates on real save and no self referrals
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_weekly_ranking_does_not_reset_all_time_records -> test weekly ranking does not reset all time records
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_weekly_results_links_keep_the_requested_week -> test weekly results links keep the requested week
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_public_history_and_recap_share_exact_context_without_accounts -> test public history and recap share exact context without accounts
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_schema_migration_repeatable_and_expired_links_stop_working -> test schema migration repeatable and expired links stop working
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_deep_link_tokens_fit_telegram_and_preserve_destination -> test deep link tokens fit telegram and preserve destination
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_social_failure_does_not_invalidate_saved_scores_or_forecasts -> test social failure does not invalidate saved scores or forecasts
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_failed_challenge_commit_rolls_back_only_its_entry -> test failed challenge commit rolls back only its entry
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_referral_game_first_then_forecast_and_return -> test referral game first then forecast and return
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_achievements_require_another_real_participant -> test achievements require another real participant
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_share_metrics_are_deduplicated_and_aggregate_only -> test share metrics are deduplicated and aggregate only
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_native_card_preparation_binds_verified_recipient_and_never_sends -> test native card preparation binds verified recipient and never sends
+.
+tests\test_engagement.py
+[CHECK] tests/test_engagement.py::test_bot_name_discovery_is_cached_and_local_previews_stay_offline -> test bot name discovery is cached and local previews stay offline
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_priorities[error0-minimal] -> test priorities[error0-minimal]
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_priorities[error1-low] -> test priorities[error1-low]
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_priorities[error2-low] -> test priorities[error2-low]
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_priorities[error3-medium] -> test priorities[error3-medium]
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_priorities[error4-critical] -> test priorities[error4-critical]
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_priorities[error5-blocking] -> test priorities[error5-blocking]
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_priorities[error6-blocking] -> test priorities[error6-blocking]
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_sensitive_values_are_redacted -> test sensitive values are redacted
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_admin_inbox_without_push_enrollment_dedup_and_escalation -> test admin inbox without push enrollment dedup and escalation
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_parallel_incidents_are_deduplicated -> test parallel incidents are deduplicated
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_database_failure_falls_back_without_recursive_alerts -> test database failure falls back without recursive alerts
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_middleware_reports_stale_callback_without_reply -> test middleware reports stale callback without reply
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_activity_lock_does_not_drop_bot_update -> test activity lock does not drop bot update
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_telegram_failure_does_not_lose_website_alert -> test telegram failure does not lose website alert
+.
+tests\test_error_alerts.py
+[CHECK] tests/test_error_alerts.py::test_push_is_not_delivered_after_admin_demotion -> test push is not delivered after admin demotion
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_race_results_prefer_classification_to_live_positions -> test race results prefer classification to live positions
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_live_positions_are_explicitly_provisional -> test live positions are explicitly provisional
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_official_race_table_preserves_points_gaps_and_unclassified_retirements -> test official race table preserves points gaps and unclassified retirements
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_official_race_table_rejects_partial_and_invalid_points -> test official race table rejects partial and invalid points
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_incomplete_fastf1_uses_official_published_classification -> test incomplete fastf1 uses official published classification
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_official_race_resolves_requested_round_and_never_uses_latest -> test official race resolves requested round and never uses latest
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_published_snapshot_survives_provider_outage_and_validates_identity -> test published snapshot survives provider outage and validates identity
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_openf1_driver_lookup_fills_session_placeholders_from_meeting -> Временный пустой /drivers для сессии не должен превращать всех пилотов в '?'.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_shorten_wiki_bio_keeps_complete_sentences -> test shorten wiki bio keeps complete sentences
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_shorten_wiki_bio_removes_disambiguation_notice -> test shorten wiki bio removes disambiguation notice
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_extract_team_principal_from_infobox -> test extract team principal from infobox
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_extract_team_principal_ignores_missing_infobox_row -> test extract team principal ignores missing infobox row
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_sort_standings_zero_last_normal -> sort_standings_zero_last — обычная сортировка по позициям.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_sort_standings_zero_last_zero_last -> sort_standings_zero_last — пилоты с 0/NaN в конце.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_sort_standings_zero_last_empty -> sort_standings_zero_last — пустой DataFrame.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_sort_standings_zero_last_none_handling -> sort_standings_zero_last — None/отсутствие колонки.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_get_driver_details_uses_wiki_thumbnail_when_openf1_unavailable -> Если OpenF1 недоступен, карточка пилота получает headshot из Wikipedia thumbnail.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_fill_drivers_headshots_uses_wiki_thumbnail_when_openf1_unavailable -> Для состава команды при пустом OpenF1 берется Wikipedia thumbnail.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_get_sprint_quali_results_async_falls_back_to_openf1_when_fastf1_empty -> Если FastF1 не дал SQ, используем OpenF1 fallback по дате sprint_quali.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_get_season_schedule_short_marks_cancelled_event -> Если EventFormat содержит cancelled/canceled, этап помечается is_cancelled=True.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_get_practice_results_returns_empty_when_laps_were_not_loaded -> Неполная сессия FastF1 не должна превращаться в HTTP 500.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_get_practice_results_includes_fastest_lap_sector_times -> FastF1-сектора быстрейшего круга безопасно попадают в API-классификацию.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_openf1_practice_results_include_classification_details -> OpenF1 fallback builds the same practice payload as the FastF1 provider.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_practice_results_async_prefers_openf1_and_skips_fastf1 -> A populated OpenF1 response avoids the slower FastF1 fallback.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_formula1_practice_parser_builds_shared_result_shape -> test formula1 practice parser builds shared result shape
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_formula1_practice_fallback_uses_calendar_round_link -> test formula1 practice fallback uses calendar round link
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_published_standings_keep_round_metadata_and_fractional_points[drivers] -> test published standings keep round metadata and fractional points[drivers]
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_published_standings_keep_round_metadata_and_fractional_points[teams] -> test published standings keep round metadata and fractional points[teams]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_recap_prioritizes_leader_change_and_first_win -> test recap prioritizes leader change and first win
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_gap_compares_only_same_two_contenders -> test gap compares only same two contenders
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_gap_direction_and_amount[95-\u0441\u043e\u043a\u0440\u0430\u0442\u0438\u043b\u0441\u044f] -> test gap direction and amount[95-\u0441\u043e\u043a\u0440\u0430\u0442\u0438\u043b\u0441\u044f]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_gap_direction_and_amount[70-\u0432\u044b\u0440\u043e\u0441] -> test gap direction and amount[70-\u0432\u044b\u0440\u043e\u0441]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_constructor_leader_change -> test constructor leader change
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_missing_previous_standings_does_not_invent_first_win_or_clinch -> test missing previous standings does not invent first win or clinch
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_start_finish_gain_is_not_called_overtaking -> test start finish gain is not called overtaking
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_championship_gain_is_short_and_keeps_standings_context[drivers] -> test championship gain is short and keeps standings context[drivers]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_championship_gain_is_short_and_keeps_standings_context[teams] -> test championship gain is short and keeps standings context[teams]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_classification_without_marker_is_valid_official_frame -> test classification without marker is valid official frame
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_zero_point_live_skeleton_cannot_generate_recap -> test zero point live skeleton cannot generate recap
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_recap_rejects_unconfirmed_classification[provisional] -> test recap rejects unconfirmed classification[provisional]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_recap_rejects_unconfirmed_classification[points] -> test recap rejects unconfirmed classification[points]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_recap_rejects_unconfirmed_classification[duplicate] -> test recap rejects unconfirmed classification[duplicate]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_recap_rejects_unconfirmed_classification[missing] -> test recap rejects unconfirmed classification[missing]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_recap_rejects_unconfirmed_classification[nan] -> test recap rejects unconfirmed classification[nan]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_telegram_escapes_and_hides_spoilers_without_cutting_html -> test telegram escapes and hides spoilers without cutting html
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_waiting_recap_does_not_request_championship -> test waiting recap does not request championship
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_ready_and_partial_recap_have_consistent_scope -> test ready and partial recap have consistent scope
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_history_preserves_fractional_points_and_stable_identity -> test history preserves fractional points and stable identity
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_history_distinguishes_absence_and_source_failure -> test history distinguishes absence and source failure
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_history_endpoint_validates_range_and_identifiers -> test history endpoint validates range and identifiers
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_guides_source_linked_not_mutable_and_unknown_not_fabricated -> test guides source linked not mutable and unknown not fabricated
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_history_retains_unranked_driver_without_inventing_position -> test history retains unranked driver without inventing position
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_first_podium_describes_season_not_career -> test first podium describes season not career
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_stale_driver_history_cannot_prove_first_podium -> test stale driver history cannot prove first podium
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_historical_failure_never_returns_modern_zero_roster[get_driver_standings_async] -> test historical failure never returns modern zero roster[get driver standings async]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_historical_failure_never_returns_modern_zero_roster[get_constructor_standings_async] -> test historical failure never returns modern zero roster[get constructor standings async]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_career_pagination_does_not_skip_records[_fetch_driver_career_results-alonso] -> test career pagination does not skip records[ fetch driver career results-alonso]
+.
+tests\test_f1_insights.py
+[CHECK] tests/test_f1_insights.py::test_career_pagination_does_not_skip_records[_fetch_constructor_career_results-ferrari] -> test career pagination does not skip records[ fetch constructor career results-ferrari]
+.
+tests\test_insight_bot_ux.py
+[CHECK] tests/test_insight_bot_ux.py::test_status_is_immediate_truthful_and_cleaned_on_success -> test status is immediate truthful and cleaned on success
+.
+tests\test_insight_bot_ux.py
+[CHECK] tests/test_insight_bot_ux.py::test_status_is_cleaned_on_failure -> test status is cleaned on failure
+.
+tests\test_insight_bot_ux.py
+[CHECK] tests/test_insight_bot_ux.py::test_long_wait_explains_work_is_still_running -> test long wait explains work is still running
+.
+tests\test_insight_bot_ux.py
+[CHECK] tests/test_insight_bot_ux.py::test_start_menu_is_compact_and_secondary_actions_remain_discoverable -> test start menu is compact and secondary actions remain discoverable
+.
+tests\test_insight_bot_ux.py
+[CHECK] tests/test_insight_bot_ux.py::test_driver_answers_loading_before_awaiting_source -> test driver answers loading before awaiting source
+.
+tests\test_insight_bot_ux.py
+[CHECK] tests/test_insight_bot_ux.py::test_driver_without_code_opens_named_buttons -> test driver without code opens named buttons
+.
+tests\test_insight_bot_ux.py
+[CHECK] tests/test_insight_bot_ux.py::test_source_failure_replaces_loading_with_useful_message -> test source failure replaces loading with useful message
+.
+tests\test_insight_bot_ux.py
+[CHECK] tests/test_insight_bot_ux.py::test_history_has_loading_and_discoverable_driver_button -> test history has loading and discoverable driver button
+.
+tests\test_insight_bot_ux.py
+[CHECK] tests/test_insight_bot_ux.py::test_mini_app_lookup_timeout_does_not_block_result -> test mini app lookup timeout does not block result
+.
+tests\test_insight_bot_ux.py
+[CHECK] tests/test_insight_bot_ux.py::test_callback_acknowledged_before_loading -> test callback acknowledged before loading
+.
+tests\test_mini_app_links.py
+[CHECK] tests/test_mini_app_links.py::test_private_chat_button_targets_voting_stage -> test private chat button targets voting stage
+.
+tests\test_mini_app_links.py
+[CHECK] tests/test_mini_app_links.py::test_button_resolves_existing_bot_menu_when_env_is_missing -> test button resolves existing bot menu when env is missing
+.
+tests\test_mini_app_links.py
+[CHECK] tests/test_mini_app_links.py::test_non_https_configuration_cannot_generate_a_broken_telegram_button -> test non https configuration cannot generate a broken telegram button
+.
+tests\test_mini_app_links.py
+[CHECK] tests/test_mini_app_links.py::test_prediction_notifications_contain_destination_buttons -> test prediction notifications contain destination buttons
+.
+tests\test_mini_app_links.py
+[CHECK] tests/test_mini_app_links.py::test_multiple_destinations_resolve_menu_once -> test multiple destinations resolve menu once
+.
+tests\test_mini_app_links.py
+[CHECK] tests/test_mini_app_links.py::test_mixed_buttons_and_independent_queries -> test mixed buttons and independent queries
+.
+tests\test_mini_app_links.py
+[CHECK] tests/test_mini_app_links.py::test_external_only_buttons_do_not_resolve_miniapp -> test external only buttons do not resolve miniapp
+.
+tests\test_mini_app_links.py
+[CHECK] tests/test_mini_app_links.py::test_no_partial_keyboard_on_config_or_destination_error -> test no partial keyboard on config or destination error
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_group_notifications_no_time_line -> В групповых чатах не показываем строку «Начало в HH:MM (UTC)», только заголовок, через, трасса, дата.
+[PREVIEW] Group race reminder
+          \U0001f3ce \u0421\u043a\u043e\u0440\u043e \u0433\u043e\u043d\u043a\u0430!
+
+          <tg-time unix="1772377200" format="r">\u0427\u0435\u0440\u0435\u0437 1 \u0447.</tg-time> \u0441\u0442\u0430\u0440\u0442: Bahrain Grand Prix \U0001f3c1
+          \U0001f4cd \u0422\u0440\u0430\u0441\u0441\u0430: Sakhir
+          \U0001f4c5 \u0414\u0430\u0442\u0430: 01.03.2026
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_private_notifications_keep_user_timezone_wording -> test private notifications keep user timezone wording
+[PREVIEW] Private race reminder
+          \U0001f3ce \u0421\u043a\u043e\u0440\u043e \u0433\u043e\u043d\u043a\u0430!
+
+          <tg-time unix="1772377200" format="r">\u0427\u0435\u0440\u0435\u0437 1 \u0447.</tg-time> \u0441\u0442\u0430\u0440\u0442: Bahrain Grand Prix \U0001f3c1
+          \U0001f4cd \u0422\u0440\u0430\u0441\u0441\u0430: Sakhir
+          \U0001f4c5 \u0414\u0430\u0442\u0430: 01.03.2026
+          \u23f0 \u041d\u0430\u0447\u0430\u043b\u043e \u0432 <tg-time unix="1772377200" format="wDt">18:00 (\u043f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)</tg-time>
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_notification_text_contains_local_date -> test notification text contains local date
+[PREVIEW] Private race reminder with local date
+          \U0001f3ce \u0421\u043a\u043e\u0440\u043e \u0433\u043e\u043d\u043a\u0430!
+
+          <tg-time unix="1772407800" format="r">\u0427\u0435\u0440\u0435\u0437 1 \u0447.</tg-time> \u0441\u0442\u0430\u0440\u0442: Bahrain Grand Prix \U0001f3c1
+          \U0001f4cd \u0422\u0440\u0430\u0441\u0441\u0430: Sakhir
+          \U0001f4c5 \u0414\u0430\u0442\u0430: 02.03.2026
+          \u23f0 \u041d\u0430\u0447\u0430\u043b\u043e \u0432 <tg-time unix="1772407800" format="wDt">02:30 (\u043f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)</tg-time>
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_voting_results_deadline_matches_moscow_wednesday -> Sunday's voting closes on Wednesday at midnight Moscow time.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_two_hour_qualifying_reminder_is_replaced_by_prediction_closing -> test two hour qualifying reminder is replaced by prediction closing
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_voting_results_do_not_depend_on_external_race_results -> Итоги из локальных голосов доставляются даже без внешнего протокола гонки.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_send_notifications_sends_sprint_events -> test check and send notifications sends sprint events
+[PREVIEW] Sent notification #1
+          \u26a1 \u0421\u043a\u043e\u0440\u043e \u0441\u043f\u0440\u0438\u043d\u0442!
+
+          <tg-time unix="1791128551" format="r">Через 1 ч.</tg-time> старт: Miami Grand Prix
+          \U0001f4cd \u0422\u0440\u0430\u0441\u0441\u0430: Miami
+          \U0001f4c5 \u0414\u0430\u0442\u0430: 04.10.2026
+          \u23f0 \u041d\u0430\u0447\u0430\u043b\u043e \u0432 <tg-time unix="1791128551" format="wDt">18:42 (\u043f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)</tg-time>
+[PREVIEW] Sent notification #2
+          \u23f1 \u0421\u043a\u043e\u0440\u043e \u0441\u043f\u0440\u0438\u043d\u0442-\u043a\u0432\u0430\u043b\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f!
+
+          <tg-time unix="1791128491" format="r">Через 59 мин.</tg-time> старт: Miami Grand Prix
+          \U0001f4cd \u0422\u0440\u0430\u0441\u0441\u0430: Miami
+          \U0001f4c5 \u0414\u0430\u0442\u0430: 04.10.2026
+          \u23f0 \u041d\u0430\u0447\u0430\u043b\u043e \u0432 <tg-time unix="1791128491" format="wDt">18:41 (\u043f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)</tg-time>
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_send_results_does_not_mark_round_when_delivery_failed -> Раунд не должен помечаться как отправленный, если фактическая доставка не удалась.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_notify_quali_does_not_mark_round_when_delivery_failed -> Квалификационный раунд не помечается отправленным при провале доставки.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_quali_retries_when_one_recipient_fails_after_another_succeeds -> A transient failure must not permanently lose that recipient's notification.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_startup_baseline_skips_completed_sessions_but_not_future_rounds -> A restart advances all result watermarks without dispatching old sessions.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_startup_resumes_partially_queued_qualifying -> test startup resumes partially queued qualifying
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_startup_baseline_fails_closed_when_schedule_is_unavailable -> No result dispatcher is enabled until startup can establish safe watermarks.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_send_results_does_not_mark_round_when_rows_unparseable -> Если результаты пришли в неразбираемом формате, этап не помечается отправленным (нужен ретрай).
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_notify_quali_does_not_mark_round_when_no_rows -> Если latest-quali временно пустая, раунд не должен считаться отправленным.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_send_results_fallbacks_to_all_users_when_notifications_only_empty -> Legacy-режим: если notifications_only пуст, пост-гоночная рассылка идёт всем пользователям.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_safe_send_photo_wraps_bytes_for_aiogram -> Сгенерированные PNG bytes преобразуются в BufferedInputFile перед Telegram API.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_wait_until_race_can_be_finished -> Live-позиции через 90 минут после старта не рассылаются как финальный результат.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[False-False-False] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[False-False-True] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[False-True-False] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[False-True-True] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[True-False-False] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[True-False-True] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[True-True-False] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[True-True-True] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_notify_quali_fallbacks_to_all_users_when_notifications_only_empty -> Legacy-режим: если notifications_only пуст, пост-квали-рассылка идёт всем пользователям.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_quali_sends_generic_image_and_separate_favorites_message -> Избранные после квалификации приходят отдельным сообщением, как после гонки.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_session_result_workers_are_independent_when_one_feed_fails -> One unavailable classification cannot block other completed-session notifications.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_all_result_event_bindings_are_registered -> Every required ingestion event has a notification handler binding.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_results_ready_status_bypasses_elapsed_time_debounce -> An explicit results_ready transition is eligible immediately.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_completed_sprint_session_dispatches_to_mock_telegram_immediately[sprint_qualifying] -> Both sprint result feeds dispatch on an explicit results_ready transition.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_completed_sprint_session_dispatches_to_mock_telegram_immediately[sprint] -> Both sprint result feeds dispatch on an explicit results_ready transition.
+.
+tests\test_personal_prediction_review.py
+[CHECK] tests/test_personal_prediction_review.py::test_breakdown_uses_the_same_scoring_engine -> test breakdown uses the same scoring engine
+.
+tests\test_personal_prediction_review.py
+[CHECK] tests/test_personal_prediction_review.py::test_private_review_snapshot_and_old_history -> test private review snapshot and old history
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_model_probabilities_and_reproducibility[race] -> test model probabilities and reproducibility[race]
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_model_probabilities_and_reproducibility[qualifying] -> test model probabilities and reproducibility[qualifying]
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_model_weather_changes_risk_and_sparse_drivers_stay_finite -> test model weather changes risk and sparse drivers stay finite
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_model_refuses_missing_data -> test model refuses missing data
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_news_risk_is_explained_and_deduplicated -> test news risk is explained and deduplicated
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_classification_rejects_partial_and_mismatched_event[10] -> test classification rejects partial and mismatched event[10]
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_classification_rejects_partial_and_mismatched_event[20] -> test classification rejects partial and mismatched event[20]
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_past_session_refused_before_fetching_results -> test past session refused before fetching results
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_build_uses_only_past_sessions_and_preserves_sources -> test build uses only past sessions and preserves sources
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_weather_and_news_outage_is_explicit -> test weather and news outage is explicit
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_forecast_routes_reject_guest_and_regular_user -> test forecast routes reject guest and regular user
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_snapshot_save_idempotent_and_settle_without_rewriting_forecast -> test snapshot save idempotent and settle without rewriting forecast
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_job_cannot_be_saved_after_start -> test job cannot be saved after start
+.
+tests\test_prediction_analytics.py
+[CHECK] tests/test_prediction_analytics.py::test_failed_job_is_persisted_and_restart_job_expires -> test failed job is persisted and restart job expires
+.
+tests\test_prediction_api_sources_live.py
+[CHECK] tests/test_prediction_api_sources_live.py::RetirementChronologyDiagnosticTest::test_clear_gap_is_only_a_candidate -> test clear gap is only a candidate
+.
+tests\test_prediction_api_sources_live.py
+[CHECK] tests/test_prediction_api_sources_live.py::LivePredictionApiSourcesTest::test_latest_race_prediction_fields_from_fastf1_and_openf1 -> test latest race prediction fields from fastf1 and openf1
+s
+tests\test_prediction_closing.py
+[CHECK] tests/test_prediction_closing.py::test_closing_window[120-False-False-True] -> test closing window[120-False-False-True]
+.
+tests\test_prediction_closing.py
+[CHECK] tests/test_prediction_closing.py::test_closing_window[121-False-False-False] -> test closing window[121-False-False-False]
+.
+tests\test_prediction_closing.py
+[CHECK] tests/test_prediction_closing.py::test_closing_window[110-False-False-False] -> test closing window[110-False-False-False]
+.
+tests\test_prediction_closing.py
+[CHECK] tests/test_prediction_closing.py::test_closing_window[120-True-False-False] -> test closing window[120-True-False-False]
+.
+tests\test_prediction_closing.py
+[CHECK] tests/test_prediction_closing.py::test_closing_window[120-False-True-False] -> test closing window[120-False-True-False]
+.
+tests\test_prediction_closing.py
+[CHECK] tests/test_prediction_closing.py::test_closing_queues_only_recipients_without_legacy_receipts -> test closing queues only recipients without legacy receipts
+.
+tests\test_prediction_history.py
+[CHECK] tests/test_prediction_history.py::test_archive_merges_split_races_and_uses_persistent_cache -> test archive merges split races and uses persistent cache
+.
+tests\test_prediction_history.py
+[CHECK] tests/test_prediction_history.py::test_partial_download_is_not_cached -> test partial download is not cached
+.
+tests\test_prediction_history.py
+[CHECK] tests/test_prediction_history.py::test_five_seasons_both_sessions_and_cutoff -> test five seasons both sessions and cutoff
+.
+tests\test_prediction_history.py
+[CHECK] tests/test_prediction_history.py::test_deep_factors_history_beyond_six_and_cross_session -> test deep factors history beyond six and cross session
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_fastest_valid_lap_retirement_chronology_and_vsc -> test fastest valid lap retirement chronology and vsc
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_missing_data_and_incomplete_session_are_not_negative_answers -> test missing data and incomplete session are not negative answers
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_tied_retirement_messages_credit_both_but_stopped_is_unconfirmed -> test tied retirement messages credit both but stopped is unconfirmed
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_additional_facts_override_unsafe_lap_count_guess -> test additional facts override unsafe lap count guess
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_source_failure_is_safe -> test source failure is safe
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_openf1_session_matches_exact_schedule_only -> test openf1 session matches exact schedule only
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_openf1_completed_race_facts_exclude_deleted_lap_and_vsc -> test openf1 completed race facts exclude deleted lap and vsc
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_openf1_last_lap_chronology_only_with_clear_gap_and_tied_group -> test openf1 last lap chronology only with clear gap and tied group
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_openf1_fills_missing_facts_without_overwriting_fastf1 -> test openf1 fills missing facts without overwriting fastf1
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_prediction_openf1_retries_transient_endpoint_failure -> test prediction openf1 retries transient endpoint failure
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_prediction_openf1_429_returns_for_batch_cooldown -> test prediction openf1 429 returns for batch cooldown
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_sessions_loader_raises_on_failure_then_recovers -> test sessions loader raises on failure then recovers
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_openf1_recovery_prefers_complete_source -> test openf1 recovery prefers complete source
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_openf1_rate_limit_returns_promptly_for_batch -> test openf1 rate limit returns promptly for batch
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_openf1_missing_endpoint_is_visible_in_preview_note -> test openf1 missing endpoint is visible in preview note
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_openf1_stops_other_requests_after_minute_limit -> test openf1 stops other requests after minute limit
+.
+tests\test_prediction_race_facts.py
+[CHECK] tests/test_prediction_race_facts.py::test_sources_can_reconcile_same_first_retirement_group -> test sources can reconcile same first retirement group
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_preview_inert_apply_atomic_idempotent_and_no_broadcast -> test preview inert apply atomic idempotent and no broadcast
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_recovery_credits_each_driver_in_first_retirement_group -> test recovery credits each driver in first retirement group
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_recovery_can_extend_existing_first_retirement_to_tie -> test recovery can extend existing first retirement to tie
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_stale_preview_rejected -> test stale preview rejected
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_unavailable_data_never_zeros_results_and_background_does_not_apply -> test unavailable data never zeros results and background does not apply
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_conflicting_sources_cannot_be_applied -> test conflicting sources cannot be applied
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_admin_confirmation_and_auth -> test admin confirmation and auth
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_batch_scope_contains_only_calculated_rounds -> test batch scope contains only calculated rounds
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_complete_round_without_new_facts_is_not_waiting -> test complete round without new facts is not waiting
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_updated_results_require_separate_admin_confirmation -> test updated results require separate admin confirmation
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_manual_preview_requires_explicit_apply_and_preserves_evidence -> test manual preview requires explicit apply and preserves evidence
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_manual_conflict_does_not_replace_confirmed_fact -> test manual conflict does not replace confirmed fact
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_manual_confirmation_can_extend_first_retirement_tie -> test manual confirmation can extend first retirement tie
+.
+tests\test_prediction_recovery.py
+[CHECK] tests/test_prediction_recovery.py::test_manual_preview_api_validates_sources_and_auth -> test manual preview api validates sources and auth
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_broadcast_payload_preserves_telegram_formatting -> Подпись альбома сохраняет entities после удаления команды.
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_long_broadcast_text_is_split_at_telegram_limit -> Текст длиннее 4096 символов отправляется безопасными отдельными сообщениями.
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_prediction_fallback_excludes_unavailable_api_categories -> Нет данных по SC/первому сходу/лучшему кругу — категории остаются недоступными.
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_prediction_open_trigger_at_fp1 -> Prediction invitations use FP1, never the old post-FP2 delay.
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_prediction_window_boundaries_are_fp1_inclusive_and_quali_exclusive -> The server is closed before FP1, open at FP1, and closed exactly at qualifying.
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_sprint_prediction_window_uses_fp1_and_sprint_qualifying_cutoff -> Sprint weekends share the FP1 opening and lock at Sprint Qualifying.
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_prediction_open_notification_dispatches_at_fp1 -> test prediction open notification dispatches at fp1
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_unconfirmed_prediction_facts_are_labelled_preliminary -> test unconfirmed prediction facts are labelled preliminary
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_prediction_profile_scoring_and_leaderboard -> Профиль, прогноз, расчёт этапа и общая таблица используют одну историю БД.
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_prediction_points_follow_2026_matrix -> Матрица учитывает точные спринты и отклонение финишной позиции до трёх мест.
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_prediction_schema_contains_optional_sprint_columns -> Миграция создаёт nullable спринт-поля и в прогнозах, и в итогах этапа.
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_legacy_telegram_prediction_profile_migrates_to_user_id -> Существующий Telegram-профиль прогноза сохраняется при переходе на users.id.
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_prediction_api_rejects_after_deadline -> Сервер отклоняет запись после квалификации независимо от клиентской блокировки.
+.
+tests\test_predictions.py
+[CHECK] tests/test_predictions.py::test_safe_send_media_group_preserves_album_caption -> Telegram-альбом отправляется одним sendMediaGroup, caption находится на первом фото.
+.
+tests\test_product_quality.py
+[CHECK] tests/test_product_quality.py::test_quality_uses_latest_snapshot_per_version_and_complete_matches -> test quality uses latest snapshot per version and complete matches
+.
+tests\test_race_ghost.py
+[CHECK] tests/test_race_ghost.py::test_superadmin_can_clear_own_scores_and_improve_own_record -> test superadmin can clear own scores and improve own record
+.
+tests\test_race_ghost.py
+[CHECK] tests/test_race_ghost.py::test_slower_replay_is_not_presented_as_global_record -> test slower replay is not presented as global record
+.
+tests\test_race_ghost.py
+[CHECK] tests/test_race_ghost.py::test_recorded_trajectory_is_saved_and_available_to_guests[False] -> test recorded trajectory is saved and available to guests[False]
+.
+tests\test_race_ghost.py
+[CHECK] tests/test_race_ghost.py::test_recorded_trajectory_is_saved_and_available_to_guests[True] -> test recorded trajectory is saved and available to guests[True]
+.
+tests\test_race_ghost.py
+[CHECK] tests/test_race_ghost.py::test_public_ghost_switches_to_faster_driver_and_clears_with_records -> test public ghost switches to faster driver and clears with records
+.
+tests\test_race_ghost.py
+[CHECK] tests/test_race_ghost.py::test_admin_wipe_removes_every_role_and_public_ghost[race] -> test admin wipe removes every role and public ghost[race]
+.
+tests\test_race_ghost.py
+[CHECK] tests/test_race_ghost.py::test_admin_wipe_removes_every_role_and_public_ghost[all] -> test admin wipe removes every role and public ghost[all]
+.
+tests\test_race_ghost.py
+[CHECK] tests/test_race_ghost.py::test_incomplete_telemetry_is_rejected[100-75000] -> test incomplete telemetry is rejected[100-75000]
+.
+tests\test_race_ghost.py
+[CHECK] tests/test_race_ghost.py::test_incomplete_telemetry_is_rejected[0-1000] -> test incomplete telemetry is rejected[0-1000]
+.
+tests\test_race_ghost.py
+[CHECK] tests/test_race_ghost.py::test_incomplete_telemetry_is_rejected[0-76000] -> test incomplete telemetry is rejected[0-76000]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_three_laps_validate_for_every_track[emerald-loop-v2] -> test three laps validate for every track[emerald-loop-v2]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_three_laps_validate_for_every_track[sunset-speedway-v1] -> test three laps validate for every track[sunset-speedway-v1]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_three_laps_validate_for_every_track[canyon-switchback-v1] -> test three laps validate for every track[canyon-switchback-v1]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_three_laps_validate_for_every_track[harbor-sprint-v1] -> test three laps validate for every track[harbor-sprint-v1]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_records_ghosts_and_personal_progress_are_scoped_to_track -> test records ghosts and personal progress are scoped to track
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_legacy_records_are_preserved_and_not_used_on_updated_emerald -> test legacy records are preserved and not used on updated emerald
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_unknown_circuit_is_rejected_on_read[/api/race-game/ghost] -> test unknown circuit is rejected on read[/api/race-game/ghost]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_unknown_circuit_is_rejected_on_read[/api/race-game-leaderboard] -> test unknown circuit is rejected on read[/api/race-game-leaderboard]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_invalid_new_track_records_are_rejected[empty] -> test invalid new track records are rejected[empty]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_invalid_new_track_records_are_rejected[stationary] -> test invalid new track records are rejected[stationary]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_invalid_new_track_records_are_rejected[teleport] -> test invalid new track records are rejected[teleport]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_invalid_new_track_records_are_rejected[one-lap] -> test invalid new track records are rejected[one-lap]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_invalid_new_track_records_are_rejected[wrong-track] -> test invalid new track records are rejected[wrong-track]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_invalid_new_track_records_are_rejected[unknown] -> test invalid new track records are rejected[unknown]
+.
+tests\test_race_tracks.py
+[CHECK] tests/test_race_tracks.py::test_new_track_improvement_does_not_change_other_tracks -> test new track improvement does not change other tracks
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_templates_chronology_and_after_finish_penalty -> test templates chronology and after finish penalty
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[formation-lap] -> test ambiguous or irrelevant messages are not stories[formation-lap]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[post-race-sc] -> test ambiguous or irrelevant messages are not stories[post-race-sc]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[sc-ending] -> test ambiguous or irrelevant messages are not stories[sc-ending]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[vsc-ending] -> test ambiguous or irrelevant messages are not stories[vsc-ending]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[sector-red] -> test ambiguous or irrelevant messages are not stories[sector-red]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[yellow] -> test ambiguous or irrelevant messages are not stories[yellow]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[investigation] -> test ambiguous or irrelevant messages are not stories[investigation]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[no-action] -> test ambiguous or irrelevant messages are not stories[no-action]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[rescinded] -> test ambiguous or irrelevant messages are not stories[rescinded]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[penalty-investigation] -> test ambiguous or irrelevant messages are not stories[penalty-investigation]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[wrong-session] -> test ambiguous or irrelevant messages are not stories[wrong-session]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[wrong-year] -> test ambiguous or irrelevant messages are not stories[wrong-year]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[bad-date] -> test ambiguous or irrelevant messages are not stories[bad-date]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session0-rows0-now0] -> test unfinished or unconfirmed session is not a recap[session0-rows0-now0]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session1-rows1-now1] -> test unfinished or unconfirmed session is not a recap[session1-rows1-now1]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session2-rows2-now2] -> test unfinished or unconfirmed session is not a recap[session2-rows2-now2]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session3-rows3-now3] -> test unfinished or unconfirmed session is not a recap[session3-rows3-now3]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session4-rows4-now4] -> test unfinished or unconfirmed session is not a recap[session4-rows4-now4]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session5-rows5-now5] -> test unfinished or unconfirmed session is not a recap[session5-rows5-now5]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_names_are_session_scoped_no_static_driver_number_guess -> test names are session scoped no static driver number guess
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_event_selection_keeps_diverse_topics_then_time_order -> test event selection keeps diverse topics then time order
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_control_source_links_are_restricted[https://api.openf1.org/v1/race_control?session_key=latest#event-0123456789abcdef] -> test control source links are restricted[https://api.openf1.org/v1/race control?session key=latest#event-0123456789abcdef]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_control_source_links_are_restricted[https://api.openf1.org/v1/race_control?session_key=15000&other=1#event-0123456789abcdef] -> test control source links are restricted[https://api.openf1.org/v1/race control?session key=15000&other=1#event-0123456789abcdef]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_control_source_links_are_restricted[https://api.openf1.org/v1/drivers?session_key=15000#event-0123456789abcdef] -> test control source links are restricted[https://api.openf1.org/v1/drivers?session key=15000#event-0123456789abcdef]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_control_source_links_are_restricted[https://api.openf1.org.evil.test/v1/race_control?session_key=15000#event-0123456789abcdef] -> test control source links are restricted[https://api.openf1.org.evil.test/v1/race control?session key=15000#event-0123456789abcdef]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_background_persistence_read_only_public_and_final_no_refetch -> test background persistence read only public and final no refetch
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_quiet_race_is_cached_without_fabricating_absence_claims -> test quiet race is cached without fabricating absence claims
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_rate_limit_stops_requests_backs_off_and_retains_events -> test rate limit stops requests backs off and retains events
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_disabled_source_and_hidden_events_are_immediate -> test disabled source and hidden events are immediate
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_sessions_failure_visible_without_requests -> test sessions failure visible without requests
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_only_explicit_recognised_penalty_reasons_are_translated[CAUSING A COLLISION (16:11:31)-\u0437\u0430 \u043f\u0440\u043e\u0432\u043e\u0446\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u0441\u0442\u043e\u043b\u043a\u043d\u043e\u0432\u0435\u043d\u0438\u044f] -> test only explicit recognised penalty reasons are translated[CAUSING A COLLISION (16:11:31)-\u0437\u0430 \u043f\u0440\u043e\u0432\u043e\u0446\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u0441\u0442\u043e\u043b\u043a\u043d\u043e\u0432\u0435\u043d\u0438\u044f]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_only_explicit_recognised_penalty_reasons_are_translated[SPEEDING IN PIT LANE-\u0437\u0430 \u043f\u0440\u0435\u0432\u044b\u0448\u0435\u043d\u0438\u0435 \u0441\u043a\u043e\u0440\u043e\u0441\u0442\u0438 \u043d\u0430 \u043f\u0438\u0442-\u043b\u0435\u0439\u043d\u0435] -> test only explicit recognised penalty reasons are translated[SPEEDING IN PIT LANE-\u0437\u0430 \u043f\u0440\u0435\u0432\u044b\u0448\u0435\u043d\u0438\u0435 \u0441\u043a\u043e\u0440\u043e\u0441\u0442\u0438 \u043d\u0430 \u043f\u0438\u0442-\u043b\u0435\u0439\u043d\u0435]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_only_explicit_recognised_penalty_reasons_are_translated[LEAVING THE TRACK AND GAINING AN ADVANTAGE-\u0437\u0430 \u0432\u044b\u0435\u0437\u0434 \u0437\u0430 \u043f\u0440\u0435\u0434\u0435\u043b\u044b \u0442\u0440\u0430\u0441\u0441\u044b \u0441 \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u0438\u0435\u043c \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u0430] -> test only explicit recognised penalty reasons are translated[LEAVING THE TRACK AND GAINING AN ADVANTAGE-\u0437\u0430 \u0432\u044b\u0435\u0437\u0434 \u0437\u0430 \u043f\u0440\u0435\u0434\u0435\u043b\u044b \u0442\u0440\u0430\u0441\u0441\u044b \u0441 \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u0438\u0435\u043c \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u0430]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_only_explicit_recognised_penalty_reasons_are_translated[FAILING TO FOLLOW RACE DIRECTOR'S INSTRUCTIONS-\u0437\u0430 \u043d\u0435\u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u0438\u0439 \u0434\u0438\u0440\u0435\u043a\u0446\u0438\u0438 \u0433\u043e\u043d\u043a\u0438] -> test only explicit recognised penalty reasons are translated[FAILING TO FOLLOW RACE DIRECTOR'S INSTRUCTIONS-\u0437\u0430 \u043d\u0435\u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u0438\u0439 \u0434\u0438\u0440\u0435\u043a\u0446\u0438\u0438 \u0433\u043e\u043d\u043a\u0438]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_only_explicit_recognised_penalty_reasons_are_translated[UNKNOWN REASON-None] -> test only explicit recognised penalty reasons are translated[UNKNOWN REASON-None]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_safety_context_is_detail_not_an_inferred_cause_or_driver -> test safety context is detail not an inferred cause or driver
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_context_outside_this_deployment_is_ignored[row0] -> test context outside this deployment is ignored[row0]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_context_outside_this_deployment_is_ignored[row1] -> test context outside this deployment is ignored[row1]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_context_outside_this_deployment_is_ignored[row2] -> test context outside this deployment is ignored[row2]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_context_outside_this_deployment_is_ignored[row3] -> test context outside this deployment is ignored[row3]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_context_stops_when_safety_car_was_called_in -> test context stops when safety car was called in
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_pit_lane_context_and_explicit_deployment_cause -> test pit lane context and explicit deployment cause
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_existing_generated_titles_switch_to_past_tense_not_rss_headlines[\u0412\u044b\u043f\u0443\u0449\u0435\u043d\u0430 \u043c\u0430\u0448\u0438\u043d\u0430 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043d\u0435\u0439\u0442\u0440\u0430\u043b\u0438\u0437\u043e\u0432\u0430\u043d\u0430.-\u041d\u0430 \u0442\u0440\u0430\u0441\u0441\u0443 \u0432\u044b\u043f\u0443\u0441\u0442\u0438\u043b\u0438 \u043c\u0430\u0448\u0438\u043d\u0443 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u043b\u0430\u0441\u044c \u0437\u0430 \u043d\u0435\u0439.] -> test existing generated titles switch to past tense not rss headlines[\u0412\u044b\u043f\u0443\u0449\u0435\u043d\u0430 \u043c\u0430\u0448\u0438\u043d\u0430 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043d\u0435\u0439\u0442\u0440\u0430\u043b\u0438\u0437\u043e\u0432\u0430\u043d\u0430.-\u041d\u0430 \u0442\u0440\u0430\u0441\u0441\u0443 \u0432\u044b\u043f\u0443\u0441\u0442\u0438\u043b\u0438 \u043c\u0430\u0448\u0438\u043d\u0443 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u043b\u0430\u0441\u044c \u0437\u0430 \u043d\u0435\u0439.]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_existing_generated_titles_switch_to_past_tense_not_rss_headlines[\u0412\u044b\u043f\u0443\u0449\u0435\u043d\u0430 \u043c\u0430\u0448\u0438\u043d\u0430 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u0442 \u0437\u0430 \u043c\u0430\u0448\u0438\u043d\u043e\u0439 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438.-\u041d\u0430 \u0442\u0440\u0430\u0441\u0441\u0443 \u0432\u044b\u043f\u0443\u0441\u0442\u0438\u043b\u0438 \u043c\u0430\u0448\u0438\u043d\u0443 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u043b\u0430\u0441\u044c \u0437\u0430 \u043d\u0435\u0439.] -> test existing generated titles switch to past tense not rss headlines[\u0412\u044b\u043f\u0443\u0449\u0435\u043d\u0430 \u043c\u0430\u0448\u0438\u043d\u0430 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u0442 \u0437\u0430 \u043c\u0430\u0448\u0438\u043d\u043e\u0439 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438.-\u041d\u0430 \u0442\u0440\u0430\u0441\u0441\u0443 \u0432\u044b\u043f\u0443\u0441\u0442\u0438\u043b\u0438 \u043c\u0430\u0448\u0438\u043d\u0443 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u043b\u0430\u0441\u044c \u0437\u0430 \u043d\u0435\u0439.]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_existing_generated_titles_switch_to_past_tense_not_rss_headlines[\u0412\u043a\u043b\u044e\u0447\u0451\u043d VSC \u2014 \u043f\u0438\u043b\u043e\u0442\u044b \u043e\u0431\u044f\u0437\u0430\u043d\u044b \u0441\u043e\u0431\u043b\u044e\u0434\u0430\u0442\u044c \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u0442\u0435\u043c\u043f.-\u0412\u043a\u043b\u044e\u0447\u0438\u043b\u0438 VSC \u2014 \u043f\u0438\u043b\u043e\u0442\u043e\u0432 \u043e\u0431\u044f\u0437\u0430\u043b\u0438 \u0441\u043e\u0431\u043b\u044e\u0434\u0430\u0442\u044c \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u0442\u0435\u043c\u043f.] -> test existing generated titles switch to past tense not rss headlines[\u0412\u043a\u043b\u044e\u0447\u0451\u043d VSC \u2014 \u043f\u0438\u043b\u043e\u0442\u044b \u043e\u0431\u044f\u0437\u0430\u043d\u044b \u0441\u043e\u0431\u043b\u044e\u0434\u0430\u0442\u044c \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u0442\u0435\u043c\u043f.-\u0412\u043a\u043b\u044e\u0447\u0438\u043b\u0438 VSC \u2014 \u043f\u0438\u043b\u043e\u0442\u043e\u0432 \u043e\u0431\u044f\u0437\u0430\u043b\u0438 \u0441\u043e\u0431\u043b\u044e\u0434\u0430\u0442\u044c \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u0442\u0435\u043c\u043f.]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_existing_generated_titles_switch_to_past_tense_not_rss_headlines[\u041a\u0440\u0430\u0441\u043d\u044b\u0439 \u0444\u043b\u0430\u0433 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u0430.-\u0413\u043e\u043d\u043a\u0443 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u043b\u0438 \u043a\u0440\u0430\u0441\u043d\u044b\u043c \u0444\u043b\u0430\u0433\u043e\u043c.] -> test existing generated titles switch to past tense not rss headlines[\u041a\u0440\u0430\u0441\u043d\u044b\u0439 \u0444\u043b\u0430\u0433 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u0430.-\u0413\u043e\u043d\u043a\u0443 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u043b\u0438 \u043a\u0440\u0430\u0441\u043d\u044b\u043c \u0444\u043b\u0430\u0433\u043e\u043c.]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_existing_generated_titles_switch_to_past_tense_not_rss_headlines[Test Driver: \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e\u0439 \u0448\u0442\u0440\u0430\u0444 \u2014 10 \u0441\u0435\u043a.-Test Driver \u043f\u043e\u043b\u0443\u0447\u0438\u043b 10-\u0441\u0435\u043a\u0443\u043d\u0434\u043d\u044b\u0439 \u0448\u0442\u0440\u0430\u0444.] -> test existing generated titles switch to past tense not rss headlines[Test Driver: \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e\u0439 \u0448\u0442\u0440\u0430\u0444 \u2014 10 \u0441\u0435\u043a.-Test Driver \u043f\u043e\u043b\u0443\u0447\u0438\u043b 10-\u0441\u0435\u043a\u0443\u043d\u0434\u043d\u044b\u0439 \u0448\u0442\u0440\u0430\u0444.]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_hourly_refresh_and_late_penalty_preserve_moderation -> test hourly refresh and late penalty preserve moderation
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_next_round_is_loaded_after_previous_round_was_finalised -> test next round is loaded after previous round was finalised
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_new_parser_refetches_old_final_snapshot_once -> test new parser refetches old final snapshot once
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_previous_season_race_keeps_its_year_at_new_year -> test previous season race keeps its year at new year
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_legacy_check_schema_migration_keeps_existing_snapshot -> test legacy check schema migration keeps existing snapshot
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_bot_and_web_schema_migration_can_overlap -> test bot and web schema migration can overlap
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_retry_after_rate_limit_recovers_without_requiring_admin -> test retry after rate limit recovers without requiring admin
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_recap_cache_and_waiting_do_not_gain_unconfirmed_events -> test recap cache and waiting do not gain unconfirmed events
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_final_stored_sc_wording_updates_without_refetch_or_database_write -> test final stored sc wording updates without refetch or database write
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_telegram_presentations_and_spoilers_include_chronicle -> test telegram presentations and spoilers include chronicle
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_parse_preserves_original_title_and_discards_html_tracking -> test parse preserves original title and discards html tracking
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[javascript:alert(1)] -> test untrusted urls are rejected[javascript:alert(1)]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://www.bbc.com.evil.test/sport/a] -> test untrusted urls are rejected[https://www.bbc.com.evil.test/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://www.bbc.com@evil.test/sport/a] -> test untrusted urls are rejected[https://www.bbc.com@evil.test/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://user:pass@www.bbc.com/sport/a] -> test untrusted urls are rejected[https://user:pass@www.bbc.com/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://www.bbc.com:8080/sport/a] -> test untrusted urls are rejected[https://www.bbc.com:8080/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[http://www.bbc.com/sport/a] -> test untrusted urls are rejected[http://www.bbc.com/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://www.bbc.com\\evil.test/sport/a] -> test untrusted urls are rejected[https://www.bbc.com\\evil.test/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://127.0.0.1/sport/a] -> test untrusted urls are rejected[https://127.0.0.1/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://www.bbc.com/news/a] -> test untrusted urls are rejected[https://www.bbc.com/news/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_undated_or_timezone_ambiguous_items_are_rejected[] -> test undated or timezone ambiguous items are rejected[]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_undated_or_timezone_ambiguous_items_are_rejected[garbage] -> test undated or timezone ambiguous items are rejected[garbage]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_undated_or_timezone_ambiguous_items_are_rejected[Sun, 27 Sep 2026 11:00:00] -> test undated or timezone ambiguous items are rejected[Sun, 27 Sep 2026 11:00:00]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_unsafe_or_wrong_feed_is_rejected[doctype] -> test unsafe or wrong feed is rejected[doctype]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_unsafe_or_wrong_feed_is_rejected[oversized] -> test unsafe or wrong feed is rejected[oversized]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_unsafe_or_wrong_feed_is_rejected[html] -> test unsafe or wrong feed is rejected[html]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_unsafe_or_wrong_feed_is_rejected[utf16-doctype] -> test unsafe or wrong feed is rejected[utf16-doctype]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_filters_event_date_topic_and_retrospective_context -> test filters event date topic and retrospective context
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_russian_stems_and_event_aliases_are_supported -> test russian stems and event aliases are supported
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_autosport_rss_uses_original_titles_and_direct_f1_links -> test autosport rss uses original titles and direct f1 links
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_new_sources_default_on_retired_sources_off_and_disabled_choice_persists -> test new sources default on retired sources off and disabled choice persists
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_three_distinct_headlines_and_topic_diversity -> test three distinct headlines and topic diversity
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_sources_are_opt_in_and_public_reads_never_fetch -> test sources are opt in and public reads never fetch
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_hide_restore_disable_archive_and_idempotent_refresh -> test hide restore disable archive and idempotent refresh
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_admin_auth_validation_and_no_prediction_writes -> test admin auth validation and no prediction writes
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_statistical_cache_not_mutated_and_waiting_has_no_news -> test statistical cache not mutated and waiting has no news
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_both_telegram_presentations_include_links_and_escape_headlines -> test both telegram presentations include links and escape headlines
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_rss_fetch_is_bounded_conditional_and_rejects_redirects -> test rss fetch is bounded conditional and rejects redirects
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_background_opt_in_failure_backoff_and_persistence -> test background opt in failure backoff and persistence
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_permission_revoked_during_fetch_does_not_store_news -> test permission revoked during fetch does not store news
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_publisher_retry_after_is_respected[7200-7200] -> test publisher retry after is respected[7200-7200]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_publisher_retry_after_is_respected[Mon, 28 Sep 2026 12:00:00 GMT-86400] -> test publisher retry after is respected[Mon, 28 Sep 2026 12:00:00 GMT-86400]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_publisher_retry_after_is_respected[bad-900] -> test publisher retry after is respected[bad-900]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_missing_schedule_is_visible_in_admin_without_fetching_feeds -> test missing schedule is visible in admin without fetching feeds
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_mask_roundtrip[selected0] -> test mask roundtrip[selected0]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_mask_roundtrip[selected1] -> test mask roundtrip[selected1]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_mask_roundtrip[selected2] -> test mask roundtrip[selected2]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_mask_roundtrip[selected3] -> test mask roundtrip[selected3]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_mask_roundtrip[selected4] -> test mask roundtrip[selected4]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_invalid_intervals[invalid0] -> test invalid intervals[invalid0]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_invalid_intervals[invalid1] -> test invalid intervals[invalid1]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_invalid_intervals[invalid2] -> test invalid intervals[invalid2]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_invalid_intervals[invalid3] -> test invalid intervals[invalid3]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_invalid_intervals[invalid4] -> test invalid intervals[invalid4]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_invalid_intervals[invalid5] -> test invalid intervals[invalid5]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_invalid_intervals[60] -> test invalid intervals[60]
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_pending_interval_filter -> test pending interval filter
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_migration_keeps_legacy_value_and_explicit_selection -> test migration keeps legacy value and explicit selection
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_api_bot_roundtrip_legacy_omission_and_empty -> test api bot roundtrip legacy omission and empty
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_concurrent_bot_toggles_keep_other_selections -> test concurrent bot toggles keep other selections
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_bot_selection_stays_open_and_highlights_all -> test bot selection stays open and highlights all
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_bot_sends_each_interval_once_and_no_unselected -> test bot sends each interval once and no unselected
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_pending_telegram_removed_interval_is_cancelled -> test pending telegram removed interval is cancelled
+.
+tests\test_reminder_intervals.py
+[CHECK] tests/test_reminder_intervals.py::test_multi_intervals_do_not_bypass_prediction_closing_suppression -> test multi intervals do not bypass prediction closing suppression
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_boundaries_and_no_negative_timer_for_every_session[practice1] -> test boundaries and no negative timer for every session[practice1]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_boundaries_and_no_negative_timer_for_every_session[practice2] -> test boundaries and no negative timer for every session[practice2]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_boundaries_and_no_negative_timer_for_every_session[practice3] -> test boundaries and no negative timer for every session[practice3]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_boundaries_and_no_negative_timer_for_every_session[quali] -> test boundaries and no negative timer for every session[quali]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_boundaries_and_no_negative_timer_for_every_session[sprint_quali] -> test boundaries and no negative timer for every session[sprint quali]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_boundaries_and_no_negative_timer_for_every_session[sprint] -> test boundaries and no negative timer for every session[sprint]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_boundaries_and_no_negative_timer_for_every_session[race] -> test boundaries and no negative timer for every session[race]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_explicit_completion_cancellation_and_live_override_estimates -> test explicit completion cancellation and live override estimates
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_restart_updates_same_private_and_group_messages_without_resending -> test restart updates same private and group messages without resending
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_skip_unconfirmed_archived_future_testing_and_missing_schedule -> test skip unconfirmed archived future testing and missing schedule
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_edit_failures_never_send_a_replacement_and_retry_only_safe_edits[unchanged] -> test edit failures never send a replacement and retry only safe edits[unchanged]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_edit_failures_never_send_a_replacement_and_retry_only_safe_edits[deleted] -> test edit failures never send a replacement and retry only safe edits[deleted]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_edit_failures_never_send_a_replacement_and_retry_only_safe_edits[network] -> test edit failures never send a replacement and retry only safe edits[network]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_edit_failures_never_send_a_replacement_and_retry_only_safe_edits[rate_limit] -> test edit failures never send a replacement and retry only safe edits[rate limit]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_late_live_edit_cannot_overwrite_finished_status -> test late live edit cannot overwrite finished status
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_bounded_polls_do_not_starve_remaining_recipients -> test bounded polls do not starve remaining recipients
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_edit_requires_matching_original_receipt -> test edit requires matching original receipt
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_prediction_closing_updates_each_recipient_after_restart[quali] -> test prediction closing updates each recipient after restart[quali]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_prediction_closing_updates_each_recipient_after_restart[sprint_quali] -> test prediction closing updates each recipient after restart[sprint quali]
+.
+tests\test_reminder_status.py
+[CHECK] tests/test_reminder_status.py::test_prediction_late_live_edit_never_overwrites_finished -> test prediction late live edit never overwrites finished
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_twenty_identical_reads_share_source_and_keep_dataframe_metadata -> test twenty identical reads share source and keep dataframe metadata
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_different_seasons_arguments_and_identities_never_share_results -> test different seasons arguments and identities never share results
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_one_cancelled_reader_does_not_cancel_the_other -> test one cancelled reader does not cancel the other
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_last_reader_cancels_source_and_leaves_no_orphan -> test last reader cancels source and leaves no orphan
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_failed_read_is_not_cached_and_can_retry -> test failed read is not cached and can retry
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_missing_results_are_still_not_persistently_cached[None] -> test missing results are still not persistently cached[None]
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_missing_results_are_still_not_persistently_cached[value1] -> test missing results are still not persistently cached[value1]
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_missing_results_are_still_not_persistently_cached[value2] -> test missing results are still not persistently cached[value2]
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_missing_results_are_still_not_persistently_cached[value3] -> test missing results are still not persistently cached[value3]
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_empty_dataframe_retains_short_negative_ttl -> test empty dataframe retains short negative ttl
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_disk_reads_and_writes_do_not_run_on_event_loop -> test disk reads and writes do not run on event loop
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_memory_cache_evicts_lru_not_live_data_and_expired_entries -> test memory cache evicts lru not live data and expired entries
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_parallel_disk_writers_leave_one_valid_file_not_partial_pickle -> test parallel disk writers leave one valid file not partial pickle
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_failed_disk_replace_keeps_previous_file_and_cleans_temporary -> test failed disk replace keeps previous file and cleans temporary
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_corrupt_file_and_unavailable_redis_still_fall_back -> test corrupt file and unavailable redis still fall back
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_redis_initialization_and_shutdown_close_pools_without_flushing -> test redis initialization and shutdown close pools without flushing
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_failed_redis_initialization_releases_failed_pool -> test failed redis initialization releases failed pool
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_concurrent_database_connect_opens_once_with_same_pragmas -> test concurrent database connect opens once with same pragmas
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_failed_database_configuration_closes_half_open_connection -> test failed database configuration closes half open connection
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_portrait_cache_preserves_pixels_and_reopens_on_file_change -> test portrait cache preserves pixels and reopens on file change
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_portrait_cache_key_includes_crop_and_verified_manifest -> test portrait cache key includes crop and verified manifest
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_public_portrait_etag_revalidates_without_changing_strict_404 -> test public portrait etag revalidates without changing strict 404
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_logo_png_encoding_runs_off_event_loop -> test logo png encoding runs off event loop
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_fonts_reuse_within_thread_but_not_between_render_threads -> test fonts reuse within thread but not between render threads
+.
+tests\test_runtime_optimizations.py
+[CHECK] tests/test_runtime_optimizations.py::test_singleflight_is_reusable_across_independent_event_loops -> test singleflight is reusable across independent event loops
+.
+tests\test_season_assets.py
+[CHECK] tests/test_season_assets.py::test_each_supported_season_has_complete_pilot_and_team_assets -> test each supported season has complete pilot and team assets
+.
+tests\test_season_assets.py
+[CHECK] tests/test_season_assets.py::test_all_season_assets_have_real_transparency_and_clean_names -> test all season assets have real transparency and clean names
+.
+tests\test_session_reminders.py
+[CHECK] tests/test_session_reminders.py::test_defaults_none_and_category_mapping -> test defaults none and category mapping
+.
+tests\test_session_reminders.py
+[CHECK] tests/test_session_reminders.py::test_reminder_keys_are_distinct -> test reminder keys are distinct
+.
+tests\test_session_reminders.py
+[CHECK] tests/test_session_reminders.py::test_existing_accounts_migrate_with_all_sessions -> test existing accounts migrate with all sessions
+.
+tests\test_session_reminders.py
+[CHECK] tests/test_session_reminders.py::test_account_settings_shared_with_bot_and_legacy_client -> test account settings shared with bot and legacy client
+.
+tests\test_session_reminders.py
+[CHECK] tests/test_session_reminders.py::test_bot_filters_and_deduplicates_practices -> test bot filters and deduplicates practices
+.
+tests\test_site_visits.py
+[CHECK] tests/test_site_visits.py::test_guest_visits_deduplicate_and_metrics_include_new_guests -> test guest visits deduplicate and metrics include new guests
+.
+tests\test_site_visits.py
+[CHECK] tests/test_site_visits.py::test_visit_does_not_accept_search_parameters_or_cross_site_posts -> test visit does not accept search parameters or cross site posts
+.
+tests\test_site_visits.py
+[CHECK] tests/test_site_visits.py::test_login_preserves_anonymous_visit_state_without_new_visitor -> test login preserves anonymous visit state without new visitor
+.
+tests\test_site_visits.py
+[CHECK] tests/test_site_visits.py::test_events_validate_deduplicate_and_do_not_accept_saved_click -> test events validate deduplicate and do not accept saved click
+.
+tests\test_standings_card.py
+[CHECK] tests/test_standings_card.py::test_every_2026_driver_including_reserve_has_a_local_photo -> test every 2026 driver including reserve has a local photo
+.
+tests\test_standings_card.py
+[CHECK] tests/test_standings_card.py::test_all_eleven_team_logos_match_correct_identity -> test all eleven team logos match correct identity
+.
+tests\test_standings_card.py
+[CHECK] tests/test_standings_card.py::test_high_resolution_logos_are_available_after_archive_extraction -> test high resolution logos are available after archive extraction
+.
+tests\test_standings_card.py
+[CHECK] tests/test_standings_card.py::test_card_draws_artwork_for_every_row_and_is_not_a_two_column_grid[drivers-rows0] -> test card draws artwork for every row and is not a two column grid[drivers-rows0]
+.
+tests\test_standings_card.py
+[CHECK] tests/test_standings_card.py::test_card_draws_artwork_for_every_row_and_is_not_a_two_column_grid[teams-rows1] -> test card draws artwork for every row and is not a two column grid[teams-rows1]
+.
+tests\test_standings_card.py
+[CHECK] tests/test_standings_card.py::test_wide_logos_are_contained_not_circle_cropped -> test wide logos are contained not circle cropped
+.
+tests\test_standings_card.py
+[CHECK] tests/test_standings_card.py::test_missing_historical_art_does_not_download_current_year_images -> test missing historical art does not download current year images
+.
+tests\test_standings_card.py
+[CHECK] tests/test_standings_card.py::test_legacy_rows_keep_favorites_and_half_points -> test legacy rows keep favorites and half points
+.
+tests\test_standings_card.py
+[CHECK] tests/test_standings_card.py::test_comparison_graph_handles_gaps_negative_changes_and_zero -> test comparison graph handles gaps negative changes and zero
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_cards_are_compact_and_full_classification_is_collapsed -> test cards are compact and full classification is collapsed
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_review_keeps_unknown_data_and_multiple_first_retirements_distinct -> test review keeps unknown data and multiple first retirements distinct
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_native_time_is_utc_based_and_has_an_absolute_fallback -> test native time is utc based and has an absolute fallback
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_button_colors_follow_action_semantics_without_coloring_cancel -> test button colors follow action semantics without coloring cancel
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_rich_fallback_keeps_personal_receiver_and_does_not_retry_ambiguous_send -> test rich fallback keeps personal receiver and does not retry ambiguous send
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_real_dispatcher_binds_review_to_clicker_not_message_author[False] -> test real dispatcher binds review to clicker not message author[False]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_real_dispatcher_binds_review_to_clicker_not_message_author[True] -> test real dispatcher binds review to clicker not message author[True]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_rejected_ephemeral_message_never_becomes_public -> test rejected ephemeral message never becomes public
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_forged_personal_callbacks_are_rejected[personal:review:2026:15:42] -> test forged personal callbacks are rejected[personal:review:2026:15:42]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_forged_personal_callbacks_are_rejected[personal:review:2026:99] -> test forged personal callbacks are rejected[personal:review:2026:99]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_forged_personal_callbacks_are_rejected[personal:admin:2026:15] -> test forged personal callbacks are rejected[personal:admin:2026:15]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_archived_user_is_not_created_or_reactivated -> test archived user is not created or reactivated
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_league_response_does_not_expose_invitation_tokens -> test league response does not expose invitation tokens
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_stop_cancels_work_only_for_matching_bot_chat_actor_and_message -> test loading stop cancels work only for matching bot chat actor and message
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_message_is_deleted_after_any_result_without_a_lingering_draft[text] -> test loading message is deleted after any result without a lingering draft[text]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_message_is_deleted_after_any_result_without_a_lingering_draft[card] -> test loading message is deleted after any result without a lingering draft[card]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_message_is_deleted_after_any_result_without_a_lingering_draft[photo] -> test loading message is deleted after any result without a lingering draft[photo]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_failed_loading_is_deleted_without_hiding_the_original_error -> test failed loading is deleted without hiding the original error
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_failed_deletion_retires_label_and_stop_button_instead_of_leaving_loading -> test failed deletion retires label and stop button instead of leaving loading
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_progress_keeps_stop_button_and_cannot_restart_completed_loading -> test progress keeps stop button and cannot restart completed loading
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_group_loading_is_deletable_but_never_offers_private_cancellation -> test group loading is deletable but never offers private cancellation
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_ui_failure_does_not_block_the_actual_result -> test loading ui failure does not block the actual result
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_external_cancellation_is_not_suppressed -> test external cancellation is not suppressed
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_stopping_comparison_cancels_all_pending_race_requests -> test stopping comparison cancels all pending race requests
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_parallel_comparison_keeps_points_in_schedule_order -> test parallel comparison keeps points in schedule order
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_does_not_depend_on_draft_api -> test loading does not depend on draft api
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[@F1HubTestBot \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0430\u044f \u0433\u043e\u043d\u043a\u0430-next] -> test guest query is a strict public allowlist[@F1HubTestBot \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0430\u044f \u0433\u043e\u043d\u043a\u0430-next]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[\u0438\u0442\u043e\u0433\u0438 \u0433\u043e\u043d\u043a\u0438-recap] -> test guest query is a strict public allowlist[\u0438\u0442\u043e\u0433\u0438 \u0433\u043e\u043d\u043a\u0438-recap]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[/driver ALO 1997-driver] -> test guest query is a strict public allowlist[/driver ALO 1997-driver]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[\u0441\u0440\u0430\u0432\u043d\u0438 ALO HAM-compare] -> test guest query is a strict public allowlist[\u0441\u0440\u0430\u0432\u043d\u0438 ALO HAM-compare]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[\u0447\u0442\u043e \u0442\u0430\u043a\u043e\u0435 VSC?-term] -> test guest query is a strict public allowlist[\u0447\u0442\u043e \u0442\u0430\u043a\u043e\u0435 VSC?-term]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[/broadcast attack-help] -> test guest query is a strict public allowlist[/broadcast attack-help]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[\u043c\u043e\u0439 \u043f\u0440\u043e\u0433\u043d\u043e\u0437-help] -> test guest query is a strict public allowlist[\u043c\u043e\u0439 \u043f\u0440\u043e\u0433\u043d\u043e\u0437-help]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[/driver ALO 2026 extra-help] -> test guest query is a strict public allowlist[/driver ALO 2026 extra-help]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_update_uses_answer_guest_query_not_regular_send -> test guest update uses answer guest query not regular send
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_comparison_uses_same_standings_source -> test guest comparison uses same standings source
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_throttle_is_bounded -> test guest throttle is bounded
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_prediction_menu_states_are_explanatory_without_disabling_readonly_view[before] -> test prediction menu states are explanatory without disabling readonly view[before]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_prediction_menu_states_are_explanatory_without_disabling_readonly_view[open] -> test prediction menu states are explanatory without disabling readonly view[open]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_prediction_menu_states_are_explanatory_without_disabling_readonly_view[closed] -> test prediction menu states are explanatory without disabling readonly view[closed]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_prediction_menu_states_are_explanatory_without_disabling_readonly_view[unknown] -> test prediction menu states are explanatory without disabling readonly view[unknown]
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_restart_dedup_audience_and_rate_limit -> test restart dedup audience and rate limit
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_ambiguous_and_blocked_are_not_replayed -> test ambiguous and blocked are not replayed
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_bad_request_keeps_telegram_reason_without_retrying -> test bad request keeps telegram reason without retrying
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_expiration_archiving_and_interrupted_send -> test expiration archiving and interrupted send
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_concurrent_workers_claim_once -> test concurrent workers claim once
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_album_progress_survives_retry_and_capture_is_inert -> test album progress survives retry and capture is inert
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_binary_photo_and_group_delivery -> test binary photo and group delivery
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_rich_upgrade_preserves_frozen_delivery_and_deduplicates[True] -> test rich upgrade preserves frozen delivery and deduplicates[True]
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_rich_upgrade_preserves_frozen_delivery_and_deduplicates[False] -> test rich upgrade preserves frozen delivery and deduplicates[False]
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_queued_rich_fallback_is_only_for_explicit_feature_rejection[False] -> test queued rich fallback is only for explicit feature rejection[False]
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_queued_rich_fallback_is_only_for_explicit_feature_rejection[True] -> test queued rich fallback is only for explicit feature rejection[True]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_silent_users_remain_recipients -> test silent users remain recipients
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[101-False-True-message] -> test delivery and sound[101-False-True-message]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[101-False-True-photo] -> test delivery and sound[101-False-True-photo]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[101-False-True-media_group] -> test delivery and sound[101-False-True-media group]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[102-False-False-message] -> test delivery and sound[102-False-False-message]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[102-False-False-photo] -> test delivery and sound[102-False-False-photo]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[102-False-False-media_group] -> test delivery and sound[102-False-False-media group]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[102-True-True-message] -> test delivery and sound[102-True-True-message]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[102-True-True-photo] -> test delivery and sound[102-True-True-photo]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[102-True-True-media_group] -> test delivery and sound[102-True-True-media group]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[-100-False-False-message] -> test delivery and sound[-100-False-False-message]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[-100-False-False-photo] -> test delivery and sound[-100-False-False-photo]
+.
+tests\test_telegram_sound.py
+[CHECK] tests/test_telegram_sound.py::test_delivery_and_sound[-100-False-False-media_group] -> test delivery and sound[-100-False-False-media group]
+.
+tests\test_ui_analytics.py
+[CHECK] tests/test_ui_analytics.py::test_ui_events_deduplicate_and_report_real_opens -> test ui events deduplicate and report real opens
+.
+tests\test_ui_analytics.py
+[CHECK] tests/test_ui_analytics.py::test_ui_events_reject_private_routes_and_arbitrary_action_text -> test ui events reject private routes and arbitrary action text
+.
+tests\test_ui_analytics.py
+[CHECK] tests/test_ui_analytics.py::test_posthog_queue_retries_without_exposing_identity -> test posthog queue retries without exposing identity
+.
+tests\test_ui_analytics.py
+[CHECK] tests/test_ui_analytics.py::test_best_grid_ignores_pit_lane_and_invalid_positions -> test best grid ignores pit lane and invalid positions
+.
+tests\test_ui_analytics.py
+[CHECK] tests/test_ui_analytics.py::test_posthog_expired_events_are_removed_before_delivery[True] -> test posthog expired events are removed before delivery[True]
+.
+tests\test_ui_analytics.py
+[CHECK] tests/test_ui_analytics.py::test_posthog_expired_events_are_removed_before_delivery[False] -> test posthog expired events are removed before delivery[False]
+.
+tests\test_ui_analytics.py
+[CHECK] tests/test_ui_analytics.py::test_latest_practice_retains_previous_p3_when_current_p3_is_future -> test latest practice retains previous p3 when current p3 is future
+.
+tests\test_ui_analytics.py
+[CHECK] tests/test_ui_analytics.py::test_posthog_prediction_save_is_confirmed_and_deduplicated -> test posthog prediction save is confirmed and deduplicated
+.
+tests\test_usability_regressions.py
+[CHECK] tests/test_usability_regressions.py::test_constructor_profile_uses_standings_points_not_gp_only[378-378-standings] -> test constructor profile uses standings points not gp only[378-378-standings]
+.
+tests\test_usability_regressions.py
+[CHECK] tests/test_usability_regressions.py::test_constructor_profile_uses_standings_points_not_gp_only[0-0-standings] -> test constructor profile uses standings points not gp only[0-0-standings]
+.
+tests\test_usability_regressions.py
+[CHECK] tests/test_usability_regressions.py::test_constructor_profile_uses_standings_points_not_gp_only[None-330-grand_prix] -> test constructor profile uses standings points not gp only[None-330-grand prix]
+.
+tests\test_usability_regressions.py
+[CHECK] tests/test_usability_regressions.py::test_classification_preserves_real_zero_but_not_missing_or_provisional_points -> test classification preserves real zero but not missing or provisional points
+.
+tests\test_usability_regressions.py
+[CHECK] tests/test_usability_regressions.py::test_constructor_career_keeps_rounds_to_count_events_not_cars -> test constructor career keeps rounds to count events not cars
+.
+tests\test_ux_season.py
+[CHECK] tests/test_ux_season.py::test_comparison_uses_championship_totals_and_keeps_official_zero -> test comparison uses championship totals and keeps official zero
+.
+tests\test_ux_season.py
+[CHECK] tests/test_ux_season.py::test_team_totals_same_source_as_home -> test team totals same source as home
+.
+tests\test_ux_season.py
+[CHECK] tests/test_ux_season.py::test_public_preview_does_not_load_any_private_data -> test public preview does not load any private data
+.
+tests\test_ux_season.py
+[CHECK] tests/test_ux_season.py::test_leagues_access_invites_and_idempotent_migration -> test leagues access invites and idempotent migration
+.
+tests\test_ux_season.py
+[CHECK] tests/test_ux_season.py::test_previous_ranking_ignores_future_scores -> test previous ranking ignores future scores
+.
+tests\test_ux_season.py
+[CHECK] tests/test_ux_season.py::test_race_results_preserve_official_zero_and_missing_grid -> test race results preserve official zero and missing grid
+.
+tests\test_ux_season.py
+[CHECK] tests/test_ux_season.py::test_race_results_reject_live_positions_without_confirmed_points -> test race results reject live positions without confirmed points
+.
+tests\test_ux_season.py
+[CHECK] tests/test_ux_season.py::test_race_results_keep_real_status_without_inventing_gap -> test race results keep real status without inventing gap
+.
+tests\test_ux_season.py
+[CHECK] tests/test_ux_season.py::test_league_survives_identity_merge_and_account_deletion -> test league survives identity merge and account deletion
+.
+tests\test_ux_season.py
+[CHECK] tests/test_ux_season.py::test_personal_season_excludes_unknown_and_uses_authenticated_identity -> test personal season excludes unknown and uses authenticated identity
+.
+tests\test_verified_portraits.py
+[CHECK] tests/test_verified_portraits.py::test_verified_set_complete_unique_and_square -> test verified set complete unique and square
+.
+tests\test_verified_portraits.py
+[CHECK] tests/test_verified_portraits.py::test_legacy_matching_is_exact -> test legacy matching is exact
+.
+tests\test_verified_portraits.py
+[CHECK] tests/test_verified_portraits.py::test_verified_aliases_and_unknown -> test verified aliases and unknown
+.
+tests\test_verified_portraits.py
+[CHECK] tests/test_verified_portraits.py::test_bot_uses_same_archived_originals_without_network -> test bot uses same archived originals without network
+.
+tests\test_verified_portraits.py
+[CHECK] tests/test_verified_portraits.py::test_bot_classification_portrait_loader -> test bot classification portrait loader
+.
+tests\test_verified_portraits.py
+[CHECK] tests/test_verified_portraits.py::test_actual_http_portraits_from_archive -> test actual http portraits from archive
+.
+tests\test_voting_delivery.py
+[CHECK] tests/test_voting_delivery.py::test_voting_deadline_is_identical_with_or_without_start_time -> test voting deadline is identical with or without start time
+.
+tests\test_voting_delivery.py
+[CHECK] tests/test_voting_delivery.py::test_voting_delivers_at_deadline_to_groups_and_retries_without_duplicates -> test voting delivers at deadline to groups and retries without duplicates
+.
+tests\test_voting_delivery.py
+[CHECK] tests/test_voting_delivery.py::test_old_group_voting_is_skipped_even_without_private_recipients -> test old group voting is skipped even without private recipients
+.
+tests\test_voting_delivery.py
+[CHECK] tests/test_voting_delivery.py::test_driver_vote_api_rejects_after_shared_deadline -> test driver vote api rejects after shared deadline
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_home_unread_is_private_and_read_only -> test home unread is private and read only
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_inbox_reminder_clock_uses_persisted_start_not_delivery_time -> test inbox reminder clock uses persisted start not delivery time
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_weekly_recap_appears_in_results_and_queues_web_push -> test weekly recap appears in results and queues web push
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_non_session_messages_have_no_reminder_clock[results:2026:17-100] -> test non session messages have no reminder clock[results:2026:17-100]
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_non_session_messages_have_no_reminder_clock[reminder:2026:17:unknown:60-100] -> test non session messages have no reminder clock[reminder:2026:17:unknown:60-100]
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_rejects_ssrf_endpoints[http://fcm.googleapis.com/a] -> test rejects ssrf endpoints[http://fcm.googleapis.com/a]
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_rejects_ssrf_endpoints[https://127.0.0.1/a] -> test rejects ssrf endpoints[https://127.0.0.1/a]
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_rejects_ssrf_endpoints[https://fcm.googleapis.com.attacker.test/a] -> test rejects ssrf endpoints[https://fcm.googleapis.com.attacker.test/a]
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_rejects_ssrf_endpoints[https://fcm.googleapis.com:8000/a] -> test rejects ssrf endpoints[https://fcm.googleapis.com:8000/a]
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_rejects_ssrf_endpoints[https://user@fcm.googleapis.com/a] -> test rejects ssrf endpoints[https://user@fcm.googleapis.com/a]
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_validates_key_sizes -> test validates key sizes
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_web_multiple_intervals_independent_deduplicated_and_empty -> test web multiple intervals independent deduplicated and empty
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_pending_push_removed_interval_is_cancelled -> test pending push removed interval is cancelled
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_session_reminders_filter_and_no_backfill -> test session reminders filter and no backfill
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_disabled_session_drops_pending_push -> test disabled session drops pending push
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_deduplication_personalization_and_queue -> test deduplication personalization and queue
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_restart_keeps_queued_push_within_ttl -> test restart keeps queued push within ttl
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_legacy_attempt_and_expired_reminder_are_not_replayed -> test legacy attempt and expired reminder are not replayed
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_inbox_and_read_are_scoped_to_account -> test inbox and read are scoped to account
+.
+tests\test_web_notifications.py
+[CHECK] tests/test_web_notifications.py::test_inbox_categories_keep_private_counts_and_historical_context -> test inbox categories keep private counts and historical context
+.
+tests\test_weekly_race_notifications.py
+[CHECK] tests/test_weekly_race_notifications.py::test_no_early_or_stale_broadcast[now0] -> test no early or stale broadcast[now0]
+.
+tests\test_weekly_race_notifications.py
+[CHECK] tests/test_weekly_race_notifications.py::test_no_early_or_stale_broadcast[now1] -> test no early or stale broadcast[now1]
+.
+tests\test_weekly_race_notifications.py
+[CHECK] tests/test_weekly_race_notifications.py::test_no_early_or_stale_broadcast[now2] -> test no early or stale broadcast[now2]
+.
+tests\test_weekly_race_notifications.py
+[CHECK] tests/test_weekly_race_notifications.py::test_no_early_or_stale_broadcast[now3] -> test no early or stale broadcast[now3]
+.
+tests\test_weekly_race_notifications.py
+[CHECK] tests/test_weekly_race_notifications.py::test_winner_cutoff_and_only_one_delivery_after_restart -> test winner cutoff and only one delivery after restart
+.
+tests\test_weekly_race_notifications.py
+[CHECK] tests/test_weekly_race_notifications.py::test_empty_week_and_equal_winners[entries0-\u043f\u043e\u0431\u0435\u0434\u0438\u0442\u0435\u043b\u044f \u043d\u0435\u0442] -> test empty week and equal winners[entries0-\u043f\u043e\u0431\u0435\u0434\u0438\u0442\u0435\u043b\u044f \u043d\u0435\u0442]
+.
+tests\test_weekly_race_notifications.py
+[CHECK] tests/test_weekly_race_notifications.py::test_empty_week_and_equal_winners[entries1-\u041f\u043e\u0431\u0435\u0434\u0438\u0442\u0435\u043b\u0438: <b>One, Two</b>] -> test empty week and equal winners[entries1-\u041f\u043e\u0431\u0435\u0434\u0438\u0442\u0435\u043b\u0438: <b>One, Two</b>]
+.
+tests\test_weekly_race_notifications.py
+[CHECK] tests/test_weekly_race_notifications.py::test_missing_destination_retries_without_freezing_an_incomplete_push -> test missing destination retries without freezing an incomplete push
+.                                                                        [100%]
+============================== warnings summary ===============================
+.venv\Lib\site-packages\requests\__init__.py:113
+  D:\PyCharmProject\FormulaOneBot\.venv\Lib\site-packages\requests\__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.4.3)/charset_normalizer (3.4.4) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: D:\PyCharmProject\FormulaOneBot\artifacts\section-tour-tests.xml -
+============ 768 passed, 1 skipped, 1 warning in 119.94s (0:01:59) ============

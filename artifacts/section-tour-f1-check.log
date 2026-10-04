@@ -1,0 +1,99 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\PyCharmProject\FormulaOneBot
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 28 items
+
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_race_results_prefer_classification_to_live_positions -> test race results prefer classification to live positions
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_live_positions_are_explicitly_provisional -> test live positions are explicitly provisional
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_official_race_table_preserves_points_gaps_and_unclassified_retirements -> test official race table preserves points gaps and unclassified retirements
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_official_race_table_rejects_partial_and_invalid_points -> test official race table rejects partial and invalid points
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_incomplete_fastf1_uses_official_published_classification -> test incomplete fastf1 uses official published classification
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_official_race_resolves_requested_round_and_never_uses_latest -> test official race resolves requested round and never uses latest
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_published_snapshot_survives_provider_outage_and_validates_identity -> test published snapshot survives provider outage and validates identity
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_openf1_driver_lookup_fills_session_placeholders_from_meeting -> ¬ременный пустой /drivers дл€ сессии не должен превращать всех пилотов в '?'.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_shorten_wiki_bio_keeps_complete_sentences -> test shorten wiki bio keeps complete sentences
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_shorten_wiki_bio_removes_disambiguation_notice -> test shorten wiki bio removes disambiguation notice
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_extract_team_principal_from_infobox -> test extract team principal from infobox
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_extract_team_principal_ignores_missing_infobox_row -> test extract team principal ignores missing infobox row
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_sort_standings_zero_last_normal -> sort_standings_zero_last Ч обычна€ сортировка по позици€м.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_sort_standings_zero_last_zero_last -> sort_standings_zero_last Ч пилоты с 0/NaN в конце.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_sort_standings_zero_last_empty -> sort_standings_zero_last Ч пустой DataFrame.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_sort_standings_zero_last_none_handling -> sort_standings_zero_last Ч None/отсутствие колонки.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_get_driver_details_uses_wiki_thumbnail_when_openf1_unavailable -> ≈сли OpenF1 недоступен, карточка пилота получает headshot из Wikipedia thumbnail.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_fill_drivers_headshots_uses_wiki_thumbnail_when_openf1_unavailable -> ƒл€ состава команды при пустом OpenF1 беретс€ Wikipedia thumbnail.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_get_sprint_quali_results_async_falls_back_to_openf1_when_fastf1_empty -> ≈сли FastF1 не дал SQ, используем OpenF1 fallback по дате sprint_quali.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_get_season_schedule_short_marks_cancelled_event -> ≈сли EventFormat содержит cancelled/canceled, этап помечаетс€ is_cancelled=True.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_get_practice_results_returns_empty_when_laps_were_not_loaded -> Ќеполна€ сесси€ FastF1 не должна превращатьс€ в HTTP 500.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_get_practice_results_includes_fastest_lap_sector_times -> FastF1-сектора быстрейшего круга безопасно попадают в API-классификацию.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_openf1_practice_results_include_classification_details -> OpenF1 fallback builds the same practice payload as the FastF1 provider.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_practice_results_async_prefers_openf1_and_skips_fastf1 -> A populated OpenF1 response avoids the slower FastF1 fallback.
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_formula1_practice_parser_builds_shared_result_shape -> test formula1 practice parser builds shared result shape
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_formula1_practice_fallback_uses_calendar_round_link -> test formula1 practice fallback uses calendar round link
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_published_standings_keep_round_metadata_and_fractional_points[drivers] -> test published standings keep round metadata and fractional points[drivers]
+.
+tests\test_f1_data.py
+[CHECK] tests/test_f1_data.py::test_published_standings_keep_round_metadata_and_fractional_points[teams] -> test published standings keep round metadata and fractional points[teams]
+.                                                                        [100%]
+============================== warnings summary ===============================
+.venv\Lib\site-packages\requests\__init__.py:113
+  D:\PyCharmProject\FormulaOneBot\.venv\Lib\site-packages\requests\__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.4.3)/charset_normalizer (3.4.4) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 28 passed, 1 warning in 1.02s ========================

@@ -1,0 +1,583 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: D:\PyCharmProject\FormulaOneBot
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-1.4.0
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collected 178 items
+
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_cards_are_compact_and_full_classification_is_collapsed -> test cards are compact and full classification is collapsed
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_race_image_replaces_tables_and_keeps_recap_and_news -> test race image replaces tables and keeps recap and news
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_review_keeps_unknown_data_and_multiple_first_retirements_distinct -> test review keeps unknown data and multiple first retirements distinct
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_native_time_is_utc_based_and_has_an_absolute_fallback -> test native time is utc based and has an absolute fallback
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_button_colors_follow_action_semantics_without_coloring_cancel -> test button colors follow action semantics without coloring cancel
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_rich_fallback_keeps_personal_receiver_and_does_not_retry_ambiguous_send -> test rich fallback keeps personal receiver and does not retry ambiguous send
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_real_dispatcher_binds_review_to_clicker_not_message_author[False] -> test real dispatcher binds review to clicker not message author[False]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_real_dispatcher_binds_review_to_clicker_not_message_author[True] -> test real dispatcher binds review to clicker not message author[True]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_rejected_ephemeral_message_never_becomes_public -> test rejected ephemeral message never becomes public
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_forged_personal_callbacks_are_rejected[personal:review:2026:15:42] -> test forged personal callbacks are rejected[personal:review:2026:15:42]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_forged_personal_callbacks_are_rejected[personal:review:2026:99] -> test forged personal callbacks are rejected[personal:review:2026:99]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_forged_personal_callbacks_are_rejected[personal:admin:2026:15] -> test forged personal callbacks are rejected[personal:admin:2026:15]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_archived_user_is_not_created_or_reactivated -> test archived user is not created or reactivated
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_league_response_does_not_expose_invitation_tokens -> test league response does not expose invitation tokens
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_stop_cancels_work_only_for_matching_bot_chat_actor_and_message -> test loading stop cancels work only for matching bot chat actor and message
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_message_is_deleted_after_any_result_without_a_lingering_draft[text] -> test loading message is deleted after any result without a lingering draft[text]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_message_is_deleted_after_any_result_without_a_lingering_draft[card] -> test loading message is deleted after any result without a lingering draft[card]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_message_is_deleted_after_any_result_without_a_lingering_draft[photo] -> test loading message is deleted after any result without a lingering draft[photo]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_failed_loading_is_deleted_without_hiding_the_original_error -> test failed loading is deleted without hiding the original error
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_failed_deletion_retires_label_and_stop_button_instead_of_leaving_loading -> test failed deletion retires label and stop button instead of leaving loading
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_progress_keeps_stop_button_and_cannot_restart_completed_loading -> test progress keeps stop button and cannot restart completed loading
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_group_loading_is_deletable_but_never_offers_private_cancellation -> test group loading is deletable but never offers private cancellation
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_ui_failure_does_not_block_the_actual_result -> test loading ui failure does not block the actual result
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_external_cancellation_is_not_suppressed -> test external cancellation is not suppressed
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_stopping_comparison_cancels_all_pending_race_requests -> test stopping comparison cancels all pending race requests
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_parallel_comparison_keeps_points_in_schedule_order -> test parallel comparison keeps points in schedule order
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_loading_does_not_depend_on_draft_api -> test loading does not depend on draft api
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[@F1HubTestBot \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0430\u044f \u0433\u043e\u043d\u043a\u0430-next] -> test guest query is a strict public allowlist[@F1HubTestBot \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0430\u044f \u0433\u043e\u043d\u043a\u0430-next]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[\u0438\u0442\u043e\u0433\u0438 \u0433\u043e\u043d\u043a\u0438-recap] -> test guest query is a strict public allowlist[\u0438\u0442\u043e\u0433\u0438 \u0433\u043e\u043d\u043a\u0438-recap]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[/driver ALO 1997-driver] -> test guest query is a strict public allowlist[/driver ALO 1997-driver]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[\u0441\u0440\u0430\u0432\u043d\u0438 ALO HAM-compare] -> test guest query is a strict public allowlist[\u0441\u0440\u0430\u0432\u043d\u0438 ALO HAM-compare]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[\u0447\u0442\u043e \u0442\u0430\u043a\u043e\u0435 VSC?-term] -> test guest query is a strict public allowlist[\u0447\u0442\u043e \u0442\u0430\u043a\u043e\u0435 VSC?-term]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[/broadcast attack-help] -> test guest query is a strict public allowlist[/broadcast attack-help]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[\u043c\u043e\u0439 \u043f\u0440\u043e\u0433\u043d\u043e\u0437-help] -> test guest query is a strict public allowlist[\u043c\u043e\u0439 \u043f\u0440\u043e\u0433\u043d\u043e\u0437-help]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_query_is_a_strict_public_allowlist[/driver ALO 2026 extra-help] -> test guest query is a strict public allowlist[/driver ALO 2026 extra-help]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_update_uses_answer_guest_query_not_regular_send -> test guest update uses answer guest query not regular send
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_comparison_uses_same_standings_source -> test guest comparison uses same standings source
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_guest_throttle_is_bounded -> test guest throttle is bounded
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_prediction_menu_states_are_explanatory_without_disabling_readonly_view[before] -> test prediction menu states are explanatory without disabling readonly view[before]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_prediction_menu_states_are_explanatory_without_disabling_readonly_view[open] -> test prediction menu states are explanatory without disabling readonly view[open]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_prediction_menu_states_are_explanatory_without_disabling_readonly_view[closed] -> test prediction menu states are explanatory without disabling readonly view[closed]
+.
+tests\test_telegram_api_features.py
+[CHECK] tests/test_telegram_api_features.py::test_prediction_menu_states_are_explanatory_without_disabling_readonly_view[unknown] -> test prediction menu states are explanatory without disabling readonly view[unknown]
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_restart_dedup_audience_and_rate_limit -> test restart dedup audience and rate limit
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_ambiguous_and_blocked_are_not_replayed -> test ambiguous and blocked are not replayed
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_bad_request_keeps_telegram_reason_without_retrying -> test bad request keeps telegram reason without retrying
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_expiration_archiving_and_interrupted_send -> test expiration archiving and interrupted send
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_concurrent_workers_claim_once -> test concurrent workers claim once
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_album_progress_survives_retry_and_capture_is_inert -> test album progress survives retry and capture is inert
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_binary_photo_and_group_delivery -> test binary photo and group delivery
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_rich_upgrade_preserves_frozen_delivery_and_deduplicates[True] -> test rich upgrade preserves frozen delivery and deduplicates[True]
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_rich_upgrade_preserves_frozen_delivery_and_deduplicates[False] -> test rich upgrade preserves frozen delivery and deduplicates[False]
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_queued_rich_fallback_is_only_for_explicit_feature_rejection[False] -> test queued rich fallback is only for explicit feature rejection[False]
+.
+tests\test_telegram_outbox.py
+[CHECK] tests/test_telegram_outbox.py::test_queued_rich_fallback_is_only_for_explicit_feature_rejection[True] -> test queued rich fallback is only for explicit feature rejection[True]
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_group_notifications_no_time_line -> � ��������� ����� �� ���������� ������ ������� � HH:MM (UTC)�, ������ ���������, �����, ������, ����.
+[PREVIEW] Group race reminder
+          \U0001f3ce \u0421\u043a\u043e\u0440\u043e \u0433\u043e\u043d\u043a\u0430!
+
+          <tg-time unix="1772377200" format="r">\u0427\u0435\u0440\u0435\u0437 1 \u0447.</tg-time> \u0441\u0442\u0430\u0440\u0442: Bahrain Grand Prix \U0001f3c1
+          \U0001f4cd \u0422\u0440\u0430\u0441\u0441\u0430: Sakhir
+          \U0001f4c5 \u0414\u0430\u0442\u0430: 01.03.2026
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_private_notifications_keep_user_timezone_wording -> test private notifications keep user timezone wording
+[PREVIEW] Private race reminder
+          \U0001f3ce \u0421\u043a\u043e\u0440\u043e \u0433\u043e\u043d\u043a\u0430!
+
+          <tg-time unix="1772377200" format="r">\u0427\u0435\u0440\u0435\u0437 1 \u0447.</tg-time> \u0441\u0442\u0430\u0440\u0442: Bahrain Grand Prix \U0001f3c1
+          \U0001f4cd \u0422\u0440\u0430\u0441\u0441\u0430: Sakhir
+          \U0001f4c5 \u0414\u0430\u0442\u0430: 01.03.2026
+          \u23f0 \u041d\u0430\u0447\u0430\u043b\u043e \u0432 <tg-time unix="1772377200" format="wDt">18:00 (\u043f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)</tg-time>
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_notification_text_contains_local_date -> test notification text contains local date
+[PREVIEW] Private race reminder with local date
+          \U0001f3ce \u0421\u043a\u043e\u0440\u043e \u0433\u043e\u043d\u043a\u0430!
+
+          <tg-time unix="1772407800" format="r">\u0427\u0435\u0440\u0435\u0437 1 \u0447.</tg-time> \u0441\u0442\u0430\u0440\u0442: Bahrain Grand Prix \U0001f3c1
+          \U0001f4cd \u0422\u0440\u0430\u0441\u0441\u0430: Sakhir
+          \U0001f4c5 \u0414\u0430\u0442\u0430: 02.03.2026
+          \u23f0 \u041d\u0430\u0447\u0430\u043b\u043e \u0432 <tg-time unix="1772407800" format="wDt">02:30 (\u043f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)</tg-time>
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_voting_results_deadline_matches_moscow_wednesday -> Sunday's voting closes on Wednesday at midnight Moscow time.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_two_hour_qualifying_reminder_is_replaced_by_prediction_closing -> test two hour qualifying reminder is replaced by prediction closing
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_voting_results_do_not_depend_on_external_race_results -> ����� �� ��������� ������� ������������ ���� ��� �������� ��������� �����.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_send_notifications_sends_sprint_events -> test check and send notifications sends sprint events
+[PREVIEW] Sent notification #1
+          \u26a1 \u0421\u043a\u043e\u0440\u043e \u0441\u043f\u0440\u0438\u043d\u0442!
+
+          <tg-time unix="1791135197" format="r">����� 1 �.</tg-time> �����: Miami Grand Prix
+          \U0001f4cd \u0422\u0440\u0430\u0441\u0441\u0430: Miami
+          \U0001f4c5 \u0414\u0430\u0442\u0430: 04.10.2026
+          \u23f0 \u041d\u0430\u0447\u0430\u043b\u043e \u0432 <tg-time unix="1791135197" format="wDt">20:33 (\u043f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)</tg-time>
+[PREVIEW] Sent notification #2
+          \u23f1 \u0421\u043a\u043e\u0440\u043e \u0441\u043f\u0440\u0438\u043d\u0442-\u043a\u0432\u0430\u043b\u0438\u0444\u0438\u043a\u0430\u0446\u0438\u044f!
+
+          <tg-time unix="1791135137" format="r">����� 59 ���.</tg-time> �����: Miami Grand Prix
+          \U0001f4cd \u0422\u0440\u0430\u0441\u0441\u0430: Miami
+          \U0001f4c5 \u0414\u0430\u0442\u0430: 04.10.2026
+          \u23f0 \u041d\u0430\u0447\u0430\u043b\u043e \u0432 <tg-time unix="1791135137" format="wDt">20:32 (\u043f\u043e \u0432\u0430\u0448\u0435\u043c\u0443 \u0432\u0440\u0435\u043c\u0435\u043d\u0438)</tg-time>
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_send_results_does_not_mark_round_when_delivery_failed -> ����� �� ������ ���������� ��� ������������, ���� ����������� �������� �� �������.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_notify_quali_does_not_mark_round_when_delivery_failed -> ���������������� ����� �� ���������� ������������ ��� ������� ��������.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_quali_retries_when_one_recipient_fails_after_another_succeeds -> A transient failure must not permanently lose that recipient's notification.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_startup_baseline_skips_completed_sessions_but_not_future_rounds -> A restart advances all result watermarks without dispatching old sessions.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_startup_resumes_partially_queued_qualifying -> test startup resumes partially queued qualifying
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_startup_baseline_fails_closed_when_schedule_is_unavailable -> No result dispatcher is enabled until startup can establish safe watermarks.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_send_results_does_not_mark_round_when_rows_unparseable -> ���� ���������� ������ � ������������� �������, ���� �� ���������� ������������ (����� ������).
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_notify_quali_does_not_mark_round_when_no_rows -> ���� latest-quali �������� ������, ����� �� ������ ��������� ������������.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_send_results_fallbacks_to_all_users_when_notifications_only_empty -> Legacy-�����: ���� notifications_only ����, ����-�������� �������� ��� ���� �������������.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_safe_send_photo_wraps_bytes_for_aiogram -> ��������������� PNG bytes ������������� � BufferedInputFile ����� Telegram API.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_wait_until_race_can_be_finished -> Live-������� ����� 90 ����� ����� ������ �� ����������� ��� ��������� ���������.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[False-False-False] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[False-False-True] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[False-True-False] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[False-True-True] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[True-False-False] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[True-False-True] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[True-True-False] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_race_results_send_image_and_separate_favorites_message[True-True-True] -> Native cards preserve spoilers, group privacy and old delivery keys.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_check_and_notify_quali_fallbacks_to_all_users_when_notifications_only_empty -> Legacy-�����: ���� notifications_only ����, ����-�����-�������� ��� ���� �������������.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_quali_sends_generic_image_and_separate_favorites_message -> ��������� ����� ������������ �������� ��������� ����������, ��� ����� �����.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_session_result_workers_are_independent_when_one_feed_fails -> One unavailable classification cannot block other completed-session notifications.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_all_result_event_bindings_are_registered -> Every required ingestion event has a notification handler binding.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_results_ready_status_bypasses_elapsed_time_debounce -> An explicit results_ready transition is eligible immediately.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_completed_sprint_session_dispatches_to_mock_telegram_immediately[sprint_qualifying] -> Both sprint result feeds dispatch on an explicit results_ready transition.
+.
+tests\test_notifications.py
+[CHECK] tests/test_notifications.py::test_completed_sprint_session_dispatches_to_mock_telegram_immediately[sprint] -> Both sprint result feeds dispatch on an explicit results_ready transition.
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_templates_chronology_and_after_finish_penalty -> test templates chronology and after finish penalty
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[formation-lap] -> test ambiguous or irrelevant messages are not stories[formation-lap]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[post-race-sc] -> test ambiguous or irrelevant messages are not stories[post-race-sc]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[sc-ending] -> test ambiguous or irrelevant messages are not stories[sc-ending]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[vsc-ending] -> test ambiguous or irrelevant messages are not stories[vsc-ending]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[sector-red] -> test ambiguous or irrelevant messages are not stories[sector-red]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[yellow] -> test ambiguous or irrelevant messages are not stories[yellow]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[investigation] -> test ambiguous or irrelevant messages are not stories[investigation]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[no-action] -> test ambiguous or irrelevant messages are not stories[no-action]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[rescinded] -> test ambiguous or irrelevant messages are not stories[rescinded]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[penalty-investigation] -> test ambiguous or irrelevant messages are not stories[penalty-investigation]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[wrong-session] -> test ambiguous or irrelevant messages are not stories[wrong-session]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[wrong-year] -> test ambiguous or irrelevant messages are not stories[wrong-year]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_ambiguous_or_irrelevant_messages_are_not_stories[bad-date] -> test ambiguous or irrelevant messages are not stories[bad-date]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session0-rows0-now0] -> test unfinished or unconfirmed session is not a recap[session0-rows0-now0]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session1-rows1-now1] -> test unfinished or unconfirmed session is not a recap[session1-rows1-now1]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session2-rows2-now2] -> test unfinished or unconfirmed session is not a recap[session2-rows2-now2]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session3-rows3-now3] -> test unfinished or unconfirmed session is not a recap[session3-rows3-now3]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session4-rows4-now4] -> test unfinished or unconfirmed session is not a recap[session4-rows4-now4]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_unfinished_or_unconfirmed_session_is_not_a_recap[session5-rows5-now5] -> test unfinished or unconfirmed session is not a recap[session5-rows5-now5]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_names_are_session_scoped_no_static_driver_number_guess -> test names are session scoped no static driver number guess
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_event_selection_keeps_diverse_topics_then_time_order -> test event selection keeps diverse topics then time order
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_control_source_links_are_restricted[https://api.openf1.org/v1/race_control?session_key=latest#event-0123456789abcdef] -> test control source links are restricted[https://api.openf1.org/v1/race control?session key=latest#event-0123456789abcdef]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_control_source_links_are_restricted[https://api.openf1.org/v1/race_control?session_key=15000&other=1#event-0123456789abcdef] -> test control source links are restricted[https://api.openf1.org/v1/race control?session key=15000&other=1#event-0123456789abcdef]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_control_source_links_are_restricted[https://api.openf1.org/v1/drivers?session_key=15000#event-0123456789abcdef] -> test control source links are restricted[https://api.openf1.org/v1/drivers?session key=15000#event-0123456789abcdef]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_control_source_links_are_restricted[https://api.openf1.org.evil.test/v1/race_control?session_key=15000#event-0123456789abcdef] -> test control source links are restricted[https://api.openf1.org.evil.test/v1/race control?session key=15000#event-0123456789abcdef]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_background_persistence_read_only_public_and_final_no_refetch -> test background persistence read only public and final no refetch
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_quiet_race_is_cached_without_fabricating_absence_claims -> test quiet race is cached without fabricating absence claims
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_rate_limit_stops_requests_backs_off_and_retains_events -> test rate limit stops requests backs off and retains events
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_disabled_source_and_hidden_events_are_immediate -> test disabled source and hidden events are immediate
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_sessions_failure_visible_without_requests -> test sessions failure visible without requests
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_only_explicit_recognised_penalty_reasons_are_translated[CAUSING A COLLISION (16:11:31)-\u0437\u0430 \u043f\u0440\u043e\u0432\u043e\u0446\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u0441\u0442\u043e\u043b\u043a\u043d\u043e\u0432\u0435\u043d\u0438\u044f] -> test only explicit recognised penalty reasons are translated[CAUSING A COLLISION (16:11:31)-\u0437\u0430 \u043f\u0440\u043e\u0432\u043e\u0446\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435 \u0441\u0442\u043e\u043b\u043a\u043d\u043e\u0432\u0435\u043d\u0438\u044f]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_only_explicit_recognised_penalty_reasons_are_translated[SPEEDING IN PIT LANE-\u0437\u0430 \u043f\u0440\u0435\u0432\u044b\u0448\u0435\u043d\u0438\u0435 \u0441\u043a\u043e\u0440\u043e\u0441\u0442\u0438 \u043d\u0430 \u043f\u0438\u0442-\u043b\u0435\u0439\u043d\u0435] -> test only explicit recognised penalty reasons are translated[SPEEDING IN PIT LANE-\u0437\u0430 \u043f\u0440\u0435\u0432\u044b\u0448\u0435\u043d\u0438\u0435 \u0441\u043a\u043e\u0440\u043e\u0441\u0442\u0438 \u043d\u0430 \u043f\u0438\u0442-\u043b\u0435\u0439\u043d\u0435]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_only_explicit_recognised_penalty_reasons_are_translated[LEAVING THE TRACK AND GAINING AN ADVANTAGE-\u0437\u0430 \u0432\u044b\u0435\u0437\u0434 \u0437\u0430 \u043f\u0440\u0435\u0434\u0435\u043b\u044b \u0442\u0440\u0430\u0441\u0441\u044b \u0441 \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u0438\u0435\u043c \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u0430] -> test only explicit recognised penalty reasons are translated[LEAVING THE TRACK AND GAINING AN ADVANTAGE-\u0437\u0430 \u0432\u044b\u0435\u0437\u0434 \u0437\u0430 \u043f\u0440\u0435\u0434\u0435\u043b\u044b \u0442\u0440\u0430\u0441\u0441\u044b \u0441 \u043f\u043e\u043b\u0443\u0447\u0435\u043d\u0438\u0435\u043c \u043f\u0440\u0435\u0438\u043c\u0443\u0449\u0435\u0441\u0442\u0432\u0430]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_only_explicit_recognised_penalty_reasons_are_translated[FAILING TO FOLLOW RACE DIRECTOR'S INSTRUCTIONS-\u0437\u0430 \u043d\u0435\u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u0438\u0439 \u0434\u0438\u0440\u0435\u043a\u0446\u0438\u0438 \u0433\u043e\u043d\u043a\u0438] -> test only explicit recognised penalty reasons are translated[FAILING TO FOLLOW RACE DIRECTOR'S INSTRUCTIONS-\u0437\u0430 \u043d\u0435\u0432\u044b\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u0438\u0439 \u0434\u0438\u0440\u0435\u043a\u0446\u0438\u0438 \u0433\u043e\u043d\u043a\u0438]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_only_explicit_recognised_penalty_reasons_are_translated[UNKNOWN REASON-None] -> test only explicit recognised penalty reasons are translated[UNKNOWN REASON-None]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_safety_context_is_detail_not_an_inferred_cause_or_driver -> test safety context is detail not an inferred cause or driver
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_context_outside_this_deployment_is_ignored[row0] -> test context outside this deployment is ignored[row0]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_context_outside_this_deployment_is_ignored[row1] -> test context outside this deployment is ignored[row1]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_context_outside_this_deployment_is_ignored[row2] -> test context outside this deployment is ignored[row2]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_context_outside_this_deployment_is_ignored[row3] -> test context outside this deployment is ignored[row3]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_context_stops_when_safety_car_was_called_in -> test context stops when safety car was called in
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_pit_lane_context_and_explicit_deployment_cause -> test pit lane context and explicit deployment cause
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_existing_generated_titles_switch_to_past_tense_not_rss_headlines[\u0412\u044b\u043f\u0443\u0449\u0435\u043d\u0430 \u043c\u0430\u0448\u0438\u043d\u0430 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043d\u0435\u0439\u0442\u0440\u0430\u043b\u0438\u0437\u043e\u0432\u0430\u043d\u0430.-\u041d\u0430 \u0442\u0440\u0430\u0441\u0441\u0443 \u0432\u044b\u043f\u0443\u0441\u0442\u0438\u043b\u0438 \u043c\u0430\u0448\u0438\u043d\u0443 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u043b\u0430\u0441\u044c \u0437\u0430 \u043d\u0435\u0439.] -> test existing generated titles switch to past tense not rss headlines[\u0412\u044b\u043f\u0443\u0449\u0435\u043d\u0430 \u043c\u0430\u0448\u0438\u043d\u0430 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043d\u0435\u0439\u0442\u0440\u0430\u043b\u0438\u0437\u043e\u0432\u0430\u043d\u0430.-\u041d\u0430 \u0442\u0440\u0430\u0441\u0441\u0443 \u0432\u044b\u043f\u0443\u0441\u0442\u0438\u043b\u0438 \u043c\u0430\u0448\u0438\u043d\u0443 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u043b\u0430\u0441\u044c \u0437\u0430 \u043d\u0435\u0439.]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_existing_generated_titles_switch_to_past_tense_not_rss_headlines[\u0412\u044b\u043f\u0443\u0449\u0435\u043d\u0430 \u043c\u0430\u0448\u0438\u043d\u0430 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u0442 \u0437\u0430 \u043c\u0430\u0448\u0438\u043d\u043e\u0439 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438.-\u041d\u0430 \u0442\u0440\u0430\u0441\u0441\u0443 \u0432\u044b\u043f\u0443\u0441\u0442\u0438\u043b\u0438 \u043c\u0430\u0448\u0438\u043d\u0443 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u043b\u0430\u0441\u044c \u0437\u0430 \u043d\u0435\u0439.] -> test existing generated titles switch to past tense not rss headlines[\u0412\u044b\u043f\u0443\u0449\u0435\u043d\u0430 \u043c\u0430\u0448\u0438\u043d\u0430 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u0442 \u0437\u0430 \u043c\u0430\u0448\u0438\u043d\u043e\u0439 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438.-\u041d\u0430 \u0442\u0440\u0430\u0441\u0441\u0443 \u0432\u044b\u043f\u0443\u0441\u0442\u0438\u043b\u0438 \u043c\u0430\u0448\u0438\u043d\u0443 \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u043b\u0430\u0441\u044c \u0437\u0430 \u043d\u0435\u0439.]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_existing_generated_titles_switch_to_past_tense_not_rss_headlines[\u0412\u043a\u043b\u044e\u0447\u0451\u043d VSC \u2014 \u043f\u0438\u043b\u043e\u0442\u044b \u043e\u0431\u044f\u0437\u0430\u043d\u044b \u0441\u043e\u0431\u043b\u044e\u0434\u0430\u0442\u044c \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u0442\u0435\u043c\u043f.-\u0412\u043a\u043b\u044e\u0447\u0438\u043b\u0438 VSC \u2014 \u043f\u0438\u043b\u043e\u0442\u043e\u0432 \u043e\u0431\u044f\u0437\u0430\u043b\u0438 \u0441\u043e\u0431\u043b\u044e\u0434\u0430\u0442\u044c \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u0442\u0435\u043c\u043f.] -> test existing generated titles switch to past tense not rss headlines[\u0412\u043a\u043b\u044e\u0447\u0451\u043d VSC \u2014 \u043f\u0438\u043b\u043e\u0442\u044b \u043e\u0431\u044f\u0437\u0430\u043d\u044b \u0441\u043e\u0431\u043b\u044e\u0434\u0430\u0442\u044c \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u0442\u0435\u043c\u043f.-\u0412\u043a\u043b\u044e\u0447\u0438\u043b\u0438 VSC \u2014 \u043f\u0438\u043b\u043e\u0442\u043e\u0432 \u043e\u0431\u044f\u0437\u0430\u043b\u0438 \u0441\u043e\u0431\u043b\u044e\u0434\u0430\u0442\u044c \u0437\u0430\u0434\u0430\u043d\u043d\u044b\u0439 \u0442\u0435\u043c\u043f.]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_existing_generated_titles_switch_to_past_tense_not_rss_headlines[\u041a\u0440\u0430\u0441\u043d\u044b\u0439 \u0444\u043b\u0430\u0433 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u0430.-\u0413\u043e\u043d\u043a\u0443 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u043b\u0438 \u043a\u0440\u0430\u0441\u043d\u044b\u043c \u0444\u043b\u0430\u0433\u043e\u043c.] -> test existing generated titles switch to past tense not rss headlines[\u041a\u0440\u0430\u0441\u043d\u044b\u0439 \u0444\u043b\u0430\u0433 \u2014 \u0433\u043e\u043d\u043a\u0430 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u0430.-\u0413\u043e\u043d\u043a\u0443 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u043b\u0438 \u043a\u0440\u0430\u0441\u043d\u044b\u043c \u0444\u043b\u0430\u0433\u043e\u043c.]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_existing_generated_titles_switch_to_past_tense_not_rss_headlines[Test Driver: \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e\u0439 \u0448\u0442\u0440\u0430\u0444 \u2014 10 \u0441\u0435\u043a.-Test Driver \u043f\u043e\u043b\u0443\u0447\u0438\u043b 10-\u0441\u0435\u043a\u0443\u043d\u0434\u043d\u044b\u0439 \u0448\u0442\u0440\u0430\u0444.] -> test existing generated titles switch to past tense not rss headlines[Test Driver: \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d \u0432\u0440\u0435\u043c\u0435\u043d\u043d\u043e\u0439 \u0448\u0442\u0440\u0430\u0444 \u2014 10 \u0441\u0435\u043a.-Test Driver \u043f\u043e\u043b\u0443\u0447\u0438\u043b 10-\u0441\u0435\u043a\u0443\u043d\u0434\u043d\u044b\u0439 \u0448\u0442\u0440\u0430\u0444.]
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_hourly_refresh_and_late_penalty_preserve_moderation -> test hourly refresh and late penalty preserve moderation
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_next_round_is_loaded_after_previous_round_was_finalised -> test next round is loaded after previous round was finalised
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_new_parser_refetches_old_final_snapshot_once -> test new parser refetches old final snapshot once
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_previous_season_race_keeps_its_year_at_new_year -> test previous season race keeps its year at new year
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_legacy_check_schema_migration_keeps_existing_snapshot -> test legacy check schema migration keeps existing snapshot
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_bot_and_web_schema_migration_can_overlap -> test bot and web schema migration can overlap
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_retry_after_rate_limit_recovers_without_requiring_admin -> test retry after rate limit recovers without requiring admin
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_recap_cache_and_waiting_do_not_gain_unconfirmed_events -> test recap cache and waiting do not gain unconfirmed events
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_final_stored_sc_wording_updates_without_refetch_or_database_write -> test final stored sc wording updates without refetch or database write
+.
+tests\test_recap_chronicle.py
+[CHECK] tests/test_recap_chronicle.py::test_telegram_presentations_and_spoilers_include_chronicle -> test telegram presentations and spoilers include chronicle
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_parse_preserves_original_title_and_discards_html_tracking -> test parse preserves original title and discards html tracking
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[javascript:alert(1)] -> test untrusted urls are rejected[javascript:alert(1)]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://www.bbc.com.evil.test/sport/a] -> test untrusted urls are rejected[https://www.bbc.com.evil.test/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://www.bbc.com@evil.test/sport/a] -> test untrusted urls are rejected[https://www.bbc.com@evil.test/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://user:pass@www.bbc.com/sport/a] -> test untrusted urls are rejected[https://user:pass@www.bbc.com/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://www.bbc.com:8080/sport/a] -> test untrusted urls are rejected[https://www.bbc.com:8080/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[http://www.bbc.com/sport/a] -> test untrusted urls are rejected[http://www.bbc.com/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://www.bbc.com\\evil.test/sport/a] -> test untrusted urls are rejected[https://www.bbc.com\\evil.test/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://127.0.0.1/sport/a] -> test untrusted urls are rejected[https://127.0.0.1/sport/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_untrusted_urls_are_rejected[https://www.bbc.com/news/a] -> test untrusted urls are rejected[https://www.bbc.com/news/a]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_undated_or_timezone_ambiguous_items_are_rejected[] -> test undated or timezone ambiguous items are rejected[]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_undated_or_timezone_ambiguous_items_are_rejected[garbage] -> test undated or timezone ambiguous items are rejected[garbage]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_undated_or_timezone_ambiguous_items_are_rejected[Sun, 27 Sep 2026 11:00:00] -> test undated or timezone ambiguous items are rejected[Sun, 27 Sep 2026 11:00:00]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_unsafe_or_wrong_feed_is_rejected[doctype] -> test unsafe or wrong feed is rejected[doctype]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_unsafe_or_wrong_feed_is_rejected[oversized] -> test unsafe or wrong feed is rejected[oversized]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_unsafe_or_wrong_feed_is_rejected[html] -> test unsafe or wrong feed is rejected[html]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_unsafe_or_wrong_feed_is_rejected[utf16-doctype] -> test unsafe or wrong feed is rejected[utf16-doctype]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_filters_event_date_topic_and_retrospective_context -> test filters event date topic and retrospective context
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_russian_stems_and_event_aliases_are_supported -> test russian stems and event aliases are supported
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_autosport_rss_uses_original_titles_and_direct_f1_links -> test autosport rss uses original titles and direct f1 links
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_new_sources_default_on_retired_sources_off_and_disabled_choice_persists -> test new sources default on retired sources off and disabled choice persists
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_three_distinct_headlines_and_topic_diversity -> test three distinct headlines and topic diversity
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_sources_are_opt_in_and_public_reads_never_fetch -> test sources are opt in and public reads never fetch
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_hide_restore_disable_archive_and_idempotent_refresh -> test hide restore disable archive and idempotent refresh
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_admin_auth_validation_and_no_prediction_writes -> test admin auth validation and no prediction writes
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_statistical_cache_not_mutated_and_waiting_has_no_news -> test statistical cache not mutated and waiting has no news
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_both_telegram_presentations_include_links_and_escape_headlines -> test both telegram presentations include links and escape headlines
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_rss_fetch_is_bounded_conditional_and_rejects_redirects -> test rss fetch is bounded conditional and rejects redirects
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_background_opt_in_failure_backoff_and_persistence -> test background opt in failure backoff and persistence
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_permission_revoked_during_fetch_does_not_store_news -> test permission revoked during fetch does not store news
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_publisher_retry_after_is_respected[7200-7200] -> test publisher retry after is respected[7200-7200]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_publisher_retry_after_is_respected[Mon, 28 Sep 2026 12:00:00 GMT-86400] -> test publisher retry after is respected[Mon, 28 Sep 2026 12:00:00 GMT-86400]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_publisher_retry_after_is_respected[bad-900] -> test publisher retry after is respected[bad-900]
+.
+tests\test_recap_news.py
+[CHECK] tests/test_recap_news.py::test_missing_schedule_is_visible_in_admin_without_fetching_feeds -> test missing schedule is visible in admin without fetching feeds
+.                                                                        [100%]
+============================== warnings summary ===============================
+.venv-codex\Lib\site-packages\_pytest\cacheprovider.py:469
+  D:\PyCharmProject\FormulaOneBot\.venv-codex\Lib\site-packages\_pytest\cacheprovider.py:469: PytestCacheWarning: could not create cache path D:\PyCharmProject\FormulaOneBot\.pytest_cache\v\cache\nodeids: [WinError 5] �������� � �������: 'D:\\PyCharmProject\\FormulaOneBot\\.pytest_cache\\v\\cache'
+    config.cache.set("cache/nodeids", sorted(self.cached_nodeids))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 178 passed, 1 warning in 20.66s =======================

@@ -1,0 +1,108 @@
+
+> turbotears-front@0.0.0 build:front
+> vite build
+
+vite v7.3.1 building client environment for production...
+transforming...
+✓ 243 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                     1.31 kB │ gzip:   0.66 kB
+dist/static/predictions-DHxOQpu_.png               16.82 kB
+dist/static/sprint-CAjZ5deR.png                    16.85 kB
+dist/static/compare-TYQoBRTw.png                   17.23 kB
+dist/static/grid-ZHKs_g-O.png                      17.47 kB
+dist/static/teams-Cferf3bi.png                     17.62 kB
+dist/static/predictionAnalytics-B_zTBXjI.png       18.07 kB
+dist/static/arcade-DVlgzbRT.png                    18.14 kB
+dist/static/reaction-BFdjXKJN.png                  18.34 kB
+dist/static/race-gD_N4nl7.png                      18.67 kB
+dist/static/drivers-DIezKfd_.png                   18.76 kB
+dist/static/quali-CpSkJSZR.png                     18.78 kB
+dist/static/practice-CjPrA1Bp.png                  18.81 kB
+dist/static/sprintQuali-CVolXpDD.png               18.84 kB
+dist/static/account-8jB1ag_J.png                   21.78 kB
+dist/static/notifications-wxRtPJ28.png             22.13 kB
+dist/static/admin-CokXtRmI.png                     22.26 kB
+dist/static/analytics-pxfdCHom.png                 22.49 kB
+dist/static/results-Bg0FVmCY.png                   22.53 kB
+dist/static/favorite-DHkLu3mA.png                  22.58 kB
+dist/static/games-BnxuvjVC.png                     22.60 kB
+dist/static/vote-B2tHpMzc.png                      22.67 kB
+dist/.vite/manifest.json                           22.82 kB │ gzip:   3.05 kB
+dist/static/contact-HN_IflcT.png                   23.55 kB
+dist/static/home-DTZv05H3.png                      23.87 kB
+dist/static/peloton-B-xG-vgw.png                   23.93 kB
+dist/static/settings-BNPhKT9V.png                  23.98 kB
+dist/static/calendar-CZb_E96s.png                  24.03 kB
+dist/static/wiki-CyUx9JHY.png                      25.02 kB
+dist/static/ResetPasswordPage-B-DG0SM2.css          0.33 kB │ gzip:   0.19 kB
+dist/static/GlossaryText-p_Qg4ZC0.css               1.06 kB │ gzip:   0.53 kB
+dist/static/legal-D4RKdQMA.css                      1.16 kB │ gzip:   0.54 kB
+dist/static/NextRacePage-sL222PmS.css               1.16 kB │ gzip:   0.40 kB
+dist/static/NotificationsPage-FB_hb6rH.css          1.63 kB │ gzip:   0.64 kB
+dist/static/ShareButton-xtdCw4lk.css                1.95 kB │ gzip:   0.78 kB
+dist/static/community-Dbm89sxI.css                  2.29 kB │ gzip:   0.87 kB
+dist/static/RaceGamePage-DBqGsugD.css               2.39 kB │ gzip:   0.93 kB
+dist/static/SessionResultsUI-C0vbjE5s.css           2.44 kB │ gzip:   0.96 kB
+dist/static/VotingPage-DEbBJ5ec.css                 2.49 kB │ gzip:   0.80 kB
+dist/static/ContactAdminPage-DTs3GSWG.css           2.77 kB │ gzip:   1.02 kB
+dist/static/DriverPicker-Bj3rhIjC.css               3.02 kB │ gzip:   1.12 kB
+dist/static/CalendarDownload-DrEq29tw.css           3.65 kB │ gzip:   1.23 kB
+dist/static/SeasonPage-B_mmK4xs.css                 3.91 kB │ gzip:   1.14 kB
+dist/static/history-DMSBWbSs.css                    3.93 kB │ gzip:   1.29 kB
+dist/static/PredictionAnalyticsPage-BWarPIST.css    5.74 kB │ gzip:   1.77 kB
+dist/static/AccountPage-Ddsn1oxJ.css                6.25 kB │ gzip:   1.80 kB
+dist/static/PracticeResultsPage-BsfXxBpX.css        6.32 kB │ gzip:   1.68 kB
+dist/static/personal-pages-Ko8XU1SV.css             8.71 kB │ gzip:   2.24 kB
+dist/static/WikiPage-B6NKLdb3.css                  11.59 kB │ gzip:   3.03 kB
+dist/static/PredictionsPage-DsxTbRnm.css           12.46 kB │ gzip:   2.95 kB
+dist/static/games-Door9RR7.css                     17.36 kB │ gzip:   4.46 kB
+dist/static/AdminPage-DTLKEgQV.css                 22.76 kB │ gzip:   5.06 kB
+dist/static/index-BFV1Sma_.css                    342.66 kB │ gzip:  49.94 kB
+dist/static/CustomSelect-BFd6rIC2.js                0.88 kB │ gzip:   0.56 kB
+dist/static/BackButton-2I0O-5NT.js                  1.09 kB │ gzip:   0.68 kB
+dist/static/YearSelect-KW1W_ZSr.js                  1.45 kB │ gzip:   0.87 kB
+dist/static/presentation-DQE4j0zB.js                1.75 kB │ gzip:   1.09 kB
+dist/static/SharePage-W39S3yZm.js                   2.39 kB │ gzip:   1.26 kB
+dist/static/ContactAdminPage-B0ruOumR.js            2.45 kB │ gzip:   1.08 kB
+dist/static/ResetPasswordPage-BnnweXUf.js           2.64 kB │ gzip:   1.23 kB
+dist/static/RaceGamePage-BTKWI8zv.js                4.24 kB │ gzip:   1.91 kB
+dist/static/DriverPicker-g02HHJ8z.js                4.78 kB │ gzip:   2.21 kB
+dist/static/RaceDetailsPage-DdCa1fMD.js             5.48 kB │ gzip:   1.98 kB
+dist/static/FavoritesPage-U3vV7TIZ.js               6.05 kB │ gzip:   1.96 kB
+dist/static/TeamPrincipalPage-BYx040ZB.js           6.48 kB │ gzip:   2.64 kB
+dist/static/SessionResultsUI-DhrpZz4B.js            6.80 kB │ gzip:   2.83 kB
+dist/static/CommunityPage-Jgsp-U0l.js               7.11 kB │ gzip:   2.74 kB
+dist/static/ShareButton-Brgdl0BE.js                 7.18 kB │ gzip:   2.61 kB
+dist/static/LicenseRegisterPage-B-brcrOd.js         7.28 kB │ gzip:   3.31 kB
+dist/static/SprintQualiResultsPage-oTG8xTSS.js      8.16 kB │ gzip:   2.76 kB
+dist/static/QualiResultsPage-2ziPYoE0.js            8.86 kB │ gzip:   2.94 kB
+dist/static/PracticeResultsPage-uQ2BXT68.js         9.29 kB │ gzip:   4.23 kB
+dist/static/NextRacePage-BHSs6NAT.js                9.33 kB │ gzip:   3.13 kB
+dist/static/WikiPage-C0aWx4n1.js                    9.43 kB │ gzip:   3.86 kB
+dist/static/SprintResultsPage-CNpCemvv.js           9.44 kB │ gzip:   3.05 kB
+dist/static/DriversPage-CSgRBa7P.js                10.30 kB │ gzip:   3.63 kB
+dist/static/VotingPage-DoCFBl7I.js                 10.59 kB │ gzip:   3.70 kB
+dist/static/ConstructorsPage-BQvqdoY-.js           11.00 kB │ gzip:   3.71 kB
+dist/static/NotificationsPage-BrQ8nMDi.js          11.28 kB │ gzip:   4.59 kB
+dist/static/DriverDetailsPage-CeipjpAe.js          11.46 kB │ gzip:   3.65 kB
+dist/static/SettingsPage-em4cBruT.js               12.60 kB │ gzip:   4.64 kB
+dist/static/ConstructorDetailsPage-BveHCZE4.js     13.17 kB │ gzip:   3.61 kB
+dist/static/AccountPage-BlZGMlvF.js                13.27 kB │ gzip:   4.36 kB
+dist/static/ReflexGridGamePage-jXAs_w_1.js         13.62 kB │ gzip:   4.37 kB
+dist/static/HistoryPage-D33o1y9M.js                16.35 kB │ gzip:   6.83 kB
+dist/static/RaceResultsPage-JabJ1lyC.js            16.46 kB │ gzip:   5.58 kB
+dist/static/PredictionAnalyticsPage-DPfhibcl.js    18.45 kB │ gzip:   6.28 kB
+dist/static/SeasonPage-B1SB2OQi.js                 18.56 kB │ gzip:   5.89 kB
+dist/static/ReactionGamePage-C4eSCbc3.js           18.60 kB │ gzip:   6.45 kB
+dist/static/ComparePage-DR1v1XkK.js                20.69 kB │ gzip:   6.59 kB
+dist/static/CalendarDownload-CVbel-SL.js           23.29 kB │ gzip:   8.90 kB
+dist/static/circuitInsightsRu-f2wNjMee.js          26.45 kB │ gzip:   7.19 kB
+dist/static/LegalPages-DHx6xeNI.js                 28.42 kB │ gzip:   8.03 kB
+dist/static/GlossaryText-CZKJqc1B.js               29.15 kB │ gzip:   9.65 kB
+dist/static/PredictionsPage-9uPF0aW2.js            35.34 kB │ gzip:  11.49 kB
+dist/static/AdminPage-BOPpkz7A.js                  75.59 kB │ gzip:  21.22 kB
+dist/static/chart-Bcjh2pZL.js                     206.64 kB │ gzip:  70.71 kB
+dist/static/index-Bl3H5-Tc.js                     379.08 kB │ gzip: 123.61 kB
+✓ built in 6.16s

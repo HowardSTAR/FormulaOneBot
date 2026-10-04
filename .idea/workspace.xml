@@ -4,35 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="обновление подписей(таймера) и выбор за сколько уведомлений">
-      <change beforePath="$PROJECT_DIR$/app/api/miniapp_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/miniapp_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/web_notifications_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/web_notifications_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/f1-history-recap.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/f1-history-recap.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/front/package.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/App.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/components/CalendarDownload.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/CalendarDownload.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/components/DriverGuide.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/DriverGuide.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/components/GlossaryText.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/GlossaryText.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/components/PageFeedback.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/PageFeedback.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/components/RaceImpact.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/RaceImpact.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/components/RequireAdmin.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/RequireAdmin.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/components/SwipeBackLayout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/SwipeBackLayout.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/helpers/api.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/helpers/api.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/helpers/telegram.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/helpers/telegram.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/account/AccountPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/account/AccountPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/community/SharePage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/community/SharePage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/constructors/ConstructorsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/constructors/ConstructorsPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/driver-details/DriverDetailsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/driver-details/DriverDetailsPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/drivers/DriversPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/drivers/DriversPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/notifications/NotificationsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/notifications/NotificationsPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/predictions/PredictionsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/predictions/PredictionsPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/predictions/SeasonProgress.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/predictions/SeasonProgress.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/race-details/RaceDetailsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/race-details/RaceDetailsPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/season/SeasonPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/season/SeasonPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/settings/SettingsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/settings/SettingsPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/team-principal/TeamPrincipalPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/team-principal/TeamPrincipalPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_web_notifications.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_web_notifications.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/ux_preview_server.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/ux_preview_server.py" afterDir="false" />
+    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="фикс трассы и онбординг добавление">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -246,46 +219,6 @@
       <workItem from="1768860453876" duration="3031000" />
       <workItem from="1768914801741" duration="17575000" />
       <workItem from="1769405571210" duration="601000" />
-    </task>
-    <task id="LOCAL-00081" summary="доп уведомление о приглошение про прогноз">
-      <option name="closed" value="true" />
-      <created>1789153036560</created>
-      <option name="number" value="00081" />
-      <option name="presentableId" value="LOCAL-00081" />
-      <option name="project" value="LOCAL" />
-      <updated>1789153036560</updated>
-    </task>
-    <task id="LOCAL-00082" summary="новый вид трасс и обнлвление мадрида">
-      <option name="closed" value="true" />
-      <created>1789315138325</created>
-      <option name="number" value="00082" />
-      <option name="presentableId" value="LOCAL-00082" />
-      <option name="project" value="LOCAL" />
-      <updated>1789315138325</updated>
-    </task>
-    <task id="LOCAL-00083" summary="новый вид трасс и обнлвление мадрида">
-      <option name="closed" value="true" />
-      <created>1789315153570</created>
-      <option name="number" value="00083" />
-      <option name="presentableId" value="LOCAL-00083" />
-      <option name="project" value="LOCAL" />
-      <updated>1789315153570</updated>
-    </task>
-    <task id="LOCAL-00084" summary="обновлённая админка">
-      <option name="closed" value="true" />
-      <created>1789325218068</created>
-      <option name="number" value="00084" />
-      <option name="presentableId" value="LOCAL-00084" />
-      <option name="project" value="LOCAL" />
-      <updated>1789325218068</updated>
-    </task>
-    <task id="LOCAL-00085" summary="новая реализация сообщений всем">
-      <option name="closed" value="true" />
-      <created>1789327571914</created>
-      <option name="number" value="00085" />
-      <option name="presentableId" value="LOCAL-00085" />
-      <option name="project" value="LOCAL" />
-      <updated>1789327571914</updated>
     </task>
     <task id="LOCAL-00086" summary="просмотр прогнозов">
       <option name="closed" value="true" />
@@ -639,7 +572,47 @@
       <option name="project" value="LOCAL" />
       <updated>1790934724710</updated>
     </task>
-    <option name="localTasksCounter" value="130" />
+    <task id="LOCAL-00130" summary="Исправил указанные экраны:&#10;- Календарь на мобильном стал компактнее.&#10;- В уведомлениях появился живой таймер и статусы по расписанию.&#10;- В расписании трассы выровнены названия, даты и кнопки.&#10;- «В календарь» теперь скачивает .ics; добавление подтверждается в календаре.&#10;- Технические подписи убраны сверху, время получения данных перенесено вниз.&#10;- Ссылки-действия оформлены кнопками, под главным виджетом добавлен отступ 16 px.">
+      <option name="closed" value="true" />
+      <created>1790941635489</created>
+      <option name="number" value="00130" />
+      <option name="presentableId" value="LOCAL-00130" />
+      <option name="project" value="LOCAL" />
+      <updated>1790941635489</updated>
+    </task>
+    <task id="LOCAL-00131" summary="фикс">
+      <option name="closed" value="true" />
+      <created>1790942412060</created>
+      <option name="number" value="00131" />
+      <option name="presentableId" value="LOCAL-00131" />
+      <option name="project" value="LOCAL" />
+      <updated>1790942412060</updated>
+    </task>
+    <task id="LOCAL-00132" summary="фикс экранов гонки">
+      <option name="closed" value="true" />
+      <created>1791047807728</created>
+      <option name="number" value="00132" />
+      <option name="presentableId" value="LOCAL-00132" />
+      <option name="project" value="LOCAL" />
+      <updated>1791047807729</updated>
+    </task>
+    <task id="LOCAL-00133" summary="фикс">
+      <option name="closed" value="true" />
+      <created>1791050301845</created>
+      <option name="number" value="00133" />
+      <option name="presentableId" value="LOCAL-00133" />
+      <option name="project" value="LOCAL" />
+      <updated>1791050301845</updated>
+    </task>
+    <task id="LOCAL-00134" summary="фикс трассы и онбординг добавление">
+      <option name="closed" value="true" />
+      <created>1791122530542</created>
+      <option name="number" value="00134" />
+      <option name="presentableId" value="LOCAL-00134" />
+      <option name="project" value="LOCAL" />
+      <updated>1791122530542</updated>
+    </task>
+    <option name="localTasksCounter" value="135" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -657,11 +630,7 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="Единые очки. Главная и сравнение используют официальный зачёт, включая спринты. Гоночные показатели подписаны отдельно; отсутствующие данные не выдаются за нули. &#10;&#10;Характеристики трасс. Мадрид отделён от Барселоны, параметры сезона 2026 сверены с официальными карточками F1. Дополнительно исправлены ошибочные совпадения названий трасс. &#10;&#10;Компактная главная. Под ближайшей сессией — короткое актуальное действие вместо большой панели. Добавлено нижнее мобильное меню. &#10;&#10;Прогноз без регистрации. Гость видит правила, пример разбора и может заполнить черновик. Выбор сохраняется при переходе к входу. &#10;&#10;«Мой сезон». Личная история, лучший и средний результат, точность по категориям, изменение места и разбор этапа. Неизвестные результаты не считаются промахами. &#10;&#10;Соревнования с друзьями. Рейтинг отдельного этапа, приватные лиги с приглашениями, сезонный зачёт и достижения. Чужие ответы остаются закрытыми. &#10;&#10;Календарь и результаты. Предстоящие этапы показываются первыми, сессии можно экспортировать в календарь. Карты компактнее, добавлены сводка изменений после гонки и ссылки на объяснения терминов." />
-    <MESSAGE value="добавление сортировки в аналитику" />
-    <MESSAGE value="новый иконки" />
     <MESSAGE value="исправления бага базы" />
-    <MESSAGE value="фикс" />
     <MESSAGE value="фиксы" />
     <MESSAGE value="фикс предиктов" />
     <MESSAGE value="новый тест на проверку результатов" />
@@ -682,7 +651,11 @@
     <MESSAGE value="фикс докера" />
     <MESSAGE value="эвристикам Нильсена по календарю" />
     <MESSAGE value="обновление подписей(таймера) и выбор за сколько уведомлений" />
-    <option name="LAST_COMMIT_MESSAGE" value="обновление подписей(таймера) и выбор за сколько уведомлений" />
+    <MESSAGE value="Исправил указанные экраны:&#10;- Календарь на мобильном стал компактнее.&#10;- В уведомлениях появился живой таймер и статусы по расписанию.&#10;- В расписании трассы выровнены названия, даты и кнопки.&#10;- «В календарь» теперь скачивает .ics; добавление подтверждается в календаре.&#10;- Технические подписи убраны сверху, время получения данных перенесено вниз.&#10;- Ссылки-действия оформлены кнопками, под главным виджетом добавлен отступ 16 px." />
+    <MESSAGE value="фикс экранов гонки" />
+    <MESSAGE value="фикс" />
+    <MESSAGE value="фикс трассы и онбординг добавление" />
+    <option name="LAST_COMMIT_MESSAGE" value="фикс трассы и онбординг добавление" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/FormulaOneBot$fastf1_capabilities_test.coverage" NAME="fastf1_capabilities_test Coverage Results" MODIFIED="1768941910109" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />
