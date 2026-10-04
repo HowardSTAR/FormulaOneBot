@@ -1,6 +1,8 @@
 # Frontend
 front/node_modules
 front/dist
+race-game/node_modules
+race-game/dist
 
 # Python
 __pycache__
@@ -23,6 +25,9 @@ artifacts/portrait-migration-*
 # Misc
 .env
 .env.*
+secrets
+.tmp
+.tools
 *.db
 *.db-shm
 *.db-wal

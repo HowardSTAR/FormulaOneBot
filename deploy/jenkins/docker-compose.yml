@@ -6,8 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        JENKINS_IMAGE: ${JENKINS_IMAGE:-jenkins/jenkins:lts-jdk17}
-    image: f1hub-jenkins:${JENKINS_IMAGE_TAG:-lts-jdk17}
+        JENKINS_IMAGE: ${JENKINS_IMAGE:-jenkins/jenkins:lts-jdk21}
+    image: f1hub-jenkins:${JENKINS_IMAGE_TAG:-lts-jdk21}
     container_name: f1hub-jenkins
     restart: unless-stopped
     init: true
@@ -20,6 +20,7 @@ services:
       JAVA_OPTS: >-
         -Djenkins.install.runSetupWizard=true
         -Djava.awt.headless=true
+        -Xms128m -Xmx512m
       JENKINS_OPTS: "--httpPort=8080"
     # GID группы docker на Ubuntu: getent group docker | cut -d: -f3
     group_add:
@@ -28,9 +29,15 @@ services:
       - jenkins_home:/var/jenkins_home
       # ВАЖНО: socket даёт Pipeline фактически root-доступ к Docker-хосту.
       - /var/run/docker.sock:/var/run/docker.sock
-    cpus: "${JENKINS_CPUS:-2.0}"
-    mem_limit: "${JENKINS_MEMORY:-3g}"
-    mem_reservation: "${JENKINS_MEMORY_RESERVATION:-1g}"
+      - /srv/jenkins-workspace:/srv/jenkins-workspace
+      - /opt/f1hub-ci:/opt/f1hub-ci:ro
+      - /root/f1hub-ci-bootstrap:/run/f1hub-ci-bootstrap:ro
+    networks:
+      - default
+      - production
+    cpus: "${JENKINS_CPUS:-1.0}"
+    mem_limit: "${JENKINS_MEMORY:-1g}"
+    mem_reservation: "${JENKINS_MEMORY_RESERVATION:-512m}"
     security_opt:
       - no-new-privileges:true
     healthcheck:
@@ -48,3 +55,8 @@ services:
 volumes:
   jenkins_home:
     name: f1hub_jenkins_home
+
+networks:
+  production:
+    external: true
+    name: formulaonebot_default
