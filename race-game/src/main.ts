@@ -196,11 +196,11 @@ const syncGhostControls = (ghost: GhostRun | null): void => {
   ui.ghostHudToggle.setAttribute('aria-pressed', pressed)
   ui.ghostMenuToggle.setAttribute('aria-pressed', pressed)
   ui.ghostHudToggle.classList.toggle('is-unavailable', !available)
-  ui.ghostHudToggle.textContent = `GHOST ${ghostEnabled ? 'ON' : 'OFF'}`
+  ui.ghostHudToggle.textContent = `Призрак ${ghostEnabled ? 'вкл.' : 'выкл.'}`
   ui.ghostHudToggle.title = available && ghost
     ? `Призрак: ${ghost.name} · ${formatTime(ghost.time_ms)}`
     : 'Пока нет записанного пути. Завершите новый заезд с сохранением результата.'
-  ui.ghostMenuLabel.textContent = `Ghost Racer: ${ghostEnabled ? 'ON' : 'OFF'}`
+  ui.ghostMenuLabel.textContent = `Повтор лучшего заезда: ${ghostEnabled ? 'вкл.' : 'выкл.'}`
   ui.ghostMenuCopy.textContent = available && ghost
     ? `${ghost.is_challenge ? 'Вызов друга' : ghost.is_global_best ? '#1' : 'Лучший доступный'} ${ghost.name} · ${formatTime(ghost.time_ms)}`
     : 'Пока нет записанного пути. Завершите новый заезд с сохранением результата.'
@@ -1033,6 +1033,15 @@ ui.pause.addEventListener('click', () => activeScene?.togglePause())
 const toggleGhost = (): void => activeScene?.setGhostEnabled(!ghostEnabled)
 ui.ghostHudToggle.addEventListener('click', toggleGhost)
 ui.ghostMenuToggle.addEventListener('click', toggleGhost)
+
+// Report stable action codes to the host without player names or race telemetry.
+document.addEventListener('click', event => {
+  const target = event.target instanceof Element ? event.target.closest('button') : null
+  if (!target || window.parent === window) return
+  const action = target.id === 'start-button' ? 'game_start'
+    : ['restart-button', 'menu-restart-button'].includes(target.id) ? 'game_restart' : 'button'
+  window.parent.postMessage({type: 'f1hub-game-analytics', action}, window.location.origin)
+})
 ui.menuButton.addEventListener('click', () => activeScene?.openGameMenu())
 ui.menuClose.addEventListener('click', () => activeScene?.closeGameMenu())
 ui.menuBackdrop.addEventListener('click', () => activeScene?.closeGameMenu())

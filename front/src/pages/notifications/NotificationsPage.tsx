@@ -10,6 +10,18 @@ import { visibleInterval } from '../../helpers/visibleInterval';
 type Item = { id: number; title: string; body: string; url: string; created_at: number; read_at: number | null; reminder?: ReminderTiming | null; historical_snapshot?: boolean; priority?: "minimal" | "low" | "medium" | "critical" | "blocking" | null };
 const priorityNames = { minimal: "Минимальный", low: "Низкий", medium: "Средний", critical: "Критический", blocking: "Блокирующий" };
 type Inbox = { items: Item[]; unread: number; next_before: number | null; push: { enabled: boolean; public_key: string } };
+function groupNotifications(items: Item[]) {
+  const groups = new Map<string, Item & { copies: number }>();
+  for (const item of items) {
+    const key = JSON.stringify([item.url, item.title, item.reminder ? ['reminder', item.reminder.start_utc] : ['body', item.body]]);
+    const previous = groups.get(key);
+    if (previous) {
+      previous.copies += 1;
+      if (!item.read_at) previous.read_at = null;
+    } else groups.set(key, { ...item, copies: 1 });
+  }
+  return [...groups.values()];
+}
 function keyBytes(key: string) {
   const value = atob(key.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4-key.length%4)%4));
   return Uint8Array.from(value, char => char.charCodeAt(0));
@@ -104,6 +116,7 @@ export default function NotificationsPage() {
     catch { if (sequence === requestSequence.current) setError("Не удалось загрузить историю"); }
     finally { setBusy(false); }
   };
+  const visibleItems = groupNotifications(data?.items || []);
   return <div className="notifications-page">
     <BackButton /><header><small>TURBOTEARS · ЛИЧНОЕ</small><h1>Уведомления</h1>
       <p>Результаты, прогнозы, голосования и новости сессий. Избранные пилоты и команды выделяются в итогах.</p></header>
@@ -129,19 +142,24 @@ export default function NotificationsPage() {
     <label>Тип уведомлений <select value={category} onChange={event => {setData(null); setCategory(event.target.value);}}><option value="all">Все</option><option value="results">Результаты</option><option value="predictions">Прогнозы</option><option value="voting">Голосования</option><option value="reminders">Напоминания</option><option value="admin">Системные</option></select></label>
     {error && <div role="alert"><p>{error}</p><button onClick={() => void refresh()}>Повторить</button></div>}
     {!data ? !error && <p role="status">Загружаем уведомления…</p> : <>
-      <div className="notifications-toolbar"><span>Непрочитанных в разделе: {data.unread}</span><button disabled={!data.unread} onClick={markRead}>Отметить прочитанными до этой даты</button></div>
+      <div className="notifications-toolbar"><span>Непрочитанных сообщений: {data.unread}</span><button disabled={!data.unread} onClick={markRead}>Отметить прочитанными до этой даты</button></div>
       {!data.items.length && <p className="notifications-empty">Здесь появятся новые события. Прошедшие уведомления не рассылаются повторно.</p>}
-      {data.items.map(item => {
+      {visibleItems.length < data.items.length && <p className="ui-data-context">Повторные сообщения объединены в одну карточку.</p>}
+      {visibleItems.map(item => {
         const clock = item.reminder ? reminderClock(item.reminder, now) : null;
         const presentation = notificationBody(item.body, item.url);
         return <article key={item.id} className={item.read_at ? "" : "is-unread"}>
         {item.priority && <span className={`notification-priority priority-${item.priority}`}>{priorityNames[item.priority]} приоритет</span>}
         <time dateTime={new Date(item.created_at*1000).toISOString()}>{new Date(item.created_at*1000).toLocaleString("ru-RU")}</time><h2>{clock ? 'Сессия уик-энда' : item.title}</h2>
+        {item.copies > 1 && <p className="ui-data-context">Объединено сообщений: {item.copies}</p>}
         {clock && <div className={`notification-clock phase-${clock.phase}`} aria-label="Статус сессии"><strong>{clock.label}</strong>{clock.estimated && <small>По расписанию</small>}</div>}
-        <p>{clock ? reminderBody(presentation.body) : presentation.body}</p>
-        {presentation.uncertainPoints && <p className="ui-warning">Очки в этом архивном сообщении не подтверждены. Проверьте актуальную классификацию по кнопке ниже.</p>}
-        {(item.historical_snapshot ?? /-results|^\/predictions|^\/voting/.test(item.url)) && <p className="ui-data-context">Итог на момент отправки. После уточнения данных или пересчёта значения могли измениться.</p>}
         <Link className="ui-action-link" to={item.url}>{item.historical_snapshot ? 'Актуальный результат' : clock ? 'Расписание сессий' : 'Открыть'} →</Link>
+        {(clock ? reminderBody(presentation.body) : presentation.body).length > 320
+          ? <><p>{(clock ? reminderBody(presentation.body) : presentation.body).split('\n').filter(Boolean).slice(0,3).join('\n')}</p>
+            <details><summary>Показать сообщение целиком</summary><p>{clock ? reminderBody(presentation.body) : presentation.body}</p></details></>
+          : <p>{clock ? reminderBody(presentation.body) : presentation.body}</p>}
+        {presentation.uncertainPoints && <p className="ui-warning">Очки в этом архивном сообщении не подтверждены. Проверьте актуальную классификацию по кнопке выше.</p>}
+        {(item.historical_snapshot ?? /-results|^\/predictions|^\/voting/.test(item.url)) && <p className="ui-data-context">Итог на момент отправки. После уточнения данных или пересчёта значения могли измениться.</p>}
       </article>})}
       {data.next_before && <button disabled={busy} onClick={more}>Показать ещё</button>}
     </>}

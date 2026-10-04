@@ -68,4 +68,12 @@ async def report(conn, since):
         WHERE e.created>=? GROUP BY s.kind,e.event''', (since,))
     referrals = (await rows('''SELECT COUNT(*) arrived,COUNT(activated) activated,COALESCE(SUM(returned),0) returned
         FROM engagement_referrals WHERE created>=?''', (since,)))[0]
-    return {'audience':audience,'visits':visits,'funnel':funnel,'retention':retention,'errors':errors,'delivery':delivery,'quality':forecast_quality(source),'first_event':first,'reach':reach,'sharing':sharing,'referrals':referrals}
+    screens = await rows('''SELECT path,COUNT(*) views,COUNT(DISTINCT visitor_id) browsers FROM ui_events
+        WHERE created>=? AND event='screen_view' GROUP BY path ORDER BY views DESC,path''', (since,))
+    actions = await rows('''SELECT path,action,destination,COUNT(*) clicks,COUNT(DISTINCT visitor_id) browsers FROM ui_events
+        WHERE created>=? AND event='click' GROUP BY path,action,destination ORDER BY clicks DESC LIMIT 30''', (since,))
+    interaction_first = (await rows('SELECT MIN(created) first_event FROM ui_events'))[0]['first_event']
+    from app.services.posthog_bridge import status
+    posthog = await status(conn)
+    return {'audience':audience,'visits':visits,'funnel':funnel,'retention':retention,'errors':errors,'delivery':delivery,'quality':forecast_quality(source),'first_event':first,'reach':reach,'sharing':sharing,'referrals':referrals,
+        'screens':screens,'actions':actions,'interaction_first':interaction_first,'posthog':posthog}

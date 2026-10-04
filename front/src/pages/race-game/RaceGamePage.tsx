@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import "./styles.css";
-import { apiRequest } from '../../helpers/api';
-import { analyticsPlatform } from '../../helpers/analytics';
+import { trackScreen, trackAction } from '../../helpers/analytics';
 import { ShareComposer } from '../../components/ShareButton';
 import { pendingInvitation, rememberInvitation, sharingEvent, validShareToken, type ShareOptions } from '../../helpers/sharing';
 import { useAuthState } from '../../helpers/auth';
@@ -37,6 +36,10 @@ function RaceGamePage() {
   }, [challenge, auth.signedIn]);
   useEffect(() => {
     const receive = (event: MessageEvent) => {
+      if (event.origin === window.location.origin && event.source === frame.current?.contentWindow && event.data?.type === 'f1hub-game-analytics') {
+        if (['game_start', 'game_restart', 'button'].includes(event.data.action)) trackAction(event.data.action, '/race-game');
+        return;
+      }
       if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow || event.data?.type !== 'f1hub-share-race') return;
       if (typeof event.data.trackId === 'string' && /^[a-z0-9-]{1,60}$/.test(event.data.trackId)) setShare({kind: 'race', track_id: event.data.trackId});
     };
@@ -44,7 +47,7 @@ function RaceGamePage() {
     return () => window.removeEventListener('message', receive);
   }, []);
   useEffect(() => {
-    const timer = window.setTimeout(() => { void apiRequest('/api/analytics/visit',{path:'/race-game',platform:analyticsPlatform()},'POST').catch(() => {}); },500);
+    const timer = window.setTimeout(() => trackScreen('/race-game'),500);
     return () => window.clearTimeout(timer);
   }, []);
   const hostRef = useRef<HTMLElement>(null);
@@ -99,10 +102,9 @@ function RaceGamePage() {
             <h1 id="race-game-orientation-title">Поверните устройство</h1>
             <p>
               Для лучшего игрового опыта поверните устройство горизонтально
-              <span>Rotate to landscape for best experience</span>
             </p>
-            <button type="button" onClick={() => setGameStarted(true)} autoFocus>
-              Continue / Играть
+            <button type="button" data-analytics-action="game_start" onClick={() => setGameStarted(true)} autoFocus>
+              Играть сейчас →
             </button>
           </div>
         </section>

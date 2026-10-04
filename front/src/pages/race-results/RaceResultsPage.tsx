@@ -1,3 +1,4 @@
+import { resultStatus } from '../../helpers/presentation';
 import { useSessionFilters } from '../../helpers/sessionFilters';
 import { ResultsSeasonFilter } from '../../components/ResultsSeasonFilter';
 import { useState, useEffect } from "react";
@@ -139,7 +140,7 @@ function RaceResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [season, attempt]);
+  }, [season, attempt, setSelectedRound]);
 
   useEffect(() => {
     if (mode === "archive" && !selectedRound) { setLoading(false); setData(null); return; }
@@ -231,7 +232,7 @@ function RaceResultsPage() {
 
         <div id="race-content">
           <nav className="ui-section-links" aria-label="Содержание результатов"><a href="#race-classification">Классификация ↓</a></nav>
-          {!loading && !error && data?.round && data.results?.length ? <RaceImpact season={resultSeason} round={data.round} rows={data.results} recap={recap} /> : null}
+
           <ResultsFeedback
             loading={loading}
             error={error}
@@ -283,6 +284,7 @@ function RaceResultsPage() {
               })}
             </div>
           )}
+          {!loading && !error && data?.round && data.results?.length ? <details className="race-recap-fold"><summary>Обзор гонки и главные события</summary><RaceImpact season={resultSeason} round={data.round} rows={data.results} recap={recap} /></details> : null}
         </div>
       </div>
 
@@ -327,14 +329,14 @@ function RaceResultsPage() {
 
         <div className="race-results-desktop-content">
           <nav className="ui-section-links" aria-label="Содержание результатов"><a href="#race-classification-desktop">Классификация ↓</a></nav>
-          {!loading && !error && data?.round && data.results?.length ? <RaceImpact season={resultSeason} round={data.round} rows={data.results} recap={recap} /> : null}
+
           <ResultsFeedback
             loading={loading}
             error={error}
             retry={() => setAttempt(v => v + 1)}
             empty={!loading && !error && desktopRows.length === 0}
             icon="🏁"
-            title={data?.data_incomplete ? "Результаты обрабатываются" : "Гонка ещё не прошла"}
+            title={data?.data_incomplete ? "Результаты обрабатываются" : "Результаты пока недоступны"}
             description={data?.data_incomplete
               ? "Данные скоро появятся. Обновите страницу через несколько минут."
               : mode === "archive"
@@ -356,7 +358,7 @@ function RaceResultsPage() {
                     {desktopWinner.name}
                   </button>
                   <div className="race-results-desktop-winner-meta">
-                    {desktopWinner.time || desktopWinner.status || "Время уточняется"}
+                    {desktopWinner.time || resultStatus(desktopWinner.status)}
                   </div>
                 </div>
                 <div className="race-results-desktop-winner-team">
@@ -438,13 +440,14 @@ function RaceResultsPage() {
                       />
                       <span>{rowTeam}</span>
                     </div>
-                    <span className="race-results-time">{row.time || row.status || "—"}</span>
+                    <span className="race-results-time">{row.time || resultStatus(row.status)}</span>
                     <span className="race-results-gap">{row.gap || "—"}</span>
                   </div>
                 );
               })}
             </div>
           )}
+          {!loading && !error && data?.round && data.results?.length ? <details className="race-recap-fold"><summary>Обзор гонки и главные события</summary><RaceImpact season={resultSeason} round={data.round} rows={data.results} recap={recap} /></details> : null}
         </div>
       </section>
     </>

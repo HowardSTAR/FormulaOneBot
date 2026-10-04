@@ -36,6 +36,7 @@ type SeasonStats = {
 };
 
 type CareerStats = {
+  available?: boolean;
   grand_prix_entered: number;
   career_points: number;
   highest_race_finish: { position: number | string; count: number };
@@ -158,6 +159,7 @@ function DriverDetailsPage() {
   const nationalityFlagUrl = getFlagUrlForNationality(data.nationality);
   const ss = data.season_stats;
   const cs = data.career_stats;
+  const careerValue = (value: string | number) => cs.available === false ? "Нет данных" : value;
   const firstName = data.givenName.toUpperCase();
   const lastName = data.familyName.toUpperCase();
   const teamLabel =
@@ -192,7 +194,7 @@ function DriverDetailsPage() {
           <div className="driver-card-info">
             <h2 className="driver-card-name">{fullName}</h2>
             <div className="driver-card-meta">
-              {data.permanentNumber && <span className="driver-number-badge">#{data.permanentNumber}</span>}
+              {data.permanentNumber && <span className="driver-number-badge">Номер {data.permanentNumber}</span>}
               <span className="driver-code-badge">{data.code}</span>
             </div>
             {data.nationality && (
@@ -255,14 +257,14 @@ function DriverDetailsPage() {
             </div>
             <div className="driver-stats-block">
               <h3 className="driver-stats-title">КАРЬЕРА</h3>
-              <StatRow label="Гран-при (всего)" value={cs.grand_prix_entered} />
-              <StatRow label="Карьерные очки в ГП" value={cs.career_points} />
-              <StatRow label="Лучший финиш" value={formatHigh(cs.highest_race_finish)} />
-              <StatRow label="Подиумы" value={cs.podiums} />
-              <StatRow label="Лучшая позиция на старте" value={formatHigh(cs.highest_grid)} />
-              <StatRow label="Поулы" value={cs.pole_positions} />
-              <StatRow label="Чемпионства" value={cs.world_championships} />
-              <StatRow label="Сходы" value={cs.dnfs} />
+              <StatRow label="Гран-при (всего)" value={careerValue(cs.grand_prix_entered)} />
+              <StatRow label="Карьерные очки в ГП" value={careerValue(cs.career_points)} />
+              <StatRow label="Лучший финиш" value={careerValue(formatHigh(cs.highest_race_finish))} />
+              <StatRow label="Подиумы" value={careerValue(cs.podiums)} />
+              <StatRow label="Лучшая позиция на старте" value={careerValue(formatHigh(cs.highest_grid))} />
+              <StatRow label="Поулы" value={careerValue(cs.pole_positions)} />
+              <StatRow label="Чемпионства" value={careerValue(cs.world_championships)} />
+              <StatRow label="Сходы" value={careerValue(cs.dnfs)} />
             </div>
           </div>
         )}
@@ -295,7 +297,7 @@ function DriverDetailsPage() {
           </div>
           <div className="driver-profile-desktop-overlay" />
           <div className="driver-profile-desktop-content">
-            <div className="driver-profile-desktop-number">{data.permanentNumber || "--"}</div>
+            <div className="driver-profile-desktop-number"><small className="driver-number-label">Номер болида</small>{data.permanentNumber || "--"}</div>
             <h1>
               <span>{firstName}</span>
               <em>{lastName}</em>
@@ -325,14 +327,14 @@ function DriverDetailsPage() {
             <div className="driver-profile-career-grid">
               <article className="driver-profile-career-card">
                 <h4>Итоги карьеры</h4>
-                <div><span>Гран-при (всего)</span><b>{cs.grand_prix_entered}</b></div>
-                <div><span>Очки в Гран-при</span><b>{cs.career_points}</b></div>
-                <div><span>Лучший финиш</span><b>{formatHigh(cs.highest_race_finish)}</b></div>
+                <div><span>Гран-при (всего)</span><b>{careerValue(cs.grand_prix_entered)}</b></div>
+                <div><span>Очки в Гран-при</span><b>{careerValue(cs.career_points)}</b></div>
+                <div><span>Лучший финиш</span><b>{careerValue(formatHigh(cs.highest_race_finish))}</b></div>
               </article>
               <article className="driver-profile-accolades-card">
                 <h4>Достижения</h4>
-                <p>Лучшая стартовая позиция: {formatHigh(cs.highest_grid)}</p>
-                <small>Поулы: {cs.pole_positions} · Титулы: {cs.world_championships}</small>
+                <p>Лучшая стартовая позиция: {careerValue(formatHigh(cs.highest_grid))}</p>
+                <small>Поулы: {careerValue(cs.pole_positions)} · Титулы: {careerValue(cs.world_championships)}</small>
               </article>
             </div>
           </section>

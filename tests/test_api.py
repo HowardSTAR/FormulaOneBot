@@ -1299,8 +1299,8 @@ async def test_api_race_results_falls_back_to_previous_round_with_data(api_clien
 
 
 @pytest.mark.asyncio
-async def test_api_race_results_resets_previous_round_when_new_weekend_started(api_client: AsyncClient):
-    """GET /api/race-results — после старта нового уикенда показывает текущий раунд, если его данные уже доступны."""
+async def test_api_race_results_preserves_available_previous_round_when_new_weekend_started(api_client: AsyncClient):
+    """GET /api/race-results — начало нового уикенда не скрывает последнюю завершённую гонку."""
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
             patch("app.api.miniapp_api.get_race_results_async", new_callable=AsyncMock) as m_race:
@@ -1326,14 +1326,14 @@ async def test_api_race_results_resets_previous_round_when_new_weekend_started(a
         r = await api_client.get("/api/race-results")
     assert r.status_code == 200
     data = r.json()
-    assert data["round"] == 2
+    assert data["round"] == 1
     assert len(data["results"]) == 1
-    assert data["race_info"]["event_name"] == "Saudi GP"
+    assert data["race_info"]["event_name"] == "Bahrain GP"
 
 
 @pytest.mark.asyncio
-async def test_api_quali_results_resets_previous_round_when_new_weekend_started(api_client: AsyncClient):
-    """GET /api/quali-results — после старта нового уикенда показывает текущую квалификацию, если она уже доступна."""
+async def test_api_quali_results_preserves_available_previous_round_when_new_weekend_started(api_client: AsyncClient):
+    """GET /api/quali-results — начало нового уикенда не скрывает последнюю доступную квалификацию."""
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
             patch("app.api.miniapp_api.get_cached_quali_results", new_callable=AsyncMock) as m_cached, \
@@ -1348,15 +1348,15 @@ async def test_api_quali_results_resets_previous_round_when_new_weekend_started(
         m_cached.return_value = None
         m_latest.return_value = (1, [{"position": 1, "driver": "VER", "name": "Max", "best": "1:29.0"}])
         m_quali_for_round.return_value = (
-            2,
-            [{"position": 1, "driver": "NOR", "name": "Lando Norris", "best": "1:28.500"}],
+            1,
+            [{"position": 1, "driver": "VER", "name": "Max Verstappen", "best": "1:29.0"}],
         )
         r = await api_client.get("/api/quali-results")
     assert r.status_code == 200
     data = r.json()
-    assert data["round"] == 2
+    assert data["round"] == 1
     assert len(data["results"]) == 1
-    assert data["results"][0]["driver"] == "NOR"
+    assert data["results"][0]["driver"] == "VER"
 
 
 @pytest.mark.asyncio
@@ -1402,8 +1402,8 @@ async def test_api_quali_latest_replaces_stale_cached_round(api_client: AsyncCli
 
 
 @pytest.mark.asyncio
-async def test_api_sprint_results_resets_previous_round_when_new_weekend_started(api_client: AsyncClient):
-    """GET /api/sprint-results — после старта нового уикенда скрывает прошлый спринт."""
+async def test_api_sprint_results_preserves_available_previous_round_when_new_weekend_started(api_client: AsyncClient):
+    """Начало нового уикенда не скрывает последний доступный спринт."""
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
             patch("app.api.miniapp_api.get_sprint_results_async", new_callable=AsyncMock) as m_sprint:
@@ -1421,12 +1421,13 @@ async def test_api_sprint_results_resets_previous_round_when_new_weekend_started
         r = await api_client.get("/api/sprint-results")
     assert r.status_code == 200
     data = r.json()
-    assert data["results"] == []
+    assert len(data["results"]) == 1
+    assert data["round"] == 1
 
 
 @pytest.mark.asyncio
-async def test_api_sprint_quali_results_resets_previous_round_when_new_weekend_started(api_client: AsyncClient):
-    """GET /api/sprint-quali-results — после старта нового уикенда скрывает прошлую спринт-квалу."""
+async def test_api_sprint_quali_results_preserves_available_previous_round_when_new_weekend_started(api_client: AsyncClient):
+    """Начало нового уикенда не скрывает последний доступный спринт-квалификацию."""
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
             patch("app.api.miniapp_api.get_sprint_quali_results_async", new_callable=AsyncMock) as m_sq:
@@ -1442,7 +1443,8 @@ async def test_api_sprint_quali_results_resets_previous_round_when_new_weekend_s
         r = await api_client.get("/api/sprint-quali-results")
     assert r.status_code == 200
     data = r.json()
-    assert data["results"] == []
+    assert len(data["results"]) == 1
+    assert data["round"] == 1
 
 
 @pytest.mark.asyncio

@@ -31,8 +31,8 @@ export function useSessionFilters(minYear = 1950) {
   }, {replace: typeof value === 'function' || value === null}), [setParams, minYear]);
   const session = Number(params.get('session'));
   const selectedSession: 1 | 2 | 3 = session === 2 || session === 3 ? session : 1;
-  const setSelectedSession = (value: 1 | 2 | 3) => setParams(previous => {
+  const setSelectedSession = useCallback((value: 1 | 2 | 3) => setParams(previous => {
     const next = new URLSearchParams(previous); next.set('session', String(value)); return next;
-  });
+  }), [setParams]);
   return {...filters, setMode, setSeason, setSelectedRound, selectedSession, setSelectedSession};
 }

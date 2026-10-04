@@ -19,3 +19,23 @@ app/assets/
 artifacts/portrait-migration-*/
 .tmp/perf-before/
 .tmp/perf-after/
+
+# Local settings, production credentials and runtime files.
+.venv/
+.vapid-venv/
+secrets/
+ssl/
+logs/
+.tmp/f1hub-known_hosts
+bot-error-log.txt
+web-error-log.txt
+prediction-log.txt
+deploy/jenkins/*.deb
+deploy/jenkins/jenkins-home-*.tar.gz
+
+# Local QA evidence and one-time release packages.
+artifacts/usability-*
+artifacts/posthog-signup.jpg
+artifacts/git-integration-*
+artifacts/deploy-usability-*.sh
+artifacts/prepare-usability-release.py

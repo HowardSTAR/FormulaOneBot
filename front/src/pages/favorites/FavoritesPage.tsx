@@ -20,6 +20,9 @@ function FavoritesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const selectedCount = tab === "drivers" ? userFavorites.drivers.length : userFavorites.teams.length;
+  const unavailable = tab === "drivers"
+    ? userFavorites.drivers.filter(code => !driversList.some(d => d.code === code))
+    : userFavorites.teams.filter(name => !teamsList.some(t => t.name === name));
 
   const loadAllData = useCallback(async () => {
     setLoading(true);
@@ -137,6 +140,10 @@ function FavoritesPage() {
 
         {loading && <div className="personal-loading"><div className="spinner" /><div>Загрузка избранного…</div></div>}
         {error && <div className="personal-error" role="alert">{error}</div>}
+        {!loading && unavailable.length > 0 && <div className="favorites-past">
+          <p>В избранном также есть участники прошлых сезонов ({unavailable.length}). Они включены в счётчик.</p>
+          {unavailable.map(value => <button type="button" key={value} data-analytics-action="favorites_toggle" onClick={() => tab === 'drivers' ? void toggleDriver(value) : void toggleTeam(value)}>{value} · Убрать из избранного ×</button>)}
+        </div>}
 
       {!loading && tab === "drivers" && (
         <div className="grid-select">
@@ -156,6 +163,7 @@ function FavoritesPage() {
               <button
                 type="button"
                 key={driver.code}
+                data-analytics-action="favorites_toggle"
                 className={`select-item ${userFavorites.drivers.includes(driver.code) ? "selected" : ""}`}
                 onClick={() => toggleDriver(driver.code)}
                 aria-pressed={userFavorites.drivers.includes(driver.code)}
@@ -189,6 +197,7 @@ function FavoritesPage() {
               <button
                 type="button"
                 key={team.name}
+                data-analytics-action="favorites_toggle"
                 className={`select-item ${userFavorites.teams.includes(team.name) ? "selected" : ""}`}
                 onClick={() => toggleTeam(team.name)}
                 aria-pressed={userFavorites.teams.includes(team.name)}

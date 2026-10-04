@@ -107,19 +107,21 @@ function HistorySearch() {
     </div>
     <details className="history-panel history-filters" open={filtersOpen} onToggle={event => setFiltersOpen(event.currentTarget.open)}>
       <summary>{ids.length ? `Сравнение · участников: ${ids.length} · ${start}–${end}` : 'Кого сравниваем'} <span>· настроить</span></summary>
-      <p className="history-note">1. Выберите участников из состава любого сезона. 2. Укажите годы. 3. Нажмите «Показать сравнение».</p>
+      <p className="history-note">Выберите участника и нажмите «Показать сравнение». По умолчанию — последние пять сезонов.</p>
       <form onSubmit={event => { event.preventDefault(); if (ids.length && !loading) search(); }}>
-      <div className="history-controls"><div><span>Состав сезона</span><YearSelect ariaLabel="Состав сезона" value={rosterYear} onChange={year => { if (year === rosterYear) return; setRoster([]); setRosterLoading(true); setRosterState('Загрузка участников…'); setRosterYear(year); }} minYear={minimum} maxYear={current} /></div>
+      <div className="history-controls">
         <label>Добавить участника<select value="" disabled={ids.length >= 3 || !roster.length} onChange={e => select([...ids, e.target.value])}>
           <option value="">Выберите…</option>{roster.filter(r => !ids.includes(r.id)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select></label>
       </div>
       {rosterState && <p role="status" className={rosterLoading ? 'history-loading' : undefined}>{rosterState} {!rosterLoading && <button type="button" onClick={() => { setRosterLoading(true); setRosterState('Загрузка участников…'); setRosterRetry(r => r + 1); }}>Повторить загрузку участников</button>}</p>}
       <div className="history-legend">{ids.map((id, i) => <button type="button" key={id} style={{ borderColor: colors[i] }} onClick={() => select(ids.filter(v => v !== id))} aria-label={`Убрать ${displayed.find(s => s.id === id)?.name || id}`}><span style={{ color: colors[i] }}>●</span> {displayed.find(s => s.id === id)?.name || roster.find(r => r.id === id)?.name || id} ×</button>)}</div>
+      <details className="history-advanced"><summary>Период {start}–{end} · состав {rosterYear} · изменить</summary>
+      <div className="history-controls"><div><span>Участники из сезона</span><YearSelect ariaLabel="Состав сезона" value={rosterYear} onChange={year => { if (year === rosterYear) return; setRoster([]); setRosterLoading(true); setRosterState('Загрузка участников…'); setRosterYear(year); }} minYear={minimum} maxYear={current} /></div></div>
       <div className="history-controls">
         <div><span>Первый сезон</span><YearSelect ariaLabel="Первый сезон" value={start} minYear={minimum} maxYear={current} onChange={year => { setStart(year); setEnd(Math.min(current, Math.max(year, Math.min(end, year + 9)))); }} showCurrentYearBtn={false} /></div>
         <div><span>Последний сезон</span><YearSelect ariaLabel="Последний сезон" value={end} minYear={Math.max(minimum, start)} maxYear={Math.min(current, start + 9)} onChange={setEnd} showCurrentYearBtn={false} /></div>
-      </div><p className="history-note">До 10 сезонов за один просмотр — чтобы не перегружать источник. Для более старой эпохи выберите другой первый год.</p>
+      </div><p className="history-note">Можно выбрать до 10 сезонов за один просмотр.</p></details>
       <div className="history-search-actions"><button type="submit" className="history-search-button" disabled={!ids.length || loading}>{loading ? 'Загружаем сравнение…' : 'Показать сравнение'}</button><span>{!ids.length ? 'Добавьте хотя бы одного участника' : `${ids.length} из 3 участников · ${start}–${end}`}</span></div>
       </form>
     </details>

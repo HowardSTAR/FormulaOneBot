@@ -2405,7 +2405,7 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
     return ""
 
 
-@cache_result(ttl=3600, key_prefix="driver_details_v8")
+@cache_result(ttl=3600, key_prefix="driver_details_v9")
 async def get_driver_details_async(driver_id: str, season: int, code: str | None = None):
     """
     Получает профиль пилота, статистику сезона и карьеры из Ergast/Jolpica API.
@@ -2518,6 +2518,7 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
             "sprint_top10s": 0,
         },
         "career_stats": {
+            "available": bool(career_results),
             "grand_prix_entered": gp_entered,
             "career_points": career_points,
             "highest_race_finish": _highest_finish(career_results),
@@ -2599,11 +2600,11 @@ def _highest_finish(results: list) -> dict:
 
 def _highest_grid(results: list) -> dict:
     """Возвращает {'position': 1, 'count': 2} для лучшей позиции на старте."""
-    grids = [int(r["grid"]) for r in results if r.get("grid") and str(r["grid"]).isdigit()]
+    grids = [int(r["grid"]) for r in results if r.get("grid") and str(r["grid"]).isdigit() and int(r["grid"]) > 0]
     if not grids:
         return {"position": "-", "count": 0}
     best = min(grids)
-    count = sum(1 for r in results if r.get("grid") == str(best))
+    count = grids.count(best)
     return {"position": best, "count": count}
 
 
@@ -3010,7 +3011,7 @@ async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers
 
 
 # --- КАРТОЧКА КОНСТРУКТОРА --- #
-@cache_result(ttl=3600, key_prefix="constructor_details_v17")
+@cache_result(ttl=3600, key_prefix="constructor_details_v18")
 async def get_constructor_details_async(constructor_id: str, season: int):
     """Профиль команды: название, лого, статистика сезона и карьеры, биография."""
     cid = constructor_id.strip().lower().replace(" ", "_")
@@ -3100,6 +3101,7 @@ async def get_constructor_details_async(constructor_id: str, season: int):
             "grand_prix_poles": sum(1 for r in season_results if r.get("grid") == "1"),
         },
         "career_stats": {
+            "available": bool(career_results),
             "grand_prix_entered": gp_entered,
             "grand_prix_events": len({(r["season"], r["round"]) for r in career_results if r.get("season") and r.get("round")}) or None,
             "career_points": career_points,

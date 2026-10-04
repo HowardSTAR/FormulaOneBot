@@ -28,22 +28,23 @@ function value(key: string, v: string | number | string[] | null, names: Record<
 
 export function PersonalReview({ season, round, onClose }: { season: number; round: number; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [result, setResult] = useState<{ data?: Review; error?: string }>({});
+  const [resultState, setResult] = useState<{ key: string; data?: Review; error?: string }>({ key: '' });
   const [driverNames, setDriverNames] = useState<Record<string, string>>({});
   const [attempt, setAttempt] = useState(0);
+  const requestKey = `${season}:${round}:${attempt}`;
+  const result: { data?: Review; error?: string } = resultState.key === requestKey ? resultState : {};
   useEffect(() => {
     const element = dialog.current;
     const previous = document.activeElement as HTMLElement | null;
     element?.showModal();
     let active = true;
-    setResult({});
-    apiRequest<Review>(`/api/predictions/mine/${season}/${round}`).then(data => { if (active) setResult({ data }); })
-      .catch(error => { if (active) setResult({ error: error instanceof Error ? error.message : "Не удалось загрузить прогноз" }); });
+    apiRequest<Review>(`/api/predictions/mine/${season}/${round}`).then(data => { if (active) setResult({ key: requestKey, data }); })
+      .catch(error => { if (active) setResult({ key: requestKey, error: error instanceof Error ? error.message : "Не удалось загрузить прогноз" }); });
     apiRequest<{drivers?: {code: string; name: string}[]}>('/api/drivers', {season})
       .then(data => { if (active) setDriverNames(Object.fromEntries((data.drivers || []).filter(driver => driver.code && driver.name).map(driver => [driver.code.toUpperCase(), driver.name.trim()]))); })
       .catch(() => { if (active) setDriverNames({}); });
     return () => { active = false; element?.close(); previous?.focus(); };
-  }, [season, round, attempt]);
+  }, [season, round, requestKey]);
   return <dialog ref={dialog} className="personal-review" aria-labelledby="personal-review-title" onCancel={onClose}>
     <header><div><small>Только для вас · {season} · этап {round}</small><h2 id="personal-review-title">Мой прогноз</h2></div><button autoFocus onClick={onClose} aria-label="Закрыть разбор прогноза">Закрыть ×</button></header>
     <div className="personal-review-content">

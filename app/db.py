@@ -103,6 +103,17 @@ class Database:
             PRIMARY KEY(visitor_id,event,path,season,round,bucket)
         )''')
         await self.conn.execute('CREATE INDEX IF NOT EXISTS idx_product_events_created ON product_events(created)')
+        from app.services.posthog_bridge import SCHEMA as posthog_schema
+        await self.conn.executescript(posthog_schema)
+        await self.conn.executescript('''CREATE TABLE IF NOT EXISTS ui_events (
+            event_id TEXT PRIMARY KEY, visitor_id TEXT NOT NULL,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            event TEXT NOT NULL, path TEXT NOT NULL, action TEXT NOT NULL,
+            destination TEXT NOT NULL DEFAULT '', platform TEXT NOT NULL, created REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_ui_events_created ON ui_events(created);
+        CREATE INDEX IF NOT EXISTS idx_ui_events_visitor_created ON ui_events(visitor_id,created);
+        ''')
 
         # Проверка и добавление колонок (миграции "на лету")
         # 2. Таблицы избранного

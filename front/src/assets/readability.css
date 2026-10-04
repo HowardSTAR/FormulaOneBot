@@ -1,0 +1,40 @@
+/* Readable supporting information and large visible controls across public pages. */
+.app-shell .app-header-link{font-size:14px!important;color:#cbd3df!important;min-height:46px!important;letter-spacing:.025em!important}
+.app-shell .app-header-submenu-link{font-size:14px!important;min-height:44px!important;color:#c5cedc!important;letter-spacing:0!important;text-transform:none!important}
+.app-shell .app-header-menu.is-open .app-header-submenu{max-height:340px}
+.app-shell .app-header-link.active,.app-shell .app-header-submenu-link.active{color:#fff!important;background:#44232a!important;border-color:#f27d79!important}
+.app-shell .app-header-link-arrow{color:#bdc9dc;opacity:1}.app-shell .app-header-section-label{color:#b7c1d2;font-size:12px}
+.app-shell :is(.ui-data-context,.archive-note,.standings-code,.index-card-desc,.driver-bio-empty,.history-note,.circuit-source,.circuit-data-pending){color:#bcc7d8;font-size:14px;line-height:1.6}
+.app-shell :is(.ui-action-link,.btn-back,.ui-section-links a){min-height:44px;display:inline-flex;align-items:center;gap:8px;font-size:15px}
+.app-shell :is(input:not([type=checkbox]):not([type=radio]),select,textarea){border-color:#69758a;font-size:16px}
+.app-shell :is(input,textarea)::placeholder{color:#b7c0cf;opacity:1}
+.app-shell :is(.segmented-tab,.custom-select-trigger,.year-select select){min-height:44px;font-size:15px}
+.app-shell :is(.desktop-standings-table-head,.race-results-desktop-table-head){font-size:14px;color:#d0d8e5}
+.app-shell :is(.desktop-standings-row,.race-results-desktop-row){min-height:60px;font-size:15px}
+.app-shell .desktop-standings-table{max-height:none;overflow:visible}.app-shell .standings-name{font-size:16px}
+.app-shell :is(.driver-stats-label,.driver-profile-stat-card span,.driver-profile-career-card span){font-size:14px;color:#c2ccda;line-height:1.5}
+.app-shell :is(.legal-page-hero small,.legal-page p,.legal-page li){color:#c7cfdd;line-height:1.75;font-size:16px}
+.app-shell .legal-page-hero h1{font-size:clamp(30px,4vw,48px);line-height:1.15}
+.app-shell .legal-page-content h2{font-size:23px;line-height:1.35;text-transform:none;font-style:normal}
+.app-shell :is(.notifications-page time,.notifications-page small){font-size:14px;color:#c1cada}
+.app-shell .notifications-page details summary{min-height:44px;cursor:pointer;font-size:15px;color:#d5ddeb}
+.app-shell .notifications-page .ui-action-link{margin:8px 0 12px;background:#343f52;color:#fff;border-radius:10px;padding:10px 16px}
+.app-shell :is(.voting-accordion-header,.voting-accordion-item button){min-height:48px;font-size:15px}
+.app-shell :is(.voting-header-name,.voting-race-name){font-size:16px}.app-shell .voting-own-rating{color:#ffbbb6}
+.app-shell .race-recap-fold{margin-top:24px;padding:18px;border:1px solid #485467;border-radius:12px}
+.race-recap-fold>summary{font-size:17px;font-weight:600;cursor:pointer;min-height:44px;display:flex;align-items:center;gap:10px}.race-recap-fold>summary::before{content:'›';font-size:24px}.race-recap-fold[open]>summary::before{transform:rotate(90deg)}
+.app-shell .unified-results-table .race-results-desktop-table-head{font-size:14px}
+.app-shell .team-principal-desktop>.btn-back{display:inline-flex!important;margin-bottom:18px}
+.app-shell .app-page-main .animated-track-svg .track-outline.track-route-border{stroke:#ff847b!important;stroke-width:3px!important;vector-effect:non-scaling-stroke!important;opacity:1!important;filter:none!important}
+.favorites-past{padding:16px;margin:14px 0;border:1px solid #657187;border-radius:12px;color:#d3dceb}.favorites-past button{min-height:44px;padding:10px 14px;margin:4px 8px 4px 0;color:#fff;border:1px solid #69758a;background:#293344;border-radius:8px;font-size:15px}
+.community-secondary{display:inline-flex;min-height:48px;align-items:center;padding:12px 20px;border:1px solid #657187;border-radius:12px;color:#fff!important;background:#263041;font-weight:600}
+.calendar-dialog details{margin:16px 0;font-size:15px}.calendar-dialog summary{min-height:44px;cursor:pointer}
+.history-advanced{margin:14px 0 18px;padding:12px 16px;border:1px solid #556276;border-radius:10px}.history-advanced>summary{min-height:44px;display:flex;align-items:center;font-size:15px;color:#d2dbe9;cursor:pointer}.history-advanced[open]>.history-controls{margin-top:12px}
+.app-shell .mobile-primary-nav a,.app-shell .mobile-primary-nav button{font-size:14px;min-height:52px}.mobile-menu-content section a{font-size:15px;min-height:52px}.mobile-menu-content h3,.mobile-menu-hint{font-size:14px;color:#c5cfdd}.app-shell .calendar-download{font-size:14px;min-height:44px}
+.app-shell .index-standing-line>div>span{white-space:normal;line-height:1.4}.app-shell .index-standing-line{min-height:56px}
+.app-shell .index-standing-column-head{font-size:14px;color:#c4cedd}.app-shell .index-standing-column-head strong{color:#c4cedd}.app-shell .index-standing-line>div{display:block}.app-shell .index-standing-line>div>img{display:none}.app-shell .index-standing-line>div>small{display:block;color:#b5c0d1;font-size:13px;white-space:normal;margin-top:4px}.weekend-board h2,.quick-access h2{font-style:normal}.driver-number-label{display:block;font-size:14px;line-height:1.5;color:#c5cfde;font-style:normal;font-weight:500}
+@media(min-width:900px) and (max-width:1499px){.app-shell .index-standings-preview-grid{grid-template-columns:1fr}}
+@media(min-width:1200px){.app-shell .index-dashboard-top,.app-shell .index-dashboard-main{grid-template-columns:minmax(0,1fr) minmax(390px,.85fr)}}
+.app-shell .admin-section-nav button{min-height:62px}.app-shell .admin-section-nav small{font-size:13px;color:#c2cbd9}.app-shell .admin-section-heading p{font-size:15px;color:#c7d1df}.app-shell .admin-table-wrap td,.app-shell .admin-table-wrap th{font-size:14px;padding:14px 12px}.app-shell .admin-table-wrap small{font-size:13px;color:#c4cddd}
+.ui-legal-register{display:grid;gap:16px;line-height:1.75;overflow-wrap:anywhere}.ui-legal-register section{padding:20px;border:1px solid #3d485b;border-radius:12px;background:#171d27}.ui-legal-register h2{font-size:20px;margin:0 0 12px}.ui-legal-register p{white-space:pre-wrap;margin:10px 0}
+@media(max-width:600px){.app-shell .standings-name{font-size:15px}.app-shell .race-recap-fold{padding:14px}.app-shell .admin-table-wrap{overflow:auto}.app-shell .voting-accordion-header{padding:16px 12px}}

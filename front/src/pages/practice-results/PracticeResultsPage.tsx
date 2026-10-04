@@ -60,22 +60,24 @@ function sessionsForRace(race: SeasonRace | undefined): PracticeSession[] {
 export default function PracticeResultsPage() {
   const {season, setSeason, mode, setMode, selectedRound, setSelectedRound, selectedSession, setSelectedSession} = useSessionFilters(2018);
   const [attempt, setAttempt] = useState(0);
-  const [seasonRaces, setSeasonRaces] = useState<SeasonRace[]>([]);
-  const [seasonError, setSeasonError] = useState<string | null>(null);
-  const [seasonLoading, setSeasonLoading] = useState(true);
+  const seasonKey = `${attempt}:${season}`;
+  const [seasonState, setSeasonState] = useState<{ key: string; races: SeasonRace[]; error: string | null }>({ key: "", races: [], error: null });
+  const seasonLoading = seasonState.key !== seasonKey;
+  const seasonRaces = useMemo(() => seasonLoading ? [] : seasonState.races, [seasonLoading, seasonState.races]);
+  const seasonError = seasonLoading ? null : seasonState.error;
   const [requestState, setRequestState] = useState<PracticeRequestState>({
     key: "",
     data: null,
     error: null,
   });
   const requestKey = `${attempt}:${season}:${mode}:${selectedRound ?? "latest"}:${selectedSession}`;
-  const loading = requestState.key !== requestKey || (mode === 'archive' && seasonLoading);
-  const data = loading ? null : requestState.data;
-  const error = loading ? null : requestState.error || (mode === 'archive' ? seasonError : null);
+  const archiveEmpty = mode === 'archive' && selectedRound === null;
+  const loading = (!archiveEmpty && requestState.key !== requestKey) || (mode === 'archive' && seasonLoading);
+  const data = loading || archiveEmpty ? null : requestState.data;
+  const error = loading ? null : (mode === 'archive' ? seasonError : null) || (archiveEmpty ? null : requestState.error);
 
   useEffect(() => {
     let cancelled = false;
-    setSeasonLoading(true); setSeasonError(null);
     apiRequest<{ races?: SeasonRace[] }>("/api/season", {
       season,
       completed_only: true,
@@ -86,22 +88,22 @@ export default function PracticeResultsPage() {
         const races = (response.races || [])
           .filter((race) => Number.isFinite(race.round) && race.round > 0)
           .sort((left, right) => right.round - left.round);
-        setSeasonRaces(races);
+        setSeasonState({ key: seasonKey, races, error: null });
         setSelectedRound((current) => {
           if (current && races.some((race) => race.round === current)) return current;
           return races[0]?.round ?? null;
         });
       })
       .catch(() => {
-        if (!cancelled) { setSeasonRaces([]); setSeasonError('Не удалось загрузить список этапов. Попробуйте повторить запрос.'); }
-      }).finally(() => { if (!cancelled) setSeasonLoading(false); });
+        if (!cancelled) setSeasonState({ key: seasonKey, races: [], error: 'Не удалось загрузить список этапов. Попробуйте повторить запрос.' });
+      });
     return () => {
       cancelled = true;
     };
-  }, [season, attempt]);
+  }, [season, seasonKey, setSelectedRound]);
 
   useEffect(() => {
-    if (mode === "archive" && selectedRound === null) { setRequestState({key: requestKey, data: null, error: null}); return; }
+    if (mode === "archive" && selectedRound === null) return;
     let cancelled = false;
     apiRequest<PracticeResponse>("/api/practice-results", {
       season,
@@ -130,7 +132,7 @@ export default function PracticeResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [mode, requestKey, season, selectedRound, selectedSession]);
+  }, [mode, requestKey, season, selectedRound, selectedSession, setSelectedSession]);
 
   const availableSessions = useMemo<PracticeSession[]>(() => {
     if (mode === "archive") {

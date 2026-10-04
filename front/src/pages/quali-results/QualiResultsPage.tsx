@@ -84,7 +84,7 @@ function QualiResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [season, attempt]);
+  }, [season, attempt, setSelectedRound]);
 
   useEffect(() => {
     if (mode === "archive" && !selectedRound) { setLoading(false); setData(null); return; }

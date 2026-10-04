@@ -1,21 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  BarController,
-  BarElement,
-  CategoryScale,
-  Chart,
-  Legend,
-  LinearScale,
-  LineController,
-  LineElement,
-  PointElement,
-  Tooltip,
-  type ChartConfiguration,
-} from "chart.js";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../../helpers/api";
 import { useSearchParams } from 'react-router-dom';
 import "./admin.css";
-import { AdminInsights, AdminNotifications, AdminToolDirectory } from "./AdminTools";
+import { AnalyticsDashboard } from "./AnalyticsDashboard";
+import { AdminNotifications, AdminToolDirectory } from "./AdminTools";
 import { AdminControl } from './AdminControl';
 import { AdminRecapNews } from './AdminRecapNews';
 import './admin-workspace.css';
@@ -33,33 +21,11 @@ const sections = [
   { id: 'tools', label: 'Справка и инструменты', hint: 'Дополнительные возможности', description: 'Переходы к аналитике предсказаний и подсказки по диагностике.' },
 ] as const;
 
-Chart.register(
-  BarController,
-  BarElement,
-  CategoryScale,
-  Legend,
-  LinearScale,
-  LineController,
-  LineElement,
-  PointElement,
-  Tooltip,
-);
-
 type Role = "user" | "admin" | "superadmin";
-type Source = "all" | "site" | "bot";
-type Period = "7d" | "30d" | "90d" | "all";
 type UserSortField = "created_at" | "last_activity" | "role";
 type SortOrder = "asc" | "desc";
 type GameRecordScope = "all" | "reaction" | "race" | "reflex";
 type AdminIdentity = { id: number; role: "admin" | "superadmin"; email: string | null; telegram_id: number | null };
-type MetricCard = { dau: number; wau: number; mau: number };
-type MetricPoint = { day: string; site: number; bot: number };
-type Metrics = {
-  visits?: { visitors: number; guests: number; signed_in: number; page_visits: number; top_pages: { path: string; visitors: number }[] };
-  cards: Record<Source, MetricCard>;
-  series: MetricPoint[];
-  generated_at: string;
-};
 type ManagedUser = {
   id: number;
   email: string | null;
@@ -110,72 +76,13 @@ function formatDate(value: string | null): string {
   }).format(new Date(value));
 }
 
-function finiteMetric(value: unknown): number {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function AdminChart({ metrics, source }: { metrics: Metrics; source: Source }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    const datasets = [
-      ...(source !== "bot" ? [{
-        label: "Сайт",
-        data: metrics.series.map((point) => point.site),
-        borderColor: "#ff4038",
-        backgroundColor: "rgba(255,64,56,.35)",
-      }] : []),
-      ...(source !== "site" ? [{
-        label: "Telegram-бот",
-        data: metrics.series.map((point) => point.bot),
-        borderColor: "#46a6ff",
-        backgroundColor: "rgba(70,166,255,.35)",
-      }] : []),
-    ];
-    const config: ChartConfiguration<"line", number[], string> = {
-      type: "line",
-      data: {
-        labels: metrics.series.map((point) => point.day.slice(5)),
-        datasets: datasets.map((dataset) => ({
-          ...dataset,
-          tension: 0.28,
-          pointRadius: metrics.series.length > 35 ? 0 : 3,
-          pointHoverRadius: 5,
-          borderWidth: 2,
-          fill: true,
-        })),
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { intersect: false, mode: "index" },
-        plugins: {
-          legend: { labels: { color: "#c7c8cf", usePointStyle: true } },
-        },
-        scales: {
-          x: { ticks: { color: "#777a84", maxTicksLimit: 12 }, grid: { color: "rgba(255,255,255,.05)" } },
-          y: { beginAtZero: true, ticks: { color: "#777a84", precision: 0 }, grid: { color: "rgba(255,255,255,.07)" } },
-        },
-      },
-    };
-    const chart = new Chart(canvasRef.current, config);
-    return () => chart.destroy();
-  }, [metrics, source]);
-
-  return <canvas ref={canvasRef} aria-label="Динамика активных пользователей" />;
-}
-
 export default function AdminPage() {
   const [params, setParams] = useSearchParams();
   const tab = sections.find(section => section.id === params.get('section'))?.id || 'control';
+  useEffect(() => { window.scrollTo(0,0); }, [tab]);
   const activeSection = sections.find(section => section.id === tab)!;
   const setTab = (value: string) => { setError(''); setMessage(''); setParams({ section: value }); };
   const [identity, setIdentity] = useState<AdminIdentity | null>(null);
-  const [period, setPeriod] = useState<Period>("30d");
-  const [source, setSource] = useState<Source>("all");
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [userPage, setUserPage] = useState<UserPage | null>(null);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -199,10 +106,6 @@ export default function AdminPage() {
   const loadIdentity = useCallback(async () => {
     setIdentity(await apiRequest<AdminIdentity>("/api/admin/me"));
   }, []);
-
-  const loadMetrics = useCallback(async () => {
-    setMetrics(await apiRequest<Metrics>("/api/admin/metrics", { period, source }));
-  }, [period, source]);
 
   const loadUsers = useCallback(async () => {
     setUserPage(await apiRequest<UserPage>("/api/admin/users", {
@@ -228,34 +131,10 @@ export default function AdminPage() {
   }, []);
 
   useEffect(() => { void loadIdentity().catch((reason: Error) => setError(reason.message)); }, [loadIdentity]);
-  useEffect(() => { if (tab === "overview") void loadMetrics().catch((reason: Error) => setError(reason.message)); }, [loadMetrics, tab]);
   useEffect(() => { if (tab === "users") void loadUsers().catch((reason: Error) => setError(reason.message)); }, [loadUsers, tab]);
   useEffect(() => { if (tab === "games") void loadGameRecords().catch((reason: Error) => setError(reason.message)); }, [loadGameRecords, tab]);
   useEffect(() => { if (tab === "audit") void loadAudit().catch((reason: Error) => setError(reason.message)); }, [loadAudit, tab]);
 
-  const normalizedCards = useMemo<Record<Source, MetricCard> | null>(() => {
-    if (!metrics) return null;
-    const site = {
-      dau: finiteMetric(metrics.cards.site?.dau),
-      wau: finiteMetric(metrics.cards.site?.wau),
-      mau: finiteMetric(metrics.cards.site?.mau),
-    };
-    const bot = {
-      dau: finiteMetric(metrics.cards.bot?.dau),
-      wau: finiteMetric(metrics.cards.bot?.wau),
-      mau: finiteMetric(metrics.cards.bot?.mau),
-    };
-    return {
-      site,
-      bot,
-      all: {
-        dau: site.dau + bot.dau,
-        wau: site.wau + bot.wau,
-        mau: site.mau + bot.mau,
-      },
-    };
-  }, [metrics]);
-  const selectedCards = normalizedCards?.[source] ?? normalizedCards?.all;
   const runAction = async (action: () => Promise<unknown>, success: string) => {
     setBusy(true);
     setError("");
@@ -371,64 +250,7 @@ export default function AdminPage() {
       )}
 
       {(tab === 'control' || tab === 'recovery') && <AdminControl key={tab} mode={tab === 'recovery' ? 'recovery' : 'delivery'} onNavigate={setTab} onBusy={setRecoveryBusy} />}
-      {tab === "overview" && (
-        <>
-          <AdminInsights />
-          <h3>Активность и посещения · {period === 'all' ? 'всё время' : period.replace('d', ' дней')}</h3>
-          <p className="ui-data-context">Фильтры ниже меняют только посещения и динамику. DAU / WAU / MAU всегда означают последние 24 часа / 7 дней / 30 дней.</p>
-          <section className="admin-toolbar">
-            <div>
-              {(["7d", "30d", "90d", "all"] as Period[]).map((value) => (
-                <button key={value} className={period === value ? "active" : ""} onClick={() => setPeriod(value)}>
-                  {value === "all" ? "Всё время" : value.replace("d", " дней")}
-                </button>
-              ))}
-            </div>
-            <select value={source} onChange={(event) => setSource(event.target.value as Source)} aria-label="Источник активности">
-              <option value="all">Все источники</option>
-              <option value="site">Только сайт</option>
-              <option value="bot">Только бот</option>
-            </select>
-          </section>
-          <section className="admin-metric-grid">
-            {(["dau", "wau", "mau"] as const).map((metric) => (
-              <article key={metric}>
-                <span>{metric.toUpperCase()}</span>
-                <strong>{selectedCards?.[metric] ?? "—"}</strong>
-                <small>{metric === "dau" ? "24 часа" : metric === "wau" ? "7 дней" : "30 дней"}</small>
-              </article>
-            ))}
-          </section>
-          <section className="admin-source-grid">
-            {(["site", "bot", "all"] as Source[]).map((value) => (
-              <article key={value}>
-                <span>{value === "site" ? "Сайт" : value === "bot" ? "Telegram-бот" : "Суммарно"}</span>
-                <div><b>{normalizedCards?.[value].dau ?? 0}</b> DAU</div>
-                <div><b>{normalizedCards?.[value].wau ?? 0}</b> WAU</div>
-                <div><b>{normalizedCards?.[value].mau ?? 0}</b> MAU</div>
-              </article>
-            ))}
-          </section>
-          <section className="admin-chart-card">
-            <header><h2>Посещения сайта, включая гостей</h2><span>за выбранный период</span></header>
-            <div className="admin-metric-grid">
-              <article><span>Уникальные браузеры</span><strong>{metrics?.visits?.visitors ?? 0}</strong></article>
-              <article><span>Гости без входа</span><strong>{metrics?.visits?.guests ?? 0}</strong></article>
-              <article><span>Авторизованные аккаунты</span><strong>{metrics?.visits?.signed_in ?? 0}</strong></article>
-              <article><span>Посещения страниц</span><strong>{metrics?.visits?.page_visits ?? 0}</strong></article>
-            </div>
-            <p>Повторы одной страницы в течение 5 минут объединяются. Уникальность определяется по cookie браузера; разные устройства и очистка cookie создают нового посетителя. Данные хранятся до года.</p>
-            <h3>Популярные страницы</h3>
-            {metrics?.visits?.top_pages.map(page => <p key={page.path}>{page.path} — {page.visitors}</p>)}
-          </section>
-          <section className="admin-chart-card">
-            <header><h2>Динамика уникальных пользователей</h2><span>по дням</span></header>
-            <div className="admin-chart-wrap">
-              {metrics ? <AdminChart metrics={metrics} source={source} /> : <div className="admin-skeleton" />}
-            </div>
-          </section>
-        </>
-      )}
+      {tab === "overview" && <AnalyticsDashboard />}
 
       {tab === "notifications" && <AdminNotifications adminId={identity?.id} />}
       {tab === "tools" && <AdminToolDirectory />}

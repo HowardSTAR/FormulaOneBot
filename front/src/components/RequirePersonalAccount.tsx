@@ -14,22 +14,22 @@ export function RequirePersonalAccount({
   requireTelegram = true,
 }: RequirePersonalAccountProps) {
   const telegramMiniApp = hasTelegramAuth();
-  const [allowed, setAllowed] = useState<boolean | null>(telegramMiniApp ? true : null);
   const location = useLocation();
-  const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const requestKey = `${attempt}:${requireTelegram}`;
+  const [result, setResult] = useState<{ key: string; status: "allowed" | "denied" | "error" } | null>(null);
+  const status = telegramMiniApp ? "allowed" : result?.key === requestKey ? result.status : "loading";
 
   useEffect(() => {
     if (telegramMiniApp) return;
     let active = true;
-    setAllowed(null); setError(false);
     void getWebsiteUserStrict().then((user) => {
-      if (active) setAllowed(requireTelegram ? Boolean(user?.telegram_id) : Boolean(user));
-    }).catch(() => { if (active) setError(true); });
+      if (active) setResult({ key: requestKey, status: (requireTelegram ? Boolean(user?.telegram_id) : Boolean(user)) ? "allowed" : "denied" });
+    }).catch(() => { if (active) setResult({ key: requestKey, status: "error" }); });
     return () => { active = false; };
-  }, [requireTelegram, telegramMiniApp, attempt]);
+  }, [requireTelegram, telegramMiniApp, requestKey]);
 
-  if (error) return <PageFeedback retry={() => setAttempt(v => v + 1)} />;
-  if (allowed === null) return <p role="status">Проверяем аккаунт…</p>;
-  return allowed ? children : <Navigate to={`/account?returnPath=${encodeURIComponent(location.pathname + location.search)}&requireTelegram=${requireTelegram ? '1' : '0'}`} replace />;
+  if (status === "error") return <PageFeedback retry={() => setAttempt(v => v + 1)} />;
+  if (status === "loading") return <p role="status">Проверяем аккаунт…</p>;
+  return status === "allowed" ? children : <Navigate to={`/account?returnPath=${encodeURIComponent(location.pathname + location.search)}&requireTelegram=${requireTelegram ? '1' : '0'}`} replace />;
 }

@@ -55,8 +55,16 @@ pipeline {
                       --user "$(id -u):$(id -g)" \
                       -e HOME=/tmp \
                       -e npm_config_cache=/tmp/npm-cache \
-                      -v "$WORKSPACE/front:/workspace" \
-                      -w /workspace \
+                      -v "$WORKSPACE:/workspace" \
+                      -w /workspace/front \
+                      "$FRONTEND_IMAGE" \
+                      npm ci --no-audit --no-fund
+                    docker run --rm \
+                      --user "$(id -u):$(id -g)" \
+                      -e HOME=/tmp \
+                      -e npm_config_cache=/tmp/npm-cache \
+                      -v "$WORKSPACE:/workspace" \
+                      -w /workspace/race-game \
                       "$FRONTEND_IMAGE" \
                       npm ci --no-audit --no-fund
                 '''
@@ -83,8 +91,8 @@ pipeline {
                             docker run --rm \
                               --user "$(id -u):$(id -g)" \
                               -e HOME=/tmp \
-                              -v "$WORKSPACE/front:/workspace" \
-                              -w /workspace \
+                              -v "$WORKSPACE:/workspace" \
+                              -w /workspace/front \
                               "$FRONTEND_IMAGE" npm run build
                         '''
                     }

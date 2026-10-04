@@ -4,15 +4,15 @@ import { apiRequest, ApiError } from "../helpers/api";
 import { PageFeedback } from './PageFeedback';
 
 export function RequireAdmin({ children }: { children: ReactNode }) {
-  const [status, setStatus] = useState<"loading" | "allowed" | "denied" | "error">("loading");
+  const [result, setResult] = useState<{ attempt: number; status: "allowed" | "denied" | "error" } | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const status = result?.attempt === attempt ? result.status : "loading";
 
   useEffect(() => {
     let active = true;
-    setStatus("loading");
     void apiRequest<{ role: "admin" | "superadmin" }>("/api/admin/me")
-      .then(() => { if (active) setStatus("allowed"); })
-      .catch(error => { if (active) setStatus(error instanceof ApiError && [401,403].includes(error.status) ? "denied" : "error"); });
+      .then(() => { if (active) setResult({ attempt, status: "allowed" }); })
+      .catch(error => { if (active) setResult({ attempt, status: error instanceof ApiError && [401,403].includes(error.status) ? "denied" : "error" }); });
     return () => { active = false; };
   }, [attempt]);
 

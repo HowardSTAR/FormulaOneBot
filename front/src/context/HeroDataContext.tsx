@@ -64,7 +64,7 @@ export function HeroDataProvider({ children }: { children: ReactNode }) {
         const settings = settingsRes.status === "fulfilled" ? settingsRes.value : { timezone: "UTC" };
         const tz = settings?.timezone || "UTC";
 
-        setState({ nextRace: raceData, userTz: tz, schedule: [], loaded: true });
+        setState({ nextRace: raceData, userTz: tz, schedule: [], loaded: false });
 
         if (raceData.status === "ok" && raceData.season && raceData.round) {
           try {
@@ -79,6 +79,7 @@ export function HeroDataProvider({ children }: { children: ReactNode }) {
             // Fallback to next_session_iso/next_session_name from next-race
           }
         }
+        setState(prev => ({ ...prev, loaded: true }));
       } catch (e) {
         console.error(e);
         setState((prev) => ({

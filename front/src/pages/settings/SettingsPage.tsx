@@ -230,7 +230,7 @@ function SettingsPage() {
 
       <div className="settings-save-bar">
         <div>{error ? <span className="personal-error" role="alert">{error}{!loaded && <button onClick={() => setAttempt(value => value + 1)}>Повторить</button>}</span> : <span role="status">{!loaded ? 'Загрузка настроек…' : dirty ? 'Есть несохранённые изменения' : 'Настройки сохранены'}</span>}</div>
-        <button type="button" className="btn-save" disabled={saving || !loaded || !dirty} onClick={() => { hapticImpact("medium"); void saveSettings(); }}>
+        <button type="button" className="btn-save" data-analytics-action="settings_save" disabled={saving || !loaded || !dirty} onClick={() => { hapticImpact("medium"); void saveSettings(); }}>
           {saving ? "Сохранение…" : "Сохранить настройки"}
         </button>
       </div>

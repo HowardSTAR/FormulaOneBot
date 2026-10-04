@@ -37,6 +37,7 @@ type SeasonStats = {
 };
 
 type CareerStats = {
+  available?: boolean;
   grand_prix_entered: number;
   grand_prix_events?: number | null;
   career_points: number;
@@ -157,6 +158,7 @@ function ConstructorDetailsPage() {
 
   const ss = data.season_stats;
   const cs = data.career_stats;
+  const careerValue = (value: string | number) => cs.available === false ? "Нет данных" : value;
 
   const formatHigh = (h: { position: number | string; count: number }) =>
     h.position === "-" ? "-" : `${h.position}${h.count > 1 ? ` (x${h.count})` : ""}`;
@@ -313,13 +315,13 @@ function ConstructorDetailsPage() {
             </div>
             <div className="driver-stats-block">
               <h3 className="driver-stats-title">КАРЬЕРА</h3>
-              <StatRow label="Выступления машин в Гран-при" value={cs.grand_prix_entered} />
-              {cs.grand_prix_events != null && <StatRow label="Этапы команды" value={cs.grand_prix_events} />}
-              <StatRow label="Очки в Гран-при за карьеру" value={Math.round(cs.career_points)} />
-              <StatRow label="Лучший финиш" value={formatHigh(cs.highest_race_finish)} />
-              <StatRow label="Подиумы" value={cs.podiums} />
-              <StatRow label="Поулы" value={cs.pole_positions} />
-              <StatRow label="Чемпионства" value={cs.world_championships} />
+              <StatRow label="Выступления машин в Гран-при" value={careerValue(cs.grand_prix_entered)} />
+              {cs.grand_prix_events != null && <StatRow label="Этапы команды" value={careerValue(cs.grand_prix_events)} />}
+              <StatRow label="Очки в Гран-при за карьеру" value={careerValue(Math.round(cs.career_points))} />
+              <StatRow label="Лучший финиш" value={careerValue(formatHigh(cs.highest_race_finish))} />
+              <StatRow label="Подиумы" value={careerValue(cs.podiums)} />
+              <StatRow label="Поулы" value={careerValue(cs.pole_positions)} />
+              <StatRow label="Чемпионства" value={careerValue(cs.world_championships)} />
             </div>
           </div>
         )}
@@ -452,15 +454,15 @@ function ConstructorDetailsPage() {
               </div>
               <div className="driver-stats-block constructor-career-block">
                 <h3 className="driver-stats-title">СТАТИСТИКА КАРЬЕРЫ</h3>
-                <StatRow label="Выступления машин в Гран-при" value={cs.grand_prix_entered} />
-                {cs.grand_prix_events != null && <StatRow label="Этапы команды" value={cs.grand_prix_events} />}
-                <StatRow label="Очки в Гран-при за карьеру" value={Math.round(cs.career_points)} />
-                <StatRow label="Лучший финиш" value={formatHigh(cs.highest_race_finish)} />
-                <StatRow label="Подиумы" value={cs.podiums} />
-                <StatRow label="Поулы" value={cs.pole_positions} />
+                <StatRow label="Выступления машин в Гран-при" value={careerValue(cs.grand_prix_entered)} />
+                {cs.grand_prix_events != null && <StatRow label="Этапы команды" value={careerValue(cs.grand_prix_events)} />}
+                <StatRow label="Очки в Гран-при за карьеру" value={careerValue(Math.round(cs.career_points))} />
+                <StatRow label="Лучший финиш" value={careerValue(formatHigh(cs.highest_race_finish))} />
+                <StatRow label="Подиумы" value={careerValue(cs.podiums)} />
+                <StatRow label="Поулы" value={careerValue(cs.pole_positions)} />
                 <div className="constructor-career-championships">
                   <span>ЧЕМПИОНСТВА</span>
-                  <b>{String(cs.world_championships).padStart(2, "0")}</b>
+                  <b>{careerValue(cs.world_championships)}</b>
                 </div>
               </div>
             </div>

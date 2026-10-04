@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import "./session-results-ui.css";
 import { PageFeedback } from './PageFeedback';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 
 type FeedbackProps = {
   loading?: boolean;
@@ -22,6 +22,7 @@ export function ResultsFeedback({
   description = "Результаты пока недоступны.",
   retry,
 }: FeedbackProps) {
+  const { pathname } = useLocation();
   if (loading) {
     return (
       <div className="results-skeleton" role="status" aria-label="Загружаем результаты">
@@ -40,6 +41,13 @@ export function ResultsFeedback({
       <span className="empty-icon" aria-hidden>{icon}</span>
       <div className="empty-title">{title}</div>
       <div className="empty-desc">{description}</div>
+      <div className="ui-section-links">
+        {retry && <button type="button" className="ui-action-link" onClick={retry}>Обновить результаты</button>}
+        {pathname !== '/race-results'
+          ? <Link className="ui-action-link" to="/race-results" data-analytics-action="results_open">Результаты гонки →</Link>
+          : <Link className="ui-action-link" to="/drivers">Зачёт пилотов →</Link>}
+        <Link className="ui-action-link" to="/season" data-analytics-action="calendar_open">Календарь сезона →</Link>
+      </div>
     </div>
   );
 }

@@ -495,7 +495,7 @@ function ReflexGridGamePage() {
                 key={`${difficulty}-${index}`}
                 type="button"
                 className={`reflex-tile ${index === activeTile ? "active" : ""}`}
-                onClick={() => handleTileClick(index)}
+                data-analytics-action={status === 'idle' && index === activeTile ? 'game_start' : 'game_hit'} onClick={() => handleTileClick(index)}
                 aria-label={`Плитка ${index + 1}`}
                 aria-pressed={index === activeTile}
               />

@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useHeroData } from "../../context/useHeroData";
 import { useAuthState } from "../../helpers/auth";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
 import { useMediaQuery } from '../../helpers/useMediaQuery';
-import { formatTimezoneLabel, getDisplayTimezone } from "../../helpers/timezone";
+import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCountryFlagUrl } from "../../constants/flags";
 import "./styles.css";
 import Hero from "./Hero";
 import IndexIcon from "./IndexIcon";
+import { WeekendBoard, QuickAccess } from './WeekendBoard';
 import { PersonalHome } from './PersonalHome';
 
 export type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
@@ -84,28 +85,10 @@ function IndexPage() {
   const auth = useAuthState();
   const currentYear = new Date().getFullYear();
   const widgetSeason = nextRace?.season || currentYear;
-  const [renderedAt] = useState(() => Date.now());
+  const [totalRounds, setTotalRounds] = useState(0);
   const [driversTop, setDriversTop] = useState<DriverStanding[]>([]);
   const [constructorsTop, setConstructorsTop] = useState<ConstructorStanding[]>([]);
   const displayTz = getDisplayTimezone(userTz);
-  const sessionsForCards = schedule;
-
-  const hasSprintSession = sessionsForCards.some((s) => {
-    const n = (s.name || "").toLowerCase();
-    return n.includes("спринт") || n.includes("sprint");
-  });
-
-  const sessionTimesMs = sessionsForCards
-    .map((s) => (s.utc_iso ? new Date(s.utc_iso).getTime() : NaN))
-    .filter((v) => !Number.isNaN(v));
-
-  const isSprintWeekendActive =
-    hasSprintSession &&
-    sessionTimesMs.length > 0 &&
-    renderedAt >= Math.min(...sessionTimesMs) - 6 * 60 * 60 * 1000 &&
-    renderedAt <= Math.max(...sessionTimesMs) + 12 * 60 * 60 * 1000 &&
-    nextRace?.status === "ok";
-
   useEffect(() => {
     if (!loaded) load();
   }, [loaded, load]);
@@ -115,11 +98,13 @@ function IndexPage() {
     const season = widgetSeason;
     const loadStandings = async () => {
       try {
-        const [driversRes, constructorsRes] = await Promise.allSettled([
+        const [driversRes, constructorsRes, calendarRes] = await Promise.allSettled([
           apiRequest<DriversResponse>("/api/drivers", { season }),
           apiRequest<ConstructorsResponse>("/api/constructors", { season }),
+          apiRequest<{races: unknown[]}>("/api/season", { season }),
         ]);
         if (cancelled) return;
+        setTotalRounds(calendarRes.status === "fulfilled" ? calendarRes.value.races.length : 0);
         setDriversTop(
           driversRes.status === "fulfilled" ? (driversRes.value.drivers || []).slice(0, 10) : []
         );
@@ -138,84 +123,6 @@ function IndexPage() {
     };
   }, [widgetSeason]);
 
-  const sessionMeta = useMemo(() => {
-    const normalizedSessions = sessionsForCards.filter((s) => Boolean(s.utc_iso));
-    const parse = (nameMatcher: (n: string) => boolean) => {
-      const target = normalizedSessions.find((s) => {
-        const n = (s.name || "").toLowerCase().trim();
-        return Boolean(s.utc_iso) && nameMatcher(n);
-      });
-      if (!target?.utc_iso) return null;
-      const dt = new Date(target.utc_iso);
-      if (Number.isNaN(dt.getTime())) return null;
-      return {
-        date: dt.toLocaleDateString("ru-RU", {
-          timeZone: displayTz,
-          day: "numeric",
-          month: "long",
-        }),
-        time: dt.toLocaleTimeString("ru-RU", {
-          timeZone: displayTz,
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-    };
-    return {
-      race:
-        parse((n) => n.includes("гонк") || n.includes("race")) ||
-        (nextRace?.race_start_utc
-          ? (() => {
-              const dt = new Date(nextRace.race_start_utc as string);
-              if (Number.isNaN(dt.getTime())) return null;
-              return {
-                date: dt.toLocaleDateString("ru-RU", {
-                  timeZone: displayTz,
-                  day: "numeric",
-                  month: "long",
-                }),
-                time: dt.toLocaleTimeString("ru-RU", {
-                  timeZone: displayTz,
-                  hour: "2-digit",
-                  minute: "2-digit",
-                }),
-              };
-            })()
-          : null),
-      quali: parse((n) => n.includes("квали") || n.includes("qualifying")),
-      sprint: parse((n) => n === "спринт" || n === "sprint"),
-      sprintQuali: parse((n) => n.includes("спринт-квали") || n.includes("sprint qualifying")),
-    };
-  }, [sessionsForCards, displayTz, nextRace]);
-
-  const desktopSessions = useMemo(() => {
-    return sessionsForCards
-      .filter((session) => Boolean(session.utc_iso))
-      .map((session) => ({ session, date: new Date(session.utc_iso as string) }))
-      .filter(({ date }) => !Number.isNaN(date.getTime()))
-      .sort((a, b) => a.date.getTime() - b.date.getTime())
-      .slice(0, 5)
-      .map(({ session, date }) => {
-        const start = date.getTime();
-        const status = renderedAt < start ? "upcoming" : renderedAt <= start + 90 * 60 * 1000 ? "live" : "done";
-        return {
-          name: session.name,
-          day: date.toLocaleDateString("ru-RU", {
-            timeZone: displayTz,
-            weekday: "short",
-            day: "numeric",
-            month: "short",
-          }),
-          time: date.toLocaleTimeString("ru-RU", {
-            timeZone: displayTz,
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          status,
-        };
-      });
-  }, [sessionsForCards, displayTz, renderedAt]);
-
   return (
     <>
       {desktop ? <div className="index-desktop-shell index-dashboard">
@@ -225,34 +132,7 @@ function IndexPage() {
             <PersonalHome auth={auth} timezone={displayTz} />
           </div>
 
-          <aside className="index-weekend-board">
-            <div className="index-dashboard-section-head">
-              <div>
-                <span>Этап {nextRace?.round || "—"} · {nextRace?.season || currentYear}</span>
-                <h2>Расписание уик-энда</h2>
-              </div>
-              <Link to="/season">Весь сезон <b aria-hidden>↗</b></Link>
-            </div>
-            <div className="index-weekend-location">
-              <span>{nextRace?.location || nextRace?.country || "Formula 1"}</span>
-              <small>Время: {formatTimezoneLabel(displayTz)}</small>
-            </div>
-            <div className="index-session-list">
-              {desktopSessions.length > 0 ? desktopSessions.map((session) => (
-                <div key={`${session.name}-${session.day}-${session.time}`} className={`index-session-row is-${session.status}`}>
-                  <i aria-hidden />
-                  <div>
-                    <strong>{session.name}</strong>
-                    <span>{session.day}</span>
-                  </div>
-                  <time>{session.time}</time>
-                  {session.status === "live" && <b>LIVE</b>}
-                </div>
-              )) : (
-                <div className="index-session-empty">Расписание загружается из API…</div>
-              )}
-            </div>
-          </aside>
+          <WeekendBoard race={nextRace} sessions={schedule} timezone={displayTz} total={totalRounds} loaded={loaded} />
         </section>
 
         <section className="index-dashboard-main">
@@ -262,7 +142,6 @@ function IndexPage() {
                 <span>Чемпионат {widgetSeason}</span>
                 <h2>Положение после этапа</h2>
               </div>
-              <span className="index-data-badge"><i aria-hidden />Данные API</span>
             </div>
 
             <div className="index-standings-preview-grid">
@@ -307,28 +186,7 @@ function IndexPage() {
             </div>
           </div>
 
-          <aside className="index-quick-panel">
-            <div className="index-dashboard-section-head">
-              <div><span>Быстрый доступ</span><h2>Главное сейчас</h2></div>
-            </div>
-            <div className="index-quick-links">
-              <Link to="/race-results">
-                  <span>01</span><div><strong>Результаты гонки</strong><small>Последний доступный протокол</small></div><b>→</b>
-              </Link>
-              <Link to="/quali-results">
-                  <span>02</span><div><strong>Квалификация</strong><small>Последний доступный протокол</small></div><b>→</b>
-              </Link>
-              <Link to="/compare">
-                <span>03</span><div><strong>Сравнить пилотов</strong><small>Очки, темп и результаты</small></div><b>→</b>
-              </Link>
-              <Link to="/season">
-                <span>04</span><div><strong>Календарь сезона</strong><small>Все {widgetSeason} этапы и трассы</small></div><b>→</b>
-              </Link>
-              <Link to="/wiki">
-                <span>05</span><div><strong>Wiki для новичков</strong><small>Термины и правила F1</small></div><b>→</b>
-              </Link>
-            </div>
-          </aside>
+          <QuickAccess season={widgetSeason} />
         </section>
       </div>
 
@@ -339,98 +197,8 @@ function IndexPage() {
           <PersonalHome auth={auth} timezone={displayTz} />
         </div>
 
-        <div className="index-panel index-results-panel">
-          <div className="section-title">Последний этап</div>
-          <div className="results-grid">
-            <Link to="/quali-results" className="menu-item index-result-tile">
-              <IndexIcon name="quali" />
-              <span className="menu-label index-card-title">Квалификация</span>
-              <span className="index-card-meta">Последний протокол</span>
-            </Link>
-            <Link to="/race-results" className="menu-item index-result-tile">
-              <IndexIcon name="race" />
-              <span className="menu-label index-card-title">Гонка</span>
-              <span className="index-card-meta">Последний протокол</span>
-            </Link>
-            {isSprintWeekendActive && (
-              <>
-                <Link to="/sprint-results" className="menu-item index-result-tile">
-                  <IndexIcon name="sprint" />
-                  <span className="menu-label index-card-title">Спринт</span>
-                  {sessionMeta.sprint ? (
-                    <span className="index-card-meta">
-                      <span>{sessionMeta.sprint.date}</span>
-                      <span>Старт: {sessionMeta.sprint.time}</span>
-                    </span>
-                  ) : (
-                    <span className="index-card-desc">Короткая гонка уик-энда</span>
-                  )}
-                </Link>
-                <Link to="/sprint-quali-results" className="menu-item index-result-tile">
-                  <IndexIcon name="sprintQuali" />
-                  <span className="menu-label index-card-title">Спринт-квала</span>
-                  {sessionMeta.sprintQuali ? (
-                    <span className="index-card-meta">
-                      <span>{sessionMeta.sprintQuali.date}</span>
-                      <span>Старт: {sessionMeta.sprintQuali.time}</span>
-                    </span>
-                  ) : (
-                    <span className="index-card-desc">Стартовая решетка спринта</span>
-                  )}
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="index-panel index-season-panel">
-          <div className="section-title" id="season-title">
-            Сезон {currentYear}
-          </div>
-
-          <div className="menu-grid index-quick-grid">
-            <Link to="/drivers" className="menu-item index-nav-card">
-              <IndexIcon name="drivers" />
-              <span className="menu-label index-card-title">Пилоты</span>
-              <span className="index-card-desc">Личный зачет и форма</span>
-            </Link>
-            <Link to="/constructors" className="menu-item index-nav-card">
-              <IndexIcon name="teams" />
-              <span className="menu-label index-card-title">Команды</span>
-              <span className="index-card-desc">Кубок конструкторов</span>
-            </Link>
-            <Link to="/compare" className="menu-item index-nav-card">
-              <IndexIcon name="compare" />
-              <span className="menu-label index-card-title">Сравнение</span>
-              <span className="index-card-desc">Очки, темп и дуэли</span>
-            </Link>
-            <Link to="/voting" className="menu-item index-nav-card">
-              <IndexIcon name="vote" />
-              <span className="menu-label index-card-title">Голосование</span>
-              <span className="index-card-desc">Оценки и итоги этапов</span>
-            </Link>
-            <Link to="/predictions" className="menu-item index-nav-card">
-              <IndexIcon name="predictions" />
-              <span className="menu-label index-card-title">Прогнозы</span>
-              <span className="index-card-desc">Состав этапа и общий зачёт</span>
-            </Link>
-            <Link to="/wiki" className="menu-item index-nav-card">
-              <IndexIcon name="wiki" />
-              <span className="menu-label index-card-title">Wiki F1</span>
-              <span className="index-card-desc">Термины и правила для новичков</span>
-            </Link>
-          </div>
-          <Link to="/season" className="menu-item full-width index-wide-link index-calendar-main-link">
-            <div className="index-wide-link-left">
-              <IndexIcon name="calendar" />
-              <div className="index-wide-link-text">
-                <span className="menu-label index-card-title">Календарь</span>
-                <span className="index-card-desc">Расписание и этапы сезона</span>
-              </div>
-            </div>
-            <IndexArrow />
-          </Link>
-        </div>
+        <WeekendBoard race={nextRace} sessions={schedule} timezone={displayTz} total={totalRounds} loaded={loaded} />
+        <QuickAccess season={widgetSeason} />
 
         <div className="index-panel index-games-panel">
           <div className="section-title">Игры</div>

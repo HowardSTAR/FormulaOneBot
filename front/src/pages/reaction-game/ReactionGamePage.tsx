@@ -450,7 +450,7 @@ function ReactionGamePage() {
           <button
             type="button"
             className={`reaction-button ${status === "running" ? "is-stop" : ""}`}
-            onClick={handleMainAction}
+            data-analytics-action={status === 'running' || status === 'starting' || status === 'armed' ? 'game_hit' : 'game_start'} onClick={handleMainAction}
           >
             {buttonLabel}
           </button>

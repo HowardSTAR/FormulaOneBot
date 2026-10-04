@@ -14,6 +14,7 @@ DRIVERS = [dict(code=code, name=name, driverId=driver_id, position=i+1, points=3
            for i, (code, name, driver_id) in enumerate([('ANT','Andrea Kimi Antonelli','antonelli'),('RUS','George Russell','russell'),('LEC','Charles Leclerc','leclerc'),('HAM','Lewis Hamilton','hamilton'),('ALO','Fernando Alonso','alonso'),('VER','Max Verstappen','max_verstappen')])]
 SETTINGS = dict(timezone='Etc/GMT-3', notify_before=60, notify_before_minutes=[60], notifications_enabled=True, reminder_sessions=31, results_spoiler=False)
 PREVIEW_CLOCK_START = time.time()
+PREDICTION = None
 
 
 def fixture(path, params):
@@ -27,6 +28,8 @@ def fixture(path, params):
     races[16].update(date=f'{year}-10-11',race_start_utc=f'{year}-10-11T14:00:00Z',quali_start_utc=f'{year}-10-10T14:00:00Z',practice1_start_utc=f'{year}-10-09T10:00:00Z',sprint_quali_start_utc=f'{year}-10-09T14:00:00Z',sprint_start_utc=f'{year}-10-10T10:00:00Z')
     if path=='/api/auth/me': return dict(id=1,email='qa@example.test',telegram_id=1,email_verified=True,role='superadmin',display_name='UX test',telegram_username='ux_test')
     if path=='/api/admin/me': return dict(id=1,role='superadmin')
+    if path=='/api/admin/tools/insights': return dict(accounts={'total':126,'new_users':18},visitors={'unique_browsers':340,'returning_browsers':85},inbox={'total':600,'read_count':420},queue={'pending':0,'exhausted':0},reach={'members':108,'push_users':42})
+    if path=='/api/admin/tools/product-analytics': return dict(funnel={'opened':80,'started':64,'saved':51},interaction_first=time.time()-86400,screens=[{'path':p,'views':n,'browsers':n//2} for p,n in [('/',420),('/season',180),('/predictions',130),('/race-results',95)]],actions=[{'path':'/','action':a,'destination':p,'clicks':n,'browsers':n//2} for a,p,n in [('calendar_open','/season',87),('results_open','/race-results',56)]],retention=[{'season':2026,'round':14,'next_round':15,'participants':48,'returned':31}],errors=[],quality=[],referrals={'arrived':16,'activated':9,'returned':5},posthog={'configured':False,'pending':0,'failed':0,'last_sent':None})
     if path in ['/api/settings','/api/account/settings']: return SETTINGS.copy()
     if path=='/api/drivers': return dict(season=year,round=15,drivers=DRIVERS)
     if path=='/api/constructors': return dict(season=year,round=15,constructors=[dict(position=1,name='Mercedes',constructorId='mercedes',points=538),dict(position=2,name='Ferrari',constructorId='ferrari',points=378)])
@@ -41,7 +44,9 @@ def fixture(path, params):
     if path=='/api/reflex-grid-leaderboard': return dict(entries=[],total=0,mode='timed',difficulty='normal')
     if path=='/api/reaction-leaderboard/profile': return dict(participate=False,display_name='UX test')
     if path=='/api/season': return dict(season=year,races=races[:15] if params.get('completed_only') else races)
-    if path=='/api/next-race': return dict(status='ok',**races[-1],fp1_start_utc='2026-10-02T10:00:00Z',fp2_start_utc='2026-10-02T14:00:00Z',fp3_start_utc='2026-10-03T10:00:00Z')
+    if path=='/api/next-race': return dict(status='ok',season=year,**races[15],fp1_start_utc='2026-10-02T10:00:00Z',fp2_start_utc='2026-10-02T14:00:00Z',fp3_start_utc='2026-10-03T10:00:00Z')
+    if path=='/api/weekend-schedule':
+        return dict(season=year,round=16,sessions=[dict(name=n,utc_iso=f'2026-10-{day}T{hour}:00:00Z') for n,day,hour in [('Практика 1','02','10'),('Практика 2','02','14'),('Практика 3','03','10'),('Квалификация','03','14'),('Гонка','04','14')]])
     if path=='/api/race-details':
         race = races[min(round_number-1,len(races)-1)]
         return dict(season=year, country='Азербайджан', event_format='conventional',
@@ -55,7 +60,8 @@ def fixture(path, params):
     if path=='/api/votes/stats': return dict(stats=[dict(round=15,avg=4,count=3)])
     if path=='/api/votes/driver-stats': return dict(stats=[dict(driver_code='RUS',count=2)])
     if path=='/api/web-notifications/unread-count': return {'unread':1}
-    if path=='/api/predictions/current': return dict(status='ok',season=2026,round=17,event_name='Test Grand Prix 17',is_open=True,opens_at_utc='2026-10-01T00:00:00Z',deadline_utc='2026-10-10T12:00:00Z',prediction=None)
+    if path=='/api/predictions/current': return dict(status='ok',season=2026,round=17,event_name='Test Grand Prix 17',is_open=True,opens_at_utc='2026-10-01T00:00:00Z',deadline_utc='2026-10-10T12:00:00Z',prediction=PREDICTION,profile={'completed':True,'display_name':'UX test'},drivers=DRIVERS,has_sprint=False)
+    if path=='/api/predictions/leaderboard': return dict(season=2026,entries=[],rounds=[],current_user_id=1)
     if path=='/api/predictions/personal-season': return dict(latest=None,history=[],points=0,rank=None)
     if path=='/api/web-notifications':
         return dict(items=[dict(id=4-i,title='Скоро сессия',body='🏎 Скоро свободные заезды — FP2!\n\nЧерез 59 мин. старт: Test Grand Prix 16\n📍 Трасса: Сахир\nНачало в 14:00 (по вашему времени)',url='/race-details?season=2026&round=16',created_at=time.time()-3600,read_at=None,reminder=dict(kind='practice2',start_utc=datetime.fromtimestamp(PREVIEW_CLOCK_START+offset,timezone.utc).isoformat(),duration_minutes=60)) for i,offset in enumerate([3600,-300,-7200])]+[dict(id=1,title='Итоги гонки',body='\n'.join(f'P{i+1} · {d["name"]} · {d["constructorName"]} · 0' for i,d in enumerate(DRIVERS)),url='/race-results?season=2026&round=15',created_at=time.time()-86400,read_at=None,historical_snapshot=True)],unread=4,next_before=None,push={'enabled':False,'public_key':''})
@@ -90,11 +96,19 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(json.dumps(value if value is not None else {'detail':'Тестовый источник: сценарий недоступен'},ensure_ascii=False).encode())
 
     def do_POST(self):
+        global PREDICTION
         is_settings = self.path in ['/api/settings', '/api/account/settings']
         body = self.rfile.read(int(self.headers.get('Content-Length', 0)))
         if is_settings:
             values = json.loads(body)
             SETTINGS.update({key: value for key, value in values.items() if key in SETTINGS})
+        if self.path == '/api/predictions/current':
+            PREDICTION = json.loads(body)
+            self.send_response(200)
+            self.send_header('Content-Type','application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'status':'ok','prediction':PREDICTION}).encode())
+            return
         self.send_response(200 if is_settings or self.path.startswith('/api/analytics/') else 405)
         self.send_header('Content-Type','application/json')
         self.end_headers()

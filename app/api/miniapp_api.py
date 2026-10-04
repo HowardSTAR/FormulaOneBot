@@ -105,9 +105,16 @@ async def lifespan(app: FastAPI):
     redis_url = os.getenv("REDIS_URL")
     if redis_url:
         await init_redis_cache(redis_url)
+    from app.services.posthog_bridge import worker as posthog_worker
+    posthog_task = asyncio.create_task(posthog_worker(db))
     try:
         yield
     finally:
+        posthog_task.cancel()
+        try:
+            await posthog_task
+        except asyncio.CancelledError:
+            pass
         try:
             await db.close()
         finally:
@@ -344,6 +351,7 @@ async def api_prediction_profile(
 @web_app.post("/api/predictions/current")
 async def api_prediction_save(
     data: PredictionRequest,
+    request: Request,
     user_id: int = Depends(get_prediction_user_id),
 ):
     # Дедлайн повторно вычисляется на сервере в момент записи, поэтому обход блокировки UI невозможен.
@@ -365,6 +373,10 @@ async def api_prediction_save(
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    # Forward only a confirmed save, never a forecast's selections or an account ID.
+    from app.services.posthog_bridge import confirmed_prediction
+    await confirmed_prediction(db, request.cookies.get('turbotears_visitor', ''), user_id,
+                               context['season'], context['round'])
     return {"status": "ok", "prediction": _serialize_prediction(prediction)}
 
 
@@ -1521,22 +1533,10 @@ async def api_race_results(
             return {"results": [], "race_info": None, "season": season, "round": None}
 
         latest_completed_round = completed_rounds[-1]
-        if _should_reset_previous_results(schedule, now, latest_completed_round):
-            started_round = _get_latest_started_weekend_round(schedule, now)
-            if started_round is not None:
-                started_df = await get_race_results_async(season, started_round)
-                if started_df is not None and not started_df.empty:
-                    round_num = started_round
-                    race_info = next((r for r in schedule if r.get("round") == round_num), None)
-                    df = started_df
-                else:
-                    return _empty_results_payload_during_active_weekend(schedule, now, season)
-            else:
-                return _empty_results_payload_during_active_weekend(schedule, now, season)
-        else:
-            round_num = latest_completed_round
-            race_info = next((r for r in schedule if r.get("round") == round_num), None)
-            df = await get_race_results_async(season, round_num)
+        # "Latest" means the newest available classification, even during a new weekend.
+        round_num = latest_completed_round
+        race_info = next((r for r in schedule if r.get("round") == round_num), None)
+        df = await get_race_results_async(season, round_num)
 
         if df is None or df.empty:
             # UX fallback: если у последнего завершенного этапа пусто, ищем ближайший предыдущий с данными.
@@ -1652,11 +1652,6 @@ async def api_sprint_results(
         if round_num is None or df.empty:
             return {"results": [], "race_info": None, "season": season, "round": None}
 
-        sprint_schedule = [
-            event for event in schedule if _is_sprint_weekend_event(event)
-        ]
-        if _should_reset_previous_results(sprint_schedule, now_utc, round_num):
-            return _empty_results_payload_during_active_weekend(schedule, now_utc, season)
 
         race_info = next((r for r in schedule if r.get("round") == round_num), None)
 
@@ -1867,35 +1862,35 @@ async def api_practice_results(
             session_number,
             limit=100,
         )
-        if is_latest_request and not results:
-            previous_events = sorted(
-                latest_candidates,
-                key=lambda race: int(race.get("round") or 0),
-                reverse=True,
+    if is_latest_request and not results:
+        previous_events = sorted(
+            latest_candidates,
+            key=lambda race: int(race.get("round") or 0),
+            reverse=True,
+        )
+        for fallback_event in previous_events:
+            fallback_round = int(fallback_event.get("round") or 0)
+            if fallback_round <= 0 or fallback_round >= round_number:
+                continue
+            fallback_sessions = _available_practice_sessions(fallback_event)
+            if (
+                session_number not in fallback_sessions
+                or not _session_has_started(fallback_event, session_number, now_utc)
+            ):
+                continue
+            fallback_results = await get_practice_results_async(
+                season,
+                fallback_round,
+                session_number,
+                limit=100,
             )
-            for fallback_event in previous_events:
-                fallback_round = int(fallback_event.get("round") or 0)
-                if fallback_round <= 0 or fallback_round >= round_number:
-                    continue
-                fallback_sessions = _available_practice_sessions(fallback_event)
-                if (
-                    session_number not in fallback_sessions
-                    or not _session_has_started(fallback_event, session_number, now_utc)
-                ):
-                    continue
-                fallback_results = await get_practice_results_async(
-                    season,
-                    fallback_round,
-                    session_number,
-                    limit=100,
-                )
-                if fallback_results:
-                    event = fallback_event
-                    round_number = fallback_round
-                    available_sessions = fallback_sessions
-                    results = fallback_results
-                    data_fallback = True
-                    break
+            if fallback_results:
+                event = fallback_event
+                round_number = fallback_round
+                available_sessions = fallback_sessions
+                results = fallback_results
+                data_fallback = True
+                break
 
     favorite_drivers: set[str] = set()
     if user_id:
@@ -2021,25 +2016,6 @@ async def api_quali_results(
                     [],
                 )
 
-        if _should_reset_previous_results(schedule or [], now_utc, base_payload.get("round")):
-            started_round = _get_latest_started_weekend_round(schedule or [], now_utc)
-            if started_round is None:
-                return _empty_results_payload_during_active_weekend(schedule or [], now_utc, season)
-            try:
-                started_round_num, started_q_results = await get_quali_for_round_async(season, started_round, limit=100)
-            except Exception:
-                started_round_num, started_q_results = started_round, []
-            if not started_q_results:
-                return _empty_results_payload_during_active_weekend(schedule or [], now_utc, season)
-
-            base_payload = _build_quali_payload(
-                season,
-                started_round_num,
-                schedule or [],
-                started_q_results,
-            )
-            await set_cached_quali_results(season, base_payload)
-
     # Персональная отметка избранных пилотов: только в ответе, не в кэше.
     if not user_id:
         return base_payload
@@ -2120,12 +2096,6 @@ async def api_sprint_quali_results(
 
         if round_num is None or not sq_results:
             return {"results": [], "race_info": None, "season": season, "round": None}
-
-        sprint_schedule = [
-            event for event in schedule if _is_sprint_weekend_event(event)
-        ]
-        if _should_reset_previous_results(sprint_schedule, now_utc, round_num):
-            return _empty_results_payload_during_active_weekend(schedule, now_utc, season)
 
         race_info = next((r for r in schedule if r.get("round") == round_num), None)
     fav_drivers = set()

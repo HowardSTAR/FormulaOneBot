@@ -90,7 +90,7 @@ function SprintQualiResultsPage() {
     return () => {
       cancelled = true;
     };
-  }, [season, attempt]);
+  }, [season, attempt, setSelectedRound]);
 
   useEffect(() => {
     if (mode === "archive" && !selectedRound) { setLoading(false); setData(null); return; }
@@ -247,8 +247,8 @@ function SprintQualiResultsPage() {
             retry={() => setAttempt(v => v + 1)}
             empty={!loading && !error && desktopRows.length === 0}
             icon="⏱"
-            title="Сессия ещё не завершена"
-            description={mode === "archive" ? "За выбранный этап результаты пока недоступны." : "После клетчатого флага здесь появится классификация спринт-квалификации."}
+            title="Результаты пока недоступны"
+            description={mode === "archive" ? "Источник ещё не передал результаты выбранного этапа." : "Источник пока не вернул таблицу спринт-квалификации. Можно посмотреть результаты гонки или другой этап в архиве."}
           />
           {!loading && !error && desktopWinner && (
             <div className="race-results-desktop-hero-grid">

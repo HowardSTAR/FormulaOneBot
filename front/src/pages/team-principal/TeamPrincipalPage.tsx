@@ -28,32 +28,30 @@ export default function TeamPrincipalPage() {
   const [searchParams] = useSearchParams();
   const constructorId = searchParams.get("constructorId") || "";
   const season = Number(searchParams.get("season")) || new Date().getFullYear();
-  const [data, setData] = useState<ConstructorPrincipalResponse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
-  const [error, setError] = useState("");
+  const requestKey = `${constructorId}:${season}:${attempt}`;
+  const [result, setResult] = useState<{ key: string; data?: ConstructorPrincipalResponse; error?: string }>({ key: '' });
+  const loading = result.key !== requestKey;
+  const data = loading ? null : result.data;
+  const error = loading ? '' : result.error;
 
   useEffect(() => {
     if (!constructorId) return;
     let cancelled = false;
-    setLoading(true); setError("");
     apiRequest<ConstructorPrincipalResponse>("/api/constructor-details", { constructorId, season })
       .then((response) => {
         if (cancelled) return;
         if (!response.principal?.photo_url) {
-          setError("Карточка руководителя пока недоступна");
+          setResult({ key: requestKey, error: "Карточка руководителя пока недоступна" });
           return;
         }
-        setData(response);
+        setResult({ key: requestKey, data: response });
       })
       .catch(() => {
-        if (!cancelled) setError("Не удалось загрузить руководителя команды");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setResult({ key: requestKey, error: "Не удалось загрузить руководителя команды" });
       });
     return () => { cancelled = true; };
-  }, [constructorId, season, attempt]);
+  }, [constructorId, season, requestKey]);
 
   const backPath = `/constructor-details?constructorId=${encodeURIComponent(constructorId)}&season=${season}`;
 

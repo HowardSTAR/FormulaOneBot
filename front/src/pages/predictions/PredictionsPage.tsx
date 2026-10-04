@@ -122,6 +122,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [reviewRound, setReviewRound] = useState<RoundColumn | null>(null);
+  const [showAllStages, setShowAllStages] = useState(false);
   const [rounds, setRounds] = useState<RoundColumn[]>([]);
   const [leaderboardSeason, setLeaderboardSeason] = useState<number | null>(null);
   const [form, setForm] = useState<Prediction>(EMPTY_PREDICTION);
@@ -245,6 +246,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
     ? [...SPRINT_DRIVER_FIELDS, ...BASE_DRIVER_FIELDS]
     : BASE_DRIVER_FIELDS;
   const formComplete = driverFields.every(({ key }) => Boolean(form[key]));
+  const visibleRounds = [...rounds].sort((a,b) => b.round-a.round).slice(0, showAllStages ? rounds.length : 3);
   const editable = canEditPrediction(current);
   const beforeOpening = Date.parse(current?.opens_at_utc || '') > Date.now();
 
@@ -264,6 +266,12 @@ function PredictionsContent({ guest }: { guest: boolean }) {
           </div>
         )}
       </header>
+
+      {current?.status === 'ok' && !current.is_open && !beforeOpening && <aside className="predictions-message">
+        <strong>Этот этап уже закрыт для новых прогнозов</strong>
+        <p>Приём следующего этапа откроется с началом его первой практики.</p>
+        <Link className="ui-action-link" to="/season" data-analytics-action="calendar_open">Посмотреть ближайший уик-энд →</Link>
+      </aside>}
 
       {guest && <aside className="predictions-message">
         <strong>Мой прогноз — знакомство без регистрации</strong>
@@ -394,7 +402,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
                 <p>{beforeOpening ? 'Приём ещё не открыт. Заполнение и редактирование станут доступны после открытия; прогноз не отправлен автоматически.' : guest ? 'Это только черновик в вашем браузере. Для участия нужно войти и отправить прогноз в период приёма.' : current.is_open
                   ? `После старта ${current.has_sprint ? "спринт-квалификации" : "квалификации"} сервер заблокирует любые изменения.`
                   : "Прогноз доступен только для просмотра."}</p>
-                <button disabled={!editable || (!guest && !formComplete) || saving || !current.round} onClick={() => void savePrediction()}>
+                <button data-analytics-action="prediction_submit" disabled={!editable || (!guest && !formComplete) || saving || !current.round} onClick={() => void savePrediction()}>
                   {saving ? "Сохраняем…" : !editable ? beforeOpening ? "Приём ещё не открыт" : "Приём закрыт" : guest ? "Войти и сохранить черновик" : current.prediction ? "Обновить прогноз" : "Отправить прогноз"}
                 </button>
               </div>
@@ -411,10 +419,10 @@ function PredictionsContent({ guest }: { guest: boolean }) {
           {stageRound > 0 && <StageScores entries={entries} round={stageRound} />}
           <div className="prediction-leaderboard-title">
             <div>
-              <span>Season standings · {leaderboardSeason ?? current?.season}</span>
+              <span>Зачёт сезона · {leaderboardSeason ?? current?.season}</span>
               <h3>Турнирная таблица</h3>
             </div>
-            <p>Прокрутите таблицу вправо, чтобы увидеть результаты каждого этапа.</p>
+            <button onClick={() => setShowAllStages(v => !v)}>{showAllStages ? "Последние 3 этапа" : "Показать все этапы"}</button>
           </div>
           <div className="prediction-leaderboard-scroll">
             <p>Нажмите на очки в своей строке, чтобы открыть личный разбор прогноза. Другие участники его не видят.</p>
@@ -428,7 +436,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
                   <th>Средний</th>
                   <th>Этапы</th>
                   <th className="is-total">Баллы всего</th>
-                  {rounds.map((roundInfo) => (
+                  {visibleRounds.map((roundInfo) => (
                     <th key={`${roundInfo.season}-${roundInfo.round}`} title={roundInfo.event_name}>
                       {roundInfo.short_code}
                     </th>
@@ -449,12 +457,12 @@ function PredictionsContent({ guest }: { guest: boolean }) {
                       <td>{entry.average_points.toFixed(1)}</td>
                       <td>{entry.rounds_scored}</td>
                       <td className="is-total"><strong>{entry.total_points}</strong></td>
-                      {rounds.map((roundInfo) => {
+                      {visibleRounds.map((roundInfo) => {
                         const points = stagePoints.get(`${roundInfo.season}-${roundInfo.round}`);
                         return (
                           <td key={`${roundInfo.season}-${roundInfo.round}`} title={roundInfo.event_name}>
                             {entry.user_id === currentUserId && points !== undefined
-                              ? <button className="prediction-own-score" aria-label={`Мой прогноз: ${roundInfo.event_name}, этап ${roundInfo.round}, ${points} баллов`} onClick={() => setReviewRound(roundInfo)}>{points}</button>
+                              ? <button className="prediction-own-score" data-analytics-action="review_open" aria-label={`Мой прогноз: ${roundInfo.event_name}, этап ${roundInfo.round}, ${points} баллов`} onClick={() => setReviewRound(roundInfo)}>{points}</button>
                               : points ?? "—"}
                           </td>
                         );

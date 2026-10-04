@@ -85,6 +85,8 @@ function VotingPage() {
       ]);
       if (sequence !== loadSequence.current) return;
       setRaces(seasonRes.races || []);
+      const completed = (seasonRes.races || []).filter(r => r.date && Date.parse(r.race_start_utc || r.date) < Date.now() - 3 * 3600000);
+      setExpandedRound(targetRound || (completed.length ? Math.max(...completed.map(r => r.round)) : null));
       setRaceVotes(votesRes.race_votes || {});
       setDriverVotes(votesRes.driver_votes || {});
       setStats(statsRes.stats || []);
@@ -95,12 +97,13 @@ function VotingPage() {
     } finally {
       if (sequence === loadSequence.current) setLoading(false);
     }
-  }, []);
+  }, [targetRound]);
 
+  const cancelPendingLoad = useCallback(() => { loadSequence.current++; }, []);
   useEffect(() => {
     void loadData(year);
-    return () => { loadSequence.current++; };
-  }, [year, loadData]);
+    return cancelPendingLoad;
+  }, [year, loadData, cancelPendingLoad]);
 
   useEffect(() => {
     if (loading || !targetRound) return;
@@ -355,7 +358,7 @@ function VotingPage() {
                 return <tr key={race.round}><th scope="row">{race.event_name}</th><td>{raceVotes[race.round] ?? 'Не оценена'}</td><td>{summary?.count ? summary.avg.toFixed(1) : 'Нет оценок'}</td><td>{summary?.count ?? 0}</td></tr>;
               })}</tbody></table> : <table><caption>Голоса за пилота дня</caption><thead><tr><th>Пилот</th><th>Голосов</th></tr></thead><tbody>{driverStats.map(item => <tr key={item.driver_code}><th scope="row">{drivers.find(driver => driver.code === item.driver_code)?.name || item.driver_code}</th><td>{item.count}</td></tr>)}</tbody></table>}
             </div></details>
-            {finishedRaces.map((race) => {
+            {[...finishedRaces].sort((a,b) => b.round-a.round).map((race) => {
               const isExpanded = expandedRound === race.round;
               const myRaceVote = raceVotes[race.round];
               const myDriverVote = driverVotes[race.round];
@@ -397,6 +400,7 @@ function VotingPage() {
                               key={r}
                               aria-label={`Оценить гонку на ${r} из 5`}
                               type="button"
+                              data-analytics-action="vote_submit"
                               className={`star-btn ${myRaceVote === r ? "active" : ""}`}
                               onClick={() => handleRaceVote(race.round, r)}
                               disabled={isSaving}

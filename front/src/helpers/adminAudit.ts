@@ -1,4 +1,8 @@
 export const auditActionLabels: Record<string, string> = {
+  'recap_news.source': 'Изменён источник новостей',
+  'recap_news.visibility': 'Изменена видимость новости',
+  'notification.sent': 'Отправлена рассылка сайта',
+  'notification.preview': 'Подготовлен предпросмотр рассылки',
   'user.role_changed': 'Изменена роль',
   'user.email_changed': 'Изменён email',
   'user.telegram_unlinked': 'Отвязан Telegram',
@@ -15,5 +19,9 @@ export function describeAuditChange(action: string, details: Record<string, unkn
   if (action.startsWith('game_records.') && action.endsWith('cleared')) return `${scopes[text(details.scope)] || text(details.scope)} · удалено записей: ${text(details.total)}`;
   if (action === 'user.telegram_unlinked') return `Связь с Telegram #${text(details.telegram_id)} удалена`;
   if (action === 'user.password_reset_sent') return `Письмо для сброса пароля отправлено на ${text(details.email)}`;
+  if (action === 'notification.sent') return `Рассылка создана для ${text(details.recipients)} получателей; push в очереди: ${text(details.queued_push)}`;
+  if (action === 'notification.preview') return `Аудитория: ${text(details.audience)} получателей. Рассылка ещё не отправлена`;
+  if (action === 'recap_news.source') return `Источник #${text(details.source_id)}: ${details.enabled ? 'включён' : 'выключен'}`;
+  if (action === 'recap_news.visibility') return `Новость #${text(details.article_id)}: ${details.hidden ? 'скрыта' : 'показана в обзоре гонки'}`;
   return 'Подробности доступны в технических сведениях.';
 }

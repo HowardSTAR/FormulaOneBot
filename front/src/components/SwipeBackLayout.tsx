@@ -1,12 +1,11 @@
 import { Suspense, useRef, useCallback, useEffect } from "react";
-import { apiRequest } from "../helpers/api";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { hapticImpact } from "../helpers/telegram";
 import { AppHeader } from "./AppHeader";
 import { LegalFooter } from "./LegalFooter";
 import { InstallHint } from "./InstallHint";
 import { MobileNav } from "./MobileNav";
-import { analyticsPlatform } from '../helpers/analytics';
+import { trackScreen } from '../helpers/analytics';
 import { EngagementEntry } from './EngagementEntry';
 import { RouteContext } from './RouteContext';
 import { DataReceipt } from './DataReceipt';
@@ -23,8 +22,7 @@ export function SwipeBackLayout() {
   useEffect(() => {
     // Only the route is sent: no query parameters, search text or personal data.
     const timer = window.setTimeout(() => {
-      const path = location.pathname.startsWith('/share/') ? '/share' : location.pathname;
-      void apiRequest("/api/analytics/visit", { path, platform: analyticsPlatform() }, "POST").catch(() => {});
+      trackScreen(location.pathname);
     }, 500);
     return () => window.clearTimeout(timer);
   }, [location.pathname]);

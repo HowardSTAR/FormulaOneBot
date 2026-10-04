@@ -16,6 +16,15 @@ os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
 os.environ.setdefault("DATABASE_PATH", "")
 
 
+@pytest_asyncio.fixture(scope="session", loop_scope="session", autouse=True)
+async def close_shared_database_after_suite():
+    """Release the application's shared SQLite worker before pytest exits."""
+    yield
+    from app.db import db
+
+    await db.close()
+
+
 def _test_description(item: pytest.Item) -> str:
     """Human-readable test description from docstring or function name."""
     obj = getattr(item, "obj", None)
