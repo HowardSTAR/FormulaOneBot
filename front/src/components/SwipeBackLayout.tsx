@@ -12,6 +12,7 @@ import { RouteContext } from './RouteContext';
 import { DataReceipt } from './DataReceipt';
 import { FirstVisitGuide } from './FirstVisitGuide';
 import { PageMotion } from './PageMotion';
+import { VisitReminder } from './VisitReminder';
 
 const EDGE_THRESHOLD = 30;
 const SWIPE_THRESHOLD = 60;
@@ -92,6 +93,7 @@ export function SwipeBackLayout() {
       <FirstVisitGuide />
       <div className="app-content">
         <section className={`app-page-main route-${routeKey}`}>
+          <VisitReminder />
           <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
             <PageMotion key={location.pathname} pathname={location.pathname} previousPathRef={previousPathRef} />
             <Outlet />
