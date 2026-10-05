@@ -110,6 +110,10 @@
 #root .app-page-main :is(
   .desktop-standings-name, .desktop-standings-meta, .drivers-row-team span,
   .driver-name, .team-name, .team-name-main,
+  .constructors-leader-main span, .constructors-season-stats small,
+  .constructor-hero-title, .constructor-driver-name, .constructor-driver-team,
+  .constructor-profile-desktop-brand h1, .constructor-profile-desktop-brand h1 span,
+  .constructor-profile-desktop-brand h1 em, .constructor-profile-driver-row b,
   .standings-name, .standings-code, .results-mobile-team,
   .race-results-driver-cell > span, .race-results-driver-cell strong, .race-results-team-cell span,
   .race-results-desktop-winner-team strong,
@@ -138,8 +142,12 @@
 #root .app-page-main :is(
   .desktop-standings-driver, .drivers-row-driver > div, .drivers-row-team,
   .race-results-driver-cell > span, .race-results-team-cell,
-  .standings-info, .driver-info, .constructors-row-copy
+  .standings-info, .driver-info, .constructors-row-copy,
+  .team-info, .constructors-leader-identity > div, .constructor-profile-desktop-brand > div,
+  .constructor-profile-driver-row > div
 ) { min-width: 0; }
+#root .team-card :is(.constructor-logo, .pos-box, .team-points) { flex-shrink: 0; }
+#root .constructor-driver-card-content { box-sizing: border-box; min-height: 160px; padding-bottom: 78px; }
 #root .app-page-main :is(
   .desktop-standings-row, .race-results-desktop-row, .standings-item,
   .driver-card, .constructor-card, .index-standing-line, .season-podium-list li
