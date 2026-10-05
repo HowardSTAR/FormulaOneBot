@@ -14,6 +14,22 @@ from httpx import ASGITransport, AsyncClient
 from PIL import Image
 
 
+@pytest.fixture
+def comparison_sources(monkeypatch):
+    """Official totals intentionally differ from race-only sums (sprints/adjustments)."""
+    from app.api import miniapp_api
+    drivers = AsyncMock(return_value=pd.DataFrame([
+        {'driverCode':'VER','points':42}, {'driverCode':'NOR','points':57}, {'driverCode':'LEC','points':39},
+    ]))
+    teams = AsyncMock(return_value=pd.DataFrame([
+        {'constructorName':'Red Bull','points':46}, {'constructorName':'McLaren','points':34},
+    ]))
+    monkeypatch.setattr(miniapp_api,'get_driver_standings_async',drivers)
+    monkeypatch.setattr(miniapp_api,'get_constructor_standings_async',teams)
+    monkeypatch.setattr(miniapp_api,'get_quali_for_round_async',AsyncMock(return_value=(1,[])))
+    return drivers,teams
+
+
 @pytest.mark.asyncio
 async def test_api_season_schedule(api_client: AsyncClient):
     """GET /api/season — расписание сезона."""
@@ -305,7 +321,8 @@ async def test_api_toggle_favorite_team(api_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_api_next_race(api_client: AsyncClient):
     """GET /api/next-race — ближайшая гонка."""
-    with patch("app.api.miniapp_api.build_next_race_payload", new_callable=AsyncMock) as m:
+    with patch("app.api.miniapp_api.build_next_race_payload", new_callable=AsyncMock) as m, \
+         patch("app.api.miniapp_api.get_weekend_schedule",return_value=[]):
         m.return_value = {
             "status": "ok",
             "season": 2024,
@@ -589,7 +606,7 @@ async def test_api_votes_driver_stats(api_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_api_compare(api_client: AsyncClient):
+async def test_api_compare(api_client: AsyncClient,comparison_sources):
     """GET /api/compare — сравнение пилотов."""
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
         m.return_value = [
@@ -607,10 +624,13 @@ async def test_api_compare(api_client: AsyncClient):
     assert "data1" in data
     assert "data2" in data
     assert data["data1"]["code"] == "VER"
+    assert data['data1']['history'] == [25.0]
+    assert data['data2']['history'] == [18.0]
+    comparison_sources[0].assert_awaited_once_with(2024,None)
 
 
 @pytest.mark.asyncio
-async def test_api_compare_multi_returns_dynamic_driver_series(api_client: AsyncClient):
+async def test_api_compare_multi_returns_dynamic_driver_series(api_client: AsyncClient,comparison_sources):
     """GET /api/compare/multi загружает сезон один раз для произвольного числа пилотов."""
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
@@ -664,6 +684,7 @@ async def test_api_compare_multi_returns_dynamic_driver_series(api_client: Async
     payload = response.json()
     assert payload["labels"] == ["Bahrain", "Saudi Arabian"]
     assert [series["code"] for series in payload["series"]] == ["VER", "NOR", "LEC"]
+    assert [series['total_points'] for series in payload['series']] == [42.0,57.0,39.0]
     assert payload["series"][0]["history"] == [25.0, 12.0]
     assert payload["series"][0]["race_wins"] == 1
     assert payload["series"][1]["race_wins"] == 1
@@ -699,7 +720,7 @@ async def test_api_compare_multi_supports_single_driver(api_client: AsyncClient)
 
 
 @pytest.mark.asyncio
-async def test_api_compare_prefers_quali_positions_for_q_score(api_client: AsyncClient):
+async def test_api_compare_prefers_quali_positions_for_q_score(api_client: AsyncClient,comparison_sources):
     """GET /api/compare — q_score считается по квалификации, даже если в race-данных нет Grid."""
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
@@ -735,7 +756,7 @@ async def test_api_compare_prefers_quali_positions_for_q_score(api_client: Async
 
 
 @pytest.mark.asyncio
-async def test_api_compare_includes_recent_round_when_results_already_available(api_client: AsyncClient):
+async def test_api_compare_includes_recent_round_when_results_already_available(api_client: AsyncClient,comparison_sources):
     """GET /api/compare — не ждёт +1ч, если у только что завершившейся гонки уже есть результаты."""
     now = datetime.now(timezone.utc)
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m_sched, \
@@ -787,7 +808,7 @@ async def test_api_compare_includes_recent_round_when_results_already_available(
 
 
 @pytest.mark.asyncio
-async def test_api_compare_teams(api_client: AsyncClient):
+async def test_api_compare_teams(api_client: AsyncClient,comparison_sources):
     """GET /api/compare/teams — сравнение команд."""
     with patch("app.api.miniapp_api.get_season_schedule_short_async", new_callable=AsyncMock) as m:
         m.return_value = [{"round": 1, "event_name": "Bahrain GP", "date": "2024-03-02"}]
@@ -801,6 +822,9 @@ async def test_api_compare_teams(api_client: AsyncClient):
     data = r.json()
     assert "data1" in data
     assert "data2" in data
+    assert data['data1']['history'] == [43.0]
+    assert data['data2']['history'] == [30.0]
+    comparison_sources[1].assert_awaited_once_with(2024,None)
 
 
 @pytest.mark.asyncio
@@ -875,7 +899,8 @@ async def test_api_race_details(api_client: AsyncClient):
 @pytest.mark.asyncio
 async def test_api_race_details_404(api_client: AsyncClient):
     """GET /api/race-details — этап не найден."""
-    with patch("app.api.miniapp_api.get_event_details_async", new_callable=AsyncMock) as m:
+    with patch("app.api.miniapp_api.get_event_details_async", new_callable=AsyncMock) as m, \
+         patch("app.api.miniapp_api.get_season_schedule_short_async",AsyncMock(return_value=[])):
         m.return_value = None
         r = await api_client.get("/api/race-details", params={"season": 2024, "round": 99})
     assert r.status_code == 404

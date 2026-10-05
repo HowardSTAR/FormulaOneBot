@@ -10,7 +10,7 @@ import pytest_asyncio
 from app.db import Database
 from app.services import weekly_race_overtakes as service, telegram_outbox as outbox
 from app.services.engagement import weekly_period
-from tests.test_engagement import replay
+from tests.support import replay, Clock
 
 NOW = datetime(2026,10,5,12,tzinfo=timezone.utc)
 
@@ -109,9 +109,9 @@ async def test_atomic_event_and_inbox_rollback_and_idempotence(store):
 
 @pytest.mark.asyncio
 async def test_delivery_is_deduplicated_coalesced_and_stale_alert_is_cancelled(store,monkeypatch):
-    clock = [NOW.timestamp()]
-    monkeypatch.setattr(outbox,'time',SimpleNamespace(time=lambda:clock[0]))
-    monkeypatch.setattr(service,'time',SimpleNamespace(time=lambda:clock[0]))
+    clock = Clock(NOW)
+    monkeypatch.setattr(outbox,'time',clock)
+    monkeypatch.setattr(service,'time',clock)
     await score(store,1,70000)
     await score(store,2,69000)
     bot = SimpleNamespace(send_message=AsyncMock(return_value=SimpleNamespace(message_id=1)))
@@ -123,12 +123,12 @@ async def test_delivery_is_deduplicated_coalesced_and_stale_alert_is_cancelled(s
     button = bot.send_message.await_args.kwargs['reply_markup'].inline_keyboard[0][0]
     assert '/race-game?' in button.web_app.url and 'weekly=1' in button.web_app.url
     await score(store,3,68000)
-    clock[0] += 30
+    clock.advance(seconds=30)
     await service.dispatch_overtakes(bot,now=NOW+timedelta(seconds=30))
     # One is cooling down; Two gets the actual crossing.
     assert bot.send_message.await_count==2
     await score(store,1,67000)
-    clock[0] = (NOW+timedelta(hours=1)).timestamp()
+    clock.now = NOW+timedelta(hours=1)
     await service.dispatch_overtakes(bot,now=NOW+timedelta(hours=1))
     assert not any(call.kwargs['chat_id']==1 for call in bot.send_message.await_args_list[1:])
 
@@ -161,6 +161,41 @@ async def test_reclaimed_record_cancels_already_queued_message(store,monkeypatch
     await real_drain(bot,event_key=key)
     bot.send_message.assert_not_awaited()
     assert await outbox.delivery_counts(key)=={'cancelled':1}
+
+
+@pytest.mark.parametrize('change',['tie','faster','private','archived','week-ended','score-deleted'])
+async def test_pending_event_becomes_inactive(store,change):
+    await score(store,1,70000)
+    challenger = await score(store,2,69000)
+    now = NOW.timestamp()
+    if change in {'tie','faster'}:
+        await score(store,1,69000 if change=='tie' else 68000)
+    elif change=='private':
+        await store.conn.execute('UPDATE reaction_leaderboard_profiles SET leaderboard_opt_in=0 WHERE telegram_id=1')
+    elif change=='archived':
+        await store.conn.execute('UPDATE users SET archived_at=CURRENT_TIMESTAMP WHERE telegram_id=1')
+    elif change=='week-ended':
+        now = weekly_period(NOW)[2].timestamp()
+    elif change=='score-deleted':
+        await store.conn.execute('DELETE FROM race_game_scores WHERE id=?',(challenger,))
+    await store.conn.commit()
+    assert await service.active_event(store.conn,1,now=now) is None
+
+
+@pytest.mark.parametrize('seconds,expected',[pytest.param(3599.999,1,id='before-hour'),
+    pytest.param(3600,2,id='at-hour'),pytest.param(3600.001,2,id='after-hour')])
+async def test_overtake_cooldown_boundary(store,monkeypatch,seconds,expected):
+    clock = Clock(NOW)
+    monkeypatch.setattr(outbox,'time',clock)
+    monkeypatch.setattr(service,'time',clock)
+    bot = SimpleNamespace(send_message=AsyncMock(return_value=SimpleNamespace(message_id=1)))
+    await score(store,1,70000)
+    await score(store,2,69000)
+    await service.dispatch_overtakes(bot,now=clock.now)
+    await score(store,3,68000)
+    clock.advance(seconds=seconds)
+    await service.dispatch_overtakes(bot,now=clock.now)
+    assert sum(call.kwargs['chat_id']==1 for call in bot.send_message.await_args_list) == expected
 
 
 @pytest.mark.asyncio

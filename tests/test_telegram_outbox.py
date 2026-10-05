@@ -10,6 +10,35 @@ from aiogram.methods import SendMessage, SendPhoto
 
 from app.db import Database
 from app.services import telegram_outbox as outbox
+from tests.support import Clock
+
+
+@pytest.mark.parametrize('terminal',['sent','blocked','failed','unknown','cancelled','expired'])
+async def test_terminal_delivery_states_are_never_replayed(queue,terminal):
+    await outbox.enqueue('terminal','Original',None,[(1,'UTC')],time.time()+1000)
+    async with outbox.connection() as conn:
+        await conn.execute('UPDATE telegram_deliveries SET status=? WHERE event_key=?',(terminal,'terminal'))
+        await conn.commit()
+    bot = SimpleNamespace(send_message=AsyncMock())
+    await outbox.drain(bot)
+    await outbox.enqueue('terminal','Changed',None,[(1,'UTC'),(2,'UTC')],time.time()+1000)
+    await outbox.drain(bot)
+    bot.send_message.assert_not_awaited()
+    assert await outbox.delivery_counts('terminal') == {terminal:1}
+
+
+@pytest.mark.parametrize('offset,sent',[pytest.param(-0.001,True,id='before-expiry'),
+    pytest.param(0,False,id='at-expiry'),pytest.param(0.001,False,id='after-expiry')])
+async def test_delivery_ttl_boundary(queue,monkeypatch,offset,sent):
+    clock = Clock()
+    monkeypatch.setattr(outbox,'time',clock)
+    expires = clock.time()+10
+    await outbox.enqueue('boundary','Original',None,[(1,'UTC')],expires)
+    clock.advance(seconds=10+offset)
+    bot = SimpleNamespace(send_message=AsyncMock(return_value=SimpleNamespace(message_id=1)))
+    await outbox.drain(bot)
+    assert bot.send_message.await_count == int(sent)
+    assert await outbox.delivery_counts('boundary') == {'sent' if sent else 'expired':1}
 
 
 @pytest_asyncio.fixture

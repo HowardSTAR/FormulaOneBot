@@ -68,11 +68,12 @@ def test_official_race_table_preserves_points_gaps_and_unclassified_retirements(
     assert result.iloc[-1]['Points'] == 0
 
 
-def test_official_race_table_rejects_partial_and_invalid_points():
+@pytest.mark.parametrize('page', ['', '<html>Coming soon</html>', official_race_html().replace('<td>25</td>', '<td>—</td>'),
+    official_race_html().replace('<td>25</td>', '<td>0</td>'), official_race_html().replace('ANT', 'VER')],
+    ids=['empty','unpublished','missing-points','provisional-zero-points','duplicate-driver'])
+def test_official_race_table_rejects_partial_and_invalid_points(page):
     from app.f1_data import _parse_formula1_race_table
-    for page in ['', '<html>Coming soon</html>', official_race_html().replace('<td>25</td>', '<td>—</td>'),
-                 official_race_html().replace('<td>25</td>', '<td>0</td>'), official_race_html().replace('ANT', 'VER')]:
-        assert _parse_formula1_race_table(page).empty
+    assert _parse_formula1_race_table(page).empty
 
 
 @pytest.mark.asyncio

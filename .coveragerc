@@ -1,0 +1,13 @@
+[run]
+branch = True
+source = app
+data_file = artifacts/.coverage
+omit =
+    app/fastf1_capabilities_test.py
+
+[report]
+show_missing = True
+skip_empty = True
+
+[xml]
+output = artifacts/coverage.xml

@@ -128,7 +128,7 @@ async def test_telegram_failure_does_not_lose_website_alert(store):
 
 @pytest.mark.asyncio
 async def test_push_is_not_delivered_after_admin_demotion(store, monkeypatch):
-    from tests.test_web_notifications import subscription
+    from tests.support import subscription
     sent = []
     monkeypatch.setenv("WEB_PUSH_PUBLIC_KEY", "test")
     monkeypatch.setenv("WEB_PUSH_PRIVATE_KEY", "test")

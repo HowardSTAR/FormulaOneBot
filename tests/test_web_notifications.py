@@ -1,4 +1,3 @@
-import base64
 import json
 import sys
 import time
@@ -8,10 +7,7 @@ from urllib.parse import parse_qs, urlsplit
 import pytest
 import pytest_asyncio
 from app.services import web_notifications as service
-
-def subscription(endpoint="https://fcm.googleapis.com/fcm/send/test"):
-    encode = lambda value: base64.urlsafe_b64encode(value).decode().rstrip("=")
-    return {"endpoint":endpoint,"keys":{"p256dh":encode(b"\x04"+b"a"*64),"auth":encode(b"b"*16)}}
+from tests.support import subscription
 
 
 @pytest.mark.asyncio

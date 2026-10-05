@@ -26,13 +26,22 @@ async def test_ui_events_deduplicate_and_report_real_opens(api_client, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_ui_events_reject_private_routes_and_arbitrary_action_text(api_client):
+@pytest.mark.parametrize('patch,headers,status',[
+    pytest.param({'path':'/admin'},{},400,id='private-admin'),
+    pytest.param({'path':'/share/private-token'},{},400,id='private-share-token'),
+    pytest.param({'destination':'/user/private-name'},{},400,id='private-user-name'),
+    pytest.param({'path':'/?email=secret'},{},422,id='query-with-private-data'),
+    pytest.param({'action':'secret form text'},{},422,id='arbitrary-action-text'),
+    pytest.param({}, {'sec-fetch-site':'cross-site'},403,id='cross-site'),
+])
+async def test_ui_events_reject_private_routes_and_arbitrary_action_text(api_client,patch,headers,status):
     body = {'event':'click','path':'/','action':'button','event_id':str(uuid.uuid4())}
-    for field,value in [('path','/admin'),('path','/share/private-token'),('destination','/user/private-name')]:
-        assert (await api_client.post('/api/analytics/event',json={**body,field:value})).status_code == 400
-    for field,value in [('path','/?email=secret'),('action','secret form text')]:
-        assert (await api_client.post('/api/analytics/event',json={**body,field:value})).status_code == 422
-    assert (await api_client.post('/api/analytics/event',json=body,headers={'sec-fetch-site':'cross-site'})).status_code == 403
+    assert (await api_client.post('/api/analytics/event',json={**body,**patch},headers=headers)).status_code == status
+    from app.db import db
+    assert (await (await db.conn.execute('SELECT COUNT(*) FROM ui_events')).fetchone())[0] == 0
+
+
+async def test_ui_event_missing_identity_is_rejected(api_client):
     assert (await api_client.post('/api/analytics/event',json={'event':'click','path':'/'})).status_code == 400
 
 

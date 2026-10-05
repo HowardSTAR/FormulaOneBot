@@ -1,5 +1,6 @@
 """No live API calls, Telegram messages or production database writes."""
 import asyncio
+from itertools import combinations
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -10,14 +11,16 @@ import pytest
 from app.session_reminders import interval_mask, reminder_intervals, reminder_enabled
 
 
-@pytest.mark.parametrize("selected", [[], [15], [60, 1440], [15, 30, 60, 120, 1440], [60, 15, 60]])
+@pytest.mark.parametrize("selected", [list(values) for size in range(6)
+    for values in combinations([15,30,60,120,1440],size)]+[[60,15,60]],ids=lambda values:'intervals-'+('-'.join(map(str,values)) or 'disabled'))
 def test_mask_roundtrip(selected):
     assert reminder_intervals(interval_mask(selected)) == sorted(set(selected))
     assert reminder_intervals(None, 1440) == [1440]
     assert reminder_intervals(0, 1440) == []
 
 
-@pytest.mark.parametrize("invalid", [[True], [15.0], ["60"], [0], [-1], [31], "60"])
+@pytest.mark.parametrize("invalid", [[True], [False], [15.0], ["60"], [0], [-1], [31], [1441], "60", None, (60,), {}],
+                         ids=['true','false','float','string-member','zero','negative','unsupported','above-max','string','null','tuple','object'])
 def test_invalid_intervals(invalid):
     with pytest.raises(ValueError):
         interval_mask(invalid)

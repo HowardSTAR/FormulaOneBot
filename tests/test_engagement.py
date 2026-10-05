@@ -1,7 +1,6 @@
 """Community functionality uses isolated data and never sends real Telegram messages."""
 import io
 import json
-import math
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 
@@ -13,6 +12,7 @@ from app.api.miniapp_api import web_app
 from app.db import db
 from app.race_rules import TRACKS
 from app.services import engagement, prediction_service, prediction_social
+from tests.support import replay
 
 
 async def account():
@@ -23,21 +23,6 @@ async def sign_in():
     user_id = await account()
     web_app.dependency_overrides[optional_account] = lambda: user_id
     return user_id
-
-
-def replay(track_id, speed=220):
-    points = TRACKS[track_id]['centerLine']
-    samples = [{'t': 0, 'x': points[0][0], 'y': points[0][1], 'rotation': 0}]
-    time = 0
-    for _ in range(3):
-        for index, (x, y) in enumerate(points):
-            bx, by = points[(index + 1) % len(points)]
-            distance = math.hypot(bx-x, by-y)
-            steps = math.ceil(distance / 20)
-            for step in range(1, steps+1):
-                time += math.ceil(distance / steps / speed * 1000)
-                samples.append({'t': time, 'x': round(x+(bx-x)*step/steps, 2), 'y': round(y+(by-y)*step/steps, 2), 'rotation': 0})
-    return {'track_id': track_id, 'time_ms': time, 'telemetry': samples}
 
 
 def review(provisional=False):

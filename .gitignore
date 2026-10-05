@@ -50,3 +50,8 @@ artifacts/**/*.jpeg
 .tmp/**/*.zip
 race-game/node_modules/phaser/changelog/**/*.png
 .app-assets.tmp.zip
+artifacts/test-design-*
+artifacts/coverage*
+artifacts/.coverage*
+.coverage
+.coverage.*

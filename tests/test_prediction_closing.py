@@ -1,13 +1,27 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 import pytest
+from tests.support import Clock
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('offset,restarted,already,expected', [(120,False,False,True),(121,False,False,False),(110,False,False,False),(120,True,False,False),(120,False,True,False)])
+@pytest.mark.parametrize('offset,restarted,already,expected', [
+    pytest.param(120+1/60,False,False,False,id='one-second-before-window'),
+    pytest.param(120,False,False,True,id='window-opens'),
+    pytest.param(115+1/60,False,False,True,id='one-second-before-window-end'),
+    pytest.param(115,False,False,False,id='window-end'),
+    pytest.param(0,False,False,False,id='deadline'),
+    pytest.param(120,True,False,False,id='restart-no-backfill'),
+    pytest.param(120,False,True,False,id='already-sent'),
+])
 async def test_closing_window(monkeypatch, offset, restarted, already, expected):
     from app.services import prediction_notifications as n
-    now = datetime.now(timezone.utc)
+    now = Clock().now
+    class FrozenDateTime(datetime):
+        @classmethod
+        def now(cls,tz=None):
+            return now if tz else now.replace(tzinfo=None)
+    monkeypatch.setattr(n,'datetime',FrozenDateTime)
     monkeypatch.setattr(n, 'get_season_schedule_short_async', AsyncMock(return_value=[{'round':1}]))
     monkeypatch.setattr(n, 'get_users_with_settings', AsyncMock(return_value=[(1,'UTC')]))
     monkeypatch.setattr(n, 'get_notification_state', AsyncMock(return_value={'opened_sent':True,'results_sent':True,'closing_sent':already}))

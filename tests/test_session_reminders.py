@@ -1,19 +1,24 @@
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
+from itertools import combinations
 
 import pytest
 
 from app.session_reminders import SESSION_BITS, session_enabled
 
 
-def test_defaults_none_and_category_mapping():
-    assert all(session_enabled(None, kind) for kind in SESSION_BITS)
-    assert all(session_enabled(31, kind) for kind in SESSION_BITS)
-    assert not any(session_enabled(0, kind) for kind in SESSION_BITS)
-    assert all(session_enabled(1, f"practice{i}") for i in (1, 2, 3))
-    assert not session_enabled(1, "quali")
-    assert not session_enabled(8, "sprint")
-    assert not session_enabled(16, "sprint_quali")
+GROUPS = [(1, {'practice1','practice2','practice3'}), (2, {'quali'}),
+          (4, {'race'}), (8, {'sprint_quali'}), (16, {'sprint'})]
+SELECTIONS = [pytest.param(sum(bit for bit,_ in selection), set().union(*(kinds for _,kinds in selection)),
+                          id='mask-'+str(sum(bit for bit,_ in selection)))
+              for count in range(6) for selection in combinations(GROUPS,count)]
+SELECTIONS.append(pytest.param(None, {'practice1','practice2','practice3','quali','race','sprint_quali','sprint'},id='legacy-all'))
+
+
+@pytest.mark.parametrize('mask,enabled',SELECTIONS)
+@pytest.mark.parametrize('kind',['practice1','practice2','practice3','quali','race','sprint_quali','sprint','unknown'])
+def test_session_selection_decision_table(mask,enabled,kind):
+    assert session_enabled(mask,kind) is (kind in enabled)
 
 
 def test_reminder_keys_are_distinct():

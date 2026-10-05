@@ -103,10 +103,10 @@ def test_invalid_directives_rejected(footer):
 
 
 @pytest.mark.parametrize('destination', ['/contact-admin', '/news?tag=a&tag=b#latest', 'https://t.me/example', 'https://example.com/post?id=1'])
-def test_arbitrary_destinations_and_optional_separator(destination):
-    for separator in [' | ', ' ']:
-        message = 'Hello\n/button 🔔 Обратная связь' + separator + destination
-        assert parse_button(message, message)[2] == ('🔔 Обратная связь', destination, {})
+@pytest.mark.parametrize('separator',[' | ', ' '],ids=['pipe','space'])
+def test_arbitrary_destinations_and_optional_separator(destination,separator):
+    message = 'Hello\n/button 🔔 Обратная связь' + separator + destination
+    assert parse_button(message, message)[2] == ('🔔 Обратная связь', destination, {})
 
 
 @pytest.mark.asyncio

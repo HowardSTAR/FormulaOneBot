@@ -3,25 +3,7 @@ import math
 import pytest
 
 from app.race_rules import TRACKS, validate_race_path
-
-
-def replay(track_id, speed=220, laps=3):
-    """A continuous three-lap run, sampled more often than the game requires."""
-    points = TRACKS[track_id]["centerLine"]
-    samples = [{"t": 0, "x": points[0][0], "y": points[0][1], "rotation": -1.5708}]
-    time = 0
-    for _ in range(laps):
-        for index, (x, y) in enumerate(points):
-            bx, by = points[(index + 1) % len(points)]
-            distance = math.hypot(bx - x, by - y)
-            steps = math.ceil(distance / 20)
-            rotation = math.atan2(math.sin(math.atan2(by - y, bx - x) - math.pi / 2),
-                                  math.cos(math.atan2(by - y, bx - x) - math.pi / 2))
-            for step in range(1, steps + 1):
-                time += math.ceil(distance / steps / speed * 1000)
-                samples.append({"t": time, "x": round(x + (bx - x) * step / steps, 2),
-                                "y": round(y + (by - y) * step / steps, 2), "rotation": round(rotation, 4)})
-    return {"track_id": track_id, "time_ms": time, "telemetry": samples}
+from tests.support import replay
 
 
 @pytest.mark.parametrize("track_id", TRACKS)

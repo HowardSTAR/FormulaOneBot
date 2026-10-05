@@ -135,6 +135,7 @@ async def test_startup_does_not_send_old_predictions_but_still_scores():
             "get_users_with_settings": [(42, "UTC")],
             "get_race_results_async": pd.DataFrame({"Position": range(1, 23)}),
             "get_quali_for_round_async": (1, []),
+            "get_prediction_race_facts": {},
             "score_prediction_round": {"scored": 1, "max_points": 34},
             "get_stage_top": [],
             "mark_notification_state": None,
