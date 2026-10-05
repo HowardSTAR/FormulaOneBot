@@ -14,8 +14,8 @@ def test_calendar_exports_utc_and_folds_multibyte_lines():
     assert text.endswith('END:VCALENDAR\r\n')
     assert all(len(line.encode()) <= 74 for line in text.split('\r\n'))
     assert re.search(r'UID:([a-f0-9]{32})@f1hub.ru', text)
-    # No invented finish or user-specific details.
-    assert 'DTEND:' not in text
+    assert 'DTEND:20261009T133000Z\r\n' in text
+    assert 'окончания ориентировочное' in text.replace('\r\n ', '')
     assert 'URL:' not in text
 
 
@@ -68,8 +68,22 @@ def test_weekend_contains_every_session_once_in_chronological_order():
         '20261010T160000Z\r', '20261011T120000Z\r',
     ]
     assert 'SUMMARY:Singapore Grand Prix: Спринт-квалификация' in unfolded
-    assert 'DTEND:' not in content
+    assert re.findall(r'DTEND:(.+)', unfolded) == [
+        '20261009T133000Z\r', '20261009T170000Z\r', '20261010T130000Z\r',
+        '20261010T173000Z\r', '20261011T150000Z\r',
+    ]
     assert all(len(line.encode()) <= 74 for line in content.split('\r\n'))
+
+
+@pytest.mark.parametrize(('title', 'end'), [
+    ('Гонка', '20261010T013000Z'), ('Race', '20261010T013000Z'),
+    ('Квалификация', '20261010T000000Z'), ('Qualifying', '20261010T000000Z'),
+    ('Спринт-квалификация', '20261009T233000Z'), ('Practice 3', '20261009T233000Z'),
+])
+def test_calendar_reserves_session_window_across_midnight(title, end):
+    content = session_calendar(title, '2026-10-10T01:30:00+03:00')
+    assert 'DTSTART:20261009T223000Z' in content
+    assert f'DTEND:{end}' in content
 
 
 def test_weekend_session_identity_survives_rescheduling_and_escapes_text():

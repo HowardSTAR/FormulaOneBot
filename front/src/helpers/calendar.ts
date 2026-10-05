@@ -1,6 +1,10 @@
 export function calendarText(title: string, start: string, pageUrl: string): string | null {
   const date = new Date(start);
   if (!start || !Number.isFinite(date.getTime())) return null;
+  const label = title.toLowerCase();
+  const minutes = /sprint|спринт/.test(label) ? 60 : /qualifying|квалификац/.test(label) ? 90 : /race|гонка/.test(label) ? 180 : 60;
+  const end = new Date(date.getTime() + minutes * 60000);
+  if (!Number.isFinite(end.getTime())) return null;
   const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
   const escape = (s: string) => s.replace(/\\/g, '\\\\').replace(/\r?\n/g, '\\n').replace(/;/g, '\\;').replace(/,/g, '\\,');
   // Fold by UTF-8 octets, not JS characters (Russian labels use multibyte UTF-8).
@@ -15,7 +19,7 @@ export function calendarText(title: string, start: string, pageUrl: string): str
   };
   return ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//TurboTears//Sessions//RU','CALSCALE:GREGORIAN',
     'BEGIN:VEVENT', `UID:${encodeURIComponent(title)}-${stamp(date)}@f1hub.ru`, `DTSTAMP:${stamp(new Date())}`,
-    `DTSTART:${stamp(date)}`, `SUMMARY:${escape(title)}`, `URL:${pageUrl.replace(/[\r\n]/g, '')}`,
-    'DESCRIPTION:Время начала сессии. Проверьте расписание перед этапом: оно может измениться.',
+    `DTSTART:${stamp(date)}`, `DTEND:${stamp(end)}`, `SUMMARY:${escape(title)}`, `URL:${pageUrl.replace(/[\r\n]/g, '')}`,
+    'DESCRIPTION:Время окончания ориентировочное. Проверьте расписание перед этапом: оно может измениться.',
     'END:VEVENT','END:VCALENDAR'].map(fold).join('\r\n') + '\r\n';
 }

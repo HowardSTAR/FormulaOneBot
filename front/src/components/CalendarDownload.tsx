@@ -20,7 +20,7 @@ export function CalendarDownload({title, season, round, sessions}: {
       onClick={event => { if (openExternalLink(href)) event.preventDefault(); }}>
       Скачать весь этап ↓
     </a>
-    <p className="calendar-note">Все сессии — одним файлом для календаря. Импорт нужно подтвердить в календаре.
+    <p className="calendar-note">Все сессии — одним файлом для календаря, от начала до ориентировочного окончания. Импорт нужно подтвердить в календаре.
       {scheduled.length < sessions.length && ' Сессии без времени старта появятся позже.'}
     </p>
   </div>;

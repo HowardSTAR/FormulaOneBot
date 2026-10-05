@@ -18,6 +18,17 @@ const {notificationBody} = await moduleFrom('../src/helpers/notificationPresenta
 const {describeAuditChange} = await moduleFrom('../src/helpers/adminAudit.ts');
 const {readSessionFilters} = await moduleFrom('../src/helpers/sessionFilters.ts', source => source.replace(/^import .*;$/gm, ''));
 const calendar = await moduleFrom('../src/helpers/seasonCalendar.ts');
+const {calendarText} = await moduleFrom('../src/helpers/calendar.ts');
+
+test('downloaded sessions cover their full calendar window in UTC', () => {
+  for (const [title, end] of [['Гонка', '20261010T013000Z'], ['Квалификация', '20261010T000000Z'], ['Спринт-квалификация', '20261009T233000Z']]) {
+    const text = calendarText(title, '2026-10-10T01:30:00+03:00', 'https://example.test/season');
+    assert.match(text, /DTSTART:20261009T223000Z/);
+    assert.ok(text.includes(`DTEND:${end}`));
+    assert.match(text.replace(/\r\n /g, ''), /окончания ориентировочное/);
+  }
+  assert.equal(calendarText('Гонка', 'bad', ''), null);
+});
 globalThis.React = React;
 const {CustomSelect, SelectField} = await moduleFrom('../src/components/CustomSelect.tsx', source => source.replace(/^import .*;$/gm, '') + '\nconst {Children, isValidElement, useId, useLayoutEffect, useRef, useState} = globalThis.React; const hapticSelection = () => {};');
 globalThis.SelectField = SelectField;

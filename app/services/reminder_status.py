@@ -7,6 +7,7 @@ from aiogram.exceptions import TelegramBadRequest, TelegramNetworkError, Telegra
 from aiogram.types import InlineKeyboardMarkup
 
 from app.session_reminders import SESSION_BITS
+from app.session_duration import SESSION_MINUTES
 
 logger = logging.getLogger(__name__)
 STATUS_KEYS = {
@@ -15,10 +16,6 @@ STATUS_KEYS = {
 }
 # The schedule contains starts, not live finish times. Conservative fallback
 # windows are explicitly labelled as schedule-based in the message.
-SESSION_MINUTES = {
-    'practice1': 60, 'practice2': 60, 'practice3': 60,
-    'quali': 90, 'sprint_quali': 60, 'sprint': 60, 'race': 180,
-}
 
 
 def utc_now():

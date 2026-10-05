@@ -1,10 +1,11 @@
 """Public calendar downloads from the published race schedule."""
 import asyncio
 import hashlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
+from app.session_duration import calendar_session_minutes
 
 router = APIRouter(prefix='/api/calendar', tags=['calendar'])
 
@@ -20,17 +21,21 @@ def _session_date(start: str) -> datetime:
     return date
 
 
-def _event_lines(title: str, start: str, identity: str | None = None) -> list[str]:
+def _event_lines(title: str, start: str, identity: str | None = None, session_name: str | None = None) -> list[str]:
     date = _session_date(start)
     if not title.strip() or len(title) > 240 or len(start) > 64:
         raise ValueError('Некорректное название сессии')
     stamp = date.strftime('%Y%m%dT%H%M%SZ')
+    try:
+        end = date + timedelta(minutes=calendar_session_minutes(session_name or title))
+    except OverflowError:
+        raise ValueError('Некорректное время сессии') from None
     uid = hashlib.sha256((identity or f'{title}|{stamp}').encode()).hexdigest()[:32]
     escaped = title.replace('\\', '\\\\').replace('\r\n', '\n').replace('\r', '\n').replace('\n', '\\n').replace(';', '\\;').replace(',', '\\,')
     return ['BEGIN:VEVENT', f'UID:{uid}@f1hub.ru',
              f'DTSTAMP:{datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")}',
-             f'DTSTART:{stamp}', f'SUMMARY:{escaped}',
-             'DESCRIPTION:Время начала сессии. Проверьте расписание перед этапом: оно может измениться.',
+             f'DTSTART:{stamp}', f'DTEND:{end.strftime("%Y%m%dT%H%M%SZ")}', f'SUMMARY:{escaped}',
+             'DESCRIPTION:Время окончания ориентировочное. Проверьте расписание перед этапом: оно может измениться.',
              'END:VEVENT']
 
 
@@ -74,7 +79,7 @@ def weekend_calendar(title: str, sessions: list[dict], season: int, round_number
             continue
         try:
             date = _session_date(start)
-            event = _event_lines(f'{title}: {name}', start, f'{season}|{round_number}|{name}')
+            event = _event_lines(f'{title}: {name}', start, f'{season}|{round_number}|{name}', name)
         except ValueError:
             continue
         if name not in seen:
