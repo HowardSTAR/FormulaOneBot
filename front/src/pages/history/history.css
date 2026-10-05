@@ -1,25 +1,37 @@
-.history-page { max-width: 1120px; margin: 0 auto; }
-.history-page h1 { font-size: clamp(26px, 4vw, 42px); margin: 18px 0 10px; }
-.history-page h2 { font-size: 20px; margin: 0 0 14px; }
-.history-page p { line-height: 1.6; }
+.history-page { max-width: 1120px; margin: 0 auto; display: grid; gap: 24px; }
+.history-page > * { min-width: 0; }
+.history-page > .btn-back { justify-self: start; margin: 0; }
+.history-page > header { display: grid; gap: 12px; }
+.history-page h1 { font-size: clamp(26px, 4vw, 42px); line-height: 1.2; margin: 0; }
+.history-page h2 { font-size: 20px; margin: 0; }
+.history-page p { line-height: 1.6; margin: 0; }
 .history-panel, .race-recap-panel, .driver-guide { background: var(--card-bg, #14161c); border: 1px solid #34363f; border-radius: 18px; padding: 20px; margin: 18px 0; }
+.history-page > .history-panel { padding: clamp(20px, 2.4vw, 28px); margin: 0; }
+.history-filters > form { display: grid; gap: 24px; }
+.history-participants { display: grid; gap: 12px; }
 .history-controls, .history-legend, .history-tabs { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
-.history-controls > label, .history-controls > div { flex: 1 1 220px; min-width: 0; }
-.history-controls label, .history-controls span { display: block; margin-bottom: 8px; color: #b8bac4; }
+.history-controls > label, .history-controls > div { display: grid; gap: 8px; flex: 1 1 220px; min-width: 0; }
+.history-controls > label > span, .history-controls > div > span { color: #b8bac4; }
 .history-controls select { width: 100%; min-height: 44px; padding: 10px; border-radius: 10px; color: #eee; background: #202229; border: 1px solid #464851; }
 .history-tabs button, .history-legend button, .history-page p button { padding: 10px 14px; min-height: 44px; border: 1px solid #444650; border-radius: 10px; color: #eee; background: #202229; cursor: pointer; }
 .history-tabs button[aria-pressed=true] { background: #ad211b; border-color: #ff6259; }
-.history-legend { margin: 12px 0 18px; }
 .history-note { color: #adafbb; font-size: 13px; }
 .history-search-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+.history-search-actions > * { min-width: 0; }
 .history-search-actions span { color: #b8bac4; font-size: 13px; }
 .history-search-button { min-height: 48px; padding: 12px 24px; border: 1px solid #ff6259; border-radius: 10px; background: #b9211b; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
 .history-search-button:disabled { background: #292c34; border-color: #444650; color: #adb0bb; cursor: default; }
+.history-status { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.history-status > span { flex: 1 1 240px; }
 .history-loading { display: flex; align-items: center; gap: 10px; }
+.history-loading.history-status { flex-wrap: nowrap; }
 .history-loading::before { content: ''; flex: 0 0 16px; height: 16px; border: 2px solid #50535d; border-top-color: #ff6259; border-radius: 50%; animation: history-spin 1s linear infinite; }
 @keyframes history-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .history-loading::before { animation: none; } }
-.history-chart { display: block; width: 100%; height: auto; margin: 18px 0; }
+.history-results { display: grid; gap: 20px; }
+.history-results > .share-button { justify-self: start; margin: 0; }
+.history-results > details[open] > p { margin-top: 12px; }
+.history-chart { display: block; width: 100%; height: auto; margin: 0; }
 .history-table-scroll { overflow-x: auto; }
 .history-table { width: 100%; border-collapse: collapse; text-align: left; }
 .history-table caption { text-align: left; color: #b8bac4; padding: 8px 0; font-size: 13px; }
@@ -28,8 +40,12 @@
 .history-table small { display: block; margin-top: 6px; color: #adafbb; }
 .history-page a, .race-recap-panel a, .driver-guide a, .standings-history-link { color: #ff8a81; }
 .history-filters > summary { cursor: pointer; font-weight: 600; min-height: 28px; }
-.history-filters[open] > summary { margin-bottom: 16px; }
+.history-filters[open] > summary { margin-bottom: 20px; }
+.history-filters > .history-note { margin-bottom: 20px; }
 .history-filters > summary > span { color: #adafbb; font-weight: 400; }
+.history-page .history-advanced { margin: 0; padding: 16px; }
+.history-page .history-advanced[open] > .history-controls { margin-top: 20px; }
+.history-page .history-advanced > .history-note { margin-top: 16px; }
 .history-chart-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
 .standings-history-link { display: inline-block; margin: 10px 0 18px; }
 .race-recap-panel h2 { margin: 0; font-size: 21px; }
@@ -43,6 +59,7 @@
 @media (max-width: 600px) {
   .history-panel, .race-recap-panel, .driver-guide { padding: 16px; border-radius: 14px; }
   .history-controls > label, .history-controls > div { flex-basis: 100%; }
+  .history-search-actions { flex-direction: column; align-items: stretch; gap: 12px; }
   .race-recap-list { grid-template-columns: 1fr; gap: 14px; }
   .history-chart { min-height: 165px; }
 }

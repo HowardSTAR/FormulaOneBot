@@ -109,13 +109,15 @@ function HistorySearch() {
       <summary>{ids.length ? `Сравнение · участников: ${ids.length} · ${start}–${end}` : 'Кого сравниваем'} <span>· настроить</span></summary>
       <p className="history-note">Выберите участника и нажмите «Показать сравнение». По умолчанию — последние пять сезонов.</p>
       <form onSubmit={event => { event.preventDefault(); if (ids.length && !loading) search(); }}>
+      <div className="history-participants">
       <div className="history-controls">
-        <label>Добавить участника<select value="" disabled={ids.length >= 3 || !roster.length} onChange={e => select([...ids, e.target.value])}>
+        <label><span>Добавить участника</span><select value="" disabled={ids.length >= 3 || !roster.length} onChange={e => select([...ids, e.target.value])}>
           <option value="">Выберите…</option>{roster.filter(r => !ids.includes(r.id)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select></label>
       </div>
-      {rosterState && <p role="status" className={rosterLoading ? 'history-loading' : undefined}>{rosterState} {!rosterLoading && <button type="button" onClick={() => { setRosterLoading(true); setRosterState('Загрузка участников…'); setRosterRetry(r => r + 1); }}>Повторить загрузку участников</button>}</p>}
-      <div className="history-legend">{ids.map((id, i) => <button type="button" key={id} style={{ borderColor: colors[i] }} onClick={() => select(ids.filter(v => v !== id))} aria-label={`Убрать ${displayed.find(s => s.id === id)?.name || id}`}><span style={{ color: colors[i] }}>●</span> {displayed.find(s => s.id === id)?.name || roster.find(r => r.id === id)?.name || id} ×</button>)}</div>
+      {rosterState && <p role="status" className={`history-status${rosterLoading ? ' history-loading' : ''}`}><span>{rosterState}</span>{!rosterLoading && <button type="button" onClick={() => { setRosterLoading(true); setRosterState('Загрузка участников…'); setRosterRetry(r => r + 1); }}>Повторить загрузку участников</button>}</p>}
+      {ids.length > 0 && <div className="history-legend">{ids.map((id, i) => <button type="button" key={id} style={{ borderColor: colors[i] }} onClick={() => select(ids.filter(v => v !== id))} aria-label={`Убрать ${displayed.find(s => s.id === id)?.name || id}`}><span style={{ color: colors[i] }}>●</span> {displayed.find(s => s.id === id)?.name || roster.find(r => r.id === id)?.name || id} ×</button>)}</div>}
+      </div>
       <details className="history-advanced"><summary>Период {start}–{end} · состав {rosterYear} · изменить</summary>
       <div className="history-controls"><div><span>Участники из сезона</span><YearSelect ariaLabel="Состав сезона" value={rosterYear} onChange={year => { if (year === rosterYear) return; setRoster([]); setRosterLoading(true); setRosterState('Загрузка участников…'); setRosterYear(year); }} minYear={minimum} maxYear={current} /></div></div>
       <div className="history-controls">
@@ -127,9 +129,9 @@ function HistorySearch() {
     </details>
     {!ids.length && <p>Выберите участника. Для исторического пилота сначала смените год состава.</p>}
     {loading && <p role="status" className="history-loading">Загружаем историю {submittedStart}–{submittedEnd}. Первый запрос может занять до двух минут. Повторно нажимать поиск не нужно.</p>}
-    {error && <p role="alert">{error} <button type="button" onClick={() => { setError(''); setLoading(true); setRetry(r => r + 1); }}>Повторить поиск</button></p>}
+    {error && <p role="alert" className="history-status"><span>{error}</span><button type="button" onClick={() => { setError(''); setLoading(true); setRetry(r => r + 1); }}>Повторить поиск</button></p>}
     {data && changed && <p role="status" className="history-note">Параметры изменены. Ниже предыдущий результат; нажмите «Показать сравнение», чтобы обновить его.</p>}
-    {data && <section className="history-panel">
+    {data && <section className="history-panel history-results">
       <h2>Место в чемпионате · {submittedStart}–{submittedEnd}</h2><p className="history-note">P1 сверху. Линия прерывается, если записи нет; текущий сезон показан пунктиром.</p>
       <div className="history-chart-legend">{data.series.map((series, i) => <span key={series.id}><span style={{ color: colors[i] }}>●</span> {series.name}</span>)}</div>
       <HistoryChart series={data.series} />
