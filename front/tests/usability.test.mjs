@@ -35,6 +35,39 @@ test('countdown starts now, not midnight; invalid and expired dates are safe', (
   assert.equal(presentation.localDateTime('bad date'), '—');
   assert.match(presentation.timezoneName('Etc/GMT-3'), /UTC\+03:00 · Москва/);
 });
+
+test('fixed timezone choices include places and keep the original UTC offsets', () => {
+  const options = presentation.FIXED_TIMEZONE_OPTIONS;
+  assert.equal(options.length, 25);
+  for (const [index, option] of options.entries()) {
+    const hours = index - 12;
+    const value = hours === 0 ? 'UTC' : `Etc/GMT${hours < 0 ? '+' : '-'}${Math.abs(hours)}`;
+    assert.equal(option.value, value);
+    assert.match(option.label, /^UTC[+-]\d{2}:00 · .+/);
+  }
+  assert.match(presentation.timezoneName('UTC'), /Рейкьявик/);
+  assert.match(presentation.timezoneName('Europe/Moscow'), /UTC\+03:00 · Москва/);
+  assert.equal(presentation.timezoneName('Invalid/Zone'), 'Invalid/Zone');
+});
+
+test('city examples match their fixed offset throughout the year', () => {
+  const cityZones = [
+    'Pacific/Pago_Pago', 'Pacific/Honolulu', 'Pacific/Gambier', 'Pacific/Pitcairn',
+    'America/Phoenix', 'America/Guatemala', 'America/Bogota', 'America/Santo_Domingo',
+    'America/Argentina/Buenos_Aires', 'America/Noronha', 'Atlantic/Cape_Verde',
+    'Atlantic/Reykjavik', 'Africa/Lagos', 'Africa/Johannesburg', 'Europe/Moscow',
+    'Asia/Dubai', 'Asia/Tashkent', 'Asia/Dhaka', 'Asia/Bangkok', 'Asia/Shanghai',
+    'Asia/Tokyo', 'Asia/Vladivostok', 'Asia/Magadan', 'Pacific/Fiji',
+  ];
+  const offset = (zone, date) => new Intl.DateTimeFormat('en', { timeZone: zone, timeZoneName: 'longOffset' })
+    .formatToParts(date).find(part => part.type === 'timeZoneName').value;
+  for (const [index, cityZone] of cityZones.entries()) {
+    for (let month = 0; month < 12; month++) {
+      const date = new Date(Date.UTC(2026, month, 15, 12));
+      assert.equal(offset(cityZone, date), offset(presentation.FIXED_TIMEZONE_OPTIONS[index + 1].value, date), cityZone);
+    }
+  }
+});
 test('only obsolete blanket warning is removed after all facts confirmed', () => {
   const note = 'Источник не предоставил статусы сессии; дополнительные факты не подтверждены. Источники расходятся.';
   const items = ['fastest_lap_driver','first_retirement_driver','safety_car'].map(key => ({key, actual: key === 'safety_car' ? 0 : 'RUS', status: 'miss'}));

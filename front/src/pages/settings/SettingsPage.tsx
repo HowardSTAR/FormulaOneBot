@@ -6,7 +6,7 @@ import { hapticSelection, hapticImpact } from "../../helpers/telegram";
 import { visibleInterval } from "../../helpers/visibleInterval";
 import "../../assets/personal-pages.css";
 import { Link, useBlocker } from 'react-router-dom';
-import { timezoneName } from '../../helpers/presentation';
+import { FIXED_TIMEZONE_OPTIONS, timezoneName } from '../../helpers/presentation';
 import { NOTIFY_OPTIONS, selectedIntervals, toggleInterval } from '../../helpers/reminderIntervals';
 
 type SettingsResponse = { timezone?: string; notify_before?: number; notify_before_minutes?: number[]; notifications_enabled?: boolean; reminder_sessions?: number; results_spoiler?: boolean };
@@ -17,34 +17,6 @@ const SESSION_OPTIONS = [
   { bit: 8, label: "Спринт-квалификация", detail: "Стартовая решётка спринта" },
   { bit: 16, label: "Спринт", detail: "Короткая гонка" },
 ];
-
-const TIMEZONES = [
-  { value: "Etc/GMT+12", label: "UTC-12 (Паго-Паго, Нуук)" },
-  { value: "Etc/GMT+11", label: "UTC-11 (Гонолулу, Папеэте)" },
-  { value: "Etc/GMT+10", label: "UTC-10 (Анкоридж, Гамбьер)" },
-  { value: "Etc/GMT+9", label: "UTC-9 (Лос-Анджелес, Ванкувер)" },
-  { value: "Etc/GMT+8", label: "UTC-8 (Денвер, Эдмонтон)" },
-  { value: "Etc/GMT+7", label: "UTC-7 (Мехико, Чикаго)" },
-  { value: "Etc/GMT+6", label: "UTC-6 (Нью-Йорк, Оттава)" },
-  { value: "Etc/GMT+5", label: "UTC-5 (Каракас, Ла-Пас)" },
-  { value: "Etc/GMT+4", label: "UTC-4 (Буэнос-Айрес, Бразилиа)" },
-  { value: "Etc/GMT+3", label: "UTC-3 (Фернанду-ди-Норонья, Южная Георгия)" },
-  { value: "Etc/GMT+2", label: "UTC-2 (Прая, Понта-Делгада)" },
-  { value: "Etc/GMT+1", label: "UTC-1 (Азоры, Кабо-Верде)" },
-  { value: "UTC", label: "UTC (GMT) — Лондон, Рейкьявик, Аккра" },
-  { value: "Etc/GMT-1", label: "UTC+1 (Париж, Берлин, Рим)" },
-  { value: "Etc/GMT-2", label: "UTC+2 (Киев, Афины, Хельсинки)" },
-  { value: "Etc/GMT-3", label: "UTC+3 (Москва, Стамбул, Эр-Рияд)" },
-  { value: "Etc/GMT-4", label: "UTC+4 (Абу-Даби, Баку, Тбилиси)" },
-  { value: "Etc/GMT-5", label: "UTC+5 (Ташкент, Исламабад, Мале)" },
-  { value: "Etc/GMT-6", label: "UTC+6 (Астана, Дакка, Бишкек)" },
-  { value: "Etc/GMT-7", label: "UTC+7 (Бангкок, Джакарта, Пномпень)" },
-  { value: "Etc/GMT-8", label: "UTC+8 (Пекин, Сингапур, Куала-Лумпур)" },
-  { value: "Etc/GMT-9", label: "UTC+9 (Токио, Сеул, Пхеньян)" },
-  { value: "Etc/GMT-10", label: "UTC+10 (Канберра, Владивосток, Порт-Морсби)" },
-  { value: "Etc/GMT-11", label: "UTC+11 (Хониара, Нумеа, Магадан)" },
-  { value: "Etc/GMT-12", label: "UTC+12 (Веллингтон, Сува, Тарава)" },
-].map(item => ({...item, label: timezoneName(item.value)}));
 
 function SettingsPage() {
   const [timezone, setTimezone] = useState("Etc/GMT-3");
@@ -132,7 +104,10 @@ function SettingsPage() {
     }
   };
 
-  const timezoneLabel = TIMEZONES.find((item) => item.value === timezone)?.label || timezone;
+  const timezoneOptions = useMemo(() => FIXED_TIMEZONE_OPTIONS.some(item => item.value === timezone)
+    ? FIXED_TIMEZONE_OPTIONS
+    : [...FIXED_TIMEZONE_OPTIONS, { value: timezone, label: timezoneName(timezone) }], [timezone]);
+  const timezoneLabel = timezoneOptions.find((item) => item.value === timezone)?.label || timezone;
   const notifyLabel = notifyBeforeMinutes.map(minutes => NOTIFY_OPTIONS.find(item => item.value === minutes)?.label || `${minutes} минут`).join(', ');
   let localHour: number | null = null;
   try { localHour = Number(new Intl.DateTimeFormat('en', {timeZone: timezone, hour: 'numeric', hourCycle: 'h23'}).format(new Date(clockTick))); } catch { /* Unknown timezone must not crash settings. */ }
@@ -160,7 +135,7 @@ function SettingsPage() {
           <div className="settings-fields-grid">
             <div className="setting-card">
               <div className="setting-label">Часовой пояс</div>
-              <CustomSelect ariaLabel="Часовой пояс" options={TIMEZONES} value={timezone} onChange={(v) => setTimezone(String(v))} disabled={!loaded || saving} />
+              <CustomSelect ariaLabel="Часовой пояс" options={timezoneOptions} value={timezone} onChange={(v) => setTimezone(String(v))} disabled={!loaded || saving} />
               <div className="timezone-preview">{timePreview}</div>
             </div>
             <fieldset className="setting-card reminder-intervals" disabled={!loaded || saving} aria-describedby="reminder-intervals-hint">

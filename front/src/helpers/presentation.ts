@@ -12,12 +12,45 @@ export function localDateTime(value?: string | null, timeZone?: string): string 
   catch { return date.toLocaleString("ru-RU"); }
 }
 
+// These are fixed offsets. Use places without seasonal clock changes so the
+// city examples stay accurate year-round (IANA tzdb, checked October 2026).
+const FIXED_TIMEZONE_PLACES: Record<string, string> = {
+  'Etc/GMT+12': 'острова Бейкер и Хауленд',
+  'Etc/GMT+11': 'Паго-Паго',
+  'Etc/GMT+10': 'Гонолулу',
+  'Etc/GMT+9': 'Рикитеа',
+  'Etc/GMT+8': 'Адамстаун',
+  'Etc/GMT+7': 'Финикс',
+  'Etc/GMT+6': 'Гватемала',
+  'Etc/GMT+5': 'Богота, Лима',
+  'Etc/GMT+4': 'Санто-Доминго',
+  'Etc/GMT+3': 'Буэнос-Айрес',
+  'Etc/GMT+2': 'Фернанду-ди-Норонья',
+  'Etc/GMT+1': 'Прая',
+  UTC: 'Рейкьявик, Аккра',
+  'Etc/GMT-1': 'Лагос, Алжир',
+  'Etc/GMT-2': 'Йоханнесбург',
+  'Etc/GMT-3': 'Москва, Стамбул',
+  'Etc/GMT-4': 'Дубай, Баку',
+  'Etc/GMT-5': 'Ташкент',
+  'Etc/GMT-6': 'Дакка, Бишкек',
+  'Etc/GMT-7': 'Бангкок, Джакарта',
+  'Etc/GMT-8': 'Пекин, Сингапур',
+  'Etc/GMT-9': 'Токио, Сеул',
+  'Etc/GMT-10': 'Владивосток',
+  'Etc/GMT-11': 'Магадан, Нумеа',
+  'Etc/GMT-12': 'Сува, Тарава',
+};
+
 export function timezoneName(zone: string, date = new Date()): string {
   try {
     const offset = new Intl.DateTimeFormat("en", { timeZone: zone, timeZoneName: "longOffset" }).formatToParts(date).find(part => part.type === "timeZoneName")?.value?.replace("GMT", "UTC") ?? "";
-    return `${offset}${zone === "Europe/Moscow" || zone === "Etc/GMT-3" ? ' · Москва' : zone.startsWith('Etc/') ? '' : ` · ${zone.split('/').at(-1)?.replaceAll('_', ' ')}`}`;
+    const place = FIXED_TIMEZONE_PLACES[zone] ?? (zone === 'Europe/Moscow' ? 'Москва' : zone.startsWith('Etc/') ? '' : zone.split('/').at(-1)?.replaceAll('_', ' '));
+    return `${offset === 'UTC' ? 'UTC+00:00' : offset}${place ? ` · ${place}` : ''}`;
   } catch { return zone; }
 }
+
+export const FIXED_TIMEZONE_OPTIONS = Object.keys(FIXED_TIMEZONE_PLACES).map(value => ({ value, label: timezoneName(value) }));
 
 export function daysUntil(value: string, now = Date.now()): number | null {
   const timestamp = Date.parse(value);
