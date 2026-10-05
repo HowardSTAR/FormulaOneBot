@@ -172,6 +172,10 @@
    driver's name its own line based on card width, leaving points beside the code. */
 #root .season-podium-content { container: season-podium / inline-size; }
 #root .season-podium-driver strong { font-size: 14px; }
+#root .season-podium-code { gap: 4px; padding: 4px; }
+#root .season-podium-portrait { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--surface-color); }
+#root .season-podium-portrait[hidden] { display: none; }
+#root .season-mobile-race-facts-panel .season-podium-content { margin-bottom: 16px; }
 @container season-podium (max-width: 320px) {
   #root .season-podium-list li { grid-template-columns: 24px 42px minmax(0, 1fr); gap: 8px; }
   #root .season-podium-position { grid-column: 1; grid-row: 1; }

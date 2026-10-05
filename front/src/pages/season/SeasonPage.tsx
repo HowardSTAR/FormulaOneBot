@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
-import { apiRequest } from "../../helpers/api";
+import { apiAssetUrl, apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 import { visibleInterval } from "../../helpers/visibleInterval";
@@ -272,7 +272,8 @@ function SeasonPage() {
   const toggleRaceFacts = useCallback((race: Race) => {
     const shouldOpen = expandedFactsRound !== race.round;
     setExpandedFactsRound(shouldOpen ? race.round : null);
-  }, [expandedFactsRound]);
+    if (shouldOpen && isCompletedStatus(calendarState.statusByRound.get(race.round) || 'future')) void loadPodium(race.round);
+  }, [expandedFactsRound, calendarState.statusByRound, loadPodium]);
 
   const renderPodium = (race: Race) => {
     const state = podiums[race.round];
@@ -306,7 +307,11 @@ function SeasonPage() {
             {state.results.map((result) => (
               <li key={`${race.round}-${result.position}-${result.code}`} className={`position-${result.position}`}>
                 <span className="season-podium-position">{String(result.position).padStart(2, "0")}</span>
-                <span className="season-podium-code">{result.code || "—"}</span>
+                <span className="season-podium-code">
+                  <img className="season-podium-portrait" src={apiAssetUrl('/api/pilot-portrait', {season: year, code: result.code, name: result.name})}
+                    alt="" loading="lazy" onError={event => { event.currentTarget.hidden = true; }} />
+                  {result.code || "—"}
+                </span>
                 <span className="season-podium-driver">
                   <strong>{result.name}</strong>
                   <small>{result.team || "Команда не указана"}</small>
@@ -522,6 +527,7 @@ function SeasonPage() {
                   >
                     <div className="season-stage-expansion-inner">
                       {areFactsExpanded && <div className="season-race-insights season-mobile-race-facts-panel">
+                        {isCompletedStatus(statusClass) && renderPodium(race)}
                         {resultLinks.length > 0 && (
                           <div className="season-mobile-results">
                             <div className="season-mobile-results-head">Результаты этапа</div>
