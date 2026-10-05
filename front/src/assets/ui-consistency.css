@@ -104,6 +104,74 @@
 #root .app-page-main .next-race-desktop-stat > strong,
 #root .app-page-main .season-desktop-session-item > b { margin-top: auto !important; }
 
+/* Names are data, including long historic names and sponsor names. Wrap them
+   within their own cells instead of clipping text or overlapping the next cell.
+   Keep this eager so visiting a lazy results page cannot restore ellipsis. */
+#root .app-page-main :is(
+  .desktop-standings-name, .desktop-standings-meta, .drivers-row-team span,
+  .driver-name, .team-name, .team-name-main,
+  .standings-name, .standings-code, .results-mobile-team,
+  .race-results-driver-cell > span, .race-results-driver-cell strong, .race-results-team-cell span,
+  .race-results-desktop-winner-team strong,
+  .quali-results-table .race-results-desktop-row > span:nth-child(2),
+  .practice-unified-table .race-results-desktop-row > span:nth-child(2),
+  .practice-unified-table .race-results-desktop-row > span:nth-child(3),
+  .practice-driver b, .practice-team, .constructors-row-copy small,
+  .season-podium-driver strong, .season-podium-driver small,
+  .index-standing-line > div > span, .index-standing-line > div > small,
+  .index-standings-entity, .index-standings-row > span:nth-child(2),
+  .compare-table-driver strong, .compare-table-driver small,
+  .compare-driver-chip-copy strong, .compare-driver-chip-copy small,
+  .compare-driver-option strong, .compare-driver-option small,
+  .compare-summary-participant strong, .compare-multi-summary strong,
+  .compare-legend-item small
+) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  line-height: 1.4 !important;
+}
+#root .app-page-main :is(
+  .desktop-standings-driver, .drivers-row-driver > div, .drivers-row-team,
+  .race-results-driver-cell > span, .race-results-team-cell,
+  .standings-info, .driver-info, .constructors-row-copy
+) { min-width: 0; }
+#root .app-page-main :is(
+  .desktop-standings-row, .race-results-desktop-row, .standings-item,
+  .driver-card, .constructor-card, .index-standing-line, .season-podium-list li
+) { height: auto !important; max-height: none !important; }
+#root .results-mobile-row .standings-code { flex-wrap: wrap; gap: 4px 8px; }
+#root .results-mobile-team { flex-basis: 100%; }
+
+/* When the desktop column minima exceed the available width, keep the full
+   classification reachable inside the table rather than cutting off columns. */
+#root .app-page-main :is(.desktop-standings-table, .race-results-desktop-table) {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto !important;
+}
+#root .app-page-main :is(
+  .desktop-standings-table-head, .desktop-standings-row,
+  .race-results-desktop-table-head, .race-results-desktop-row
+) { min-width: min-content; }
+#root .drivers-standings-scroll { min-width: min-content; max-height: none !important; overflow: visible !important; }
+
+/* The podium can be a narrow desktop card as well as a mobile panel. Give the
+   driver's name its own line based on card width, leaving points beside the code. */
+#root .season-podium-content { container: season-podium / inline-size; }
+#root .season-podium-driver strong { font-size: 14px; }
+@container season-podium (max-width: 320px) {
+  #root .season-podium-list li { grid-template-columns: 24px 42px minmax(0, 1fr); gap: 8px; }
+  #root .season-podium-position { grid-column: 1; grid-row: 1; }
+  #root .season-podium-code { grid-column: 2; grid-row: 1; }
+  #root .season-podium-points { grid-column: 3; grid-row: 1; justify-self: end; }
+  #root .season-podium-driver { grid-column: 2 / -1; grid-row: 2; }
+}
+
 @media (max-width: 767px) {
   #root select { font-size: 16px; }
 }
