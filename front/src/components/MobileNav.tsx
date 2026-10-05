@@ -42,7 +42,7 @@ export function MobileNav() {
   return <>
     <nav className="mobile-primary-nav" aria-label="Основная навигация" style={{ '--active-tab': activeIndex } as CSSProperties}>
       <span className="mobile-nav-indicator" aria-hidden="true" />
-      {items.map((item, index) => <Link key={item.to} to={item.to} viewTransition onClick={() => { preparePageMotion(pathname, item.to); close(); }} className={activeIndex === index ? 'active' : undefined} aria-current={primaryNavigationIndex(pathname) === index ? 'page' : undefined}>{item.label}</Link>)}
+      {items.map((item, index) => <Link key={item.to} to={item.to} onClick={() => { preparePageMotion(pathname, item.to); close(); }} className={activeIndex === index ? 'active' : undefined} aria-current={primaryNavigationIndex(pathname) === index ? 'page' : undefined}>{item.label}</Link>)}
       <button type="button" className={activeIndex === 4 ? 'active' : undefined} aria-expanded={open} aria-controls="mobile-full-menu" onClick={() => { dialog.current?.showModal(); setOpen(true); }}>Меню</button>
     </nav>
     <dialog id="mobile-full-menu" className="mobile-menu-dialog" ref={dialog} aria-labelledby="mobile-menu-title" onClose={() => { window.clearTimeout(closeTimer.current); if (dialog.current) delete dialog.current.dataset.phase; setOpen(false); }} onCancel={event => { event.preventDefault(); close(); }} onAnimationEnd={event => { if (event.target === dialog.current && event.animationName === 'mobile-menu-out') dialog.current?.close(); }} onClick={event => { if (event.target === dialog.current) close(); }}>

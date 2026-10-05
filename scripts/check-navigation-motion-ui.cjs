@@ -136,8 +136,8 @@ async function checkIndicator(page, index) {
         assert.deepEqual(evidence.entrances, []);
         assert.equal(await page.locator('.mobile-nav-indicator').evaluate(node => getComputedStyle(node).transitionDuration), '0s');
         assert.equal(await dialog.evaluate(node => getComputedStyle(node).animationName), 'none');
-      } else if (values.native === false) assert.ok(evidence.entrances.length >= 5, 'Fallback pages must animate');
-      else assert.ok(evidence.transitions.length >= 5, 'Native page transitions must run');
+      } else assert.ok(evidence.entrances.length >= 5, 'Page content must animate while the navigation remains live');
+      assert.deepEqual(evidence.transitions, [], 'Bottom navigation must not capture a document view transition');
       assert.deepEqual(errors, []);
       console.log(`${JSON.stringify(values)}: indicator, lazy route, fast taps, menu close/Escape/link, focus and back passed`);
       await context.close();
