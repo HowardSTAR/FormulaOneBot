@@ -1,0 +1,25 @@
+/* Snapshot only page content: the floating nav continues sliding in real time. */
+:root { view-transition-name: none; }
+::view-transition { pointer-events: none; }
+.app-page-main { view-transition-name: page-content; }
+.app-content { overflow-x: clip; }
+::view-transition-group(page-content) { animation-duration: 300ms; animation-timing-function: cubic-bezier(.22, 1, .36, 1); }
+::view-transition-old(page-content),
+::view-transition-new(page-content) { height: 100%; object-fit: none; object-position: top left; mix-blend-mode: normal; }
+::view-transition-old(page-content) { animation: page-fade-out 220ms ease both; }
+::view-transition-new(page-content) { animation: page-fade-in 300ms cubic-bezier(.22, 1, .36, 1) both; }
+html[data-page-motion="forward"]::view-transition-old(page-content) { animation-name: page-slide-out-left; }
+html[data-page-motion="forward"]::view-transition-new(page-content) { animation-name: page-slide-in-right; }
+html[data-page-motion="backward"]::view-transition-old(page-content) { animation-name: page-slide-out-right; }
+html[data-page-motion="backward"]::view-transition-new(page-content) { animation-name: page-slide-in-left; }
+@keyframes page-fade-out { to { opacity: 0; } }
+@keyframes page-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes page-slide-out-left { to { opacity: 0; transform: translateX(-12%); } }
+@keyframes page-slide-in-right { from { opacity: 0; transform: translateX(12%); } to { opacity: 1; transform: translateX(0); } }
+@keyframes page-slide-out-right { to { opacity: 0; transform: translateX(12%); } }
+@keyframes page-slide-in-left { from { opacity: 0; transform: translateX(-12%); } to { opacity: 1; transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(page-content),
+  ::view-transition-old(page-content),
+  ::view-transition-new(page-content) { animation: none; }
+}

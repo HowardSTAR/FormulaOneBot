@@ -10,6 +10,7 @@ import { EngagementEntry } from './EngagementEntry';
 import { RouteContext } from './RouteContext';
 import { DataReceipt } from './DataReceipt';
 import { FirstVisitGuide } from './FirstVisitGuide';
+import { PageMotion } from './PageMotion';
 
 const EDGE_THRESHOLD = 30;
 const SWIPE_THRESHOLD = 60;
@@ -20,6 +21,7 @@ export function SwipeBackLayout() {
   const startX = useRef(0);
   const startY = useRef(0);
   const tracking = useRef(false);
+  const previousPathRef = useRef<string | null>(null);
   useEffect(() => {
     // Only the route is sent: no query parameters, search text or personal data.
     const timer = window.setTimeout(() => {
@@ -88,7 +90,8 @@ export function SwipeBackLayout() {
       <FirstVisitGuide />
       <div className="app-content">
         <section className={`app-page-main route-${routeKey}`}>
-          <Suspense key={location.pathname} fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
+          <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
+            <PageMotion key={location.pathname} pathname={location.pathname} previousPathRef={previousPathRef} />
             <Outlet />
           </Suspense>
           <DataReceipt />
