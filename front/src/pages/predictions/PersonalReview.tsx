@@ -17,7 +17,12 @@ type Review = { event_name: string; points: number | null; max_points: number | 
 function lapTime(seconds: number) {
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, "0")}`;
 }
-const statuses: Record<string,string> = { exact: "Угадано", partial: "Частичное попадание", miss: "Не угадано", unavailable: "Нет данных", unknown: "Не подтверждено" };
+const statuses: Record<string,string> = { exact: "Угадано", partial: "Частично", miss: "Не угадано", unavailable: "Ожидаем данные", unknown: "Не подтверждено" };
+const filters = [{key: 'exact', label: 'Угадано', icon: '✓'}, {key: 'partial', label: 'Частично', icon: '≈'},
+  {key: 'miss', label: 'Не угадано', icon: '×'}, {key: 'waiting', label: 'Ожидают данных', icon: '…'}];
+function matchesFilter(status: string, filter: string) {
+  return filter === 'all' || (filter === 'waiting' ? ['unavailable', 'unknown'].includes(status) : status === filter);
+}
 function value(key: string, v: string | number | string[] | null, names: Record<string, string>): string {
   if (v == null || v === "") return "—";
   if (Array.isArray(v)) return v.map(code => value(key, code, names)).join(" · ");
@@ -31,6 +36,7 @@ export function PersonalReview({ season, round, onClose }: { season: number; rou
   const [resultState, setResult] = useState<{ key: string; data?: Review; error?: string }>({ key: '' });
   const [driverNames, setDriverNames] = useState<Record<string, string>>({});
   const [attempt, setAttempt] = useState(0);
+  const [filter, setFilter] = useState('all');
   const requestKey = `${season}:${round}:${attempt}`;
   const result: { data?: Review; error?: string } = resultState.key === requestKey ? resultState : {};
   useEffect(() => {
@@ -45,26 +51,32 @@ export function PersonalReview({ season, round, onClose }: { season: number; rou
       .catch(() => { if (active) setDriverNames({}); });
     return () => { active = false; element?.close(); previous?.focus(); };
   }, [season, round, requestKey]);
+  const items = result.data?.items ?? [];
+  const visibleItems = items.filter(item => matchesFilter(item.status, filter));
   return <dialog ref={dialog} className="personal-review" aria-labelledby="personal-review-title" onCancel={onClose}>
-    <header><div><small>Только для вас · {season} · этап {round}</small><h2 id="personal-review-title">Мой прогноз</h2></div><button autoFocus onClick={onClose} aria-label="Закрыть разбор прогноза">Закрыть ×</button></header>
+    <header className="review-dialog-header"><div><small className="review-eyebrow">Личный разбор · {season} · этап {round}</small><h2 id="personal-review-title">Мой прогноз</h2></div><button className="review-close" type="button" autoFocus onClick={onClose} aria-label="Закрыть разбор прогноза"><span>Закрыть</span><span aria-hidden="true">×</span></button></header>
     <div className="personal-review-content">
-      {result.error ? <div role="alert"><p>{result.error}</p><button type="button" onClick={() => setAttempt(v => v + 1)}>Повторить</button></div> : !result.data ? <p role="status">Загрузка личного прогноза…</p> : <>
-        <h3>{result.data.event_name}</h3><p className="personal-review-score">{result.data.points == null ? "Ещё не рассчитан" : `${result.data.points} / ${result.data.max_points ?? "—"} баллов`}</p>
-        {result.data.points != null && <ShareButton options={{kind: 'prediction', season, round}} />}
-        {result.data.items.some(item => item.status === "unavailable") && <p className="personal-review-warning">Предварительный результат: часть фактов гонки ещё не подтверждена. Баллы и место могут измениться после проверки.</p>}
-        <p>Угадано: {result.data.items.filter(item => item.status === "exact").length} · Частично: {result.data.items.filter(item => item.status === "partial").length} · Не угадано: {result.data.items.filter(item => item.status === "miss").length} · Ожидают данных: {result.data.items.filter(item => item.status === "unavailable").length}</p>
+      {result.error ? <div className="review-feedback" role="alert"><h3>Не удалось загрузить разбор</h3><p>{result.error}</p><button type="button" onClick={() => setAttempt(v => v + 1)}>Повторить</button></div> : !result.data ? <div className="review-feedback" role="status"><p>Загрузка личного прогноза…</p></div> : <>
+        <section className="review-summary" aria-label="Итог этапа"><div><span className="review-eyebrow">Результат этапа</span><h3>{result.data.event_name}</h3>
+          {result.data.points == null ? <p className="review-pending">Ещё не рассчитан</p> : <p className="personal-review-score"><strong>{result.data.points}</strong><span>/ {result.data.max_points ?? '—'}<small>баллов</small></span></p>}
+          {result.data.points != null && result.data.max_points != null && result.data.max_points > 0 && <div className="review-score-track" role="meter" aria-label="Баллы за этап" aria-valuemin={0} aria-valuemax={result.data.max_points} aria-valuenow={result.data.points}><span style={{width: `${Math.max(0, Math.min(100, result.data.points / result.data.max_points * 100))}%`}} /></div>}
+        </div><div className="review-summary-action">{result.data.points != null && <ShareButton options={{kind: 'prediction', season, round}} />}<small>Разбор и ваши ответы видны только вам.</small></div></section>
+        {items.some(item => ['unavailable', 'unknown'].includes(item.status)) && <p className="personal-review-warning"><strong>Результат предварительный.</strong> Часть фактов ещё не подтверждена. Баллы и место могут измениться после проверки.</p>}
+        <div className="review-filters" role="group" aria-label="Показать категории по результату">{filters.map(entry => <button type="button" key={entry.key} className={`review-filter filter-${entry.key}`} aria-pressed={filter === entry.key} onClick={() => setFilter(current => current === entry.key ? 'all' : entry.key)}><span className="review-filter-icon" aria-hidden="true">{entry.icon}</span><span>{entry.label}<strong>{items.filter(item => matchesFilter(item.status, entry.key)).length}</strong></span></button>)}</div>
         {!result.data.complete && <p className="personal-review-warning">Полная разбивка этого расчёта не сохранена или результаты ещё не готовы. Неподтверждённые баллы отмечены «—». Итог взят из сохранённого результата.</p>}
-        <div className="personal-review-items">{result.data.items.map(item => <article key={item.key} className={`review-${item.status}`}>
-          <header><h4>{item.label}</h4><span>{statuses[item.status] ?? item.status} · {item.points ?? "—"} / {item.maximum}</span></header>
-          <dl><div><dt>Ваш выбор</dt><dd>{value(item.key,item.predicted,driverNames)}</dd></div><div><dt>Фактический результат</dt><dd>{value(item.key,item.actual,driverNames)}</dd></div></dl>
-          {item.position != null && <p>Ваш выбранный пилот в классификации: P{item.position}</p>}
-          <p>{item.reason}</p><details><summary>Как считаются очки</summary><p>Точное совпадение: {item.rule.exact} баллов.
-            {item.key === "first_retirement_driver" ? " Если несколько пилотов сошли в одной подтверждённой первой группе, выбор любого из них считается верным; баллы начисляются один раз." : ""}
-            {item.rule.offsets.some(Boolean) ? ` Отклонение финишной позиции выбранного пилота на 1 / 2 / 3 места: ${item.rule.offsets.join(" / ")} балла. Большее отклонение: 0. Баллы за точность и отклонение не суммируются.` : " Нет совпадения: 0."}
-            {" Если фактические данные отсутствуют, пункт не учитывается в максимуме."}</p></details>
+        <header className="review-list-heading"><div><h3>По категориям</h3><p aria-live="polite">{filter === 'all' ? `Все категории: ${items.length}` : `Показано: ${visibleItems.length} из ${items.length}`}</p></div><button className="review-show-all" type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Все категории</button></header>
+        <div className="personal-review-items">{visibleItems.map(item => <article key={item.key} className={`review-item review-${item.status}`}>
+          <header><div className="review-item-heading"><span className="review-item-number" aria-hidden="true">{String(items.indexOf(item) + 1).padStart(2, '0')}</span><h4>{item.label}</h4></div><div className="review-item-result"><span className="review-status">{statuses[item.status] ?? item.status}</span><span className="review-item-points"><strong>{item.points ?? '—'}</strong> / {item.maximum}<small>баллов</small></span></div></header>
+          <dl className="review-comparison"><div><dt>Ваш прогноз</dt><dd>{value(item.key,item.predicted,driverNames)}</dd></div><div><dt>Результат гонки</dt><dd>{value(item.key,item.actual,driverNames)}</dd></div></dl>
+          <div className="review-explanation">{item.position != null && <p className="review-position">Ваш пилот в классификации: <strong>P{item.position}</strong></p>}<p className="review-reason">{item.reason}</p></div>
+          <details className="review-rule"><summary>Как считаются очки</summary><ul><li>Точное совпадение: <strong>{item.rule.exact} баллов</strong>.</li>
+            {item.key === "first_retirement_driver" && <li>Если несколько пилотов сошли в одной подтверждённой первой группе, выбор любого из них считается верным. Баллы начисляются один раз.</li>}
+            {item.rule.offsets.some(Boolean) ? <><li>Отклонение финишной позиции на 1 / 2 / 3 места: <strong>{item.rule.offsets.join(' / ')} балла</strong>. Большее отклонение: 0.</li><li>Баллы за точность и отклонение не суммируются.</li></> : <li>Нет совпадения: 0.</li>}
+            <li>Если фактические данные отсутствуют, пункт не учитывается в максимуме.</li></ul></details>
         </article>)}</div>
-        {result.data.race_facts && <section aria-label="Дополнительные данные гонки">
-          <h3>Данные гонки · {result.data.race_facts.source}</h3>
+        {visibleItems.length === 0 && <p className="review-empty">{items.length === 0 ? 'Подробности расчёта пока не сохранены.' : 'В этой группе нет категорий. Выберите другой результат или покажите все категории.'}</p>}
+        {result.data.race_facts && <details className="review-facts" aria-label="Дополнительные данные гонки"><summary>Данные гонки<span>Источники, круги и сходы</span></summary><div className="review-facts-content">
+          <p className="review-facts-source">Источник: {result.data.race_facts.source}</p>
           {confirmedFactsNote(result.data.race_facts.note, result.data.items) && <p>{confirmedFactsNote(result.data.race_facts.note, result.data.items)}</p>}
           {result.data.race_facts.fastest_lap && <p>Лучший круг: {result.data.race_facts.fastest_lap.driver} · {lapTime(result.data.race_facts.fastest_lap.seconds)}{optionalNumber(result.data.race_facts.fastest_lap.lap) !== null ? ` · круг ${result.data.race_facts.fastest_lap.lap}` : ''}</p>}
           {!!result.data.race_facts.laps?.length && <details><summary>Времена зачтённых кругов ({result.data.race_facts.laps.length})</summary>
@@ -78,7 +90,7 @@ export function PersonalReview({ season, round, onClose }: { season: number; rou
           <h4>Машина безопасности</h4>
           <p>{result.data.race_facts.safety_car == null ? "Нет подтверждённых данных об SC." : result.data.race_facts.safety_car ? "SC выезжала." : "Выездов SC не было."} VSC показана отдельно и не считается выездом SC.</p>
           <ul>{result.data.race_facts.safety_events?.map((event, index) => <li key={index}>{event.type} · {localDateTime(event.time)}{event.status === "7" ? " · завершение режима" : " · начало режима"}</li>)}</ul>
-        </section>}
+        </div></details>}
       </>}
     </div>
   </dialog>;
