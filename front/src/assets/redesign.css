@@ -4710,6 +4710,7 @@
 
 .app-page-main.route-season .season-podium-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -4717,7 +4718,9 @@
 }
 
 .app-page-main.route-season .season-podium-head > div {
+  flex: 1 1 140px;
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .app-page-main.route-season .season-podium-head span,
@@ -4745,14 +4748,17 @@
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
-  min-height: 38px;
-  padding: 0 12px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
   border: 1px solid rgba(225, 6, 0, 0.34);
   border-radius: 8px;
   background: rgba(225, 6, 0, 0.08);
   color: #ff7772;
   font-size: 12px;
   font-weight: 800;
+  white-space: normal;
   cursor: pointer;
 }
 
@@ -5114,7 +5120,6 @@
   }
 
   .app-page-main.route-season .season-podium-all-results {
-    max-width: 122px;
     line-height: 1.15;
     text-align: left;
   }
