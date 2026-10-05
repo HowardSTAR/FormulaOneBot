@@ -6,7 +6,7 @@ import './sharing.css';
 export function ShareComposer({options, onClose}: {options: ShareOptions; onClose: () => void}) {
   return options.kind === 'race'
     ? <RaceShareComposer key={options.track_id} options={options} onClose={onClose} />
-    : <ConfirmedShareComposer options={options} onClose={onClose} />;
+    : <CardShareComposer key={JSON.stringify(options)} options={options} onClose={onClose} />;
 }
 
 async function copyRaceLink(card: ShareCard): Promise<boolean> {
@@ -54,7 +54,7 @@ function RaceShareComposer({options, onClose}: {options: ShareOptions; onClose: 
     if (!copied) { link.current?.focus(); link.current?.select(); }
     setCopying(false);
   }
-  return <dialog ref={dialog} className="share-dialog race-share-dialog" aria-labelledby="race-share-heading" onCancel={onClose}>
+  return <dialog ref={dialog} className="share-dialog race-share-dialog" aria-labelledby="race-share-heading" onCancel={event => {event.stopPropagation(); onClose();}}>
     <header><h2 id="race-share-heading">Поделиться заездом</h2><button type="button" onClick={onClose} aria-label="Закрыть ссылку">×</button></header>
     {card ? <>
       <p>Карточка создана. Друг сможет проехать эту трассу с вашим призраком. Ссылка действует 30 дней.</p>
@@ -68,33 +68,39 @@ function RaceShareComposer({options, onClose}: {options: ShareOptions; onClose: 
   </dialog>;
 }
 
-function ConfirmedShareComposer({options, onClose}: {options: ShareOptions; onClose: () => void}) {
+function CardShareComposer({options, onClose}: {options: ShareOptions; onClose: () => void}) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const link = useRef<HTMLInputElement>(null);
+  const request = useRef<Promise<ShareCard> | null>(null);
   const [card, setCard] = useState<ShareCard | null>(null);
   const [image, setImage] = useState<File | null>(null);
+  const [imageReady, setImageReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
-  const [consent, setConsent] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const element = dialog.current;
     element?.showModal();
     return () => {element?.close(); previous?.focus();};
   }, []);
-  async function create() {
-    if (!consent || busy) return;
-    setBusy(true); setError('');
-    try {
-      const created = await apiRequest<ShareCard>('/api/engagement/shares', {...options, consent: true}, 'POST', 150000);
-      setImage(await loadShareImage(created));
+  useEffect(() => {
+    let active = true;
+    // A click on Share creates the card; effect replay must not create a second one.
+    request.current ??= apiRequest<ShareCard>('/api/engagement/shares', {...options, consent: true}, 'POST', 150000);
+    void request.current.then(async created => {
+      if (!active) return;
       setCard(created);
-    }
-    catch (e) {setError(e instanceof Error ? e.message : 'Не удалось подготовить карточку');}
-    finally {setBusy(false);}
-  }
+      const file = await loadShareImage(created);
+      if (active) {setImage(file); setImageReady(true);}
+    }).catch(e => {
+      if (active) setError(e instanceof Error ? e.message : 'Не удалось подготовить карточку');
+    });
+    return () => { active = false; };
+  }, [options, attempt]);
   async function send() {
-    if (!card || busy) return;
+    if (!card || busy || !imageReady) return;
     setBusy(true); setError('');
     try {
       const outcome = await sendCard(card, image);
@@ -105,22 +111,21 @@ function ConfirmedShareComposer({options, onClose}: {options: ShareOptions; onCl
   async function copy() {
     if (!card) return;
     try {await navigator.clipboard.writeText(card.web_url); void sharingEvent(card.token, 'share_copied'); setStatus('Ссылка скопирована.');}
-    catch {setStatus('Выделите и скопируйте ссылку в поле ниже.');}
+    catch {setStatus('Выделите и скопируйте ссылку в поле ниже.'); link.current?.focus(); link.current?.select();}
   }
-  return <dialog ref={dialog} className="share-dialog" aria-labelledby="share-heading" onCancel={onClose}>
-    <header><h2 id="share-heading">Поделиться с друзьями</h2><button type="button" onClick={onClose} aria-label="Закрыть отправку">×</button></header>
-    {!card ? <>
-      <p>{options.kind === 'prediction' ? 'На карточке будут ваше имя участника, очки и угаданные категории. Сами ответы прогноза не публикуются.' : options.kind === 'race' ? 'На карточке будут ваше игровое имя и лучший сохранённый заезд на этой трассе. Друг сможет повторить его с вашим призраком.' : options.kind === 'league' ? 'Любой получивший приглашение сможет вступить в лигу после отдельного подтверждения. Ответы прогнозов не раскрываются.' : 'Подготовим карточку с проверенными фактами и переходом в этот раздел.'}</p>
-      <label className="share-consent"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />Разрешаю создать публичную ссылку на карточку на 30 дней.</label>
-      <small>Сообщения не отправляются автоматически. Карточки, созданные после входа, можно отозвать в разделе «С друзьями»; уже пересланные изображения останутся у получателей.</small>
-      <button className="share-primary" disabled={!consent || busy} onClick={() => void create()}>{busy ? 'Готовим карточку…' : 'Создать карточку'}</button>
-    </> : <>
+  return <dialog ref={dialog} className="share-dialog" aria-labelledby="share-heading" onCancel={event => {event.stopPropagation(); onClose();}}>
+    <header><h2 id="share-heading">Поделиться с друзьями</h2><button type="button" autoFocus onClick={onClose} aria-label="Закрыть отправку">×</button></header>
+    {!card && !error && <div className="share-preparing" role="status"><span className="share-spinner" aria-hidden="true" /><strong>Создаём и сохраняем карточку…</strong><p>Она появится здесь, как только будет готова.</p></div>}
+    {card && <>
+      <p className="share-ready" role="status"><span aria-hidden="true">✓</span> Карточка сохранена</p>
+      <p className="share-description">{options.kind === 'prediction' ? 'Ваше имя, очки и угаданные категории. Ответы прогноза скрыты.' : options.kind === 'league' ? 'Приглашение в лигу. Друг подтвердит вступление сам; ответы прогнозов скрыты.' : 'Карточка с проверенными фактами и ссылкой на этот раздел.'}</p>
       <img className="share-preview" src={card.image_url} alt={`${card.title}: ${card.headline}`} />
       {card.provisional && <p className="share-warning">Предварительный результат. Карточка отражает данные на момент создания.</p>}
-      <div className="share-actions"><button className="share-primary" disabled={busy} onClick={() => void send()}>{busy ? 'Открываем отправку…' : 'Отправить в Telegram'}</button><button onClick={() => void copy()}>Копировать ссылку</button><a href={card.image_url} download="f1hub-card.jpg">Скачать карточку</a></div>
-      <input aria-label="Ссылка для друзей" readOnly value={card.web_url} onFocus={e => e.target.select()} />
+      <div className="share-actions"><button className="share-primary" disabled={busy || !imageReady} onClick={() => void send()}>{busy ? 'Открываем отправку…' : !imageReady ? 'Готовим изображение…' : 'Отправить в Telegram'}</button><button onClick={() => void copy()}>Копировать ссылку</button><a href={card.image_url} download="f1hub-card.jpg">Скачать карточку</a></div>
+      <label className="share-link-label">Ссылка для друзей<input ref={link} type="url" readOnly value={card.web_url} onFocus={e => e.target.select()} /></label>
+      <small className="share-footnote">Ссылка действует 30 дней. Карточки можно отозвать в разделе «С друзьями».</small>
     </>}
-    {status && <p role="status">{status}</p>}{error && <p role="alert">{error}</p>}
+    {status && <p className="share-feedback" role="status">{status}</p>}{error && <div className="share-error" role="alert"><p>{error}</p>{!card && <button type="button" onClick={() => {request.current = null; setError(''); setAttempt(v => v + 1);}}>Повторить создание</button>}</div>}
   </dialog>;
 }
 
