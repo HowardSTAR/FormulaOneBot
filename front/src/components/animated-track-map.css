@@ -27,3 +27,5 @@
   fill: none !important;
   stroke: none !important;
 }
+/* Avoid repainting neon filters on every drawing frame; restore them at rest. */
+#root .animated-track-svg .track-outline.track-drawing { filter: none !important; }

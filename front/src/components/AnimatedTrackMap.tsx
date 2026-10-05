@@ -9,6 +9,7 @@ type AnimatedTrackMapProps = {
   className: string;
   svgClassName: string;
   loadingClassName: string;
+  onRevealComplete?: () => void;
 };
 
 export function AnimatedTrackMap({
@@ -18,6 +19,7 @@ export function AnimatedTrackMap({
   className,
   svgClassName,
   loadingClassName,
+  onRevealComplete,
 }: AnimatedTrackMapProps) {
   const assetName = resolveCircuitAsset(eventName, location, season);
   const [trackState, setTrackState] = useState<{
@@ -47,13 +49,17 @@ export function AnimatedTrackMap({
     };
   }, [assetName]);
 
+  useEffect(() => {
+    if (trackError) onRevealComplete?.();
+  }, [trackError, onRevealComplete]);
+
   useLayoutEffect(() => {
     const container = trackContainerRef.current;
     if (!trackSvg || !container) return;
 
     container.innerHTML = trackSvg;
     const svg = container.querySelector("svg");
-    if (!svg) return;
+    if (!svg) { onRevealComplete?.(); return; }
 
     svg.style.width = "100%";
     svg.style.height = "100%";
@@ -82,8 +88,7 @@ export function AnimatedTrackMap({
       fillGroup.appendChild(path);
     });
 
-    // Measure each candidate only once. The map is a static illustration, not
-    // a per-frame stroke animation that repaints its filters while loading.
+    // Measure once, then draw the two strokes with a finite animation.
     let longest: SVGGeometryElement | undefined;
     let longestLength = -1;
     for (const route of routes) {
@@ -99,10 +104,10 @@ export function AnimatedTrackMap({
       visibleRoutes.splice(0, visibleRoutes.length, madrid);
     }
     for (const border of visibleRoutes) {
-      border.classList.add("track-outline", "track-route-border", "animate", "animation-complete");
+      border.classList.add("track-outline", "track-route-border", "track-drawing");
       border.setAttribute("pathLength", "1");
-      border.style.strokeDasharray = "1 0";
-      border.style.strokeDashoffset = "0";
+      border.style.strokeDasharray = "1";
+      border.style.strokeDashoffset = "1";
 
       const surface = border.cloneNode(true) as SVGGeometryElement;
       surface.classList.remove("track-route-border");
@@ -115,7 +120,36 @@ export function AnimatedTrackMap({
     svg.appendChild(fillGroup);
     svg.appendChild(outlineGroup);
     fillGroup.querySelectorAll('.track-fill').forEach(path => path.classList.add('animate'));
-  }, [trackSvg, eventName]);
+    let disposed = false;
+    const animations: Animation[] = [];
+    const complete = () => {
+      if (disposed) return;
+      outlineGroup.querySelectorAll<SVGGeometryElement>('.track-outline').forEach(path => {
+        path.style.strokeDashoffset = '0';
+        path.style.strokeDasharray = '1 0';
+        path.classList.remove('track-drawing');
+        path.classList.add('animate', 'animation-complete');
+      });
+      onRevealComplete?.();
+    };
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) complete();
+    else {
+      animations.push(container.animate([
+        { opacity: 0, transform: 'scale(.985)' },
+        { opacity: 1, transform: 'scale(1)' },
+      ], { duration: 450, easing: 'ease-out' }));
+      outlineGroup.querySelectorAll<SVGGeometryElement>('.track-outline').forEach(path => {
+        animations.push(path.animate([{ strokeDashoffset: '1' }, { strokeDashoffset: '0' }], {
+          duration: 2000, easing: 'cubic-bezier(.45, 0, .25, 1)', fill: 'both',
+        }));
+      });
+      void Promise.all(animations.map(animation => animation.finished)).then(() => {
+        complete();
+        animations.forEach(animation => animation.cancel());
+      }).catch(() => { /* Unmounts and stage changes cancel the previous drawing. */ });
+    }
+    return () => { disposed = true; animations.forEach(animation => animation.cancel()); };
+  }, [trackSvg, eventName, onRevealComplete]);
 
   return (
     <div className={`${className} animated-track-map`} aria-hidden="true">

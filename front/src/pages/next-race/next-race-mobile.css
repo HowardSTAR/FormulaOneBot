@@ -22,10 +22,44 @@
 
 /* The split animation must not squeeze the date and circuit into half a phone. */
 @media (max-width: 899px) {
-  .app-page-main.route-next-race .next-race-hero.split {
+  .app-page-main.route-next-race .next-race-hero {
+    display: flex;
     flex-direction: column;
     padding: 18px;
-    gap: 14px;
+    gap: 0;
+    min-height: 0;
+  }
+
+  .app-page-main.route-next-race .next-race-start-reveal {
+    display: grid;
+    grid-template-rows: 0fr;
+    width: 100%;
+    opacity: 0;
+    transform: translateY(-8px);
+    transition: grid-template-rows 560ms cubic-bezier(.22, 1, .36, 1), opacity 400ms ease, transform 560ms cubic-bezier(.22, 1, .36, 1);
+  }
+  .app-page-main.route-next-race .next-race-hero.split .next-race-start-reveal {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .app-page-main.route-next-race .next-race-hero .next-race-start-block {
+    position: static;
+    display: block;
+    min-height: 0;
+    max-width: 100%;
+    padding: 0;
+    overflow: hidden;
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    animation: none;
+  }
+  .app-page-main.route-next-race .next-race-start-copy { padding: 4px 0 18px; }
+  .app-page-main.route-next-race .next-race-hero .next-race-track-wrap {
+    min-height: calc(clamp(130px, 38vw, 180px) + 40px);
+    animation: none;
+    will-change: auto;
   }
 
   .app-page-main.route-next-race .next-race-hero.split .next-race-start-block,
@@ -35,10 +69,6 @@
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
-  }
-
-  .app-page-main.route-next-race .next-race-hero.split .next-race-start-block {
-    padding: 4px 0;
   }
 
   .app-page-main.route-next-race .next-race-hero.split .next-race-date {
@@ -71,4 +101,16 @@
     vector-effect: non-scaling-stroke !important;
     stroke-width: 2px !important;
   }
+}
+
+#root .route-next-race .next-race-desktop-start {
+  animation: next-race-date-appear 500ms ease-out both;
+}
+@keyframes next-race-date-appear {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-page-main.route-next-race .next-race-start-reveal { transition: none; transform: none; }
+  #root .route-next-race .next-race-desktop-start { animation: none; }
 }

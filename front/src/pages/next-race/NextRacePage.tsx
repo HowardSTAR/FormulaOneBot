@@ -1,6 +1,6 @@
 import { timezoneName } from '../../helpers/presentation';
 import { GlossaryText } from "../../components/GlossaryText";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from 'react-router-dom';
 import { BackButton } from "../../components/BackButton";
 import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
@@ -73,6 +73,8 @@ function NextRacePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [layoutPhase, setLayoutPhase] = useState<"draw" | "split">("draw");
+  const [trackRevealed, setTrackRevealed] = useState(false);
+  const handleTrackRevealed = useCallback(() => setTrackRevealed(true), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +86,7 @@ function NextRacePage() {
       setTitle('Загрузка...');
       setLocation('...');
       setLayoutPhase('draw');
+      setTrackRevealed(false);
       try {
         const selected = selectedSeason !== null || selectedRound !== null;
         if (selected && (!/^\d{4}$/.test(selectedSeason ?? '') || !/^\d{1,2}$/.test(selectedRound ?? '')
@@ -199,10 +202,11 @@ function NextRacePage() {
 
   useEffect(() => {
     if (loading) return;
-    const delay = eventName ? 3000 : 800;
+    // Reveal after drawing; do not hide the date forever if the asset request stalls.
+    const delay = trackRevealed || window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 3500;
     const t = setTimeout(() => setLayoutPhase("split"), delay);
     return () => clearTimeout(t);
-  }, [eventName, loading]);
+  }, [trackRevealed, loading]);
 
   useEffect(() => {
     setExpandedFactIndex(0);
@@ -230,10 +234,14 @@ function NextRacePage() {
 
         {(eventName || loading) && (
         <div className={`next-race-hero ${layoutPhase}`}>
-          <div className="next-race-start-block">
-            <div className="next-race-start-label">{isCancelled ? "СТАТУС ЭТАПА" : "СТАРТ ГОНКИ"}</div>
-            <div className="next-race-date">{isCancelled ? "ОТМЕНЕН" : raceDateText}</div>
-            <div className="next-race-time">{isCancelled ? "Организатор отменил проведение этапа" : raceTimeText}</div>
+          <div className="next-race-start-reveal" aria-hidden={layoutPhase === 'draw'}>
+            <div className="next-race-start-block">
+              <div className="next-race-start-copy">
+                <div className="next-race-start-label">{isCancelled ? "СТАТУС ЭТАПА" : "СТАРТ ГОНКИ"}</div>
+                <div className="next-race-date">{isCancelled ? "ОТМЕНЕН" : raceDateText}</div>
+                <div className="next-race-time">{isCancelled ? "Организатор отменил проведение этапа" : raceTimeText}</div>
+              </div>
+            </div>
           </div>
           <div className="next-race-dash" aria-hidden />
           <div className="next-race-track-wrap">
@@ -245,6 +253,7 @@ function NextRacePage() {
                 className="track-map-container next-race"
                 svgClassName="next-race-mobile-track-svg"
                 loadingClassName="next-race-track-loading"
+                onRevealComplete={handleTrackRevealed}
               />} />
             ) : (
               !loading && <div className="no-map-placeholder">🏁</div>
