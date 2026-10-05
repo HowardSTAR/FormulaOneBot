@@ -7,7 +7,11 @@
   --app-safe-right: calc(max(env(safe-area-inset-right, 0px), var(--tg-safe-area-inset-right, 0px)) + var(--tg-content-safe-area-inset-right, 0px));
   --mobile-nav-space: calc(84px + var(--app-safe-bottom));
 }
-.back-button-icon { display: none; }
+#root .btn-back {
+  width: 44px !important; height: 44px !important; min-width: 44px !important; min-height: 44px !important;
+  padding: 0 !important; box-sizing: border-box; flex-shrink: 0;
+}
+#root .btn-back .back-button-arrow { display: block; margin: 0; font: 26px/1 system-ui, sans-serif; }
 /* Native mobile Telegram can be fullscreen in landscape and on tablets too. */
 html[data-telegram-mobile="true"] #root .root {
   padding-top: calc(var(--page-gutter) + var(--app-safe-top));

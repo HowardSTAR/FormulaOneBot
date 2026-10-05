@@ -30,7 +30,7 @@ async function checkNavigation(page, values) {
   assert.equal(metrics.back.width, 44);
   assert.equal(metrics.back.height, 44);
   assert.equal(metrics.overflow, false);
-  assert.equal(await page.locator('.back-button-label').first().isVisible(), false);
+  assert.equal(await page.locator('.back-button-arrow').first().textContent(), '←');
   assert.equal(await page.getByRole('button', { name: 'Назад', exact: true }).first().isVisible(), true);
 }
 (async () => {
@@ -94,9 +94,9 @@ async function checkNavigation(page, values) {
     const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     await desktop.route('**/api/**', route => route.fulfill({ status: 401, json: { detail: 'Guest' } }));
     await desktop.goto(`${base}/reaction-game`);
-    await desktop.locator('.btn-back .back-button-label').first().waitFor();
+    await desktop.locator('.btn-back .back-button-arrow').first().waitFor();
     assert.equal(await desktop.locator('.mobile-primary-nav').isVisible(), false);
-    assert.equal(await desktop.locator('.back-button-icon').first().isVisible(), false);
+    assert.equal(await desktop.locator('.back-button-arrow').first().textContent(), '←');
     console.log('Desktop navigation unchanged.');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });
