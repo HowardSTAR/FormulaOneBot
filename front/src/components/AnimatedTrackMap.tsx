@@ -105,9 +105,7 @@ export function AnimatedTrackMap({
     }
     for (const border of visibleRoutes) {
       border.classList.add("track-outline", "track-route-border", "track-drawing");
-      border.setAttribute("pathLength", "1");
-      border.style.strokeDasharray = "1";
-      border.style.strokeDashoffset = "1";
+      border.removeAttribute('pathLength');
 
       const surface = border.cloneNode(true) as SVGGeometryElement;
       surface.classList.remove("track-route-border");
@@ -119,6 +117,17 @@ export function AnimatedTrackMap({
     svg.innerHTML = "";
     svg.appendChild(fillGroup);
     svg.appendChild(outlineGroup);
+    // non-scaling-stroke measures dashes in screen pixels. A normalized
+    // pathLength of 1 repeats the dash after scaling and exposes distant pieces.
+    const drawingPaths = Array.from(outlineGroup.querySelectorAll<SVGGeometryElement>('.track-outline'));
+    const lengths = drawingPaths.map(path => {
+      const matrix = path.getScreenCTM();
+      const scale = matrix ? Math.hypot(matrix.a, matrix.b) : 1;
+      const length = path.getTotalLength() * scale;
+      path.style.strokeDasharray = `${length} ${length}`;
+      path.style.strokeDashoffset = String(length);
+      return length;
+    });
     fillGroup.querySelectorAll('.track-fill').forEach(path => path.classList.add('animate'));
     let disposed = false;
     const animations: Animation[] = [];
@@ -126,7 +135,7 @@ export function AnimatedTrackMap({
       if (disposed) return;
       outlineGroup.querySelectorAll<SVGGeometryElement>('.track-outline').forEach(path => {
         path.style.strokeDashoffset = '0';
-        path.style.strokeDasharray = '1 0';
+        path.style.strokeDasharray = 'none';
         path.classList.remove('track-drawing');
         path.classList.add('animate', 'animation-complete');
       });
@@ -135,12 +144,12 @@ export function AnimatedTrackMap({
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) complete();
     else {
       animations.push(container.animate([
-        { opacity: 0, transform: 'scale(.985)' },
-        { opacity: 1, transform: 'scale(1)' },
+        { opacity: 0 },
+        { opacity: 1 },
       ], { duration: 450, easing: 'ease-out' }));
-      outlineGroup.querySelectorAll<SVGGeometryElement>('.track-outline').forEach(path => {
-        animations.push(path.animate([{ strokeDashoffset: '1' }, { strokeDashoffset: '0' }], {
-          duration: 2000, easing: 'cubic-bezier(.45, 0, .25, 1)', fill: 'both',
+      drawingPaths.forEach((path, index) => {
+        animations.push(path.animate([{ strokeDashoffset: String(lengths[index]) }, { strokeDashoffset: '0' }], {
+          duration: 2000, easing: 'linear', fill: 'both',
         }));
       });
       void Promise.all(animations.map(animation => animation.finished)).then(() => {
