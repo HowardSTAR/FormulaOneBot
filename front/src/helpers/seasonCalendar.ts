@@ -71,7 +71,7 @@ export function selectedCalendarRace(races: CalendarRace[], round: number | null
     ?? races[0] ?? null;
 }
 export const calendarStatusLabel: Record<CalendarRaceStatus, string> = {
-  cancelled: 'Отменён', weekend: 'Уик-энд идёт', live: 'Гонка по расписанию', pending: 'Итоги уточняются', recent: 'Гонка завершена',
+  cancelled: 'Отменён', weekend: 'Уик-энд идёт', live: 'Гонка по расписанию', pending: 'Итоги уточняются', recent: 'Прошёл',
   next: 'Ближайший этап', finished: 'Прошёл', future: 'Предстоящий этап', unknown: 'Дата уточняется',
 };
 export function raceDateParts(race: CalendarRace, timeZone: string) {
