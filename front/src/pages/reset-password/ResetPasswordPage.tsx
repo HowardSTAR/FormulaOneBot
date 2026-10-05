@@ -61,7 +61,8 @@ export default function ResetPasswordPage() {
         ) : (
           <form onSubmit={submit}>
             <label>Новый пароль<input type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)} /></label>
-            <label>Повторите новый пароль<input type="password" autoComplete="new-password" minLength={12} required value={confirmation} onChange={e => setConfirmation(e.target.value)} /></label>
+            <label>Повторите новый пароль<input type="password" autoComplete="new-password" minLength={12} required value={confirmation} aria-invalid={Boolean(confirmation && password !== confirmation)} aria-describedby={confirmation && password !== confirmation ? 'password-mismatch' : undefined} onChange={e => setConfirmation(e.target.value)} /></label>
+            {confirmation && password !== confirmation && <p id="password-mismatch" role="status">Пароли не совпадают. Повторите новый пароль.</p>}
             <p className="reset-password-hint">Не менее 12 символов, обязательно буквы и цифры.</p>
             <button className="account-primary" disabled={busy || password !== confirmation}>{busy ? "Сохраняем…" : "Сохранить новый пароль"}</button>
           </form>

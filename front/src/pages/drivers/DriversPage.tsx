@@ -1,5 +1,5 @@
 import { PageFeedback } from '../../components/PageFeedback';
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
@@ -68,6 +68,8 @@ function DriversPage() {
   const [topConstructors, setTopConstructors] = useState<ConstructorStanding[]>([]);
   const [nextRace, setNextRace] = useState<NextRaceInfo | null>(null);
   const [lastRacePointsByCode, setLastRacePointsByCode] = useState<Record<string, number>>({});
+  const standingsRequest = useRef(0);
+  const cancelStandingsRequest = useCallback(() => { standingsRequest.current++; }, []);
 
   const formatRaceDate = (isoDate?: string): string => {
     if (!isoDate) return "";
@@ -82,11 +84,13 @@ function DriversPage() {
   };
 
   const loadDrivers = useCallback(async (season: number) => {
+    const request = ++standingsRequest.current;
     setLoading(true);
     setError(null);
     setEmptyMessage(null);
     try {
       const data = await apiRequest<DriversResponse>("/api/drivers", { season });
+      if (request !== standingsRequest.current) return;
       if (!data.drivers || data.drivers.length === 0) {
         if (season === currentRealYear) {
           setEmptyMessage({
@@ -102,16 +106,18 @@ function DriversPage() {
         setDrivers(data.drivers);
       }
     } catch (e) {
+      if (request !== standingsRequest.current) return;
       console.error(e);
       setError(e instanceof Error ? e.message : "Ошибка загрузки");
     } finally {
-      setLoading(false);
+      if (request === standingsRequest.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadDrivers(year);
-  }, [year, loadDrivers]);
+    void loadDrivers(year);
+    return cancelStandingsRequest;
+  }, [year, loadDrivers, cancelStandingsRequest]);
 
   useEffect(() => {
     let cancelled = false;

@@ -1,5 +1,6 @@
 import { Children, isValidElement, useId, useLayoutEffect, useRef, useState, type ReactNode, type ReactElement } from 'react';
 import { hapticSelection } from '../helpers/telegram';
+import { trackAction } from '../helpers/analytics';
 import './custom-select.css';
 
 export type CustomSelectOption = { value: string | number; label: string; disabled?: boolean };
@@ -31,6 +32,7 @@ export function CustomSelect({options, value, onChange, className = '', disabled
   const choose = (index: number) => {
     const option = options[index];
     if (!option || option.disabled || disabled) return;
+    if (index !== selected) trackAction('filter_change');
     hapticSelection(); onChange(option.value); close(); trigger.current?.focus();
   };
   const reveal = () => {
@@ -40,10 +42,11 @@ export function CustomSelect({options, value, onChange, className = '', disabled
     const node = menu.current!;
     const below = window.innerHeight - rect.bottom - 8;
     const above = rect.top - 8;
-    const height = Math.min(320, Math.max(below, above));
+    const down = below >= Math.min(240, above);
+    const height = Math.max(44, Math.min(320, down ? below : above));
     Object.assign(node.style, {
       left: `${Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8))}px`,
-      top: `${below >= Math.min(240, above) ? rect.bottom + 4 : Math.max(8, rect.top - height - 4)}px`,
+      top: `${down ? rect.bottom + 4 : Math.max(8, rect.top - height - 4)}px`,
       width: `${Math.min(rect.width, window.innerWidth - 16)}px`, maxHeight: `${height}px`,
     });
     setActive(selected >= 0 && !options[selected].disabled ? selected : Math.max(0, options.findIndex(option => !option.disabled)));

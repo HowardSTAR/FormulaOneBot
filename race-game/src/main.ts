@@ -6,6 +6,7 @@ import { simulationSteps } from './raceClock'
 import { advanceWithCollisions, type Collider } from './collisions'
 import { tracks, trackColliders, type Track } from './tracks'
 import { drawTrack } from './trackRenderer'
+import { trackPicker } from './trackPicker'
 const WORLD_WIDTH = 1536
 const WORLD_HEIGHT = 1024
 
@@ -123,7 +124,7 @@ const ui = {
   trackFormat: $('#track-format'),
   trackDescription: $('#track-description'),
   trackPreview: $('#track-preview'),
-  trackSelect: $('#track-select') as HTMLSelectElement,
+  trackSelect: $('#track-select') as HTMLButtonElement,
   menuTrackName: $('#menu-track-name'),
   leaderboardTrackName: $('#leaderboard-track-name'),
   archive: $('#legacy-leaderboard-button') as HTMLButtonElement,
@@ -135,8 +136,9 @@ const ui = {
   challengeRanking: $('#challenge-ranking'),
 }
 
+const picker = trackPicker(ui.trackSelect, tracks)
 const syncTrackControls = (): void => {
-  ui.trackSelect.value = selectedTrack.id
+  picker.setValue(selectedTrack.id)
   ui.trackName.textContent = selectedTrack.name.toUpperCase()
   ui.trackFormat.textContent = selectedTrack.format
   ui.menuTrackName.textContent = selectedTrack.name
@@ -162,12 +164,6 @@ const syncTrackControls = (): void => {
   ui.archive.hidden = selectedTrack.id !== 'emerald-loop-v2'
   ui.currentRanking.hidden = true
 }
-ui.trackSelect.replaceChildren(...tracks.map(track => {
-  const option = document.createElement('option')
-  option.value = track.id
-  option.textContent = track.name
-  return option
-}))
 syncTrackControls()
 ui.start.disabled = true
 ui.start.textContent = 'ЗАГРУЗКА…'
@@ -1025,7 +1021,7 @@ ui.trackSelect.addEventListener('change', () => {
   if (track) activeScene?.selectTrack(track)
   ui.trackSelect.blur()
 })
-// Arrow keys and space belong to the native picker while it has focus.
+// Picker keys must not steer or start the game.
 for (const type of ['keydown', 'keyup']) ui.trackSelect.addEventListener(type, event => event.stopPropagation())
 ui.restart.addEventListener('click', () => activeScene?.restartRace())
 ui.menuRestart.addEventListener('click', () => activeScene?.restartRace())

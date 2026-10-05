@@ -331,6 +331,19 @@ button:disabled, select:disabled { opacity: 0.55; cursor: wait; }
 }
 #track-select:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
 #track-select:disabled { opacity: 0.6; cursor: wait; }
+.track-options {
+  position: fixed; margin: 0; padding: 5px; box-sizing: border-box;
+  overflow-y: auto; border: 1px solid #61d9bc73; border-radius: 10px;
+  background: #14271f; color: #f5ecd2; box-shadow: 0 8px 30px #0008;
+}
+.track-options button {
+  display: block; width: 100%; min-height: 44px; padding: 8px;
+  border-radius: 6px; background: transparent; color: inherit; text-align: left;
+  font: inherit; font-size: 13px; cursor: pointer;
+}
+.track-options button:is(:hover, :focus-visible), .track-options button[aria-selected="true"] {
+  background: #245345; outline: 2px solid #61d9bc; outline-offset: -2px;
+}
 
 .eyebrow {
   margin: 0 0 8px;

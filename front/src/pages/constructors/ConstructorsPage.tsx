@@ -1,5 +1,5 @@
 import { PageFeedback } from '../../components/PageFeedback';
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
@@ -51,6 +51,8 @@ function ConstructorsPage() {
   const [emptyMessage, setEmptyMessage] = useState<{ icon: string; title: string; desc?: string } | null>(null);
   const [topDrivers, setTopDrivers] = useState<DriverStanding[]>([]);
   const [nextRace, setNextRace] = useState<NextRaceInfo | null>(null);
+  const standingsRequest = useRef(0);
+  const cancelStandingsRequest = useCallback(() => { standingsRequest.current++; }, []);
 
   const formatRaceDate = (isoDate?: string): string => {
     if (!isoDate) return "";
@@ -65,11 +67,13 @@ function ConstructorsPage() {
   };
 
   const loadTeams = useCallback(async (season: number) => {
+    const request = ++standingsRequest.current;
     setLoading(true);
     setError(null);
     setEmptyMessage(null);
     try {
       const data = await apiRequest<ConstructorsResponse>("/api/constructors", { season });
+      if (request !== standingsRequest.current) return;
       if (!data.constructors || data.constructors.length === 0) {
         if (season === currentRealYear) {
           setEmptyMessage({
@@ -85,16 +89,18 @@ function ConstructorsPage() {
         setTeams(data.constructors);
       }
     } catch (e) {
+      if (request !== standingsRequest.current) return;
       console.error(e);
       setError(e instanceof Error ? e.message : "Ошибка загрузки");
     } finally {
-      setLoading(false);
+      if (request === standingsRequest.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadTeams(year);
-  }, [year, loadTeams]);
+    void loadTeams(year);
+    return cancelStandingsRequest;
+  }, [year, loadTeams, cancelStandingsRequest]);
 
   useEffect(() => {
     let cancelled = false;

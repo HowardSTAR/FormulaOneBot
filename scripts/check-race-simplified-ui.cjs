@@ -1,6 +1,8 @@
 // Local browser checks with mocked race/share APIs and a sandboxed clipboard.
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
+const {readFileSync} = require('node:fs');
+const {join} = require('node:path');
 const tracks = require('../app/race_tracks.json');
 const track = tracks.find(item => item.id.includes('canyon'));
 const base = process.env.RACE_UI_URL || 'http://127.0.0.1:5173';
@@ -19,6 +21,14 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
       const mobile = viewport.width < 1000;
       const context = await browser.newContext({ viewport, hasTouch: mobile, isMobile: mobile });
       const page = await context.newPage();
+      // Serve the current build even when an already running Vite watcher
+      // ignores public/race-game and has cached an older asset inventory.
+      await page.route('**/race-game/**', route => {
+        const path = new URL(route.request().url()).pathname;
+        if (!/^\/race-game\/(?:index\.html|assets\/[\w.-]+\.(?:js|css|png))$/.test(path)) return route.continue();
+        const contentType = path.endsWith('.js') ? 'application/javascript' : path.endsWith('.css') ? 'text/css' : path.endsWith('.png') ? 'image/png' : 'text/html';
+        return route.fulfill({body:readFileSync(join(__dirname,'../front/public',path)),contentType});
+      });
       const errors = [];
       const creations = [];
       let failCreation = false;
@@ -37,7 +47,7 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
         if (path === '/api/engagement/shares') {
           creations.push(route.request().postDataJSON());
           if (failCreation) return route.fulfill({ status: 503, json: {detail: 'Не удалось создать карточку'} });
-          return route.fulfill({ json: {token, kind: 'race', share_url: shareUrl, title: track.name, headline: '02:00.000'} });
+          return route.fulfill({ json: {token, kind: 'race', web_url: shareUrl, share_url: 'https://t.me/example_bot?start='+token, title: track.name, headline: '02:00.000'} });
         }
         const requestedTrack = requestUrl.searchParams.get('track_id') || track.id;
         const json = path.startsWith('/api/engagement/challenges/') ? {track_id: track.id, name:'Друг',time_ms:120000,ghost,entries:[]}
@@ -49,7 +59,7 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
       });
       await page.goto(`${base}/race-game?weekly=1`);
       await page.locator('.race-game-frame, .race-game-orientation-prompt').first().waitFor();
-      const orientation = page.getByRole('button', {name: 'Continue / Играть'});
+      const orientation = page.getByRole('button', {name: 'Играть сейчас →'});
       if (await orientation.isVisible()) await orientation.click();
       const frame = page.frameLocator('.race-game-frame');
       try { await frame.locator('canvas').waitFor({timeout: 15000}); }
@@ -67,7 +77,12 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
       assert.ok(await frame.locator('#track-preview svg').isVisible());
       assert.equal(await frame.locator('#track-description').textContent(), track.description);
       assert.ok(await frame.getByRole('combobox', {name: 'Выбрать трассу'}).isVisible());
-      assert.equal(await frame.locator('#track-select option').count(), tracks.length);
+      assert.equal(await frame.locator('select').count(), 0);
+      const picker = frame.getByRole('combobox', {name: 'Выбрать трассу'});
+      await picker.click();
+      assert.equal(await frame.getByRole('option').count(), tracks.length);
+      await frame.getByRole('option', {name: track.name, exact: true}).press('Escape');
+      assert.equal(await picker.getAttribute('aria-expanded'), 'false');
       for (const selector of ['#menu-tracks-button', '.fullscreen-help', '.mobile-note', '.surface-chip', '.desktop-hint', '#challenge-panel a']) {
         assert.equal(await frame.locator(selector).count(), 0, selector);
       }
@@ -133,8 +148,12 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
       }
       if (viewport.width === 1440) {
         const picker = frame.getByRole('combobox', {name:'Выбрать трассу'});
+        const chooseTrack = async id => {
+          await picker.click();
+          await frame.getByRole('option',{name:tracks.find(item=>item.id===id).name,exact:true}).click();
+        };
         for (const nextTrack of tracks) {
-          await picker.selectOption(nextTrack.id);
+          await chooseTrack(nextTrack.id);
           await start.waitFor();
           await page.waitForFunction(() => {
             const button = document.querySelector('.race-game-frame')?.contentDocument?.querySelector('#start-button');
@@ -148,12 +167,13 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
           assert.equal(await frame.locator('body').evaluate(() => localStorage.getItem('emerald-loop-selected-track')),nextTrack.id);
           await page.screenshot({path:`artifacts/race-select-${nextTrack.id}.png`});
         }
-        await picker.selectOption(track.id);
+        await chooseTrack(track.id);
         await frame.locator('#modal-title').getByText(track.name,{exact:true}).waitFor();
         await picker.focus();
         await page.keyboard.press('ArrowDown');
-        assert.equal(await frame.locator('#time-value').textContent(),'00:00.000','Native arrow keys must not start the race');
-        await picker.selectOption(track.id);
+        assert.equal(await frame.locator('#time-value').textContent(),'00:00.000','Picker arrow keys must not start the race');
+        await page.keyboard.press('Escape');
+        await chooseTrack(track.id);
         await start.waitFor();
         await page.waitForFunction(() => !document.querySelector('.race-game-frame').contentDocument.querySelector('#start-button').disabled);
         await start.click();
@@ -169,7 +189,7 @@ const ghost = { name: 'Тестовый призрак', time_ms: 120000, sample
         await frame.getByRole('combobox',{name:'Выбрать трассу'}).waitFor();
         await frame.locator('#challenge-title').getByText('Вызов: Друг',{exact:true}).waitFor();
         const other = tracks.find(item=>item.id !== track.id);
-        await frame.locator('#track-select').selectOption(other.id);
+        await chooseTrack(other.id);
         await frame.locator('#modal-title').getByText(other.name,{exact:true}).waitFor();
         assert.equal(await frame.locator('#challenge-panel').isVisible(),false);
         await frame.locator('#share-race-button').evaluate(el=>{el.hidden=false;});

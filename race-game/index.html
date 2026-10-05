@@ -40,7 +40,7 @@
             <div class="track-summary">
               <div id="track-preview" class="track-preview" role="img" aria-label="Превью трассы"></div>
               <div class="track-details">
-                <select id="track-select" aria-label="Выбрать трассу" disabled></select>
+                <button id="track-select" type="button" role="combobox" aria-label="Выбрать трассу" aria-haspopup="listbox" aria-expanded="false" disabled>Выбрать трассу ▾</button>
                 <p id="track-description"></p>
               </div>
             </div>
@@ -98,7 +98,7 @@
           </div>
 
           <div id="menu-leaderboard-view" class="game-menu-view leaderboard-view" hidden>
-            <button id="leaderboard-back-button" class="leaderboard-back" type="button">← Назад в меню</button>
+            <button id="leaderboard-back-button" class="leaderboard-back" type="button" aria-label="Назад в меню" title="Назад в меню">←</button>
             <div class="leaderboard-heading">
               <div><small id="leaderboard-track-name">EMERALD LOOP</small><h3>Таблица лидеров</h3></div>
               <span id="leaderboard-my-place">—</span>

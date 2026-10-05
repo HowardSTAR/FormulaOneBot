@@ -58,8 +58,8 @@ export default function ContactAdminPage() {
             <textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={3000} rows={8} placeholder="Опишите вопрос или предложение" required />
           </label>
           <div className="contact-admin-counter">{message.length}/3000</div>
-          {error && <div className="contact-admin-status is-error">{error}</div>}
-          {sent && <div className="contact-admin-status is-success">Сообщение доставлено администратору.</div>}
+          {error && <div className="contact-admin-status is-error" role="alert">{error}</div>}
+          {sent && <div className="contact-admin-status is-success" role="status">Сообщение доставлено администратору.</div>}
           <button disabled={sending || senderName.trim().length < 2 || senderContact.trim().length < 2 || message.trim().length < 5}>
             {sending ? "Отправляем…" : "Отправить в Telegram"}
           </button>

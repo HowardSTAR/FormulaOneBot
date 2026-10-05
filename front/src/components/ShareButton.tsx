@@ -11,7 +11,7 @@ export function ShareComposer({options, onClose}: {options: ShareOptions; onClos
 
 async function copyRaceLink(card: ShareCard): Promise<boolean> {
   try {
-    await navigator.clipboard.writeText(card.share_url);
+    await navigator.clipboard.writeText(card.web_url);
     void sharingEvent(card.token, 'share_copied');
     return true;
   } catch { return false; }
@@ -59,7 +59,7 @@ function RaceShareComposer({options, onClose}: {options: ShareOptions; onClose: 
     {card ? <>
       <p>Карточка создана. Друг сможет проехать эту трассу с вашим призраком. Ссылка действует 30 дней.</p>
       <div className="race-share-link-row">
-        <input ref={link} type="url" aria-label="Ссылка на заезд" readOnly value={card.share_url} onFocus={e => e.target.select()} />
+        <input ref={link} type="url" aria-label="Ссылка на заезд" readOnly value={card.web_url} onFocus={e => e.target.select()} />
         <button type="button" className="share-primary" disabled={copying} onClick={() => void copy()}>Скопировать</button>
       </div>
     </> : !error && <p role="status">Готовим ссылку на заезд…</p>}
@@ -104,7 +104,7 @@ function ConfirmedShareComposer({options, onClose}: {options: ShareOptions; onCl
   }
   async function copy() {
     if (!card) return;
-    try {await navigator.clipboard.writeText(card.share_url); void sharingEvent(card.token, 'share_copied'); setStatus('Ссылка скопирована.');}
+    try {await navigator.clipboard.writeText(card.web_url); void sharingEvent(card.token, 'share_copied'); setStatus('Ссылка скопирована.');}
     catch {setStatus('Выделите и скопируйте ссылку в поле ниже.');}
   }
   return <dialog ref={dialog} className="share-dialog" aria-labelledby="share-heading" onCancel={onClose}>
@@ -118,7 +118,7 @@ function ConfirmedShareComposer({options, onClose}: {options: ShareOptions; onCl
       <img className="share-preview" src={card.image_url} alt={`${card.title}: ${card.headline}`} />
       {card.provisional && <p className="share-warning">Предварительный результат. Карточка отражает данные на момент создания.</p>}
       <div className="share-actions"><button className="share-primary" disabled={busy} onClick={() => void send()}>{busy ? 'Открываем отправку…' : 'Отправить в Telegram'}</button><button onClick={() => void copy()}>Копировать ссылку</button><a href={card.image_url} download="f1hub-card.jpg">Скачать карточку</a></div>
-      <input aria-label="Ссылка для друзей" readOnly value={card.share_url} onFocus={e => e.target.select()} />
+      <input aria-label="Ссылка для друзей" readOnly value={card.web_url} onFocus={e => e.target.select()} />
     </>}
     {status && <p role="status">{status}</p>}{error && <p role="alert">{error}</p>}
   </dialog>;
