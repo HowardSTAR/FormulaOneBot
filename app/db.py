@@ -478,6 +478,8 @@ class Database:
                 await self.conn.execute(f'ALTER TABLE prediction_leagues ADD COLUMN {column} {definition}')
         from app.services.engagement import SCHEMA as engagement_schema
         await self.conn.executescript(engagement_schema)
+        from app.services.weekly_race_overtakes import SCHEMA as weekly_overtakes_schema
+        await self.conn.executescript(weekly_overtakes_schema)
 
         # 10. Журнал сообщений формы обратной связи (доставка в Telegram отмечается отдельно).
         await self.conn.execute(
@@ -1176,14 +1178,21 @@ async def save_race_game_score(
         else None
     )
     async with db.write_lock:
-        cursor = await db.conn.execute(
-            """
-            INSERT INTO race_game_scores (telegram_id, time_ms, track_id, telemetry_json)
-            VALUES (?, ?, ?, ?)
-            """,
-            (tg_id, normalized_time, normalized_track, telemetry_json),
-        )
-        await db.conn.commit()
+        await db.conn.execute('BEGIN IMMEDIATE')
+        try:
+            cursor = await db.conn.execute(
+                """
+                INSERT INTO race_game_scores (telegram_id, time_ms, track_id, telemetry_json)
+                VALUES (?, ?, ?, ?)
+                """,
+                (tg_id, normalized_time, normalized_track, telemetry_json),
+            )
+            from app.services.weekly_race_overtakes import record_overtakes
+            await record_overtakes(db.conn,cursor.lastrowid)
+            await db.conn.commit()
+        except BaseException:
+            await db.conn.rollback()
+            raise
     return cursor.lastrowid if return_score_id else True
 
 

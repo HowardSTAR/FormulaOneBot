@@ -136,6 +136,12 @@ async def drain(bot=None, *, event_key=None, limit=50):
 
 
 async def _legacy_text(bot, row):
+    if row['event_key'].startswith('weekly-overtake:'):
+        from app.services.weekly_race_overtakes import active_event
+        async with connection() as conn:
+            event = await active_event(conn,int(row['event_key'].split(':')[1]))
+        if not event or event['recipient'] != row['telegram_id']:
+            return 'cancelled', 'weekly_record_reclaimed', None, 0
     from app.utils.notifications import is_quiet_hours
     kwargs = dict(parse_mode='HTML', disable_notification=is_quiet_hours(row['timezone']))
     await _apply_sound_preference(row['telegram_id'], kwargs)

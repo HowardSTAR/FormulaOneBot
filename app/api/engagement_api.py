@@ -135,6 +135,13 @@ async def weekly(response: Response, period: Literal['current', 'previous'] = 'c
     return await service.weekly(now - timedelta(days=7) if period == 'previous' else now)
 
 
+@router.get('/weekly/me')
+async def personal_weekly(response: Response, user_id: int = Depends(require_hybrid_user_id)):
+    from app.services.weekly_race_overtakes import personal_weekly as status
+    response.headers['Cache-Control'] = 'private, no-store'
+    return {'user_id':user_id,'weekly':await status(user_id)}
+
+
 @router.get('/challenges/{token}')
 async def challenge(token: str, response: Response):
     response.headers['Cache-Control'] = 'no-store'

@@ -239,14 +239,15 @@ async def test_inbox_categories_keep_private_counts_and_historical_context(store
             "INSERT INTO web_notifications(user_id,event_key,title,body,url,created_at) VALUES(?,?,'Title','Body',?,?)",
             [(1, 'race:15', '/race-results?season=2026&round=15', time.time()),
              (1, 'prediction:15', '/predictions?tab=history', time.time()),
+             (1, 'weekly-overtaken:2026-10-05:1', '/race-game?weekly=1', time.time()),
              (1, 'reminder:15', '/race-details?round=15', time.time()),
              (2, 'race:other', '/race-results?round=1', time.time()),
              (1, 'admin-error:critical:secret', '/admin', time.time())],
         )
         await conn.commit()
     race = await inbox(before=0, user_id=1, category='results')
-    assert race['unread'] == 1
-    assert len(race['items']) == 1 and race['items'][0]['historical_snapshot'] is True
+    assert race['unread'] == 2
+    assert len(race['items']) == 2 and all(item['historical_snapshot'] is True for item in race['items'])
     predictions = await inbox(before=0, user_id=1, category='predictions')
     assert predictions['unread'] == 1 and predictions['items'][0]['historical_snapshot'] is True
     reminders = await inbox(before=0, user_id=1, category='reminders')

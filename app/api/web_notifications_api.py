@@ -23,11 +23,11 @@ async def inbox(before: int = Query(0, ge=0), user_id: int = Depends(require_hyb
         await conn.execute("INSERT OR IGNORE INTO web_notification_members VALUES(?,?)", (user_id,time.time()))
         await conn.commit()
         visible = "(event_key NOT LIKE 'admin-error:%' OR EXISTS(SELECT 1 FROM users u WHERE u.id=web_notifications.user_id AND u.role IN ('admin','superadmin') AND u.archived_at IS NULL))"
-        category_filter = {'results': "(url LIKE '%-results%' OR event_key LIKE 'weekly-race:%')", 'predictions': "url LIKE '/predictions%'", 'voting': "url LIKE '/voting%'", 'reminders': "event_key LIKE 'reminder:%'", 'admin': "event_key LIKE 'admin-error:%'"}.get(category, '1=1')
+        category_filter = {'results': "(url LIKE '%-results%' OR event_key LIKE 'weekly-race:%' OR event_key LIKE 'weekly-overtaken:%')", 'predictions': "url LIKE '/predictions%'", 'voting': "url LIKE '/voting%'", 'reminders': "event_key LIKE 'reminder:%'", 'admin': "event_key LIKE 'admin-error:%'"}.get(category, '1=1')
         visible += f" AND ({category_filter})"
         rows = await (await conn.execute(f"SELECT id,title,body,url,created_at,read_at,event_key,e.expires FROM web_notifications LEFT JOIN web_notification_expirations e ON e.notification_id=web_notifications.id WHERE user_id=? AND (?=0 OR id<?) AND {visible} ORDER BY id DESC LIMIT 31", (user_id,before,before))).fetchall()
         unread = await (await conn.execute(f"SELECT COUNT(*) FROM web_notifications WHERE user_id=? AND read_at IS NULL AND {visible}", (user_id,))).fetchone()
-        items = [{**{k:r[k] for k in r.keys() if k not in {'event_key', 'expires'}}, "historical_snapshot": '-results' in r['url'] or r['url'].startswith(('/predictions', '/voting')) or r['event_key'].startswith('weekly-race:'), "priority": r["event_key"].split(":")[1] if r["event_key"].startswith("admin-error:") else None,
+        items = [{**{k:r[k] for k in r.keys() if k not in {'event_key', 'expires'}}, "historical_snapshot": '-results' in r['url'] or r['url'].startswith(('/predictions', '/voting')) or r['event_key'].startswith(('weekly-race:', 'weekly-overtaken:')), "priority": r["event_key"].split(":")[1] if r["event_key"].startswith("admin-error:") else None,
                   "reminder": reminder_metadata(r['event_key'], r['expires'])} for r in rows[:30]]
         return {"items":items, "next_before":rows[29]["id"] if len(rows)>30 else None, "unread":unread[0], "push":push_config()}
 
