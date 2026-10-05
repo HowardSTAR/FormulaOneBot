@@ -23,17 +23,42 @@ export function pendingInvitation(): string | null {
 export function sharingEvent(token: string, event: 'share_opened' | 'share_sent' | 'share_copied' | 'arrival'): Promise<unknown> {
   return apiRequest('/api/engagement/event', {token, event}, 'POST').catch(() => null);
 }
-export async function sendCard(card: ShareCard): Promise<'sent' | 'opened' | 'cancelled'> {
+export async function loadShareImage(card: ShareCard): Promise<File | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const response = await fetch(card.image_url, {signal: controller.signal});
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (!/^image\/(jpeg|png|webp)$/.test(blob.type)) return null;
+    const extension = blob.type === 'image/png' ? 'png' : blob.type === 'image/webp' ? 'webp' : 'jpg';
+    return new File([blob], `f1hub-card.${extension}`, {type: blob.type});
+  } catch { return null; }
+  finally { clearTimeout(timeout); }
+}
+
+export async function sendCard(card: ShareCard, image?: File | null): Promise<'sent' | 'opened' | 'cancelled'> {
   const tg = sharingTelegram();
   if (tg?.initData && tg.shareMessage && tg.isVersionAtLeast?.('8.0')) {
-    try {
-      const prepared = await apiRequest<{id: string}>(`/api/engagement/shares/${card.token}/telegram`, {}, 'POST', 16000);
-      const sent = await new Promise<boolean>(resolve => tg.shareMessage!(prepared.id, resolve));
-      if (sent) void sharingEvent(card.token, 'share_sent');
-      return sent ? 'sent' : 'cancelled';
-    } catch { /* Compatibility fallback: Telegram's ordinary link sharing dialog. */ }
+    const prepared = await apiRequest<{id: string}>(`/api/engagement/shares/${card.token}/telegram`, {}, 'POST', 16000);
+    const sent = await new Promise<boolean>(resolve => tg.shareMessage!(prepared.id, resolve));
+    if (sent) void sharingEvent(card.token, 'share_sent');
+    return sent ? 'sent' : 'cancelled';
   }
-  const url = `https://t.me/share/url?${new URLSearchParams({url: card.share_url, text: `${card.title}\n${card.headline}`})}`;
+  if (image && navigator.share && navigator.canShare?.({files: [image]})) {
+    try {
+      // The file is fetched before this click, preserving browser user activation.
+      await navigator.share({files: [image], title: card.title, text: `${card.title}\n${card.headline}\n${card.web_url}`});
+      void sharingEvent(card.token, 'share_sent');
+      return 'sent';
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return 'cancelled';
+      throw error;
+    }
+  }
+  // Only the public web page exposes the card's Open Graph image. A bot deep
+  // link previews the bot, so older clients must share the public card instead.
+  const url = `https://t.me/share/url?${new URLSearchParams({url: card.web_url, text: `${card.title}\n${card.headline}`})}`;
   if (tg?.initData && tg.openTelegramLink) tg.openTelegramLink(url);
   else window.open(url, '_blank', 'noopener,noreferrer');
   void sharingEvent(card.token, 'share_opened');

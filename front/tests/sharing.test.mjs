@@ -10,7 +10,7 @@ const compiled = ts.transpileModule(source.replace("import { apiRequest } from '
 const {validShareToken, rememberInvitation, pendingInvitation, sendCard} = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 
 const token = 'a'.repeat(32);
-const card = {token, share_url: 'https://t.me/example_bot?startapp=share_' + token, title:'Мой прогноз', headline:'27 / 37 очков'};
+const card = {token, share_url: 'https://t.me/example_bot?startapp=share_' + token, web_url: 'https://f1hub.ru/share/' + token, title:'Мой прогноз', headline:'27 / 37 очков'};
 function setup(telegram) {
   const calls = [], opened = [], items = new Map();
   globalThis.window = {Telegram: telegram ? {WebApp: telegram} : undefined, open: (...args) => opened.push(args)};
@@ -51,12 +51,26 @@ test('cancelled native dialog is not an invitation sent or an automatic fallback
 test('browser and old Telegram fallback record an opened dialog, never a confirmed send', async () => {
   const {calls, opened} = setup();
   assert.equal(await sendCard(card), 'opened');
-  assert.equal(new URL(opened[0][0]).searchParams.get('url'), card.share_url);
+  assert.equal(new URL(opened[0][0]).searchParams.get('url'), card.web_url);
   assert.equal(opened[0][2], 'noopener,noreferrer');
   assert.equal(calls[0][1].event, 'share_opened');
 });
-test('failed native preparation remains shareable by ordinary link', async () => {
+test('failed photo preparation reports an error without silently sending a bare link', async () => {
   const {opened} = setup({initData:'signed', isVersionAtLeast:()=>true, shareMessage:()=>assert.fail('not prepared')});
   globalThis.qaSharingRequest = async (...args) => {if(args[0].endsWith('/telegram')) throw Error('not configured');return {};};
-  assert.equal(await sendCard(card), 'opened'); assert.equal(opened.length,1);
+  await assert.rejects(sendCard(card), /not configured/); assert.equal(opened.length,0);
+});
+
+test('browser file sharing includes the card image and preserves cancellation', async () => {
+  const {calls, opened} = setup();
+  const image = new File(['photo'], 'f1hub-card.jpg', {type: 'image/jpeg'});
+  Object.defineProperty(globalThis, 'navigator', {configurable: true, value: {
+    canShare: ({files}) => files[0] === image,
+    share: async data => { assert.deepEqual(data.files, [image]); assert.ok(data.text.includes(card.web_url)); },
+  }});
+  assert.equal(await sendCard(card, image), 'sent');
+  assert.equal(calls[0][1].event, 'share_sent'); assert.equal(opened.length, 0);
+  navigator.share = async () => {throw new DOMException('Cancelled', 'AbortError');};
+  assert.equal(await sendCard(card, image), 'cancelled');
+  assert.equal(calls.length, 1); assert.equal(opened.length, 0);
 });

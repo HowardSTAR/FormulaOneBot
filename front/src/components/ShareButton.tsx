@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../helpers/api';
-import { sendCard, sharingEvent, type ShareCard, type ShareOptions } from '../helpers/sharing';
+import { loadShareImage, sendCard, sharingEvent, type ShareCard, type ShareOptions } from '../helpers/sharing';
 import './sharing.css';
 
 export function ShareComposer({options, onClose}: {options: ShareOptions; onClose: () => void}) {
@@ -71,6 +71,7 @@ function RaceShareComposer({options, onClose}: {options: ShareOptions; onClose: 
 function ConfirmedShareComposer({options, onClose}: {options: ShareOptions; onClose: () => void}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [card, setCard] = useState<ShareCard | null>(null);
+  const [image, setImage] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
@@ -84,7 +85,11 @@ function ConfirmedShareComposer({options, onClose}: {options: ShareOptions; onCl
   async function create() {
     if (!consent || busy) return;
     setBusy(true); setError('');
-    try {setCard(await apiRequest<ShareCard>('/api/engagement/shares', {...options, consent: true}, 'POST', 150000));}
+    try {
+      const created = await apiRequest<ShareCard>('/api/engagement/shares', {...options, consent: true}, 'POST', 150000);
+      setImage(await loadShareImage(created));
+      setCard(created);
+    }
     catch (e) {setError(e instanceof Error ? e.message : 'Не удалось подготовить карточку');}
     finally {setBusy(false);}
   }
@@ -92,9 +97,9 @@ function ConfirmedShareComposer({options, onClose}: {options: ShareOptions; onCl
     if (!card || busy) return;
     setBusy(true); setError('');
     try {
-      const outcome = await sendCard(card);
+      const outcome = await sendCard(card, image);
       setStatus(outcome === 'sent' ? 'Карточка отправлена.' : outcome === 'cancelled' ? 'Отправка отменена.' : 'Открыто окно Telegram. Отправьте сообщение выбранному получателю.');
-    } catch {setError('Не удалось открыть отправку. Скопируйте ссылку ниже.');}
+    } catch {setError('Не удалось отправить карточку. Попробуйте ещё раз или скачайте изображение ниже.');}
     finally {setBusy(false);}
   }
   async function copy() {

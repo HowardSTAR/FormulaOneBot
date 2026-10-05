@@ -71,6 +71,9 @@ async def test_card_is_opt_in_curated_and_revoke_is_owner_only(api_client, monke
     assert before[0] == after[0]  # sharing never recalculates/saves a forecast
     html = (await api_client.get(f"/share/{card['token']}")).text
     assert 'og:image' in html and 'SECRET_PRIVATE_CHOICE' not in html
+    assert html.count('property="og:title"') == 1
+    assert html.count('property="og:description"') == 1
+    assert 'property="og:image:width" content="1200"' in html
     web_app.dependency_overrides[optional_account] = lambda: None
     web_app.dependency_overrides.pop(next(key for key in web_app.dependency_overrides if key.__name__ == 'require_hybrid_user_id'))
     assert (await api_client.post(f"/api/engagement/shares/{card['token']}/revoke")).status_code == 401

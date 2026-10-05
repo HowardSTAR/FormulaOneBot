@@ -175,7 +175,10 @@ async def share_page(token: str, request: Request):
         # Keep an expired invitation human-readable: the SPA displays its fallback.
         return HTMLResponse(source, status_code=404, headers={'Cache-Control': 'no-store'})
     description = ' · '.join([item['headline'], *item['lines']])[:350]
+    # Card metadata must replace the generic site's title and description.
+    source = re.sub(r'<meta\b[^>]*\b(?:property|name)\s*=\s*["\'](?:og:|twitter:)[^"\']*["\'][^>]*>\s*', '', source, flags=re.IGNORECASE)
     tags = ''.join(f'<meta property="{key}" content="{html.escape(str(value), quote=True)}">' for key, value in {
         'og:title': item['title'], 'og:description': description, 'og:image': item['image_url'],
+        'og:image:type': 'image/jpeg', 'og:image:width': '1200', 'og:image:height': '630',
         'og:url': item['web_url'], 'og:type': 'website'}.items())
     return HTMLResponse(source.replace('</head>', tags + '</head>'), headers={'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer'})
