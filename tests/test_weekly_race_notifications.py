@@ -2,6 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 import pytest_asyncio
@@ -67,7 +68,11 @@ async def test_winner_cutoff_and_only_one_delivery_after_restart(weekly_store):
     assert 'Winner &lt;One&gt;' in text and '01:01.001' in text and 'Началась новая неделя' in text
     assert 'Second' not in text and 'Private' not in text
     button = bot.send_message.await_args.kwargs['reply_markup'].inline_keyboard[0][0]
-    assert button.web_app.url == 'https://example.test/community?weekly=previous&week=2026-09-28'
+    parts = urlsplit(button.web_app.url)
+    query = parse_qs(parts.query)
+    assert parts.path == '/community'
+    assert query['weekly'] == ['previous'] and query['week'] == ['2026-09-28']
+    assert len(query['nb'][0]) == 32
     assert await outbox.delivery_counts('weekly-race:2026-10-05') == {'sent':2}
     assert service.publish_web.await_args.args[3] == '/community?weekly=previous&week=2026-09-28'
     assert service.publish_web.await_args.kwargs['expires'] == DUE.replace(hour=20,minute=59).timestamp()

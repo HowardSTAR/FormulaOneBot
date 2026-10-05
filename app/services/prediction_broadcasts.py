@@ -131,6 +131,10 @@ async def send(season, round_num, fingerprint, actor_id):
         if not telegram and not web:
             raise ValueError('Нет доступных получателей в Telegram и вебе.')
         # Both channels and audit commit together into the existing durable queues.
+        from app.services.notification_clicks import tracked_keyboard, tracked_url
+        keyboard = await tracked_keyboard(conn, key, keyboard)
+        web_url = await tracked_url(conn, key,
+                                    f'/predictions?tab=leaderboard&season={season}&round={round_num}', 'web')
         await conn.execute('INSERT INTO telegram_delivery_batches VALUES(?,?,?,?,?)',
                            (key, result['text'], keyboard.model_dump_json(exclude_none=True), now + 7*86400, now))
         await conn.executemany(
@@ -142,7 +146,7 @@ async def send(season, round_num, fingerprint, actor_id):
             notification = await conn.execute(
                 'INSERT INTO web_notifications(user_id,event_key,title,body,url,created_at) VALUES(?,?,?,?,?,?)',
                 (user['user_id'], key, result['title'], result['body'],
-                 f'/predictions?tab=leaderboard&season={season}&round={round_num}', now),
+                 web_url, now),
             )
             await conn.execute(
                 '''INSERT INTO web_push_outbox(notification_id,subscription_id,next_attempt)

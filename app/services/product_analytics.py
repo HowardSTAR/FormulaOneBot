@@ -75,5 +75,8 @@ async def report(conn, since):
     interaction_first = (await rows('SELECT MIN(created) first_event FROM ui_events'))[0]['first_event']
     from app.services.posthog_bridge import status
     posthog = await status(conn)
+    from app.services.notification_clicks import report as notification_report
+    notification_buttons = await notification_report(conn, since)
     return {'audience':audience,'visits':visits,'funnel':funnel,'retention':retention,'errors':errors,'delivery':delivery,'quality':forecast_quality(source),'first_event':first,'reach':reach,'sharing':sharing,'referrals':referrals,
-        'screens':screens,'actions':actions,'interaction_first':interaction_first,'posthog':posthog}
+        'screens':screens,'actions':actions,'interaction_first':interaction_first,'posthog':posthog,
+        'notification_buttons':notification_buttons}

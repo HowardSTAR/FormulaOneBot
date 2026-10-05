@@ -11,6 +11,7 @@ from aiogram.types import InlineKeyboardMarkup
 
 from app.db import db
 from app.utils.safe_send import _apply_sound_preference
+from app.services.notification_clicks import SCHEMA as notification_clicks_schema, tracked_keyboard
 
 logger = logging.getLogger(__name__)
 SCHEMA = """
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS telegram_deliveries (
  PRIMARY KEY(event_key, telegram_id)
 );
 CREATE INDEX IF NOT EXISTS idx_telegram_deliveries_due ON telegram_deliveries(status,next_attempt);
+CREATE INDEX IF NOT EXISTS idx_telegram_deliveries_message ON telegram_deliveries(telegram_id,message_id);
 CREATE TABLE IF NOT EXISTS delivery_payloads (
  event_key TEXT PRIMARY KEY REFERENCES telegram_delivery_batches(event_key),
  channel TEXT NOT NULL, payload TEXT NOT NULL
@@ -36,6 +38,7 @@ CREATE TABLE IF NOT EXISTS delivery_progress (
  PRIMARY KEY(event_key,recipient)
 );
 """
+SCHEMA += notification_clicks_schema
 
 
 @asynccontextmanager
@@ -56,6 +59,10 @@ async def enqueue(event_key, text, keyboard, users, expires, *, payload=None, ch
             'INSERT OR IGNORE INTO telegram_delivery_batches VALUES(?,?,?,?,?)',
             (event_key, text, keyboard.model_dump_json(exclude_none=True) if keyboard else None, expires, now))
         if cursor.rowcount:
+            tracked = await tracked_keyboard(conn, event_key, keyboard)
+            if tracked:
+                await conn.execute('UPDATE telegram_delivery_batches SET keyboard=? WHERE event_key=?',
+                                   (tracked.model_dump_json(exclude_none=True), event_key))
             if payload is not None:
                 await conn.execute('INSERT INTO delivery_payloads VALUES(?,?,?)', (event_key,channel,json.dumps(payload)))
             await conn.executemany(

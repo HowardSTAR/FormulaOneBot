@@ -7,6 +7,7 @@ import { InstallHint } from "./InstallHint";
 import { MobileNav } from "./MobileNav";
 import { trackScreen } from '../helpers/analytics';
 import { EngagementEntry } from './EngagementEntry';
+import { NotificationEntry } from './NotificationEntry';
 import { RouteContext } from './RouteContext';
 import { DataReceipt } from './DataReceipt';
 import { FirstVisitGuide } from './FirstVisitGuide';
@@ -84,6 +85,7 @@ export function SwipeBackLayout() {
   return (
     <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className="app-shell">
       <EngagementEntry />
+      <NotificationEntry />
       <RouteContext />
       <AppHeader />
       <InstallHint />

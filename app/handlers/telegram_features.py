@@ -57,6 +57,8 @@ async def personal_view(callback: CallbackQuery):
         async with asyncio.timeout(12):
             await safe_answer_callback(callback, request_timeout=2)
             uid = await linked_user_id(callback.from_user.id)
+            from app.services.notification_clicks import record_callback
+            await record_callback(callback, kind, uid)
             text, card = "Сначала войдите в F1Hub через Telegram и сохраните прогноз.", None
             if uid is not None and kind == "review":
                 review = await get_personal_prediction_review(uid, season, round_num)

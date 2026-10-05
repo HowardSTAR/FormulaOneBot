@@ -54,7 +54,9 @@ async def test_prediction_notifications_contain_destination_buttons(monkeypatch,
     assert "\n\n\n" not in opened["text"]
     assert await _send_prediction_results(bot, event, [], users) == 1
     results = bot.send_message.await_args.kwargs
-    assert results["reply_markup"].inline_keyboard[0][0].web_app.url.endswith("/predictions?tab=leaderboard")
+    parts = urlsplit(results["reply_markup"].inline_keyboard[0][0].web_app.url)
+    assert parts.path == '/predictions' and parse_qs(parts.query)['tab'] == ['leaderboard']
+    assert len(parse_qs(parts.query)['nb'][0]) == 32
 
 
 @pytest.mark.asyncio

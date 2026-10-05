@@ -3,6 +3,7 @@ import json
 import sys
 import time
 from types import SimpleNamespace
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 import pytest_asyncio
@@ -81,11 +82,14 @@ async def test_weekly_recap_appears_in_results_and_queues_web_push(store):
     await store.dispatch_push(not_before=0)
     items = (await inbox(before=0, user_id=1, category='results'))['items']
     assert len(items) == 1 and items[0]['historical_snapshot']
-    assert items[0]['url'] == '/community?weekly=previous'
+    parts = urlsplit(items[0]['url'])
+    assert parts.path == '/community'
+    assert parse_qs(parts.query)['weekly'] == ['previous']
+    assert len(parse_qs(parts.query)['nb'][0]) == 32
     async with telegram_outbox.connection() as conn:
         payloads = await (await conn.execute("SELECT payload FROM delivery_payloads WHERE channel='webpush'")).fetchall()
     assert len(payloads) == 1
-    assert json.loads(payloads[0][0])['data']['url'] == '/community?weekly=previous'
+    assert json.loads(payloads[0][0])['data']['url'] == items[0]['url']
 
 
 @pytest.mark.parametrize('key,expires', [('results:2026:17', 100), ('reminder:2026:17:unknown:60', 100)])

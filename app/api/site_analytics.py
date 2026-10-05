@@ -76,6 +76,50 @@ class ProductEvent(Visit):
     destination: str = Field(default='', max_length=160, pattern=r'^(/[a-zA-Z0-9/_-]*)?$')
 
 
+class NotificationEntry(Visit):
+    token: str = Field(pattern=r'^[A-Za-z0-9_-]{32}$')
+    event_id: UUID
+
+
+@router.post('/notification-entry')
+async def notification_entry(body: NotificationEntry, request: Request, response: Response):
+    if request.headers.get('sec-fetch-site') == 'cross-site':
+        raise HTTPException(403, 'Cross-site tracking is not supported')
+    user_id = None
+    try:
+        user_id = await require_hybrid_user_id(request=request,
+            x_telegram_init_data=request.headers.get('x-telegram-init-data'),
+            authorization=request.headers.get('authorization'),
+            x_csrf_token=request.headers.get('x-csrf-token'), cookie_token=request.cookies.get(COOKIE_NAME))
+    except HTTPException as exc:
+        if exc.status_code not in (401, 403):
+            raise
+    try:
+        visitor = str(uuid.UUID(request.cookies.get('turbotears_visitor', '')))
+    except ValueError:
+        visitor = str(uuid.uuid4())
+    from app.services.notification_clicks import record, viewer_key
+    async with db.write_lock:
+        link = await (await db.conn.execute(
+            'SELECT destination,button FROM notification_button_links WHERE token=?', (body.token,),
+        )).fetchone()
+        if not link or link['destination'] != body.path or link['button'] not in ('leaderboard', 'community'):
+            raise HTTPException(400, 'Valid notification destination required')
+        viewer = viewer_key(visitor, user_id)
+        count = (await (await db.conn.execute(
+            'SELECT COUNT(*) FROM notification_button_events WHERE viewer=? AND created>?',
+            (viewer, time.time()-60),
+        )).fetchone())[0]
+        if count >= 120:
+            raise HTTPException(429, 'Too many analytics events')
+        await record(db.conn, body.token, str(body.event_id), visitor, user_id)
+        await db.conn.commit()
+    response.set_cookie('turbotears_visitor', visitor, max_age=365*86400, httponly=True,
+                        secure=request.url.scheme == 'https', samesite='lax')
+    response.headers['Cache-Control'] = 'no-store'
+    return {'ok': True}
+
+
 @router.post('/event')
 async def record_event(body: ProductEvent, request: Request, response: Response):
     if request.headers.get('sec-fetch-site') == 'cross-site':

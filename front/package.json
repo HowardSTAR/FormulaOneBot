@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "npm --prefix ../race-game run build && node ../scripts/sync-race-build.mjs && vite build",
     "build:front": "vite build",
-    "test:performance": "node --test tests/performance.test.mjs tests/personal-summary.test.mjs tests/sharing.test.mjs tests/usability.test.mjs tests/reminder-intervals.test.mjs tests/ui-polish.test.mjs ../tests/navigation.test.mjs",
+    "test:performance": "node --test tests/performance.test.mjs tests/personal-summary.test.mjs tests/sharing.test.mjs tests/usability.test.mjs tests/reminder-intervals.test.mjs tests/ui-polish.test.mjs tests/notification-entry.test.mjs ../tests/navigation.test.mjs",
     "check:budget": "node ../scripts/check-front-budget.mjs dist",
     "lint": "eslint .",
     "preview": "vite preview"

@@ -53,6 +53,8 @@ async def connection():
 
 async def initialize(conn):
     await conn.executescript(SCHEMA)
+    from app.services.notification_clicks import SCHEMA as notification_clicks_schema
+    await conn.executescript(notification_clicks_schema)
 
 def push_config():
     public = os.getenv("WEB_PUSH_PUBLIC_KEY", "")
@@ -93,6 +95,8 @@ async def publish(event_key: str, title: str, body: str, url: str, *, user_id=No
         await conn.execute("BEGIN IMMEDIATE")
         await conn.execute("INSERT OR IGNORE INTO web_notification_events VALUES(?,?)", (event_key,now))
         event_time = (await (await conn.execute("SELECT created_at FROM web_notification_events WHERE event_key=?", (event_key,))).fetchone())[0]
+        from app.services.notification_clicks import tracked_url
+        url = await tracked_url(conn, event_key, url, 'web')
         members = await (await conn.execute(
             "SELECT m.user_id FROM web_notification_members m JOIN users u ON u.id=m.user_id WHERE u.archived_at IS NULL AND m.joined_at<=?"
             + (" AND m.user_id=?" if user_id is not None else ""), (event_time,user_id) if user_id is not None else (event_time,),
