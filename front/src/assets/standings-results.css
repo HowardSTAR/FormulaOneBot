@@ -1,0 +1,66 @@
+/* The championship classifications use the same surface and row hierarchy as race results. */
+#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-board {
+  background: #1b1c1d !important;
+  border: 1px solid rgba(94, 63, 58, .24) !important;
+  border-radius: 14px !important;
+  padding: 16px !important;
+}
+#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-heading {
+  font-size: clamp(32px, 3.6vw, 54px) !important;
+  line-height: 1.1 !important;
+}
+#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-table {
+  border: 1px solid rgba(94, 63, 58, .2) !important;
+  border-radius: 12px !important;
+  background: #121314 !important;
+}
+#root .app-page-main:is(.route-drivers, .route-constructors) :is(.desktop-standings-table-head, .desktop-standings-row) {
+  grid-template-columns: 52px minmax(180px, 1.5fr) minmax(140px, 1fr) minmax(100px, .6fr) !important;
+  gap: 10px !important;
+  padding: 10px 12px !important;
+}
+#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-table-head {
+  background: #121314 !important;
+  color: rgba(227, 226, 227, .48) !important;
+  font-size: 10px !important;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-row {
+  min-height: 68px !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(94, 63, 58, .14) !important;
+  border-radius: 0 !important;
+  background: #1b1c1d !important;
+}
+#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-row:last-child { border-bottom: 0 !important; }
+#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-row:is(.pos-1, :hover) { background: #292a2b !important; }
+#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-pos {
+  font-size: 26px !important;
+  font-weight: 700 !important;
+  color: #ffb4a8 !important;
+}
+#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-name {
+  font-size: 16px !important;
+  font-style: normal !important;
+  text-transform: none !important;
+}
+#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-points strong { font-size: 20px !important; color: #ffe0dc !important; }
+#root .app-page-main:is(.route-drivers, .route-constructors) :is(.drivers-row-team span, .constructors-row-gap) { font-size: 12px !important; }
+#root .app-page-main:is(.route-drivers, .route-constructors) .standings-cards-grid { gap: 0; }
+#root .app-page-main:is(.route-drivers, .route-constructors) :is(.driver-card, .team-card) {
+  padding: 12px 16px;
+  border-radius: 0;
+  background: var(--surface-color);
+  border: 0;
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: none;
+}
+#root .app-page-main:is(.route-drivers, .route-constructors) :is(.driver-card, .team-card):first-child { border-radius: 12px 12px 0 0; }
+#root .app-page-main:is(.route-drivers, .route-constructors) :is(.driver-card, .team-card):last-child { border-radius: 0 0 12px 12px; border-bottom: 0; }
+#root .app-page-main:is(.route-drivers, .route-constructors) :is(.driver-points, .team-points) {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  font-size: 18px;
+}

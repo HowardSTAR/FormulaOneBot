@@ -6,6 +6,7 @@ import "./assets/ui-consistency.css"
 import "./assets/ui-polish.css"
 import "./assets/readability.css"
 import "./assets/mobile-safe-area.css"
+import "./assets/standings-results.css"
 import { useEffect } from 'react';
 import { observeActions } from './helpers/analytics';
 import { RouterProvider } from "react-router-dom"
