@@ -42,7 +42,9 @@ def pytest_configure(config):
 
 def pytest_collection_modifyitems(config, items):
     for item in items:
-        if item.path.name == "test_prediction_api_sources_live.py":
+        if (item.path.name == "test_prediction_api_sources_live.py"
+                and item.cls is not None
+                and item.cls.__name__ == "LivePredictionApiSourcesTest"):
             item.add_marker(pytest.mark.live)
             if not config.getoption("--live"):
                 item.add_marker(pytest.mark.skip(reason="External APIs require --live"))

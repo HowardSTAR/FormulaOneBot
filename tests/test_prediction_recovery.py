@@ -53,6 +53,25 @@ async def test_preview_inert_apply_atomic_idempotent_and_no_broadcast(recovery):
     assert (await service.prepare(2026,14))['state']=='waiting'
 
 
+def test_recovery_does_not_blank_known_historical_awards():
+    from app.services.prediction_service import PREDICTION_FIELDS
+    actual = dict.fromkeys(PREDICTION_FIELDS)
+    actual.update(pole_driver='VER', winner_driver='VER', second_driver='NOR',
+                  third_driver='HAM', fourth_driver='LEC', fifth_driver='PIA', max_points=31)
+    prediction = {**actual, 'user_id': 1, 'fastest_lap_driver': 'HAM',
+                  'first_retirement_driver': 'STR', 'safety_car': 0,
+                  'points': 31, 'breakdown_json': None}
+    after, summary = service.build_preview({'actual': actual, 'predictions': [prediction]},
+                                          {'fastest_lap_driver': 'HAM', 'safety_car': 0})
+    items = {item['key']: item for item in json.loads(after['predictions'][0]['breakdown_json'])}
+    assert (items['winner_driver']['status'], items['winner_driver']['points']) == ('exact', 8)
+    assert items['fastest_lap_driver']['points'] == 2
+    assert items['safety_car']['points'] == 2
+    assert items['first_retirement_driver']['status'] == 'unavailable'
+    assert after['predictions'][0]['points'] == 35
+    assert summary['changes'][0]['delta'] == 4
+
+
 @pytest.mark.asyncio
 async def test_recovery_credits_each_driver_in_first_retirement_group(recovery):
     database, fetch = recovery

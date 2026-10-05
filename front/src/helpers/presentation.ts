@@ -69,7 +69,7 @@ export function cleanBiography(value: string): string {
 }
 
 export function confirmedFactsNote(note: string | undefined, items: {key: string; actual: unknown; status: string}[]): string {
-  const confirmed = ["fastest_lap_driver", "first_retirement_driver", "safety_car"].every(key => items.some(item => item.key === key && item.actual != null && item.actual !== "" && !["unknown", "unavailable"].includes(item.status)));
+  const confirmed = ["fastest_lap_driver", "first_retirement_driver", "safety_car"].every(key => items.some(item => item.key === key && item.actual != null && item.actual !== "" && item.status !== "unavailable"));
   if (!confirmed) return note ?? "";
   return (note ?? "").replace(/Источник не предоставил статусы сессии; дополнительные факты не подтверждены\.?/g, "").trim();
 }

@@ -17,11 +17,12 @@ type Review = { event_name: string; points: number | null; max_points: number | 
 function lapTime(seconds: number) {
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, "0")}`;
 }
-const statuses: Record<string,string> = { exact: "Угадано", partial: "Частично", miss: "Не угадано", unavailable: "Ожидаем данные", unknown: "Не подтверждено" };
+const statuses: Record<string,string> = { exact: "Угадано", partial: "Частично", miss: "Не угадано", unavailable: "Ожидаем данные", unknown: "Нет разбивки" };
 const filters = [{key: 'exact', label: 'Угадано', icon: '✓'}, {key: 'partial', label: 'Частично', icon: '≈'},
-  {key: 'miss', label: 'Не угадано', icon: '×'}, {key: 'waiting', label: 'Ожидают данных', icon: '…'}];
+  {key: 'miss', label: 'Не угадано', icon: '×'}, {key: 'waiting', label: 'Ожидают данных', icon: '…'},
+  {key: 'unknown', label: 'Нет разбивки', icon: '—'}];
 function matchesFilter(status: string, filter: string) {
-  return filter === 'all' || (filter === 'waiting' ? ['unavailable', 'unknown'].includes(status) : status === filter);
+  return filter === 'all' || (filter === 'waiting' ? status === 'unavailable' : status === filter);
 }
 function value(key: string, v: string | number | string[] | null, names: Record<string, string>): string {
   if (v == null || v === "") return "—";
@@ -61,9 +62,9 @@ export function PersonalReview({ season, round, onClose }: { season: number; rou
           {result.data.points == null ? <p className="review-pending">Ещё не рассчитан</p> : <p className="personal-review-score"><strong>{result.data.points}</strong><span>/ {result.data.max_points ?? '—'}<small>баллов</small></span></p>}
           {result.data.points != null && result.data.max_points != null && result.data.max_points > 0 && <div className="review-score-track" role="meter" aria-label="Баллы за этап" aria-valuemin={0} aria-valuemax={result.data.max_points} aria-valuenow={result.data.points}><span style={{width: `${Math.max(0, Math.min(100, result.data.points / result.data.max_points * 100))}%`}} /></div>}
         </div><div className="review-summary-action">{result.data.points != null && <ShareButton options={{kind: 'prediction', season, round}} />}<small>Разбор и ваши ответы видны только вам.</small></div></section>
-        {items.some(item => ['unavailable', 'unknown'].includes(item.status)) && <p className="personal-review-warning"><strong>Результат предварительный.</strong> Часть фактов ещё не подтверждена. Баллы и место могут измениться после проверки.</p>}
+        {items.some(item => item.status === 'unavailable') && <p className="personal-review-warning"><strong>Результат предварительный.</strong> Часть фактов ещё не подтверждена. Баллы и место могут измениться после проверки.</p>}
         <div className="review-filters" role="group" aria-label="Показать категории по результату">{filters.map(entry => <button type="button" key={entry.key} className={`review-filter filter-${entry.key}`} aria-pressed={filter === entry.key} onClick={() => setFilter(current => current === entry.key ? 'all' : entry.key)}><span className="review-filter-icon" aria-hidden="true">{entry.icon}</span><span>{entry.label}<strong>{items.filter(item => matchesFilter(item.status, entry.key)).length}</strong></span></button>)}</div>
-        {!result.data.complete && <p className="personal-review-warning">Полная разбивка этого расчёта не сохранена или результаты ещё не готовы. Неподтверждённые баллы отмечены «—». Итог взят из сохранённого результата.</p>}
+        {!result.data.complete && items.some(item => item.status === 'unknown') && <p className="personal-review-warning">Часть исторической разбивки не удалось восстановить по сохранённым данным. Эти баллы отмечены «—». Итог взят из сохранённого результата; подтверждать факты гонки для этой разбивки не требуется.</p>}
         <header className="review-list-heading"><div><h3>По категориям</h3><p aria-live="polite">{filter === 'all' ? `Все категории: ${items.length}` : `Показано: ${visibleItems.length} из ${items.length}`}</p></div><button className="review-show-all" type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Все категории</button></header>
         <div className="personal-review-items">{visibleItems.map(item => <article key={item.key} className={`review-item review-${item.status}`}>
           <header><div className="review-item-heading"><span className="review-item-number" aria-hidden="true">{String(items.indexOf(item) + 1).padStart(2, '0')}</span><h4>{item.label}</h4></div><div className="review-item-result"><span className="review-status">{statuses[item.status] ?? item.status}</span><span className="review-item-points"><strong>{item.points ?? '—'}</strong> / {item.maximum}<small>баллов</small></span></div></header>

@@ -25,7 +25,7 @@
 .personal-review .review-summary-action>.share-button { border-color: #f46e63; background: #c63129; font-weight: 600; }
 .personal-review .review-summary-action>.share-button:hover { background: #df3d32; }
 .personal-review .personal-review-warning { margin: 20px 0; padding: 14px 16px; border: 1px solid #75603e; background: #30291e; color: #f0d7a5; border-radius: 12px; font-size: 14px; }
-.review-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 20px 0 28px; }
+.review-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 20px 0 28px; }
 .personal-review .review-filter { display: flex; align-items: start; justify-content: flex-start; gap: 10px; min-width: 0; padding: 14px 12px; border-color: #3a485b; background: #18202c; text-align: left; }
 .review-filter>span:last-child { display: grid; gap: 6px; font-size: 12px; color: #c4cfe0; line-height: 1.45; }
 .review-filter strong { font-size: 24px; color: #f5f7fc; line-height: 1.1; font-variant-numeric: tabular-nums; }

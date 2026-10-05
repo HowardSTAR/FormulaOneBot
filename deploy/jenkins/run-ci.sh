@@ -57,7 +57,7 @@ case "${1:?stage required}" in
       -v "$WORKSPACE/.ci-logs:/app/logs" \
       -v "$WORKSPACE/.ci-fastf1-cache:/app/fastf1_cache" \
       -v "$WORKSPACE/.ci-f1bot-cache:/app/f1bot_cache" \
-      -w /app "$APP_IMAGE" pytest --test-order-seed=20261005 --cov=app --cov-branch \
+      -w /app "$APP_IMAGE" pytest --live --test-order-seed=20261005 --cov=app --cov-branch \
         --cov-report=xml:/app/reports/coverage.xml --junitxml=/app/reports/pytest.xml
     python3 "$WORKSPACE/deploy/jenkins/test_deploy.py"
     ;;

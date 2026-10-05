@@ -144,7 +144,7 @@ async def create_share(user_id, kind, options):
         if not review or review["points"] is None:
             raise ValueError("Прогноз ещё не рассчитан")
         profile = await predictions.get_prediction_profile(user_id)
-        provisional = not review["complete"] or any(i["status"] in {"unknown", "unavailable"} for i in review["items"])
+        provisional = any(i["status"] == "unavailable" for i in review["items"])
         exact = [i["label"] for i in review["items"] if i["status"] == "exact"]
         payload = {"title": f"Мой прогноз · {review['event_name']}", "subtitle": profile["display_name"],
                    "headline": f"{review['points']} / {review['max_points']} очков", "provisional": provisional,

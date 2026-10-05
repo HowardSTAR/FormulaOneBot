@@ -59,8 +59,8 @@ async function noOverflow(page, review) {
         if (url.pathname === '/api/predictions/personal-season') return route.fulfill({json: emptyHistory ? {...progress, latest: null, history: [], best_points: null, average_points: null, place: null} : progress});
         if (url.pathname.startsWith('/api/predictions/mine/')) {
           if (failReview) return route.fulfill({status: 503, json: {detail: 'Временно недоступно'}});
-          const reviewItems = waiting ? items.map((item, i) => i >= 7 ? {...item, status: i === 7 ? 'unknown' : 'unavailable', actual: null, points: null} : item) : items;
-          return route.fulfill({json: {...round, complete: true, items: reviewItems, race_facts: {source: 'Тестовый протокол', safety_car: 1, retirement_order_confirmed: false}}});
+          const reviewItems = waiting ? items.map((item, i) => i >= 7 ? {...item, status: i === 7 ? 'unknown' : 'unavailable', actual: i === 7 ? item.actual : null, points: null} : item) : items;
+          return route.fulfill({json: {...round, complete: !waiting, items: reviewItems, race_facts: {source: 'Тестовый протокол', safety_car: 1, retirement_order_confirmed: false}}});
         }
         if (url.pathname === '/api/engagement/shares') {
           assert.equal(route.request().method(), 'POST');
@@ -144,9 +144,13 @@ async function noOverflow(page, review) {
         failReview = false; waiting = true;
         await review.getByRole('button', {name: 'Повторить', exact: true}).click();
         await review.getByText('Результат предварительный.', {exact: true}).waitFor();
-        assert.match(await review.getByRole('button', {name: /Ожидают данных/}).innerText(), /2/);
+        assert.match(await review.getByRole('button', {name: /Ожидают данных/}).innerText(), /1/);
         await review.getByRole('button', {name: /Ожидают данных/}).click();
-        assert.equal(await review.locator('.review-item').count(), 2);
+        assert.equal(await review.locator('.review-item').count(), 1);
+        assert.equal(await review.locator('.review-unavailable').count(), 1);
+        await review.getByRole('button', {name: /Нет разбивки/}).click();
+        assert.equal(await review.locator('.review-item').count(), 1);
+        assert.equal(await review.locator('.review-unknown').count(), 1);
         await page.keyboard.press('Escape');
         emptyHistory = true;
         await page.reload();

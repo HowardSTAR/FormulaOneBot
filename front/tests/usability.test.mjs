@@ -82,6 +82,7 @@ test('only obsolete blanket warning is removed after all facts confirmed', () =>
   const note = 'Источник не предоставил статусы сессии; дополнительные факты не подтверждены. Источники расходятся.';
   const items = ['fastest_lap_driver','first_retirement_driver','safety_car'].map(key => ({key, actual: key === 'safety_car' ? 0 : 'RUS', status: 'miss'}));
   assert.equal(presentation.confirmedFactsNote(note, items), 'Источники расходятся.');
+  assert.equal(presentation.confirmedFactsNote(note, items.map(item => ({...item, status: 'unknown'}))), 'Источники расходятся.');
   assert.equal(presentation.confirmedFactsNote(note, items.slice(1)), note);
 });
 test('race link opens requested stage, and explicit latest stays latest', () => {

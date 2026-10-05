@@ -81,6 +81,21 @@ async def test_unfinished_and_provisional_predictions_are_not_final(api_client, 
 
 
 @pytest.mark.asyncio
+async def test_missing_historical_detail_does_not_claim_race_data_are_pending(api_client, monkeypatch):
+    await sign_in()
+    historical = review()
+    historical['complete'] = False
+    historical['items'][1].update(status='unknown', actual='HAM', points=None)
+    monkeypatch.setattr(prediction_service, 'get_personal_prediction_review', AsyncMock(return_value=historical))
+    response = await api_client.post('/api/engagement/shares', json={'kind': 'prediction', 'consent': True})
+    assert response.status_code == 200
+    card = response.json()
+    assert not card['provisional']
+    assert card['headline'] == '29 / 37 очков'
+    assert not any('ожидается' in line.lower() or 'предварительный' in line.lower() for line in card['lines'])
+
+
+@pytest.mark.asyncio
 async def test_guest_cannot_share_private_data_and_cross_site_is_rejected(api_client):
     web_app.dependency_overrides[optional_account] = lambda: None
     assert (await api_client.post('/api/engagement/shares', json={'kind': 'prediction', 'consent': True})).status_code == 401

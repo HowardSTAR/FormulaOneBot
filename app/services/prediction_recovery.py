@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import aiosqlite
 from app.db import db
 from app.services.prediction_race_facts import get_prediction_race_facts
-from app.services.prediction_service import prediction_breakdown, first_retirement_winners, EXACT_POINTS
+from app.services.prediction_service import historical_prediction_breakdown, prediction_breakdown, first_retirement_winners, EXACT_POINTS
 
 FIELDS = ('fastest_lap_driver', 'first_retirement_driver', 'safety_car')
 SCHEMA = '''
@@ -95,12 +95,7 @@ def build_preview(before, facts):
             delta += EXACT_POINTS['first_retirement_driver']
         row['points'] += delta
         row['max_points'] += increase
-        items = json.loads(old.get('breakdown_json') or 'null')
-        if items is None:
-            items = prediction_breakdown(old,before['actual'],historical=True)
-            # Old snapshots cannot prove individual historical awards.
-            for item in items:
-                item.update(points=None,status='unknown',reason='Историческая разбивка не сохранена; прежний итог не изменён.')
+        items = historical_prediction_breakdown(old, before['actual'])
         fresh = {item['key']:item for item in prediction_breakdown(old,actual,historical=True)}
         row['breakdown_json'] = json.dumps([fresh[item['key']] if item['key'] in additions or (tie_expansion and item['key'] == 'first_retirement_driver') else item for item in items],ensure_ascii=False)
         predictions.append(row)

@@ -447,7 +447,12 @@ def calculate_prediction_points(prediction: Any, answers: dict[str, Any]) -> int
 
 
 def prediction_breakdown(prediction, answers, *, historical=False):
-    positions = answers.get("_race_positions") or {
+    facts = answers.get("race_facts_json") or answers.get("_race_facts") or {}
+    if isinstance(facts, str):
+        facts = json.loads(facts) or {}
+    if not isinstance(facts, dict):
+        facts = {}
+    positions = answers.get("_race_positions") or facts.get("race_positions") or {
         str(answers[f]): pos for f, pos in PLACEMENT_TARGETS.items() if answers.get(f)
     }
     items = []
@@ -482,6 +487,41 @@ def prediction_breakdown(prediction, answers, *, historical=False):
     return items
 
 
+def historical_prediction_breakdown(prediction, answers):
+    """Restore missing detail from saved results without changing historic totals."""
+    snapshot = dict(prediction).get("breakdown_json")
+    fresh = prediction_breakdown(prediction, answers, historical=True)
+    if not snapshot:
+        items = fresh
+        reconstructed = {item["key"] for item in items}
+    else:
+        fresh_by_key = {item["key"]: item for item in fresh}
+        items, reconstructed = [], set()
+        for item in json.loads(snapshot):
+            replacement = fresh_by_key.get(item["key"])
+            # Older recovery code blanked every historic award, including exact
+            # matches whose results were already saved. Real saved awards win.
+            if (item["status"] == "unknown" and item["points"] is None
+                    and item["reason"] == "Историческая разбивка не сохранена; прежний итог не изменён."
+                    and replacement is not None):
+                item = replacement
+                reconstructed.add(item["key"])
+            items.append(item)
+    total = dict(prediction).get("points")
+    known = sum(item["points"] for item in items if item["points"] is not None)
+    complete = all(item["points"] is not None for item in items)
+    if total is not None and (known > total or (complete and known != total)):
+        # A different scoring version may have produced the saved total. Keep
+        # actual saved awards, but do not claim newly inferred awards as history.
+        for item in items:
+            if item["key"] in reconstructed and item["actual"] is not None and item["points"] is not None:
+                item.update(points=None, status="unknown", reason=(
+                    "Разбивка по текущим правилам не совпадает с сохранённым итогом. "
+                    "Исторические баллы сохранены; подтверждение фактов гонки не требуется."
+                ))
+    return items
+
+
 async def get_personal_prediction_review(user_id: int, season: int, round_num: int):
     if not db.conn:
         await db.connect()
@@ -491,15 +531,8 @@ async def get_personal_prediction_review(user_id: int, season: int, round_num: i
     actual = await (await db.conn.execute("SELECT * FROM prediction_round_results WHERE season=? AND round=?", (season,round_num))).fetchone()
     # A rolling deployment may read a database not yet migrated by the new worker.
     # Missing snapshots use the same read-only fallback as historic NULL values.
-    snapshot = dict(row).get("breakdown_json")
-    items = json.loads(snapshot) if snapshot else prediction_breakdown(row,dict(actual) if actual else {},historical=True)
+    items = historical_prediction_breakdown(row, dict(actual) if actual else {})
     complete = all(i["points"] is not None for i in items) and row["points"] is not None and sum(i["points"] for i in items) == row["points"]
-    # Never present a reconstructed sum as the historic award when it differs.
-    if not snapshot and not complete and all(i["points"] is not None for i in items) and row["points"] is not None:
-        for item in items:
-            item["points"] = None
-            item["status"] = "unknown"
-            item["reason"] = "Старый расчёт не содержит сохранённой разбивки. Итоговые очки сохранены, детализация не подтверждена."
     return {"season":season,"round":round_num,"event_name":actual["event_name"] if actual else f"Этап {round_num}",
             "points":row["points"],"max_points":row["max_points"],"scored_at":row["scored_at"],
             "complete":complete,"items":items,
@@ -545,9 +578,12 @@ async def score_prediction_round(
             """,
             (int(season), int(round_num), event_name, *result_values, max_points),
         )
+        saved_facts = dict(answers.get("_race_facts") or {})
+        if answers.get("_race_positions"):
+            saved_facts["race_positions"] = dict(answers["_race_positions"])
         await db.conn.execute(
             "UPDATE prediction_round_results SET race_facts_json=? WHERE season=? AND round=?",
-            (json.dumps(answers.get("_race_facts"), ensure_ascii=False), int(season), int(round_num)),
+            (json.dumps(saved_facts or None, ensure_ascii=False), int(season), int(round_num)),
         )
         async with db.conn.execute(
             "SELECT user_id, " + ", ".join(PREDICTION_FIELDS) +

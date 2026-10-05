@@ -84,7 +84,7 @@ def review_card(review):
             if item["key"] == "safety_car":
                 return "Да" if v else "Нет"
             return ", ".join(map(str, v)) if isinstance(v, list) else str(v)
-        award = "Ожидаем данные" if item["status"] == "unavailable" else "Не подтверждено" if item["points"] is None else f"{item['points']}/{item['maximum']}"
+        award = "Ожидаем данные" if item["status"] == "unavailable" else "Нет разбивки" if item["points"] is None else f"{item['points']}/{item['maximum']}"
         rows.append([item["label"], value(item["predicted"]), value(item["actual"]), award])
         explanations.append(InputRichBlockParagraph(text=f"{item['label']}: {item['reason']}"))
     blocks.append(table(["Пункт", "Ваш выбор", "Результат", "Баллы"], rows))

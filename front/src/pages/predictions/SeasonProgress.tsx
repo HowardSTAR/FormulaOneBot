@@ -36,7 +36,8 @@ export function SeasonProgress() {
       {data.latest ? <article className="season-progress-latest">
         <header><div><span className="season-progress-kicker">Последний рассчитанный этап</span><h4>{data.latest.event_name}</h4></div><p className="season-progress-score"><strong>{data.latest.points}</strong><span>/ {data.latest.max_points} баллов</span></p></header>
         <p>{data.latest.items.some(i => i.status === 'exact') ? `Точно угадано: ${data.latest.items.filter(i => i.status === 'exact').map(i => i.label).join(' · ')}.` : 'Посмотрите, как начислены баллы по каждой категории.'}</p>
-        {data.latest.items.some(i => ['unavailable', 'unknown'].includes(i.status)) && <p>Часть результатов не подтверждена. Отсутствие данных не считается ошибкой прогноза.</p>}
+        {data.latest.items.some(i => i.status === 'unavailable') && <p>Часть результатов ещё ожидается. Отсутствие данных не считается ошибкой прогноза.</p>}
+        {data.latest.items.some(i => i.status === 'unknown') && <p>Часть исторической разбивки не сохранена. Итоговые баллы доступны в таблице.</p>}
         {data.previous_points !== null && <p className="season-progress-note">Предыдущий этап: {data.previous_points} баллов. Максимум зависит от спринта и подтверждённых данных.</p>}
         <div className="season-progress-actions"><button className="season-progress-primary" onClick={() => setReview(data.latest)}>Разобрать последний этап <span aria-hidden="true">→</span></button><ShareButton options={{kind: 'prediction', season: data.latest.season, round: data.latest.round}} /></div>
       </article> : <p>После расчёта вашего первого этапа здесь появятся результаты.</p>}
