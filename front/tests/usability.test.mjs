@@ -2,15 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import { posix } from 'node:path';
-import ts from 'typescript';
+import {loadTs} from './support/modules.mjs';
 import postcss from 'postcss';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 async function moduleFrom(relative, transform = source => source) {
-  const source = transform(readFileSync(new URL(relative, import.meta.url), 'utf8'));
-  const compiled = ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React}}).outputText;
-  return import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+  return loadTs(new URL(relative,import.meta.url),transform);
 }
 const presentation = await moduleFrom('../src/helpers/presentation.ts');
 const {safeReturnPath} = await moduleFrom('../src/helpers/returnPath.ts');

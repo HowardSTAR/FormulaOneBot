@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import test from 'node:test';
-import ts from 'typescript';
-
-const source = readFileSync(new URL('../src/helpers/reminderIntervals.ts', import.meta.url), 'utf8');
-const compiled = ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.ESNext}}).outputText;
-const {selectedIntervals, toggleInterval, NOTIFY_OPTIONS} = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+import {loadTs} from './support/modules.mjs';
+const {selectedIntervals, toggleInterval, NOTIFY_OPTIONS} = await loadTs(new URL('../src/helpers/reminderIntervals.ts', import.meta.url));
 
 test('all five intervals are offered; missing array preserves legacy', () => {
   assert.deepEqual(NOTIFY_OPTIONS.map(option => option.value), [15,30,60,120,1440]);

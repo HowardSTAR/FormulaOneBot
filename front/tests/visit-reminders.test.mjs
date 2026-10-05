@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {readFileSync} from 'node:fs';
-import ts from 'typescript';
-const code = ts.transpileModule(readFileSync(new URL('../src/helpers/visitReminders.ts',import.meta.url),'utf8'),
-  {compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;
-const {visitReminders,reminderAllowed,dismissReminder} = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
+import {loadTs} from './support/modules.mjs';
+const {visitReminders,reminderAllowed,dismissReminder} = await loadTs(new URL('../src/helpers/visitReminders.ts',import.meta.url));
 const now = Date.parse('2026-10-05T12:00:00Z');
 const data = {user_id:1,weekly:null,prediction:null,week:{track_id:'track',name:'Track',start:'2026-10-05T00:00:00Z',end:'2026-10-12T00:00:00Z'}};
 const prediction = {status:'ok',season:2026,round:17,event_name:'Test GP',is_open:true,prediction:null,opens_at_utc:'2026-10-05T00:00:00Z',deadline_utc:'2026-10-10T00:00:00Z'};
@@ -31,7 +28,13 @@ test('only upcoming timestamped sessions show countdown; new week disappears aft
   assert.ok(!visitReminders(data,[],now+172800000).some(item=>item.id.startsWith('new-week')));
   assert.ok(!visitReminders({...data,weekly:{}},[],now).some(item=>item.id.startsWith('new-week')));
 });
-test('dismissal survives reload, is isolated by account, and expires; denied storage still works',()=>{
+test('dismissal survives reload, is isolated by account, and expires; denied storage still works',t=>{
+  const before = {session: Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage'), local: Object.getOwnPropertyDescriptor(globalThis, 'localStorage')};
+  t.after(()=>{
+    for (const [key, descriptor] of [['sessionStorage', before.session], ['localStorage', before.local]]) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key];
+    }
+  });
   const session = new Map(), local = new Map();
   globalThis.sessionStorage={getItem:key=>session.get(key),setItem:(key,value)=>session.set(key,value)};
   globalThis.localStorage={getItem:key=>local.get(key),setItem:(key,value)=>local.set(key,value)};

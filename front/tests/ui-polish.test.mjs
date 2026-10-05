@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {readFileSync} from 'node:fs';
-import ts from 'typescript';
+import {loadTs} from './support/modules.mjs';
 import postcss from 'postcss';
 
 const source = path => readFileSync(new URL(path, import.meta.url), 'utf8');
-const compiled = ts.transpileModule(source('../src/helpers/reminderClock.ts'), {compilerOptions: {module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022}}).outputText;
-const {reminderClock, reminderBody} = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+const {reminderClock, reminderBody} = await loadTs(new URL('../src/helpers/reminderClock.ts',import.meta.url));
 const start = Date.parse('2026-10-09T12:30:00Z');
 const reminder = {kind: 'practice1', start_utc: '2026-10-09T15:30:00+03:00', duration_minutes: 60};
 
@@ -43,8 +42,7 @@ test('receipt is below page content, scoped to route and excludes auxiliary requ
   for (const page of ['drivers/DriversPage', 'constructors/ConstructorsPage']) assert.ok(!source(`../src/pages/${page}.tsx`).includes('время обновления источника'));
 });
 test('calendar filters keep receipt, but another season or race does not', async () => {
-  const compiled = ts.transpileModule(source('../src/helpers/dataReceipt.ts'), {compilerOptions: {module: ts.ModuleKind.ESNext}}).outputText;
-  const {dataReceiptKey} = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+  const {dataReceiptKey} = await loadTs(new URL('../src/helpers/dataReceipt.ts',import.meta.url));
   assert.equal(dataReceiptKey('/season', '?filter=past&round=15'), dataReceiptKey('/season', ''));
   assert.notEqual(dataReceiptKey('/season', '?year=1997'), dataReceiptKey('/season', ''));
   assert.notEqual(dataReceiptKey('/race-details', '?season=2026&round=16'), dataReceiptKey('/race-details', '?season=2026&round=17'));

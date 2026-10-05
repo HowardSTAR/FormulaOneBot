@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import ts from 'typescript';
+import {loadTs} from './support/modules.mjs';
 
 async function sourceModule(name) {
-  const source = readFileSync(new URL(`../src/helpers/${name}.ts`, import.meta.url), 'utf8');
-  const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
-  return import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+  return loadTs(new URL(`../src/helpers/${name}.ts`, import.meta.url));
 }
 const { SingleFlight } = await sourceModule('singleFlight');
 const { visibleInterval } = await sourceModule('visibleInterval');

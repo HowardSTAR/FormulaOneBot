@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {readFileSync} from 'node:fs';
-import ts from 'typescript';
+import {loadTs} from './support/modules.mjs';
+let trackerSequence = 0;
 
 async function tracker() {
   const calls = [];
@@ -11,13 +11,11 @@ async function tracker() {
     if (fail) throw new Error('Response lost');
     return {ok:true};
   };
-  const key = 'notificationEntryTest'+Math.random();
-  const source = readFileSync(new URL('../src/helpers/notificationEntry.ts', import.meta.url), 'utf8')
-    .replace("import { apiRequest } from './api';", `const apiRequest = globalThis[${JSON.stringify(key)}];`);
+  const key = 'notificationEntryTest'+(++trackerSequence);
   globalThis[key] = mock;
   try {
-    const compiled = ts.transpileModule(source, {compilerOptions:{module:ts.ModuleKind.ESNext, target:ts.ScriptTarget.ES2022}}).outputText;
-    const module = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+    const module = await loadTs(new URL('../src/helpers/notificationEntry.ts',import.meta.url),
+      source=>source.replace("import { apiRequest } from './api';", `const apiRequest = globalThis[${JSON.stringify(key)}];`));
     return {track:module.trackNotificationEntry, calls, setFailure:value=>{fail=value;}};
   } finally {delete globalThis[key];}
 }

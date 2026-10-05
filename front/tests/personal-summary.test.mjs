@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import ts from 'typescript';
-
-const source = readFileSync(new URL('../src/pages/index/personal-summary.ts', import.meta.url), 'utf8');
-const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
-const { predictionSummary } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+import {loadTs} from './support/modules.mjs';
+const {predictionSummary} = await loadTs(new URL('../src/pages/index/personal-summary.ts', import.meta.url));
 const now = Date.parse('2026-09-14T10:00:00Z');
 const base = { status: 'ok', is_open: true, deadline_utc: '2026-09-14T11:00:00Z', prediction: null };
 

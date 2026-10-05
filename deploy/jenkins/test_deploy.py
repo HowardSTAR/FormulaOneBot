@@ -3,6 +3,8 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
+import sys
 import tempfile
 import unittest
 
@@ -26,19 +28,30 @@ elif args[:3]==['exec','formulaonebot-web-1','python']:
 
 
 class DeploymentTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.shell = shutil.which('sh')
+        if cls.shell is None and os.name == 'nt':
+            candidate = Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'Git/bin/bash.exe'
+            if candidate.is_file():
+                cls.shell = str(candidate)
+        if cls.shell is None:
+            raise unittest.SkipTest('Deployment contract tests require sh or Git Bash')
+
     def scenario(self, mode):
         with tempfile.TemporaryDirectory(prefix='f1hub-ci-validation-') as tmp:
             root = Path(tmp)
             (root / 'reports').mkdir()
             cli = root / 'docker'
-            cli.write_text(FAKE_DOCKER)
+            interpreter = '/usr/bin/env python' if os.name == 'nt' else sys.executable
+            cli.write_text(FAKE_DOCKER.replace('/usr/bin/python3', interpreter), encoding='utf-8')
             cli.chmod(0o700)
             script = Path(__file__).with_name('deploy-verified.sh').read_text()
             script = script.replace('cd /root/FormulaOneBot', 'cd "$VALIDATION_DIR"')
             script = script.replace('/reports/deployment.json', '"$VALIDATION_DIR/reports/deployment.json"')
-            env = dict(os.environ, PATH=str(root) + ':' + os.environ['PATH'],
+            env = dict(os.environ, PATH=os.pathsep.join((str(root),str(Path(sys.executable).parent),os.environ['PATH'])),
                        VALIDATION_DIR=str(root), VALIDATION_MODE=mode, APP_IMAGE='ci:test', BUILD_NUMBER='test')
-            process = subprocess.run(['sh'], input=script, text=True, capture_output=True, env=env)
+            process = subprocess.run([self.shell], input=script, text=True, capture_output=True, env=env, timeout=30)
             status_path = root / 'reports/deployment.json'
             status = json.loads(status_path.read_text())['status'] if status_path.exists() else None
             calls = [json.loads(line) for line in (root / 'calls.jsonl').read_text().splitlines()]

@@ -1,13 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import ts from 'typescript';
-
-const source = readFileSync(new URL('../src/helpers/sharing.ts', import.meta.url), 'utf8');
+import {loadTs} from './support/modules.mjs';
 // Replace just the HTTP boundary; exercise real helper logic without a browser or Telegram.
-const compiled = ts.transpileModule(source.replace("import { apiRequest } from './api';", 'const apiRequest = (...args) => globalThis.qaSharingRequest(...args);'),
-  {compilerOptions: {module: ts.ModuleKind.ESNext}}).outputText;
-const {validShareToken, rememberInvitation, pendingInvitation, sendCard} = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+const {validShareToken, rememberInvitation, pendingInvitation, sendCard} = await loadTs(new URL('../src/helpers/sharing.ts',import.meta.url),
+  source=>source.replace("import { apiRequest } from './api';", 'const apiRequest = (...args) => globalThis.qaSharingRequest(...args);'));
 
 const token = 'a'.repeat(32);
 const card = {token, share_url: 'https://t.me/example_bot?startapp=share_' + token, web_url: 'https://f1hub.ru/share/' + token, title:'Мой прогноз', headline:'27 / 37 очков'};

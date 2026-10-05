@@ -38,6 +38,8 @@ case "${1:?stage required}" in
         npm ci --no-audit --no-fund
         node --test --test-reporter=spec --test-reporter-destination=stdout \
           --test-reporter=junit --test-reporter-destination=/workspace/reports/game.xml tests/*.test.mjs
+        cd ../front
+        npm run test:mutations
       '
     ;;
   python)
@@ -46,14 +48,18 @@ case "${1:?stage required}" in
       --user "$(id -u):$(id -g)" -e HOME=/tmp -e BOT_TOKEN=123456:TEST \
       -e ADMIN_IDS=100000001 -e ADMIN_TELEGRAM_ID=100000001 -e ADMIN_EMAIL=ci-admin@example.com \
       -e DATABASE_PATH=/app/data/ci.db -e REDIS_URL= -e APP_ENV=test \
+      -e COVERAGE_FILE=/app/reports/.coverage \
       -v "$WORKSPACE/tests:/app/tests:ro" -v "$WORKSPACE/pytest.ini:/app/pytest.ini:ro" \
+      -v "$WORKSPACE/.coveragerc:/app/.coveragerc:ro" \
       -v "$WORKSPACE/app-assets.zip:/app/app-assets.zip:ro" \
       -v "$WORKSPACE/scripts:/app/scripts:ro" \
       -v "$WORKSPACE/reports:/app/reports" -v "$WORKSPACE/.ci-data:/app/data" \
       -v "$WORKSPACE/.ci-logs:/app/logs" \
       -v "$WORKSPACE/.ci-fastf1-cache:/app/fastf1_cache" \
       -v "$WORKSPACE/.ci-f1bot-cache:/app/f1bot_cache" \
-      -w /app "$APP_IMAGE" pytest --junitxml=/app/reports/pytest.xml
+      -w /app "$APP_IMAGE" pytest --test-order-seed=20261005 --cov=app --cov-branch \
+        --cov-report=xml:/app/reports/coverage.xml --junitxml=/app/reports/pytest.xml
+    python3 "$WORKSPACE/deploy/jenkins/test_deploy.py"
     ;;
   smoke)
     name="f1hub-ci-smoke-$BUILD_NUMBER"
