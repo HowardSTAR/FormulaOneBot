@@ -1,3 +1,4 @@
+import { SelectField } from './CustomSelect';
 type YearSelectProps = {
   value: number;
   onChange: (year: number) => void;
@@ -23,10 +24,10 @@ export function YearSelect({
 
   return <div className={`year-select-wrapper ${className}`}>
     <div className="search-container year-select-container">
-      <select aria-label={ariaLabel} className="search-input year-select-input" value={value}
-        onChange={event => onChange(Number(event.target.value))}>
+      <SelectField aria-label={ariaLabel} className="year-select-input" value={value}
+        onChange={event => onChange(Number(event))}>
         {years.map(year => <option key={year} value={year}>{year}</option>)}
-      </select>
+      </SelectField>
       {showCurrentYearBtn && currentYear >= minYear && currentYear <= maxYear && <button type="button" className="current-year-btn"
         aria-label={`Текущий сезон ${currentYear}`} onClick={() => onChange(currentYear)}>Текущий</button>}
     </div>

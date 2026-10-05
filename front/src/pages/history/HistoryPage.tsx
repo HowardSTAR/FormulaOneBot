@@ -1,3 +1,4 @@
+import { SelectField } from '../../components/CustomSelect';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BackButton } from '../../components/BackButton';
@@ -111,9 +112,9 @@ function HistorySearch() {
       <form onSubmit={event => { event.preventDefault(); if (ids.length && !loading) search(); }}>
       <div className="history-participants">
       <div className="history-controls">
-        <label><span>Добавить участника</span><select value="" disabled={ids.length >= 3 || !roster.length} onChange={e => select([...ids, e.target.value])}>
+        <label><span>Добавить участника</span><SelectField value="" disabled={ids.length >= 3 || !roster.length} onChange={e => select([...ids, e])}>
           <option value="">Выберите…</option>{roster.filter(r => !ids.includes(r.id)).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-        </select></label>
+        </SelectField></label>
       </div>
       {rosterState && <p role="status" className={`history-status${rosterLoading ? ' history-loading' : ''}`}><span>{rosterState}</span>{!rosterLoading && <button type="button" onClick={() => { setRosterLoading(true); setRosterState('Загрузка участников…'); setRosterRetry(r => r + 1); }}>Повторить загрузку участников</button>}</p>}
       {ids.length > 0 && <div className="history-legend">{ids.map((id, i) => <button type="button" key={id} style={{ borderColor: colors[i] }} onClick={() => select(ids.filter(v => v !== id))} aria-label={`Убрать ${displayed.find(s => s.id === id)?.name || id}`}><span style={{ color: colors[i] }}>●</span> {displayed.find(s => s.id === id)?.name || roster.find(r => r.id === id)?.name || id} ×</button>)}</div>}

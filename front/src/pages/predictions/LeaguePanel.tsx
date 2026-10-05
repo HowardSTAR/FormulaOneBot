@@ -1,3 +1,4 @@
+import { SelectField } from '../../components/CustomSelect';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../helpers/api';
 import './season-progress.css';
@@ -49,7 +50,7 @@ export function LeaguePanel() {
     {error && <p role="alert">{error} <button onClick={() => {setError(''); setVersion(v => v + 1);}}>Повторить загрузку</button></p>}
     <form onSubmit={e => {e.preventDefault(); void action('/api/predictions/leagues', {name, mode});}}>
       <label>Название лиги <input required minLength={2} maxLength={50} value={name} onChange={e => setName(e.target.value)} /></label>
-      <label>Формат <select value={mode} onChange={e => setMode(e.target.value as 'season' | 'cup')}><option value="season">Весь сезон</option><option value="cup">Следующие три этапа · новый старт</option></select></label>
+      <label>Формат <SelectField value={mode} onChange={e => setMode(e as 'season' | 'cup')}><option value="season">Весь сезон</option><option value="cup">Следующие три этапа · новый старт</option></SelectField></label>
       <button disabled={busy}>{busy ? 'Сохраняем…' : 'Создать лигу'}</button>
     </form>
     <details open={Boolean(token)}><summary>Вступить по приглашению</summary><p>Вступление откроет участникам ваше имя и очки, но не ответы.</p>
@@ -67,7 +68,7 @@ export function LeaguePanel() {
         <button disabled={busy} onClick={() => void action(`/api/predictions/leagues/${l.id}`, {action: 'rotate'})}>Заменить ссылку и отозвать старую</button>
       </details> : <button disabled={busy} onClick={() => void action(`/api/predictions/leagues/${l.id}`, {action: 'leave'})}>Покинуть лигу</button>}
       {selected === l.id && (scores ? <>
-        <label>Зачёт <select value={round} onChange={e => setRound(Number(e.target.value))}><option value={0}>{scores.mode === 'cup' ? 'Мини-чемпионат · 3 этапа' : `Сезон ${scores.season}`}</option>{scores.rounds.map(r => <option key={r.round} value={r.round}>{r.event_name}</option>)}</select></label>
+        <label>Зачёт <SelectField value={round} onChange={e => setRound(Number(e))}><option value={0}>{scores.mode === 'cup' ? 'Мини-чемпионат · 3 этапа' : `Сезон ${scores.season}`}</option>{scores.rounds.map(r => <option key={r.round} value={r.round}>{r.event_name}</option>)}</SelectField></label>
         {round ? <StageScores entries={scores.entries} round={round} /> : <ol className="league-score-list">{scores.entries.map((e, index) => <li key={e.user_id}>#{index + 1} {e.display_name} {e.place_change != null && <small>{e.place_change > 0 ? '↑' : e.place_change < 0 ? '↓' : '·'}{Math.abs(e.place_change)}</small>}<b>{e.total_points} очк.</b></li>)}</ol>}
       </> : <p role="status">Загружаем таблицу…</p>)}
     </article>)}

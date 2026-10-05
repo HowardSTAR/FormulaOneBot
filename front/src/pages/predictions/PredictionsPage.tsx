@@ -1,3 +1,4 @@
+import { SelectField } from '../../components/CustomSelect';
 import { GlossaryText } from "../../components/GlossaryText";
 import { DriverPicker, type PickerDriver } from "../../components/DriverPicker";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -419,9 +420,9 @@ function PredictionsContent({ guest }: { guest: boolean }) {
       {!loading && tab === "leaderboard" && (
         <section className="prediction-leaderboard">
           <div className="prediction-stage-panel">
-            <label className="prediction-stage-filter">Рейтинг этапа <select value={stageRound} onChange={e => setStageRound(Number(e.target.value))}>
+            <label className="prediction-stage-filter">Рейтинг этапа <SelectField value={stageRound} onChange={e => setStageRound(Number(e))}>
               <option value={0}>Выберите этап</option>{rounds.map(r => <option key={r.round} value={r.round}>{r.event_name}</option>)}
-            </select></label>
+            </SelectField></label>
             {stageRound > 0 && <StageScores entries={entries} round={stageRound} />}
           </div>
           <div className="prediction-leaderboard-title">

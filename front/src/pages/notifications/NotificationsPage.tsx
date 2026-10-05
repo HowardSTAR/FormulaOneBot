@@ -1,3 +1,4 @@
+import { SelectField } from '../../components/CustomSelect';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
@@ -139,7 +140,7 @@ export default function NotificationsPage() {
         <p>{ios ? "Safari → Поделиться → На экран Домой → Добавить." : "Chrome → меню ⋮ → Установить приложение или Добавить на главный экран."}</p>
       </details>}
     </section>
-    <label>Тип уведомлений <select value={category} onChange={event => {setData(null); setCategory(event.target.value);}}><option value="all">Все</option><option value="results">Результаты</option><option value="predictions">Прогнозы</option><option value="voting">Голосования</option><option value="reminders">Напоминания</option><option value="admin">Системные</option></select></label>
+    <label>Тип уведомлений <SelectField value={category} onChange={event => {setData(null); setCategory(event);}}><option value="all">Все</option><option value="results">Результаты</option><option value="predictions">Прогнозы</option><option value="voting">Голосования</option><option value="reminders">Напоминания</option><option value="admin">Системные</option></SelectField></label>
     {error && <div role="alert"><p>{error}</p><button onClick={() => void refresh()}>Повторить</button></div>}
     {!data ? !error && <p role="status">Загружаем уведомления…</p> : <>
       <div className="notifications-toolbar"><span>Непрочитанных сообщений: {data.unread}</span><button disabled={!data.unread} onClick={markRead}>Отметить прочитанными до этой даты</button></div>

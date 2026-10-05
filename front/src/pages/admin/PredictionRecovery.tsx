@@ -1,3 +1,4 @@
+import { SelectField } from '../../components/CustomSelect';
 import { useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../../helpers/api';
 import { PredictionResultBroadcast } from './PredictionResultBroadcast';
@@ -139,8 +140,8 @@ export function PredictionRecovery({onBusy}:{onBusy?:(busy:boolean)=>void}) {
     <ol className="admin-flow" aria-label="Порядок работы"><li>1 · Выбрать этап</li><li>2 · Проверить изменения</li><li>3 · Подтвердить пересчёт</li></ol>
     <p>Проверка не меняет баллы. Пересчёт требует подтверждения и не запускает рассылку.</p>
     <nav className="recovery-mode" aria-label="Способ проверки">{([['single','Один этап'],['season','Весь сезон'],['manual','Внести факты вручную']] as const).map(([value,label])=><button type="button" disabled={busy||batchBusy||broadcastBusy} aria-pressed={mode===value} key={value} onClick={()=>{setMode(value);setNotice('');setError('');}}>{label}</button>)}</nav>
-    <fieldset className="recovery-target" disabled={busy||batchBusy||broadcastBusy}><label>Сезон<select value={season} onChange={e=>{resetTarget();setSeason(Number(e.target.value));setBatchChecks([]);setBatchErrors([]);setBatchProgress('');setBatchConfirmation('');}}>{Array.from({length:new Date().getFullYear()-1949},(_,i)=>new Date().getFullYear()-i).map(year=><option key={year} value={year}>{year}</option>)}</select></label>
-      {mode!=='season'&&<label>Рассчитанный этап<select value={currentRound?round:''} disabled={roundsLoaded!==season} onChange={e=>{resetTarget();setRound(Number(e.target.value));}}><option value="" disabled>{roundsLoaded!==season?'Загружаем этапы…':'Выберите этап'}</option>{rounds.map(item=><option key={item.round} value={item.round}>Этап {item.round} · {item.event_name}{item.missing.length?' · неполные данные':''}</option>)}</select></label>}
+    <fieldset className="recovery-target" disabled={busy||batchBusy||broadcastBusy}><label>Сезон<SelectField value={season} onChange={e=>{resetTarget();setSeason(Number(e));setBatchChecks([]);setBatchErrors([]);setBatchProgress('');setBatchConfirmation('');}}>{Array.from({length:new Date().getFullYear()-1949},(_,i)=>new Date().getFullYear()-i).map(year=><option key={year} value={year}>{year}</option>)}</SelectField></label>
+      {mode!=='season'&&<label>Рассчитанный этап<SelectField value={currentRound?round:''} disabled={roundsLoaded!==season} onChange={e=>{resetTarget();setRound(Number(e));}}><option value="" disabled>{roundsLoaded!==season?'Загружаем этапы…':'Выберите этап'}</option>{rounds.map(item=><option key={item.round} value={item.round}>Этап {item.round} · {item.event_name}{item.missing.length?' · неполные данные':''}</option>)}</SelectField></label>}
       {mode==='single'&&<button disabled={!currentRound||roundsLoaded!==season} onClick={()=>void run()}>Проверить данные — без изменения баллов</button>}</fieldset>
     {roundsLoaded===season&&!rounds.length&&<p role="status">В выбранном сезоне пока нет рассчитанных этапов.</p>}
     {mode!=='season'&&roundsLoaded===season&&currentRound&&<PredictionResultBroadcast key={`${season}:${round}:${selected?.state==='applied'?selected.id:''}`} season={season} round={round} disabled={busy||batchBusy} onBusy={setBroadcastBusy}/>}
@@ -150,14 +151,14 @@ export function PredictionRecovery({onBusy}:{onBusy?:(busy:boolean)=>void}) {
       <fieldset disabled={busy||batchBusy||broadcastBusy||!currentRound}>
         <div className="pr-manual-grid">
           {driversError&&<p role="alert">{driversError}</p>}
-          <label>Лучший круг<select disabled={!drivers.length} value={manualFastest} onChange={e=>setManualFastest(e.target.value)}><option value="">Не подтверждать</option>{drivers.map(driver=><option value={driver.code} key={driver.code}>{driver.name} ({driver.code}){driver.constructorName ? ` · ${driver.constructorName}` : ''}</option>)}</select></label>
+          <label>Лучший круг<SelectField disabled={!drivers.length} value={manualFastest} onChange={e=>setManualFastest(e)}><option value="">Не подтверждать</option>{drivers.map(driver=><option value={driver.code} key={driver.code}>{driver.name} ({driver.code}){driver.constructorName ? ` · ${driver.constructorName}` : ''}</option>)}</SelectField></label>
           <label>Источник лучшего круга · HTTPS<input type="url" value={manualFastestUrl} placeholder="https://..." onChange={e=>setManualFastestUrl(e.target.value)}/></label>
           <fieldset><legend>Первая группа схода · можно выбрать несколько пилотов</legend><p>Отметьте всех, кто сошёл одновременно первым. Выбор любого из них засчитывается один раз.</p>{drivers.map(driver=>{
             const group=manualRetirements.split(',').filter(Boolean);
             return <label key={driver.code}><input type="checkbox" checked={group.includes(driver.code)} onChange={e=>setManualRetirements((e.target.checked?[...group,driver.code]:group.filter(code=>code!==driver.code)).join(','))}/>{driver.name} ({driver.code}){driver.constructorName ? ` · ${driver.constructorName}` : ''}</label>;
           })}</fieldset>
           <label>Источник порядка сходов · HTTPS<input type="url" value={manualRetirementsUrl} placeholder="https://..." onChange={e=>setManualRetirementsUrl(e.target.value)}/></label>
-          <label>Машина безопасности<select value={manualSafety} onChange={e=>setManualSafety(e.target.value)}><option value="">Не подтверждено</option><option value="yes">Да — был Safety Car</option><option value="no">Нет — не было Safety Car</option></select></label>
+          <label>Машина безопасности<SelectField value={manualSafety} onChange={e=>setManualSafety(e)}><option value="">Не подтверждено</option><option value="yes">Да — был Safety Car</option><option value="no">Нет — не было Safety Car</option></SelectField></label>
           <label>Источник по машине безопасности · HTTPS<input type="url" value={manualSafetyUrl} placeholder="https://..." onChange={e=>setManualSafetyUrl(e.target.value)}/></label>
           <p className="ui-data-context">Нужна прямая HTTPS-ссылка на классификацию, протокол или материал с подтверждением выбранного факта. Ссылка на главную страницу недостаточна. Проверка формы не применяет баллы.</p>
         </div>

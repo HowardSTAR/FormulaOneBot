@@ -1,3 +1,4 @@
+import { SelectField } from '../../components/CustomSelect';
 import { useEffect, useState } from 'react';
 import { apiRequest } from '../../helpers/api';
 import { pageTitles } from '../../helpers/pageTitles';
@@ -41,7 +42,7 @@ export function AnalyticsDashboard(){
     const a=document.createElement('a');a.href=url;a.download=`analytics-${days}d.csv`;a.click();URL.revokeObjectURL(url);
   };
   const empty=<div className="pa-empty">Пока нет событий за этот период. Новые посещения и действия появятся после обновления сайта.</div>;
-  return <section className="product-analytics"><header className="pa-toolbar"><label>Период<select value={days} onChange={e=>{setError('');setDays(Number(e.target.value));}}><option value={7}>Последние 7 дней</option><option value={30}>Последние 30 дней</option><option value={90}>Последние 90 дней</option></select></label><button disabled={!current} onClick={exportCsv}>Скачать CSV</button></header>
+  return <section className="product-analytics"><header className="pa-toolbar"><label>Период<SelectField value={days} onChange={e=>{setError('');setDays(Number(e));}}><option value={7}>Последние 7 дней</option><option value={30}>Последние 30 дней</option><option value={90}>Последние 90 дней</option></SelectField></label><button disabled={!current} onClick={exportCsv}>Скачать CSV</button></header>
     <nav className="pa-tabs">{[['overview','Сводка'],['screens','Экраны'],['actions','Кнопки и действия'],['broadcasts','Кнопки рассылок'],['return','Возвращения']].map(([id,label])=><button key={id} onClick={()=>setTab(id)} className={tab===id?'active':''}>{label}</button>)}</nav>
     {error?<div role="alert"><p>{error}</p><button onClick={()=>{setError('');setState(null);setAttempt(v=>v+1);}}>Повторить</button></div>:!data||!insights?<p role="status">Загружаем показатели…</p>:<>
       {tab==='overview'&&<><div className="pa-metrics">{[['Посетили сайт',insights.visitors.unique_browsers,'уникальных браузеров'],['Вернулись в другой день',percent(insights.visitors.returning_browsers,insights.visitors.unique_browsers),`${insights.visitors.returning_browsers} браузеров за период`],['Новых аккаунтов',insights.accounts.new_users||0,'зарегистрировано за период'],['Сохранили прогноз',data.funnel.saved,'участий в этапах за период']].map(([label,value,hint])=><article key={label}><span>{label}</span><strong>{value}</strong><small>{hint}</small></article>)}</div>

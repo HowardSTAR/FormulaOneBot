@@ -19,8 +19,9 @@ const {describeAuditChange} = await moduleFrom('../src/helpers/adminAudit.ts');
 const {readSessionFilters} = await moduleFrom('../src/helpers/sessionFilters.ts', source => source.replace(/^import .*;$/gm, ''));
 const calendar = await moduleFrom('../src/helpers/seasonCalendar.ts');
 globalThis.React = React;
-const {YearSelect} = await moduleFrom('../src/components/YearSelect.tsx');
-const {CustomSelect} = await moduleFrom('../src/components/CustomSelect.tsx', source => source.replace('import { hapticSelection } from "../helpers/telegram";', 'const hapticSelection = () => {};'));
+const {CustomSelect, SelectField} = await moduleFrom('../src/components/CustomSelect.tsx', source => source.replace(/^import .*;$/gm, '') + '\nconst {Children, isValidElement, useId, useLayoutEffect, useRef, useState} = globalThis.React; const hapticSelection = () => {};');
+globalThis.SelectField = SelectField;
+const {YearSelect} = await moduleFrom('../src/components/YearSelect.tsx', source => source.replace(/^import .*;$/gm, 'const SelectField = globalThis.SelectField;'));
 
 test('missing numeric fields never become zero, NaN or undefined; real zero survives', () => {
   for (const value of [null, undefined, '', ' ', false, 'NaN', Infinity]) assert.equal(presentation.optionalNumber(value), null);
@@ -99,13 +100,15 @@ test('admin audit describes old and new values without exposing raw JSON by defa
   assert.match(describeAuditChange('game_records.user_cleared', {scope:'race', total:3}), /Emerald Loop · удалено записей: 3/);
   assert.equal(describeAuditChange('new.action', {}), 'Подробности доступны в технических сведениях.');
 });
-test('year and round selectors use labelled native controls with selected values', () => {
+test('year and round selectors expose labelled comboboxes and selected options', () => {
   const year=renderToStaticMarkup(React.createElement(YearSelect,{value:1997,minYear:1950,maxYear:2026,onChange:()=>{},ariaLabel:'Сезон'}));
-  assert.match(year,/<select[^>]*aria-label="Сезон"/);
-  assert.match(year,/<option value="1997" selected="">1997<\/option>/);
+  assert.match(year,/role="combobox" aria-label="Сезон"/);
+  assert.match(year,/role="option" aria-selected="true"[^>]*>1997<\/div>/);
+  assert.ok(!year.includes('<select'));
   const round=renderToStaticMarkup(React.createElement(CustomSelect,{value:2,options:[{value:1,label:'Первый'},{value:2,label:'Второй'}],onChange:()=>{},ariaLabel:'Этап'}));
-  assert.match(round,/<select[^>]*aria-label="Этап"/);
-  assert.match(round,/<option value="2" selected="">Второй<\/option>/);
+  assert.match(round,/role="combobox" aria-label="Этап"/);
+  assert.match(round,/role="option" aria-selected="true"[^>]*>Второй<\/div>/);
+  assert.ok(!round.includes('<select'));
 });
 
 test('Docker frontend build includes the legal registers at their resolved import paths', () => {

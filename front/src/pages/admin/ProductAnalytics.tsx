@@ -1,3 +1,4 @@
+import { SelectField } from '../../components/CustomSelect';
 import { useEffect,useState } from 'react';
 import { apiRequest } from '../../helpers/api';
 
@@ -20,7 +21,7 @@ export function ProductAnalytics(){
   const [result,setResult]=useState<{days:number;data?:Data;error?:string}|null>(null);
   useEffect(()=>{let active=true;apiRequest<Data>('/api/admin/tools/product-analytics',{days}).then(data=>{if(active)setResult({days,data});}).catch(()=>{if(active)setResult({days,error:'Не удалось загрузить аналитику'});});return()=>{active=false;};},[days]);
   const data=result?.days===days?result.data:undefined;
-  return <section className="admin-chart-card admin-tools"><header><h2>Действия пользователей · {days} дней</h2><select aria-label="Период аналитики действий (только этот блок)" value={days} onChange={e=>setDays(Number(e.target.value))}><option value={7}>7 дней</option><option value={30}>30 дней</option><option value={90}>90 дней</option></select></header>
+  return <section className="admin-chart-card admin-tools"><header><h2>Действия пользователей · {days} дней</h2><SelectField aria-label="Период аналитики действий (только этот блок)" value={days} onChange={e=>setDays(Number(e))}><option value={7}>7 дней</option><option value={30}>30 дней</option><option value={90}>90 дней</option></SelectField></header>
     <p className="ui-data-context">Период относится к действиям и доставкам этого блока. Текущие настройки каналов и возвращаемость между этапами показаны отдельно и не ограничены этим периодом.</p>
     {!data?<p role="status">{result?.days===days&&result.error?result.error:'Загрузка…'}</p>:<>
       <p>Анонимных браузеров: {data.audience.anonymous_browsers}. Авторизованных аккаунтов: {data.audience.accounts}. Это разные единицы: один человек может использовать несколько браузеров и войти позже. Их нельзя складывать как количество людей.</p>

@@ -1,3 +1,4 @@
+import { SelectField } from '../../components/CustomSelect';
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
@@ -39,9 +40,9 @@ export function AdminInsights() {
     const a = document.createElement("a"); a.href = url; a.download = `analytics-${days}d.csv`; a.click(); URL.revokeObjectURL(url);
   };
   return <><section className="admin-chart-card admin-tools"><header><h2>Аудитория и уведомления · {days} дней</h2>
-    <div className="at-actions"><select aria-label="Период расширенной аналитики" value={days} onChange={e => setDays(Number(e.target.value))}>
+    <div className="at-actions"><SelectField aria-label="Период расширенной аналитики" value={days} onChange={e => setDays(Number(e))}>
       <option value={7}>7 дней</option><option value={30}>30 дней</option><option value={90}>90 дней</option>
-    </select><button disabled={!data} onClick={exportCsv}>Скачать CSV</button></div></header>
+    </SelectField><button disabled={!data} onClick={exportCsv}>Скачать CSV</button></div></header>
     <p className="ui-data-context">Этот период относится только к блоку «Аудитория и уведомления». Число аккаунтов и настройки каналов — текущее состояние; регистрации и доставки — за выбранный период.</p>
     {error ? <p role="alert">{error}</p> : !data ? <p role="status">Загрузка…</p> : <>
       <div className="admin-metric-grid">{[["Аккаунтов сейчас", data.accounts.total], ["Новых за период", data.accounts.new_users],
@@ -99,9 +100,9 @@ export function AdminNotifications({ adminId }: { adminId?: number }) {
     <p>Доступны только аккаунты, открывавшие раздел уведомлений сайта. Гости недоступны. Фильтры применяются вместе. Максимум 1000 получателей за отправку.</p>
     {error && <p role="alert" className="admin-notice error">{error}</p>}{notice && <p role="status">{notice}</p>}
     <fieldset disabled={busy}><div className="at-columns">
-      <div className="at-fields"><label>Аудитория<select value={form.segment} onChange={e => edit({ segment: e.target.value })}>
+      <div className="at-fields"><label>Аудитория<SelectField value={form.segment} onChange={e => edit({ segment: e })}>
         <option value="selected">Конкретные пользователи</option><option value="admins">Администраторы</option><option value="active">Активные за 30 дней</option><option value="inactive">Неактивные 30 дней</option><option value="all">Все получатели сайта</option>
-      </select></label>
+      </SelectField></label>
       {form.segment === "selected" && <><label>Поиск пользователя<input value={search} onChange={e => setSearch(e.target.value)} placeholder="Имя, email или Telegram" /></label>
         <button onClick={() => void run(async () => setPeople((await apiRequest<{ items: Person[] }>("/api/admin/users", { search, page_size: 10 })).items))}>Найти</button>
         <div className="at-actions">{people.map(p => <button key={p.id} onClick={() => edit({ user_ids: [...new Set([...form.user_ids.split(/[,\s]+/).filter(Boolean), String(p.id)])].join(", ") })}>+ #{p.id} · {p.display_name || p.telegram_username || "Без имени"}</button>)}</div>

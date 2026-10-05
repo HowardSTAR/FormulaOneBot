@@ -1,3 +1,4 @@
+import { SelectField } from '../../components/CustomSelect';
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../../helpers/api";
 import { useSearchParams } from 'react-router-dom';
@@ -234,7 +235,7 @@ export default function AdminPage() {
       </header>
 
       <div className="admin-workspace">
-      <label className="admin-mobile-section">Раздел админ-панели<select value={tab} disabled={busy || recoveryBusy} onChange={event => setTab(event.target.value)}>{sections.map(section => <option key={section.id} value={section.id}>{section.label}</option>)}</select></label>
+      <label className="admin-mobile-section">Раздел админ-панели<SelectField value={tab} disabled={busy || recoveryBusy} onChange={event => setTab(event)}>{sections.map(section => <option key={section.id} value={section.id}>{section.label}</option>)}</SelectField></label>
       <nav className="admin-section-nav" aria-label="Разделы администрирования">
         {sections.map(section => <button type="button" key={section.id} disabled={recoveryBusy || busy} onClick={() => setTab(section.id)} className={tab === section.id ? 'active' : undefined} aria-current={tab === section.id ? 'page' : undefined}><strong>{section.label}</strong><small>{section.hint}</small></button>)}
       </nav>
@@ -267,12 +268,12 @@ export default function AdminPage() {
               />
               <button type="submit">Найти</button>
             </form>
-            <select value={roleFilter} onChange={(event) => { setPage(1); setRoleFilter(event.target.value as typeof roleFilter); }}>
+            <SelectField value={roleFilter} onChange={(event) => { setPage(1); setRoleFilter(event as typeof roleFilter); }}>
               <option value="all">Все роли</option>
               <option value="user">Участники</option>
               <option value="admin">Администраторы</option>
               <option value="superadmin">Супер-администраторы</option>
-            </select>
+            </SelectField>
             <span>{userPage ? `Найдено: ${userPage.total}` : 'Загружаем пользователей…'}</span>
           </header>
           <div className="admin-table-wrap">
@@ -401,7 +402,7 @@ export default function AdminPage() {
         <section className="admin-audit-card">
           <header><h3>Последние изменения</h3><span>последние 100 событий</span></header>
           {auditLoading && <p role="status">Загрузка журнала…</p>}
-          <div className="control-filters"><label>Поиск по автору, ID участника или изменению<input value={auditSearch} onChange={event => setAuditSearch(event.target.value)} /></label><label>Тип действия<select value={auditAction} onChange={event => setAuditAction(event.target.value)}><option value="all">Все действия</option>{[...new Set(audit.map(item => item.action))].map(action => <option key={action} value={action}>{auditActionLabels[action] || action}</option>)}</select></label></div>
+          <div className="control-filters"><label>Поиск по автору, ID участника или изменению<input value={auditSearch} onChange={event => setAuditSearch(event.target.value)} /></label><label>Тип действия<SelectField value={auditAction} onChange={event => setAuditAction(event)}><option value="all">Все действия</option>{[...new Set(audit.map(item => item.action))].map(action => <option key={action} value={action}>{auditActionLabels[action] || action}</option>)}</SelectField></label></div>
           <p className="ui-data-context">Показано {filteredAudit.length} из {audit.length} загруженных событий. Фильтры действуют на последние 100 записей.</p>
           <div className="admin-audit-list">
             {filteredAudit.map((item) => (

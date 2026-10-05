@@ -1,3 +1,4 @@
+import { SelectField } from '../../components/CustomSelect';
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -296,10 +297,10 @@ export default function AccountPage() {
               <div className="account-divider"><span>или код из бота</span></div>
               <form className="account-code-form" onSubmit={linkByCode}>
                 <input aria-label="Шестизначный код" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} placeholder="000000" value={manualCode} onChange={e => setManualCode(e.target.value.replace(/\D/g, ""))} />
-                <select value={strategy} onChange={e => setStrategy(e.target.value as typeof strategy)} aria-label="Основной профиль">
+                <SelectField value={strategy} onChange={e => setStrategy(e as typeof strategy)} aria-label="Основной профиль">
                   <option value="keep_web">Сохранить профиль сайта</option>
                   <option value="keep_telegram">Сохранить профиль Telegram</option>
-                </select>
+                </SelectField>
                 <button className="account-secondary" disabled={manualCode.length !== 6 || busy}>Привязать</button>
               </form>
               <p className="account-hint">Отправьте команду <code>/link</code> боту и введите полученный код здесь.</p>
