@@ -11,6 +11,19 @@ from app.utils.safe_send import safe_send_media_group
 DRIVERS = ["VER", "NOR", "PIA", "LEC", "HAM", "RUS", "ALO", "SAI"]
 
 
+@pytest.mark.asyncio
+async def test_prediction_leaderboard_respects_broadcast_season(api_client, monkeypatch):
+    from app.api import miniapp_api
+
+    leaderboard = AsyncMock(return_value={'season': 2025, 'entries': [], 'rounds': []})
+    monkeypatch.setattr(miniapp_api, 'get_prediction_leaderboard', leaderboard)
+    response = await api_client.get('/api/predictions/leaderboard?season=2025')
+    assert response.status_code == 200
+    assert response.json()['season'] == 2025
+    leaderboard.assert_awaited_once_with(2025)
+    assert (await api_client.get('/api/predictions/leaderboard?season=0')).status_code == 422
+
+
 def prediction_payload() -> dict:
     return {
         "sprint_pole_driver": None,

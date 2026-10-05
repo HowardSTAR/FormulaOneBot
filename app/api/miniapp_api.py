@@ -381,8 +381,9 @@ async def api_prediction_save(
 
 
 @web_app.get("/api/predictions/leaderboard")
-async def api_prediction_leaderboard(user_id: int = Depends(get_prediction_user_id)):
-    return {**await get_prediction_leaderboard(), "current_user_id": user_id}
+async def api_prediction_leaderboard(user_id: int = Depends(get_prediction_user_id),
+                                    season: int | None = Query(None, ge=1950, le=2100)):
+    return {**await get_prediction_leaderboard(season), "current_user_id": user_id}
 
 
 @web_app.get("/api/predictions/mine/{season}/{round_num}")

@@ -210,6 +210,35 @@ class RecoveryNotifyConfirmation(BaseModel):
     confirmation: Literal['ОТПРАВИТЬ']
 
 
+class PredictionResultsSend(RecoveryRequest):
+    confirmation: Literal['ОТПРАВИТЬ']
+    fingerprint: str = Field(pattern=r'^[a-f0-9]{64}$')
+
+
+@router.get('/prediction-results/preview')
+async def prediction_results_preview(
+    response: Response, season: int = Query(ge=1950, le=2100),
+    round_num: int = Query(alias='round', ge=1, le=40),
+    actor: AdminContext = Depends(require_admin_session),
+):
+    from app.services.prediction_broadcasts import preview
+    response.headers['Cache-Control'] = 'no-store'
+    try:
+        return await preview(season, round_num)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.post('/prediction-results/send')
+async def prediction_results_send(data: PredictionResultsSend,
+                                  actor: AdminContext = Depends(require_admin_session)):
+    from app.services.prediction_broadcasts import send
+    try:
+        return await send(data.season, data.round, data.fingerprint, actor.id)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
 @router.get('/prediction-recovery')
 async def recovery_history(actor: AdminContext = Depends(require_admin_session)):
     from app.services.prediction_recovery import history

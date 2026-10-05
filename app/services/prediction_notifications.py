@@ -85,19 +85,13 @@ async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple]) -> 
     return await _queue_prediction(bot, event, 'open', text, keyboard, users)
 
 
-async def _send_prediction_results(
-    bot: Bot,
+def prediction_results_message(
     event: dict,
     top: list[dict],
-    users: list[tuple],
     *,
     provisional: bool = False,
     verified_update: bool = False,
-) -> int:
-    keyboard = await mini_app_button(
-        bot, "🏆 Таблица прогнозов", "/predictions", tab="leaderboard",
-    )
-    keyboard = personal_buttons(int(event.get('season') or datetime.now(timezone.utc).year), int(event['round']), keyboard)
+) -> tuple[str, str]:
     if top:
         medals = ("🥇", "🥈", "🥉")
         lines = [
@@ -120,6 +114,23 @@ async def _send_prediction_results(
         + ("\n\nДополнительные факты гонки проверены, баллы пересчитаны с сохранением прежних начислений." if verified_update else "")
         + "\n\nОткройте общую таблицу прогнозов по кнопке ниже."
     )
+    return title, text
+
+
+async def _send_prediction_results(
+    bot: Bot,
+    event: dict,
+    top: list[dict],
+    users: list[tuple],
+    *,
+    provisional: bool = False,
+    verified_update: bool = False,
+) -> int:
+    keyboard = await mini_app_button(
+        bot, "🏆 Таблица прогнозов", "/predictions", tab="leaderboard",
+    )
+    keyboard = personal_buttons(int(event.get('season') or datetime.now(timezone.utc).year), int(event['round']), keyboard)
+    title, text = prediction_results_message(event, top, provisional=provisional, verified_update=verified_update)
     web_key = "prediction-results-updated" if verified_update else "prediction-results"
     await publish_web(f"{web_key}:{event.get('season')}:{event.get('round')}", title, text, "/predictions?tab=leaderboard")
     return await _queue_prediction(bot, event, 'results-updated' if verified_update else 'results', text, keyboard, users)

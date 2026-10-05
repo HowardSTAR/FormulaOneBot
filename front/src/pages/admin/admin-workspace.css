@@ -1,3 +1,5 @@
+.prediction-broadcast { margin-block: 20px; padding: 16px; border: 1px solid #536477; border-radius: 10px; min-width: 0; }
+.prediction-broadcast-preview { padding: 14px; border-radius: 8px; background: rgba(0, 0, 0, 0.18); white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .admin-page { padding: 12px 8px 32px; --admin-muted: #adb3c0; }
 .admin-hero { padding: 18px 22px; border-radius: 14px; align-items: center; background: #151a22; }
 .admin-hero h1 { font-size: clamp(24px, 3vw, 34px); font-style: normal; text-transform: none; line-height: 1.2; margin: 6px 0 0; }

@@ -114,7 +114,12 @@ function PredictionsContent({ guest }: { guest: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab');
   const tab = !guest && ['leaderboard', 'history', 'leagues'].includes(requestedTab || '') ? requestedTab : 'form';
-  const [stageRound, setStageRound] = useState(0);
+  const requestedYear = Number(searchParams.get('season'));
+  const requestedSeason = Number.isInteger(requestedYear) && requestedYear >= 1950 && requestedYear <= 2100 ? requestedYear : undefined;
+  const [stageRound, setStageRound] = useState(() => {
+    const value = Number(searchParams.get('round'));
+    return Number.isInteger(value) && value >= 1 && value <= 40 ? value : 0;
+  });
   const setTab = (value: "form" | "leaderboard" | "history" | "leagues") => {
     setSearchParams((params) => { params.set("tab", value); return params; }, { replace: true });
   };
@@ -139,7 +144,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
     try {
       const [currentData, leaderboardData] = await Promise.all([
         apiRequest<CurrentResponse>(guest ? "/api/predictions/preview" : "/api/predictions/current"),
-        guest ? Promise.resolve<LeaderboardResponse>({season: 0, entries: [], rounds: [], current_user_id: 0}) : apiRequest<LeaderboardResponse>("/api/predictions/leaderboard"),
+        guest ? Promise.resolve<LeaderboardResponse>({season: 0, entries: [], rounds: [], current_user_id: 0}) : apiRequest<LeaderboardResponse>("/api/predictions/leaderboard", {season:requestedSeason}),
       ]);
       setCurrent(currentData);
       setDisplayName(currentData.profile.display_name || "");
@@ -167,7 +172,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
     } finally {
       setLoading(false);
     }
-  }, [guest]);
+  }, [guest, requestedSeason]);
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
