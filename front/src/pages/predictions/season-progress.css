@@ -1,14 +1,69 @@
-.season-progress { margin: 16px 0; padding: clamp(12px, 3vw, 22px); border: 1px solid #343a44; border-radius: 16px; background: #151920; color: #ecedf1; }
-.season-progress p { color: #bfc5cf; line-height: 1.55; }
-.season-progress article { padding: 12px 0; border-bottom: 1px solid #353a43; }
-.season-progress button, .season-progress input, .season-progress select { min-height: 44px; max-width: 100%; border-radius: 9px; border: 1px solid #4b515c; color: inherit; background: #242932; padding: 8px 12px; font: inherit; }
+.season-progress { margin: 24px 0; padding: clamp(18px, 3vw, 32px); border: 1px solid #343d4b; border-radius: 20px; background: #12171f; color: #f3f5fa; }
+.season-progress p { margin: 0; color: #c1cad8; line-height: 1.65; }
+.season-progress :where(button, input, select) { min-height: 44px; max-width: 100%; border-radius: 10px; border: 1px solid #4b586c; color: inherit; background: #222b39; padding: 11px 16px; font: inherit; }
+.season-progress button { cursor: pointer; }
+.season-progress :is(button, summary, a):focus-visible { outline: 3px solid #ff776f; outline-offset: 4px; }
+.season-progress-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+.season-progress-heading h3 { margin: 6px 0 0; color: #fff; font-size: clamp(22px, 3vw, 28px); font-style: normal; text-transform: none; letter-spacing: -.025em; line-height: 1.2; }
+.season-progress .season-progress-kicker { color: #aebcd0; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; line-height: 1.5; }
+.season-progress-count { color: #bec9d9; font-size: 13px; white-space: nowrap; }
+.season-progress-latest { display: grid; gap: 16px; padding: 24px; border: 1px solid #435063; border-radius: 16px; background: linear-gradient(125deg, #25232c, #19222e 65%); }
+.season-progress-latest>header { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.season-progress-latest h4 { margin: 8px 0 0; color: #fff; font-size: clamp(18px, 2.3vw, 24px); line-height: 1.35; }
+.season-progress .season-progress-score { display: flex; align-items: baseline; gap: 8px; flex: none; color: #ced7e5; }
+.season-progress-score strong { color: #fff; font-size: 40px; line-height: 1; font-variant-numeric: tabular-nums; }
+.season-progress-score span { font-size: 14px; }
+.season-progress .season-progress-note { color: #b1bed0; font-size: 14px; }
+.season-progress-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 4px; }
+.season-progress-actions .season-progress-primary { display: inline-flex; align-items: center; justify-content: center; gap: 14px; background: #da3029; border-color: #f56359; color: #fff; font-weight: 700; }
+.season-progress-actions>button:hover { filter: brightness(1.15); }
+.season-progress-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 24px 0 0; }
+.season-progress-metrics>div { padding: 20px; border: 1px solid #344153; border-radius: 14px; background: #19212d; }
+.season-progress-metrics dt { color: #bcc8d9; font-size: 14px; line-height: 1.4; }
+.season-progress-metrics dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin: 12px 0 0; color: #fff; font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.season-progress-metrics small { color: #aebdd1; font-size: 12px; font-weight: 500; }
+.season-progress-standing { display: grid; gap: 6px; margin-top: 16px; }
+.season-progress-standing small { color: #aebdd1; font-size: 12px; line-height: 1.6; }
+.season-progress .season-progress-accuracy { padding: 4px 18px; margin: 24px 0; border: 1px solid #344153; border-radius: 12px; }
+.season-progress-accuracy>summary { min-height: 48px; padding: 12px 0; font-weight: 600; }
+.season-progress-accuracy>p { margin: 8px 0 16px; font-size: 14px; }
+.season-progress-accuracy dl { margin: 0 0 12px; }
+.season-progress-accuracy dl>div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-top: 1px solid #344153; }
+.season-progress-accuracy dd { margin: 0; color: #d6deeb; text-align: right; font-variant-numeric: tabular-nums; }
+.season-progress-achievements { display: grid; gap: 10px; margin: 24px 0; }
+.season-progress-achievements ul { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.season-progress-achievements li { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border: 1px solid #5b5038; border-radius: 10px; background: #28251e; color: #edcf90; font-size: 13px; line-height: 1.5; }
+.season-progress-history { margin-top: 28px; }
+.season-progress-history>header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 16px; }
+.season-progress-history h4 { margin: 0; font-size: 18px; }
+.season-progress-history>header>span { color: #aebdd1; font-size: 13px; }
+.season-progress .season-progress-rounds { display: grid; gap: 10px; margin: 0; }
+.season-progress-rounds>button { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 18px; text-align: left; background: #19212d; border-color: #3e4a5d; }
+.season-progress-rounds>button:hover { background: #232d3b; border-color: #8593aa; }
+.season-progress-rounds>button>span { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.season-progress-rounds small { color: #acbad0; font-size: 12px; font-weight: 500; }
+.season-progress-rounds strong { display: flex; align-items: baseline; gap: 4px; flex: none; font-variant-numeric: tabular-nums; }
+.season-progress-rounds strong>span { margin-left: 10px; color: #aebdd1; }
+.season-progress .season-progress-next { margin-top: 24px; }
+.season-progress-error { display: grid; justify-items: start; gap: 14px; }
 .season-progress form { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin: 10px 0; }
 .season-progress label { display: grid; gap: 6px; min-width: 0; }
 .season-progress details { margin: 12px 0; }
 .season-progress summary { cursor: pointer; padding: 8px 0; }
-.season-progress-rounds { display: grid; gap: 6px; margin-bottom: 16px; }
-.season-progress-rounds button { text-align: left; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
 .league-score-list { list-style: none; padding: 0; }
 .league-score-list li { display: flex; gap: 8px; padding: 10px 0; border-bottom: 1px solid #353a43; }
 .league-score-list b { margin-left: auto; white-space: nowrap; }
 .predictions-tabs { flex-wrap: wrap; }
+@media(max-width:600px) {
+  .season-progress-heading, .season-progress-latest>header { align-items: flex-start; flex-direction: column; gap: 14px; }
+  .season-progress-latest { padding: 18px; }
+  .season-progress-actions { align-items: stretch; flex-direction: column; }
+  .season-progress-actions>button { width: 100%; }
+  .season-progress-metrics { gap: 8px; }
+  .season-progress-metrics>div { padding: 14px 10px; }
+  .season-progress-metrics dt { font-size: 12px; }
+  .season-progress-metrics dd { font-size: 26px; flex-direction: column; gap: 5px; }
+  .season-progress-rounds>button { padding: 14px 12px; gap: 10px; }
+  .season-progress-accuracy dl>div { flex-direction: column; gap: 6px; }
+  .season-progress-accuracy dd { text-align: left; }
+}
