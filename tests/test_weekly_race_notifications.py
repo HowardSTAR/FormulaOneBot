@@ -42,8 +42,11 @@ async def test_no_early_or_stale_broadcast(weekly_store, monkeypatch, now):
 
 
 @pytest.mark.asyncio
-async def test_winner_cutoff_and_only_one_delivery_after_restart(weekly_store):
+async def test_winner_cutoff_and_only_one_delivery_after_restart(weekly_store, monkeypatch):
     database = weekly_store
+    # The scheduler and durable queue must share the simulated time, including TTL checks.
+    delivery_now = DUE
+    monkeypatch.setattr(outbox, 'time', SimpleNamespace(time=lambda: delivery_now.timestamp()))
     previous_track, start, end = engagement.weekly_period(DUE-timedelta(days=7))
     current_track, _, _ = engagement.weekly_period(DUE)
     await database.conn.executemany(
@@ -62,7 +65,8 @@ async def test_winner_cutoff_and_only_one_delivery_after_restart(weekly_store):
     await database.conn.commit()
     bot = SimpleNamespace(send_message=AsyncMock(return_value=SimpleNamespace(message_id=123)))
     assert await service.check_and_notify_weekly_race(bot, now=DUE)
-    assert await service.check_and_notify_weekly_race(bot, now=DUE+timedelta(minutes=5))
+    delivery_now = DUE + timedelta(minutes=5)
+    assert await service.check_and_notify_weekly_race(bot, now=delivery_now)
     assert bot.send_message.await_count == 2
     text = bot.send_message.await_args.kwargs['text']
     assert 'Winner &lt;One&gt;' in text and '01:01.001' in text and 'Началась новая неделя' in text
