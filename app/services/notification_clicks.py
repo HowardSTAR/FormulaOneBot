@@ -27,6 +27,10 @@ CREATE TABLE IF NOT EXISTS notification_button_events (
 CREATE INDEX IF NOT EXISTS idx_notification_button_events_created ON notification_button_events(created);
 CREATE INDEX IF NOT EXISTS idx_notification_button_events_token ON notification_button_events(token,created);
 CREATE INDEX IF NOT EXISTS idx_notification_button_events_viewer ON notification_button_events(viewer,created);
+CREATE TABLE IF NOT EXISTS bot_reply_buttons (
+ chat_id TEXT NOT NULL, label TEXT NOT NULL, token TEXT NOT NULL,
+ PRIMARY KEY(chat_id,label)
+);
 '''
 LABELS = {'leaderboard': 'Таблица прогнозов', 'review': 'Мой разбор',
           'leagues': 'Мои лиги', 'community': 'С друзьями · итоги и новый заезд'}
@@ -156,12 +160,12 @@ async def report(conn, since):
     )).fetchall()
     summary = await (await conn.execute(
         '''SELECT COUNT(*) interactions,COUNT(DISTINCT e.viewer) unique_users,
-           COALESCE(SUM(l.button IN ('review','leagues')),0) callbacks,
-           COALESCE(SUM(l.button IN ('leaderboard','community')),0) arrivals
+           COALESCE(SUM(l.button IN ('review','leagues') OR l.button LIKE 'bot:callback:%' OR l.button LIKE 'bot:reply:%'),0) callbacks,
+           COALESCE(SUM(l.button IN ('leaderboard','community') OR l.button LIKE 'bot:arrival:%'),0) arrivals
            FROM notification_button_events e JOIN notification_button_links l ON l.token=e.token
            WHERE e.created>=?''', (since,),
     )).fetchone()
     first = (await (await conn.execute('SELECT MIN(created) FROM notification_button_links')).fetchone())[0]
     return {'summary': dict(summary), 'first_tracked': first,
-            'items': [{**dict(row), 'label': LABELS[row['button']],
-                       'metric': 'callback' if row['button'] in ('review', 'leagues') else 'arrival'} for row in rows]}
+            'items': [{**dict(row), 'label': LABELS.get(row['button'], row['button'].split(':', 2)[-1]),
+                       'metric': 'callback' if row['button'] in ('review', 'leagues') or row['button'].startswith(('bot:reply:', 'bot:callback:')) else 'arrival'} for row in rows]}

@@ -63,6 +63,18 @@ async def on_startup(bot: Bot):
     await db.connect()
     await db.init_tables()
 
+    mini_app_url = os.getenv("MINI_APP_URL", "").strip().rstrip("/")
+    if mini_app_url:
+        if not mini_app_url.startswith("https://"):
+            raise RuntimeError("MINI_APP_URL must use HTTPS for Telegram Mini Apps")
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="Открыть TurboTears",
+                web_app=WebAppInfo(url=mini_app_url),
+            )
+        )
+        logging.getLogger(__name__).info("Telegram Mini App menu configured: %s", mini_app_url)
+
     # 2. Инициализируем Redis кэш
     if settings.bot.redis_url:
         await init_redis_cache(settings.bot.redis_url)
@@ -80,18 +92,6 @@ async def on_shutdown(bot: Bot):
 
 async def main():
     bot, dp = create_bot_and_dispatcher()
-
-    mini_app_url = os.getenv("MINI_APP_URL", "").strip().rstrip("/")
-    if mini_app_url:
-        if not mini_app_url.startswith("https://"):
-            raise RuntimeError("MINI_APP_URL must use HTTPS for Telegram Mini Apps")
-        await bot.set_chat_menu_button(
-            menu_button=MenuButtonWebApp(
-                text="Открыть TurboTears",
-                web_app=WebAppInfo(url=mini_app_url),
-            )
-        )
-        logging.getLogger(__name__).info("Telegram Mini App menu configured: %s", mini_app_url)
 
     # 1. Регистрируем хуки (теперь они точно сработают!)
     dp.startup.register(on_startup)

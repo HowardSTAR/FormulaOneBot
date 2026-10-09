@@ -17,5 +17,9 @@ def create_bot_and_dispatcher() -> tuple[Bot, Dispatcher]:
     # Linking state is durable in SQLite. FSM state may remain process-local,
     # so the bot no longer requires an external Redis service.
     dp = Dispatcher(storage=MemoryStorage())
+    from app.middlewares.button_analytics import IncomingButtonAnalytics, OutgoingButtonAnalytics
+    bot.session.middleware(OutgoingButtonAnalytics())
+    dp.message.outer_middleware(IncomingButtonAnalytics())
+    dp.callback_query.outer_middleware(IncomingButtonAnalytics())
 
     return bot, dp

@@ -103,7 +103,8 @@ async def notification_entry(body: NotificationEntry, request: Request, response
         link = await (await db.conn.execute(
             'SELECT destination,button FROM notification_button_links WHERE token=?', (body.token,),
         )).fetchone()
-        if not link or link['destination'] != body.path or link['button'] not in ('leaderboard', 'community'):
+        if (not link or link['destination'] != body.path or body.path not in PUBLIC_ROUTES
+                or not (link['button'] in ('leaderboard', 'community') or link['button'].startswith('bot:arrival:'))):
             raise HTTPException(400, 'Valid notification destination required')
         viewer = viewer_key(visitor, user_id)
         count = (await (await db.conn.execute(

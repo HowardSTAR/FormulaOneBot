@@ -174,3 +174,115 @@ async def test_manual_broadcast_tracks_both_channels(tracking, monkeypatch):
     assert len({item['campaign'] for item in data['items']}) == 1
     url = (await (await database.conn.execute('SELECT url FROM web_notifications LIMIT 1')).fetchone())[0]
     assert len(parse_qs(urlsplit(url).query)['nb'][0]) == 32
+
+
+@pytest.mark.asyncio
+async def test_bot_menu_and_future_buttons_are_discovered_and_replay_safe(tracking):
+    from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+    from app.middlewares.button_analytics import track_keyboard, record_button
+    database, _, _ = tracking
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text='Новая кнопка', callback_data='future:secret-value'),
+    ]])
+    await track_keyboard(database.conn, keyboard, 101)
+    await track_keyboard(database.conn, ReplyKeyboardMarkup(keyboard=[[
+        KeyboardButton(text='Новое меню'),
+    ]]), 101)
+    await database.conn.commit()
+    message = Message.model_validate({'message_id': 12, 'date': int(time.time()),
+        'chat': {'id': 101, 'type': 'private'}, 'from': {'id': 101, 'is_bot': False, 'first_name': 'Test'},
+        'text': 'Новое меню'})
+    callback = CallbackQuery.model_validate({'id': 'new-button-click', 'chat_instance': 'x',
+        'from': {'id': 101, 'is_bot': False, 'first_name': 'Test'}, 'data': 'future:secret-value',
+        'message': {**message.model_dump(by_alias=True), 'reply_markup': keyboard.model_dump()}})
+    for event in (message, callback, message, callback):
+        await record_button(event)
+    await record_button(message.model_copy(update={'message_id': 13, 'text': 'Личный текст'}))
+    report = await clicks.report(database.conn, 0)
+    assert report['summary'] == {'interactions': 2, 'unique_users': 1, 'callbacks': 2, 'arrivals': 0}
+    assert {item['label'] for item in report['items']} == {'Новое меню', 'Новая кнопка'}
+    assert 'secret-value' not in json.dumps(report)
+
+
+@pytest.mark.asyncio
+async def test_my_prediction_and_new_f1hub_destinations_are_tracked(tracking):
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from app.middlewares.button_analytics import track_keyboard
+    database, client, _ = tracking
+    original = await mini_app_button(None, '🔮 Мой прогноз', '/predictions', tab='form')
+    tracked = await track_keyboard(database.conn, original, 101)
+    again = await track_keyboard(database.conn, tracked, 101)
+    await database.conn.commit()
+    url = again.inline_keyboard[0][0].web_app.url
+    assert url == tracked.inline_keyboard[0][0].web_app.url
+    assert 'nb=' not in original.inline_keyboard[0][0].web_app.url
+    query = parse_qs(urlsplit(url).query)
+    assert query['tab'] == ['form']
+    body = {'token': query['nb'][0], 'path': '/predictions', 'event_id': str(uuid.uuid4())}
+    assert (await client.post('/api/analytics/notification-entry', json=body)).status_code == 200
+    assert (await client.post('/api/analytics/notification-entry', json=body)).status_code == 200
+    assert (await client.post('/api/analytics/notification-entry', json={**body, 'path': '/wiki'})).status_code == 400
+    report = await clicks.report(database.conn, 0)
+    assert report['summary']['arrivals'] == 1
+    assert report['items'][0]['label'].startswith('🔮 Мой прогноз')
+    external = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text='Внешний сайт', url='https://external.test/wiki'),
+    ]])
+    assert (await track_keyboard(database.conn, external)).inline_keyboard[0][0].url == 'https://external.test/wiki'
+
+
+@pytest.mark.asyncio
+async def test_global_middleware_keeps_broadcast_callback_counted_once(tracking):
+    from aiogram.types import CallbackQuery
+    from app.middlewares.button_analytics import record_button
+    database, _, _ = tracking
+    keyboard = await prediction_keyboard()
+    await outbox.enqueue('prediction:results:2026:16', 'Results', keyboard, [(101, 'UTC')], time.time()+3600)
+    await database.conn.execute("UPDATE telegram_deliveries SET status='sent',message_id=10")
+    await database.conn.commit()
+    callback = CallbackQuery.model_validate({'id': 'broadcast-click', 'chat_instance': 'x',
+        'from': {'id': 101, 'is_bot': False, 'first_name': 'Test'}, 'data': 'personal:review:2026:16',
+        'message': {'message_id': 10, 'date': int(time.time()), 'chat': {'id': 101, 'type': 'private'},
+                    'reply_markup': keyboard.model_dump()}})
+    await record_button(callback)
+    await clicks.record_callback(callback, 'review', 1)
+    report = await clicks.report(database.conn, 0)
+    assert report['summary']['callbacks'] == 1
+    assert next(item for item in report['items'] if item['button'] == 'review')['clicks'] == 1
+
+
+@pytest.mark.asyncio
+async def test_tracking_failure_does_not_block_bot_handlers_or_sends(monkeypatch):
+    from aiogram.methods import SendMessage
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from app.middlewares.button_analytics import IncomingButtonAnalytics, OutgoingButtonAnalytics
+    monkeypatch.setattr(clicks, 'connection', lambda: (_ for _ in ()).throw(RuntimeError('database unavailable')))
+    handler = AsyncMock(return_value='handled')
+    assert await IncomingButtonAnalytics()(handler, SimpleNamespace(from_user=SimpleNamespace(is_bot=False)), {}) == 'handled'
+    send = AsyncMock(return_value='sent')
+    method = SendMessage(chat_id=101, text='Hi', reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text='Button', callback_data='new'),
+    ]]))
+    assert await OutgoingButtonAnalytics()(send, None, method) == 'sent'
+    assert send.call_args.args[1] is method
+
+
+@pytest.mark.asyncio
+async def test_outgoing_middleware_tracks_app_menu_and_preserves_broadcast_links(tracking):
+    from aiogram.methods import SetChatMenuButton, SendMessage
+    from aiogram.types import MenuButtonWebApp, WebAppInfo
+    from app.middlewares.button_analytics import OutgoingButtonAnalytics
+    database, _, _ = tracking
+    send = AsyncMock(return_value=True)
+    menu = SetChatMenuButton(menu_button=MenuButtonWebApp(text='F1Hub', web_app=WebAppInfo(url='https://example.test')))
+    await OutgoingButtonAnalytics()(send, None, menu)
+    assert 'nb=' in send.call_args.args[1].menu_button.web_app.url
+    assert 'nb=' not in menu.menu_button.web_app.url
+    original = await prediction_keyboard()
+    key = 'prediction:results:2026:16'
+    tracked = await clicks.tracked_keyboard(database.conn, key, original)
+    await database.conn.commit()
+    await OutgoingButtonAnalytics()(send, None, SendMessage(chat_id=101, text='Results', reply_markup=tracked))
+    assert send.call_args.args[1].reply_markup == tracked
+    report = await clicks.report(database.conn, 0)
+    assert len(report['items']) == 4  # Three campaign buttons plus the app menu.
