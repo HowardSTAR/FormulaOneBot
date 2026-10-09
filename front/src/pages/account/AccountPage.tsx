@@ -27,6 +27,12 @@ type LinkStatus = { status: "pending" | "approved" | "expired" | "cancelled" | "
 
 type ApiErrorPayload = { detail?: { message?: string; code?: string } | string };
 
+type BoostyStatus = {
+  eligible: boolean; configured: boolean; active: boolean;
+  blog_url: string; level_name: string | null; checked_at: number | null;
+  check_failed: boolean;
+};
+
 function readCookie(name: string): string | null {
   const prefix = `${encodeURIComponent(name)}=`;
   const item = document.cookie.split("; ").find(value => value.startsWith(prefix));
@@ -54,6 +60,30 @@ export default function AccountPage() {
   const navigate = useNavigate();
   const [returnParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
+  const [boosty, setBoosty] = useState<BoostyStatus | null>(null);
+  const [boostyBusy, setBoostyBusy] = useState(false);
+  const [boostyError, setBoostyError] = useState("");
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    const refresh = () => {
+      void authFetch<BoostyStatus>("/api/account/boosty").then(value => {
+        if (active) { setBoosty(value); setBoostyError(""); }
+      }).catch(() => {
+        if (active) setBoostyError("Не удалось загрузить статус Boosty");
+      });
+    };
+    refresh();
+    const stop = visibleInterval(refresh, 60000);
+    return () => { active = false; stop(); };
+  }, [user]);
+
+  const checkBoosty = async () => {
+    setBoostyBusy(true); setBoostyError("");
+    try { setBoosty(await authFetch<BoostyStatus>("/api/account/boosty/check", { method: "POST" })); }
+    catch (reason) { setBoostyError(reason instanceof Error ? reason.message : "Не удалось проверить Boosty"); }
+    finally { setBoostyBusy(false); }
+  };
   useEffect(() => {
     const path = safeReturnPath(returnParams.get('returnPath'));
     if (user && path && (returnParams.get('requireTelegram') !== '1' || user.telegram_id)) navigate(path, {replace: true});
@@ -201,6 +231,7 @@ export default function AccountPage() {
     await authFetch("/api/auth/logout", { method: "POST" });
     sessionStorage.removeItem("turbotears_csrf");
     setUser(null); setLinkSession(null); setMode("login");
+    setBoosty(null); setBoostyError("");
     notifyAuthChanged();
   };
 
@@ -217,6 +248,7 @@ export default function AccountPage() {
       });
       sessionStorage.removeItem("turbotears_csrf");
       setUser(null); setLinkSession(null); setMode("login");
+      setBoosty(null); setBoostyError("");
       setDeletePassword(""); setDeleteConfirmation(""); setDeletePanelOpen(false);
       setMessage("Аккаунт и связанные персональные данные удалены.");
       notifyAuthChanged();
@@ -269,9 +301,28 @@ export default function AccountPage() {
           <section className="account-card account-profile-card">
             <span className="account-kicker">ТЕКУЩИЙ ПРОФИЛЬ</span>
             <h2>{user.email}</h2>
+            {boosty?.active && <span className="account-boosty-badge">Поддерживает TurboTears · {boosty.level_name || "Boosty"}</span>}
             <dl><div><dt>Email</dt><dd>Подтверждён</dd></div><div><dt>Telegram</dt><dd>{user.telegram_id ? `ID ${user.telegram_id}` : "Не подключён"}</dd></div></dl>
             <button className="account-secondary" onClick={logout}>Выйти</button>
           </section>
+          {(boosty?.eligible || boostyError) && (
+            <section className="account-card account-boosty-card">
+              <span className="account-kicker">ПОДДЕРЖКА ПРОЕКТА</span>
+              <h2>Подписка Boosty</h2>
+              <p>Для проверки используйте одинаковый подтверждённый email на сайте и в Boosty.</p>
+              <p role="status">{!boosty ? "Статус недоступен" : !boosty.configured
+                ? "Подключение проверки готовится"
+                : boosty.active ? `Подписка активна${boosty.level_name ? ` · ${boosty.level_name}` : ""}`
+                : boosty.checked_at ? "Активная платная подписка не найдена" : "Подписка ещё не проверена"}</p>
+              {boosty?.checked_at && <p className="account-hint">Последняя проверка: {new Date(boosty.checked_at * 1000).toLocaleString("ru-RU")}</p>}
+              {boosty?.check_failed && <p>Проверка временно недоступна. Показан последний подтверждённый статус.</p>}
+              <div className="account-boosty-actions">
+                <a className="account-secondary" href={boosty?.blog_url || "https://boosty.to/turbotears"} target="_blank" rel="noopener noreferrer">Открыть Boosty</a>
+                <button className="account-primary" disabled={!boosty?.configured || boostyBusy} onClick={() => void checkBoosty()}>{boostyBusy ? "Проверяем…" : "Проверить подписку"}</button>
+              </div>
+              {boostyError && <p role="alert" className="account-notice error">{boostyError}</p>}
+            </section>
+          )}
           {user.telegram_id ? (
             <section className="account-card account-personal-card">
               <span className="account-kicker">ПЕРСОНАЛИЗАЦИЯ</span>

@@ -40,6 +40,10 @@
 .account-notice.success { color: #7ce6b0; background: rgba(23,164,93,.13); }.account-notice.error { color: #ff938f; background: rgba(225,6,0,.13); }
 .account-text-button { justify-self: start; padding: 0; border: 0; color: #c7c9ce; background: transparent; font: inherit; font-weight: 750; text-decoration: underline; text-underline-offset: 4px; cursor: pointer; }
 .account-text-button:hover { color: #ff4b45; }
+.account-boosty-badge { display: inline-block; margin-bottom: 12px; padding: 7px 12px; border-radius: 8px; color: #ffb675; background: rgba(242,120,48,.13); font-weight: 750; }
+.account-boosty-card > p { color: #a6a8ad; line-height: 1.55; }
+.account-boosty-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.account-boosty-actions a { text-decoration: none; }
 .account-text-button-center { justify-self: center; }
 .account-security-card { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(220px,.65fr) minmax(520px,1.35fr); gap: 28px; align-items: start; }
 .account-security-copy h2 { margin: 8px 0; font-size: 28px; }

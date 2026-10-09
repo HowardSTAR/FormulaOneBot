@@ -107,9 +107,16 @@ async def lifespan(app: FastAPI):
         await init_redis_cache(redis_url)
     from app.services.posthog_bridge import worker as posthog_worker
     posthog_task = asyncio.create_task(posthog_worker(db))
+    from app.api.boosty_api import get_boosty_service
+    boosty_task = asyncio.create_task(get_boosty_service().worker())
     try:
         yield
     finally:
+        boosty_task.cancel()
+        try:
+            await boosty_task
+        except asyncio.CancelledError:
+            pass
         posthog_task.cancel()
         try:
             await posthog_task
@@ -145,6 +152,8 @@ web_app.add_middleware(
 )
 
 web_app.include_router(auth_router)
+from app.api.boosty_api import router as boosty_router
+web_app.include_router(boosty_router)
 web_app.include_router(admin_router)
 web_app.include_router(admin_tools_router)
 web_app.include_router(prediction_analytics_router)
