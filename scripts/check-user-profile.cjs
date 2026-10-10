@@ -52,7 +52,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       await page.goto(`${base}/profile`);
       await page.getByRole('heading',{name:'Turbo Racer'}).waitFor();
       assert.equal(await page.getByRole('heading',{name:'Твой стиль',exact:true}).count(),0, 'Style is inside the editor, not on the profile');
-      await page.getByRole('heading',{name:'Лига сторонников',exact:true}).waitFor();
+      await page.getByRole('heading',{name:'Клуб TurboTears',exact:true}).waitFor();
       const personalNav=page.getByRole('navigation',{name:'Личный раздел'});
       assert.equal(await personalNav.getByRole('link').count(),2);
       await page.getByRole('button',{name:'Аватар и оформление',exact:true}).click();
