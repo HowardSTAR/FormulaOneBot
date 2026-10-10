@@ -47,7 +47,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Use HTTPS: CI hosts may be unable to reach Debian mirrors over port 80.
+# Retry transient downloads and fail on an incomplete package index.
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
+    && apt-get -o Acquire::Retries=3 -o Acquire::https::Timeout=30 \
+        -o APT::Update::Error-Mode=any update \
+    && apt-get -o Acquire::Retries=3 -o Acquire::https::Timeout=30 \
+        install -y --no-install-recommends \
     gcc \
     python3-dev \
     unzip \
