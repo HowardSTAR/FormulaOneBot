@@ -1,4 +1,26 @@
 @media (min-width: 900px) {
+  .app-header .app-header-section { display: grid; gap: 4px; }
+  .app-header .app-header-section + .app-header-section {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+  }
+  .app-header .app-header-section-label {
+    margin: 0 9px 4px;
+    color: #b7c1d2;
+    font: 700 11px/1.5 Inter, system-ui, sans-serif;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .app-header .app-header-link-label { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+  .app-header .app-header-link-arrow { flex: 0 0 12px; }
+  .app-header button.app-header-submenu-link {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+  }
   .app-header .app-header-link-icon {
     width: 32px !important;
     height: 32px;
