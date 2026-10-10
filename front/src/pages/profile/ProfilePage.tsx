@@ -3,10 +3,12 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { apiRequest, ApiError } from '../../helpers/api';
 import { BackButton } from '../../components/BackButton';
 import { ShareButton } from '../../components/ShareButton';
+import AvatarEditor from './AvatarEditor';
+import { avatarUrl, defaultAvatar, type Avatar, type AvatarOptions } from './avatar';
 import './profile.css';
 
 type Style = { frame: string; color: string; background: string };
-type Person = { user_id: number; display_name: string; tier: number; tier_name: string; supporter: boolean; style: Style };
+type Person = { user_id: number; display_name: string; tier: number; tier_name: string; supporter: boolean; style: Style; avatar?: Avatar; avatar_options?: AvatarOptions };
 type Prediction = { round: number; event_name: string | null; points: number | null; max_points: number | null; winner_driver: string; second_driver: string; third_driver: string; pole_driver: string; fastest_lap_driver: string; fourth_driver: string; fifth_driver: string; first_retirement_driver: string; safety_car: number; sprint_pole_driver: string | null; sprint_winner_driver: string | null };
 type Profile = Person & { is_owner: boolean; season: number; seasons: number[]; best_prediction: Prediction | null; predictions: Prediction[]; records: { track_id: string; track_name: string; best_time_ms: number; attempts: number }[]; total_points: number; scored_rounds: number; options: Record<keyof Style, Record<string, number>> };
 const labels: Record<string, string> = { classic: 'Классика', red: 'Красный', silver: 'Серебро', gold: 'Золото', neon: 'Неон', white: 'Белый', blue: 'Синий', mint: 'Мятный', carbon: 'Карбон', grid: 'Стартовая решётка', scarlet: 'Алый', aurora: 'Сияние', champion: 'Чемпион' };
@@ -30,9 +32,10 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
   useEffect(() => {
     let active = true;
-    setLoading(true); setError(''); setLeague(null); setNotice('');
+    setLoading(true); setError(''); setLeague(null); setNotice(''); setAvatarOpen(false);
     apiRequest<Profile>(`/api/profiles/${userId || 'me'}`, { season }).then(data => {
       if (active) { setProfile(data); setDraft(data.style); }
     }).catch(e => { if (active) setError(e instanceof ApiError && e.status === 401 ? 'Войдите в аккаунт, чтобы увидеть свой профиль, рекорды и прогнозы.' : e instanceof Error ? e.message : 'Не удалось загрузить профиль'); })
@@ -60,7 +63,7 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
     {loading ? <p role="status">Загружаем профиль…</p> : error ? <div role="alert"><p>{error}</p><Link to="/account">Войти в аккаунт</Link></div> : profile && style && <>
       {profile.is_owner && <div className="profile-sharing"><ShareButton options={{kind:'profile',season:profile.season}}>Поделиться профилем</ShareButton></div>}
       <section className={`profile-hero profile-bg-${style.background}`} style={{ '--profile-nick': colors[style.color] } as CSSProperties}>
-        <div className={`profile-avatar profile-frame-${style.frame}`} aria-hidden="true">{profile.display_name.slice(0, 2).toUpperCase()}</div>
+        {profile.is_owner ? <button type="button" className={`profile-avatar profile-avatar-button profile-frame-${style.frame}`} aria-label="Изменить аватар" title="Выбрать шлем, комбинезон и фон" onClick={() => setAvatarOpen(true)}><img src={avatarUrl(profile.avatar || defaultAvatar)} alt="" width="88" height="88" /></button> : <div className={`profile-avatar profile-frame-${style.frame}`}><img src={avatarUrl(profile.avatar || defaultAvatar)} alt="Аватар гонщика" width="88" height="88" /></div>}
         <div className="profile-identity"><p className="profile-eyebrow">TURBOTEARS / УЧАСТНИК</p><h1>{profile.display_name} {profile.supporter && <span className="profile-supporter" title={profile.tier_name} aria-label={`Сторонник · ${profile.tier_name}`}>◆</span>}</h1><p>{profile.tier_name}</p></div>
         <div className="profile-highlight"><span>ЛУЧШИЙ ПРОГНОЗ · {profile.season}</span>{profile.best_prediction ? <><strong>{profile.best_prediction.points}<small> / {profile.best_prediction.max_points ?? '—'} баллов</small></strong><p>{profile.best_prediction.event_name || `Этап ${profile.best_prediction.round}`}</p></> : <p>Первый результат ещё впереди</p>}</div>
       </section>
@@ -71,6 +74,7 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
       {profile.is_owner && <section className="profile-panel"><h2>Твой стиль</h2><p className="profile-muted">«Свой стиль» открывает рамки, цвета и фоны. «Полный газ» — всю коллекцию.</p><div className="profile-customize">{(['frame', 'color', 'background'] as const).map(key => <fieldset key={key}><legend>{{ frame: 'Рамка аватара', color: 'Цвет ника', background: 'Фон карточки' }[key]}</legend>{Object.entries(profile.options[key]).map(([value, tier]) => <button type="button" key={value} disabled={busy || tier > profile.tier} aria-pressed={style[key] === value} title={tier > profile.tier ? `Доступно с уровня «${tier === 3 ? 'Полный газ' : 'Свой стиль'}»` : labels[value]} onClick={() => { setDraft({ ...style, [key]: value }); setNotice(''); }}>{labels[value]}{tier > profile.tier && ' · 🔒'}</button>)}</fieldset>)}</div><button className="profile-primary" disabled={busy || JSON.stringify(draft) === JSON.stringify(profile.style)} onClick={() => void save()}>{busy ? 'Подождите…' : 'Сохранить оформление'}</button></section>}
       {profile.is_owner && <section className="profile-panel"><h2>Лига сторонников</h2><p className="profile-muted">Общий зачёт прогнозов за сезон для уровней «На старт», «Свой стиль» и «Полный газ».</p>{profile.supporter ? <><button className="profile-primary" disabled={busy} onClick={() => void showLeague()}>Показать зачёт · {profile.season}</button>{league && (league.length ? <ol className="profile-league">{league.map(entry => <li key={entry.user_id}><Link to={`/profile/${entry.user_id}`}>{entry.display_name} ◆</Link><b>{entry.total_points} баллов</b></li>)}</ol> : <p>В лиге пока нет участников с профилем прогнозов.</p>)}</> : <a href="https://boosty.to/turbotears" target="_blank" rel="noopener noreferrer">Присоединиться на Boosty →</a>}</section>}
       {notice && <p role="status" className="profile-notice">{notice}</p>}
+      {profile.is_owner && avatarOpen && profile.avatar_options && <AvatarEditor value={profile.avatar || defaultAvatar} options={profile.avatar_options} onClose={() => setAvatarOpen(false)} onSave={avatar => { setProfile(p => p ? { ...p, avatar } : p); setAvatarOpen(false); setNotice('Аватар сохранён'); }} />}
     </>}
   </main>;
 }

@@ -25,11 +25,14 @@ async def test_share_profile_curates_server_data_and_opens_for_guest(api_client,
     await db.conn.execute("INSERT INTO reaction_leaderboard_profiles(telegram_id,display_name,leaderboard_opt_in,prompt_seen) VALUES (999888,'Turbo Racer',1,1)")
     await db.conn.execute("INSERT INTO race_game_scores(telegram_id,time_ms,track_id) VALUES (999888,98432,'emerald-loop-v2')")
     await db.conn.commit()
+    from app.services.user_profiles import save_avatar
+    await save_avatar(user_id, dict(helmet='mint', suit='cobalt', background='gold'))
     response = await api_client.post('/api/engagement/shares', json={'kind':'profile','season':2026,'consent':True,'total_points':9999,'profile_style':{'color':'gold'}})
     assert response.status_code == 200, response.text
     card = response.json()
     assert card['total_points'] == card['best_points'] == 27
     assert card['profile_style']['color'] == 'white'
+    assert card['avatar'] == dict(helmet='mint', suit='cobalt', background='gold')
     assert card['records'][0] == {'name':'Emerald Loop','time':'01:38.432'}
     assert not {'email','telegram_id','user_id','owner_id','predictions'} & card.keys()
     assert 'SECRET' not in json.dumps(card)

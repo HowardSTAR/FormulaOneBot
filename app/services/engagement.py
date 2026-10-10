@@ -159,7 +159,7 @@ async def create_share(user_id, kind, options):
                    'lines': [f"Лучший прогноз: {best['points']} / {best['max_points'] if best['max_points'] is not None else '—'} · {best['event_name'] or 'Этап ' + str(best['round'])}" if best else 'Первый результат ещё впереди',
                              *[f"{r['track_name']} · {time_label(r['best_time_ms'])}" for r in records[:2]]],
                    'cta': 'Открыть профиль', 'provisional': False, 'season': person['season'],
-                   'profile_style': person['style'], 'tier_name': person['tier_name'], 'supporter': person['supporter'],
+                   'profile_style': person['style'], 'avatar': person['avatar'], 'tier_name': person['tier_name'], 'supporter': person['supporter'],
                    'total_points': person['total_points'], 'scored_rounds': person['scored_rounds'],
                    'records_count': len(records), 'best_points': best['points'] if best else None,
                    'best_max': best['max_points'] if best else None,

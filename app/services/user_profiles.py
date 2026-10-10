@@ -2,6 +2,7 @@
 from datetime import datetime, timezone
 
 from app.db import db
+from app.services import profile_avatar
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS user_profile_styles (
@@ -9,6 +10,12 @@ CREATE TABLE IF NOT EXISTS user_profile_styles (
  frame TEXT NOT NULL DEFAULT 'classic',
  color TEXT NOT NULL DEFAULT 'white',
  background TEXT NOT NULL DEFAULT 'carbon'
+);
+CREATE TABLE IF NOT EXISTS user_profile_avatars (
+ user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ helmet TEXT NOT NULL DEFAULT 'scarlet',
+ suit TEXT NOT NULL DEFAULT 'scarlet',
+ background TEXT NOT NULL DEFAULT 'garage'
 );
 """
 OPTIONS = {
@@ -26,11 +33,12 @@ async def identities(database=None):
     rows = await (await database.conn.execute("""
         SELECT u.id, u.email, u.email_verified, u.telegram_id, pp.display_name AS prediction_name,
                u.display_name, bm.active, bm.level_name, po.active AS manual,
-               s.frame, s.color, s.background
+               s.frame, s.color, s.background, a.helmet, a.suit, a.background AS avatar_background
         FROM users u LEFT JOIN prediction_profiles pp ON pp.user_id=u.id
         LEFT JOIN boosty_memberships bm ON bm.user_id=u.id AND bm.blog=?
         LEFT JOIN premium_overrides po ON po.user_id=u.id
         LEFT JOIN user_profile_styles s ON s.user_id=u.id
+        LEFT JOIN user_profile_avatars a ON a.user_id=u.id
         WHERE u.archived_at IS NULL
     """, (service.blog,))).fetchall()
     result = {}
@@ -46,7 +54,10 @@ async def identities(database=None):
                  else next(iter(options)) for key, options in OPTIONS.items()}
         result[user['id']] = {'user_id': user['id'],
             'display_name': user['prediction_name'] or user['display_name'] or f"Участник #{user['id']}",
-            'tier': tier, 'tier_name': TIER_NAMES[tier], 'supporter': tier > 0, 'style': style}
+            'tier': tier, 'tier_name': TIER_NAMES[tier], 'supporter': tier > 0, 'style': style,
+            'avatar': {key: user['avatar_background' if key == 'background' else key]
+                       if user['avatar_background' if key == 'background' else key] in choices
+                       else profile_avatar.DEFAULT[key] for key, choices in profile_avatar.OPTIONS.items()}}
     return result
 
 
@@ -83,7 +94,17 @@ async def profile(user_id, viewer_id, season=None):
         record['track_name'] = TRACKS.get(record['track_id'], {}).get('name', 'Emerald Loop' if record['track_id'] == 'emerald-loop-v1' else record['track_id'])
     return {**people[user_id], 'is_owner': own, 'season': season, 'seasons': sorted(set(seasons + [season]), reverse=True),
             'best_prediction': best, 'predictions': predictions, 'records': records,
-            'total_points': sum(p['points'] for p in scored), 'scored_rounds': len(scored), 'options': OPTIONS}
+            'total_points': sum(p['points'] for p in scored), 'scored_rounds': len(scored), 'options': OPTIONS,
+            'avatar_options': profile_avatar.OPTIONS}
+
+
+async def save_avatar(user_id, values):
+    values = profile_avatar.validate(values)
+    async with db.write_lock:
+        await db.conn.execute('''INSERT INTO user_profile_avatars(user_id,helmet,suit,background) VALUES (?,?,?,?)
+            ON CONFLICT(user_id) DO UPDATE SET helmet=excluded.helmet,suit=excluded.suit,background=excluded.background''',
+            (user_id, values['helmet'], values['suit'], values['background']))
+        await db.conn.commit()
 
 
 async def save_style(user_id, values):

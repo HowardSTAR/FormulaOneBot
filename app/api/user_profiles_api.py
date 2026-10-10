@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict
 from app.api.auth_api import require_hybrid_user_id
 from app.api.engagement_api import optional_account
 from app.services import user_profiles as profiles
+from app.services import profile_avatar
+from starlette.concurrency import run_in_threadpool
 
 router = APIRouter(prefix='/api/profiles', tags=['profiles'])
 
@@ -13,6 +15,34 @@ class StyleRequest(BaseModel):
     frame: str
     color: str
     background: str
+
+
+class AvatarRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    helmet: str
+    suit: str
+    background: str
+
+
+@router.get('/avatar/v1.png')
+async def avatar_image(helmet: str = Query('scarlet', max_length=24),
+                       suit: str = Query('scarlet', max_length=24),
+                       background: str = Query('garage', max_length=24)):
+    try:
+        profile_avatar.validate(dict(helmet=helmet, suit=suit, background=background))
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    content = await run_in_threadpool(profile_avatar.render, helmet, suit, background)
+    return Response(content, media_type='image/png', headers={'Cache-Control': 'public, max-age=31536000, immutable'})
+
+
+@router.patch('/me/avatar')
+async def avatar(data: AvatarRequest, user_id: int = Depends(require_hybrid_user_id)):
+    try:
+        await profiles.save_avatar(user_id, data.model_dump())
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {'saved': True}
 
 
 @router.get('/me')

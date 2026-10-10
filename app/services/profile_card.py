@@ -3,6 +3,7 @@ import io
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
+from app.services import profile_avatar
 
 
 def render(person):
@@ -41,7 +42,10 @@ def render(person):
     nick = {'white':'#f4f4f5','red':'#ff8a7d','blue':'#9bc4ff','gold':'#f5ce73','mint':'#8ce5c7'}.get(style['color'],'#f4f4f5')
     frame = {'classic':'#6d7c8d','red':'#ff786e','silver':'#dde5f0','gold':'#f5ce73','neon':'#8ce5c7'}.get(style['frame'],'#6d7c8d')
     draw.ellipse((58,118,172,232),fill='#121923',outline=frame,width=5)
-    draw.text((115,175),person['subtitle'][:2].upper(),anchor='mm',font=font(36,True),fill='#f4f4f5')
+    portrait = Image.open(io.BytesIO(profile_avatar.render(**person.get('avatar', profile_avatar.DEFAULT)))).resize((104,104), Image.Resampling.LANCZOS)
+    mask = Image.new('L', (104,104))
+    ImageDraw.Draw(mask).ellipse((0,0,103,103), fill=255)
+    image.paste(portrait, (63,123), mask)
     text(person['subtitle'],(198,128),42,nick,520,True)
     if person['supporter']:
         draw.polygon(((202,202),(209,195),(216,202),(209,209)),fill='#f5ce73')

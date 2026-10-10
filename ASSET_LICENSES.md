@@ -29,6 +29,8 @@ Status: intentionally not audited or modified in this change at the user's reque
 
 ## Application screenshots and other graphics
 
+- `app/profile_avatar_assets/{scarlet,cobalt,mint}-v1.png` — original fictional racing-driver renders generated for this application with OpenAI's built-in image generation tool on 2026-10-10. No third-party photographs, real driver likenesses, logos or sponsors were supplied. Generation prompts and composition details are recorded in `docs/avatar-assets.md`; these are generated assets, not licensed photographs or official team graphics.
+
 Status: pending. Screenshots may reproduce underlying photographs, logos, circuit graphics or protected interface elements and therefore require a derivative-material review.
 
 ## Admission rule

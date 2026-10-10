@@ -2,7 +2,9 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+require('node:child_process').execFileSync('.venv/Scripts/python.exe', ['scripts/render-avatar-fixtures.py']);
 const options = {frame:{classic:0,red:2,silver:2,gold:3,neon:3},color:{white:0,red:2,blue:2,gold:3,mint:3},background:{carbon:0,grid:2,scarlet:2,aurora:3,champion:3}};
+const avatarOptions={helmet:{scarlet:'Алый / полоса',cobalt:'Кобальт / двойная полоса',mint:'Жемчуг / мята'},suit:{scarlet:'Алый / графит',cobalt:'Индиго / лайм',mint:'Графит / мята'},background:{garage:'Ночной бокс',scarlet:'Красный сектор',cobalt:'Синий час',mint:'Полярное сияние',gold:'Золотой подиум'}};
 const prediction = {round:2,event_name:'Гран-при Японии',points:30,max_points:40,winner_driver:'VER',second_driver:'NOR',third_driver:'PIA',fourth_driver:'LEC',fifth_driver:'HAM',pole_driver:'VER',fastest_lap_driver:'NOR',first_retirement_driver:'SAI',safety_car:1,sprint_pole_driver:null,sprint_winner_driver:null};
 (async () => {
   const browser = await chromium.launch({channel:'msedge',headless:true});
@@ -11,17 +13,26 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       const page = await browser.newPage({viewport:{width,height:1000}});
       const errors=[]; page.on('pageerror', e=>errors.push(e.message));
       let tier=3, owner=true, empty=false, saved=null, shareCount=0;
+      let avatar={helmet:'scarlet',suit:'scarlet',background:'garage'}, avatarWrites=0, failAvatar=false;
       const token='p'.repeat(32);
       const shared={token,kind:'profile',title:'Профиль Turbo Racer · TurboTears',subtitle:'Turbo Racer',headline:'30 баллов за сезон 2026',lines:['Лучший прогноз: 30 / 40'],cta:'Открыть профиль',provisional:false,web_url:`http://127.0.0.1:5174/share/${token}`,share_url:`http://127.0.0.1:5174/share/${token}`,mini_app_url:null,image_url:`/api/engagement/shares/${token}/image.jpg`,expires:Date.now()/1000+86400};
       await page.route('**/api/**', route => {
         const path=new URL(route.request().url()).pathname;
+        if(path==='/api/profiles/avatar/v1.png') {
+          const query=new URL(route.request().url()).searchParams;
+          return route.fulfill({contentType:'image/png',body:fs.readFileSync(`.tmp/profile-avatar-fixtures/${query.get('helmet')}-${query.get('suit')}-${query.get('background')}.png`)});
+        }
+        if(path==='/api/profiles/me/avatar') {
+          if(failAvatar) return route.fulfill({status:503,json:{detail:'Попробуйте ещё раз'}});
+          avatarWrites++; avatar=route.request().postDataJSON();return route.fulfill({json:{saved:true}});
+        }
         if(path.endsWith('/image.jpg')) return route.fulfill({contentType:'image/jpeg',body:fs.readFileSync('artifacts/profile-share-card.jpg')});
         if(path==='/api/engagement/shares') {shareCount++;assert.equal(route.request().postDataJSON().kind,'profile');return route.fulfill({json:shared});}
         if(path===`/api/engagement/shares/${token}/destination`) return route.fulfill({json:{path:'/profile/1?season=2026'}});
         if(path===`/api/engagement/shares/${token}`) return route.fulfill({json:shared});
         if(path==='/api/profiles/me/style') {saved=route.request().postDataJSON();return route.fulfill({json:{saved:true}});}
         const person={user_id:1,display_name:'Turbo Racer',tier,tier_name:tier===3?'Полный газ':'Участник',supporter:tier>0,style:{frame:'classic',color:'white',background:'carbon'}};
-        const data={...person,is_owner:owner,season:2026,seasons:[2026,2025],total_points:empty?0:30,scored_rounds:empty?0:1,options,best_prediction:empty?null:prediction,predictions:empty?[]:[prediction],records:empty?[]:[{track_id:'emerald-loop-v2',track_name:'Emerald Loop',best_time_ms:98432,attempts:12}]};
+        const data={...person,avatar,avatar_options:avatarOptions,is_owner:owner,season:2026,seasons:[2026,2025],total_points:empty?0:30,scored_rounds:empty?0:1,options,best_prediction:empty?null:prediction,predictions:empty?[]:[prediction],records:empty?[]:[{track_id:'emerald-loop-v2',track_name:'Emerald Loop',best_time_ms:98432,attempts:12}]};
         return route.fulfill({json:path==='/api/profiles/supporters'?{entries:[{...person,total_points:30,place:1}]}:path.startsWith('/api/profiles/')?data:path==='/api/auth/me'?{id:1,telegram_id:2099386,role:'user'}:{}});
       });
       await page.goto('http://127.0.0.1:5174/profile');
@@ -32,6 +43,30 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`Account overflow at ${width}`);
       await page.screenshot({path:`artifacts/personal-account-${width}.png`,fullPage:true});
       await personalNav.getByRole('link',{name:'Профиль',exact:true}).click();
+      await page.getByRole('button',{name:'Изменить аватар',exact:true}).click();
+      let editor=page.getByRole('dialog',{name:'Гараж аватаров'});
+      await editor.getByRole('button',{name:'Кобальт / двойная полоса'}).click();
+      await editor.getByRole('button',{name:'Графит / мята'}).click();
+      await editor.getByRole('button',{name:'Золотой подиум'}).click();
+      assert.ok((await editor.getByAltText('Предпросмотр выбранного гонщика').getAttribute('src')).includes('helmet=cobalt&suit=mint&background=gold'));
+      assert.ok(await editor.evaluate(el=>el.scrollWidth<=el.clientWidth),`Avatar dialog overflow at ${width}`);
+      await page.screenshot({path:`artifacts/avatar-editor-${width}.png`});
+      failAvatar=true;
+      await editor.getByRole('button',{name:'Сохранить аватар'}).click();
+      await editor.getByRole('alert').waitFor();
+      failAvatar=false;
+      await editor.getByRole('button',{name:'Сохранить аватар'}).click();
+      await editor.waitFor({state:'detached'});
+      assert.deepEqual(avatar,{helmet:'cobalt',suit:'mint',background:'gold'});
+      assert.equal(avatarWrites,1);
+      await page.getByRole('button',{name:'Изменить аватар',exact:true}).click();
+      editor=page.getByRole('dialog',{name:'Гараж аватаров'});
+      assert.equal(await editor.getByRole('button',{name:'Графит / мята'}).getAttribute('aria-pressed'),'true');
+      await editor.getByRole('button',{name:'Алый / полоса'}).click();
+      await page.keyboard.press('Escape');
+      await editor.waitFor({state:'detached'});
+      assert.equal(avatarWrites,1);
+      assert.ok((await page.getByRole('button',{name:'Изменить аватар',exact:true}).locator('img').getAttribute('src')).includes('helmet=cobalt'));
       await page.getByRole('button',{name:'Поделиться профилем'}).click();
       await page.getByRole('dialog').locator('.share-preview').waitFor();
       assert.equal(shareCount,1);
@@ -62,6 +97,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       await page.goto('http://127.0.0.1:5174/profile/2');
       await page.getByText('Ответы показываются после начисления баллов.').waitFor();
       assert.equal(await page.getByRole('heading',{name:'Твой стиль'}).count(),0);
+      assert.equal(await page.getByRole('button',{name:'Изменить аватар',exact:true}).count(),0);
       assert.deepEqual(errors,[]);
       await page.close();
     }
