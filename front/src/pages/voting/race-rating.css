@@ -1,0 +1,92 @@
+.race-rating {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 4px 0;
+}
+
+.race-rating-stars {
+  display: inline-flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.race-rating .race-rating-star {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 52px;
+  padding: 6px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #8b919c;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: color 160ms ease, transform 160ms ease;
+}
+
+.race-rating-star svg {
+  width: 36px;
+  height: 36px;
+  overflow: visible;
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  transition: fill 160ms ease, filter 160ms ease;
+}
+
+.race-rating .race-rating-star.is-filled {
+  color: #ffc45b;
+}
+
+.race-rating-star.is-filled svg {
+  fill: currentColor;
+  filter: drop-shadow(0 2px 7px #ffb32c30);
+}
+
+@media (hover: hover) {
+  .race-rating-star:hover:not(:disabled) { transform: translateY(-3px) scale(1.08); }
+}
+
+.race-rating-star:focus-visible {
+  outline: 2px solid #ffc45b;
+  outline-offset: 2px;
+}
+
+.race-rating-star:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.race-rating-caption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+
+.race-rating-score {
+  color: #ffc45b;
+  font-size: 28px;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.race-rating-score small {
+  color: #aeb6c4;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.race-rating-description { display: grid; gap: 4px; }
+.race-rating-description > span { color: #b8c1cf; font-size: 12px; }
+.race-rating-description > strong { color: #f2f3f6; font-size: 14px; font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .race-rating .race-rating-star, .race-rating-star svg { transition: none; }
+  .race-rating-star:hover:not(:disabled) { transform: none; }
+}

@@ -6,6 +6,7 @@ import { apiRequest } from "../../helpers/api";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
 import { hapticSelection } from "../../helpers/telegram";
 import { PageFeedback } from '../../components/PageFeedback';
+import { RaceRating } from './RaceRating';
 import "../../assets/voting-desktop.css";
 
 Chart.register(...registerables);
@@ -264,35 +265,39 @@ function VotingPage() {
   return (
     <>
       <BackButton>← Главное меню</BackButton>
-      <h2>Голосование</h2>
-      <div className="voting-season-title">СЕЗОН {year}</div>
+      <div className="voting-page-header">
+        <div className="voting-page-heading">
+          <h2>Голосование</h2>
+          <div className="voting-season-title">СЕЗОН {year}</div>
+        </div>
 
-      <div className="segmented-tabs voting-page-tabs">
-        <div
-          className="segmented-slider"
-          style={{ transform: tab === "race" ? "translateX(0)" : "translateX(100%)" }}
-          aria-hidden
-        />
-        <button
-          type="button"
-          className={`segmented-tab ${tab === "race" ? "active" : ""}`}
-          onClick={() => {
-            hapticSelection();
-            setTab("race");
-          }}
-        >
-          Гонка
-        </button>
-        <button
-          type="button"
-          className={`segmented-tab ${tab === "driver" ? "active" : ""}`}
-          onClick={() => {
-            hapticSelection();
-            setTab("driver");
-          }}
-        >
-          Пилот дня
-        </button>
+        <div className="segmented-tabs voting-page-tabs">
+          <div
+            className="segmented-slider"
+            style={{ transform: tab === "race" ? "translateX(0)" : "translateX(100%)" }}
+            aria-hidden
+          />
+          <button
+            type="button"
+            className={`segmented-tab ${tab === "race" ? "active" : ""}`}
+            onClick={() => {
+              hapticSelection();
+              setTab("race");
+            }}
+          >
+            Гонка
+          </button>
+          <button
+            type="button"
+            className={`segmented-tab ${tab === "driver" ? "active" : ""}`}
+            onClick={() => {
+              hapticSelection();
+              setTab("driver");
+            }}
+          >
+            Пилот дня
+          </button>
+        </div>
       </div>
 
       {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка голосования...</div></div>}
@@ -394,21 +399,8 @@ function VotingPage() {
                     <div className="voting-accordion-inner">
                       {tab === 'race' && <p className="ui-data-context">{stats.find(item => item.round === race.round)?.count ? `Сообщество: ${stats.find(item => item.round === race.round)!.avg.toFixed(1)}/5 · оценок: ${stats.find(item => item.round === race.round)!.count}` : 'Сообщество пока не оценило гонку'}</p>}
                       {tab === "race" && (
-                        <div className="voting-stars">
-                          {[1, 2, 3, 4, 5].map((r) => (
-                            <button
-                              key={r}
-                              aria-label={`Оценить гонку на ${r} из 5`}
-                              type="button"
-                              data-analytics-action="vote_submit"
-                              className={`star-btn ${myRaceVote === r ? "active" : ""}`}
-                              onClick={() => handleRaceVote(race.round, r)}
-                              disabled={isSaving}
-                            >
-                              ★
-                            </button>
-                          ))}
-                        </div>
+                        <RaceRating value={myRaceVote} saving={isSaving}
+                          onChange={rating => { void handleRaceVote(race.round, rating); }} />
                       )}
                       {tab === "driver" && (
                         <div className="voting-drivers">
