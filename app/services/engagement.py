@@ -112,6 +112,14 @@ async def row(token):
     if result is None:
         raise ValueError("Ссылка истекла или отозвана")
     result = dict(result)
+    if result['kind'] == 'profile':
+        owner = await (await db.conn.execute('SELECT telegram_id FROM users WHERE id=? AND archived_at IS NULL', (result['owner_id'],))).fetchone()
+        if owner is None:
+            raise ValueError('Профиль недоступен')
+        if json.loads(result['payload']).get('records_count'):
+            published = await (await db.conn.execute('SELECT 1 FROM reaction_leaderboard_profiles WHERE telegram_id=? AND leaderboard_opt_in=1', (owner['telegram_id'],))).fetchone()
+            if published is None:
+                raise ValueError('Участник отключил публикацию игровых результатов')
     if result["league_id"]:
         invite = await (await db.conn.execute("SELECT invite_token,invite_expires FROM prediction_leagues WHERE id=?", (result["league_id"],))).fetchone()
         if not invite or invite["invite_token"] != result["invite_token"] or invite["invite_expires"] <= datetime.now(timezone.utc).isoformat():
@@ -137,9 +145,28 @@ async def create_share(user_id, kind, options):
     from app.services import prediction_service as predictions
     payload, target, score_id, league_id, invite = {}, "", None, None, None
     now = time.time()
-    if kind in {"prediction", "race", "league"} and user_id is None:
+    if kind in {"profile", "prediction", "race", "league"} and user_id is None:
         raise PermissionError("Войдите, чтобы поделиться личным результатом")
-    if kind == "prediction":
+    if kind == 'profile':
+        from app.services.user_profiles import profile
+        person = await profile(user_id, -1, options['season'])
+        if person is None:
+            raise ValueError('Профиль недоступен')
+        best = person['best_prediction']
+        records = person['records']
+        payload = {'title': f"Профиль {person['display_name']} · TurboTears", 'subtitle': person['display_name'],
+                   'headline': f"{person['total_points']} баллов за сезон {person['season']}",
+                   'lines': [f"Лучший прогноз: {best['points']} / {best['max_points'] if best['max_points'] is not None else '—'} · {best['event_name'] or 'Этап ' + str(best['round'])}" if best else 'Первый результат ещё впереди',
+                             *[f"{r['track_name']} · {time_label(r['best_time_ms'])}" for r in records[:2]]],
+                   'cta': 'Открыть профиль', 'provisional': False, 'season': person['season'],
+                   'profile_style': person['style'], 'tier_name': person['tier_name'], 'supporter': person['supporter'],
+                   'total_points': person['total_points'], 'scored_rounds': person['scored_rounds'],
+                   'records_count': len(records), 'best_points': best['points'] if best else None,
+                   'best_max': best['max_points'] if best else None,
+                   'best_event': best['event_name'] or f"Этап {best['round']}" if best else None,
+                   'records': [{'name': r['track_name'], 'time': time_label(r['best_time_ms'])} for r in records[:2]]}
+        target = f"/profile/{user_id}?season={person['season']}"
+    elif kind == "prediction":
         review = await predictions.get_personal_prediction_review(user_id, options["season"], options["round"])
         if not review or review["points"] is None:
             raise ValueError("Прогноз ещё не рассчитан")
@@ -342,6 +369,9 @@ async def record_event(token, visitor, event):
 
 def card_image(payload):
     """Portable JPG (Telegram inline photos require JPEG), no external assets."""
+    if payload.get('kind') == 'profile':
+        from app.services.profile_card import render
+        return render(payload)
     root = Path(__file__).resolve().parents[1] / "assets" / "fonts"
     font = lambda size, bold=False: ImageFont.truetype(str(root / ("Jost-Bold.ttf" if bold else "Jost-Regular.ttf")), size)
     image = Image.new("RGB", (1200, 630), "#0d1219")

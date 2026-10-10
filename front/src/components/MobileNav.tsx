@@ -33,7 +33,7 @@ export function MobileNav() {
     { to: '/', label: 'Главная' },
     { to: '/next-race', label: 'Уик-энд' },
     { to: '/predictions', label: 'Прогнозы' },
-    { to: '/account', label: 'Моё' },
+    { to: auth.signedIn ? '/profile' : '/account', label: 'Моё' },
   ];
   const links = (entries: NavigationItem[]) => entries.map(item => {
     const active = navigationActive(item, pathname);

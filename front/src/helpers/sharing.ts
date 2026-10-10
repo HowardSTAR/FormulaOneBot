@@ -1,6 +1,6 @@
 import { apiRequest } from './api';
 
-export type ShareOptions = {kind: 'prediction' | 'race' | 'league' | 'recap' | 'history'; season?: number; round?: number; track_id?: string; league_id?: number; history_kind?: string; ids?: string[]; start_year?: number; end_year?: number};
+export type ShareOptions = {kind: 'profile' | 'prediction' | 'race' | 'league' | 'recap' | 'history'; season?: number; round?: number; track_id?: string; league_id?: number; history_kind?: string; ids?: string[]; start_year?: number; end_year?: number};
 export type ShareCard = {token: string; kind: ShareOptions['kind']; title: string; subtitle: string; headline: string; lines: string[]; cta: string; provisional: boolean; web_url: string; share_url: string; mini_app_url: string | null; image_url: string; expires: number; chart?: unknown};
 type SharingTelegram = {initData?: string; initDataUnsafe?: {start_param?: string}; isVersionAtLeast?: (version: string) => boolean; shareMessage?: (id: string, callback?: (sent: boolean) => void) => void; openTelegramLink?: (url: string) => void};
 export const sharingTelegram = () => (window as unknown as {Telegram?: {WebApp?: SharingTelegram}}).Telegram?.WebApp;

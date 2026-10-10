@@ -1,7 +1,8 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { apiRequest } from '../../helpers/api';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { apiRequest, ApiError } from '../../helpers/api';
 import { BackButton } from '../../components/BackButton';
+import { ShareButton } from '../../components/ShareButton';
 import './profile.css';
 
 type Style = { frame: string; color: string; background: string };
@@ -16,9 +17,12 @@ function Answers({ prediction }: { prediction: Prediction }) {
 }
 function lapTime(ms: number) { return `${Math.floor(ms / 60000)}:${((ms % 60000) / 1000).toFixed(3).padStart(6, '0')}`; }
 
-export default function ProfilePage() {
+export default function ProfilePage({ embedded = false }: { embedded?: boolean }) {
   const { userId } = useParams();
-  const [season, setSeason] = useState<number>();
+  const [params, setParams] = useSearchParams();
+  const requestedSeason = Number(params.get('season'));
+  const season = Number.isInteger(requestedSeason) && requestedSeason >= 1950 && requestedSeason <= 2100 ? requestedSeason : undefined;
+  const setSeason = (year: number) => setParams(previous => { const next = new URLSearchParams(previous); next.set('season', String(year)); return next; });
   const [profile, setProfile] = useState<Profile | null>(null);
   const [draft, setDraft] = useState<Style | null>(null);
   const [league, setLeague] = useState<(Person & { place: number; total_points: number })[] | null>(null);
@@ -31,7 +35,7 @@ export default function ProfilePage() {
     setLoading(true); setError(''); setLeague(null); setNotice('');
     apiRequest<Profile>(`/api/profiles/${userId || 'me'}`, { season }).then(data => {
       if (active) { setProfile(data); setDraft(data.style); }
-    }).catch(e => { if (active) setError(e instanceof Error ? e.message : 'Не удалось загрузить профиль'); })
+    }).catch(e => { if (active) setError(e instanceof ApiError && e.status === 401 ? 'Войдите в аккаунт, чтобы увидеть свой профиль, рекорды и прогнозы.' : e instanceof Error ? e.message : 'Не удалось загрузить профиль'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [userId, season]);
@@ -52,8 +56,9 @@ export default function ProfilePage() {
   }
   const style = draft || profile?.style;
   return <main className="user-profile-page">
-    <div className="profile-top"><BackButton fallback="/account" /><span>ПРОФИЛЬ УЧАСТНИКА</span><Link to="/account">Аккаунт</Link></div>
+    {!embedded && <div className="profile-top"><BackButton fallback="/profile" /><span>ПРОФИЛЬ УЧАСТНИКА</span><Link to="/profile">Мой профиль</Link></div>}
     {loading ? <p role="status">Загружаем профиль…</p> : error ? <div role="alert"><p>{error}</p><Link to="/account">Войти в аккаунт</Link></div> : profile && style && <>
+      {profile.is_owner && <div className="profile-sharing"><ShareButton options={{kind:'profile',season:profile.season}}>Поделиться профилем</ShareButton></div>}
       <section className={`profile-hero profile-bg-${style.background}`} style={{ '--profile-nick': colors[style.color] } as CSSProperties}>
         <div className={`profile-avatar profile-frame-${style.frame}`} aria-hidden="true">{profile.display_name.slice(0, 2).toUpperCase()}</div>
         <div className="profile-identity"><p className="profile-eyebrow">TURBOTEARS / УЧАСТНИК</p><h1>{profile.display_name} {profile.supporter && <span className="profile-supporter" title={profile.tier_name} aria-label={`Сторонник · ${profile.tier_name}`}>◆</span>}</h1><p>{profile.tier_name}</p></div>

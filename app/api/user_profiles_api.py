@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict
 
 from app.api.auth_api import require_hybrid_user_id
+from app.api.engagement_api import optional_account
 from app.services import user_profiles as profiles
 
 router = APIRouter(prefix='/api/profiles', tags=['profiles'])
@@ -45,9 +46,9 @@ async def supporters(response: Response, season: int | None = Query(None, ge=195
 @router.get('/{profile_id}')
 async def public_profile(profile_id: int, response: Response,
                          season: int | None = Query(None, ge=1950, le=2100),
-                         user_id: int = Depends(require_hybrid_user_id)):
+                         user_id: int | None = Depends(optional_account)):
     response.headers['Cache-Control'] = 'no-store'
-    value = await profiles.profile(profile_id, user_id, season)
+    value = await profiles.profile(profile_id, user_id if user_id is not None else -1, season)
     if value is None:
         raise HTTPException(404, 'Профиль не найден')
     return value

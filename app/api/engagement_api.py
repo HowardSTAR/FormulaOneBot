@@ -34,7 +34,7 @@ async def optional_account(request: Request):
 
 
 class ShareRequest(BaseModel):
-    kind: Literal['prediction', 'race', 'league', 'recap', 'history']
+    kind: Literal['profile', 'prediction', 'race', 'league', 'recap', 'history']
     consent: Literal[True]
     season: int = Field(default=2026, ge=1950, le=2100)
     round: int = Field(default=1, ge=1, le=40)

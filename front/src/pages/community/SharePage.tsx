@@ -23,7 +23,7 @@ export default function SharePage() {
     try {
       const {path} = await apiRequest<{path: string}>(`/api/engagement/shares/${token}/destination`);
       // Server supplies only an allowlisted local route, never an arbitrary URL.
-      if (!/^\/(race-game|predictions|history|race-results)([?#]|$)/.test(path)) throw new Error('Некорректный переход');
+      if (!/^\/(?:(race-game|predictions|history|race-results)([?#]|$)|profile\/\d+([?#]|$))/.test(path)) throw new Error('Некорректный переход');
       navigate(path);
     } catch {setResult({error: 'Приглашение больше не действует.'}); setBusy(false);}
   }

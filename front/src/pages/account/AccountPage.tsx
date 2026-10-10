@@ -57,7 +57,7 @@ async function authFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   return await response.json() as T;
 }
 
-export default function AccountPage() {
+export default function AccountPage({ embedded = false }: { embedded?: boolean }) {
   const navigate = useNavigate();
   const [returnParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
@@ -260,12 +260,12 @@ export default function AccountPage() {
 
   return (
     <main className="account-page">
-      <BackButton>← <span>Главное меню</span></BackButton>
+      {!embedded && <BackButton>← <span>Главное меню</span></BackButton>}
       <header className="account-hero">
-        <span>ПРОФИЛЬ TURBOTEARS</span>
+        <span>ЛИЧНЫЙ РАЗДЕЛ TURBOTEARS</span>
         <h1>{user?.telegram_id ? "АККАУНТ" : "АККАУНТ И TELEGRAM"}</h1>
         <p>{user?.telegram_id
-          ? "Управляйте профилем, избранным и персональными настройками."
+          ? "Управляйте входом, привязкой Telegram и подпиской."
           : "Email используется для безопасного входа. Telegram подключается отдельно через бота."}</p>
       </header>
       {safeReturnPath(returnParams.get('returnPath')) && <p className="ui-warning">{returnParams.get('requireTelegram') === '1' ? 'Для этого раздела войдите и подключите Telegram. Затем мы вернём вас обратно.' : 'Войдите в аккаунт — затем мы вернём вас в выбранный раздел.'}</p>}
@@ -302,7 +302,7 @@ export default function AccountPage() {
           <section className="account-card account-profile-card">
             <span className="account-kicker">ТЕКУЩИЙ ПРОФИЛЬ</span>
             <h2>{user.email}</h2>
-            <p><Link to="/profile">Мой профиль · рекорды и прогнозы →</Link></p>
+            {!embedded && <p><Link to="/profile">Мой профиль · рекорды и прогнозы →</Link></p>}
             {boosty?.premium_active && <span className="account-boosty-badge">{boosty.premium_override === true ? 'Премиум · включён вручную' : `Поддерживает TurboTears · ${boosty.level_name || 'Boosty'}`}</span>}
             <dl><div><dt>Email</dt><dd>Подтверждён</dd></div><div><dt>Telegram</dt><dd>{user.telegram_id ? `ID ${user.telegram_id}` : "Не подключён"}</dd></div></dl>
             <button className="account-secondary" onClick={logout}>Выйти</button>
