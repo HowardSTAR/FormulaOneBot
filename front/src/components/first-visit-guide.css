@@ -14,7 +14,7 @@
 .first-visit-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .first-visit-guide .first-visit-primary { flex: 1; padding: 10px 14px; border: 1px solid #ff6157; border-radius: 12px; background: #d91a12; color: #fff; }
 .first-visit-guide button:disabled { opacity: .6; cursor: wait; }
-.first-visit-guide .first-visit-secondary { min-width: 44px; padding: 10px 6px; border: 0; border-radius: 8px; background: transparent; color: #d9e0ed; font-size: 13px; }
+.first-visit-guide .first-visit-secondary { flex: 0 0 56px; min-width: 56px; padding: 10px; border: 1px solid #46505f; border-radius: 12px; background: #232833; color: #d9e0ed; font-size: 18px; }
 .first-visit-note { display: block; margin-top: 8px; font-size: 11px; line-height: 1.35; color: #b1bdcf; }
 .first-visit-guide button:focus-visible { outline: 2px solid #ffaaa2; outline-offset: 2px; }
 /* Highlight the actual control without covering or darkening the page. */

@@ -174,7 +174,6 @@ export function FirstVisitGuide() {
         {stage === 0 && <small className="first-visit-timezone">Время сессий: {timezone}</small>}
       </div>
       <div className="first-visit-actions">
-        <button type="button" className="first-visit-secondary" onClick={() => finish('skipped')}>Пропустить</button>
         {(stage ?? 0) > 0 && <button type="button" className="first-visit-secondary" disabled={phase !== 'ready'} aria-label="Назад" onClick={() => goTo((stage ?? 0) - 1)}><span aria-hidden="true">←</span></button>}
         <button type="button" className="first-visit-primary" disabled={phase !== 'ready'} onClick={() => stage === onboardingSteps.length - 1 ? finish('completed') : goTo((stage ?? 0) + 1)}>
           {phase === 'leaving' || phase === 'loading' ? 'Открываем…' : stage === onboardingSteps.length - 1 ? 'На главную →' : 'Дальше →'}

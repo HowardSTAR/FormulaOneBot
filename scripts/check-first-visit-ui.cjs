@@ -31,7 +31,13 @@ async function checkCard(page) {
   assert.ok(workspace.height >= 320, `Portrait page must retain enough room to read and scroll: ${JSON.stringify(workspace)}`);
   assert.equal(workspace.opacity, '1');
   assert.equal(workspace.darkOverlay, false);
-
+  const guide = page.locator('.first-visit-guide');
+  assert.equal(await guide.getByRole('button', { name: 'Пропустить', exact: true }).count(), 0);
+  const back = guide.getByRole('button', { name: 'Назад', exact: true });
+  if (await back.count()) {
+    const b = await back.boundingBox(), next = await guide.locator('.first-visit-primary').boundingBox();
+    assert.ok(b.width >= 56 && b.height >= 44 && next.x - b.x - b.width >= 10, 'Back must be easy to tap separately from Next');
+  }
 }
 async function replayGuide(page, width) {
   if (width < 768) {
@@ -177,7 +183,7 @@ async function checkTrack(page, selector) {
         }, key);
         await page.goto(base);
         await guide.waitFor();
-        await guide.getByRole('button', { name: 'Пропустить', exact: true }).click();
+        await guide.getByRole('button', { name: 'Закрыть знакомство', exact: true }).click();
         await page.locator('.quick-access a[href="/season"]').click();
         await page.waitForURL(`${base}/season`);
         await page.getByRole('link', { name: 'Главная', exact: true }).click();
