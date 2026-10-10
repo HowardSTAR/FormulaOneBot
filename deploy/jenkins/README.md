@@ -74,7 +74,7 @@ Job использует установленную копию Jenkinsfile: chec
 Для применения этих изменений на сервере дождитесь окончания текущей сборки,
 сохраните копию `/opt/f1hub-ci`, затем установите новый `Jenkinsfile` в
 `/opt/f1hub-ci/Jenkinsfile`, а `deploy/jenkins/run-ci.sh` и
-`deploy/jenkins/cleanup-images.sh` — в одноимённые файлы `/opt/f1hub-ci`.
+`deploy/jenkins/cleanup-images.sh` и `deploy/jenkins/notify.py` — в одноимённые файлы `/opt/f1hub-ci`.
 Скрипты должны быть доступны Jenkins для чтения.
 В административной [Script Console](https://jenkins.f1hub.ru/script) выполните
 содержимое `deploy/jenkins/update-job.groovy`: оно обновляет определение job и
@@ -82,6 +82,11 @@ Job использует установленную копию Jenkinsfile: chec
 не нужно; сборка и перезапуск приложения при обновлении job не запускаются.
 Для разовой очистки накопленных образов на Docker-хосте выполните
 `bash /opt/f1hub-ci/cleanup-images.sh`; далее очистка работает в конце прогонов.
+
+Ошибка доставки отчёта в Telegram отмечает прогон как `UNSTABLE`, сохраняя
+результат развёртывания. Уже проваленные проверки остаются `FAILURE`, ручная
+отмена и таймаут не подавляются. Отправка повторяется до трёх раз; в журнале
+виден HTTP-код либо категория ошибки без токена и тела ответа Telegram.
 
 Jenkins: LTS/Java 21, лимит 1 CPU/1 ГБ, Java heap 512 МБ.
 Тесты также имеют ограничения ресурсов. BuildKit: 1 CPU/1 ГБ RAM,

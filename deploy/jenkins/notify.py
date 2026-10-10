@@ -8,8 +8,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
-def main():
-    reports = Path('/reports')
+def main(reports=Path('/reports')):
     totals = dict(tests=0, failures=0, errors=0, skipped=0)
     for path in reports.glob('*.xml'):
         root = ET.parse(path).getroot()
@@ -50,12 +49,19 @@ def main():
     for attempt in range(3):
         try:
             with urllib.request.urlopen(request, timeout=20) as response:
-                assert json.load(response)['ok']
+                if json.load(response).get('ok') is not True:
+                    raise ValueError('Telegram rejected notification')
             print('CI result delivered to administrator.')
             return
-        except (urllib.error.URLError, TimeoutError, AssertionError):
-            if attempt < 2:
-                time.sleep(3)
+        except urllib.error.HTTPError as error:
+            # Never print exception text or response bodies: they may contain secrets.
+            print(f'CI notification attempt {attempt + 1}/3: HTTP {error.code}.')
+        except (urllib.error.URLError, TimeoutError):
+            print(f'CI notification attempt {attempt + 1}/3: network error or timeout.')
+        except (ValueError, AttributeError):
+            print(f'CI notification attempt {attempt + 1}/3: invalid or rejected Telegram response.')
+        if attempt < 2:
+            time.sleep(3)
     raise SystemExit('Failed to deliver CI notification after 3 attempts.')
 
 

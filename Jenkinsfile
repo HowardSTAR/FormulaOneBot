@@ -73,12 +73,15 @@ pipeline {
         always {
             archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/**/*'
             script {
-                withCredentials([
-                    string(credentialsId: 'ci-telegram-bot-token', variable: 'TELEGRAM_BOT_TOKEN'),
-                    string(credentialsId: 'ci-telegram-admin-id', variable: 'TELEGRAM_CHAT_ID')
-                ]) {
-                    withEnv(["CI_RESULT=${currentBuild.currentResult}", "CI_DURATION=${currentBuild.durationString}"]) {
-                        sh 'bash "$CI_SCRIPTS/run-ci.sh" notify'
+                // Delivery is auxiliary; keep test/deploy failures and propagate aborts.
+                warnError(message: 'Не удалось отправить отчёт в Telegram; результаты проверок и развёртывания сохранены.', catchInterruptions: false) {
+                    withCredentials([
+                        string(credentialsId: 'ci-telegram-bot-token', variable: 'TELEGRAM_BOT_TOKEN'),
+                        string(credentialsId: 'ci-telegram-admin-id', variable: 'TELEGRAM_CHAT_ID')
+                    ]) {
+                        withEnv(["CI_RESULT=${currentBuild.currentResult}", "CI_DURATION=${currentBuild.durationString}"]) {
+                            sh 'bash "$CI_SCRIPTS/run-ci.sh" notify'
+                        }
                     }
                 }
             }

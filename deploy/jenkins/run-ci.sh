@@ -62,6 +62,7 @@ case "${1:?stage required}" in
         --cov-report=xml:/app/reports/coverage.xml --junitxml=/app/reports/pytest.xml
     python3 "$WORKSPACE/deploy/jenkins/test_deploy.py"
     python3 "$WORKSPACE/deploy/jenkins/test_cleanup.py"
+    python3 "$WORKSPACE/deploy/jenkins/test_notify.py"
     ;;
   smoke)
     name="f1hub-ci-smoke-$BUILD_NUMBER"
