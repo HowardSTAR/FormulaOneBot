@@ -18,7 +18,7 @@ const SESSION_OPTIONS = [
   { bit: 16, label: "Спринт", detail: "Короткая гонка" },
 ];
 
-function SettingsPage() {
+function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   const [timezone, setTimezone] = useState("Etc/GMT-3");
   const [notifyBefore, setNotifyBefore] = useState(60);
   const [notifyBeforeMinutes, setNotifyBeforeMinutes] = useState<number[]>([60]);
@@ -115,7 +115,7 @@ function SettingsPage() {
 
   return (
     <div className="personal-page settings-page">
-      <BackButton />
+      {!embedded && <BackButton />}
       <header className="personal-page-header">
         <div>
           <span className="personal-page-kicker">Персонализация</span>

@@ -14,10 +14,19 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       const errors=[]; page.on('pageerror', e=>errors.push(e.message));
       let tier=3, owner=true, empty=false, saved=null, shareCount=0;
       let avatar={helmet:'scarlet',suit:'scarlet',background:'garage'}, avatarWrites=0, failAvatar=false;
+      let favorites={drivers:['VER'],teams:['McLaren']}, settingsWrites=0, settingsPayload=null;
       const token='p'.repeat(32);
       const shared={token,kind:'profile',title:'Профиль Turbo Racer · TurboTears',subtitle:'Turbo Racer',headline:'30 баллов за сезон 2026',lines:['Лучший прогноз: 30 / 40'],cta:'Открыть профиль',provisional:false,web_url:`http://127.0.0.1:5174/share/${token}`,share_url:`http://127.0.0.1:5174/share/${token}`,mini_app_url:null,image_url:`/api/engagement/shares/${token}/image.jpg`,expires:Date.now()/1000+86400};
       await page.route('**/api/**', route => {
         const path=new URL(route.request().url()).pathname;
+        if(path==='/api/drivers') return route.fulfill({json:{drivers:[{code:'VER',name:'Макс Ферстаппен'},{code:'NOR',name:'Ландо Норрис'}]}});
+        if(path==='/api/constructors') return route.fulfill({json:{constructors:[{name:'McLaren',constructorId:'mclaren'}]}});
+        if(path==='/api/favorites') return route.fulfill({json:favorites});
+        if(path==='/api/favorites/driver') {const code=route.request().postDataJSON().id;favorites={...favorites,drivers:favorites.drivers.includes(code)?favorites.drivers.filter(value=>value!==code):[...favorites.drivers,code]};return route.fulfill({json:{saved:true}});}
+        if(path==='/api/account/settings') {
+          if(route.request().method()==='POST') {settingsWrites++;settingsPayload=route.request().postDataJSON();}
+          return route.fulfill({json:{timezone:'Etc/GMT-3',notify_before:60,notify_before_minutes:[60],notifications_enabled:false,reminder_sessions:31,results_spoiler:false}});
+        }
         if(path==='/api/profiles/avatar/v1.png') {
           const query=new URL(route.request().url()).searchParams;
           return route.fulfill({contentType:'image/png',body:fs.readFileSync(`.tmp/profile-avatar-fixtures/${query.get('helmet')}-${query.get('suit')}-${query.get('background')}.png`)});
@@ -32,17 +41,38 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
         if(path===`/api/engagement/shares/${token}`) return route.fulfill({json:shared});
         if(path==='/api/profiles/me/style') {saved=route.request().postDataJSON();return route.fulfill({json:{saved:true}});}
         const person={user_id:1,display_name:'Turbo Racer',tier,tier_name:tier===3?'Полный газ':'Участник',supporter:tier>0,style:{frame:'classic',color:'white',background:'carbon'}};
-        const data={...person,avatar,avatar_options:avatarOptions,is_owner:owner,season:2026,seasons:[2026,2025],total_points:empty?0:30,scored_rounds:empty?0:1,options,best_prediction:empty?null:prediction,predictions:empty?[]:[prediction],records:empty?[]:[{track_id:'emerald-loop-v2',track_name:'Emerald Loop',best_time_ms:98432,attempts:12}]};
+        const data={...person,avatar,avatar_options:avatarOptions,favorites,is_owner:owner,season:2026,seasons:[2026,2025],total_points:empty?0:30,scored_rounds:empty?0:1,options,best_prediction:empty?null:prediction,predictions:empty?[]:[prediction],records:empty?[]:[{track_id:'emerald-loop-v2',track_name:'Emerald Loop',best_time_ms:98432,attempts:12}]};
         return route.fulfill({json:path==='/api/profiles/supporters'?{entries:[{...person,total_points:30,place:1}]}:path.startsWith('/api/profiles/')?data:path==='/api/auth/me'?{id:1,telegram_id:2099386,role:'user'}:{}});
       });
       await page.goto('http://127.0.0.1:5174/profile');
       await page.getByRole('heading',{name:'Turbo Racer'}).waitFor();
       const personalNav=page.getByRole('navigation',{name:'Личный раздел'});
+      assert.ok(await personalNav.evaluate(el=>Array.from(el.querySelectorAll('a')).every(link=>link.getBoundingClientRect().right<=window.innerWidth)),`Personal tabs clipped at ${width}`);
       await personalNav.getByRole('link',{name:'Аккаунт',exact:true}).click();
       await page.locator('.account-hero h1').waitFor();
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`Account overflow at ${width}`);
       await page.screenshot({path:`artifacts/personal-account-${width}.png`,fullPage:true});
       await personalNav.getByRole('link',{name:'Профиль',exact:true}).click();
+      let following=page.locator('.profile-favorites');
+      await following.getByRole('link',{name:'VER Макс Ферстаппен'}).waitFor();
+      await following.getByRole('link',{name:'Изменить избранное'}).click();
+      await page.getByRole('heading',{name:'Избранное',exact:true}).waitFor();
+      await Promise.all([page.waitForResponse(response=>response.url().endsWith('/api/favorites/driver')),page.getByRole('button',{name:'Ландо Норрис NOR'}).click()]);
+      await personalNav.getByRole('link',{name:'Профиль',exact:true}).click();
+      following=page.locator('.profile-favorites');
+      await following.getByRole('link',{name:'NOR Ландо Норрис'}).waitFor();
+      await following.getByRole('link',{name:'McLaren'}).waitFor();
+      assert.ok((await following.getByRole('link',{name:'McLaren'}).getAttribute('href')).includes('constructorId=mclaren'));
+      await personalNav.getByRole('link',{name:'Настройки',exact:true}).click();
+      await page.getByRole('heading',{name:'Настройки',exact:true}).waitFor();
+      await page.locator('label[aria-label="Скрывать фото результатов в Telegram"]').click();
+      await page.getByRole('button',{name:'Сохранить настройки'}).click();
+      await page.getByRole('status').filter({hasText:'Настройки сохранены ✅'}).waitFor();
+      assert.equal(settingsPayload.results_spoiler,true);
+      assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`Settings overflow at ${width}`);
+      await page.screenshot({path:`artifacts/personal-settings-${width}.png`,fullPage:true});
+      await personalNav.getByRole('link',{name:'Профиль',exact:true}).click();
+      assert.equal(settingsWrites,1);
       await page.getByRole('button',{name:'Изменить аватар',exact:true}).click();
       let editor=page.getByRole('dialog',{name:'Гараж аватаров'});
       await editor.getByRole('button',{name:'Кобальт / двойная полоса'}).click();
@@ -98,6 +128,8 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       await page.getByText('Ответы показываются после начисления баллов.').waitFor();
       assert.equal(await page.getByRole('heading',{name:'Твой стиль'}).count(),0);
       assert.equal(await page.getByRole('button',{name:'Изменить аватар',exact:true}).count(),0);
+      await page.locator('.profile-favorites').getByRole('link',{name:'NOR Ландо Норрис'}).waitFor();
+      assert.equal(await page.getByRole('link',{name:'Изменить избранное'}).count(),0);
       assert.deepEqual(errors,[]);
       await page.close();
     }

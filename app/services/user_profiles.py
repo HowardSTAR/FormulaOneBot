@@ -1,7 +1,7 @@
 """Public racing profiles; subscription rights are always resolved server-side."""
 from datetime import datetime, timezone
 
-from app.db import db
+from app.db import db, get_favorites_for_user_id
 from app.services import profile_avatar
 
 SCHEMA = """
@@ -92,10 +92,12 @@ async def profile(user_id, viewer_id, season=None):
     from app.race_rules import TRACKS
     for record in records:
         record['track_name'] = TRACKS.get(record['track_id'], {}).get('name', 'Emerald Loop' if record['track_id'] == 'emerald-loop-v1' else record['track_id'])
+    favorite_drivers, favorite_teams = await get_favorites_for_user_id(user_id)
     return {**people[user_id], 'is_owner': own, 'season': season, 'seasons': sorted(set(seasons + [season]), reverse=True),
             'best_prediction': best, 'predictions': predictions, 'records': records,
             'total_points': sum(p['points'] for p in scored), 'scored_rounds': len(scored), 'options': OPTIONS,
-            'avatar_options': profile_avatar.OPTIONS}
+            'avatar_options': profile_avatar.OPTIONS,
+            'favorites': {'drivers': sorted(favorite_drivers), 'teams': sorted(favorite_teams)}}
 
 
 async def save_avatar(user_id, values):

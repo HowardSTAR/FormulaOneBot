@@ -17,12 +17,10 @@ const DriversPage = lazy(() => import("./pages/drivers/DriversPage"));
 const HistoryPage = lazy(() => import("./pages/history/HistoryPage"));
 const CommunityPage = lazy(() => import('./pages/community/CommunityPage'));
 const SharePage = lazy(() => import('./pages/community/SharePage'));
-const FavoritesPage = lazy(() => import("./pages/favorites/FavoritesPage"));
 const NextRacePage = lazy(() => import("./pages/next-race/NextRacePage"));
 const QualiResultsPage = lazy(() => import("./pages/quali-results/QualiResultsPage"));
 const RaceDetailsPage = lazy(() => import("./pages/race-details/RaceDetailsPage"));
 const RaceResultsPage = lazy(() => import("./pages/race-results/RaceResultsPage"));
-const SettingsPage = lazy(() => import("./pages/settings/SettingsPage"));
 const SeasonPage = lazy(() => import("./pages/season/SeasonPage"));
 const SprintQualiResultsPage = lazy(() => import("./pages/sprint-quali-results/SprintQualiResultsPage"));
 const SprintResultsPage = lazy(() => import("./pages/sprint-results/SprintResultsPage"));
@@ -68,7 +66,7 @@ export const router = createBrowserRouter([
       { path: "/history", element: <HistoryPage /> },
       { path: '/community', element: <CommunityPage /> },
       { path: '/share/:token', element: <SharePage /> },
-      { path: "/favorites", element: <RequirePersonalAccount><FavoritesPage /></RequirePersonalAccount> },
+      { path: "/favorites", element: <RequirePersonalAccount><AccountPage /></RequirePersonalAccount> },
       { path: "/next-race", element: <NextRacePage /> },
       { path: "/quali-results", element: <QualiResultsPage /> },
       { path: "/race-details", element: <RaceDetailsPage /> },
@@ -79,7 +77,7 @@ export const router = createBrowserRouter([
       { path: "/practice-results", element: <PracticeResultsPage /> },
       { path: "/contact-admin", element: <ContactAdminPage /> },
       { path: "/reset-password", element: <ResetPasswordPage /> },
-      { path: "/settings", element: <RequirePersonalAccount requireTelegram={false}><SettingsPage /></RequirePersonalAccount> },
+      { path: "/settings", element: <RequirePersonalAccount requireTelegram={false}><AccountPage /></RequirePersonalAccount> },
       { path: "/season", element: <SeasonPage /> },
       { path: "/sprint-quali-results", element: <SprintQualiResultsPage /> },
       { path: "/sprint-results", element: <SprintResultsPage /> },

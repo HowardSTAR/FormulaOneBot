@@ -8,7 +8,7 @@ type Driver = { code: string; name: string };
 type Team = { name: string };
 type FavoritesData = { drivers: string[]; teams: string[] };
 
-function FavoritesPage() {
+function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
   const [tab, setTab] = useState<"drivers" | "teams">("drivers");
   const [driversList, setDriversList] = useState<Driver[]>([]);
   const [teamsList, setTeamsList] = useState<Team[]>([]);
@@ -105,7 +105,7 @@ function FavoritesPage() {
 
   return (
     <div className="personal-page favorites-page">
-      <BackButton />
+      {!embedded && <BackButton />}
       <header className="personal-page-header">
         <div>
           <span className="personal-page-kicker">Личный раздел</span>

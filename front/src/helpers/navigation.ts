@@ -5,8 +5,8 @@ export type NavigationItem = { to: string; label: string; icon: IndexIconName; a
 export type NavigationGroup = { id: string; label: string; icon: IndexIconName; items: NavigationItem[] };
 const item = (to: string, label: string, icon: IndexIconName, activePaths = [to], access?: NavigationItem['access']): NavigationItem => ({ to, label, icon, activePaths, access });
 const primary = [item('/', 'Обзор', 'home'), item('/season', 'Календарь', 'calendar', ['/season', '/next-race', '/race-details'])];
-const general = [item('/community', 'С друзьями', 'games'), item('/wiki', 'Wiki Formula 1™', 'wiki'), item('/profile', 'Моё', 'account', ['/profile', '/account']), item('/notifications', 'Уведомления', 'notifications', undefined, 'personalized'), item('/contact-admin', 'Обратная связь', 'contact')];
-const personal = [item('/admin', 'Админ-панель', 'admin', undefined, 'admin'), item('/voting', 'Голосование', 'vote', undefined, 'personalized'), item('/favorites', 'Избранное', 'favorite', undefined, 'personalized'), item('/settings', 'Настройки', 'settings', undefined, 'signedIn')];
+const general = [item('/community', 'С друзьями', 'games'), item('/wiki', 'Wiki Formula 1™', 'wiki'), item('/profile', 'Моё', 'account', ['/profile', '/account', '/favorites', '/settings']), item('/notifications', 'Уведомления', 'notifications', undefined, 'personalized'), item('/contact-admin', 'Обратная связь', 'contact')];
+const personal = [item('/admin', 'Админ-панель', 'admin', undefined, 'admin'), item('/voting', 'Голосование', 'vote', undefined, 'personalized')];
 const groups: NavigationGroup[] = [
   { id: 'results', label: 'Результаты', icon: 'results', items: [
     item('/practice-results', 'Свободные заезды', 'practice'), item('/sprint-quali-results', 'Спринт-квалификация', 'sprintQuali'), item('/sprint-results', 'Спринт-гонка', 'sprint'), item('/quali-results', 'Квалификация', 'quali'), item('/race-results', 'Гонка', 'race'),

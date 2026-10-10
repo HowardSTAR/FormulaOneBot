@@ -114,3 +114,22 @@ async def test_account_merge_keeps_style(db_session):
     await db_session.conn.commit()
     row = await (await db_session.conn.execute('SELECT frame,color,background FROM user_profile_styles WHERE user_id=?', (target,))).fetchone()
     assert tuple(row) == ('neon', 'mint', 'aurora')
+
+
+@pytest.mark.asyncio
+async def test_profile_favorites_belong_to_subject_not_viewer(db_session):
+    subject = await participant(db_session)
+    viewer = await participant(db_session, 'Другой участник', 4444)
+    await db_session.conn.execute('INSERT INTO favorite_drivers(user_id,driver_code) VALUES (?,?)', (subject, 'VER'))
+    await db_session.conn.execute('INSERT INTO favorite_teams(user_id,constructor_name) VALUES (?,?)', (subject, 'McLaren'))
+    await db_session.conn.execute('INSERT INTO favorite_drivers(user_id,driver_code) VALUES (?,?)', (viewer, 'NOR'))
+    await db_session.conn.commit()
+    favorites = {'drivers': ['VER'], 'teams': ['McLaren']}
+    assert (await profiles.profile(subject, subject))['favorites'] == favorites
+    assert (await profiles.profile(subject, viewer))['favorites'] == favorites
+    assert (await profiles.profile(subject, -1))['favorites'] == favorites
+    assert (await profiles.profile(viewer, subject))['favorites'] == {'drivers': ['NOR'], 'teams': []}
+    await db_session.conn.execute('DELETE FROM favorite_drivers WHERE user_id=?', (subject,))
+    await db_session.conn.execute('DELETE FROM favorite_teams WHERE user_id=?', (subject,))
+    await db_session.conn.commit()
+    assert (await profiles.profile(subject, -1))['favorites'] == {'drivers': [], 'teams': []}
