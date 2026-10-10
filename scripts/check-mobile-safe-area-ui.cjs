@@ -47,7 +47,7 @@ async function checkNavigation(page, values) {
         if (new URL(route.request().url()).pathname === '/api/reaction-leaderboard/profile') return route.fulfill({ json: { prompt_seen: true, participate: false, display_name: '' } });
         return route.fulfill({ json: { status: 'none', items: [], entries: [], results: [] } });
       });
-      await page.goto(`${base}/reaction-game`);
+      await page.goto(`${base}/driver-details`);
       await page.locator('.btn-back').first().waitFor();
       await applyInsets(page, values);
       await checkNavigation(page, values);
@@ -65,6 +65,10 @@ async function checkNavigation(page, values) {
         await checkNavigation(page, resized);
       }
       await page.getByRole('button', { name: 'Назад', exact: true }).first().click();
+      await page.waitForURL('**/drivers?year=*');
+      await page.locator('.btn-back').waitFor({ state: 'hidden' });
+      assert.equal(await page.locator('.btn-back').count(), 0, 'Root section has no back button');
+      await page.getByRole('navigation', { name: 'Основная навигация', exact: true }).getByRole('link', { name: 'Главная', exact: true }).click();
       await page.waitForURL(`${base}/`);
       await page.getByRole('button', { name: 'Короткое знакомство →' }).click();
       await page.waitForFunction(() => document.documentElement.dataset.onboardingPhase === 'ready');
@@ -93,7 +97,7 @@ async function checkNavigation(page, values) {
     }
     const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     await desktop.route('**/api/**', route => route.fulfill({ status: 401, json: { detail: 'Guest' } }));
-    await desktop.goto(`${base}/reaction-game`);
+    await desktop.goto(`${base}/driver-details`);
     await desktop.locator('.btn-back .back-button-arrow').first().waitFor();
     assert.equal(await desktop.locator('.mobile-primary-nav').isVisible(), false);
     assert.equal(await desktop.locator('.back-button-arrow').first().textContent(), '←');

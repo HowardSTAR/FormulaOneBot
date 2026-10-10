@@ -71,6 +71,7 @@ async function checkTrack(page, selector) {
       for (const [index, [route, title]] of steps.entries()) {
         await page.waitForFunction(route => location.pathname === route, route);
         await guide.getByRole('heading', { name: title, exact: true }).waitFor();
+        assert.equal(await page.locator('.app-page-main .btn-back').count(), 0, `No section back button: ${route}`);
         assert.ok((await guide.innerText()).includes(`${index + 1} / ${steps.length}`));
         await checkCard(page);
         await page.locator(`.first-visit-highlight[data-tour-route="${route}"]`).waitFor();

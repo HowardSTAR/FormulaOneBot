@@ -1,4 +1,5 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { isSectionRoot } from '../helpers/navigation';
 
 type BackButtonProps = {
   fallback?: string;
@@ -9,6 +10,8 @@ type BackButtonProps = {
 /** Кнопка «Назад» — возвращает на предыдущую страницу в истории. */
 export function BackButton({ fallback, className = "btn-back" }: BackButtonProps) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  if (isSectionRoot(pathname)) return null;
 
   const handleClick = () => {
     if (Number(window.history.state?.idx) > 0) {

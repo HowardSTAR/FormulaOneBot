@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {navigationFor, navigationActive} from '../front/src/helpers/navigation.ts';
+import {navigationFor, navigationActive, isSectionRoot} from '../front/src/helpers/navigation.ts';
 
 const links = auth => { const nav = navigationFor(auth); return [...nav.primary, ...nav.general, ...nav.personal, ...nav.groups.flatMap(group => group.items)]; };
 const paths = auth => links(auth).map(link => link.to);
@@ -35,4 +35,15 @@ test('Nested detail pages select the matching section, not Home', () => {
   assert.equal(navigationActive(values.find(link => link.to === '/'), '/driver-details'), false);
   assert.equal(navigationActive(values.find(link => link.to === '/season'), '/next-race'), true);
   for (const path of ['/settings','/favorites','/account','/profile/123']) assert.equal(navigationActive(values.find(link => link.to === '/profile'), path), true);
+});
+
+test('Every bottom tab and menu section is a root, including protected sections', () => {
+  const sections = paths({signedIn:true, personalized:true, role:'superadmin'});
+  for (const path of [...sections, '/next-race', '/account', '/settings', '/favorites']) {
+    assert.equal(isSectionRoot(path), true, path);
+    assert.equal(isSectionRoot(`${path}/`), true, `${path}/`);
+  }
+  for (const path of ['/driver-details', '/constructor-details', '/team-principal', '/profile/123', '/share/token', '/reset-password', '/account/delete']) {
+    assert.equal(isSectionRoot(path), false, path);
+  }
 });

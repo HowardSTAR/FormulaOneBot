@@ -18,6 +18,13 @@ const groups: NavigationGroup[] = [
   { id: 'games', label: 'Игры', icon: 'games', items: [item('/reaction-game', 'Тест реакции', 'reaction'), item('/reflex-grid-game', 'Reflex Grid', 'grid'), item('/race-game', 'Emerald Loop', 'arcade')] },
 ];
 
+// Section entry points never need an in-page back button. Detail routes still do.
+const sectionRoots = new Set([
+  '/', '/next-race', '/account', '/settings', '/favorites',
+  ...[...primary, ...general, ...personal, ...groups.flatMap(group => group.items)].map(link => link.to),
+]);
+export const isSectionRoot = (pathname: string) => sectionRoots.has(pathname.replace(/\/+$/, '') || '/');
+
 export function navigationFor(auth: Pick<AuthState, 'signedIn' | 'personalized' | 'role'>) {
   const allowed = (link: NavigationItem) => !link.access || (link.access === 'admin' ? auth.role === 'admin' || auth.role === 'superadmin' : auth[link.access]);
   return { primary, general: general.filter(allowed), personal: personal.filter(allowed), groups: groups.map(group => ({ ...group, items: group.items.filter(allowed) })) };

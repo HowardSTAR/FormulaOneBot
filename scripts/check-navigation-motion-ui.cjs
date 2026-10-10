@@ -83,7 +83,8 @@ async function checkIndicator(page, index) {
         await route.continue();
       });
       await page.goto(`${base}/reaction-game`);
-      await page.locator('.route-reaction-game .btn-back').waitFor();
+      await page.locator('.reaction-board').waitFor();
+      assert.equal(await page.locator('.app-page-main .btn-back').count(), 0);
       await checkIndicator(page, 4);
       const nav = page.getByRole('navigation', { name: 'Основная навигация', exact: true });
       await page.evaluate(() => { window.motionEvidence.loadingFallbacks = 0; });
@@ -96,6 +97,7 @@ async function checkIndicator(page, index) {
         await nav.getByRole('link', { name: label, exact: true }).click();
         await page.waitForURL(`${base}${path}`);
         await checkIndicator(page, index);
+        assert.equal(await page.locator('.app-page-main .btn-back').count(), 0, `No back button on ${path}`);
       }
       // Rapid taps must settle on the last selected page and indicator.
       await nav.getByRole('link', { name: 'Прогнозы', exact: true }).click();
@@ -127,6 +129,7 @@ async function checkIndicator(page, index) {
       await page.waitForURL('**/wiki');
       await dialog.waitFor({ state: 'hidden' });
       await settled(page);
+      assert.equal(await page.locator('.app-page-main .btn-back').count(), 0, 'Menu sections have no back button');
       await page.goBack();
       await page.waitForURL('**/next-race');
       await checkIndicator(page, 1);
