@@ -4,7 +4,6 @@ import { useHeroData } from "../../context/useHeroData";
 import { useAuthState } from "../../helpers/auth";
 import { apiAssetUrl, apiRequest } from "../../helpers/api";
 import { useMediaQuery } from '../../helpers/useMediaQuery';
-import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCountryFlagUrl } from "../../constants/flags";
 import "./styles.css";
 import Hero from "./Hero";
@@ -88,7 +87,7 @@ function IndexPage() {
   const [totalRounds, setTotalRounds] = useState(0);
   const [driversTop, setDriversTop] = useState<DriverStanding[]>([]);
   const [constructorsTop, setConstructorsTop] = useState<ConstructorStanding[]>([]);
-  const displayTz = getDisplayTimezone(userTz);
+  const displayTz = userTz;
   useEffect(() => {
     if (!loaded) load();
   }, [loaded, load]);

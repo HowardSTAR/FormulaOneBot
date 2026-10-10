@@ -18,7 +18,6 @@ import './season-filters.css';
 const currentRealYear = new Date().getFullYear();
 
 type SeasonResponse = { races?: Race[] };
-type SettingsResponse = { timezone?: string };
 type RaceResult = {
   position: number;
   code: string;
@@ -46,7 +45,7 @@ function SeasonPage() {
   const calendarRequest = useRef(0);
   const [races, setRaces] = useState<Race[]>([]);
   const [loadedYear, setLoadedYear] = useState<number | null>(null);
-  const [userTz, setUserTz] = useState(getDisplayTimezone());
+  const userTz = getDisplayTimezone();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
@@ -66,18 +65,6 @@ function SeasonPage() {
       return next;
     }, {replace: true});
   };
-
-  useEffect(() => {
-    let cancelled = false;
-    apiRequest<SettingsResponse>("/api/settings")
-      .then((s) => {
-        if (!cancelled) setUserTz(getDisplayTimezone(s?.timezone));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const loadCalendar = useCallback(async (season: number) => {
     const request = ++calendarRequest.current;

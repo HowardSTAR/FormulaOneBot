@@ -13,7 +13,7 @@ const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)'
 export function FirstVisitGuide() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { loaded, userTz } = useHeroData();
+  const { loaded } = useHeroData();
   const [stage, setStage] = useState<number | null>(() => readOnboarding() ? null : 0);
   const [started, setStarted] = useState(false);
   const [phase, setPhase] = useState<Phase>('loading');
@@ -23,7 +23,7 @@ export function FirstVisitGuide() {
   const panel = useRef<HTMLElement>(null);
   const active = stage !== null && (started || pathname === '/' && loaded);
   const step = onboardingSteps[stage ?? 0];
-  const timezone = formatTimezoneLabel(getDisplayTimezone(userTz));
+  const timezone = formatTimezoneLabel(getDisplayTimezone());
   const updatePhase = useCallback((next: Phase) => { phaseRef.current = next; setPhase(next); }, []);
 
   const finish = useCallback((status: 'completed' | 'skipped') => {

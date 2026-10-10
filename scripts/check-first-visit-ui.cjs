@@ -61,7 +61,12 @@ async function checkTrack(page, selector) {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
     for (const [width, height] of [[320, 640], [390, 844], [1440, 900]]) {
-      const context = await browser.newContext({ viewport: { width, height }, timezoneId: 'Europe/Moscow', reducedMotion: width === 390 ? 'no-preference' : 'reduce' });
+      const timezoneId = width === 390 ? 'Asia/Tokyo' : width === 1440 ? 'America/New_York' : 'Europe/Moscow';
+      const context = await browser.newContext({ viewport: { width, height }, timezoneId, reducedMotion: width === 390 ? 'no-preference' : 'reduce' });
+      await context.route('https://telegram.org/**', route => route.abort());
+      if (width === 390) await context.addInitScript(() => {
+        window.Telegram = { WebApp: { initData: 'local-test', platform: 'android', ready() {}, expand() {} } };
+      });
       const page = await context.newPage();
       const errors = [], mutations = [];
       page.on('pageerror', error => errors.push(error.message));
@@ -86,7 +91,9 @@ async function checkTrack(page, selector) {
       await guide.getByRole('heading', { name: 'Главная', exact: true }).waitFor();
       await checkCard(page);
       assert.equal(await guide.locator('input[type="radio"]').count(), 0);
-      assert.ok((await guide.innerText()).includes('МСК (UTC+3)'));
+      assert.ok((await guide.innerText()).includes(timezoneId === 'Europe/Moscow' ? 'МСК (UTC+3)' : timezoneId.replace(/_/g, ' ')));
+      const raceTime = new Date(race.race_start_utc).toLocaleTimeString('ru-RU', { timeZone: timezoneId, hour: '2-digit', minute: '2-digit' });
+      assert.ok((await page.locator('.weekend-board').innerText()).includes(raceTime), 'Home must use the device timezone even when the account stores Moscow');
       const initialHistory = await page.evaluate(() => history.length);
       for (const [index, [route, title]] of steps.entries()) {
         await page.waitForFunction(route => location.pathname === route, route);
@@ -147,6 +154,12 @@ async function checkTrack(page, selector) {
       }
       assert.equal(await page.locator('.first-visit-entry').count(), 0);
       assert.equal(await page.getByText('Все разделы TurboTears', { exact: true }).count(), 0);
+      if (width === 390) {
+        await page.getByRole('navigation', { name: 'Основная навигация', exact: true }).getByRole('link', { name: 'Уик-энд', exact: true }).click();
+        await page.locator('.next-race-mobile .weekend-session-list').waitFor();
+        assert.ok((await page.locator('.next-race-mobile .weekend-session-list').innerText()).includes(raceTime), 'Telegram weekend must use the same local time as Home');
+        assert.equal(await page.locator('.app-page-main .btn-back').count(), 0);
+      }
       await replayGuide(page, width);
       await guide.waitFor();
       await page.keyboard.press('Escape');

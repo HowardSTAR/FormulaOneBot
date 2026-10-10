@@ -120,7 +120,7 @@ function SettingsPage({ embedded = false }: { embedded?: boolean }) {
         <div>
           <span className="personal-page-kicker">Персонализация</span>
           <h1>Настройки</h1>
-          <p>Управляйте локальным временем и уведомлениями о событиях гоночного уик-энда.</p>
+          <p>Управляйте уведомлениями о событиях гоночного уик-энда.</p>
         </div>
         <div className={`personal-status-badge ${notificationsEnabled ? "is-on" : ""}`}>
           <i aria-hidden />{!loaded ? 'Загружаем настройки…' : `${dirty ? 'Предпросмотр: ' : ''}${quietNow ? 'сейчас без звука' : 'сейчас со звуком'}`}
@@ -130,7 +130,7 @@ function SettingsPage({ embedded = false }: { embedded?: boolean }) {
       <div className="settings-desktop-layout">
         <section className="personal-surface settings-form-panel">
           <div className="settings-section-heading">
-            <span>01</span><div><h2>Время событий</h2><p>Расписание будет показано в выбранном часовом поясе.</p></div>
+            <span>01</span><div><h2>Время и напоминания</h2><p>Расписание на сайте и в Mini App использует время устройства. Выбранный пояс задаёт тихие часы и время сообщений в старых клиентах Telegram.</p></div>
           </div>
           <div className="settings-fields-grid">
             <div className="setting-card">
@@ -193,8 +193,8 @@ function SettingsPage({ embedded = false }: { embedded?: boolean }) {
           <span className="personal-control-label">{!loaded ? 'Загружаем конфигурацию…' : dirty ? 'Предпросмотр · ещё не сохранено' : 'Сохранённая конфигурация'}</span>
           <h2>Ваш гоночный день</h2>
           <dl>
-            <div><dt>Локальное время</dt><dd>{timePreview.replace("Сейчас: ", "")}</dd></div>
-            <div><dt>Часовой пояс</dt><dd>{timezoneLabel}</dd></div>
+            <div><dt>Время для тихих часов</dt><dd>{timePreview.replace("Сейчас: ", "")}</dd></div>
+            <div><dt>Пояс уведомлений</dt><dd>{timezoneLabel}</dd></div>
             <div><dt>Напоминания</dt><dd>{notifyBeforeMinutes.length && reminderSessions ? `За ${notifyLabel}` : 'Отключены'}</dd></div>
             <div><dt>Звук Telegram</dt><dd>{notificationsEnabled ? "Включён" : "Отключён"}</dd></div>
           </dl>

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, type ReactNode } from "react";
 import { apiRequest } from "../helpers/api";
 import { HeroDataContext } from "./heroDataContextObject";
+import { getDisplayTimezone } from '../helpers/timezone';
 
 export type NextRaceStatus = "ok" | "season_finished" | "error";
 
@@ -27,7 +28,6 @@ export type NextRaceResponse = {
 };
 
 type ScheduleResponse = { sessions?: SessionItem[] };
-type SettingsResponse = { timezone?: string };
 
 type HeroDataState = {
   nextRace: NextRaceResponse | null;
@@ -43,7 +43,7 @@ export type HeroDataContextValue = HeroDataState & {
 const initialState: HeroDataState = {
   nextRace: null,
   schedule: [],
-  userTz: "UTC",
+  userTz: getDisplayTimezone(),
   loaded: false,
 };
 
@@ -55,16 +55,8 @@ export function HeroDataProvider({ children }: { children: ReactNode }) {
     if (pending.current) return pending.current;
     const request = (async () => {
       try {
-        const [raceRes, settingsRes] = await Promise.allSettled([
-          apiRequest<NextRaceResponse>("/api/next-race"),
-          apiRequest<SettingsResponse>("/api/settings"),
-        ]);
-
-        const raceData = raceRes.status === "fulfilled" ? raceRes.value : { status: "error" as const };
-        const settings = settingsRes.status === "fulfilled" ? settingsRes.value : { timezone: "UTC" };
-        const tz = settings?.timezone || "UTC";
-
-        setState({ nextRace: raceData, userTz: tz, schedule: [], loaded: false });
+        const raceData = await apiRequest<NextRaceResponse>("/api/next-race");
+        setState({ nextRace: raceData, userTz: getDisplayTimezone(), schedule: [], loaded: false });
 
         if (raceData.status === "ok" && raceData.season && raceData.round) {
           try {

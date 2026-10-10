@@ -1,7 +1,5 @@
-export function getDisplayTimezone(savedTimezone?: string): string {
-  if (savedTimezone && savedTimezone !== "UTC") {
-    return savedTimezone;
-  }
+/** Web and Telegram Mini App schedules always follow the current device. */
+export function getDisplayTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 }
 

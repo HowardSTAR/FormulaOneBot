@@ -25,7 +25,6 @@ type NextRaceResponse = {
 type Session = { name: string; utc_iso?: string; utc?: string; _time?: string; _date?: string };
 type ScheduleResponse = { sessions?: Session[] };
 type RaceDetailsResponse = Omit<NextRaceResponse, 'status'> & ScheduleResponse & { event_format?: string };
-type SettingsResponse = { timezone?: string };
 
 function SessionSchedule({sessions}: {sessions: Session[]}) {
   return <ol className="weekend-session-list">
@@ -94,17 +93,11 @@ function NextRacePage() {
           || Number(selectedRound) < 1 || Number(selectedRound) > 30)) {
           throw new Error('Некорректный сезон или номер этапа');
         }
-        const [raceRes, settingsRes] = await Promise.allSettled([
-          selected
-            ? apiRequest<RaceDetailsResponse>('/api/race-details', {season: selectedSeason, round: selectedRound})
-              .then(data => ({...data, status: 'ok', season: Number(selectedSeason), round: Number(selectedRound)}))
-            : apiRequest<NextRaceResponse>("/api/next-race"),
-          apiRequest<SettingsResponse>("/api/settings"),
-        ]);
-        if (raceRes.status === 'rejected') throw raceRes.reason;
-        const raceData = raceRes.value;
-        const settings = settingsRes.status === "fulfilled" ? settingsRes.value : { timezone: "UTC" };
-        const userTz = getDisplayTimezone(settings?.timezone);
+        const raceData = selected
+          ? await apiRequest<RaceDetailsResponse>('/api/race-details', {season: selectedSeason, round: selectedRound})
+            .then(data => ({...data, status: 'ok', season: Number(selectedSeason), round: Number(selectedRound)}))
+          : await apiRequest<NextRaceResponse>("/api/next-race");
+        const userTz = getDisplayTimezone();
 
         if (cancelled) return;
         setDisplayTimezone(timezoneName(userTz));

@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
-import { getDisplayTimezone } from "../../helpers";
 import { useVisibleClock } from '../../helpers/useVisibleClock';
 import type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
 
@@ -44,7 +43,7 @@ function formatSessionDate(value: string, timeZone: string): string {
 
 function Hero({ nextRace, schedule, userTz, showTrackMap = false }: HeroProps) {
   const now = useVisibleClock(1000, nextRace?.status === 'ok');
-  const displayTz = getDisplayTimezone(userTz);
+  const displayTz = userTz;
   const dates = useMemo(() => {
     const values = [...schedule.map(s => s.utc_iso), nextRace?.next_session_iso, nextRace?.race_start_utc, nextRace?.date];
     return new Map(values.filter((value): value is string => Boolean(value)).map(value => [value, formatSessionDate(value, displayTz)]));
