@@ -14,6 +14,11 @@ async function checkCard(page) {
     const r = document.querySelector('.first-visit-card').getBoundingClientRect();
     return r.x >= 0 && r.y >= 0 && r.right <= innerWidth + 1 && r.bottom <= innerHeight + 1;
   });
+  await page.waitForFunction(() => {
+    const p = document.querySelector('.app-content').getBoundingClientRect();
+    const c = document.querySelector('.first-visit-guide').getBoundingClientRect();
+    return p.right <= c.left || p.bottom <= c.top;
+  });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   const workspace = await page.evaluate(() => {
     const p = document.querySelector('.app-content').getBoundingClientRect();
@@ -26,6 +31,18 @@ async function checkCard(page) {
   assert.ok(workspace.height >= 320, `Portrait page must retain enough room to read and scroll: ${JSON.stringify(workspace)}`);
   assert.equal(workspace.opacity, '1');
   assert.equal(workspace.darkOverlay, false);
+
+}
+async function replayGuide(page, width) {
+  if (width < 768) {
+    await page.getByRole('button', { name: 'Меню', exact: true }).click();
+    const section = page.locator('.mobile-menu-dialog section').filter({ has: page.getByRole('heading', { name: 'Справка и аккаунт', exact: true }) });
+    await section.getByRole('button', { name: 'Короткое знакомство', exact: true }).click();
+    await page.locator('.mobile-menu-dialog').waitFor({ state: 'hidden' });
+  } else {
+    await page.locator('.app-header').getByRole('button', { name: 'Короткое знакомство', exact: true }).click();
+  }
+  await page.waitForURL(`${base}/`);
 }
 async function checkTrack(page, selector) {
   const border = page.locator(`${selector} .track-route-border:visible`).first();
@@ -57,8 +74,11 @@ async function checkTrack(page, selector) {
         if (path === '/api/settings') return route.fulfill({ json: { timezone: 'Europe/Moscow' } });
         if (path === '/api/weekend-schedule') return route.fulfill({ json: { sessions: [{ name: 'Практика 1', utc_iso: '2026-10-09T09:00:00Z' }, { name: 'Гонка', utc_iso: '2026-10-11T12:00:00Z' }] } });
         if (path === '/api/season') return route.fulfill({ json: { races: [{ ...race, date: '2026-10-11' }] } });
-        if (path === '/api/predictions/preview') return route.fulfill({ json: { status: 'ok', season: 2026, round: 17, event_name: race.event_name, is_open: false, profile: { display_name: '', completed: false }, prediction: null, drivers: [], scoring_rules: [] } });
+        if (['/api/predictions/preview', '/api/predictions/current'].includes(path)) return route.fulfill({ json: { status: 'ok', season: 2026, round: 17, event_name: race.event_name, is_open: false, profile: { display_name: '', completed: false }, prediction: null, drivers: [], scoring_rules: [] } });
         if (path === '/api/engagement/weekly') return route.fulfill({ json: { track_id: 'emerald-loop', name: 'Трасса недели', start: '2026-10-05T00:00:00Z', end: '2026-10-12T00:00:00Z', entries: [] } });
+        if (path === '/api/engagement/mine') return route.fulfill({ json: { badges: [], shares: [], referrals: { arrived: 0, activated: 0, returned: 0 } } });
+        if (path === '/api/engagement/weekly/me') return route.fulfill({ json: { user_id: 777, weekly: null } });
+        if (path === '/api/reaction-leaderboard/profile') return route.fulfill({ json: { prompt_seen: true, participate: false, display_name: '' } });
         return route.fulfill({ json: { status: 'none', items: [], results: [], rounds: [], drivers: [], constructors: [], entries: [], unread: 0 } });
       });
       await page.goto(base);
@@ -72,8 +92,12 @@ async function checkTrack(page, selector) {
         await page.waitForFunction(route => location.pathname === route, route);
         await guide.getByRole('heading', { name: title, exact: true }).waitFor();
         assert.equal(await page.locator('.app-page-main .btn-back').count(), 0, `No section back button: ${route}`);
+        if (index === steps.length - 1) assert.match(await guide.innerText(), /Повторить знакомство.*Справка и аккаунт/);
         assert.ok((await guide.innerText()).includes(`${index + 1} / ${steps.length}`));
-        await checkCard(page);
+        try { await checkCard(page); } catch (error) {
+          console.error({ width, route, errors, page: (await page.locator('body').innerText()).slice(0, 1500) });
+          throw error;
+        }
         await page.locator(`.first-visit-highlight[data-tour-route="${route}"]`).waitFor();
         if ([1, 2].includes(index)) {
           const heading = page.locator('.app-page-main h1:visible, .app-page-main h2:visible').first();
@@ -121,7 +145,9 @@ async function checkTrack(page, selector) {
         await checkTrack(page, '.season-desktop-track-svg');
         await page.goto(base);
       }
-      await page.getByRole('button', { name: 'Короткое знакомство →' }).click();
+      assert.equal(await page.locator('.first-visit-entry').count(), 0);
+      assert.equal(await page.getByText('Все разделы TurboTears', { exact: true }).count(), 0);
+      await replayGuide(page, width);
       await guide.waitFor();
       await page.keyboard.press('Escape');
       await guide.waitFor({ state: 'hidden' });

@@ -68,21 +68,27 @@ async function checkNavigation(page, values) {
       await page.waitForURL('**/drivers?year=*');
       await page.locator('.btn-back').waitFor({ state: 'hidden' });
       assert.equal(await page.locator('.btn-back').count(), 0, 'Root section has no back button');
-      await page.getByRole('navigation', { name: 'Основная навигация', exact: true }).getByRole('link', { name: 'Главная', exact: true }).click();
+      await page.getByRole('button', { name: 'Меню', exact: true }).click();
+      await menu.getByRole('button', { name: 'Короткое знакомство', exact: true }).click();
+      await menu.waitFor({ state: 'hidden' });
       await page.waitForURL(`${base}/`);
-      await page.getByRole('button', { name: 'Короткое знакомство →' }).click();
       await page.waitForFunction(() => document.documentElement.dataset.onboardingPhase === 'ready');
       await page.waitForFunction(({ top, bottom, left, right, contentTop = 0 }) => {
         const card = document.querySelector('.first-visit-card').getBoundingClientRect();
         return card.top >= top + contentTop + 11 && card.bottom <= innerHeight - bottom - 11 && card.left >= left + 11 && card.right <= innerWidth - right - 11;
       }, values);
+      await page.waitForFunction(() => {
+        const p = document.querySelector('.app-content').getBoundingClientRect();
+        const c = document.querySelector('.first-visit-guide').getBoundingClientRect();
+        return p.right <= c.left || p.bottom <= c.top;
+      });
       const workspace = await page.evaluate(() => {
         const p = document.querySelector('.app-content').getBoundingClientRect();
         const c = document.querySelector('.first-visit-guide').getBoundingClientRect();
         return { top: p.top, bottom: p.bottom, left: p.left, right: p.right,
           separate: p.right <= c.left || p.bottom <= c.top, height: p.height, width: p.width };
       });
-      assert.ok(workspace.separate, 'Guide must not cover the page, including landscape');
+      assert.ok(workspace.separate, `Guide must not cover the page, including landscape: ${JSON.stringify(workspace)}`);
       assert.ok(workspace.top >= values.top + (values.contentTop || 0) + 11);
       assert.ok(workspace.bottom <= values.height - values.bottom - 11);
       assert.ok(workspace.left >= values.left + 11);

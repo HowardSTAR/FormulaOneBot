@@ -4,6 +4,7 @@ import { useAuthState } from '../helpers/auth';
 import { navigationFor, navigationActive, type NavigationGroup, type NavigationItem } from '../helpers/navigation';
 import IndexIcon from '../pages/index/IndexIcon';
 import './SidebarIcons.css';
+import { startOnboarding } from '../helpers/onboarding';
 
 function SidebarLink({ item, pathname }: { item: NavigationItem; pathname: string }) {
   const active = navigationActive(item, pathname);
@@ -40,6 +41,7 @@ export function AppHeader() {
       {nav.primary.map(item => <SidebarLink key={item.to} item={item} pathname={pathname} />)}
       {nav.groups.slice(0, 3).map(group => <SidebarAccordion key={group.id} group={group} pathname={pathname} />)}
       {nav.general.map(item => <SidebarLink key={item.to} item={item} pathname={pathname} />)}
+      <button type="button" className="app-header-link app-header-menu-trigger" onClick={startOnboarding}><span className="app-header-link-icon"><IndexIcon name="wiki" /></span><span className="app-header-link-label">Короткое знакомство</span></button>
       <SidebarAccordion group={nav.groups[3]} pathname={pathname} />
     </nav>
     <div className="app-header-bottom">

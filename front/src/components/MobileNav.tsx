@@ -5,6 +5,7 @@ import { navigationFor, navigationActive, type NavigationItem } from '../helpers
 import IndexIcon from '../pages/index/IndexIcon';
 import './mobile-nav.css';
 import { primaryNavigationIndex, preparePageMotion } from '../helpers/pageMotion';
+import { startOnboarding } from '../helpers/onboarding';
 
 export function MobileNav() {
   const { pathname } = useLocation();
@@ -52,7 +53,7 @@ export function MobileNav() {
         <nav aria-label="Все разделы сайта">{open && <>
           <section><h3>Главное</h3><div>{links(nav.primary)}</div></section>
           {nav.groups.map(group => <section key={group.id}><h3>{group.label}</h3><div>{links(group.items)}</div></section>)}
-          <section><h3>Справка и аккаунт</h3><div>{links(nav.general)}</div></section>
+          <section><h3>Справка и аккаунт</h3><div>{links(nav.general)}<button type="button" onClick={() => { dialog.current?.close(); startOnboarding(); }}><IndexIcon name="wiki" /><span>Короткое знакомство</span></button></div></section>
           {!!nav.personal.length && <section><h3>Личные разделы и управление</h3><div>{links(nav.personal)}</div></section>}
         </>}</nav>
       </div>

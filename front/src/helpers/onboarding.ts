@@ -1,5 +1,7 @@
 export const ONBOARDING_KEY = 'turbotears-onboarding-v2';
 export const ONBOARDING_CHANGED = 'turbotears-onboarding-changed';
+export const ONBOARDING_START = 'turbotears-onboarding-start';
+export const startOnboarding = () => window.dispatchEvent(new Event(ONBOARDING_START));
 export const onboardingSteps = [
   { route: '/', title: 'Главная', target: '.weekend-board', text: 'Здесь ближайшие сессии и время старта. Строка расписания открывает подробности этапа.' },
   { route: '/season', title: 'Календарь', target: '.season-filters', text: 'Переключайте предстоящие и прошедшие этапы. Нажмите на название гонки, чтобы открыть трассу и расписание.' },
@@ -11,7 +13,7 @@ export const onboardingSteps = [
   { route: '/wiki', title: 'Справочник F1', target: '.wiki-controls', text: 'Введите термин в поиск или выберите категорию. Ниже — правила, флаги и объяснения простыми словами.' },
   { route: '/reaction-game', title: 'Игры', target: '.reaction-board, .reaction-desktop-scene', text: 'Светофор помогает проверить реакцию. Другие игры — Reflex Grid и Emerald Loop — доступны в меню игр.' },
   { route: '/account', title: 'Аккаунт и настройки', target: '.account-tabs, .account-grid, .account-hero', text: 'Вход, личные результаты и привязка Telegram. Часовой пояс и напоминания меняются в настройках.' },
-  { route: '/contact-admin', title: 'Обратная связь', target: '.contact-admin-form, .contact-admin-page header', text: 'Здесь можно сообщить об ошибке или предложить улучшение. Все основные разделы пройдены.' },
+  { route: '/contact-admin', title: 'Обратная связь', target: '.contact-admin-form, .contact-admin-page header', text: 'Здесь можно сообщить об ошибке или предложить улучшение. Все основные разделы пройдены. Повторить знакомство можно в «Меню → Справка и аккаунт».' },
 ] as const;
 type OnboardingState = { status: 'completed' | 'skipped' };
 let sessionState: OnboardingState | null = null;

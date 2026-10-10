@@ -16,7 +16,8 @@ body:has(.mobile-menu-dialog[open]) { overflow: hidden; }
 .mobile-menu-content header button { min-width: 44px; min-height: 44px; border: 1px solid #414550; border-radius: 10px; background: #232833; color: #fff; font-size: 26px; }
 .mobile-menu-content h3 { margin: 20px 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #aeb4c1; }
 .mobile-menu-content section > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.mobile-menu-content section a { display: flex; gap: 9px; align-items: center; padding: 10px 8px; min-height: 48px; border: 1px solid #2e343e; border-radius: 10px; color: #e3e6ed; text-decoration: none; font-size: 13px; }
+.mobile-menu-content section :is(a, button) { display: flex; gap: 9px; align-items: center; padding: 10px 8px; min-height: 48px; border: 1px solid #2e343e; border-radius: 10px; color: #e3e6ed; text-decoration: none; font: inherit; font-size: 13px; text-align: left; }
+.mobile-menu-content section button { background: transparent; cursor: pointer; }
 .mobile-menu-content section a.active { border-color: #ff6259; background: #5a211e; color: #fff; }
 .mobile-menu-content section .menu-icon { width: 28px; height: 28px; flex: 0 0 28px; }
 .mobile-menu-hint { font-size: 13px; color: #aeb4c1; line-height: 1.5; }

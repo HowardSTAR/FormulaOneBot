@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useHeroData } from '../context/useHeroData';
 import { formatTimezoneLabel, getDisplayTimezone } from '../helpers/timezone';
-import { ONBOARDING_CHANGED, onboardingSteps, readOnboarding, saveOnboarding } from '../helpers/onboarding';
+import { ONBOARDING_CHANGED, ONBOARDING_START, onboardingSteps, readOnboarding, saveOnboarding } from '../helpers/onboarding';
 import './first-visit-guide.css';
 
 type Phase = 'leaving' | 'loading' | 'entering' | 'ready';
@@ -21,7 +21,6 @@ export function FirstVisitGuide() {
   const changingRoute = useRef(false);
   const changeTimer = useRef<number | null>(null);
   const panel = useRef<HTMLElement>(null);
-  const replay = useRef<HTMLButtonElement>(null);
   const active = stage !== null && (started || pathname === '/' && loaded);
   const step = onboardingSteps[stage ?? 0];
   const timezone = formatTimezoneLabel(getDisplayTimezone(userTz));
@@ -35,6 +34,19 @@ export function FirstVisitGuide() {
     setStarted(false);
     updatePhase('loading');
     if (status === 'completed') navigate('/', { replace: true });
+  }, [navigate, updatePhase]);
+
+  useEffect(() => {
+    const start = () => {
+      if (changeTimer.current !== null) window.clearTimeout(changeTimer.current);
+      changingRoute.current = true;
+      setStarted(true);
+      setStage(0);
+      updatePhase('loading');
+      navigate(onboardingSteps[0].route, { replace: true });
+    };
+    window.addEventListener(ONBOARDING_START, start);
+    return () => window.removeEventListener(ONBOARDING_START, start);
   }, [navigate, updatePhase]);
 
   const goTo = (index: number) => {
@@ -60,7 +72,6 @@ export function FirstVisitGuide() {
     if (!active) return;
     const root = document.documentElement;
     const previousFocus = document.activeElement;
-    const replayButton = replay.current;
     const overflow = root.style.overflow;
     const previousHeight = root.style.getPropertyValue('--onboarding-panel-height');
     root.style.overflow = 'hidden';
@@ -84,7 +95,6 @@ export function FirstVisitGuide() {
       delete root.dataset.onboardingPhase;
       window.dispatchEvent(new Event(ONBOARDING_CHANGED));
       if (previousFocus instanceof HTMLElement && previousFocus !== document.body && previousFocus.isConnected) previousFocus.focus({ preventScroll: true });
-      else if (replayButton?.isConnected) replayButton.focus({ preventScroll: true });
     };
   }, [active, finish]);
 
@@ -155,7 +165,6 @@ export function FirstVisitGuide() {
   }, [active, pathname, step, updatePhase]);
 
   return <>
-    {pathname === '/' && <div className="first-visit-entry"><span>Все разделы TurboTears</span><button ref={replay} type="button" onClick={() => goTo(0)}>Короткое знакомство →</button></div>}
     {active && createPortal(<aside ref={panel} className="first-visit-guide first-visit-card" tabIndex={-1} aria-label="Знакомство с приложением" aria-describedby="first-visit-description" data-phase={phase}>
       <div className="first-visit-top"><span>ЗНАКОМСТВО · {(stage ?? 0) + 1} / {onboardingSteps.length}</span>
         <button type="button" className="first-visit-close" aria-label="Закрыть знакомство" onClick={() => finish('skipped')}>×</button></div>
