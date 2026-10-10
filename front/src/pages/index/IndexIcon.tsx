@@ -9,6 +9,8 @@ import account from '../../assets/navigation/account.png';
 import notifications from '../../assets/navigation/notifications.png';
 import contact from '../../assets/navigation/contact.png';
 import games from '../../assets/navigation/games.png';
+import social from '../../assets/navigation/social.png';
+import help from '../../assets/navigation/help.png';
 import admin from '../../assets/navigation/admin.png';
 import vote from '../../assets/navigation/vote.png';
 import favorite from '../../assets/navigation/favorite.png';
@@ -28,7 +30,7 @@ import grid from '../../assets/navigation/grid.png';
 import arcade from '../../assets/navigation/arcade.png';
 
 const ICONS = {
-  home, calendar, results, peloton, analytics, wiki, account, notifications, contact, games, admin, vote, favorite, settings, practice, sprintQuali, sprint, quali, race, drivers, teams, compare, predictions, predictionAnalytics, reaction, grid, arcade,
+  home, calendar, results, peloton, analytics, wiki, account, notifications, contact, games, social, help, admin, vote, favorite, settings, practice, sprintQuali, sprint, quali, race, drivers, teams, compare, predictions, predictionAnalytics, reaction, grid, arcade,
 } as const;
 export type IndexIconName = keyof typeof ICONS;
 

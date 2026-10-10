@@ -5,7 +5,7 @@ $source = Join-Path $project 'front/src/assets/navigation'
 $target = Join-Path $project 'app/assets/navigation'
 $archivePath = Join-Path $project 'app-assets.zip'
 $icons = @(Get-ChildItem -LiteralPath $source -Filter '*.png' -File)
-if ($icons.Count -ne 27) { throw 'Expected all 27 navigation icons' }
+if ($icons.Count -ne 29) { throw 'Expected all 29 navigation icons' }
 $temporary = Join-Path $project ('.app-assets-navigation-' + [guid]::NewGuid() + '.tmp.zip')
 Copy-Item -LiteralPath $archivePath -Destination $temporary
 function Get-EntryHash($entry) {
