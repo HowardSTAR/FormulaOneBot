@@ -12,7 +12,9 @@ export const onboardingSteps = [
   { route: '/community', title: 'С друзьями', target: '.community-grid', text: 'Трасса недели, лиги прогнозов и общие результаты. Страницу можно прокручивать и изучать прямо сейчас.' },
   { route: '/wiki', title: 'Справочник F1', target: '.wiki-controls', text: 'Введите термин в поиск или выберите категорию. Ниже — правила, флаги и объяснения простыми словами.' },
   { route: '/reaction-game', title: 'Игры', target: '.reaction-board, .reaction-desktop-scene', text: 'Светофор помогает проверить реакцию. Другие игры — Reflex Grid и Emerald Loop — доступны в меню игр.' },
-  { route: '/account', title: 'Аккаунт и настройки', target: '.account-tabs, .account-grid, .account-hero', text: 'Вход, личные результаты и привязка Telegram. Часовой пояс и напоминания меняются в настройках.' },
+  { route: '/profile', title: 'Мой профиль', target: '.profile-hero, .user-profile-page [role="alert"]', text: 'Лучший прогноз, очки, рекорды и избранное. «Аватар и оформление» меняет образ. Карточкой можно поделиться с друзьями. Нужен вход.' },
+  { route: '/account', title: 'Аккаунт и настройки', target: '.account-tabs, .account-grid, .account-hero', text: 'Здесь вход и привязка Telegram. Для проверки Boosty нужен одинаковый подтверждённый email на сайте и в Boosty. Часовой пояс и напоминания — в настройках.' },
+  { route: '/account', title: 'Boosty и бонусы', target: '.account-boosty-card, .account-auth-card', text: 'На Boosty: «На старт» — значок и клуб; «Свой стиль» — рамки, цвет ника и фоны; «Полный газ» — вся коллекция. Проверка — в аккаунте, если доступна.' },
   { route: '/contact-admin', title: 'Обратная связь', target: '.contact-admin-form, .contact-admin-page header', text: 'Здесь можно сообщить об ошибке или предложить улучшение. Все основные разделы пройдены. Повторить знакомство можно в «Меню → Справка и аккаунт».', desktopText: 'Здесь можно сообщить об ошибке или предложить улучшение. Все основные разделы пройдены. Повторить знакомство можно в «Помощь → Короткое знакомство».' },
 ] as const;
 type OnboardingState = { status: 'completed' | 'skipped' };

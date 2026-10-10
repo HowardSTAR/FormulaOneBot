@@ -5,7 +5,7 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const base = process.env.FIRST_VISIT_UI_URL || 'http://127.0.0.1:5174';
 const key = 'turbotears-onboarding-v2';
-const steps = [['/', 'Главная'], ['/season', 'Календарь'], ['/race-results', 'Результаты'], ['/drivers', 'Пелотон'], ['/compare', 'Сравнение'], ['/predictions', 'Прогнозы'], ['/community', 'С друзьями'], ['/wiki', 'Справочник F1'], ['/reaction-game', 'Игры'], ['/account', 'Аккаунт и настройки'], ['/contact-admin', 'Обратная связь']];
+const steps = [['/', 'Главная'], ['/season', 'Календарь'], ['/race-results', 'Результаты'], ['/drivers', 'Пелотон'], ['/compare', 'Сравнение'], ['/predictions', 'Прогнозы'], ['/community', 'С друзьями'], ['/wiki', 'Справочник F1'], ['/reaction-game', 'Игры'], ['/profile', 'Мой профиль'], ['/account', 'Аккаунт и настройки'], ['/account', 'Boosty и бонусы'], ['/contact-admin', 'Обратная связь']];
 const race = { status: 'ok', season: 2026, round: 17, event_name: 'Singapore Grand Prix', location: 'Marina Bay', country: 'Singapore', race_start_utc: '2026-10-11T12:00:00Z', next_session_iso: '2026-10-09T09:00:00Z', next_session_name: 'Практика 1' };
 
 async function checkCard(page) {
@@ -69,7 +69,12 @@ async function checkTrack(page, selector) {
 (async () => {
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
-    for (const [width, height] of [[320, 640], [390, 844], [1440, 900]]) {
+    for (const { width, height, member, eligible, tier } of [
+      { width: 320, height: 640, member: false, eligible: false, tier: 0 },
+      { width: 390, height: 844, member: true, eligible: true, tier: 0 },
+      { width: 1440, height: 900, member: true, eligible: true, tier: 3 },
+      { width: 1440, height: 900, member: true, eligible: false, tier: 0 },
+    ]) {
       const timezoneId = width === 390 ? 'Asia/Tokyo' : width === 1440 ? 'America/New_York' : 'Europe/Moscow';
       const context = await browser.newContext({ viewport: { width, height }, timezoneId, reducedMotion: width === 390 ? 'no-preference' : 'reduce' });
       await context.route('https://telegram.org/**', route => route.abort());
@@ -79,11 +84,23 @@ async function checkTrack(page, selector) {
       const page = await context.newPage();
       const errors = [], mutations = [];
       page.on('pageerror', error => errors.push(error.message));
+      page.on('console', message => { if (/same key|unique.*key/i.test(message.text())) errors.push(message.text()); });
       await page.route('**/static/circuit/*.svg', route => route.fulfill({ contentType: 'image/svg+xml', body: readFileSync(join(__dirname, '../front/public/static/circuit/Singapore Grand Prix.svg')) }));
       await page.route('**/api/**', route => {
         const path = new URL(route.request().url()).pathname;
         if (route.request().method() !== 'GET' && !path.startsWith('/api/analytics/')) mutations.push(path);
-        if (path === '/api/auth/me') return route.fulfill({ status: 401, json: { detail: 'Guest' } });
+        if (path === '/api/profiles/avatar/v1.png') return route.fulfill({ contentType: 'image/png', body: readFileSync(join(__dirname, '../app/profile_avatar_assets/scarlet-v1.png')) });
+        if (path === '/api/auth/me') return route.fulfill(member ? { json: { id: 777, email: 'local@example.test', email_verified: true, telegram_id: 777, display_name: 'Local member', role: 'user' } } : { status: 401, json: { detail: 'Guest' } });
+        if (path === '/api/profiles/me') return route.fulfill(member ? { json: {
+          user_id: 777, display_name: 'Local member', tier, tier_name: tier ? 'Полный газ' : 'Участник', supporter: tier > 0,
+          style: { frame: 'classic', color: 'white', background: 'carbon' }, is_owner: true,
+          season: 2026, seasons: [2026], best_prediction: null, predictions: [], records: [], total_points: 0, scored_rounds: 0,
+          favorites: { drivers: [], teams: [] }, options: { frame: { classic: 0 }, color: { white: 0 }, background: { carbon: 0 } },
+        } } : { status: 401, json: { detail: 'Guest' } });
+        if (path === '/api/account/boosty') return route.fulfill({ json: {
+          eligible, configured: true, active: tier > 0, blog_url: 'https://boosty.to/turbotears',
+          level_name: tier ? 'Полный газ' : null, checked_at: null, check_failed: false, premium_active: tier > 0, premium_override: null,
+        } });
         if (path === '/api/next-race') return route.fulfill({ json: race });
         if (path === '/api/settings') return route.fulfill({ json: { timezone: 'Europe/Moscow' } });
         if (path === '/api/weekend-schedule') return route.fulfill({ json: { sessions: [{ name: 'Практика 1', utc_iso: '2026-10-09T09:00:00Z' }, { name: 'Гонка', utc_iso: '2026-10-11T12:00:00Z' }] } });
@@ -117,6 +134,32 @@ async function checkTrack(page, selector) {
           throw error;
         }
         await page.locator(`.first-visit-highlight[data-tour-route="${route}"]`).waitFor();
+        if (title === 'Мой профиль') {
+          await page.locator(member ? '.profile-hero.first-visit-highlight' : '.user-profile-page [role="alert"].first-visit-highlight').waitFor();
+          assert.match(await guide.innerText(), /Аватар и оформление.*поделиться с друзьями/);
+          if (member) {
+            await page.getByRole('button', { name: 'Аватар и оформление', exact: true }).waitFor();
+            await page.locator('.profile-avatar img').evaluate(image => image.decode());
+          }
+          else await page.getByRole('link', { name: 'Войти в аккаунт', exact: true }).waitFor();
+        }
+        if (title === 'Аккаунт и настройки') assert.match(await guide.innerText(), /одинаковый подтверждённый email/);
+        if (title === 'Boosty и бонусы') {
+          const highlight = member ? eligible ? '.account-boosty-card' : '.account-hero h1' : '.account-auth-card';
+          await page.locator(`${highlight}.first-visit-highlight`).waitFor();
+          assert.match(await guide.innerText(), /«На старт» — значок и клуб; «Свой стиль» — рамки, цвет ника и фоны; «Полный газ» — вся коллекция/);
+          // Adjacent steps share /account; Back/Next must still change the copy and highlight.
+          await guide.getByRole('button', { name: 'Назад', exact: true }).click();
+          await guide.getByRole('heading', { name: 'Аккаунт и настройки', exact: true }).waitFor();
+          await checkCard(page);
+          assert.ok((await guide.innerText()).includes(`${index} / ${steps.length}`));
+          assert.equal(await page.evaluate(() => location.pathname), '/account');
+          await guide.getByRole('button', { name: 'Дальше →', exact: true }).click();
+          await guide.getByRole('heading', { name: title, exact: true }).waitFor();
+          await checkCard(page);
+          await page.locator(`${highlight}.first-visit-highlight`).waitFor();
+          assert.ok((await guide.innerText()).includes(`${index + 1} / ${steps.length}`));
+        }
         if ([1, 2].includes(index)) {
           const heading = page.locator('.app-page-main h1:visible, .app-page-main h2:visible').first();
           const headingPosition = await heading.evaluate(node => {
@@ -140,8 +183,9 @@ async function checkTrack(page, selector) {
           await search.fill('флаг');
           assert.equal(await search.inputValue(), 'флаг');
         }
-        if (width === 390 && [0, 1, 2, 5, 8].includes(index)) await page.screenshot({ path: `artifacts/section-tour-${index}-mobile.png` });
+        if (width === 390 && [0, 1, 2, 5, 8, 9, 11].includes(index)) await page.screenshot({ path: `artifacts/section-tour-${index}-mobile.png` });
         if (width === 1440 && index === 1) await page.screenshot({ path: 'artifacts/section-tour-desktop.png' });
+        if (width === 1440 && eligible && [9, 11].includes(index)) await page.screenshot({ path: `artifacts/section-tour-${index}-desktop.png` });
         await guide.getByRole('button', { name: index === steps.length - 1 ? 'На главную →' : 'Дальше →', exact: true }).click();
         if (width === 390 && index === 0) {
           assert.equal(await page.evaluate(() => document.documentElement.dataset.onboardingPhase), 'leaving');
@@ -197,7 +241,7 @@ async function checkTrack(page, selector) {
       }
       assert.deepEqual(errors, []);
       assert.deepEqual(mutations, []);
-      console.log(`Section tour ${width}×${height}: all 11 pages, back, completion, replay, Escape, history and persistence passed`);
+      console.log(`Section tour ${width}×${height} ${member ? `member tier=${tier} Boosty=${eligible}` : 'guest'}: all ${steps.length} steps, profile, Boosty, same-page back/next, completion, replay, Escape, history and persistence passed`);
       await context.close();
     }
   } finally { await browser.close(); }

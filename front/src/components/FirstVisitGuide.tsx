@@ -168,8 +168,8 @@ export function FirstVisitGuide() {
     {active && createPortal(<aside ref={panel} className="first-visit-guide first-visit-card" tabIndex={-1} aria-label="Знакомство с приложением" aria-describedby="first-visit-description" data-phase={phase}>
       <div className="first-visit-top"><span>ЗНАКОМСТВО · {(stage ?? 0) + 1} / {onboardingSteps.length}</span>
         <button type="button" className="first-visit-close" aria-label="Закрыть знакомство" onClick={() => finish('skipped')}>×</button></div>
-      <div className="first-visit-progress" aria-hidden="true">{onboardingSteps.map((item, index) => <i key={item.route} className={index <= (stage ?? 0) ? 'is-done' : ''} />)}</div>
-      <div className="first-visit-copy" key={step.route} aria-live="polite" aria-atomic="true">
+      <div className="first-visit-progress" aria-hidden="true">{onboardingSteps.map((item, index) => <i key={`${item.route}:${item.title}`} className={index <= (stage ?? 0) ? 'is-done' : ''} />)}</div>
+      <div className="first-visit-copy" key={`${step.route}:${step.title}`} aria-live="polite" aria-atomic="true">
         <h2>{step.title}</h2><p id="first-visit-description">{'desktopText' in step ? <><span className="first-visit-mobile-copy">{step.text}</span><span className="first-visit-desktop-copy">{step.desktopText}</span></> : step.text}</p>
         {stage === 0 && <small className="first-visit-timezone">Время сессий: {timezone}</small>}
       </div>
