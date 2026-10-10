@@ -14,9 +14,11 @@ export default function PersonalHub() {
   const settings = pathname === '/settings';
   const favorites = pathname === '/favorites';
   return <div className="personal-hub">
-    <header className="personal-hub-header"><BackButton fallback="/" /><nav className="personal-hub-switch" aria-label="Личный раздел">
-      <NavLink to="/profile" className={({ isActive }) => isActive || favorites ? 'active' : ''}>Профиль</NavLink><NavLink to="/account">Аккаунт</NavLink><NavLink to="/settings">Настройки</NavLink>
-    </nav></header>
+    <header className="personal-hub-header"><BackButton fallback="/" /><nav className={`personal-hub-switch${account || settings ? ' personal-hub-switch-account' : ''}`} aria-label="Личный раздел">
+      <span className="personal-hub-slider" aria-hidden="true" />
+      <NavLink to="/profile" className={() => !account && !settings ? 'active' : ''} aria-current={favorites ? 'page' : undefined}>Профиль</NavLink>
+      <NavLink to="/account" className={() => account || settings ? 'active' : ''}>Аккаунт</NavLink>
+    </nav><NavLink className="personal-hub-settings" to="/settings">Настройки</NavLink></header>
     <Suspense fallback={<p role="status">Загружаем личный раздел…</p>}>
       {account ? <Account embedded /> : settings ? <Settings embedded /> : favorites ? <Favorites embedded /> : <Profile embedded />}
     </Suspense>

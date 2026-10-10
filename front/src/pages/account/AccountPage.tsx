@@ -299,32 +299,15 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
         </section>
       ) : (
         <div className="account-grid">
+          <div className="account-overview">
           <section className="account-card account-profile-card">
             <span className="account-kicker">ТЕКУЩИЙ ПРОФИЛЬ</span>
-            <h2>{user.email}</h2>
+            <h2>{user.email || "Аккаунт Telegram"}</h2>
             {!embedded && <p><Link to="/profile">Мой профиль · рекорды и прогнозы →</Link></p>}
             {boosty?.premium_active && <span className="account-boosty-badge">{boosty.premium_override === true ? 'Премиум · включён вручную' : `Поддерживает TurboTears · ${boosty.level_name || 'Boosty'}`}</span>}
-            <dl><div><dt>Email</dt><dd>Подтверждён</dd></div><div><dt>Telegram</dt><dd>{user.telegram_id ? `ID ${user.telegram_id}` : "Не подключён"}</dd></div></dl>
+            <dl><div><dt>Email</dt><dd>{!user.email ? "Не подключён" : user.email_verified ? "Подтверждён" : "Не подтверждён"}</dd></div><div><dt>Telegram</dt><dd>{user.telegram_id ? `ID ${user.telegram_id}` : "Не подключён"}</dd></div></dl>
             <button className="account-secondary" onClick={logout}>Выйти</button>
           </section>
-          {(boosty?.eligible || boostyError) && (
-            <section className="account-card account-boosty-card">
-              <span className="account-kicker">ПОДДЕРЖКА ПРОЕКТА</span>
-              <h2>Подписка Boosty</h2>
-              <p>Для проверки используйте одинаковый подтверждённый email на сайте и в Boosty.</p>
-              <p role="status">{!boosty ? "Статус недоступен" : !boosty.configured
-                ? "Подключение проверки готовится"
-                : boosty.active ? `Подписка активна${boosty.level_name ? ` · ${boosty.level_name}` : ""}`
-                : boosty.checked_at ? "Активная платная подписка не найдена" : "Подписка ещё не проверена"}</p>
-              {boosty?.checked_at && <p className="account-hint">Последняя проверка: {new Date(boosty.checked_at * 1000).toLocaleString("ru-RU")}</p>}
-              {boosty?.check_failed && <p>Проверка временно недоступна. Показан последний подтверждённый статус.</p>}
-              <div className="account-boosty-actions">
-                <a className="account-secondary" href={boosty?.blog_url || "https://boosty.to/turbotears"} target="_blank" rel="noopener noreferrer">Открыть Boosty</a>
-                <button className="account-primary" disabled={!boosty?.configured || boostyBusy} onClick={() => void checkBoosty()}>{boostyBusy ? "Проверяем…" : "Проверить подписку"}</button>
-              </div>
-              {boostyError && <p role="alert" className="account-notice error">{boostyError}</p>}
-            </section>
-          )}
           {user.telegram_id ? (
             <section className="account-card account-personal-card">
               <span className="account-kicker">ПЕРСОНАЛИЗАЦИЯ</span>
@@ -359,6 +342,26 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
               <p className="account-hint">Отправьте команду <code>/link</code> боту и введите полученный код здесь.</p>
             </section>
           )}
+          </div>
+          <div className="account-details">
+          {(boosty?.eligible || boostyError) && (
+            <section className="account-card account-boosty-card">
+              <span className="account-kicker">ПОДДЕРЖКА ПРОЕКТА</span>
+              <h2>Подписка Boosty</h2>
+              <p>Для проверки используйте одинаковый подтверждённый email на сайте и в Boosty.</p>
+              <p role="status">{!boosty ? "Статус недоступен" : !boosty.configured
+                ? "Подключение проверки готовится"
+                : boosty.active ? `Подписка активна${boosty.level_name ? ` · ${boosty.level_name}` : ""}`
+                : boosty.checked_at ? "Активная платная подписка не найдена" : "Подписка ещё не проверена"}</p>
+              {boosty?.checked_at && <p className="account-hint">Последняя проверка: {new Date(boosty.checked_at * 1000).toLocaleString("ru-RU")}</p>}
+              {boosty?.check_failed && <p>Проверка временно недоступна. Показан последний подтверждённый статус.</p>}
+              <div className="account-boosty-actions">
+                <a className="account-secondary" href={boosty?.blog_url || "https://boosty.to/turbotears"} target="_blank" rel="noopener noreferrer">Открыть Boosty</a>
+                <button className="account-primary" disabled={!boosty?.configured || boostyBusy} onClick={() => void checkBoosty()}>{boostyBusy ? "Проверяем…" : "Проверить подписку"}</button>
+              </div>
+              {boostyError && <p role="alert" className="account-notice error">{boostyError}</p>}
+            </section>
+          )}
           {user.email && (
             <section className="account-card account-security-card">
               <div className="account-security-copy">
@@ -374,6 +377,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
               </form>
             </section>
           )}
+          </div>
           <section className="account-card account-danger-card">
             <div className="account-security-copy">
               <span className="account-kicker">УДАЛЕНИЕ ДАННЫХ</span>

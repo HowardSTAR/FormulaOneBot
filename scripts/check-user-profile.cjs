@@ -22,6 +22,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
         if(path==='/api/drivers') return route.fulfill({json:{drivers:[{code:'VER',name:'Макс Ферстаппен'},{code:'NOR',name:'Ландо Норрис'}]}});
         if(path==='/api/constructors') return route.fulfill({json:{constructors:[{name:'McLaren',constructorId:'mclaren'}]}});
         if(path==='/api/favorites') return route.fulfill({json:favorites});
+        if(path==='/api/account/boosty') return route.fulfill({json:{eligible:true,configured:true,active:false,checked_at:1791630000,premium_active:true,premium_override:true}});
         if(path==='/api/favorites/driver') {const code=route.request().postDataJSON().id;favorites={...favorites,drivers:favorites.drivers.includes(code)?favorites.drivers.filter(value=>value!==code):[...favorites.drivers,code]};return route.fulfill({json:{saved:true}});}
         if(path==='/api/account/settings') {
           if(route.request().method()==='POST') {settingsWrites++;settingsPayload=route.request().postDataJSON();}
@@ -42,14 +43,33 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
         if(path==='/api/profiles/me/style') {saved=route.request().postDataJSON();return route.fulfill({json:{saved:true}});}
         const person={user_id:1,display_name:'Turbo Racer',tier,tier_name:tier===3?'Полный газ':'Участник',supporter:tier>0,style:{frame:'classic',color:'white',background:'carbon'}};
         const data={...person,avatar,avatar_options:avatarOptions,favorites,is_owner:owner,season:2026,seasons:[2026,2025],total_points:empty?0:30,scored_rounds:empty?0:1,options,best_prediction:empty?null:prediction,predictions:empty?[]:[prediction],records:empty?[]:[{track_id:'emerald-loop-v2',track_name:'Emerald Loop',best_time_ms:98432,attempts:12}]};
-        return route.fulfill({json:path==='/api/profiles/supporters'?{entries:[{...person,total_points:30,place:1}]}:path.startsWith('/api/profiles/')?data:path==='/api/auth/me'?{id:1,telegram_id:2099386,role:'user'}:{}});
+        return route.fulfill({json:path==='/api/profiles/supporters'?{entries:[{...person,total_points:30,place:1}]}:path.startsWith('/api/profiles/')?data:path==='/api/auth/me'?{id:1,email:'racer@example.com',email_verified:true,telegram_id:2099386,role:'user'}:{}});
       });
       await page.goto('http://127.0.0.1:5174/profile');
       await page.getByRole('heading',{name:'Turbo Racer'}).waitFor();
       const personalNav=page.getByRole('navigation',{name:'Личный раздел'});
+      assert.equal(await personalNav.getByRole('link').count(),2);
+      await page.getByRole('button',{name:'Сменить аватар',exact:true}).click();
+      await page.getByRole('dialog',{name:'Гараж аватаров'}).waitFor();
+      await page.keyboard.press('Escape');
+      await page.getByRole('dialog',{name:'Гараж аватаров'}).waitFor({state:'detached'});
       assert.ok(await personalNav.evaluate(el=>Array.from(el.querySelectorAll('a')).every(link=>link.getBoundingClientRect().right<=window.innerWidth)),`Personal tabs clipped at ${width}`);
       await personalNav.getByRole('link',{name:'Аккаунт',exact:true}).click();
       await page.locator('.account-hero h1').waitFor();
+      await page.getByRole('heading',{name:'Подписка Boosty'}).waitFor();
+      assert.ok(await personalNav.evaluate(el=>el.classList.contains('personal-hub-switch-account')));
+      await page.waitForFunction(()=>{
+        const nav=document.querySelector('.personal-hub-switch');
+        const slider=nav.querySelector('.personal-hub-slider').getBoundingClientRect();
+        const active=nav.querySelector('a.active').getBoundingClientRect();
+        return Math.abs(slider.left-active.left)<1 && Math.abs(slider.width-active.width)<1;
+      });
+      if(width>820) assert.ok(await page.locator('.account-grid').evaluate(el=>{
+        const left=el.querySelector('.account-overview').getBoundingClientRect();
+        const right=el.querySelector('.account-details').getBoundingClientRect();
+        const cards=el.querySelectorAll('.account-overview > section');
+        return Math.abs(left.top-right.top)<2 && right.left>=left.right && cards[1].getBoundingClientRect().top-cards[0].getBoundingClientRect().bottom<=17;
+      }), 'Account columns flow independently with a compact gap');
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`Account overflow at ${width}`);
       await page.screenshot({path:`artifacts/personal-account-${width}.png`,fullPage:true});
       await personalNav.getByRole('link',{name:'Профиль',exact:true}).click();
@@ -63,7 +83,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       await following.getByRole('link',{name:'NOR Ландо Норрис'}).waitFor();
       await following.getByRole('link',{name:'McLaren'}).waitFor();
       assert.ok((await following.getByRole('link',{name:'McLaren'}).getAttribute('href')).includes('constructorId=mclaren'));
-      await personalNav.getByRole('link',{name:'Настройки',exact:true}).click();
+      await page.locator('.personal-hub-header').getByRole('link',{name:'Настройки',exact:true}).click();
       await page.getByRole('heading',{name:'Настройки',exact:true}).waitFor();
       await page.locator('label[aria-label="Скрывать фото результатов в Telegram"]').click();
       await page.getByRole('button',{name:'Сохранить настройки'}).click();
