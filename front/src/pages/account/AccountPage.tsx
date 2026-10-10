@@ -302,6 +302,7 @@ export default function AccountPage() {
           <section className="account-card account-profile-card">
             <span className="account-kicker">ТЕКУЩИЙ ПРОФИЛЬ</span>
             <h2>{user.email}</h2>
+            <p><Link to="/profile">Мой профиль · рекорды и прогнозы →</Link></p>
             {boosty?.premium_active && <span className="account-boosty-badge">{boosty.premium_override === true ? 'Премиум · включён вручную' : `Поддерживает TurboTears · ${boosty.level_name || 'Boosty'}`}</span>}
             <dl><div><dt>Email</dt><dd>Подтверждён</dd></div><div><dt>Telegram</dt><dd>{user.telegram_id ? `ID ${user.telegram_id}` : "Не подключён"}</dd></div></dl>
             <button className="account-secondary" onClick={logout}>Выйти</button>

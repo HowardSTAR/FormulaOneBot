@@ -707,6 +707,10 @@ async def get_prediction_leaderboard(season: int | None = None) -> dict[str, Any
     for place, participant in enumerate(participants, start=1):
         participant["place"] = place
 
+    from app.services.user_profiles import identities
+    people = await identities(db)
+    participants = [{**entry, **people[entry['user_id']]} for entry in participants if entry['user_id'] in people]
+
     return {
         "season": leaderboard_season,
         "entries": participants,

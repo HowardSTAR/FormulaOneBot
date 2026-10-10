@@ -50,6 +50,8 @@ type LeaderboardEntry = {
   place: number;
   user_id: number;
   display_name: string;
+  supporter?: boolean;
+  style?: { color: string };
   total_points: number;
   rounds_scored: number;
   wins: number;
@@ -459,7 +461,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
                   return (
                     <tr key={entry.user_id}>
                       <td className="is-place"><strong>{String(entry.place).padStart(2, "0")}</strong></td>
-                      <th className="is-name">{entry.display_name}</th>
+                      <th className="is-name"><Link to={`/profile/${entry.user_id}`} style={{ color: ({red:'#ff786e',blue:'#8ebcff',gold:'#f5ce73',mint:'#8ce5c7'} as Record<string,string>)[entry.style?.color || ''] || 'inherit' }}>{entry.display_name}{entry.supporter && <span title="Сторонник TurboTears"> ◆</span>}</Link></th>
                       <td>{entry.wins}</td>
                       <td>{entry.best_points}</td>
                       <td>{entry.average_points.toFixed(1)}</td>

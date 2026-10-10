@@ -154,6 +154,8 @@ web_app.add_middleware(
 web_app.include_router(auth_router)
 from app.api.boosty_api import router as boosty_router
 web_app.include_router(boosty_router)
+from app.api.user_profiles_api import router as user_profiles_router
+web_app.include_router(user_profiles_router)
 web_app.include_router(admin_router)
 web_app.include_router(admin_tools_router)
 web_app.include_router(prediction_analytics_router)

@@ -28,6 +28,7 @@ const SprintQualiResultsPage = lazy(() => import("./pages/sprint-quali-results/S
 const SprintResultsPage = lazy(() => import("./pages/sprint-results/SprintResultsPage"));
 const VotingPage = lazy(() => import("./pages/voting/VotingPage"));
 const AccountPage = lazy(() => import("./pages/account/AccountPage"));
+const ProfilePage = lazy(() => import("./pages/profile/ProfilePage"));
 const ResetPasswordPage = lazy(() => import("./pages/reset-password/ResetPasswordPage"));
 const ReactionGamePage = lazy(() => import("./pages/reaction-game/ReactionGamePage"));
 const ReflexGridGamePage = lazy(() => import("./pages/reflex-grid-game/ReflexGridGamePage"));
@@ -55,6 +56,8 @@ export const router = createBrowserRouter([
       { path: "/", element: <IndexPage /> },
       { path: "*", element: <NotFoundPage /> },
       { path: "/account", element: <AccountPage /> },
+      { path: "/profile", element: <ProfilePage /> },
+      { path: "/profile/:userId", element: <ProfilePage /> },
       { path: "/compare", element: <ComparePage /> },
       { path: "/prediction-analytics", element: <RequireAdmin><Suspense fallback={<div role="status">Загрузка аналитики…</div>}><PredictionAnalyticsPage /></Suspense></RequireAdmin> },
       { path: "/constructor-details", element: <ConstructorDetailsPage /> },
