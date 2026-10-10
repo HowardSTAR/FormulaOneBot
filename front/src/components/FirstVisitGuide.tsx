@@ -170,7 +170,7 @@ export function FirstVisitGuide() {
         <button type="button" className="first-visit-close" aria-label="Закрыть знакомство" onClick={() => finish('skipped')}>×</button></div>
       <div className="first-visit-progress" aria-hidden="true">{onboardingSteps.map((item, index) => <i key={item.route} className={index <= (stage ?? 0) ? 'is-done' : ''} />)}</div>
       <div className="first-visit-copy" key={step.route} aria-live="polite" aria-atomic="true">
-        <h2>{step.title}</h2><p id="first-visit-description">{step.text}</p>
+        <h2>{step.title}</h2><p id="first-visit-description">{'desktopText' in step ? <><span className="first-visit-mobile-copy">{step.text}</span><span className="first-visit-desktop-copy">{step.desktopText}</span></> : step.text}</p>
         {stage === 0 && <small className="first-visit-timezone">Время сессий: {timezone}</small>}
       </div>
       <div className="first-visit-actions">

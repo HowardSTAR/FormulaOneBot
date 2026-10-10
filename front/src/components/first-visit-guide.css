@@ -19,6 +19,11 @@
 .first-visit-guide button:focus-visible { outline: 2px solid #ffaaa2; outline-offset: 2px; }
 /* Highlight the actual control without covering or darkening the page. */
 .first-visit-highlight { outline: 2px solid #ff675d !important; outline-offset: 5px; border-radius: 12px; transition: outline-color 280ms ease; }
+.first-visit-desktop-copy { display: none; }
+@media (min-width: 768px) {
+  .first-visit-mobile-copy { display: none; }
+  .first-visit-desktop-copy { display: inline; }
+}
 html[data-onboarding-active] .install-hint,
 html[data-onboarding-active] .mobile-primary-nav,
 html[data-onboarding-active] .legal-footer,

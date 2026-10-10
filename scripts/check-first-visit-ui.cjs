@@ -5,7 +5,7 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const base = process.env.FIRST_VISIT_UI_URL || 'http://127.0.0.1:5174';
 const key = 'turbotears-onboarding-v2';
-const steps = [['/', 'Главная'], ['/season', 'Календарь'], ['/race-results', 'Результаты'], ['/drivers', 'Пелотон'], ['/compare', 'Аналитика'], ['/predictions', 'Прогнозы'], ['/community', 'С друзьями'], ['/wiki', 'Справочник F1'], ['/reaction-game', 'Игры'], ['/account', 'Аккаунт и настройки'], ['/contact-admin', 'Обратная связь']];
+const steps = [['/', 'Главная'], ['/season', 'Календарь'], ['/race-results', 'Результаты'], ['/drivers', 'Пелотон'], ['/compare', 'Сравнение'], ['/predictions', 'Прогнозы'], ['/community', 'С друзьями'], ['/wiki', 'Справочник F1'], ['/reaction-game', 'Игры'], ['/account', 'Аккаунт и настройки'], ['/contact-admin', 'Обратная связь']];
 const race = { status: 'ok', season: 2026, round: 17, event_name: 'Singapore Grand Prix', location: 'Marina Bay', country: 'Singapore', race_start_utc: '2026-10-11T12:00:00Z', next_session_iso: '2026-10-09T09:00:00Z', next_session_name: 'Практика 1' };
 
 async function checkCard(page) {
@@ -46,7 +46,10 @@ async function replayGuide(page, width) {
     await section.getByRole('button', { name: 'Короткое знакомство', exact: true }).click();
     await page.locator('.mobile-menu-dialog').waitFor({ state: 'hidden' });
   } else {
-    await page.locator('.app-header').getByRole('button', { name: 'Короткое знакомство', exact: true }).click();
+    const header = page.locator('.app-header');
+    const help = header.getByRole('button', { name: 'Помощь', exact: true });
+    if (await help.getAttribute('aria-expanded') !== 'true') await help.click();
+    await header.getByRole('button', { name: 'Короткое знакомство', exact: true }).click();
   }
   await page.waitForURL(`${base}/`);
 }
@@ -105,7 +108,9 @@ async function checkTrack(page, selector) {
         await page.waitForFunction(route => location.pathname === route, route);
         await guide.getByRole('heading', { name: title, exact: true }).waitFor();
         assert.equal(await page.locator('.app-page-main .btn-back').count(), 0, `No section back button: ${route}`);
-        if (index === steps.length - 1) assert.match(await guide.innerText(), /Повторить знакомство.*Справка и аккаунт/);
+        if (index === steps.length - 1) {
+          assert.match(await guide.innerText(), width < 768 ? /Повторить знакомство.*Справка и аккаунт/ : /Повторить знакомство.*Помощь → Короткое знакомство/);
+        }
         assert.ok((await guide.innerText()).includes(`${index + 1} / ${steps.length}`));
         try { await checkCard(page); } catch (error) {
           console.error({ width, route, errors, page: (await page.locator('body').innerText()).slice(0, 1500) });
