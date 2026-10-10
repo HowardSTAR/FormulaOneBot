@@ -236,7 +236,7 @@ function IndexPage() {
         </div>
 
         <div className="index-my-section index-panel">
-            <div className="section-title">Моё</div>
+            <div className="section-title">Мой профиль</div>
             <Link to="/notifications" className="menu-item full-width index-wide-link">
               <div className="index-wide-link-left"><IndexIcon name="notifications" /><div className="index-wide-link-text">
                 <span className="menu-label index-card-title">Уведомления</span>

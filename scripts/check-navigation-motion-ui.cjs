@@ -93,7 +93,7 @@ async function checkIndicator(page, index) {
       await page.locator('.predictions-page').waitFor();
       await checkIndicator(page, 2);
       assert.equal(await page.evaluate(() => window.motionEvidence.loadingFallbacks), 0, 'A slow lazy route must retain the outgoing page');
-      for (const [label, path, index] of [['Уик-энд', '/next-race', 1], ['Моё', '/account', 3], ['Главная', '/', 0]]) {
+      for (const [label, path, index] of [['Уик-энд', '/next-race', 1], ['Мой профиль', '/account', 3], ['Главная', '/', 0]]) {
         await nav.getByRole('link', { name: label, exact: true }).click();
         await page.waitForURL(`${base}${path}`);
         await checkIndicator(page, index);
@@ -101,7 +101,7 @@ async function checkIndicator(page, index) {
       }
       // Rapid taps must settle on the last selected page and indicator.
       await nav.getByRole('link', { name: 'Прогнозы', exact: true }).click();
-      await nav.getByRole('link', { name: 'Моё', exact: true }).click();
+      await nav.getByRole('link', { name: 'Мой профиль', exact: true }).click();
       await nav.getByRole('link', { name: 'Уик-энд', exact: true }).click();
       await page.waitForURL('**/next-race');
       await checkIndicator(page, 1);
