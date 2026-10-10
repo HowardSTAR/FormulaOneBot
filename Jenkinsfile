@@ -11,6 +11,7 @@ pipeline {
     }
     triggers {
         githubPush()
+        // Scheduled runs build and test an isolated candidate; they never deploy.
         cron('TZ=Europe/Moscow\n0 9,21 * * *')
         // Recovery path if GitHub cannot deliver a webhook.
         pollSCM('H/5 * * * *')
@@ -42,7 +43,17 @@ pipeline {
             steps { sh 'bash "$CI_SCRIPTS/run-ci.sh" smoke' }
         }
         stage('Deploy verified image') {
-            when { expression { currentBuild.currentResult == 'SUCCESS' } }
+            when {
+                allOf {
+                    expression { currentBuild.currentResult == 'SUCCESS' }
+                    // A timer cause takes precedence even if triggers are coalesced.
+                    not { triggeredBy 'TimerTrigger' }
+                    anyOf {
+                        triggeredBy 'GitHubPushCause'
+                        triggeredBy 'SCMTrigger'
+                    }
+                }
+            }
             steps {
                 sh '''
                     set -eu

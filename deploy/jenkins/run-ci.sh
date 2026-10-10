@@ -20,6 +20,7 @@ case "${1:?stage required}" in
     fi
     docker buildx build --builder f1hub-ci --load --progress plain \
       --build-arg "APP_VERSION=$(git rev-parse --short=12 HEAD)" \
+      --label ru.f1hub.ci.app=true \
       "${args[@]}" --tag "$APP_IMAGE" .
     ;;
   frontend)
@@ -60,6 +61,7 @@ case "${1:?stage required}" in
       -w /app "$APP_IMAGE" pytest --live --test-order-seed=20261005 --cov=app --cov-branch \
         --cov-report=xml:/app/reports/coverage.xml --junitxml=/app/reports/pytest.xml
     python3 "$WORKSPACE/deploy/jenkins/test_deploy.py"
+    python3 "$WORKSPACE/deploy/jenkins/test_cleanup.py"
     ;;
   smoke)
     name="f1hub-ci-smoke-$BUILD_NUMBER"
@@ -96,6 +98,7 @@ case "${1:?stage required}" in
       docker rm -f "f1hub-ci-$part-$BUILD_NUMBER" >/dev/null 2>&1 || true
     done
     docker image rm "$APP_IMAGE" >/dev/null 2>&1 || true
+    bash "$CI_SCRIPTS/cleanup-images.sh"
     docker buildx prune --builder f1hub-ci --all --force --max-used-space 1500MB --reserved-space 256MB >/dev/null 2>&1 || true
     ;;
   *) echo 'Unknown CI stage' >&2; exit 2 ;;
