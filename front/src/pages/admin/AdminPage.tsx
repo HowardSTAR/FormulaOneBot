@@ -7,6 +7,7 @@ import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { AdminNotifications, AdminToolDirectory } from "./AdminTools";
 import { AdminControl } from './AdminControl';
 import { AdminRecapNews } from './AdminRecapNews';
+import { AdminPremium } from './AdminPremium';
 import './admin-workspace.css';
 import { auditActionLabels, describeAuditChange } from '../../helpers/adminAudit';
 
@@ -26,7 +27,7 @@ type Role = "user" | "admin" | "superadmin";
 type UserSortField = "created_at" | "last_activity" | "role";
 type SortOrder = "asc" | "desc";
 type GameRecordScope = "all" | "reaction" | "race" | "reflex";
-type AdminIdentity = { id: number; role: "admin" | "superadmin"; email: string | null; telegram_id: number | null };
+type AdminIdentity = { id: number; role: "admin" | "superadmin"; email: string | null; telegram_id: number | null; can_manage_own_premium: boolean };
 type ManagedUser = {
   id: number;
   email: string | null;
@@ -256,6 +257,7 @@ export default function AdminPage() {
       {tab === "notifications" && <AdminNotifications adminId={identity?.id} />}
       {tab === "tools" && <AdminToolDirectory />}
       {tab === 'recap-news' && <AdminRecapNews />}
+      {tab === 'users' && identity?.can_manage_own_premium && <AdminPremium />}
       {tab === "users" && (
         <section className="admin-users-card">
           <header className="admin-users-tools">

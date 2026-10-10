@@ -92,6 +92,7 @@
 .admin-users-tools button,
 .admin-pagination button,
 .admin-actions button,
+.admin-premium-actions button,
 .admin-modal button {
   border: 1px solid var(--admin-border);
   border-radius: 10px;
@@ -560,6 +561,13 @@
   padding: 30px;
   text-align: center;
 }
+
+.admin-premium { padding: 20px; margin-bottom: 18px; }
+.admin-premium h3 { margin-top: 0; }
+.admin-premium p { line-height: 1.5; }
+.admin-premium-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.admin-premium-actions button { min-height: 44px; padding: 10px 16px; }
+.admin-premium-actions button:disabled { opacity: .5; cursor: default; }
 
 .admin-route-denied span { color: #e10600; font-size: 80px; font-weight: 900; }
 .admin-route-denied h1 { margin: 0; }

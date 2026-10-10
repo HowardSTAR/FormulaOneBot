@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS boosty_memberships (
     checked_at REAL NOT NULL,
     PRIMARY KEY(user_id, blog)
 );
+CREATE TABLE IF NOT EXISTS premium_overrides (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    active INTEGER NOT NULL CHECK(active IN (0, 1)),
+    updated_at TEXT NOT NULL
+);
 """
 logger = logging.getLogger(__name__)
 
@@ -176,10 +181,18 @@ class BoostyService:
             (user["id"], self.blog),
         ) as cursor:
             row = await cursor.fetchone()
+        async with self.database.conn.execute(
+            "SELECT active FROM premium_overrides WHERE user_id = ?", (user["id"],)
+        ) as cursor:
+            override = await cursor.fetchone()
+        active = bool(row and row["active"] and eligible and user.get("email_verified"))
+        manual = bool(override["active"]) if override is not None else None
         return {
             "eligible": eligible, "configured": self.configured,
             "blog_url": f"https://boosty.to/{self.blog}",
-            "active": bool(row and row["active"] and eligible and user.get("email_verified")),
+            "active": active,
+            "premium_active": active if manual is None else manual,
+            "premium_override": manual,
             "level_name": row["level_name"] if row and eligible else None,
             "checked_at": row["checked_at"] if row and eligible else None,
             "check_failed": self.last_failed,

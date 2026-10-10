@@ -5,6 +5,7 @@ export const auditActionLabels: Record<string, string> = {
   'notification.preview': 'Подготовлен предпросмотр рассылки',
   'prediction_results.sent': 'Разосланы итоги прогнозов',
   'user.role_changed': 'Изменена роль',
+  'user.premium_changed': 'Изменён режим премиума',
   'user.email_changed': 'Изменён email',
   'user.telegram_unlinked': 'Отвязан Telegram',
   'user.password_reset_sent': 'Отправлен сброс пароля',
@@ -15,6 +16,10 @@ const roles: Record<string, string> = {user: 'Участник', admin: 'Адм�
 const scopes: Record<string, string> = {all: 'Все игры', reaction: 'Тест реакции', race: 'Emerald Loop', reflex: 'Reflex Grid'};
 export function describeAuditChange(action: string, details: Record<string, unknown>): string {
   const text = (value: unknown) => value == null ? 'Не задано' : String(value);
+  if (action === 'user.premium_changed') {
+    const modes: Record<string, string> = {enabled: 'Включён вручную', disabled: 'Выключен вручную', boosty: 'По подписке Boosty'};
+    return `Было: ${modes[text(details.from)] || text(details.from)} → стало: ${modes[text(details.to)] || text(details.to)}`;
+  }
   if (action === 'user.role_changed') return `Было: ${roles[text(details.from)] || text(details.from)} → стало: ${roles[text(details.to)] || text(details.to)}`;
   if (action === 'user.email_changed') return `Было: ${text(details.from)} → стало: ${text(details.to)}`;
   if (action.startsWith('game_records.') && action.endsWith('cleared')) return `${scopes[text(details.scope)] || text(details.scope)} · удалено записей: ${text(details.total)}`;

@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal
 
 import aiosqlite
-from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from app.api.auth_api import (
@@ -58,6 +58,10 @@ class AdminContext(BaseModel):
 
 class RoleUpdateRequest(BaseModel):
     role: ManagedRole
+
+
+class PremiumUpdateRequest(BaseModel):
+    mode: Literal["enabled", "disabled", "boosty"]
 
 
 class EmailUpdateRequest(BaseModel):
@@ -220,7 +224,58 @@ def _public_web_url(request: Request) -> str:
 
 @router.get("/me")
 async def admin_me(admin: AdminContext = Depends(require_admin_session)):
-    return admin.model_dump()
+    return {**admin.model_dump(), "can_manage_own_premium": is_primary_admin(admin.email, admin.telegram_id)}
+
+
+async def require_primary_admin(
+    admin: AdminContext = Depends(require_admin_session),
+):
+    user = await _get_user(admin.id)
+    if not is_primary_admin(user["email"], user["telegram_id"]):
+        raise HTTPException(403, detail="Управление своим премиумом доступно только главному администратору")
+    return dict(user)
+
+
+@router.get("/me/premium")
+async def own_premium(response: Response, user: dict = Depends(require_primary_admin)):
+    from app.services.boosty_service import BoostyService
+
+    response.headers["Cache-Control"] = "no-store"
+    return await BoostyService(db).status(user)
+
+
+@router.patch("/me/premium")
+async def update_own_premium(
+    data: PremiumUpdateRequest,
+    response: Response,
+    user: dict = Depends(require_primary_admin),
+):
+    from app.services.boosty_service import BoostyService
+
+    assert db.conn is not None
+    value = {"enabled": True, "disabled": False, "boosty": None}[data.mode]
+    async with db.write_lock:
+        try:
+            async with db.conn.execute(
+                "SELECT active FROM premium_overrides WHERE user_id = ?", (user["id"],)
+            ) as cursor:
+                old = await cursor.fetchone()
+            old_mode = "boosty" if old is None else "enabled" if old["active"] else "disabled"
+            if value is None:
+                await db.conn.execute("DELETE FROM premium_overrides WHERE user_id = ?", (user["id"],))
+            else:
+                await db.conn.execute(
+                    "INSERT INTO premium_overrides(user_id, active, updated_at) VALUES (?, ?, ?) "
+                    "ON CONFLICT(user_id) DO UPDATE SET active=excluded.active, updated_at=excluded.updated_at",
+                    (user["id"], int(value), utc_iso()),
+                )
+            await _audit(user["id"], "user.premium_changed", user["id"], {"from": old_mode, "to": data.mode})
+            await db.conn.commit()
+        except BaseException:
+            await db.conn.rollback()
+            raise
+    response.headers["Cache-Control"] = "no-store"
+    return await BoostyService(db).status(user)
 
 
 @router.get("/metrics")

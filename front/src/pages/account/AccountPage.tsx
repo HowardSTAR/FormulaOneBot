@@ -31,6 +31,7 @@ type BoostyStatus = {
   eligible: boolean; configured: boolean; active: boolean;
   blog_url: string; level_name: string | null; checked_at: number | null;
   check_failed: boolean;
+  premium_active: boolean; premium_override: boolean | null;
 };
 
 function readCookie(name: string): string | null {
@@ -301,7 +302,7 @@ export default function AccountPage() {
           <section className="account-card account-profile-card">
             <span className="account-kicker">ТЕКУЩИЙ ПРОФИЛЬ</span>
             <h2>{user.email}</h2>
-            {boosty?.active && <span className="account-boosty-badge">Поддерживает TurboTears · {boosty.level_name || "Boosty"}</span>}
+            {boosty?.premium_active && <span className="account-boosty-badge">{boosty.premium_override === true ? 'Премиум · включён вручную' : `Поддерживает TurboTears · ${boosty.level_name || 'Boosty'}`}</span>}
             <dl><div><dt>Email</dt><dd>Подтверждён</dd></div><div><dt>Telegram</dt><dd>{user.telegram_id ? `ID ${user.telegram_id}` : "Не подключён"}</dd></div></dl>
             <button className="account-secondary" onClick={logout}>Выйти</button>
           </section>
