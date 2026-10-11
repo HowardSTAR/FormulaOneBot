@@ -1,5 +1,6 @@
 """Public racing profiles; subscription rights are always resolved server-side."""
 from datetime import datetime, timezone
+import time
 
 from app.db import db, get_favorites_for_user_id
 from app.services import profile_avatar
@@ -37,10 +38,11 @@ async def identities(database=None):
     service = get_boosty_service()
     rows = await (await database.conn.execute("""
         SELECT u.id, u.email, u.email_verified, u.telegram_id, pp.display_name AS prediction_name,
-               u.display_name, bm.active, bm.level_name, po.active AS manual,
+               u.display_name, bm.active, bm.level_name, bt.expires_at, po.active AS manual,
                s.frame, s.color, s.background, a.helmet, a.suit, a.background AS avatar_background
         FROM users u LEFT JOIN prediction_profiles pp ON pp.user_id=u.id
         LEFT JOIN boosty_memberships bm ON bm.user_id=u.id AND bm.blog=?
+        LEFT JOIN boosty_membership_terms bt ON bt.user_id=bm.user_id AND bt.blog=bm.blog
         LEFT JOIN premium_overrides po ON po.user_id=u.id
         LEFT JOIN user_profile_styles s ON s.user_id=u.id
         LEFT JOIN user_profile_avatars a ON a.user_id=u.id
@@ -52,7 +54,8 @@ async def identities(database=None):
         tier = 0
         if user['manual'] is not None:
             tier = 3 if user['manual'] else 0
-        elif user['active'] and user['email_verified'] and service.eligible(user):
+        elif (user['active'] and user['email_verified'] and service.eligible(user)
+              and (user['expires_at'] is None or user['expires_at'] > time.time())):
             tier = {'на старт': 1, 'свой стиль': 2, 'полный газ': 3}.get(
                 (user['level_name'] or '').strip().casefold(), 1)
         style = {key: user[key] if user[key] in options and options[user[key]] <= tier

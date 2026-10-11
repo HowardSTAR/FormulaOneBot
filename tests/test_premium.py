@@ -54,6 +54,23 @@ def client_for(session=None, **kwargs):
 
 
 @pytest.mark.asyncio
+async def test_manual_boosty_check_requires_website_csrf(premium, monkeypatch):
+    _, service, owner, _ = premium
+    calls = []
+    async def subscribers():
+        calls.append(True)
+        return []
+    monkeypatch.setattr(service, 'fetch_subscribers', subscribers)
+    async with client_for(owner) as client:
+        client.headers.pop('X-CSRF-Token')
+        assert (await client.post('/api/account/boosty/check')).status_code == 403
+        assert calls == []
+        client.headers['X-CSRF-Token'] = owner.csrf_token
+        assert (await client.post('/api/account/boosty/check')).status_code == 200
+        assert calls == [True]
+
+
+@pytest.mark.asyncio
 async def test_manual_modes_survive_sync_and_auto_restores_subscription(premium, monkeypatch):
     database, service, owner, _ = premium
     rows = []

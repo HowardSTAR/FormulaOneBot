@@ -7,6 +7,7 @@ import { notifyAuthChanged } from "../../helpers/auth";
 import { visibleInterval } from "../../helpers/visibleInterval";
 import "./AccountPage.css";
 import { safeReturnPath } from '../../helpers/returnPath';
+import { boostySubscriptionLabel, type BoostyStatus } from '../../helpers/boosty';
 
 type User = {
   id: number;
@@ -26,13 +27,6 @@ type LinkSession = {
 type LinkStatus = { status: "pending" | "approved" | "expired" | "cancelled" | "failed" };
 
 type ApiErrorPayload = { detail?: { message?: string; code?: string } | string };
-
-type BoostyStatus = {
-  eligible: boolean; configured: boolean; active: boolean;
-  blog_url: string; level_name: string | null; checked_at: number | null;
-  check_failed: boolean;
-  premium_active: boolean; premium_override: boolean | null;
-};
 
 function readCookie(name: string): string | null {
   const prefix = `${encodeURIComponent(name)}=`;
@@ -351,8 +345,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
               <p>Для проверки используйте одинаковый подтверждённый email на сайте и в Boosty.</p>
               <p role="status">{!boosty ? "Статус недоступен" : !boosty.configured
                 ? "Подключение проверки готовится"
-                : boosty.active ? `Подписка активна${boosty.level_name ? ` · ${boosty.level_name}` : ""}`
-                : boosty.checked_at ? "Активная платная подписка не найдена" : "Подписка ещё не проверена"}</p>
+                : boostySubscriptionLabel(boosty)}</p>
               {boosty?.checked_at && <p className="account-hint">Последняя проверка: {new Date(boosty.checked_at * 1000).toLocaleString("ru-RU")}</p>}
               {boosty?.check_failed && <p>Проверка временно недоступна. Показан последний подтверждённый статус.</p>}
               <div className="account-boosty-actions">

@@ -69,6 +69,13 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
     if (profile?.is_owner && profile.avatar_options) return warmAvatarImages(profile.avatar || defaultAvatar, profile.avatar_options);
   }, [profile?.is_owner, profile?.avatar, profile?.avatar_options]);
   const style = profile?.style;
+  async function refreshSubscription() {
+    const updated = await apiRequest<Profile>(`/api/profiles/${userId || 'me'}`, { season });
+    setProfile(current => current?.user_id === updated.user_id ? {
+      ...current, tier: updated.tier, tier_name: updated.tier_name, supporter: updated.supporter, style: updated.style,
+    } : current);
+    return { tier: updated.tier, style: updated.style };
+  }
   return <main className="user-profile-page">
     {!embedded && <div className="profile-top"><BackButton fallback="/profile" /><span>ПРОФИЛЬ УЧАСТНИКА</span><Link to="/profile">Мой профиль</Link></div>}
     {loading ? <p role="status">Загружаем профиль…</p> : error ? <div role="alert"><p>{error}</p><Link to="/account">Войти в аккаунт</Link></div> : profile && style && <>
@@ -90,7 +97,7 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
       {profile.is_owner && <SupporterLeague season={profile.season} supporter={profile.supporter} />}
       </div>
       {notice && <p role="status" className="profile-notice">{notice}</p>}
-      {profile.is_owner && avatarOpen && profile.avatar_options && <AvatarEditor value={profile.avatar || defaultAvatar} options={profile.avatar_options} style={profile.style} styleOptions={profile.options} tier={profile.tier} onClose={() => setAvatarOpen(false)} onAvatarSave={avatar => { setProfile(p => p ? { ...p, avatar } : p); setNotice('Аватар сохранён'); }} onStyleSave={style => { setProfile(p => p ? { ...p, style } : p); setNotice('Оформление сохранено'); }} />}
+      {profile.is_owner && avatarOpen && profile.avatar_options && <AvatarEditor value={profile.avatar || defaultAvatar} options={profile.avatar_options} style={profile.style} styleOptions={profile.options} tier={profile.tier} onSubscriptionCheck={refreshSubscription} onClose={() => setAvatarOpen(false)} onAvatarSave={avatar => { setProfile(p => p ? { ...p, avatar } : p); setNotice('Аватар сохранён'); }} onStyleSave={style => { setProfile(p => p ? { ...p, style } : p); setNotice('Оформление сохранено'); }} />}
     </>}
     {profile?.is_owner && !error && (!userId || Number(userId)===profile.user_id) && <ProfileGuide key={profile.user_id} userId={profile.user_id} seen={Boolean(profile.profile_guide_seen)} />}
   </main>;

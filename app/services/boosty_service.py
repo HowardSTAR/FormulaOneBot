@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import os
 import re
 import time
@@ -24,6 +25,13 @@ CREATE TABLE IF NOT EXISTS premium_overrides (
     user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     active INTEGER NOT NULL CHECK(active IN (0, 1)),
     updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS boosty_membership_terms (
+    user_id INTEGER NOT NULL,
+    blog TEXT NOT NULL,
+    expires_at REAL,
+    PRIMARY KEY(user_id, blog),
+    FOREIGN KEY(user_id, blog) REFERENCES boosty_memberships(user_id, blog) ON DELETE CASCADE
 );
 """
 logger = logging.getLogger(__name__)
@@ -114,11 +122,13 @@ class BoostyService:
                 or not isinstance(row.get("level"), dict)):
             raise BoostyUnavailable("Статус подписки требует проверки формата Boosty")
         price = row.get("price")
-        if type(price) not in (int, float) or price < 0:
+        if type(price) not in (int, float) or not math.isfinite(price) or price < 0:
             raise BoostyUnavailable("Неизвестная стоимость подписки Boosty")
         next_pay = row.get("nextPayTime")
         # Keep paid access after cancellation until the paid period finishes.
-        if next_pay is not None and (type(next_pay) not in (int, float) or next_pay > 100_000_000_000):
+        if next_pay is not None and (type(next_pay) not in (int, float)
+                                    or not math.isfinite(next_pay)
+                                    or not 0 <= next_pay <= 100_000_000_000):
             raise BoostyUnavailable("Неизвестный формат срока подписки Boosty")
         paid_period = next_pay > now if next_pay else row["subscribed"]
         active = (not row["isBlackListed"] and price > 0 and row["isFeePaid"]
@@ -153,6 +163,7 @@ class BoostyService:
                         users = [dict(row) for row in await cursor.fetchall()]
                     # Validate the whole update before writing anything.
                     updates = []
+                    terms = []
                     paid_periods = []
                     for user in users:
                         if self.eligible(user) and user.get("email"):
@@ -161,14 +172,21 @@ class BoostyService:
                             updates.append((user["id"], self.blog, identity, int(active), level, now))
                             subscriber = by_email.get(user['email'].strip().casefold())
                             paid_until = subscriber.get('nextPayTime') if subscriber else None
+                            terms.append((user['id'], self.blog, paid_until or None))
                             if active and paid_until and paid_until > now:
                                 paid_periods.append((user['id'], now, paid_until))
                     try:
                         await conn.executemany(
-                            "INSERT INTO boosty_memberships VALUES (?, ?, ?, ?, ?, ?) "
+                            "INSERT INTO boosty_memberships(user_id, blog, boosty_id, active, level_name, checked_at) "
+                            "VALUES (?, ?, ?, ?, ?, ?) "
                             "ON CONFLICT(user_id, blog) DO UPDATE SET boosty_id=excluded.boosty_id, "
                             "active=excluded.active, level_name=excluded.level_name, checked_at=excluded.checked_at",
                             updates,
+                        )
+                        await conn.executemany(
+                            "INSERT INTO boosty_membership_terms(user_id, blog, expires_at) VALUES (?, ?, ?) "
+                            "ON CONFLICT(user_id, blog) DO UPDATE SET expires_at=excluded.expires_at",
+                            terms,
                         )
                         for user_id, start, end in paid_periods:
                             overlaps = await (await conn.execute('''SELECT MIN(start),MAX(end)
@@ -190,7 +208,9 @@ class BoostyService:
     async def status(self, user):
         eligible = self.eligible(user)
         async with self.database.conn.execute(
-            "SELECT * FROM boosty_memberships WHERE user_id = ? AND blog = ?",
+            "SELECT bm.*, bt.expires_at FROM boosty_memberships bm "
+            "LEFT JOIN boosty_membership_terms bt ON bt.user_id=bm.user_id AND bt.blog=bm.blog "
+            "WHERE bm.user_id = ? AND bm.blog = ?",
             (user["id"], self.blog),
         ) as cursor:
             row = await cursor.fetchone()
@@ -198,10 +218,19 @@ class BoostyService:
             "SELECT active FROM premium_overrides WHERE user_id = ?", (user["id"],)
         ) as cursor:
             override = await cursor.fetchone()
-        active = bool(row and row["active"] and eligible and user.get("email_verified"))
+        verified = bool(user.get("email_verified") and user.get("email"))
+        expires_at = row['expires_at'] if row and eligible and verified else None
+        active = bool(row and row["active"] and eligible and verified
+                      and (expires_at is None or expires_at > time.time()))
         manual = bool(override["active"]) if override is not None else None
+        configured = self.configured
+        check_unavailable_reason = (
+            "Проверка подписки пока доступна только участникам тестирования." if not eligible else
+            "Подтвердите в аккаунте тот же email, который используете на Boosty." if not verified else
+            "Подключение проверки Boosty готовится." if not configured else None
+        )
         return {
-            "eligible": eligible, "configured": self.configured,
+            "eligible": eligible, "configured": configured,
             "blog_url": f"https://boosty.to/{self.blog}",
             "active": active,
             "premium_active": active if manual is None else manual,
@@ -209,6 +238,9 @@ class BoostyService:
             "level_name": row["level_name"] if row and eligible else None,
             "checked_at": row["checked_at"] if row and eligible else None,
             "check_failed": self.last_failed,
+            "expires_at": expires_at,
+            "can_check": check_unavailable_reason is None,
+            "check_unavailable_reason": check_unavailable_reason,
         }
 
     async def worker(self):
