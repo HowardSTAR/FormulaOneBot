@@ -2,7 +2,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/sevag/.cache
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const base=process.env.PROFILE_UI_URL || 'http://127.0.0.1:5174';
-const titles=['Твой образ','Твоя коллекция','Сезон в цифрах','Твои прогнозы','Рекорды на трассах','Любимые пилоты и команды','Клуб TurboTears','Покажи свой профиль','Аккаунт и настройки'];
+const titles=['Твой образ','Сезон в цифрах','Твои прогнозы','Рекорды на трассах','Твоя коллекция','Любимые пилоты и команды','Клуб TurboTears','Покажи свой профиль','Аккаунт и настройки'];
 (async()=>{
   fs.mkdirSync('.tmp/profile-guide-ui',{recursive:true});
   const browser=await chromium.launch({channel:'msedge',headless:true});
@@ -43,10 +43,10 @@ const titles=['Твой образ','Твоя коллекция','Сезон в
           assert.equal(await page.locator('.trophy-unlock').count(),0,'reward waits for tour');
           await page.screenshot({path:`.tmp/profile-guide-ui/trophies-${width}x${height}.png`});
         }
-        if(step===2){
+        if(titles[step]==='Сезон в цифрах'){
           await page.getByRole('combobox',{name:'Сезон профиля'}).selectOption('2025');
           await page.getByRole('heading',{name:'Прогнозы · 2025',exact:true}).waitFor();
-          await guide.getByRole('heading',{name:titles[2],exact:true}).waitFor();
+          await guide.getByRole('heading',{name:titles[step],exact:true}).waitFor();
           assert.equal(await page.locator('.profile-season.first-visit-highlight').count(),1,'season switch retains the current step and highlight');
         }
         if(step===titles.length-1)completion=page.waitForResponse(response=>response.url().endsWith('/api/profiles/me/guide')&&response.status()===200);

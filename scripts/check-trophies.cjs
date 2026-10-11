@@ -1,6 +1,7 @@
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/sevag/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
+const assertProfileLayout=require('./assert-profile-layout.cjs');
 const base=process.env.PROFILE_UI_URL || 'http://127.0.0.1:5174';
 const ids=['oracle','podium','rhythm','lights','ghost','atlas','grid','heart'];
 const names=['Оракул паддока','Идеальная тройка','В ритме сезона','Пять огней','Быстрее своей тени','Без границ','Дирижёр сетки','Сердце проекта'];
@@ -57,11 +58,12 @@ const targets=[[1,5,15],[1,3,7],[3,12,24],[3,3,3],[3,10,25],[1,2,3],[10,15,20],[
       await page.locator('.trophy-card').first().waitFor();
       assert.equal(await page.locator('.trophy-unlock').count(),0,'viewed awards never replay on reload');
       assert.equal(await page.locator('.trophy-card').count(),8);
+      await assertProfileLayout(page);
       const columns=await page.locator('.trophy-card').evaluateAll(cards=>cards.slice(0,3).map(c=>c.getBoundingClientRect().top));
       assert(columns.every(y=>Math.abs(y-columns[0])<1));
       const rhythm=page.locator('[data-family="rhythm"]');
       await rhythm.locator('.trophy-art').click();
-      const details=width<=700?page.locator('.trophy-details-mobile'):rhythm;
+      const details=width<=900?page.locator('.trophy-details-mobile'):rhythm;
       await details.getByRole('button',{name:'Золото',exact:true}).click();
       assert(await details.getByRole('button',{name:'Сначала откройте трофей'}).isDisabled());
       await page.getByRole('button',{name:'Бейдж профиля',exact:true}).click();
@@ -76,6 +78,7 @@ const targets=[[1,5,15],[1,3,7],[3,12,24],[3,3,3],[3,10,25],[1,2,3],[10,15,20],[
       owner=false;await page.goto(base+'/profile/1');
       await page.locator('.trophy-card').first().waitFor();
       assert.equal(await page.locator('.trophy-card').count(),3);
+      await assertProfileLayout(page);
       assert.equal(await page.locator('.trophy-equip').count(),0);
       assert.deepEqual(errors,[]);
       console.log(`${width}px PASS: reward queue, failed ack/retry, Escape, bulk receipt, no replay, badge, locked tiers, public collection, reduced motion/layout`);

@@ -2,6 +2,7 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const assertProfileLayout = require('./assert-profile-layout.cjs');
 const base = process.env.PROFILE_UI_URL || 'http://127.0.0.1:5174';
 require('node:child_process').execFileSync('.venv/Scripts/python.exe', ['scripts/render-avatar-fixtures.py']);
 const options = {frame:{classic:0,red:2,silver:2,gold:3,neon:3},color:{white:0,red:2,blue:2,gold:3,mint:3},background:{carbon:0,grid:2,scarlet:2,aurora:3,champion:3}};
@@ -57,6 +58,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       assert.equal(await page.locator('.profile-identity').getByRole('img',{name:'Подписчик TurboTears · Полный газ',exact:true}).count(),1);
       assert.equal(await page.getByRole('heading',{name:'Твой стиль',exact:true}).count(),0, 'Style is inside the editor, not on the profile');
       await page.getByRole('heading',{name:'Клуб TurboTears',exact:true}).waitFor();
+      await assertProfileLayout(page);
       const personalNav=page.getByRole('navigation',{name:'Личный раздел'});
       assert.equal(await personalNav.getByRole('link').count(),2);
       await page.getByRole('button',{name:'Аватар и оформление',exact:true}).click();
@@ -172,6 +174,11 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       assert.ok(await page.locator('.profile-avatar-button').evaluate(el=>el.classList.contains('profile-frame-gold')));
       await page.locator('.profile-prediction summary').click();
       assert.equal(await page.locator('.profile-answers dd').first().innerText(),'VER');
+      await page.locator('.profile-prediction summary').focus();
+      await page.keyboard.press('Enter');
+      assert.equal(await page.locator('.profile-prediction').getAttribute('open'),null,'Forecast answers close from the keyboard');
+      await page.keyboard.press('Enter');
+      await assertProfileLayout(page);
       await page.getByRole('button',{name:'Показать зачёт · 2026'}).click();
       await page.locator('.supporter-league-table tbody tr').waitFor();
       assert.equal(await page.locator('.supporter-league-me').count(),1);
@@ -188,6 +195,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       tier=0;empty=true;
       await page.reload();
       await page.getByText('Первый результат ещё впереди').waitFor();
+      await assertProfileLayout(page);
       assert.equal(await page.locator('.profile-identity .supporter-badge').count(),0);
       assert.equal(await page.getByRole('button',{name:'Показать зачёт · 2026'}).count(),0);
       await page.getByRole('link',{name:'Присоединиться на Boosty →'}).waitFor();
@@ -202,6 +210,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       assert.ok(page.url().includes('/profile/1?season=2026'));
       await page.goto(`${base}/profile/2`);
       await page.getByText('Ответы показываются после начисления баллов.').waitFor();
+      await assertProfileLayout(page);
       assert.equal(await page.getByRole('heading',{name:'Твой стиль'}).count(),0);
       assert.equal(await page.getByRole('button',{name:'Изменить аватар и оформление',exact:true}).count(),0);
       await page.locator('.profile-favorites').getByRole('link',{name:'NOR Ландо Норрис'}).waitFor();
