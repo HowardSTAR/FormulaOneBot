@@ -97,6 +97,35 @@ Node heap при Docker-сборке ограничен 512 МБ. Метадан
 Кэш CI ограничен 1500 МБ, кэш стандартного builder — 512 МБ;
 в настройках BuildKit размеры заданы строками с единицами измерения.
 
+### Нехватка памяти при сборке
+
+`Killed` вместе с `cannot allocate memory` на шаге APT означает нехватку
+памяти при сборке. Предупреждения debconf о TERM/TTY сами по себе её не вызывают.
+Если этот шаг упал, тесты и развёртывание не выполняются.
+
+Dockerfile устанавливает только системные библиотеки времени выполнения:
+без GCC, `python3-dev` (который в Debian trixie тянет отдельный Python 3.13)
+и заголовков X11. Архив ресурсов распаковывается встроенным `zipfile`.
+Для Python-зависимостей pip предпочитает готовые wheels; пакеты на чистом
+Python могут устанавливаться из исходников. При добавлении нативных зависимостей
+нужно проверять наличие wheels для Python 3.11 и архитектуры сервера.
+
+Если ошибка повторяется, на Docker-хосте проверьте доступную RAM/swap,
+фактические ограничения builder и сообщения ядра за время сбоя:
+
+```bash
+free -h
+swapon --show
+docker inspect buildx_buildkit_f1hub-ci0 --format '{{json .HostConfig}}'
+docker exec buildx_buildkit_f1hub-ci0 sh -c 'cat /sys/fs/cgroup/memory.events /sys/fs/cgroup/memory.max /sys/fs/cgroup/memory.swap.max'
+journalctl -k --since '30 minutes ago' --no-pager
+```
+
+Счётчики cgroup приведены для cgroup v2. Лог сборки сам по себе не позволяет
+определить, исчерпан ли лимит builder или память всего хоста. Лимиты и swap
+меняйте после проверки ресурсов сервера. Обновление Dockerfile подхватывается
+при checkout main; повторный bootstrap Jenkins для него не требуется.
+
 ```bash
 docker compose --project-directory /opt/f1hub-ci -f /opt/f1hub-ci/docker-compose.yml ps
 docker logs --tail=100 f1hub-jenkins

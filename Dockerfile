@@ -49,26 +49,25 @@ WORKDIR /app
 
 # Use HTTPS: CI hosts may be unable to reach Debian mirrors over port 80.
 # Retry transient downloads and fail on an incomplete package index.
+# Install runtime libraries only. Native Python dependencies have Linux wheels;
+# Debian python3-dev would pull a second Python and a large compiler toolchain.
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
     && apt-get -o Acquire::Retries=3 -o Acquire::https::Timeout=30 \
         -o APT::Update::Error-Mode=any update \
-    && apt-get -o Acquire::Retries=3 -o Acquire::https::Timeout=30 \
+    && DEBIAN_FRONTEND=noninteractive apt-get -o Acquire::Retries=3 -o Acquire::https::Timeout=30 \
         install -y --no-install-recommends \
-    gcc \
-    python3-dev \
-    unzip \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
-    libxrender-dev \
+    libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip
+RUN pip install --no-cache-dir --prefer-binary --no-compile -r requirements.txt
 
 COPY app-assets.zip /tmp/app-assets.zip
-RUN unzip -q /tmp/app-assets.zip -d /app \
+RUN python -m zipfile -e /tmp/app-assets.zip /app \
     && test -d /app/app/assets \
     && rm /tmp/app-assets.zip
 
