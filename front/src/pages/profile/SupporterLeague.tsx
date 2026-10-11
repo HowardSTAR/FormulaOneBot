@@ -19,14 +19,21 @@ function Standings({ board }: { board: Board }) {
       <div><span>Участников</span><strong>{board.entries.length}</strong></div>
     </div>
     {!me && <p className="profile-muted">Сделай первый прогноз, чтобы появиться в зачёте клуба. <Link to="/predictions">К прогнозам →</Link></p>}
-    {board.entries.length ? <table className="supporter-league-table">
+    {board.entries.length ? <table className="supporter-league-table" role="table">
       <caption className="supporter-league-sr">Зачёт подписчиков TurboTears, сезон {board.season}</caption>
-      <thead><tr><th scope="col">Место</th><th scope="col">Участник</th><th scope="col">Баллы</th><th scope="col">Этапы</th><th scope="col">Победы</th><th scope="col">Лучший</th></tr></thead>
-      <tbody>{board.entries.map(entry => <tr key={entry.user_id} className={entry.user_id === board.current_user_id ? 'supporter-league-me' : undefined}>
-        <td className={`supporter-league-rank supporter-league-rank-${entry.place}`}><span>{entry.place}</span></td>
-        <th scope="row"><Link to={`/profile/${entry.user_id}?season=${board.season}`}>{entry.display_name}<SupporterBadge tierName={entry.tier_name} /></Link>{entry.user_id === board.current_user_id && <small>Это ты</small>}</th>
-        <td className="supporter-league-points" data-label="Баллы">{entry.total_points}</td>
-        <td data-label="Этапы">{entry.rounds_scored}</td><td data-label="Победы">{entry.wins}</td><td data-label="Лучший">{entry.best_points}</td>
+      <thead role="rowgroup"><tr role="row"><th role="columnheader" scope="col">Место</th><th role="columnheader" scope="col">Участник</th><th role="columnheader" scope="col">Баллы</th><th role="columnheader" scope="col">Этапы</th><th role="columnheader" scope="col">Победы</th><th role="columnheader" scope="col">Лучший</th></tr></thead>
+      <tbody role="rowgroup">{board.entries.map(entry => <tr role="row" key={entry.user_id} className={entry.user_id === board.current_user_id ? 'supporter-league-me' : undefined}>
+        <td role="cell" className={`supporter-league-rank supporter-league-rank-${entry.place}`}><span>{entry.place}</span></td>
+        <th role="rowheader" scope="row"><Link to={`/profile/${entry.user_id}?season=${board.season}`}><span>{entry.display_name}</span><SupporterBadge tierName={entry.tier_name} /></Link>{entry.user_id === board.current_user_id && <small>Это ты</small>}</th>
+        <td role="cell" className="supporter-league-points"><span className="supporter-league-mobile-label" aria-hidden="true">Баллы</span><strong>{entry.total_points}</strong></td>
+        <td role="cell" className="supporter-league-detail">{entry.rounds_scored}</td>
+        <td role="cell" className="supporter-league-detail">{entry.wins}</td>
+        <td role="cell" className="supporter-league-detail">{entry.best_points}</td>
+        <td role="cell" colSpan={3} className="supporter-league-mobile-metrics"><dl>
+          <div><dt>Этапы</dt><dd>{entry.rounds_scored}</dd></div>
+          <div><dt>Победы</dt><dd>{entry.wins}</dd></div>
+          <div><dt>Лучший этап</dt><dd>{entry.best_points}</dd></div>
+        </dl></td>
       </tr>)}</tbody>
     </table> : <p className="profile-muted">Сезон клуба начинается с первого прогноза. Твоё место уже ждёт.</p>}
     <details className="supporter-league-rules"><summary>Как устроена лига</summary>
