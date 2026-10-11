@@ -347,10 +347,11 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
                 ? "Подключение проверки готовится"
                 : boostySubscriptionLabel(boosty)}</p>
               {boosty?.checked_at && <p className="account-hint">Последняя проверка: {new Date(boosty.checked_at * 1000).toLocaleString("ru-RU")}</p>}
-              {boosty?.check_failed && <p>Проверка временно недоступна. Показан последний подтверждённый статус.</p>}
+              {boosty?.check_unavailable_reason && <p className="account-hint">{boosty.check_unavailable_reason}</p>}
+              {boosty?.check_failed && <p>{boosty.checked_at ? 'Проверка временно недоступна. Показан последний подтверждённый статус.' : 'Не удалось связаться с Boosty. Повторите проверку позже.'}</p>}
               <div className="account-boosty-actions">
                 <a className="account-secondary" href={boosty?.blog_url || "https://boosty.to/turbotears"} target="_blank" rel="noopener noreferrer">Открыть Boosty</a>
-                <button className="account-primary" disabled={!boosty?.configured || boostyBusy} onClick={() => void checkBoosty()}>{boostyBusy ? "Проверяем…" : "Проверить подписку"}</button>
+                <button className="account-primary" disabled={!boosty?.configured || boosty?.can_check === false || boostyBusy} onClick={() => void checkBoosty()}>{boostyBusy ? "Проверяем…" : "Проверить подписку"}</button>
               </div>
               {boostyError && <p role="alert" className="account-notice error">{boostyError}</p>}
             </section>

@@ -1,4 +1,4 @@
-"""Pilot subscription badge. Only complete, validated snapshots may remove it."""
+"""Boosty subscriptions for verified website accounts; validated snapshots only."""
 from __future__ import annotations
 
 import asyncio
@@ -7,9 +7,9 @@ import math
 import os
 import re
 import time
-from pathlib import Path
 
 import httpx
+from app.services.boosty_auth import BoostyAuth, BoostyUnavailable
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS boosty_memberships (
@@ -37,16 +37,13 @@ CREATE TABLE IF NOT EXISTS boosty_membership_terms (
 logger = logging.getLogger(__name__)
 
 
-class BoostyUnavailable(Exception):
-    pass
-
-
 class BoostyService:
     def __init__(self, database):
         self.database = database
         self.lock = asyncio.Lock()
         self.last_attempt = 0.0
         self.last_failed = False
+        self.auth = BoostyAuth()
 
     @property
     def blog(self):
@@ -63,35 +60,20 @@ class BoostyService:
             return False
 
     def access_token(self):
-        token = os.getenv("BOOSTY_ACCESS_TOKEN", "").strip()
-        if token:
-            return token
-        default = Path(__file__).resolve().parents[2] / "secrets" / "boosty-access-token.txt"
-        path = Path(os.getenv("BOOSTY_ACCESS_TOKEN_FILE", str(default)))
-        try:
-            return path.read_text(encoding="utf-8-sig").strip() if path.exists() else ""
-        except OSError as exc:
-            raise BoostyUnavailable("Не удалось прочитать файл авторизации Boosty") from exc
-
-    def eligible(self, user):
-        # Deliberately opt-in: expanding the pilot requires server configuration.
-        allowed = os.getenv("BOOSTY_PILOT_TELEGRAM_IDS", "2099386").split(",")
-        return str(user.get("telegram_id")) in {value.strip() for value in allowed}
+        return self.auth.load()['access_token']
 
     async def fetch_subscribers(self):
-        token = self.access_token()
-        if not token:
-            raise BoostyUnavailable("Проверка Boosty ещё не настроена")
         subscribers = []
         seen = set()
         expected_total = None
         async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
             for _ in range(1000):
-                response = await client.get(
+                response = await self.auth.get(client,
                     f"https://api.boosty.to/v1/blog/{self.blog}/subscribers",
-                    headers={"Authorization": f"Bearer {token}"},
                     params={"offset": len(subscribers), "limit": 100},
                 )
+                if response.status_code in (401, 403):
+                    raise BoostyUnavailable('Подключение Boosty требует обновления владельцем проекта')
                 response.raise_for_status()
                 payload = response.json()
                 rows, total = payload.get("data"), payload.get("total")
@@ -166,7 +148,7 @@ class BoostyService:
                     terms = []
                     paid_periods = []
                     for user in users:
-                        if self.eligible(user) and user.get("email"):
+                        if user.get("email"):
                             identity, active, level = self.membership(
                                 by_email.get(user["email"].strip().casefold()), now)
                             updates.append((user["id"], self.blog, identity, int(active), level, now))
@@ -206,7 +188,6 @@ class BoostyService:
                 raise BoostyUnavailable("Boosty временно недоступен. Статус сохранён") from exc
 
     async def status(self, user):
-        eligible = self.eligible(user)
         async with self.database.conn.execute(
             "SELECT bm.*, bt.expires_at FROM boosty_memberships bm "
             "LEFT JOIN boosty_membership_terms bt ON bt.user_id=bm.user_id AND bt.blog=bm.blog "
@@ -219,25 +200,24 @@ class BoostyService:
         ) as cursor:
             override = await cursor.fetchone()
         verified = bool(user.get("email_verified") and user.get("email"))
-        expires_at = row['expires_at'] if row and eligible and verified else None
-        active = bool(row and row["active"] and eligible and verified
+        expires_at = row['expires_at'] if row and verified else None
+        active = bool(row and row["active"] and verified
                       and (expires_at is None or expires_at > time.time()))
         manual = bool(override["active"]) if override is not None else None
         configured = self.configured
         check_unavailable_reason = (
-            "Проверка подписки пока доступна только участникам тестирования." if not eligible else
             "Подтвердите в аккаунте тот же email, который используете на Boosty." if not verified else
             "Подключение проверки Boosty готовится." if not configured else None
         )
         return {
-            "eligible": eligible, "configured": configured,
+            "eligible": True, "configured": configured,
             "blog_url": f"https://boosty.to/{self.blog}",
             "active": active,
             "premium_active": active if manual is None else manual,
             "premium_override": manual,
-            "level_name": row["level_name"] if row and eligible else None,
-            "checked_at": row["checked_at"] if row and eligible else None,
-            "check_failed": self.last_failed,
+            "level_name": row["level_name"] if row and verified else None,
+            "checked_at": row["checked_at"] if row and verified else None,
+            "check_failed": self.last_failed and configured and verified,
             "expires_at": expires_at,
             "can_check": check_unavailable_reason is None,
             "check_unavailable_reason": check_unavailable_reason,
@@ -248,6 +228,8 @@ class BoostyService:
             if self.configured:
                 try:
                     await self.sync()
+                except BoostyUnavailable as exc:
+                    logger.warning("Boosty sync failed: %s; last confirmed membership retained", str(exc))
                 except Exception:
                     logger.warning("Boosty sync failed; last confirmed membership retained")
             await asyncio.sleep(900)

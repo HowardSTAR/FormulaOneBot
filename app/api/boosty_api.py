@@ -1,4 +1,4 @@
-"""Authenticated, CSRF-protected Boosty pilot endpoints."""
+"""Authenticated, CSRF-protected Boosty subscription endpoints."""
 from functools import lru_cache
 
 from fastapi import APIRouter, Depends, HTTPException, Response
@@ -34,8 +34,6 @@ async def status(response: Response, user: dict = Depends(require_boosty_user)):
 @router.post("/check")
 async def check(response: Response, user: dict = Depends(require_boosty_user)):
     service = get_boosty_service()
-    if not service.eligible(user):
-        raise HTTPException(403, detail="Проверка пока доступна только тестовому аккаунту")
     if not user.get("email_verified") or not user.get("email"):
         raise HTTPException(403, detail="Подтвердите email, используемый в Boosty")
     try:

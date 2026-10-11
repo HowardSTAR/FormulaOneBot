@@ -54,7 +54,7 @@ async def identities(database=None):
         tier = 0
         if user['manual'] is not None:
             tier = 3 if user['manual'] else 0
-        elif (user['active'] and user['email_verified'] and service.eligible(user)
+        elif (user['active'] and user['email_verified'] and user['email']
               and (user['expires_at'] is None or user['expires_at'] > time.time())):
             tier = {'на старт': 1, 'свой стиль': 2, 'полный газ': 3}.get(
                 (user['level_name'] or '').strip().casefold(), 1)

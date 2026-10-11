@@ -33,6 +33,7 @@ async def boosty(temp_db_path, monkeypatch):
     monkeypatch.setenv("BOOSTY_PILOT_TELEGRAM_IDS", "2099386")
     monkeypatch.setenv("BOOSTY_ACCESS_TOKEN", "test-only-token")
     monkeypatch.setenv("BOOSTY_BLOG", "turbotears")
+    monkeypatch.setenv("BOOSTY_AUTH_FILE", str(temp_db_path) + '.boosty.json')
     service = BoostyService(database)
     yield service
     await database.close()
@@ -85,7 +86,7 @@ async def test_failure_retains_status_and_unknown_format_never_revokes(boosty, m
 
 
 @pytest.mark.asyncio
-async def test_email_identity_pilot_and_cascade(boosty, monkeypatch):
+async def test_email_identity_and_cascade(boosty, monkeypatch):
     await boosty.database.conn.execute("UPDATE users SET email_verified=0")
     await boosty.database.conn.commit()
     async def fetch():
@@ -99,7 +100,7 @@ async def test_email_identity_pilot_and_cascade(boosty, monkeypatch):
     await boosty.sync()
     assert (await boosty.status(await pilot(boosty)))["active"]
     other = {**await pilot(boosty), "telegram_id": 123}
-    assert not (await boosty.status(other))["active"]
+    assert (await boosty.status(other))["active"]
     await boosty.database.conn.execute("DELETE FROM users")
     await boosty.database.conn.commit()
     async with boosty.database.conn.execute("SELECT COUNT(*) FROM boosty_memberships") as cursor:
@@ -129,7 +130,7 @@ async def test_complete_pagination_required(boosty, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_routes_reject_guests_and_non_pilot(boosty, monkeypatch):
+async def test_routes_reject_guests_and_allow_non_pilot(boosty, monkeypatch):
     monkeypatch.setattr(boosty_api, "get_boosty_service", lambda: boosty)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=web_app), base_url="http://test") as client:
         assert (await client.get("/api/account/boosty")).status_code == 401
@@ -139,8 +140,12 @@ async def test_routes_reject_guests_and_non_pilot(boosty, monkeypatch):
         async def user_id():
             return 1
         web_app.dependency_overrides[auth_api.require_hybrid_user_id] = user_id
+        async def fetch():
+            return [subscriber()]
+        monkeypatch.setattr(boosty, 'fetch_subscribers', fetch)
         try:
-            assert (await client.post("/api/account/boosty/check")).status_code == 403
+            response = await client.post("/api/account/boosty/check")
+            assert response.status_code == 200 and response.json()['active']
         finally:
             web_app.dependency_overrides.pop(auth_api.require_hybrid_user_id, None)
 
@@ -194,6 +199,7 @@ async def test_manual_check_with_signed_telegram_identity(db_session, monkeypatc
     service = BoostyService(db_session)
     monkeypatch.setenv('BOOSTY_PILOT_TELEGRAM_IDS', '2099386')
     monkeypatch.setenv('BOOSTY_ACCESS_TOKEN', 'test-only-token')
+    monkeypatch.setenv('BOOSTY_AUTH_FILE', str(db_session.db_path) + '.boosty.json')
     monkeypatch.setattr(boosty_api, 'get_boosty_service', lambda: service)
     async def fetch():
         return [subscriber(level={'name': 'Свой стиль'})]
@@ -255,6 +261,35 @@ def test_token_file_without_exposing_secret(tmp_path, monkeypatch):
     path.write_text("test-file-token\n", encoding="utf-8")
     monkeypatch.delenv("BOOSTY_ACCESS_TOKEN", raising=False)
     monkeypatch.setenv("BOOSTY_ACCESS_TOKEN_FILE", str(path))
+    monkeypatch.setenv("BOOSTY_AUTH_FILE", str(tmp_path / 'auth.json'))
     service = BoostyService(None)
     assert service.configured
     assert service.access_token() == "test-file-token"
+
+
+@pytest.mark.asyncio
+async def test_production_matches_verified_email_without_telegram(boosty, monkeypatch):
+    from app.services.user_profiles import identities
+    accounts = [('style@example.test', 1), ('full@example.test', 1),
+                ('unverified@example.test', 0), ('different@example.test', 1)]
+    await boosty.database.conn.executemany(
+        'INSERT INTO users(email,email_verified) VALUES (?,?)', accounts)
+    await boosty.database.conn.commit()
+    expiry = time.time() + 86400
+    async def fetch():
+        return [subscriber(), subscriber(id=43, email=' STYLE@example.test ',
+                    level={'name': 'Свой стиль'}, nextPayTime=expiry),
+                subscriber(id=44, email='full@example.test', level={'name': 'Полный газ'}),
+                subscriber(id=45, email='unverified@example.test'),
+                subscriber(id=46, email='unmatched@example.test')]
+    monkeypatch.setattr(boosty, 'fetch_subscribers', fetch)
+    await boosty.sync()
+    people = await identities(boosty.database)
+    async with boosty.database.conn.execute('SELECT * FROM users ORDER BY id') as cursor:
+        users = [dict(row) for row in await cursor.fetchall()]
+    for user, expected in zip(users, [1, 2, 3, 0, 0]):
+        assert people[user['id']]['tier'] == expected
+        status = await boosty.status(user)
+        assert status['active'] is (expected > 0)
+        assert status['can_check'] is bool(user['email_verified'])
+    assert (await boosty.status(users[1]))['expires_at'] == expiry

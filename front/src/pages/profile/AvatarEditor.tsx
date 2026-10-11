@@ -134,7 +134,7 @@ export default function AvatarEditor({ value, options, style, styleOptions, tier
         {subscription?.premium_override !== null && subscription?.premium_override !== undefined && <p className="profile-muted">{subscription.premium_override ? 'Премиум включён вручную.' : 'Премиум отключён вручную.'}</p>}
         {subscription?.check_unavailable_reason && <p className="profile-muted">{subscription.check_unavailable_reason} <Link to="/account">Открыть аккаунт →</Link></p>}
         {subscription?.checked_at && <p className="profile-muted">Последняя проверка: {new Date(subscription.checked_at * 1000).toLocaleString('ru-RU')}</p>}
-        {subscription?.check_failed && <p className="profile-muted">Boosty временно недоступен. Показан последний подтверждённый статус.</p>}
+        {subscription?.check_failed && <p className="profile-muted">{subscription.checked_at ? 'Boosty временно недоступен. Показан последний подтверждённый статус.' : 'Не удалось связаться с Boosty. Повторите проверку позже.'}</p>}
         {subscriptionError && <p className="avatar-editor-subscription-error" role="alert">{subscriptionError}</p>}
       </div>
     </section>
