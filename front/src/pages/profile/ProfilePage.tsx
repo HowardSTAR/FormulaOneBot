@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { apiRequest, ApiError } from '../../helpers/api';
 import { BackButton } from '../../components/BackButton';
@@ -7,6 +7,8 @@ import AvatarEditor, { type ProfileStyle as Style } from './AvatarEditor';
 import { avatarUrl, defaultAvatar, type Avatar, type AvatarOptions } from './avatar';
 import { ProfileFavorites, type ProfileFavoritesData } from './ProfileFavorites';
 import './profile.css';
+import ProfileTrophies from './ProfileTrophies';
+import { trophyImage, type TrophyAward } from '../../helpers/trophies';
 
 type Person = { user_id: number; display_name: string; tier: number; tier_name: string; supporter: boolean; style: Style; avatar?: Avatar; avatar_options?: AvatarOptions; favorites?: ProfileFavoritesData };
 type Prediction = { round: number; event_name: string | null; points: number | null; max_points: number | null; winner_driver: string; second_driver: string; third_driver: string; pole_driver: string; fastest_lap_driver: string; fourth_driver: string; fifth_driver: string; first_retirement_driver: string; safety_car: number; sprint_pole_driver: string | null; sprint_winner_driver: string | null };
@@ -31,9 +33,11 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [trophyBadge, setTrophyBadge] = useState<TrophyAward | null>(null);
+  const updateTrophyBadge = useCallback((value: TrophyAward | null) => setTrophyBadge(value), []);
   useEffect(() => {
     let active = true;
-    setLoading(true); setError(''); setLeague(null); setNotice(''); setAvatarOpen(false);
+    setLoading(true); setError(''); setLeague(null); setNotice(''); setAvatarOpen(false); setTrophyBadge(null);
     apiRequest<Profile>(`/api/profiles/${userId || 'me'}`, { season }).then(data => {
       if (active) setProfile(data);
     }).catch(e => { if (active) setError(e instanceof ApiError && e.status === 401 ? 'Войдите в аккаунт, чтобы увидеть свой профиль, рекорды и прогнозы.' : e instanceof Error ? e.message : 'Не удалось загрузить профиль'); })
@@ -53,9 +57,10 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
       {profile.is_owner && <div className="profile-sharing"><ShareButton options={{kind:'profile',season:profile.season}}>Поделиться профилем</ShareButton></div>}
       <section className={`profile-hero profile-bg-${style.background}`} style={{ '--profile-nick': colors[style.color] } as CSSProperties}>
         {profile.is_owner ? <div className="profile-avatar-control"><button type="button" className={`profile-avatar profile-avatar-button profile-frame-${style.frame}`} aria-label="Изменить аватар и оформление" title="Настроить гонщика и оформление профиля" onClick={() => { setNotice(''); setAvatarOpen(true); }}><img src={avatarUrl(profile.avatar || defaultAvatar)} alt="" width="88" height="88" /></button><button type="button" className="profile-avatar-edit" onClick={() => { setNotice(''); setAvatarOpen(true); }}>Аватар и оформление</button></div> : <div className={`profile-avatar profile-frame-${style.frame}`}><img src={avatarUrl(profile.avatar || defaultAvatar)} alt="Аватар гонщика" width="88" height="88" /></div>}
-        <div className="profile-identity"><p className="profile-eyebrow">TURBOTEARS / УЧАСТНИК</p><h1>{profile.display_name} {profile.supporter && <span className="profile-supporter" title={profile.tier_name} aria-label={`Сторонник · ${profile.tier_name}`}>◆</span>}</h1><p>{profile.tier_name}</p></div>
+        <div className="profile-identity"><p className="profile-eyebrow">TURBOTEARS / УЧАСТНИК</p><h1>{profile.display_name} {profile.supporter && <span className="profile-supporter" title={profile.tier_name} aria-label={`Сторонник · ${profile.tier_name}`}>◆</span>}{trophyBadge && <span className="profile-trophy-badge" role="img" aria-label={`${trophyBadge.name}, ${trophyBadge.tier}${trophyBadge.season ? `, сезон ${trophyBadge.season}` : ''}`}><img src={trophyImage(trophyBadge.family,trophyBadge.level)} alt="" width="36" height="36" /></span>}</h1><p>{profile.tier_name}</p></div>
         <div className="profile-highlight"><span>ЛУЧШИЙ ПРОГНОЗ · {profile.season}</span>{profile.best_prediction ? <><strong>{profile.best_prediction.points}<small> / {profile.best_prediction.max_points ?? '—'} баллов</small></strong><p>{profile.best_prediction.event_name || `Этап ${profile.best_prediction.round}`}</p></> : <p>Первый результат ещё впереди</p>}</div>
       </section>
+      <ProfileTrophies key={profile.user_id} userId={profile.user_id} owner={profile.is_owner} onBadge={updateTrophyBadge} />
       <div className="profile-season"><h2>Сезон в цифрах</h2><label>Сезон <select aria-label="Сезон профиля" value={profile.season} onChange={e => setSeason(Number(e.target.value))}>{profile.seasons.map(year => <option key={year}>{year}</option>)}</select></label></div>
       <div className="profile-stats"><div><strong>{profile.total_points}</strong><span>Баллов за сезон</span></div><div><strong>{profile.scored_rounds}</strong><span>Рассчитанных прогнозов</span></div><div><strong>{profile.records.length}</strong><span>Трасс с рекордами</span></div></div>
       <div className="profile-columns"><section className="profile-panel"><h2>Рекорды на трассах</h2>{profile.records.length ? profile.records.map(record => <div className="profile-record" key={record.track_id}><div><strong>{record.track_name}</strong><p>Заездов: {record.attempts}</p></div><b>{lapTime(record.best_time_ms)}</b></div>) : <p className="profile-muted">Пока нет опубликованных рекордов на трассах.</p>}{profile.is_owner && <Link to="/race-game">На трассу →</Link>}</section>

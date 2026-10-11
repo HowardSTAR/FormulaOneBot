@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.auth_api import require_hybrid_user_id
 from app.api.engagement_api import optional_account
 from app.services import user_profiles as profiles
 from app.services import profile_avatar
+from app.services import trophies
 from starlette.concurrency import run_in_threadpool
 
 router = APIRouter(prefix='/api/profiles', tags=['profiles'])
@@ -22,6 +23,46 @@ class AvatarRequest(BaseModel):
     helmet: str
     suit: str
     background: str
+
+
+class TrophyReceipts(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    ids: list[str] = Field(max_length=60)
+
+
+class TrophyBadge(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: str | None
+
+
+@router.get('/me/trophies')
+async def my_trophies(response: Response, user_id: int = Depends(require_hybrid_user_id)):
+    response.headers['Cache-Control'] = 'no-store'
+    return await trophies.collection(user_id, owner=True)
+
+
+@router.post('/me/trophies/seen')
+async def seen_trophies(data: TrophyReceipts, user_id: int = Depends(require_hybrid_user_id)):
+    await trophies.acknowledge(user_id, data.ids)
+    return {'saved': True}
+
+
+@router.patch('/me/trophy-badge')
+async def trophy_badge(data: TrophyBadge, user_id: int = Depends(require_hybrid_user_id)):
+    try:
+        await trophies.select_badge(user_id, data.id)
+    except PermissionError as exc:
+        raise HTTPException(403, str(exc)) from exc
+    return {'saved': True}
+
+
+@router.get('/{profile_id}/trophies')
+async def public_trophies(profile_id: int, response: Response):
+    response.headers['Cache-Control'] = 'no-store'
+    # Resolve the subject without evaluating private progress for a visitor.
+    if profile_id not in await profiles.identities():
+        raise HTTPException(404, 'Профиль не найден')
+    return await trophies.collection(profile_id)
 
 
 @router.get('/avatar/v1.png')

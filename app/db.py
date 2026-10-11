@@ -74,6 +74,8 @@ class Database:
         await self.conn.executescript(boosty_schema)
         from app.services.user_profiles import SCHEMA as user_profiles_schema
         await self.conn.executescript(user_profiles_schema)
+        from app.services.trophies import SCHEMA as trophies_schema
+        await self.conn.executescript(trophies_schema)
         from app.services.telegram_outbox import SCHEMA as telegram_outbox_schema
         await self.conn.executescript(telegram_outbox_schema)
         from app.services.prediction_recovery import SCHEMA as prediction_recovery_schema

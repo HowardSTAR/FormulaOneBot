@@ -154,6 +154,10 @@ async function executeApiRequest<T = unknown>(
 
   try {
     const payload = (await response.json()) as T;
+    if (method === 'POST' && /^\/api\/(reaction-leaderboard|reflex-grid-leaderboard|race-game-leaderboard)\/score$/.test(endpoint)
+      && (payload as { saved?: boolean })?.saved === true) {
+      window.dispatchEvent(new Event('turbotears:trophy-check'));
+    }
     // UI receipt only, no source-freshness claim or extra network traffic.
     if (method === 'GET' && !/^\/api\/(?:auth|account|admin|analytics|settings|favorites)(?:\/|$)/.test(endpoint)
       && endpoint !== '/api/web-notifications/unread-count') {

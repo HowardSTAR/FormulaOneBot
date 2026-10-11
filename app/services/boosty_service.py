@@ -153,11 +153,16 @@ class BoostyService:
                         users = [dict(row) for row in await cursor.fetchall()]
                     # Validate the whole update before writing anything.
                     updates = []
+                    paid_periods = []
                     for user in users:
                         if self.eligible(user) and user.get("email"):
                             identity, active, level = self.membership(
                                 by_email.get(user["email"].strip().casefold()), now)
                             updates.append((user["id"], self.blog, identity, int(active), level, now))
+                            subscriber = by_email.get(user['email'].strip().casefold())
+                            paid_until = subscriber.get('nextPayTime') if subscriber else None
+                            if active and paid_until and paid_until > now:
+                                paid_periods.append((user['id'], now, paid_until))
                     try:
                         await conn.executemany(
                             "INSERT INTO boosty_memberships VALUES (?, ?, ?, ?, ?, ?) "
@@ -165,6 +170,14 @@ class BoostyService:
                             "active=excluded.active, level_name=excluded.level_name, checked_at=excluded.checked_at",
                             updates,
                         )
+                        for user_id, start, end in paid_periods:
+                            overlaps = await (await conn.execute('''SELECT MIN(start),MAX(end)
+                                FROM trophy_support_periods WHERE user_id=? AND start<=? AND end>=?''',
+                                (user_id, end, start))).fetchone()
+                            if overlaps[0] is not None:
+                                await conn.execute('DELETE FROM trophy_support_periods WHERE user_id=? AND start<=? AND end>=?', (user_id,end,start))
+                                start, end = min(start,overlaps[0]), max(end,overlaps[1])
+                            await conn.execute('INSERT INTO trophy_support_periods VALUES (?,?,?)', (user_id,start,end))
                         await conn.commit()
                     except BaseException:
                         await conn.rollback()

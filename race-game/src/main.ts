@@ -870,6 +870,7 @@ class RaceScene extends Phaser.Scene {
     void submitRaceTime(finishedTime, finishedTelemetry, trackId).then((result) => {
       if (trackId !== selectedTrack.id || runVersion !== this.runVersion || !this.scene.isActive()) return
       if (result.saved) {
+        if (window.parent !== window) window.parent.postMessage({type:'f1hub-trophy-check'}, window.location.origin)
         if (result.leaderboard) {
           ghostRequestVersion += 1
           if (leaderboardTrackId === trackId) {

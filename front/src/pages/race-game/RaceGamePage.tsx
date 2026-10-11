@@ -38,6 +38,10 @@ function RaceGamePage() {
   }, [challenge, auth.signedIn]);
   useEffect(() => {
     const receive = (event: MessageEvent) => {
+      if (event.origin === window.location.origin && event.source === frame.current?.contentWindow && event.data?.type === 'f1hub-trophy-check') {
+        window.dispatchEvent(new Event('turbotears:trophy-check'));
+        return;
+      }
       if (event.origin === window.location.origin && event.source === frame.current?.contentWindow && event.data?.type === 'f1hub-game-analytics') {
         if (['game_start', 'game_restart', 'button'].includes(event.data.action)) trackAction(event.data.action, '/race-game');
         return;
