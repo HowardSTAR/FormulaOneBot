@@ -1,11 +1,11 @@
-"""Buttons that launch a destination inside Telegram's private-chat Mini App."""
+"""Private-chat buttons for Mini App pages, links and supported bot actions."""
 import logging
 import os
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from aiogram import Bot
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from app.utils.broadcast_draft import validate_button_destination
+from app.utils.broadcast_draft import BOT_BUTTON_ACTIONS, validate_button_destination
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ async def _mini_app_base(bot: Bot):
 async def destination_buttons(
     bot: Bot, buttons: list[tuple[str, str, dict]],
 ) -> InlineKeyboardMarkup | None:
-    """One button per row; local paths open Mini App, full URLs open links.
+    """One button per row; paths open Mini App, URLs open links, bot:feedback starts feedback.
 
     Validate all destinations first, and never return an incomplete keyboard
     when a Mini App origin cannot be resolved.
@@ -55,7 +55,9 @@ async def destination_buttons(
             return None
     rows = []
     for (label, path, params), destination in zip(buttons, destinations):
-        if destination.scheme:
+        if path in BOT_BUTTON_ACTIONS:
+            button = InlineKeyboardButton(text=label, callback_data=BOT_BUTTON_ACTIONS[path])
+        elif destination.scheme:
             button = InlineKeyboardButton(text=label, url=path)
         else:
             query = dict(parse_qsl(base.query, keep_blank_values=True))

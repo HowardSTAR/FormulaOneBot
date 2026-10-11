@@ -8,8 +8,8 @@ import pandas as pd
 import pytest
 from aiogram import Bot, Dispatcher, Router
 from aiogram.client.session.base import BaseSession
-from aiogram.methods import AnswerCallbackQuery, EditMessageText, SendMessage
-from aiogram.types import CallbackQuery, Chat, InlineKeyboardMarkup, Message, ReplyKeyboardMarkup, Update, User
+from aiogram.methods import AnswerCallbackQuery, EditMessageText, SendMessage, SendPhoto, SendVideo
+from aiogram.types import CallbackQuery, Chat, InlineKeyboardMarkup, Message, PhotoSize, ReplyKeyboardMarkup, Update, User, Video
 
 from app.handlers import insights, menu, start
 from app.utils.bot_menu import MAIN_BUTTONS, SECTIONS, WEB_DESTINATIONS, main_keyboard, section_keyboard
@@ -163,6 +163,42 @@ async def test_callbacks_reuse_actions_with_clicker_not_bot_identity(navigation,
     await state.set_state("OldState:year")
     await dispatcher.feed_update(bot, Update(update_id=1, callback_query=clicked(bot, f"nav:action:{action}")))
     handler.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('kind', ['text', 'photo', 'video'])
+async def test_broadcast_feedback_button_accepts_message_and_media(navigation, monkeypatch, kind):
+    from app.handlers import feedback
+    from app.utils.broadcast_draft import parse_buttons
+    from app.utils.mini_app_links import destination_buttons
+
+    bot, dispatcher, state, session = navigation
+    legacy = Router()
+    legacy.message.register(feedback.process_feedback_message, feedback.FeedbackState.waiting_for_message)
+    dispatcher.include_router(legacy)
+    monkeypatch.setattr(feedback, 'get_primary_admin_telegram_id', lambda: 999)
+    text = 'Новое в F1Hub\n/button 📩 Связь с админом | bot:feedback'
+    _, _, buttons = parse_buttons(text, text)
+    keyboard = await destination_buttons(bot, buttons)
+    await dispatcher.feed_update(bot, Update(update_id=1, callback_query=clicked(bot, keyboard.inline_keyboard[0][0].callback_data)))
+    assert await state.get_state() == feedback.FeedbackState.waiting_for_message.state
+    prompt = session.methods[-1]
+    assert prompt.chat_id == ACTOR.id and 'фото' in prompt.text and 'видео' in prompt.text
+    assert prompt.reply_markup.inline_keyboard[0][0].callback_data == 'cancel_feedback'
+
+    message = user_message(bot, 'Описание ошибки')
+    if kind == 'photo':
+        message = message.model_copy(update={'text': None, 'caption': 'Описание ошибки', 'photo': [PhotoSize(file_id='photo', file_unique_id='p', width=100, height=100)]})
+    elif kind == 'video':
+        message = message.model_copy(update={'text': None, 'caption': 'Описание ошибки', 'video': Video(file_id='video', file_unique_id='v', width=100, height=100, duration=1)})
+    await dispatcher.feed_update(bot, Update(update_id=2, message=message))
+    admin_methods = [method for method in session.methods if getattr(method, 'chat_id', None) == 999]
+    assert len(admin_methods) == 2
+    forwarded = admin_methods[-1]
+    assert isinstance(forwarded, {'text': SendMessage, 'photo': SendPhoto, 'video': SendVideo}[kind])
+    assert getattr(forwarded, 'text' if kind == 'text' else 'caption') == 'Описание ошибки'
+    assert await state.get_state() is None
+    assert 'отправлено' in session.methods[-1].text
 
 
 @pytest.mark.asyncio

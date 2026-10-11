@@ -667,7 +667,7 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
     """
     Предпросмотр и подтверждаемая рассылка всем активным пользователям.
     С 21:00 до 10:00 по времени каждого пользователя — в тихом режиме (без звука).
-    Поддержка: текст, фото, альбом и до 10 строк /button в конце для Mini App.
+    Поддержка: текст, фото, альбом и до 10 строк /button для Mini App, ссылок и связи с админом.
     """
     settings = get_settings()
     if not message.from_user or message.from_user.id not in settings.admin_ids:
@@ -715,7 +715,9 @@ async def admin_silent_broadcast(message: Message, command: CommandObject):
             "<code>/button 📈 История и сравнение | /history</code>\n"
             "<code>/button 🏎 Пилоты | /drivers</code>\n"
             "<code>/button 📰 Рекап гонки | /race-results</code>\n\n"
+            "<code>/button 📩 Связь с админом | bot:feedback</code>\n\n"
             "Путь /… открывает раздел внутри Mini App; полная ссылка https://… — внешнюю страницу.\n"
+            "bot:feedback открывает связь с админом прямо в Telegram: можно отправить текст, фото или видео.\n"
             "После подтверждения сообщение уходит <b>всем</b> активным пользователям. "
             "С 21:00 до 10:00 по времени получателя — в тихом режиме (без звука).",
             parse_mode="HTML"

@@ -17,6 +17,11 @@ RELEASE_BUTTONS = (
     '/button 🏎 Пилоты | /drivers\n'
     '/button 📰 Рекап гонки | /race-results'
 )
+PROFILE_BUTTONS = (
+    '/button 👤 Мой профиль | /profile\n'
+    '/button ❤️ Поддержать на Boosty | https://boosty.to/turbotears\n'
+    '/button 📩 Связь с админом | bot:feedback'
+)
 
 
 def test_three_buttons_preserve_rich_body_and_order():
@@ -102,11 +107,33 @@ def test_invalid_directives_rejected(footer):
         parse_button('Hi\n'+footer,'Hi\n'+footer)
 
 
-@pytest.mark.parametrize('destination', ['/contact-admin', '/news?tag=a&tag=b#latest', 'https://t.me/example', 'https://example.com/post?id=1'])
+@pytest.mark.parametrize('destination', ['/contact-admin', '/news?tag=a&tag=b#latest', 'https://t.me/example', 'https://example.com/post?id=1', 'bot:feedback'])
 @pytest.mark.parametrize('separator',[' | ', ' '],ids=['pipe','space'])
 def test_arbitrary_destinations_and_optional_separator(destination,separator):
     message = 'Hello\n/button 🔔 Обратная связь' + separator + destination
     assert parse_button(message, message)[2] == ('🔔 Обратная связь', destination, {})
+
+
+@pytest.mark.parametrize('destination', ['bot:unknown', 'bot:feedback?x=1', 'bot:feedback#x', 'nav:action:feedback', 'bot:bc:send:token'])
+def test_unrecognized_bot_actions_reject_the_draft(destination):
+    text = 'Hello\n/button X | ' + destination
+    with pytest.raises(ValueError):
+        parse_buttons(text, text)
+
+
+@pytest.mark.asyncio
+async def test_profile_post_preview_opens_telegram_feedback(mock_broadcast):
+    msg, deliver = mock_broadcast
+    msg.text = msg.html_text = '/broadcast Новости\n' + PROFILE_BUTTONS
+    await secret.admin_silent_broadcast(msg, SimpleNamespace(args=''))
+    deliver.assert_awaited_once()
+    draft = next(iter(secret._broadcast_drafts.values()))
+    assert draft['plain'] == 'Новости'
+    profile, boosty, feedback = [row[0] for row in draft['keyboard'].inline_keyboard]
+    assert profile.web_app.url == 'https://example.test/profile'
+    assert boosty.url == 'https://boosty.to/turbotears'
+    assert feedback.callback_data == 'nav:action:feedback'
+    assert feedback.web_app is None and feedback.url is None
 
 
 @pytest.mark.asyncio
@@ -251,12 +278,13 @@ async def test_confirmation_captures_all_three_buttons(mock_broadcast, monkeypat
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('photos', [[], ['one'], ['one', 'two']])
-async def test_delivery_serialization_preserves_three_miniapp_buttons(monkeypatch, photos):
+@pytest.mark.parametrize('footer', [RELEASE_BUTTONS, PROFILE_BUTTONS], ids=['miniapp', 'mixed-feedback'])
+async def test_delivery_serialization_preserves_three_buttons(monkeypatch, photos, footer):
     """Capture is inert: exercise the actual delivery path without Telegram or DB writes."""
     from app.services.delivery_adapters import capture
 
     monkeypatch.setenv('MINI_APP_URL', 'https://example.test/')
-    _, _, buttons = parse_buttons('Hello\n' + RELEASE_BUTTONS, 'Hello\n' + RELEASE_BUTTONS)
+    _, _, buttons = parse_buttons('Hello\n' + footer, 'Hello\n' + footer)
     markup = await destination_buttons(object(), buttons)
     with capture() as actions:
         assert await secret._deliver_broadcast(object(), 1, dict(

@@ -107,6 +107,20 @@ async def test_external_only_buttons_do_not_resolve_miniapp(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_telegram_feedback_needs_no_miniapp_configuration(monkeypatch):
+    for key in ('MINI_APP_URL', 'PUBLIC_WEB_URL', 'FRONTEND_URL'):
+        monkeypatch.delenv(key, raising=False)
+    bot = AsyncMock()
+    markup = await destination_buttons(bot, [('Связь с админом', 'bot:feedback', {})])
+    button = markup.inline_keyboard[0][0]
+    assert button.callback_data == 'nav:action:feedback'
+    assert button.url is None and button.web_app is None
+    bot.get_chat_menu_button.assert_not_awaited()
+    with pytest.raises(ValueError):
+        await mini_app_button(bot, 'Feedback', 'bot:feedback')
+
+
+@pytest.mark.asyncio
 async def test_no_partial_keyboard_on_config_or_destination_error(monkeypatch):
     monkeypatch.setenv('MINI_APP_URL', 'http://localhost:5173')
     bot = AsyncMock()

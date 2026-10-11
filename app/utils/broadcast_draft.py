@@ -4,6 +4,9 @@ from html.parser import HTMLParser
 from urllib.parse import unquote, urlsplit
 
 
+BOT_BUTTON_ACTIONS = {'bot:feedback': 'nav:action:feedback'}
+
+
 class _FormattedPrefix(HTMLParser):
     """Cut Telegram HTML by visible characters, closing any spanning entities."""
 
@@ -44,11 +47,13 @@ def validate_button_destination(destination: str):
         port = url.port
     except ValueError:
         raise ValueError('Некорректная ссылка кнопки') from None
+    if destination in BOT_BUTTON_ACTIONS:
+        return url
     if destination.startswith('/') and not decoded.startswith('//') and not url.netloc and not url.scheme:
         return url
     if url.scheme in {'https', 'http'} and url.hostname and not url.username and not url.password:
         return url
-    raise ValueError('Укажите путь Mini App (/contact-admin) или полную ссылку https://…')
+    raise ValueError('Укажите путь Mini App (/profile), ссылку https://… или bot:feedback для связи с админом')
 
 
 def parse_buttons(formatted: str, plain: str):
