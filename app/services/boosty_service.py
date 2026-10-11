@@ -95,25 +95,37 @@ class BoostyService:
         raise BoostyUnavailable("Превышен лимит страниц Boosty")
 
     @staticmethod
+    def expiry(row):
+        if row is None:
+            return None
+        dates = []
+        # Boosty uses offTime for paid access after renewal is cancelled.
+        for field in ('nextPayTime', 'offTime'):
+            value = row.get(field)
+            if value is not None and (type(value) not in (int, float)
+                                     or not math.isfinite(value)
+                                     or not 0 <= value <= 100_000_000_000):
+                raise BoostyUnavailable('Неизвестный формат срока подписки Boosty')
+            if value:
+                dates.append(value)
+        return min(dates) if dates else None
+
+    @staticmethod
     def membership(row, now):
         if row is None:
             return None, False, None
         if (type(row.get("subscribed")) is not bool
-                or type(row.get("isFeePaid")) is not bool
                 or type(row.get("isBlackListed")) is not bool
+                or not isinstance(row.get('status'), str)
                 or not isinstance(row.get("level"), dict)):
             raise BoostyUnavailable("Статус подписки требует проверки формата Boosty")
         price = row.get("price")
         if type(price) not in (int, float) or not math.isfinite(price) or price < 0:
             raise BoostyUnavailable("Неизвестная стоимость подписки Boosty")
-        next_pay = row.get("nextPayTime")
-        # Keep paid access after cancellation until the paid period finishes.
-        if next_pay is not None and (type(next_pay) not in (int, float)
-                                    or not math.isfinite(next_pay)
-                                    or not 0 <= next_pay <= 100_000_000_000):
-            raise BoostyUnavailable("Неизвестный формат срока подписки Boosty")
-        paid_period = next_pay > now if next_pay else row["subscribed"]
-        active = (not row["isBlackListed"] and price > 0 and row["isFeePaid"]
+        expires_at = BoostyService.expiry(row)
+        paid_period = expires_at > now if expires_at is not None else row["subscribed"]
+        # isFeePaid can be false for a paid, active subscription in the real API.
+        active = (not row["isBlackListed"] and price > 0 and row['status'] == 'active'
                   and paid_period)
         name = row["level"].get("name")
         if name is not None and not isinstance(name, str):
@@ -153,8 +165,8 @@ class BoostyService:
                                 by_email.get(user["email"].strip().casefold()), now)
                             updates.append((user["id"], self.blog, identity, int(active), level, now))
                             subscriber = by_email.get(user['email'].strip().casefold())
-                            paid_until = subscriber.get('nextPayTime') if subscriber else None
-                            terms.append((user['id'], self.blog, paid_until or None))
+                            paid_until = self.expiry(subscriber)
+                            terms.append((user['id'], self.blog, paid_until))
                             if active and paid_until and paid_until > now:
                                 paid_periods.append((user['id'], now, paid_until))
                     try:

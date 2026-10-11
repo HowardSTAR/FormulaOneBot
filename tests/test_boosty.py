@@ -16,7 +16,7 @@ from app.services.boosty_service import BoostyService, BoostyUnavailable
 
 def subscriber(**changes):
     return {"id": 42, "email": "pilot@example.test", "subscribed": True,
-            "isFeePaid": True, "isBlackListed": False, "price": 100,
+            "status": "active", "isFeePaid": True, "isBlackListed": False, "price": 100,
             "nextPayTime": time.time() + 86400, "level": {"name": "Supporter"}, **changes}
 
 
@@ -77,7 +77,7 @@ async def test_failure_retains_status_and_unknown_format_never_revokes(boosty, m
     status = await boosty.status(await pilot(boosty))
     assert status["active"] and status["check_failed"]
     async def malformed():
-        return [subscriber(isFeePaid=None)]
+        return [subscriber(status=None)]
     monkeypatch.setattr(boosty, "fetch_subscribers", malformed)
     boosty.last_attempt = 0
     with pytest.raises(BoostyUnavailable):
@@ -293,3 +293,34 @@ async def test_production_matches_verified_email_without_telegram(boosty, monkey
         assert status['active'] is (expected > 0)
         assert status['can_check'] is bool(user['email_verified'])
     assert (await boosty.status(users[1]))['expires_at'] == expiry
+
+
+@pytest.mark.asyncio
+async def test_real_paid_shape_after_cancelling_renewal(boosty, monkeypatch):
+    from app.services.user_profiles import identities
+    expiry = time.time() + 86400 * 30
+    rows = [subscriber(price=150, payments=132.45, isFeePaid=False,
+        nextPayTime=None, offTime=expiry, level={'name': 'На старт'})]
+    async def fetch():
+        return rows
+    monkeypatch.setattr(boosty, 'fetch_subscribers', fetch)
+    await boosty.sync()
+    user = await pilot(boosty)
+    status = await boosty.status(user)
+    assert status['active'] and status['expires_at'] == expiry
+    assert (await identities(boosty.database))[user['id']]['tier'] == 1
+    for changes in ({'price': 0}, {'status': 'inactive'}, {'isBlackListed': True},
+                    {'offTime': time.time() - 1}):
+        assert not BoostyService.membership({**rows[0], **changes}, time.time())[1]
+    rows[0]['offTime'] = 'unknown date'
+    boosty.last_attempt = 0
+    with pytest.raises(BoostyUnavailable):
+        await boosty.sync()
+    assert (await boosty.status(user))['active']
+
+
+def test_earliest_confirmed_end_limits_access():
+    now = time.time()
+    row = subscriber(offTime=now-1, nextPayTime=now+86400)
+    assert BoostyService.expiry(row) == row['offTime']
+    assert not BoostyService.membership(row, now)[1]

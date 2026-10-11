@@ -89,7 +89,7 @@ async def test_manual_modes_survive_sync_and_auto_restores_subscription(premium,
         await service.sync()
         assert (await client.get('/api/account/boosty')).json()['premium_active']
 
-        rows.append({'id': 42, 'email': 'owner@example.test', 'subscribed': True,
+        rows.append({'id': 42, 'email': 'owner@example.test', 'subscribed': True, 'status': 'active',
                      'isFeePaid': True, 'isBlackListed': False, 'price': 100,
                      'nextPayTime': time.time() + 86400, 'level': {'name': 'Supporter'}})
         service.last_attempt = 0
