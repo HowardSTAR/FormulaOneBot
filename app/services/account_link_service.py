@@ -439,6 +439,9 @@ class AccountLinkService:
     async def _transfer_related_data(conn, source_id: int, target_id: int) -> None:
         from app.services.trophies import transfer as transfer_trophies
         await transfer_trophies(conn, source_id, target_id)
+        await conn.execute('''INSERT OR IGNORE INTO user_profile_guides(user_id,seen_at,status)
+            SELECT ?,seen_at,status FROM user_profile_guides WHERE user_id=?''', (target_id,source_id))
+        await conn.execute('DELETE FROM user_profile_guides WHERE user_id=?', (source_id,))
         await conn.execute('INSERT OR IGNORE INTO user_profile_avatars(user_id,helmet,suit,background) SELECT ?,helmet,suit,background FROM user_profile_avatars WHERE user_id=?', (target_id, source_id))
         await conn.execute('DELETE FROM user_profile_avatars WHERE user_id=?', (source_id,))
         await conn.execute('INSERT OR IGNORE INTO user_profile_styles(user_id,frame,color,background) SELECT ?,frame,color,background FROM user_profile_styles WHERE user_id=?', (target_id, source_id))

@@ -17,6 +17,11 @@ CREATE TABLE IF NOT EXISTS user_profile_avatars (
  suit TEXT NOT NULL DEFAULT 'scarlet',
  background TEXT NOT NULL DEFAULT 'garage'
 );
+CREATE TABLE IF NOT EXISTS user_profile_guides (
+ user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+ seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ status TEXT NOT NULL CHECK(status IN ('completed','skipped'))
+);
 """
 OPTIONS = {
     'frame': {'classic': 0, 'red': 2, 'silver': 2, 'gold': 3, 'neon': 3},
@@ -93,11 +98,24 @@ async def profile(user_id, viewer_id, season=None):
     for record in records:
         record['track_name'] = TRACKS.get(record['track_id'], {}).get('name', 'Emerald Loop' if record['track_id'] == 'emerald-loop-v1' else record['track_id'])
     favorite_drivers, favorite_teams = await get_favorites_for_user_id(user_id)
+    guide = await (await db.conn.execute('SELECT 1 FROM user_profile_guides WHERE user_id=?', (user_id,))).fetchone() if own else None
     return {**people[user_id], 'is_owner': own, 'season': season, 'seasons': sorted(set(seasons + [season]), reverse=True),
             'best_prediction': best, 'predictions': predictions, 'records': records,
             'total_points': sum(p['points'] for p in scored), 'scored_rounds': len(scored), 'options': OPTIONS,
             'avatar_options': profile_avatar.OPTIONS,
+            **({'profile_guide_seen': bool(guide)} if own else {}),
             'favorites': {'drivers': sorted(favorite_drivers), 'teams': sorted(favorite_teams)}}
+
+
+async def finish_profile_guide(user_id, status):
+    async with db.write_lock:
+        try:
+            await db.conn.execute('''INSERT INTO user_profile_guides(user_id,status) VALUES (?,?)
+                ON CONFLICT(user_id) DO UPDATE SET status=excluded.status''', (user_id,status))
+            await db.conn.commit()
+        except BaseException:
+            await db.conn.rollback()
+            raise
 
 
 async def save_avatar(user_id, values):

@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.auth_api import require_hybrid_user_id
@@ -33,6 +34,17 @@ class TrophyReceipts(BaseModel):
 class TrophyBadge(BaseModel):
     model_config = ConfigDict(extra='forbid')
     id: str | None
+
+
+class ProfileGuideReceipt(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    status: Literal['completed','skipped']
+
+
+@router.patch('/me/guide')
+async def finish_guide(data: ProfileGuideReceipt, user_id: int = Depends(require_hybrid_user_id)):
+    await profiles.finish_profile_guide(user_id,data.status)
+    return {'saved': True}
 
 
 @router.get('/me/trophies')

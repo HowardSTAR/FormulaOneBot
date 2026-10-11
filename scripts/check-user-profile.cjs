@@ -20,6 +20,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       const shared={token,kind:'profile',title:'Профиль Turbo Racer · TurboTears',subtitle:'Turbo Racer',headline:'30 баллов за сезон 2026',lines:['Лучший прогноз: 30 / 40'],cta:'Открыть профиль',provisional:false,web_url:`${base}/share/${token}`,share_url:`${base}/share/${token}`,mini_app_url:null,image_url:`/api/engagement/shares/${token}/image.jpg`,expires:Date.now()/1000+86400};
       await page.route('**/api/**', route => {
         const path=new URL(route.request().url()).pathname;
+        if(path.endsWith('/trophies')) return route.fulfill({json:{user_id:1,season:2026,calendar_known:true,season_closed:false,families:[],earned:[],pending:[],badge:null}});
         if(path==='/api/drivers') return route.fulfill({json:{drivers:[{code:'VER',name:'Макс Ферстаппен'},{code:'NOR',name:'Ландо Норрис'}]}});
         if(path==='/api/constructors') return route.fulfill({json:{constructors:[{name:'McLaren',constructorId:'mclaren'}]}});
         if(path==='/api/favorites') return route.fulfill({json:favorites});
@@ -46,7 +47,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
           styleWrites++;saved=route.request().postDataJSON();return route.fulfill({json:{saved:true}});
         }
         const person={user_id:1,display_name:'Turbo Racer',tier,tier_name:tier===3?'Полный газ':'Участник',supporter:tier>0,style:tier>0 && saved || {frame:'classic',color:'white',background:'carbon'}};
-        const data={...person,avatar,avatar_options:avatarOptions,favorites,is_owner:owner,season:2026,seasons:[2026,2025],total_points:empty?0:30,scored_rounds:empty?0:1,options,best_prediction:empty?null:prediction,predictions:empty?[]:[prediction],records:empty?[]:[{track_id:'emerald-loop-v2',track_name:'Emerald Loop',best_time_ms:98432,attempts:12}]};
+        const data={...person,avatar,avatar_options:avatarOptions,favorites,is_owner:owner,profile_guide_seen:true,season:2026,seasons:[2026,2025],total_points:empty?0:30,scored_rounds:empty?0:1,options,best_prediction:empty?null:prediction,predictions:empty?[]:[prediction],records:empty?[]:[{track_id:'emerald-loop-v2',track_name:'Emerald Loop',best_time_ms:98432,attempts:12}]};
         return route.fulfill({json:path==='/api/profiles/supporters'?{entries:[{...person,total_points:30,place:1}]}:path.startsWith('/api/profiles/')?data:path==='/api/auth/me'?{id:1,email:'racer@example.com',email_verified:true,telegram_id:2099386,role:'user'}:{}});
       });
       await page.goto(`${base}/profile`);
