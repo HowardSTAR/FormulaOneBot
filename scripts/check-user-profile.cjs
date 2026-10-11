@@ -109,7 +109,8 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       await editor.getByRole('button',{name:'Кобальт / двойная полоса'}).click();
       await editor.getByRole('button',{name:'Графит / мята'}).click();
       await editor.getByRole('button',{name:'Золотой подиум'}).click();
-      assert.ok((await editor.getByAltText('Предпросмотр выбранного гонщика').getAttribute('src')).includes('helmet=cobalt&suit=mint&background=gold'));
+      await page.waitForFunction(()=>document.querySelector('.avatar-editor-preview img[alt="Предпросмотр выбранного гонщика"]')?.src.includes('helmet=cobalt&suit=mint&background=gold'));
+      await page.waitForFunction(()=>document.querySelector('.avatar-editor-preview img[alt="Предпросмотр выбранного гонщика"]')?.complete);
       assert.ok(await editor.evaluate(el=>el.scrollWidth<=el.clientWidth),`Avatar dialog overflow at ${width}`);
       await page.screenshot({path:`artifacts/avatar-editor-${width}.png`});
       failAvatar=true;

@@ -6,6 +6,7 @@ import { ShareButton } from '../../components/ShareButton';
 import SupporterBadge from '../../components/SupporterBadge';
 import AvatarEditor, { type ProfileStyle as Style } from './AvatarEditor';
 import { avatarUrl, defaultAvatar, type Avatar, type AvatarOptions } from './avatar';
+import { warmAvatarImages } from './avatarImages';
 import { ProfileFavorites, type ProfileFavoritesData } from './ProfileFavorites';
 import './profile.css';
 import ProfileTrophies from './ProfileTrophies';
@@ -53,6 +54,9 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [userId, season, authVersion]);
+  useEffect(() => {
+    if (profile?.is_owner && profile.avatar_options) return warmAvatarImages(profile.avatar || defaultAvatar, profile.avatar_options);
+  }, [profile?.is_owner, profile?.avatar, profile?.avatar_options]);
   const style = profile?.style;
   return <main className="user-profile-page">
     {!embedded && <div className="profile-top"><BackButton fallback="/profile" /><span>ПРОФИЛЬ УЧАСТНИКА</span><Link to="/profile">Мой профиль</Link></div>}
