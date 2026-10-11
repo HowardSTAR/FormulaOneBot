@@ -13,6 +13,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
     for (const width of [320,390,768,1440]) {
       const page = await browser.newPage({viewport:{width,height:1000}});
       const errors=[]; page.on('pageerror', e=>errors.push(e.message));
+      let failLeague=false;
       let tier=3, owner=true, empty=false, saved=null, shareCount=0, styleWrites=0, failStyle=false;
       let avatar={helmet:'scarlet',suit:'scarlet',background:'garage'}, avatarWrites=0, failAvatar=false;
       let favorites={drivers:['VER'],teams:['McLaren']}, settingsWrites=0, settingsPayload=null;
@@ -21,6 +22,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       await page.route('**/api/**', route => {
         const path=new URL(route.request().url()).pathname;
         if(path.endsWith('/trophies')) return route.fulfill({json:{user_id:1,season:2026,calendar_known:true,season_closed:false,families:[],earned:[],pending:[],badge:null}});
+        if(path==='/api/profiles/supporters' && failLeague) return route.fulfill({status:503,json:{detail:'Попробуйте ещё раз'}});
         if(path==='/api/drivers') return route.fulfill({json:{drivers:[{code:'VER',name:'Макс Ферстаппен'},{code:'NOR',name:'Ландо Норрис'}]}});
         if(path==='/api/constructors') return route.fulfill({json:{constructors:[{name:'McLaren',constructorId:'mclaren'}]}});
         if(path==='/api/favorites') return route.fulfill({json:favorites});
@@ -48,7 +50,7 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
         }
         const person={user_id:1,display_name:'Turbo Racer',tier,tier_name:tier===3?'Полный газ':'Участник',supporter:tier>0,style:tier>0 && saved || {frame:'classic',color:'white',background:'carbon'}};
         const data={...person,avatar,avatar_options:avatarOptions,favorites,is_owner:owner,profile_guide_seen:true,season:2026,seasons:[2026,2025],total_points:empty?0:30,scored_rounds:empty?0:1,options,best_prediction:empty?null:prediction,predictions:empty?[]:[prediction],records:empty?[]:[{track_id:'emerald-loop-v2',track_name:'Emerald Loop',best_time_ms:98432,attempts:12}]};
-        return route.fulfill({json:path==='/api/profiles/supporters'?{entries:[{...person,total_points:30,place:1}]}:path.startsWith('/api/profiles/')?data:path==='/api/auth/me'?{id:1,email:'racer@example.com',email_verified:true,telegram_id:2099386,role:'user'}:{}});
+        return route.fulfill({json:path==='/api/profiles/supporters'?{season:2026,current_user_id:1,entries:[{...person,total_points:30,place:1,rounds_scored:1,wins:1,best_points:30}]}:path.startsWith('/api/profiles/')?data:path==='/api/auth/me'?{id:1,email:'racer@example.com',email_verified:true,telegram_id:2099386,role:'user'}:{}});
       });
       await page.goto(`${base}/profile`);
       await page.getByRole('heading',{name:'Turbo Racer'}).waitFor();
@@ -170,12 +172,24 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       await page.locator('.profile-prediction summary').click();
       assert.equal(await page.locator('.profile-answers dd').first().innerText(),'VER');
       await page.getByRole('button',{name:'Показать зачёт · 2026'}).click();
-      await page.locator('.profile-league li').waitFor();
+      await page.locator('.supporter-league-table tbody tr').waitFor();
+      assert.equal(await page.locator('.supporter-league-me').count(),1);
+      assert.equal(await page.locator('.supporter-league-stats strong').first().textContent(),'#1');
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),`Overflow at ${width}`);
       await page.screenshot({path:`artifacts/user-profile-${width}.png`,fullPage:true});
+      failLeague=true;
+      await page.reload();
+      await page.getByRole('button',{name:'Показать зачёт · 2026'}).click();
+      await page.locator('.supporter-league-error [role="alert"]').waitFor();
+      failLeague=false;
+      await page.getByRole('button',{name:'Повторить загрузку'}).click();
+      await page.locator('.supporter-league-me').waitFor();
       tier=0;empty=true;
       await page.reload();
       await page.getByText('Первый результат ещё впереди').waitFor();
+      assert.equal(await page.locator('.profile-identity .supporter-badge').count(),0);
+      assert.equal(await page.getByRole('button',{name:'Показать зачёт · 2026'}).count(),0);
+      await page.getByRole('link',{name:'Присоединиться на Boosty →'}).waitFor();
       await page.getByRole('button',{name:'Аватар и оформление',exact:true}).click();
       assert.equal(await page.getByRole('button',{name:'Неон'}).isDisabled(),true);
       await page.keyboard.press('Escape');

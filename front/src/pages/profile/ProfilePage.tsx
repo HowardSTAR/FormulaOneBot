@@ -9,6 +9,7 @@ import { avatarUrl, defaultAvatar, type Avatar, type AvatarOptions } from './ava
 import { ProfileFavorites, type ProfileFavoritesData } from './ProfileFavorites';
 import './profile.css';
 import ProfileTrophies from './ProfileTrophies';
+import SupporterLeague from './SupporterLeague';
 import { trophyImage, type TrophyAward } from '../../helpers/trophies';
 import ProfileGuide from './ProfileGuide';
 import { PROFILE_GUIDE_START } from '../../helpers/profileGuide';
@@ -31,11 +32,9 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
   const season = Number.isInteger(requestedSeason) && requestedSeason >= 1950 && requestedSeason <= 2100 ? requestedSeason : undefined;
   const setSeason = (year: number) => setParams(previous => { const next = new URLSearchParams(previous); next.set('season', String(year)); return next; });
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [league, setLeague] = useState<(Person & { place: number; total_points: number })[] | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [authVersion, setAuthVersion] = useState(0);
   const [trophyBadge, setTrophyBadge] = useState<TrophyAward | null>(null);
@@ -47,19 +46,13 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
   }, []);
   useEffect(() => {
     let active = true;
-    setLoading(true); setError(''); setLeague(null); setNotice(''); setAvatarOpen(false); setTrophyBadge(null);
+    setLoading(true); setError(''); setNotice(''); setAvatarOpen(false); setTrophyBadge(null);
     apiRequest<Profile>(`/api/profiles/${userId || 'me'}`, { season }).then(data => {
       if (active) setProfile(data);
     }).catch(e => { if (active) setError(e instanceof ApiError && e.status === 401 ? 'Войдите в аккаунт, чтобы увидеть свой профиль, рекорды и прогнозы.' : e instanceof Error ? e.message : 'Не удалось загрузить профиль'); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [userId, season, authVersion]);
-  async function showLeague() {
-    setBusy(true); setNotice('');
-    try { const value = await apiRequest<{ entries: (Person & { place: number; total_points: number })[] }>('/api/profiles/supporters', { season: profile?.season }); setLeague(value.entries); }
-    catch (e) { setNotice(e instanceof Error ? e.message : 'Не удалось загрузить зачёт'); }
-    finally { setBusy(false); }
-  }
   const style = profile?.style;
   return <main className="user-profile-page">
     {!embedded && <div className="profile-top"><BackButton fallback="/profile" /><span>ПРОФИЛЬ УЧАСТНИКА</span><Link to="/profile">Мой профиль</Link></div>}
@@ -75,7 +68,7 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
       <div className="profile-stats"><div><strong>{profile.total_points}</strong><span>Баллов за сезон</span></div><div><strong>{profile.scored_rounds}</strong><span>Рассчитанных прогнозов</span></div><div><strong>{profile.records.length}</strong><span>Трасс с рекордами</span></div></div>
       <div className="profile-columns"><section className="profile-panel" data-profile-guide="records"><h2>Рекорды на трассах</h2>{profile.records.length ? profile.records.map(record => <div className="profile-record" key={record.track_id}><div><strong>{record.track_name}</strong><p>Заездов: {record.attempts}</p></div><b>{lapTime(record.best_time_ms)}</b></div>) : <p className="profile-muted">Пока нет опубликованных рекордов на трассах.</p>}{profile.is_owner && <Link to="/race-game">На трассу →</Link>}</section>
       <section className="profile-panel" data-profile-guide="predictions"><h2>Прогнозы · {profile.season}</h2>{!profile.is_owner && <p className="profile-muted">Ответы показываются после начисления баллов.</p>}{profile.predictions.length ? profile.predictions.map(prediction => <details className="profile-prediction" key={prediction.round}><summary><span>{prediction.event_name || `Этап ${prediction.round}`}{profile.best_prediction?.round === prediction.round && <small>Лучший за сезон</small>}</span><b>{prediction.points === null ? 'Ожидает расчёта' : `${prediction.points} / ${prediction.max_points ?? '—'}`}</b></summary><Answers prediction={prediction} /></details>) : <p className="profile-muted">Прогнозов за этот сезон пока нет.</p>}{profile.is_owner && <Link to="/predictions">Сделать прогноз →</Link>}</section></div>
-      {profile.is_owner && <section className="profile-panel" data-profile-guide="club"><h2>Клуб TurboTears</h2><p className="profile-muted">Общий зачёт прогнозов за сезон для уровней «На старт», «Свой стиль» и «Полный газ».</p>{profile.supporter ? <><button className="profile-primary" disabled={busy} onClick={() => void showLeague()}>Показать зачёт · {profile.season}</button>{league && (league.length ? <ol className="profile-league">{league.map(entry => <li key={entry.user_id}><Link to={`/profile/${entry.user_id}`}>{entry.display_name}<SupporterBadge tierName={entry.tier_name} /></Link><b>{entry.total_points} баллов</b></li>)}</ol> : <p>В клубе пока нет участников с профилем прогнозов.</p>)}</> : <a href="https://boosty.to/turbotears" target="_blank" rel="noopener noreferrer">Присоединиться на Boosty →</a>}</section>}
+      {profile.is_owner && <SupporterLeague season={profile.season} supporter={profile.supporter} />}
       <ProfileFavorites favorites={profile.favorites || { drivers: [], teams: [] }} owner={profile.is_owner} />
       {notice && <p role="status" className="profile-notice">{notice}</p>}
       {profile.is_owner && avatarOpen && profile.avatar_options && <AvatarEditor value={profile.avatar || defaultAvatar} options={profile.avatar_options} style={profile.style} styleOptions={profile.options} tier={profile.tier} onClose={() => setAvatarOpen(false)} onAvatarSave={avatar => { setProfile(p => p ? { ...p, avatar } : p); setNotice('Аватар сохранён'); }} onStyleSave={style => { setProfile(p => p ? { ...p, style } : p); setNotice('Оформление сохранено'); }} />}

@@ -143,9 +143,21 @@ async def save_style(user_id, values):
 
 async def supporter_league(user_id, season=None):
     people = await identities()
-    if not people[user_id]['supporter']:
+    if not people.get(user_id, {}).get('supporter'):
         raise PermissionError('Лига доступна с уровня «На старт»')
     from app.services.prediction_service import get_prediction_leaderboard
     board = await get_prediction_leaderboard(season)
-    entries = [e for e in board['entries'] if people.get(e['user_id'], {}).get('supporter')]
-    return {'season': board['season'], 'entries': [{**e, 'place': i} for i, e in enumerate(entries, 1)]}
+    entries = [dict(e) for e in board['entries'] if people.get(e['user_id'], {}).get('supporter')]
+    # Scores are shared with the main championship; stage wins belong to this league.
+    best_by_round = {}
+    for entry in entries:
+        for result in entry['history']:
+            round_num = result['round']
+            best_by_round[round_num] = max(best_by_round.get(round_num, 0), result['points'])
+    for entry in entries:
+        entry['wins'] = sum(result['points'] > 0 and result['points'] == best_by_round[result['round']]
+                            for result in entry['history'])
+    entries.sort(key=lambda e: (-e['total_points'], -e['wins'], -e['best_points'],
+                                e['display_name'].casefold(), e['user_id']))
+    return {'season': board['season'], 'current_user_id': user_id, 'rounds': board['rounds'],
+            'entries': [{**e, 'place': i} for i, e in enumerate(entries, 1)]}

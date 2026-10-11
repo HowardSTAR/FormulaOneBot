@@ -91,6 +91,43 @@ async def test_supporter_league_access_and_manual_override(db_session):
 
 
 @pytest.mark.asyncio
+async def test_supporter_league_ranks_club_wins_and_excludes_unscored_and_expired(db_session):
+    paid = await participant(db_session, 'Zulu')
+    tied = await participant(db_session, 'Alpha', 4444)
+    waiting = await participant(db_session, 'Без результатов', 5555)
+    outsider = await participant(db_session, 'Общий лидер', 6666)
+    await membership(db_session, paid, 'На старт')
+    for user_id in (tied, waiting):
+        await db_session.conn.execute('INSERT INTO premium_overrides VALUES (?,1,CURRENT_TIMESTAMP)', (user_id,))
+    for user_id, season, round_num, points in [
+        (paid, 2026, 1, 15), (paid, 2026, 2, 5), (tied, 2026, 1, 10), (tied, 2026, 2, 10),
+        (outsider, 2026, 1, 16), (outsider, 2026, 2, 0), (paid, 2026, 3, None), (tied, 2025, 1, 40),
+    ]:
+        await db_session.conn.execute('''INSERT INTO race_predictions(user_id,season,round,pole_driver,
+            winner_driver,second_driver,third_driver,fourth_driver,fifth_driver,fastest_lap_driver,
+            first_retirement_driver,safety_car,points,max_points) VALUES (?,?,?,'VER','VER','NOR','PIA','LEC','HAM','VER','SAI',1,?,40)''',
+            (user_id, season, round_num, points))
+    await db_session.conn.commit()
+    board = await profiles.supporter_league(paid, 2026)
+    assert board['season'] == 2026 and board['current_user_id'] == paid
+    assert [e['user_id'] for e in board['entries']] == [paid, tied, waiting]
+    assert [e['place'] for e in board['entries']] == [1, 2, 3]
+    assert [e['wins'] for e in board['entries']] == [1, 1, 0]
+    assert [e['total_points'] for e in board['entries']] == [20, 20, 0]
+    assert board['entries'][0]['rounds_scored'] == 2
+    assert all(h['points'] is not None and h['season'] == 2026 for e in board['entries'] for h in e['history'])
+    previous = await profiles.supporter_league(paid, 2025)
+    assert previous['entries'][0]['user_id'] == tied and previous['entries'][0]['total_points'] == 40
+    await db_session.conn.execute('UPDATE premium_overrides SET active=0 WHERE user_id=?', (tied,))
+    await db_session.conn.commit()
+    board = await profiles.supporter_league(paid, 2026)
+    assert [e['user_id'] for e in board['entries']] == [paid, waiting]
+    assert board['entries'][0]['wins'] == 2
+    with pytest.raises(PermissionError):
+        await profiles.supporter_league(tied, 2026)
+
+
+@pytest.mark.asyncio
 async def test_profile_api_validation_and_server_authorization(api_client):
     me = await api_client.get('/api/profiles/me?season=2026')
     assert me.status_code == 200 and me.headers['cache-control'] == 'no-store'
