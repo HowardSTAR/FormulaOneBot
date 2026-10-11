@@ -38,16 +38,27 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
   const [loading, setLoading] = useState(true);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [authVersion, setAuthVersion] = useState(0);
+  const [requestContext, setRequestContext] = useState({ userId, season, authVersion });
   const [trophyBadge, setTrophyBadge] = useState<TrophyAward | null>(null);
   const updateTrophyBadge = useCallback((value: TrophyAward | null) => setTrophyBadge(value), []);
+  if (requestContext.userId !== userId || requestContext.season !== season || requestContext.authVersion !== authVersion) {
+    // Reset before rendering children so a new request never displays stale controls.
+    setRequestContext({ userId, season, authVersion });
+    setLoading(true);
+    setError('');
+    setNotice('');
+    setAvatarOpen(false);
+    setTrophyBadge(null);
+    // Keep the current guide mounted across seasons, but never across accounts or profiles.
+    if (requestContext.userId !== userId || requestContext.authVersion !== authVersion) setProfile(null);
+  }
   useEffect(() => {
-    const refresh = () => { setProfile(null); setLoading(true); setAuthVersion(value => value + 1); };
+    const refresh = () => setAuthVersion(value => value + 1);
     window.addEventListener(AUTH_CHANGED_EVENT, refresh);
     return () => window.removeEventListener(AUTH_CHANGED_EVENT, refresh);
   }, []);
   useEffect(() => {
     let active = true;
-    setLoading(true); setError(''); setNotice(''); setAvatarOpen(false); setTrophyBadge(null);
     apiRequest<Profile>(`/api/profiles/${userId || 'me'}`, { season }).then(data => {
       if (active) setProfile(data);
     }).catch(e => { if (active) setError(e instanceof ApiError && e.status === 401 ? 'Войдите в аккаунт, чтобы увидеть свой профиль, рекорды и прогнозы.' : e instanceof Error ? e.message : 'Не удалось загрузить профиль'); })
