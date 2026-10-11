@@ -4,6 +4,7 @@ import { DriverPicker, type PickerDriver } from "../../components/DriverPicker";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
+import SupporterBadge from '../../components/SupporterBadge';
 import { apiRequest } from "../../helpers/api";
 import { getWebsiteUser, hasTelegramAuth, useAuthState } from "../../helpers/auth";
 import "./predictions.css";
@@ -51,6 +52,7 @@ type LeaderboardEntry = {
   user_id: number;
   display_name: string;
   supporter?: boolean;
+  tier_name?: string;
   style?: { color: string };
   total_points: number;
   rounds_scored: number;
@@ -461,7 +463,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
                   return (
                     <tr key={entry.user_id}>
                       <td className="is-place"><strong>{String(entry.place).padStart(2, "0")}</strong></td>
-                      <th className="is-name"><Link to={`/profile/${entry.user_id}`} style={{ color: ({red:'#ff786e',blue:'#8ebcff',gold:'#f5ce73',mint:'#8ce5c7'} as Record<string,string>)[entry.style?.color || ''] || 'inherit' }}>{entry.display_name}{entry.supporter && <span title="Сторонник TurboTears"> ◆</span>}</Link></th>
+                      <th className="is-name"><Link to={`/profile/${entry.user_id}`} style={{ color: ({red:'#ff786e',blue:'#8ebcff',gold:'#f5ce73',mint:'#8ce5c7'} as Record<string,string>)[entry.style?.color || ''] || 'inherit' }}>{entry.display_name}{entry.supporter && <SupporterBadge tierName={entry.tier_name} />}</Link></th>
                       <td>{entry.wins}</td>
                       <td>{entry.best_points}</td>
                       <td>{entry.average_points.toFixed(1)}</td>
