@@ -5,6 +5,7 @@ import { navigationFor, navigationActive, type NavigationGroup, type NavigationI
 import IndexIcon from '../pages/index/IndexIcon';
 import './SidebarIcons.css';
 import { startOnboarding } from '../helpers/onboarding';
+import { AccountShortcut } from './AccountShortcut';
 
 function SidebarLink({ item, pathname }: { item: NavigationItem; pathname: string }) {
   const active = navigationActive(item, pathname);
@@ -39,6 +40,7 @@ export function AppHeader() {
   const nav = navigationFor(auth);
   return <header className="app-header">
     <div className="app-header-brand-wrap"><Link to="/" className="app-header-brand" aria-label="TurboTears — главная"><span className="app-header-brand-accent">Turbo</span><span>Tears</span></Link><span className="app-header-brand-caption">Race intelligence</span></div>
+    <AccountShortcut />
     <nav className="app-header-nav" aria-label="Главное меню">
       {nav.sections.map(section => <section key={section.id} className="app-header-section" aria-labelledby={`app-header-section-${section.id}`}>
         <h2 id={`app-header-section-${section.id}`} className="app-header-section-label">{section.label}</h2>
