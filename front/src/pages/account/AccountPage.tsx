@@ -275,9 +275,9 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
           <form onSubmit={submitAuth}>
             <label>Email<input type="email" autoComplete="email" disabled={busy} required value={email} onChange={e => setEmail(e.target.value)} /></label>
             {mode !== "forgot" && (
-              <PasswordField key={mode} label="Пароль" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} disabled={busy} minLength={mode === "register" ? 12 : undefined} required value={password} onChange={e => setPassword(e.target.value)} />
+              <PasswordField key={mode} label="Пароль" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} disabled={busy} minLength={mode === "register" ? 15 : undefined} maxLength={128} required value={password} onChange={e => setPassword(e.target.value)} />
             )}
-            {mode === 'register' && <><p className="account-hint">Пароль: от 12 символов, латинские буквы и цифры.</p><RegistrationFields value={registration} onChange={setRegistration} disabled={busy} /><p className="account-hint">После регистрации откроется профиль со знакомством с сайтом. Код из письма можно ввести там.</p></>}
+            {mode === 'register' && <><p className="account-hint">Пароль: от 15 до 128 символов. Используйте уникальную длинную фразу; можно с пробелами и кириллицей.</p><RegistrationFields value={registration} onChange={setRegistration} disabled={busy} /><p className="account-hint">После регистрации откроется профиль со знакомством с сайтом. Код из письма можно ввести там.</p></>}
             {mode === "login" && (
               <button type="button" className="account-text-button" onClick={() => { setMode("forgot"); setError(""); setMessage(""); }}>
                 Забыли пароль?
@@ -366,8 +366,9 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
               </div>
               <form onSubmit={changePassword}>
                 <PasswordField label="Текущий пароль" autoComplete="current-password" disabled={busy} required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
-                <PasswordField label="Новый пароль" autoComplete="new-password" disabled={busy} minLength={12} required value={newPassword} onChange={e => setNewPassword(e.target.value)} />
-                <PasswordField label="Повторите новый пароль" autoComplete="new-password" disabled={busy} minLength={12} required value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)} />
+                <PasswordField label="Новый пароль" autoComplete="new-password" disabled={busy} minLength={15} maxLength={128} required value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                <PasswordField label="Повторите новый пароль" autoComplete="new-password" disabled={busy} minLength={15} maxLength={128} required value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)} />
+                <p className="account-hint">От 15 до 128 символов. Выберите уникальную длинную фразу.</p>
                 <button className="account-primary" disabled={busy || newPassword !== passwordConfirmation}>Изменить пароль</button>
               </form>
             </section>

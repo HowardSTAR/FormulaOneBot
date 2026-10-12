@@ -13,9 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import bcrypt
-
 from app.db import Database
+from app import passwords
 from app.emailer import EmailDeliveryError, VerificationMailer
 from app.services.activity_service import is_primary_admin
 from app.services import profile_avatar
@@ -98,13 +97,9 @@ def normalize_email(email: str) -> str:
 
 
 def validate_password(password: str) -> None:
-    encoded = password.encode("utf-8")
-    if len(password) < 12:
-        raise InvalidInput("Password must contain at least 12 characters")
-    if len(encoded) > 72:
-        raise InvalidInput("Password must not exceed 72 UTF-8 bytes")
-    if not re.search(r"[A-Za-z]", password) or not re.search(r"\d", password):
-        raise InvalidInput("Password must contain letters and numbers")
+    error = passwords.password_policy_error(password)
+    if error:
+        raise InvalidInput(error)
 
 
 class AuthService:
@@ -120,6 +115,7 @@ class AuthService:
         if not secret:
             raise RuntimeError("AUTH_PEPPER (or BOT_TOKEN fallback) must be configured")
         self._pepper = secret.encode("utf-8")
+        self._password_slots = asyncio.Semaphore(2)
 
     async def _conn(self):
         if not self.database.conn:
@@ -163,14 +159,34 @@ class AuthService:
 
     async def _hash_password(self, password: str) -> str:
         validate_password(password)
-        hashed = await asyncio.to_thread(bcrypt.hashpw, password.encode(), bcrypt.gensalt(rounds=12))
-        return hashed.decode("ascii")
+        return await self._password_work(passwords.HASHER.hash, password)
 
     async def _verify_password(self, password: str, password_hash: str) -> bool:
+        return await self._password_work(passwords.verify_password, password, password_hash)
+
+    async def _password_work(self, function, *args):
+        # Bound memory to two 64 MiB jobs per service/process. Cancellation of
+        # an HTTP request does not stop its native thread: release only when
+        # that thread finishes, so disconnects cannot bypass the bound.
         try:
-            return await asyncio.to_thread(bcrypt.checkpw, password.encode(), password_hash.encode())
-        except (ValueError, TypeError):
-            return False
+            await asyncio.wait_for(self._password_slots.acquire(), timeout=2)
+        except TimeoutError as exc:
+            raise RateLimitExceeded("Сервис занят. Повторите попытку позже") from exc
+        task = asyncio.create_task(asyncio.to_thread(function, *args))
+        task.add_done_callback(lambda _: self._password_slots.release())
+        return await asyncio.shield(task)
+
+    async def reserve_attempt(self, action: str, identifier: str, limit: int, window: timedelta) -> None:
+        """Persist attempts before expensive work, including failed operations."""
+        conn = await self._conn()
+        async with self.database.write_lock:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                await self._consume_rate_limit(conn, action, identifier, limit, window)
+                await conn.commit()
+            except Exception:
+                await conn.rollback()
+                raise
 
     async def _consume_rate_limit(
         self, conn, action: str, identifier: str, max_attempts: int, window: timedelta
@@ -243,6 +259,8 @@ class AuthService:
             raise InvalidInput("Некорректный список избранных пилотов")
         if len(teams) > 20 or any(not t.strip() or t != t.strip() or len(t) > 100 for t in teams):
             raise InvalidInput("Некорректный список избранных команд")
+        validate_password(password)
+        await self.reserve_attempt("register", normalized, 4, timedelta(hours=1))
         password_hash = await self._hash_password(password)
         code = f"{secrets.randbelow(1_000_000):06d}"
         code_hash = self._hmac("email-code", f"{normalized}:{code}")
@@ -251,7 +269,6 @@ class AuthService:
         async with self.database.write_lock:
             try:
                 await conn.execute("BEGIN IMMEDIATE")
-                await self._consume_rate_limit(conn, "register", normalized, 4, timedelta(hours=1))
                 async with conn.execute("SELECT * FROM users WHERE email = ?", (normalized,)) as cursor:
                     existing = await cursor.fetchone()
                 if existing:
@@ -436,21 +453,35 @@ class AuthService:
     ) -> AuthenticatedSession:
         normalized = normalize_email(email)
         conn = await self._conn()
+        if ip_address:
+            await self.reserve_attempt("login-ip", ip_address, 30, timedelta(minutes=15))
+        await self.reserve_attempt("login", normalized, 8, timedelta(minutes=15))
+        async with conn.execute(
+            "SELECT * FROM users WHERE email = ? AND archived_at IS NULL", (normalized,)
+        ) as cursor:
+            candidate = await cursor.fetchone()
+        old_hash = candidate["password_hash"] if candidate else None
+        valid = await self._verify_password(password, old_hash or passwords.DUMMY_HASH)
+        if not valid or not old_hash:
+            raise InvalidCredentials("Неверный email или пароль")
+        # Password work must never hold SQLite's writer lock. Re-read the
+        # credential inside the transaction to detect password resets/deletion
+        # that happened while verification was in progress.
+        upgraded_hash = None
+        if passwords.needs_rehash(old_hash):
+            upgraded_hash = await self._password_work(passwords.HASHER.hash, password)
         async with self.database.write_lock:
             try:
                 await conn.execute("BEGIN IMMEDIATE")
-                await self._consume_rate_limit(conn, "login", normalized, 8, timedelta(minutes=15))
                 async with conn.execute(
                     "SELECT * FROM users WHERE email = ? AND archived_at IS NULL", (normalized,)
                 ) as cursor:
                     user = await cursor.fetchone()
-                valid = bool(
-                    user and user["password_hash"]
-                    and await self._verify_password(password, user["password_hash"])
-                )
-                if not valid:
-                    await conn.commit()
-                    raise InvalidCredentials("Invalid email or password")
+                if not user or user["password_hash"] != old_hash:
+                    raise InvalidCredentials("Неверный email или пароль")
+                if upgraded_hash:
+                    await conn.execute("UPDATE users SET password_hash = ? WHERE id = ?",
+                                       (upgraded_hash, int(user["id"])))
                 await self._clear_rate_limit(conn, "login", normalized)
                 await self._promote_primary_admin_locked(conn, int(user["id"]))
                 session = await self._create_session_locked(conn, int(user["id"]), user_agent, ip_address)

@@ -61,10 +61,10 @@ export default function ResetPasswordPage() {
           </div>
         ) : (
           <form onSubmit={submit}>
-            <PasswordField label="Новый пароль" autoComplete="new-password" disabled={busy} minLength={12} required value={password} onChange={e => setPassword(e.target.value)} />
-            <PasswordField label="Повторите новый пароль" autoComplete="new-password" disabled={busy} minLength={12} required value={confirmation} aria-invalid={Boolean(confirmation && password !== confirmation)} aria-describedby={confirmation && password !== confirmation ? 'password-mismatch' : undefined} onChange={e => setConfirmation(e.target.value)} />
+            <PasswordField label="Новый пароль" autoComplete="new-password" disabled={busy} minLength={15} maxLength={128} required value={password} onChange={e => setPassword(e.target.value)} />
+            <PasswordField label="Повторите новый пароль" autoComplete="new-password" disabled={busy} minLength={15} maxLength={128} required value={confirmation} aria-invalid={Boolean(confirmation && password !== confirmation)} aria-describedby={confirmation && password !== confirmation ? 'password-mismatch' : undefined} onChange={e => setConfirmation(e.target.value)} />
             {confirmation && password !== confirmation && <p id="password-mismatch" role="status">Пароли не совпадают. Повторите новый пароль.</p>}
-            <p className="reset-password-hint">Не менее 12 символов, обязательно буквы и цифры.</p>
+            <p className="reset-password-hint">От 15 до 128 символов. Используйте уникальную длинную фразу; можно с пробелами и кириллицей.</p>
             <button className="account-primary" disabled={busy || password !== confirmation}>{busy ? "Сохраняем…" : "Сохранить новый пароль"}</button>
           </form>
         )}

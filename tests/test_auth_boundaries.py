@@ -27,14 +27,18 @@ def test_invalid_email_partitions(value):
 
 
 @pytest.mark.parametrize('password,valid', [
-    pytest.param('a1'+'x'*9, False, id='11-characters'),
-    pytest.param('a1'+'x'*10, True, id='12-characters'),
+    pytest.param('a1'+'x'*12, False, id='14-characters'),
+    pytest.param('a1'+'x'*13, True, id='15-characters'),
     pytest.param('a1'+'x'*70, True, id='72-ascii-bytes'),
-    pytest.param('a1'+'x'*71, False, id='73-ascii-bytes'),
+    pytest.param('a1'+'x'*71, True, id='73-ascii-bytes'),
     pytest.param('a1'+'я'*35, True, id='72-utf8-bytes'),
-    pytest.param('a1x'+'я'*35, False, id='73-utf8-bytes'),
-    pytest.param('abcdefghijklm', False, id='missing-number'),
-    pytest.param('1234567890123', False, id='missing-letter'),
+    pytest.param('a1x'+'я'*35, True, id='73-utf8-bytes'),
+    pytest.param('abcdefghijklmno', True, id='passphrase-without-number'),
+    pytest.param('секретная фраза гонщика', True, id='unicode-passphrase'),
+    pytest.param('abc'+'я'*125, True, id='128-characters'),
+    pytest.param('abc'+'я'*126, False, id='129-characters'),
+    pytest.param('Password123456789', False, id='common-password'),
+    pytest.param('abc\x00'+'я'*20, False, id='control-character'),
 ])
 def test_password_boundary_decisions(password, valid):
     if valid:

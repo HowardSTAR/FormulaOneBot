@@ -52,7 +52,7 @@ class RegistrationAvatar(BaseModel):
 
 class RegisterRequest(BaseModel):
     email: str = Field(min_length=3, max_length=254)
-    password: str = Field(min_length=12, max_length=128)
+    password: str = Field(min_length=15, max_length=128)
     display_name: str = Field(min_length=2, max_length=32)
     avatar: RegistrationAvatar | None = None
     favorite_drivers: list[str] = Field(default_factory=list, max_length=30)
@@ -75,14 +75,14 @@ class ForgotPasswordRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     token: str = Field(min_length=40, max_length=512)
-    new_password: str = Field(min_length=12, max_length=128)
-    password_confirmation: str = Field(min_length=12, max_length=128)
+    new_password: str = Field(min_length=15, max_length=128)
+    password_confirmation: str = Field(min_length=15, max_length=128)
 
 
 class ChangePasswordRequest(BaseModel):
     current_password: str = Field(min_length=1, max_length=128)
-    new_password: str = Field(min_length=12, max_length=128)
-    password_confirmation: str = Field(min_length=12, max_length=128)
+    new_password: str = Field(min_length=15, max_length=128)
+    password_confirmation: str = Field(min_length=15, max_length=128)
 
 
 class DeleteAccountRequest(BaseModel):
