@@ -80,7 +80,7 @@ async def test_manual_modes_survive_sync_and_auto_restores_subscription(premium,
     async with client_for(owner) as client:
         assert (await client.get('/api/admin/me')).json()['can_manage_own_premium']
         initial = await client.get('/api/admin/me/premium')
-        assert initial.headers['cache-control'] == 'no-store'
+        assert {value.strip().lower() for value in initial.headers['cache-control'].split(',')} == {'private', 'no-store'}
         assert initial.json()['premium_override'] is None
         enabled = await client.patch('/api/admin/me/premium', json={'mode': 'enabled'})
         assert enabled.status_code == 200
