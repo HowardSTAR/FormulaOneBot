@@ -6,46 +6,10 @@
   <component name="ChangeListManager">
     <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="Добавил отправку итогов в Telegram и веб без обязательного пересчёта">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/db.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/handlers/insights.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/handlers/insights.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/boosty_auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/boosty_auth.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/boosty_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/boosty_service.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/delivery_adapters.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/delivery_adapters.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/profile_avatar.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/profile_avatar.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/race_recap.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/race_recap.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/recap_chronicle.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/recap_chronicle.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/services/recap_news.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/recap_news.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/utils/notifications.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/utils/notifications.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/utils/telegram_presentation.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/utils/telegram_presentation.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/deploy/jenkins/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/jenkins/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/deploy/jenkins/deploy-verified.sh" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/jenkins/deploy-verified.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deploy/jenkins/run-ci.sh" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/jenkins/run-ci.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/deploy/jenkins/test_deploy.py" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/jenkins/test_deploy.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/avatar-assets.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/avatar-assets.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/boosty-production.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/boosty-production.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/f1-history-recap.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/f1-history-recap.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/trophies.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/trophies.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/components/RaceImpact.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/RaceImpact.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/helpers/boosty.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/helpers/boosty.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/helpers/useRaceRecap.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/helpers/useRaceRecap.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/account/AccountPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/account/AccountPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/AvatarEditor.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/AvatarEditor.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/ProfilePage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/ProfilePage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/ProfileTrophies.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/ProfileTrophies.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/avatar-editor.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/avatar-editor.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/avatarImages.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/avatarImages.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/trophies.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/trophies.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/tests/boosty.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/tests/boosty.test.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/check-avatar-loading.cjs" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/check-avatar-loading.cjs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scripts/check-trophies.cjs" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/check-trophies.cjs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_boosty.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_boosty.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_boosty_auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_boosty_auth.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_notifications.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_notifications.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_recap_chronicle.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_recap_chronicle.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_recap_news.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_recap_news.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_telegram_api_features.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_telegram_api_features.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_telegram_outbox.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_telegram_outbox.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/auth-security.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/auth-security.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
