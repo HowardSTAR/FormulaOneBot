@@ -30,6 +30,9 @@ def isolated_delivery_receipts(monkeypatch):
     # own isolated tests; no new adapter may touch a real DB from legacy mocks.
     monkeypatch.setenv("TELEGRAM_RICH_MESSAGES", "0")
     monkeypatch.setattr("app.utils.notifications.get_race_recap", AsyncMock(return_value={"items": []}))
+    monkeypatch.setattr("app.utils.notifications.get_constructor_standings_async", AsyncMock(return_value=pd.DataFrame()))
+    monkeypatch.setattr("app.utils.notifications.get_last_notified_recap_round", AsyncMock(return_value=None))
+    monkeypatch.setattr("app.utils.notifications.set_last_notified_recap_round", AsyncMock())
     with patch("app.utils.notifications.was_reminder_sent", AsyncMock(return_value=False)), patch(
         "app.utils.notifications.set_reminder_sent", AsyncMock()
     ), patch(
@@ -339,7 +342,7 @@ async def test_startup_baseline_skips_completed_sessions_but_not_future_rounds()
     set_sprint_quali.assert_awaited_once_with(season, 11)
     set_sprint.assert_awaited_once_with(season, 11)
     set_quali.assert_awaited_once_with(season, 11)
-    set_race.assert_awaited_once_with(season, 11)
+    set_race.assert_not_awaited()  # Recent unsent races survive a restart.
 
 
 @pytest.mark.asyncio
@@ -525,7 +528,7 @@ async def test_race_results_wait_until_race_can_be_finished():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("native,spoiler,group", [(n, s, g) for n in (False, True) for s in (False, True) for g in (False, True)])
-async def test_race_results_send_image_and_separate_favorites_message(monkeypatch, native, spoiler, group):
+async def test_race_results_include_spoiler_favorites_below_image(monkeypatch, native, spoiler, group):
     """Native cards preserve spoilers, group privacy and old delivery keys."""
     monkeypatch.setenv("TELEGRAM_RICH_MESSAGES", "1" if native else "0")
     monkeypatch.setattr("app.utils.notifications.web_classification", AsyncMock())
@@ -587,8 +590,18 @@ async def test_race_results_send_image_and_separate_favorites_message(monkeypatc
         photo = next(block for block in card.blocks if block.type == 'photo')
         assert photo.photo.media.data == b'test-image'
         assert not any(block.type == 'table' for block in card.blocks)
-    favorite_texts = [call.args[2] for call in m_message.await_args_list if len(call.args) >= 3]
+    favorite_texts = [call.kwargs.get('caption', '') + (call.kwargs.get('body') or '') for call in m_photo.await_args_list if call.args[1] == 111]
+    favorite_texts += [str(call.args[2].model_dump()) for call in m_rich.await_args_list if call.args[1] == 111]
     assert any("Пилоты" in text and "Команды" in text for text in favorite_texts)
+    assert all('spoiler' in text for text in favorite_texts)
+    for sent in m_rich.await_args_list:
+        blocks = sent.args[2].blocks
+        if sent.args[1] == 111:
+            photo_index = next(i for i, block in enumerate(blocks) if block.type == 'photo')
+            assert blocks[photo_index + 1].text.type == 'spoiler'
+        else:
+            assert not any(getattr(getattr(block, 'text', None), 'type', None) == 'spoiler' for block in blocks)
+    m_message.assert_not_awaited()
     assert m_set_round.await_count == 1
 
 
@@ -695,12 +708,14 @@ async def test_session_result_workers_are_independent_when_one_feed_fails():
     with patch("app.utils.notifications.check_and_notify_sprint_quali", side_effect=sprint_quali), \
             patch("app.utils.notifications.check_and_notify_sprint", side_effect=sprint), \
             patch("app.utils.notifications.check_and_notify_quali", new_callable=AsyncMock) as quali, \
-            patch("app.utils.notifications.check_and_send_results", new_callable=AsyncMock) as race:
+            patch("app.utils.notifications.check_and_send_results", new_callable=AsyncMock) as race, \
+            patch("app.utils.notifications.check_and_notify_race_recap", new_callable=AsyncMock) as recap:
         await check_and_send_session_results(bot=object())
 
     assert order == ["sprint_quali", "sprint"]
     quali.assert_awaited_once()
     race.assert_awaited_once()
+    recap.assert_awaited_once()
 
 
 def test_all_result_event_bindings_are_registered():
@@ -712,6 +727,7 @@ def test_all_result_event_bindings_are_registered():
         "sprint_results",
         "qualifying_results",
         "race_results",
+        "race_recap",
     }
 
 

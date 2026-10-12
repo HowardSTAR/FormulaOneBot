@@ -1,7 +1,13 @@
 #!/bin/sh
 set -eu
 cd /root/FormulaOneBot
-compose() { docker compose -f docker-compose-build.yml "$@"; }
+compose() {
+  if [ -f docker-compose.network.yml ]; then
+    docker compose -f docker-compose-build.yml -f docker-compose.network.yml "$@"
+  else
+    docker compose -f docker-compose-build.yml "$@"
+  fi
+}
 previous=$(docker inspect formulaonebot-web-1 --format '{{.Image}}')
 previous_bot=$(docker inspect formulaonebot-bot-1 --format '{{.Image}}')
 test "$previous" = "$previous_bot"

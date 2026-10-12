@@ -55,3 +55,9 @@ artifacts/coverage*
 artifacts/.coverage*
 .coverage
 .coverage.*
+
+# Local work sessions, downloaded QA dependencies and generated previews.
+.tmp/
+.vite/
+artifacts/boosty/
+artifacts/race-message-preview/

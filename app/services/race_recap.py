@@ -173,13 +173,16 @@ async def get_race_recap(season: int, round_num: int) -> dict:
 
 async def get_race_recap_with_news(season: int, round_num: int) -> dict:
     from app.services.recap_news import public_news
-    from app.services.recap_chronicle import public_chronicle
+    from app.services.recap_chronicle import public_highlight_candidates, public_commentary
+    from app.services.race_highlights import select_highlights
 
     recap = await get_race_recap(season, round_num)
     # Do not mutate the cached statistical object or expose news as race facts.
     news = await public_news(season, round_num) if recap.get("status") in {"ready", "partial"} else []
-    chronicle = await public_chronicle(season, round_num) if recap.get("status") in {"ready", "partial"} else []
-    return {**recap, "news": news, "chronicle": chronicle}
+    candidates = await public_highlight_candidates(season, round_num) if recap.get("status") in {"ready", "partial"} else []
+    chronicle = select_highlights(candidates)
+    commentary = await public_commentary(season, round_num) if recap.get("status") in {"ready", "partial"} else {"status": "waiting", "entries": []}
+    return {**recap, "news": news, "chronicle": chronicle, "commentary": commentary, "highlight_candidates": candidates}
 
 
 def format_recap_telegram(recap: dict, spoiler: bool = False) -> str:
@@ -187,11 +190,7 @@ def format_recap_telegram(recap: dict, spoiler: bool = False) -> str:
     text = "\n\n".join(lines)
     if recap.get("chronicle"):
         events = [f'• {escape(item["title"])}' for item in recap["chronicle"][:4]]
-        text += '\n\n🏁 <b>Ключевые события гонки</b>\n' + '\n'.join(events)
-    if recap.get("news"):
-        headlines = [f'• <a href="{escape(item["url"], quote=True)}">{escape(item["title"])}</a> — {escape(item["publisher"])}'
-                     for item in recap["news"][:3]]
-        text += "\n\n📰 <b>Интересные моменты гонки</b>\n" + "\n\n".join(headlines)
+        text += '\n\n🏁 <b>Интересные моменты гонки</b>\n' + '\n'.join(events)
     return f'<span class="tg-spoiler">{text}</span>' if spoiler and text else text
 
 
@@ -200,6 +199,10 @@ def recap_caption(recap: dict, spoiler: bool = False) -> str:
     if recap.get("status") == "waiting":
         return ""
     lines = []
+    for item in recap.get("chronicle", [])[:4]:
+        line = f"• {escape(item['title'])}"
+        if len("\n\n".join([*lines, line])) <= 680:
+            lines.append(line)
     for item in recap.get("items", [])[:3]:
         line = f"• {escape(item['title'])}\n{escape(item['text'])}"
         if len("\n\n".join([*lines, line])) <= 680:

@@ -133,6 +133,13 @@ python3 /opt/f1hub-ci/test_deploy.py
 certbot renew --dry-run
 ```
 
+Проверки `test_deploy.py`, `test_cleanup.py` и `test_notify.py` в Pipeline
+выполняются внутри собранного образа приложения: в контейнере Jenkins нет Python.
+Контейнер проверок получает каталог `deploy/jenkins` только для чтения и работает
+без Docker socket; операции Docker заменяются тестовыми заглушками.
+При обновлении серверных скриптов обязательно копируйте `cleanup-images.sh`
+вместе с `run-ci.sh` в `/opt/f1hub-ci`.
+
 TLS обслуживает существующий Nginx-контейнер. Certbot использует webroot
 /root/FormulaOneBot/ssl/acme. Renewal deploy hook копирует сертификаты в ssl
 и проверяет/перечитывает Nginx.

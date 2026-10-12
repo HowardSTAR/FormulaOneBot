@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 cd "$WORKSPACE"
+# Optional, root-managed DNS overrides for routes unavailable from this host.
+# Keep hostnames intact so HTTPS certificate validation still applies.
+network_args=()
+if [[ -f "$CI_SCRIPTS/network.env" ]]; then
+  while IFS='=' read -r host address; do
+    case "$host" in deb.debian.org|api.telegram.org) ;; *) continue ;; esac
+    if [[ ! "$address" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+      echo 'Invalid CI network override address.' >&2
+      exit 1
+    fi
+    network_args+=(--add-host "$host=$address")
+  done < "$CI_SCRIPTS/network.env"
+fi
 case "${1:?stage required}" in
   build)
     test -f app-assets.zip
@@ -19,6 +32,7 @@ case "${1:?stage required}" in
       done < "$CI_SCRIPTS/build.env"
     fi
     docker buildx build --builder f1hub-ci --load --progress plain \
+      "${network_args[@]}" \
       --build-arg "APP_VERSION=$(git rev-parse --short=12 HEAD)" \
       --label ru.f1hub.ci.app=true \
       "${args[@]}" --tag "$APP_IMAGE" .
@@ -60,9 +74,15 @@ case "${1:?stage required}" in
       -v "$WORKSPACE/.ci-f1bot-cache:/app/f1bot_cache" \
       -w /app "$APP_IMAGE" pytest --live --test-order-seed=20261005 --cov=app --cov-branch \
         --cov-report=xml:/app/reports/coverage.xml --junitxml=/app/reports/pytest.xml
-    python3 "$WORKSPACE/deploy/jenkins/test_deploy.py"
-    python3 "$WORKSPACE/deploy/jenkins/test_cleanup.py"
-    python3 "$WORKSPACE/deploy/jenkins/test_notify.py"
+    # Jenkins has Docker CLI only; use the application's Python for CI tests.
+    # No Docker socket is mounted: deployment and cleanup use fake CLI fixtures.
+    docker run --rm --name "f1hub-ci-contracts-$BUILD_NUMBER" --memory=128m --cpus=0.5 \
+      --user "$(id -u):$(id -g)" -e HOME=/tmp \
+      -v "$WORKSPACE/deploy/jenkins:/ci:ro" -w /ci "$APP_IMAGE" sh -ec '
+        python test_deploy.py
+        python test_cleanup.py
+        python test_notify.py
+      '
     ;;
   smoke)
     name="f1hub-ci-smoke-$BUILD_NUMBER"
@@ -89,13 +109,14 @@ case "${1:?stage required}" in
     ;;
   notify)
     docker run --rm --memory=128m --cpus=0.25 \
+      "${network_args[@]}" \
       -e TELEGRAM_BOT_TOKEN -e TELEGRAM_CHAT_ID -e CI_RESULT -e CI_DURATION \
       -e BUILD_NUMBER -e BUILD_URL \
       -v "$CI_SCRIPTS/notify.py:/notify.py:ro" \
       -v "$WORKSPACE/reports:/reports:ro" python:3.11-alpine python /notify.py
     ;;
   cleanup)
-    for part in front python smoke deploy; do
+    for part in front python contracts smoke deploy; do
       docker rm -f "f1hub-ci-$part-$BUILD_NUMBER" >/dev/null 2>&1 || true
     done
     docker image rm "$APP_IMAGE" >/dev/null 2>&1 || true

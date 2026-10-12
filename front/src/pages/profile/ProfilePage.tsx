@@ -6,7 +6,7 @@ import { ShareButton } from '../../components/ShareButton';
 import SupporterBadge from '../../components/SupporterBadge';
 import AvatarEditor, { type ProfileStyle as Style } from './AvatarEditor';
 import { avatarUrl, defaultAvatar, type Avatar, type AvatarOptions } from './avatar';
-import { warmAvatarImages } from './avatarImages';
+import { warmAvatarSprites } from './avatarSprites';
 import { ProfileFavorites, type ProfileFavoritesData } from './ProfileFavorites';
 import './profile.css';
 import ProfileTrophies from './ProfileTrophies';
@@ -66,8 +66,8 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
     return () => { active = false; };
   }, [userId, season, authVersion]);
   useEffect(() => {
-    if (profile?.is_owner && profile.avatar_options) return warmAvatarImages(profile.avatar || defaultAvatar, profile.avatar_options);
-  }, [profile?.is_owner, profile?.avatar, profile?.avatar_options]);
+    if (profile?.is_owner && profile.avatar_options) return warmAvatarSprites();
+  }, [profile?.is_owner, profile?.avatar_options]);
   const style = profile?.style;
   async function refreshSubscription() {
     const updated = await apiRequest<Profile>(`/api/profiles/${userId || 'me'}`, { season });

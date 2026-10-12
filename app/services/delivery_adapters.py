@@ -71,8 +71,12 @@ async def queued_message(bot, chat_id, text, *, delivery_key, expires=None, **kw
     return True  # persisted, not delivered
 
 
-async def queued_photo(bot, chat_id, photo, *, delivery_key, expires=None, **kwargs):
-    await queue_actions(f'{delivery_key}:{chat_id}', [{'method':'send_photo', 'kwargs':encode({'photo':photo,**kwargs})}], [(chat_id,'Europe/Moscow')], expires or time.time()+86400)
+async def queued_photo(bot, chat_id, photo, *, delivery_key, expires=None, body=None, **kwargs):
+    actions = [{'method': 'send_photo', 'kwargs': encode({'photo': photo, **kwargs})}]
+    if body:
+        text_options = {key: value for key, value in kwargs.items() if key in {'parse_mode', 'disable_notification', 'message_thread_id', 'reply_markup'}}
+        actions.append({'method': 'send_message', 'kwargs': encode({'text': body, **text_options})})
+    await queue_actions(f'{delivery_key}:{chat_id}', actions, [(chat_id,'Europe/Moscow')], expires or time.time()+86400)
     return True
 
 
@@ -117,10 +121,24 @@ async def dispatch(bot, row):
     await _apply_sound_preference(row['telegram_id'],kwargs)
     if action['method'] == 'send_rich_message':
         from aiogram.types import InputRichMessage
-        from app.utils.telegram_presentation import send_card
+        from aiogram.exceptions import TelegramBadRequest
+        from app.utils.telegram_presentation import feature_rejected, rich_enabled, fallback_actions
         fallback = kwargs.pop('_fallback_text')
         card = InputRichMessage.model_validate(kwargs.pop('rich_message'))
-        result = await send_card(bot, row['telegram_id'], card, fallback, **kwargs)
+        rejected = not rich_enabled()
+        if not rejected:
+            try:
+                result = await bot.send_rich_message(chat_id=row['telegram_id'], rich_message=card, **kwargs)
+            except TelegramBadRequest as exc:
+                if not feature_rejected(exc):
+                    raise
+                rejected = True
+        if rejected:
+            payload['actions'][step:step + 1] = encode(fallback_actions(card, fallback, kwargs))
+            async with connection() as conn:
+                await conn.execute('UPDATE delivery_payloads SET payload=? WHERE event_key=?', (json.dumps(payload), row['event_key']))
+                await conn.commit()
+            return 'retry', None, None, 0
     else:
         result = await getattr(bot,action['method'])(chat_id=row['telegram_id'], **kwargs)
     message = result[0] if isinstance(result,list) else result

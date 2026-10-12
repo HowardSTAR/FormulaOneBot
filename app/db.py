@@ -165,6 +165,8 @@ class Database:
             await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_sprint_quali_round INTEGER")
         if "last_notified_sprint_round" not in cols:
             await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_sprint_round INTEGER")
+        if "last_notified_recap_round" not in cols:
+            await self.conn.execute("ALTER TABLE notification_state ADD COLUMN last_notified_recap_round INTEGER")
         # При первом развёртывании новых типов не рассылаем задним числом спринты
         # уже завершённых этапов. Если текущий этап ещё не закрыт гонкой/квалой,
         # значение останется на предыдущем раунде и нужный спринт будет отправлен.
@@ -768,6 +770,14 @@ async def get_last_notified_round(season: int) -> int | None: return await _get_
 
 
 async def set_last_notified_round(season: int, r: int) -> None: await _set_round_value(season, "last_notified_round", r)
+
+
+async def get_last_notified_recap_round(season: int) -> int | None:
+    return await _get_round_value(season, "last_notified_recap_round")
+
+
+async def set_last_notified_recap_round(season: int, r: int) -> None:
+    await _set_round_value(season, "last_notified_recap_round", r)
 
 
 async def get_last_notified_quali_round(season: int) -> int | None: return await _get_round_value(season,

@@ -237,3 +237,45 @@ async def test_queued_rich_fallback_is_only_for_explicit_feature_rejection(queue
         bot.send_message.assert_awaited_once()
         assert bot.send_message.await_args.kwargs['text'] == 'Verified classification'
         assert await outbox.delivery_counts('rich-fallback:1') == {'sent': 1}
+
+
+@pytest.mark.asyncio
+async def test_long_race_photo_body_resumes_without_repeating_image(queue, monkeypatch):
+    from app.services.delivery_adapters import queued_photo
+    bot = SimpleNamespace(send_photo=AsyncMock(return_value=SimpleNamespace(message_id=40)),
+                          send_message=AsyncMock(return_value=SimpleNamespace(message_id=41)))
+    await queued_photo(bot, 1, b'png', delivery_key='race-long', caption='Итоги гонки',
+                       body='<tg-spoiler>Favorites</tg-spoiler>\n' + 'Verified recap. ' * 100, parse_mode='HTML')
+    await outbox.drain(bot, limit=1)
+    bot.send_photo.assert_awaited_once()
+    bot.send_message.assert_not_awaited()
+    await outbox.drain(bot)
+    bot.send_photo.assert_awaited_once()
+    bot.send_message.assert_awaited_once()
+    assert 'tg-spoiler' in bot.send_message.await_args.kwargs['text']
+    assert await outbox.delivery_counts('race-long:1') == {'sent': 1}
+
+
+@pytest.mark.asyncio
+async def test_rich_rejection_keeps_image_and_persists_text_step(queue, monkeypatch):
+    from aiogram.methods import SendRichMessage
+    from aiogram.types import BufferedInputFile
+    from app.services.delivery_adapters import queued_rich_message
+    from app.utils.telegram_presentation import race_card
+    monkeypatch.setenv('TELEGRAM_RICH_MESSAGES', '1')
+    card = race_card('Test GP', 2026, 17, [{'pos': 1, 'driver': 'Test', 'points': 25}],
+                     {'items': []}, photo=BufferedInputFile(b'png', filename='race.png'))
+    bot = SimpleNamespace(send_rich_message=AsyncMock(side_effect=TelegramBadRequest(
+        method=SendRichMessage(chat_id=1, rich_message=card), message='rich message is not supported')),
+        send_photo=AsyncMock(return_value=SimpleNamespace(message_id=42)),
+        send_message=AsyncMock(return_value=SimpleNamespace(message_id=43)))
+    await queued_rich_message(bot, 1, card, 'Verified recap. ' * 100, delivery_key='rich-photo-fallback')
+    await outbox.drain(bot, limit=1)
+    bot.send_photo.assert_not_awaited()  # The rejected rich action was replaced durably first.
+    await outbox.drain(bot, limit=1)
+    bot.send_photo.assert_awaited_once()
+    bot.send_message.assert_not_awaited()
+    await outbox.drain(bot)
+    bot.send_photo.assert_awaited_once()
+    bot.send_message.assert_awaited_once()
+    bot.send_rich_message.assert_awaited_once()

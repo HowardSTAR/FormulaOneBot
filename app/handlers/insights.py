@@ -7,10 +7,14 @@ from html import escape
 from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.filters.command import CommandObject
-from aiogram.types import Message, LinkPreviewOptions, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
-from app.f1_data import get_season_schedule_short_async, get_driver_standings_async, get_race_results_async
+from aiogram.types import Message, LinkPreviewOptions, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, BufferedInputFile
+from app.f1_data import get_season_schedule_short_async, get_driver_standings_async, get_race_results_async, get_constructor_standings_async
+from app.db import get_users_favorites_for_notifications
+from app.services.race_report import image_rows, favorites_text
+from app.utils.image_render import create_f1_style_classification_image
 from app.services.driver_guides import get_driver_guide
 from app.services.race_recap import get_race_recap_with_news as get_race_recap, format_recap_telegram
+from app.services.race_highlights import personalize_recap
 from app.utils.mini_app_links import mini_app_button
 from app.utils.activity_status import ActivityStatus
 from app.services.race_recap import classified_rows
@@ -226,7 +230,24 @@ async def _show_recap(message: Message, command: CommandObject | None = None):
         text += " Часть данных чемпионата ещё не подтверждена."
     keyboard = await _web_button(message, "Рекап и результаты", "/race-results", season=season, round=round_num, mode="archive")
     keyboard = personal_buttons(season, round_num, keyboard)
-    card = race_card(event.get("event_name") or f"Этап {round_num}", season, round_num, rows, result)
+    photo, favorites = None, ''
+    selected = (await get_users_favorites_for_notifications()).get(message.chat.id, {}) if message.chat.type == 'private' else {}
+    result = personalize_recap(result, selected.get('drivers', []))
     if rows:
-        text = race_fallback(event.get("event_name") or f"Этап {round_num}", season, round_num, rows, result)
+        rows = image_rows(frame)
+        output = await asyncio.to_thread(create_f1_style_classification_image,
+            event_name=event.get('event_name') or f'Этап {round_num}', session_type='RACE CLASSIFICATION', rows=rows, season=season)
+        photo = BufferedInputFile(output.getvalue(), filename=f'race-{season}-{round_num}.png')
+        # Personal favorites belong only to the caller's private chat.
+        if message.chat.type == 'private':
+            if selected:
+                async def standing(loader):
+                    try:
+                        return await asyncio.wait_for(loader(season, round_number=round_num), timeout=10)
+                    except Exception:
+                        return []
+                drivers, teams = await asyncio.gather(standing(get_driver_standings_async), standing(get_constructor_standings_async))
+                favorites = favorites_text(rows, selected, drivers, teams, round_num=round_num)
+    text = race_fallback(event.get('event_name') or f'Этап {round_num}', season, round_num, [], result, favorites=favorites)
+    card = race_card(event.get("event_name") or f"Этап {round_num}", season, round_num, rows, result, photo=photo, favorites=favorites)
     await send_card(message.bot, message.chat.id, card, text, reply_markup=keyboard, message_thread_id=message.message_thread_id)

@@ -52,7 +52,7 @@ FEEDS = (
          enabled_by_default=True, permission_required=False),
     Feed("openf1-control", "OpenF1", "https://api.openf1.org/v1/race_control",
          ("api.openf1.org",), "https://openf1.org/docs/#race-control",
-         "Сообщения дирекции гонки преобразуются в короткие фразы по шаблонам. Используется бесплатный архив после гонки, не платный live-доступ.",
+         "Текстовая хроника дирекции, смен позиций и пит-стопов. Используется бесплатный архив после гонки.",
          enabled_by_default=True, permission_required=False, kind="race_control"),
 )
 FEED_BY_ID = {feed.id: feed for feed in FEEDS}
@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS recap_news_articles (
  event_name TEXT NOT NULL, source_id TEXT NOT NULL REFERENCES recap_news_sources(source_id),
  title TEXT NOT NULL, url TEXT NOT NULL, published REAL NOT NULL,
  category TEXT NOT NULL, score INTEGER NOT NULL, hidden INTEGER NOT NULL DEFAULT 0,
+ driver_code TEXT NOT NULL DEFAULT '',
  added REAL NOT NULL, updated REAL NOT NULL,
  UNIQUE(season,round,url)
 );
@@ -84,6 +85,14 @@ CREATE TABLE IF NOT EXISTS recap_control_checks (
 
 async def ensure_schema(conn):
     await conn.executescript(SCHEMA)
+    columns = {row[1] for row in await (await conn.execute("PRAGMA table_info(recap_news_articles)")).fetchall()}
+    if "driver_code" not in columns:
+        try:
+            await conn.execute("ALTER TABLE recap_news_articles ADD COLUMN driver_code TEXT NOT NULL DEFAULT ''")
+        except aiosqlite.OperationalError:
+            columns = {row[1] for row in await (await conn.execute("PRAGMA table_info(recap_news_articles)")).fetchall()}
+            if "driver_code" not in columns:
+                raise
     columns = {row[1] for row in await (await conn.execute("PRAGMA table_info(recap_control_checks)")).fetchall()}
     if "parser_version" not in columns:
         try:
@@ -172,7 +181,7 @@ def canonical_url(value, feed):
                 or parts.username or parts.password or parts.port not in (None, 443)):
             return None
         if feed.kind == "race_control":
-            if (parts.path != "/v1/race_control" or not re.fullmatch(r"session_key=[1-9]\d{0,9}", parts.query)
+            if (parts.path not in {"/v1/race_control", "/v1/overtakes", "/v1/pit"} or not re.fullmatch(r"session_key=[1-9]\d{0,9}", parts.query)
                     or not re.fullmatch(r"event-[0-9a-f]{16}", parts.fragment)):
                 return None
             return urlunsplit(("https", parts.hostname, parts.path, parts.query, parts.fragment))
@@ -292,11 +301,11 @@ async def public_news(season, round_num):
 async def save_candidates(conn, entries, event, season, now):
     for entry in entries:
         await conn.execute("""INSERT INTO recap_news_articles
-            (season,round,event_name,source_id,title,url,published,category,score,added,updated)
-            VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(season,round,url) DO UPDATE SET
-            title=excluded.title,category=excluded.category,score=excluded.score,updated=excluded.updated""",
+            (season,round,event_name,source_id,title,url,published,category,score,added,updated,driver_code)
+            VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(season,round,url) DO UPDATE SET
+            title=excluded.title,category=excluded.category,score=excluded.score,updated=excluded.updated,driver_code=excluded.driver_code""",
             (season, event["round"], event["event_name"], entry["source_id"], entry["title"],
-             entry["url"], entry["published"], entry["category"], entry["score"], now.timestamp(), now.timestamp()))
+             entry["url"], entry["published"], entry["category"], entry["score"], now.timestamp(), now.timestamp(), entry.get('driver_code', '')))
 
 
 async def fetch_feed(client, feed, state):

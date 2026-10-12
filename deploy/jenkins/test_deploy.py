@@ -38,10 +38,12 @@ class DeploymentTests(unittest.TestCase):
         if cls.shell is None:
             raise unittest.SkipTest('Deployment contract tests require sh or Git Bash')
 
-    def scenario(self, mode):
+    def scenario(self, mode, network_override=False):
         with tempfile.TemporaryDirectory(prefix='f1hub-ci-validation-') as tmp:
             root = Path(tmp)
             (root / 'reports').mkdir()
+            if network_override:
+                (root / 'docker-compose.network.yml').write_text('services: {}\n')
             cli = root / 'docker'
             interpreter = '/usr/bin/env python' if os.name == 'nt' else sys.executable
             cli.write_text(FAKE_DOCKER.replace('/usr/bin/python3', interpreter), encoding='utf-8')
@@ -63,6 +65,15 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn(['tag', 'sha256:new', 'formulaonebot-app:latest'], calls)
         self.assertIn(['tag', 'sha256:old', 'formulaonebot-rollback:previous'], calls)
         self.assertIn(['image', 'rm', 'sha256:retired'], calls)
+
+    def test_network_override_is_used_for_rollout_and_rollback(self):
+        code, status, calls = self.scenario('rollout_failure', network_override=True)
+        self.assertNotEqual(code, 0)
+        self.assertEqual(status, 'rolled_back')
+        compose_calls = [call for call in calls if call[0] == 'compose']
+        self.assertEqual(len(compose_calls), 2)
+        for call in compose_calls:
+            self.assertEqual(call[:5], ['compose', '-f', 'docker-compose-build.yml', '-f', 'docker-compose.network.yml'])
 
     def test_failed_rollout_restores_previous_image(self):
         code, status, calls = self.scenario('rollout_failure')

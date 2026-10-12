@@ -6,8 +6,8 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
     DisabledButton, InlineKeyboardButton, InlineKeyboardMarkup, InputRichMessage,
     InputRichBlockSectionHeading, InputRichBlockParagraph, InputRichBlockDetails,
-    InputRichBlockTable, RichBlockTableCell, RichTextUrl,
-    InputRichBlockPhoto, InputMediaPhoto,
+    InputRichBlockTable, RichBlockTableCell,
+    InputRichBlockPhoto, InputMediaPhoto, RichTextSpoiler,
 )
 
 
@@ -36,13 +36,11 @@ def table(headers, rows):
     ])
 
 
-def race_card(event_name, season, round_num, rows, recap, *, photo=None):
+def race_card(event_name, season, round_num, rows, recap, *, photo=None, favorites=""):
     """Rows are the already verified classification, not live positions."""
     ordered = sorted(rows, key=lambda row: int(row["pos"]) if str(row.get("pos", "")).isdigit() else 999)
     cells = [[row.get("pos", "—"), row.get("driver", "—"), row.get("points", "—")] for row in ordered]
     blocks = [InputRichBlockSectionHeading(text=f"{event_name} · {season}, этап {round_num}", size=3)]
-    for item in recap.get("items", [])[:3]:
-        blocks.extend([InputRichBlockSectionHeading(text=item["title"], size=5), InputRichBlockParagraph(text=item["text"])])
     if cells and photo is not None:
         blocks.append(InputRichBlockPhoto(photo=InputMediaPhoto(
             media=photo, parse_mode=None, show_caption_above_media=False,
@@ -52,23 +50,24 @@ def race_card(event_name, season, round_num, rows, recap, *, photo=None):
         blocks.append(InputRichBlockDetails(summary="Полная классификация", blocks=[table(["Место", "Пилот", "Очки"], cells)]))
     else:
         blocks.append(InputRichBlockParagraph(text=recap.get("note") or "Ждём подтверждённую классификацию."))
+    if favorites:
+        blocks.append(InputRichBlockParagraph(text=RichTextSpoiler(text=favorites)))
+    for item in recap.get("items", [])[:3]:
+        blocks.extend([InputRichBlockSectionHeading(text=item["title"], size=5), InputRichBlockParagraph(text=item["text"])])
     if recap.get("chronicle"):
-        blocks.append(InputRichBlockSectionHeading(text="Ключевые события гонки", size=4))
+        blocks.append(InputRichBlockSectionHeading(text="Интересные моменты гонки", size=4))
         for item in recap["chronicle"][:4]:
             blocks.append(InputRichBlockParagraph(text=item["title"]))
-    if recap.get("news"):
-        blocks.append(InputRichBlockSectionHeading(text="Интересные моменты гонки", size=4))
-        for item in recap["news"][:3]:
-            blocks.append(InputRichBlockParagraph(text=[RichTextUrl(text=item["title"], url=item["url"]), f' — {item["publisher"]}']))
     blocks.append(InputRichBlockParagraph(text="Изменения чемпионата — за весь уик-энд." + (
         " Часть данных ещё не подтверждена." if recap.get("status") == "partial" else "")))
     return InputRichMessage(blocks=blocks)
 
 
-def race_fallback(event_name, season, round_num, rows, recap):
+def race_fallback(event_name, season, round_num, rows, recap, *, favorites=""):
     from app.services.race_recap import format_recap_telegram
     classification = "\n".join(escape(f"{row.get('pos', '—')}. {row.get('driver', '—')} · {row.get('points', '—')} очк.") for row in rows)
     return (f"🏁 <b>{escape(event_name)}</b> · {season}, этап {round_num}\n\n"
+            + (f'<tg-spoiler>{escape(favorites)}</tg-spoiler>\n\n' if favorites else '')
             + format_recap_telegram(recap) + "\n\n" + classification
             + "\n\nИзменения чемпионата — за весь уик-энд.")
 
@@ -107,4 +106,22 @@ async def send_card(bot, chat_id, card, fallback_text, **kwargs):
         except TelegramBadRequest as exc:
             if not feature_rejected(exc):
                 raise
+    photo = next((block.photo for block in card.blocks if block.type == 'photo'), None)
+    if photo is not None:
+        if len(fallback_text) <= 1000:
+            return await bot.send_photo(chat_id=chat_id, photo=photo.media, caption=fallback_text, parse_mode='HTML', **kwargs)
+        heading = next((block.text for block in card.blocks if block.type == 'heading'), 'Итоги гонки')
+        await bot.send_photo(chat_id=chat_id, photo=photo.media, caption=heading, **kwargs)
     return await bot.send_message(chat_id=chat_id, text=fallback_text, parse_mode="HTML", **kwargs)
+
+
+def fallback_actions(card, text, options):
+    """Ordinary transport actions; the outbox persists progress between sends."""
+    photo = next((block.photo for block in card.blocks if block.type == 'photo'), None)
+    if photo is None:
+        return [{'method': 'send_message', 'kwargs': dict(text=text, parse_mode='HTML', **options)}]
+    if len(text) <= 1000:
+        return [{'method': 'send_photo', 'kwargs': dict(photo=photo.media, caption=text, parse_mode='HTML', **options)}]
+    heading = next((block.text for block in card.blocks if block.type == 'heading'), 'Итоги гонки')
+    return [{'method': 'send_photo', 'kwargs': dict(photo=photo.media, caption=heading, **options)},
+            {'method': 'send_message', 'kwargs': dict(text=text, parse_mode='HTML', **options)}]

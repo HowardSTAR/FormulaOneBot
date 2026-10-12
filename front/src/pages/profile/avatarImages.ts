@@ -1,6 +1,4 @@
-import { avatarUrl, type Avatar, type AvatarOptions } from './avatar';
-
-// The catalogue has 45 immutable portraits. Keep decoded images and share in-flight work.
+// Retain decoded immutable assets and share in-flight work, including sprite atlases.
 const images = new Map<string, { image: HTMLImageElement; promise: Promise<void>; ready: boolean }>();
 const listeners = new Set<(src: string) => void>();
 
@@ -43,23 +41,4 @@ export function prepareAvatarImage(src: string, priority: 'high' | 'low' = 'high
   });
   images.set(src, entry);
   return entry.promise;
-}
-
-export function warmAvatarImages(avatar: Avatar, options: AvatarOptions) {
-  let cancelled = false;
-  const urls = [...new Set([avatarUrl(avatar), ...(['helmet', 'suit', 'background'] as const)
-    .flatMap(key => Object.keys(options[key]).map(id => avatarUrl({ ...avatar, [key]: id })))])];
-  async function worker() {
-    while (!cancelled && urls.length) {
-      const src = urls.shift();
-      if (src) await prepareAvatarImage(src, 'low').catch(() => { /* Retry on demand in the editor. */ });
-    }
-  }
-  const start = () => { void worker(); void worker(); };
-  if ('requestIdleCallback' in window) {
-    const handle = window.requestIdleCallback(start, { timeout: 1200 });
-    return () => { cancelled = true; window.cancelIdleCallback(handle); };
-  }
-  const handle = globalThis.setTimeout(start, 150);
-  return () => { cancelled = true; globalThis.clearTimeout(handle); };
 }

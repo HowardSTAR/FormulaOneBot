@@ -160,8 +160,8 @@ async def main():
         nonlocal result_notification_state_ready
         if not result_notification_state_ready:
             result_notification_state_ready = await initialize_result_notification_state()
-            # A successful baseline only advances watermarks. Dispatch begins on
-            # the following poll, so a delayed startup cannot replay old results.
+            # Baseline old sessions and preserve recent races for recovery.
+            # Dispatch begins on the following poll.
             return
         await check_and_send_session_results(bot)
 

@@ -121,7 +121,7 @@ def mock_background(monkeypatch, messages=None, *, now=NOW):
         {**SESSION, 'session_key': 14999, 'session_type': 'Qualifying', 'date_start': '2026-09-25T11:00:00Z'}, SESSION]))
     async def fetch(path, *, diagnostics=None, **params):
         assert params == {'session_key': 15000}
-        return ([*BOUNDARIES, *EVENTS] if messages is None else messages) if path == 'race_control' else DRIVERS
+        return ([*BOUNDARIES, *EVENTS] if messages is None else messages) if path == 'race_control' else DRIVERS if path == 'drivers' else []
     mocked = AsyncMock(side_effect=fetch)
     monkeypatch.setattr(chronicle, '_prediction_openf1_get', mocked)
     return mocked
@@ -130,7 +130,7 @@ def mock_background(monkeypatch, messages=None, *, now=NOW):
 async def test_background_persistence_read_only_public_and_final_no_refetch(database, monkeypatch):
     fetch = mock_background(monkeypatch)
     await chronicle._refresh_recent_race_control()
-    assert [call.args[0] for call in fetch.await_args_list] == ['race_control', 'drivers']
+    assert [call.args[0] for call in fetch.await_args_list] == ['race_control', 'drivers', 'overtakes', 'pit', 'position', 'laps', 'session_result']
     fetch.side_effect = AssertionError('Public readers cannot fetch OpenF1')
     result = await chronicle.public_chronicle(2026, 15)
     assert len(result) == 4 and result[0]['publisher'] == 'OpenF1'
@@ -139,7 +139,7 @@ async def test_background_persistence_read_only_public_and_final_no_refetch(data
     await database.conn.execute('UPDATE recap_news_sources SET next_check=0 WHERE source_id=?', (chronicle.SOURCE,))
     await database.conn.commit()
     await chronicle._refresh_recent_race_control()
-    assert fetch.await_count == 2  # Final snapshot is persisted, including across worker restarts.
+    assert fetch.await_count == 7  # Final snapshot is persisted, including across worker restarts.
     row = await (await database.conn.execute('SELECT * FROM recap_control_checks')).fetchone()
     assert row['final'] == 1 and row['session_key'] == 15000
     for table in ('race_predictions', 'prediction_round_results', 'telegram_deliveries'):
@@ -152,7 +152,7 @@ async def test_quiet_race_is_cached_without_fabricating_absence_claims(database,
     assert await chronicle.public_chronicle(2026, 15) == []
     assert (await (await database.conn.execute('SELECT COUNT(*) FROM recap_control_checks')).fetchone())[0] == 1
     await chronicle._refresh_recent_race_control()
-    assert fetch.await_count == 2
+    assert fetch.await_count == 7
 
 
 async def test_rate_limit_stops_requests_backs_off_and_retains_events(database, monkeypatch):
@@ -181,7 +181,7 @@ async def test_disabled_source_and_hidden_events_are_immediate(database, monkeyp
     await database.conn.execute('UPDATE recap_news_sources SET enabled=0 WHERE source_id=?', (chronicle.SOURCE,))
     await database.conn.commit()
     await chronicle._refresh_recent_race_control()
-    assert fetch.await_count == 2
+    assert fetch.await_count == 7
     assert await chronicle.public_chronicle(2026, 15) == []
 
 
@@ -272,7 +272,7 @@ async def test_hourly_refresh_and_late_penalty_preserve_moderation(database, mon
     await database.conn.commit()
     set_clock(monkeypatch, first + timedelta(minutes=16))
     await chronicle._refresh_recent_race_control()
-    assert fetch.await_count == 2  # No repeated download before the stage's next check.
+    assert fetch.await_count == 7  # No repeated download before the stage's next check.
     late = datetime(2026, 9, 28, 14, tzinfo=timezone.utc)
     penalty = {**EVENTS[-1], 'date': '2026-09-28T10:00:00Z'}
     fetch = mock_background(monkeypatch, [*BOUNDARIES, EVENTS[0], penalty], now=late)
@@ -306,11 +306,11 @@ async def test_next_round_is_loaded_after_previous_round_was_finalised(database,
     monkeypatch.setattr(chronicle, '_cached_prediction_openf1_sessions', AsyncMock(return_value=[SESSION, session]))
     async def fetch(path, **params):
         assert params['session_key'] == 15001
-        return messages if path == 'race_control' else drivers
+        return messages if path == 'race_control' else drivers if path == 'drivers' else []
     fetch = AsyncMock(side_effect=fetch)
     monkeypatch.setattr(chronicle, '_prediction_openf1_get', fetch)
     await chronicle._refresh_recent_race_control()
-    assert fetch.await_count == 2
+    assert fetch.await_count == 7
     assert len(await chronicle.public_chronicle(2026, 16)) == 4
     assert len(await chronicle.public_chronicle(2026, 15)) == 4
     checks = await (await database.conn.execute('SELECT round,final FROM recap_control_checks ORDER BY round')).fetchall()
@@ -328,7 +328,7 @@ async def test_new_parser_refetches_old_final_snapshot_once(database, monkeypatc
     assert check['parser_version'] == chronicle.PARSER_VERSION and check['final'] == 0
     assert any('за провоцирование столкновения' in row['title'] for row in await chronicle.public_chronicle(2026, 15))
     await chronicle._refresh_recent_race_control()
-    assert fetch.await_count == 2
+    assert fetch.await_count == 7
 
 
 async def test_previous_season_race_keeps_its_year_at_new_year(database, monkeypatch):
@@ -343,7 +343,7 @@ async def test_previous_season_race_keeps_its_year_at_new_year(database, monkeyp
     monkeypatch.setattr(chronicle, '_cached_prediction_openf1_sessions', sessions)
     async def fetch(path, **params):
         assert params['session_key'] == 16000
-        return messages if path == 'race_control' else drivers
+        return messages if path == 'race_control' else drivers if path == 'drivers' else []
     monkeypatch.setattr(chronicle, '_prediction_openf1_get', AsyncMock(side_effect=fetch))
     await chronicle._refresh_recent_race_control()
     sessions.assert_awaited_once_with(2026)
@@ -393,7 +393,7 @@ async def test_retry_after_rate_limit_recovers_without_requiring_admin(database,
     assert limited_fetch.await_count == 1  # Persisted cooldown, no immediate retry loop.
     good_fetch = mock_background(monkeypatch, now=NOW + timedelta(minutes=16))
     await chronicle._refresh_recent_race_control()
-    assert good_fetch.await_count == 2
+    assert good_fetch.await_count == 7
     assert len(await chronicle.public_chronicle(2026, 15)) == 4
     source = await (await database.conn.execute('SELECT * FROM recap_news_sources WHERE source_id=?', (chronicle.SOURCE,))).fetchone()
     assert source['error'] is None and source['failures'] == 0 and source['successful'] is not None
@@ -429,11 +429,57 @@ async def test_final_stored_sc_wording_updates_without_refetch_or_database_write
 def test_telegram_presentations_and_spoilers_include_chronicle():
     rows = chronicle.build_chronicle(SESSION, [*BOUNDARIES, *EVENTS], DRIVERS, NOW)
     data = {'status': 'ready', 'items': [], 'chronicle': [{**row, 'publisher': 'OpenF1'} for row in rows]}
-    assert 'Ключевые события гонки' in recap.format_recap_telegram(data, spoiler=True)
+    assert 'Интересные моменты гонки' in recap.format_recap_telegram(data, spoiler=True)
     assert 'tg-spoiler' in recap.format_recap_telegram(data, spoiler=True)
     for rendered in (recap.format_recap_telegram(data), race_card('Baku', 2026, 15, [], data).model_dump_json(),
                      race_fallback('Baku', 2026, 15, [], data)):
         assert 'Журнал дирекции' not in rendered
         assert 'api.openf1.org' not in rendered
-        assert 'Ключевые события гонки' in rendered
+        assert 'Интересные моменты гонки' in rendered
     assert 'После финиша' in race_fallback('Baku', 2026, 15, [], data)
+
+
+def test_text_journal_contains_position_changes_and_stops_and_selects_major_moments():
+    drivers = [*DRIVERS, {'session_key': 15000, 'driver_number': 1, 'full_name': 'Other Driver'}]
+    swaps = [{'session_key': 15000, 'date': f'2026-09-26T11:{minute:02}:00Z',
+              'overtaking_driver_number': 43, 'overtaken_driver_number': 1, 'position': position}
+             for minute, position in [(12, 10), (14, 8), (16, 5), (18, 3), (40, 1)]]
+    pits = [{'session_key': 15000, 'date': '2026-09-26T11:32:00Z', 'driver_number': 43,
+             'stop_duration': 8.2, 'lap_number': 11}]
+    rows = chronicle.build_chronicle(SESSION, [*BOUNDARIES, *EVENTS], drivers, NOW, swaps, pits)
+    assert len(rows) == 10
+    assert rows == sorted(rows, key=lambda row: (row['published'], row['url']))
+    selected = chronicle.select_events(rows)
+    assert len(selected) == 4 and any(row['category'] == 'lead_change' for row in selected)
+    assert any('остановка 8.2 с.' in row['title'] for row in rows)
+    assert not any('обогнал' in row['title'] for row in rows)
+    assert all(news.canonical_url(row['url'], news.FEED_BY_ID[chronicle.SOURCE]) for row in rows)
+    invalid = [dict(swaps[0], session_key=999), dict(swaps[0], date='2026-09-26T13:00:00Z'),
+               dict(swaps[0], position=0), dict(swaps[0], overtaken_driver_number=999),
+               dict(swaps[0], date='2026-09-26T11:01:00Z')]
+    assert chronicle.build_chronicle(SESSION, BOUNDARIES, drivers, NOW, invalid) == []
+
+
+async def test_full_text_journal_is_read_only_and_moderated(database, monkeypatch):
+    mock_background(monkeypatch)
+    await chronicle._refresh_recent_race_control()
+    journal = await chronicle.public_commentary(2026, 15)
+    assert journal['status'] == 'ready' and len(journal['entries']) == 4
+    await database.conn.execute("UPDATE recap_news_articles SET hidden=1 WHERE category='penalty'")
+    await database.conn.commit()
+    assert len((await chronicle.public_commentary(2026, 15))['entries']) == 3
+    assert (await chronicle.public_commentary(2026, 14))['status'] == 'waiting'
+
+
+async def test_missing_position_feed_retains_control_events_and_retries(database, monkeypatch):
+    fetch = mock_background(monkeypatch)
+    original = fetch.side_effect
+    async def unavailable(path, **kwargs):
+        return None if path == 'overtakes' else await original(path, **kwargs)
+    fetch.side_effect = unavailable
+    await chronicle._refresh_recent_race_control()
+    assert len(await chronicle.public_chronicle(2026, 15)) == 4
+    assert (await chronicle.public_commentary(2026, 15))['status'] == 'waiting'
+    mock_background(monkeypatch, now=NOW + timedelta(minutes=16))
+    await chronicle._refresh_recent_race_control()
+    assert (await chronicle.public_commentary(2026, 15))['status'] == 'ready'

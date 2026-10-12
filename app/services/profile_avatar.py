@@ -33,9 +33,8 @@ def _layer(name, helmet):
         return source.crop(box).resize((384, 238 if helmet else 146), Image.Resampling.LANCZOS)
 
 
-@lru_cache(maxsize=45)
-def render(helmet='scarlet', suit='scarlet', background='garage'):
-    validate(dict(helmet=helmet, suit=suit, background=background))
+@lru_cache(maxsize=5)
+def _background(background):
     palettes = {'garage': ('#384456', '#10141d'), 'scarlet': ('#a53b46', '#211725'),
                 'cobalt': ('#375cb3', '#111c39'), 'mint': ('#3c9688', '#142638'),
                 'gold': ('#a58248', '#26212a')}
@@ -48,6 +47,13 @@ def render(helmet='scarlet', suit='scarlet', background='garage'):
         draw.line((0, y, 384, y), fill=tuple(round(a*(1-t)+b*t) for a, b in zip(start, end)))
     draw.ellipse((38, 25, 346, 333), outline=(*start, 180), width=2)
     draw.polygon(((305, 0), (335, 0), (135, 384), (105, 384)), fill=(*start, 90))
+    return image
+
+
+@lru_cache(maxsize=45)
+def render(helmet='scarlet', suit='scarlet', background='garage'):
+    validate(dict(helmet=helmet, suit=suit, background=background))
+    image = _background(background).copy()
     image.alpha_composite(_layer(suit, False), (0, 238))
     image.alpha_composite(_layer(helmet, True), (0, 0))
     output = io.BytesIO()

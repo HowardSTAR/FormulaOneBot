@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { boostySubscriptionLabel, type BoostyStatus } from '../src/helpers/boosty.ts';
+import { boostyCheckFailureLabel, boostySubscriptionLabel, type BoostyStatus } from '../src/helpers/boosty.ts';
 
 const status: BoostyStatus = {
   eligible: true, configured: true, active: true, blog_url: 'https://boosty.to/turbotears',
@@ -21,4 +21,18 @@ test('expired and missing subscriptions do not look active', () => {
   assert.equal(boostySubscriptionLabel({ ...status, active: false }, Date.parse('2026-11-12T12:00:00Z')), 'Подписка закончилась 11.11.2026.');
   assert.equal(boostySubscriptionLabel({ ...status, active: false, expires_at: null }), 'Активная платная подписка не найдена.');
   assert.equal(boostySubscriptionLabel({ ...status, active: false, expires_at: null, checked_at: null }), 'Подписка ещё не проверена.');
+});
+
+test('revoked authorization explains reconnect rather than suggesting repeated checks', () => {
+  const message = boostyCheckFailureLabel({ ...status, check_failed: true, check_error_code: 'auth_required' });
+  assert.match(message, /восстановить подключение Boosty владельцем/);
+  assert.match(message, /последний подтверждённый статус/);
+  assert.doesNotMatch(message, /Повторите проверку позже/);
+});
+
+test('network failures and initial checks do not invent a saved status', () => {
+  assert.equal(boostyCheckFailureLabel(status), '');
+  const message = boostyCheckFailureLabel({ ...status, check_failed: true, checked_at: null });
+  assert.match(message, /Повторите проверку позже/);
+  assert.doesNotMatch(message, /подтверждённый статус/);
 });

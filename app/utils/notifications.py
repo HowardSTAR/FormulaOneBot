@@ -8,7 +8,9 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from aiogram import Bot
 from aiogram.types import BufferedInputFile
 from app.utils.mini_app_links import mini_app_button
-from app.services.race_recap import get_race_recap, recap_caption
+from app.services.race_recap import get_race_recap_with_news as get_race_recap, recap_caption, format_recap_telegram
+from app.services.race_highlights import personalize_recap
+from app.services.race_report import favorites_text
 from app.utils.telegram_presentation import race_card, race_fallback, personal_buttons, rich_enabled
 from app.services.delivery_adapters import queued_rich_message
 from app.utils.time_tools import telegram_time
@@ -19,6 +21,8 @@ from app.db import (
     get_users_favorites_for_notifications,
     get_last_notified_round,
     set_last_notified_round,
+    get_last_notified_recap_round,
+    set_last_notified_recap_round,
     get_last_notified_quali_round,
     set_last_notified_quali_round,
     get_last_notified_sprint_quali_round,
@@ -41,6 +45,7 @@ from app.f1_data import (
     get_season_schedule_short_async,
     get_race_results_async,
     get_driver_standings_async,
+    get_constructor_standings_async,
     get_quali_for_round_async,
     get_sprint_quali_results_async,
     get_sprint_results_async,
@@ -465,7 +470,7 @@ def _latest_finished_session(
             continue
         status = str(event.get(status_key) or "").strip().lower() if status_key else ""
         is_finished = False
-        if status in {"completed", "results_ready"}:
+        if status in {"completed", "results_ready", "finished"}:
             is_finished = True
         elif status:
             continue
@@ -509,13 +514,11 @@ async def _result_delivery_started(event_type: str, season: int, round_num: int)
 
 
 async def initialize_result_notification_state() -> bool:
-    """Skip result-session backlog that already exists when the bot starts.
+    """Skip old backlog, but recover recent unsent races across restarts.
 
-    Result notifications are live events, not a historical digest. Advancing each
-    per-session watermark before the scheduler starts prevents a restart or a new
-    deployment from replaying the latest completed weekend. A failed schedule
-    lookup is reported as not ready so the guarded scheduler can retry this
-    initialization without dispatching anything.
+    Recent races remain pending for 48 hours, including a watermark written by
+    older startup code without a durable delivery receipt. Older weekends and
+    other sessions keep the historical baseline behavior.
     """
     season = datetime.now(timezone.utc).year
     try:
@@ -576,13 +579,27 @@ async def initialize_result_notification_state() -> bool:
                 continue
             round_num = int(event["round"])
             previous_round = await getter(season)
+            try:
+                started = datetime.fromisoformat(event[datetime_key].replace('Z', '+00:00'))
+                if started.tzinfo is None:
+                    started = started.replace(tzinfo=timezone.utc)
+            except (KeyError, ValueError, TypeError, AttributeError):
+                started = None
+            recent_race = (event_type == 'race_results' and not event.get('is_testing') and started
+                           and timedelta(0) <= datetime.now(timezone.utc) - started <= timedelta(hours=48))
             if previous_round is not None and previous_round >= round_num:
+                if previous_round == round_num and recent_race and not await _result_delivery_started(event_type, season, round_num):
+                    await setter(season, round_num - 1)
+                    logger.info('[Startup Result Baseline] recovering race without delivery receipt season=%s round=%s', season, round_num)
                 continue
             if await _result_delivery_started(event_type, season, round_num):
                 logger.info(
                     "[Startup Result Baseline] event=%s season=%s round=%s delivery already started; resuming",
                     event_type, season, round_num,
                 )
+                continue
+            if recent_race:
+                logger.info('[Startup Result Baseline] recent race season=%s round=%s remains pending', season, round_num)
                 continue
             await setter(season, round_num)
             logger.info(
@@ -850,7 +867,7 @@ async def _deliver_session_classification(
     return failed_count == 0
 
 
-async def check_and_send_results(bot: Bot):
+async def check_and_send_results(bot: Bot, *, recap_only: bool = False):
     season = datetime.now(timezone.utc).year
     last_notified = await get_last_notified_round(season)
     schedule = await get_season_schedule_short_async(season)
@@ -859,13 +876,15 @@ async def check_and_send_results(bot: Bot):
     now = datetime.now(timezone.utc)
     finished_event = None
 
-    for r in schedule:
+    for r in sorted(schedule or [], key=lambda event: int(event.get('round') or 0)):
+        if r.get('is_cancelled'):
+            continue
         if not r.get("race_start_utc"): continue
         race_status = str(r.get("race_status") or "").strip().lower()
-        if race_status in {"completed", "results_ready"}:
+        if race_status in {"completed", "results_ready", "finished"}:
             finished_event = r
             continue
-        if race_status and race_status not in {"completed", "results_ready"}:
+        if race_status:
             continue
         try:
             race_dt = datetime.fromisoformat(r["race_start_utc"])
@@ -884,10 +903,25 @@ async def check_and_send_results(bot: Bot):
     if not finished_event: return
     round_num = finished_event["round"]
 
-    if last_notified and last_notified >= round_num: return
+    if recap_only:
+        start = datetime.fromisoformat(finished_event['race_start_utc'].replace('Z', '+00:00'))
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        if now - start > timedelta(hours=48) or not last_notified or last_notified < round_num:
+            return
+        last_recap = await get_last_notified_recap_round(season)
+        if last_recap is not None and last_recap >= round_num:
+            return
+        recap = await asyncio.wait_for(get_race_recap(season, round_num), timeout=15)
+        if recap.get('status') != 'ready' or recap.get('commentary', {}).get('status') != 'ready':
+            return
+    elif last_notified and last_notified >= round_num:
+        return
 
     # === ЛОГИКА ДЛЯ ТЕСТОВ ===
     if finished_event.get("is_testing"):
+        if recap_only:
+            return
         # Для тестов рассылаем ТОП-3 всем
         logger.info(f"🧪 Checking testing results for {finished_event['event_name']}...")
         df, day_name = await get_testing_results_async(season, round_num)
@@ -993,9 +1027,6 @@ async def check_and_send_results(bot: Bot):
         await set_last_notified_round(season, round_num)
         return
 
-    users_settings = await get_users_with_settings()
-    tz_map = {u[0]: (u[1] or "Europe/Moscow") for u in users_settings}
-
     # Картинка с общими результатами (без звёздочек для избранных — одна картинка на всех)
     race_info = finished_event
     if "Position" in results_df.columns:
@@ -1006,6 +1037,11 @@ async def check_and_send_results(bot: Bot):
     except Exception:
         logger.exception("Failed to load driver standings while preparing race notification")
         driver_standings = pd.DataFrame()
+    try:
+        constructor_standings = await asyncio.wait_for(get_constructor_standings_async(season, round_number=round_num), timeout=10)
+    except Exception:
+        logger.warning('Constructor totals unavailable for race notification')
+        constructor_standings = pd.DataFrame()
     code_to_team: dict[str, str] = {}
     if not driver_standings.empty and "driverCode" in driver_standings.columns:
         for row in driver_standings.itertuples(index=False):
@@ -1057,7 +1093,7 @@ async def check_and_send_results(bot: Bot):
                     pass
 
         pts_val = row.get("Points")
-        pts = int(float(pts_val)) if pts_val is not None and pd.notna(pts_val) else 0
+        pts = float(pts_val) if pts_val is not None and pd.notna(pts_val) else 0
 
         rows_for_image.append({
             "pos": int(pos) if pos != "?" else "?",
@@ -1098,33 +1134,20 @@ async def check_and_send_results(bot: Bot):
     use_rich = rich_enabled()
     # One verified classification image is shared by rich and ordinary sends.
     photo_bytes_generic = (await asyncio.to_thread(_render_race_image, None)).getvalue()
-    await web_classification(season, round_num, f"{race_info.get('event_name', 'Гран-при')} · Итоги гонки", "race-results", [
-        {"position": str(row.get("Position", "—")), "code": str(row.get("Abbreviation", "")),
-         "name": str(row.get("FullName", row.get("Abbreviation", ""))), "team": str(row.get("TeamName", "")),
-         "points": row.get("Points"), "data_complete": bool(row.get("DataComplete", True))} for _, row in results_df.iterrows()
-    ])
-    await publish_web(f"voting-invite:{season}:{round_num}", "Приглашаем на голосование", "Оцените этап и выберите пилота дня.", f"/voting?season={season}&round={round_num}")
-
-    res_map = {}
-    for _, row in results_df.iterrows():
-        code = str(row.get("Abbreviation", "")).upper()
-        pts = row.get("Points", 0)
-        if pts is None or pd.isna(pts):
-            pts = 0
-        res_map[code] = {"pos": str(row.get("Position", "DNF")), "points": pts}
-
-    constructor_results_by_name = {}
-    for row in results_df.itertuples(index=False):
-        team_name = getattr(row, "TeamName", None)
-        if team_name:
-            if team_name not in constructor_results_by_name:
-                constructor_results_by_name[team_name] = []
-            constructor_results_by_name[team_name].append(row)
+    if not recap_only:
+        await web_classification(season, round_num, f"{race_info.get('event_name', 'Гран-при')} · Итоги гонки", "race-results", [
+            {"position": str(row.get("Position", "—")), "code": str(row.get("Abbreviation", "")),
+             "name": str(row.get("FullName", row.get("Abbreviation", ""))), "team": str(row.get("TeamName", "")),
+             "points": row.get("Points"), "data_complete": bool(row.get("DataComplete", True))} for _, row in results_df.iterrows()
+        ])
+        await publish_web(f"voting-invite:{season}:{round_num}", "Приглашаем на голосование", "Оцените этап и выберите пилота дня.", f"/voting?season={season}&round={round_num}")
 
     sent_count = 0
+    failed_count = 0
     # Classification image and recap in one rich message, or a spoiler photo.
     try:
-        recap = await asyncio.wait_for(get_race_recap(season, round_num), timeout=15)
+        if not recap_only:
+            recap = await asyncio.wait_for(get_race_recap(season, round_num), timeout=15)
     except Exception:
         logger.warning("Recap unavailable for %s round %s; classification delivery continues", season, round_num)
         recap = {"items": []}
@@ -1135,22 +1158,37 @@ async def check_and_send_results(bot: Bot):
     results_keyboard = personal_buttons(season, round_num, results_keyboard)
     card = race_card(event_name, season, round_num, rows_for_image, recap,
                      photo=BufferedInputFile(photo_bytes_generic, filename=f'race-{season}-{round_num}.png'))
-    fallback = race_fallback(event_name, season, round_num, rows_for_image, recap)
+    fallback = race_fallback(event_name, season, round_num, [], recap)
+    delivery_key = f"{'race-recap' if recap_only else 'race-photo'}:{season}:{round_num}"
     for tg_id, tz, hide_results in notification_recipients:
+        personal_recap = personalize_recap(recap, users_favorites.get(tg_id, {}).get('drivers', []))
+        favorites = favorites_text(rows_for_image, users_favorites.get(tg_id, {}), driver_standings, constructor_standings, round_num=round_num)
+        personal_card = race_card(event_name, season, round_num, rows_for_image, personal_recap,
+                                 photo=BufferedInputFile(photo_bytes_generic, filename=f'race-{season}-{round_num}.png'), favorites=favorites)
+        personal_fallback = race_fallback(event_name, season, round_num, [], personal_recap, favorites=favorites)
         if use_rich and not hide_results:
             queued = await queued_rich_message(
-                bot, tg_id, card,
-                fallback,
-                delivery_key=f'race-photo:{season}:{round_num}',
+                bot, tg_id, personal_card,
+                personal_fallback,
+                delivery_key=delivery_key,
                 reply_markup=results_keyboard, disable_notification=is_quiet_hours(tz),
             )
         else:
+            header = f'🏁 <b>Итоги гонки · {html.escape(event_name)}</b>'
+            details = (f'<tg-spoiler>{html.escape(favorites)}</tg-spoiler>\n\n' if favorites else '') + format_recap_telegram(personal_recap, spoiler=hide_results)
+            # A long list of followed drivers stays intact in the next persisted
+            # action, immediately below the photo, instead of breaking captions.
+            caption = header + ('\n\n' + details if details else '')
+            body = None
+            if len(caption) > 1000:
+                caption, body = header, details
             queued = await safe_send_photo(
                 bot,
                 tg_id,
                 photo_bytes_generic,
-                delivery_key=f'race-photo:{season}:{round_num}',
-                caption="🏁 Результаты гонки на картинке." + (" Изображение скрыто как спойлер — нажмите, чтобы открыть." if hide_results else "") + recap_caption(recap, spoiler=hide_results),
+                delivery_key=delivery_key,
+                caption=caption,
+                body=body,
                 parse_mode="HTML",
                 has_spoiler=hide_results,
                 reply_markup=results_keyboard,
@@ -1158,46 +1196,12 @@ async def check_and_send_results(bot: Bot):
             )
         if queued:
             sent_count += 1
-        await asyncio.sleep(0.05)
-
-    for tg_id, favs in users_favorites.items():
-        driver_res = []
-        for code in favs.get("drivers", []):
-            if code in res_map:
-                driver_res.append({"code": code, **res_map[code]})
-
-        team_res = []
-        for team_name in favs.get("teams", []):
-            team_rows = constructor_results_by_name.get(team_name)
-            if team_rows is None:
-                tn_lower = team_name.lower()
-                for key, rows in constructor_results_by_name.items():
-                    if tn_lower in key.lower() or key.lower() in tn_lower:
-                        team_rows = rows
-                        break
-            if team_rows:
-                total_pts = sum(float(getattr(r, "Points", 0) or 0) for r in team_rows)
-                best_pos = min(int(getattr(r, "Position", 999)) for r in team_rows)
-                team_res.append({"team": team_name, "text": f"P{best_pos}, +{int(total_pts)} очк."})
-
-        if not driver_res and not team_res:
-            continue
-        caption = build_favorites_caption(race_info.get("event_name", "Гран-при"), driver_res, team_res)
-        tz = tz_map.get(tg_id, "Europe/Moscow")
-        quiet = is_quiet_hours(tz)
-        if await safe_send_message(
-            bot,
-            tg_id,
-            caption,
-            delivery_key=f'race-favorites:{season}:{round_num}',
-            parse_mode="HTML",
-            disable_notification=quiet,
-        ):
-            sent_count += 1
+        else:
+            failed_count += 1
         await asyncio.sleep(0.05)
 
     # Напоминание о голосовании — всем с включёнными уведомлениями (если ещё не отправляли)
-    if voting_invite_sent is None or voting_invite_sent < round_num:
+    if not recap_only and (voting_invite_sent is None or voting_invite_sent < round_num):
         voting_users = await get_users_with_settings(notifications_only=True)
         event_name = race_info.get("event_name", "Гран-при")
         voting_text = (
@@ -1222,14 +1226,14 @@ async def check_and_send_results(bot: Bot):
         if use_rich:
             queued = await queued_rich_message(
                 bot, chat_id, card, fallback,
-                delivery_key=f'race-photo:{season}:{round_num}',
+                delivery_key=delivery_key,
                 reply_markup=personal_buttons(season, round_num),
                 disable_notification=is_quiet_hours(GROUP_TIMEZONE),
             )
         else:
             queued = await safe_send_photo(
                 bot, chat_id, photo_bytes_generic,
-                delivery_key=f'race-photo:{season}:{round_num}',
+                delivery_key=delivery_key,
                 caption=group_caption,
                 parse_mode="HTML",
                 reply_markup=personal_buttons(season, round_num),
@@ -1237,10 +1241,15 @@ async def check_and_send_results(bot: Bot):
             )
         if queued:
             sent_count += 1
+        else:
+            failed_count += 1
         await asyncio.sleep(0.05)
 
-    if sent_count > 0:
-        await set_last_notified_round(season, round_num)
+    if sent_count > 0 and failed_count == 0:
+        if not recap_only:
+            await set_last_notified_round(season, round_num)
+        if recap.get('status') == 'ready' and recap.get('commentary', {}).get('status') == 'ready':
+            await set_last_notified_recap_round(season, round_num)
         logger.info(
             "[Delivery Confirmation] event=race_results season=%s round=%s delivered=%s",
             season,
@@ -1249,6 +1258,11 @@ async def check_and_send_results(bot: Bot):
         )
     else:
         logger.warning(f"⚠️ Race results delivery failed for round {round_num}, will retry.")
+
+
+async def check_and_notify_race_recap(bot: Bot):
+    """Retry the complete recap independently of the classification watermark."""
+    await check_and_send_results(bot, recap_only=True)
 
 
 # --- ЗАДАЧА 3: РЕЗУЛЬТАТЫ КВАЛИФИКАЦИИ ---
@@ -1401,6 +1415,7 @@ RESULT_NOTIFICATION_HANDLERS = {
     "sprint_results": "check_and_notify_sprint",
     "qualifying_results": "check_and_notify_quali",
     "race_results": "check_and_send_results",
+    "race_recap": "check_and_notify_race_recap",
 }
 
 

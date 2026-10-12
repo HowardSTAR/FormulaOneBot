@@ -212,14 +212,15 @@ async def test_statistical_cache_not_mutated_and_waiting_has_no_news(workspace, 
     assert not (await recap.get_race_recap_with_news(2026, 15))["news"]
 
 
-def test_both_telegram_presentations_include_links_and_escape_headlines():
+def test_telegram_uses_chronicle_and_excludes_news_headlines():
     result = {"status": "ready", "items": [], "news": [{"title": 'Baku: <b>collision</b> & restart',
               "url": "https://www.bbc.com/sport/formula1/a", "publisher": "BBC Sport"}]}
+    result['chronicle'] = [{'title': 'Круг 5: <b>SC</b> & restart'}]
     text = recap.format_recap_telegram(result, spoiler=True)
-    assert 'class="tg-spoiler"' in text and '&lt;b&gt;collision&lt;/b&gt; &amp;' in text
-    assert '<a href="https://www.bbc.com/sport/formula1/a">' in text
+    assert 'class="tg-spoiler"' in text and '&lt;b&gt;SC&lt;/b&gt; &amp;' in text
+    assert 'bbc.com' not in text and 'collision' not in text
     card = race_card("Baku", 2026, 15, [], result).model_dump_json()
-    assert 'Интересные моменты гонки' in card and 'BBC Sport' in card and 'https://www.bbc.com/sport/formula1/a' in card
+    assert 'Интересные моменты гонки' in card and 'BBC Sport' not in card
     assert 'Интересные моменты гонки' in race_fallback("Baku", 2026, 15, [], result)
 
 

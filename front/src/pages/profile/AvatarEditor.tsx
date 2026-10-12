@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../../helpers/api';
 import { avatarUrl, type Avatar, type AvatarOptions } from './avatar';
 import AvatarImage from './AvatarImage';
+import AvatarPortrait from './AvatarPortrait';
+import { avatarSpritesReady, prepareAvatarSprites } from './avatarSprites';
 import { Link } from 'react-router-dom';
-import { boostySubscriptionLabel, type BoostyStatus } from '../../helpers/boosty';
+import { boostyCheckFailureLabel, boostySubscriptionLabel, type BoostyStatus } from '../../helpers/boosty';
+import { checkBoostySubscription } from '../../helpers/boostyApi';
 import './avatar-editor.css';
 
 export type ProfileStyle = { frame: string; color: string; background: string };
@@ -22,23 +25,35 @@ export default function AvatarEditor({ value, options, style, styleOptions, tier
   const [savedStyle, setSavedStyle] = useState(style);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [closing, setClosing] = useState(false);
+  const [portraitsReady, setPortraitsReady] = useState(avatarSpritesReady);
+  const [portraitsFailed, setPortraitsFailed] = useState(false);
+  const [portraitAttempt, setPortraitAttempt] = useState(0);
   const [subscription, setSubscription] = useState<BoostyStatus | null>(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [subscriptionBusy, setSubscriptionBusy] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState('');
-  const locked = busy || closing || subscriptionBusy;
+  const locked = busy || subscriptionBusy;
   const dirty = JSON.stringify(draft) !== JSON.stringify(savedAvatar)
     || JSON.stringify(styleDraft) !== JSON.stringify(savedStyle);
   useEffect(() => {
     const element = dialog.current;
     const opener = document.activeElement;
+    const previousOverflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
     element?.showModal();
     return () => {
       element?.close();
+      document.documentElement.style.overflow = previousOverflow;
       if (opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true });
     };
   }, []);
+  useEffect(() => {
+    let active = true;
+    prepareAvatarSprites().then(() => {
+      if (active) setPortraitsReady(true);
+    }).catch(() => { if (active) setPortraitsFailed(true); });
+    return () => { active = false; };
+  }, [portraitAttempt]);
   useEffect(() => {
     let active = true;
     apiRequest<BoostyStatus>('/api/account/boosty').then(status => {
@@ -48,20 +63,15 @@ export default function AvatarEditor({ value, options, style, styleOptions, tier
     }).finally(() => { if (active) setSubscriptionLoading(false); });
     return () => { active = false; };
   }, []);
-  useEffect(() => {
-    if (!closing) return;
-    const handle = window.setTimeout(onClose, 180);
-    return () => window.clearTimeout(handle);
-  }, [closing, onClose]);
   function close() {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) onClose();
-    else setClosing(true);
+    onClose();
   }
   async function checkSubscription() {
     setSubscriptionBusy(true); setSubscriptionError('');
     try {
-      const status = await apiRequest<BoostyStatus>('/api/account/boosty/check', {}, 'POST', 120000);
+      const status = await checkBoostySubscription();
       setSubscription(status);
+      if (status.check_failed) return;
       try {
         const updated = await onSubscriptionCheck();
         // Preserve unsaved choices when upgrading, replace newly locked choices when downgrading.
@@ -98,18 +108,22 @@ export default function AvatarEditor({ value, options, style, styleOptions, tier
     }
     finally { setBusy(false); }
   }
-  return <dialog ref={dialog} className={`avatar-editor${closing ? ' avatar-editor-closing' : ''}`} aria-labelledby="avatar-editor-title"
+  return <dialog ref={dialog} className="avatar-editor" aria-labelledby="avatar-editor-title"
     onCancel={event => { event.preventDefault(); if (!locked) close(); }}>
     <header><div><p>ТВОЙ ОБРАЗ НА СТАРТЕ</p><h2 id="avatar-editor-title">Аватар и оформление</h2></div>
       <button type="button" aria-label="Закрыть настройки аватара и оформления" disabled={locked} onClick={close}>×</button></header>
     <div className="avatar-editor-layout"><div className="avatar-editor-preview">
-      <AvatarImage src={avatarUrl(draft)} alt="Предпросмотр выбранного гонщика" />
+      {portraitsReady ? <AvatarPortrait avatar={draft} alt="Предпросмотр выбранного гонщика" />
+        : <AvatarImage src={avatarUrl(value)} alt="Предпросмотр выбранного гонщика" />}
+      {!portraitsReady && <p className="avatar-image-status" role="status">{portraitsFailed ? 'Не удалось загрузить варианты образа.' : 'Загружаем варианты образа…'}</p>}
+      {!portraitsReady && portraitsFailed && <button type="button" className="avatar-portrait-retry" onClick={() => { setPortraitsFailed(false); setPortraitAttempt(value => value + 1); }}>Повторить загрузку образов</button>}
       <span>ТВОЙ ГОНЩИК · ТВОИ ЦВЕТА</span><p>Вымышленные пилоты, вдохновлённые миром гонок.</p>
     </div><div className="avatar-editor-options">{(['helmet', 'suit', 'background'] as const).map(key =>
       <fieldset key={key} disabled={locked}><legend>{{ helmet: '01 / Шлем', suit: '02 / Комбинезон', background: '03 / Фон' }[key]}</legend>
         <div>{Object.entries(options[key]).map(([id, label]) => <button type="button" key={id}
-          aria-pressed={draft[key] === id} onClick={() => { setDraft({ ...draft, [key]: id }); setError(''); }}>
-          <AvatarImage src={avatarUrl({ ...draft, [key]: id })} />
+          aria-pressed={draft[key] === id} onClick={() => { setDraft(current => current[key] === id ? current : { ...current, [key]: id }); setError(''); }}>
+          {portraitsReady ? <AvatarPortrait avatar={{ ...draft, [key]: id }} />
+            : <span className="avatar-image" aria-hidden="true"><span className="avatar-image-placeholder">TT</span></span>}
           <span>{label}</span>{draft[key] === id && <b aria-hidden="true">✓</b>}
         </button>)}</div>
       </fieldset>)}</div></div>
@@ -125,7 +139,7 @@ export default function AvatarEditor({ value, options, style, styleOptions, tier
         {Object.entries(styleOptions[key]).map(([value, requiredTier]) => <button type="button" key={value}
           disabled={requiredTier > tier} aria-pressed={styleDraft[key] === value}
           title={requiredTier > tier ? `Доступно с подпиской «${requiredTier === 3 ? 'Полный газ' : 'Свой стиль'}» на Boosty` : labels[value]}
-          onClick={() => { setStyleDraft({ ...styleDraft, [key]: value }); setError(''); }}>
+          onClick={() => { setStyleDraft(current => current[key] === value ? current : { ...current, [key]: value }); setError(''); }}>
           {labels[value]}{requiredTier > tier && ' · 🔒'}
         </button>)}
       </fieldset>)}</div>
@@ -134,7 +148,7 @@ export default function AvatarEditor({ value, options, style, styleOptions, tier
         {subscription?.premium_override !== null && subscription?.premium_override !== undefined && <p className="profile-muted">{subscription.premium_override ? 'Премиум включён вручную.' : 'Премиум отключён вручную.'}</p>}
         {subscription?.check_unavailable_reason && <p className="profile-muted">{subscription.check_unavailable_reason} <Link to="/account">Открыть аккаунт →</Link></p>}
         {subscription?.checked_at && <p className="profile-muted">Последняя проверка: {new Date(subscription.checked_at * 1000).toLocaleString('ru-RU')}</p>}
-        {subscription?.check_failed && <p className="profile-muted">{subscription.checked_at ? 'Boosty временно недоступен. Показан последний подтверждённый статус.' : 'Не удалось связаться с Boosty. Повторите проверку позже.'}</p>}
+        {subscription?.check_failed && <p className="profile-muted" role="alert">{boostyCheckFailureLabel(subscription)}</p>}
         {subscriptionError && <p className="avatar-editor-subscription-error" role="alert">{subscriptionError}</p>}
       </div>
     </section>

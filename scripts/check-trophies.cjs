@@ -13,7 +13,7 @@ const targets=[[1,5,15],[1,3,7],[3,12,24],[3,3,3],[3,10,25],[1,2,3],[10,15,20],[
   fs.mkdirSync('.tmp/trophy-ui',{recursive:true});
   const browser=await chromium.launch({channel:'msedge',headless:true});
   try{
-    for(const width of [320,390,768,1440]){
+    for(const width of [320,390,768,901,1024,1440]){
       const page=await browser.newPage({viewport:{width,height:900},reducedMotion:width===320?'reduce':'no-preference'});
       const errors=[];page.on('pageerror',e=>errors.push(e.message));
       let pending=[...earned],badge=null,ackFail=true,owner=true;
@@ -63,10 +63,31 @@ const targets=[[1,5,15],[1,3,7],[3,12,24],[3,3,3],[3,10,25],[1,2,3],[10,15,20],[
       assert(columns.every(y=>Math.abs(y-columns[0])<1));
       const rhythm=page.locator('[data-family="rhythm"]');
       await rhythm.locator('.trophy-art').click();
-      const details=width<=900?page.locator('.trophy-details-mobile'):rhythm;
+      const details=page.locator(width<=900?'.trophy-details-mobile':'.trophy-details-desktop');
+      assert.equal(await page.locator('.trophy-details:visible').count(),1,'One shared detail panel keeps the collection compact');
+      assert.equal(await rhythm.locator('.trophy-art').getAttribute('aria-pressed'),'true');
+      await details.getByRole('heading',{name:'В ритме сезона',exact:true}).waitFor();
+      await details.locator('summary').focus();
+      await page.keyboard.press('Enter');
+      assert(await details.locator('details').evaluate(el=>el.open),'Rules expand with the keyboard');
+      await page.keyboard.press('Enter');
       await details.getByRole('button',{name:'Золото',exact:true}).click();
       assert(await details.getByRole('button',{name:'Сначала откройте трофей'}).isDisabled());
-      await page.getByRole('button',{name:'Бейдж профиля',exact:true}).click();
+      assert.equal(await rhythm.locator('.trophy-card-tier').innerText(),'Золото');
+      if(width>900){
+        const grid=await page.locator('.trophy-grid').boundingBox(),panel=await details.boundingBox();
+        assert(panel.x>=grid.x+grid.width,'Desktop details sit beside the compact grid');
+        assert((await page.locator('.profile-trophies').boundingBox()).height<900,'Desktop collection fits within 900px in the standard fixture');
+      }
+      const smallControls=await page.locator('.profile-trophies button:visible,.profile-trophies summary:visible').evaluateAll(elements=>elements.filter(el=>{const r=el.getBoundingClientRect();return r.width<44||r.height<44;}).map(el=>el.textContent));
+      assert.deepEqual(smallControls,[],'Trophy controls keep 44px touch targets');
+      const ghost=page.locator('[data-family="ghost"] .trophy-art');
+      await ghost.focus();
+      await page.keyboard.press('Enter');
+      assert.equal(await ghost.getAttribute('aria-pressed'),'true','Cards can be selected from the keyboard');
+      await details.getByRole('heading',{name:'Быстрее своей тени',exact:true}).waitFor();
+      await details.getByRole('button',{name:'Сделать бейджем',exact:true}).click();
+      assert.equal(await page.locator('.trophy-badge-picks button').filter({hasText:'Быстрее своей тени'}).getAttribute('aria-pressed'),'true','Shared detail action selects the displayed award');
       await page.locator('.trophy-badge-picks button').filter({hasText:'Дирижёр сетки'}).filter({hasText:'Бронза'}).click();
       await page.getByRole('button',{name:'Сохранить бейдж'}).click();
       await page.getByRole('status').filter({hasText:'Бейдж профиля сохранён'}).waitFor();
@@ -75,13 +96,15 @@ const targets=[[1,5,15],[1,3,7],[3,12,24],[3,3,3],[3,10,25],[1,2,3],[10,15,20],[
       await page.getByRole('button',{name:'Коллекция',exact:true}).click();
       assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`overflow at ${width}`);
       await page.screenshot({path:`.tmp/trophy-ui/collection-${width}.png`,fullPage:true});
+      await page.locator('.profile-trophies').screenshot({path:`.tmp/trophy-ui/compact-${width}.png`});
+      const size=await page.locator('.profile-trophies').boundingBox();
       owner=false;await page.goto(base+'/profile/1');
       await page.locator('.trophy-card').first().waitFor();
       assert.equal(await page.locator('.trophy-card').count(),3);
       await assertProfileLayout(page);
       assert.equal(await page.locator('.trophy-equip').count(),0);
       assert.deepEqual(errors,[]);
-      console.log(`${width}px PASS: reward queue, failed ack/retry, Escape, bulk receipt, no replay, badge, locked tiers, public collection, reduced motion/layout`);
+      console.log(`${width}px PASS (${Math.round(size.height)}px collection): compact shared details, keyboard rules, 44px targets, reward queue, failed ack/retry, Escape, bulk receipt, no replay, badge, locked tiers, public collection, reduced motion/layout`);
       await page.close();
     }
   }finally{await browser.close();}

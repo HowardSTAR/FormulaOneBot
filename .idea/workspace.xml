@@ -4,22 +4,48 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="защита от смахивания">
+    <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="Добавил отправку итогов в Telegram и веб без обязательного пересчёта">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/api/calendar_api.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/api/calendar_api.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/assets/mobile-safe-area.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/assets/mobile-safe-area.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/assets/ui-polish.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/assets/ui-polish.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/components/CalendarDownload.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/CalendarDownload.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/helpers/pageTitles.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/helpers/pageTitles.ts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/index/WeekendBoard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/index/WeekendBoard.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/next-race/NextRacePage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/next-race/NextRacePage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/next-race/next-race-mobile.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/next-race/next-race-mobile.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/race-details/RaceDetailsPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/race-details/RaceDetailsPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/race-game/styles.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/race-game/styles.css" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/src/pages/season/SeasonPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/season/SeasonPage.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/tests/detailed-map-disclosure.test.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/front/tests/detailed-map-disclosure.test.mjs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/front/tests/ui-polish.test.mjs" beforeDir="false" afterPath="$PROJECT_DIR$/front/tests/ui-polish.test.mjs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tests/test_calendar_export.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_calendar_export.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/db.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/db.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/handlers/insights.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/handlers/insights.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/boosty_auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/boosty_auth.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/boosty_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/boosty_service.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/delivery_adapters.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/delivery_adapters.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/profile_avatar.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/profile_avatar.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/race_recap.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/race_recap.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/recap_chronicle.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/recap_chronicle.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/services/recap_news.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/services/recap_news.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/utils/notifications.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/utils/notifications.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/utils/telegram_presentation.py" beforeDir="false" afterPath="$PROJECT_DIR$/app/utils/telegram_presentation.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy/jenkins/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/jenkins/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy/jenkins/deploy-verified.sh" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/jenkins/deploy-verified.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy/jenkins/run-ci.sh" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/jenkins/run-ci.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/deploy/jenkins/test_deploy.py" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/jenkins/test_deploy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/avatar-assets.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/avatar-assets.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/boosty-production.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/boosty-production.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/f1-history-recap.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/f1-history-recap.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docs/trophies.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/trophies.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/components/RaceImpact.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/components/RaceImpact.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/helpers/boosty.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/helpers/boosty.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/helpers/useRaceRecap.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/helpers/useRaceRecap.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/account/AccountPage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/account/AccountPage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/AvatarEditor.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/AvatarEditor.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/ProfilePage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/ProfilePage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/ProfileTrophies.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/ProfileTrophies.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/avatar-editor.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/avatar-editor.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/avatarImages.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/avatarImages.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/src/pages/profile/trophies.css" beforeDir="false" afterPath="$PROJECT_DIR$/front/src/pages/profile/trophies.css" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/front/tests/boosty.test.ts" beforeDir="false" afterPath="$PROJECT_DIR$/front/tests/boosty.test.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/check-avatar-loading.cjs" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/check-avatar-loading.cjs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/scripts/check-trophies.cjs" beforeDir="false" afterPath="$PROJECT_DIR$/scripts/check-trophies.cjs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_boosty.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_boosty.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_boosty_auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_boosty_auth.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_notifications.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_notifications.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_recap_chronicle.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_recap_chronicle.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_recap_news.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_recap_news.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_telegram_api_features.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_telegram_api_features.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/test_telegram_outbox.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_telegram_outbox.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -233,70 +259,6 @@
       <workItem from="1768860453876" duration="3031000" />
       <workItem from="1768914801741" duration="17575000" />
       <workItem from="1769405571210" duration="601000" />
-    </task>
-    <task id="LOCAL-00087" summary="обновление базы">
-      <option name="closed" value="true" />
-      <created>1789330494264</created>
-      <option name="number" value="00087" />
-      <option name="presentableId" value="LOCAL-00087" />
-      <option name="project" value="LOCAL" />
-      <updated>1789330494264</updated>
-    </task>
-    <task id="LOCAL-00088" summary="обновление данных для прогнозов">
-      <option name="closed" value="true" />
-      <created>1789332617859</created>
-      <option name="number" value="00088" />
-      <option name="presentableId" value="LOCAL-00088" />
-      <option name="project" value="LOCAL" />
-      <updated>1789332617859</updated>
-    </task>
-    <task id="LOCAL-00089" summary="возможность отправлять ссылки ввиде кнопок">
-      <option name="closed" value="true" />
-      <created>1789392337032</created>
-      <option name="number" value="00089" />
-      <option name="presentableId" value="LOCAL-00089" />
-      <option name="project" value="LOCAL" />
-      <updated>1789392337032</updated>
-    </task>
-    <task id="LOCAL-00090" summary="фикс">
-      <option name="closed" value="true" />
-      <created>1789392608188</created>
-      <option name="number" value="00090" />
-      <option name="presentableId" value="LOCAL-00090" />
-      <option name="project" value="LOCAL" />
-      <updated>1789392608188</updated>
-    </task>
-    <task id="LOCAL-00091" summary="Доставка уведомлений и повтор ошибок.">
-      <option name="closed" value="true" />
-      <created>1789408924894</created>
-      <option name="number" value="00091" />
-      <option name="presentableId" value="LOCAL-00091" />
-      <option name="project" value="LOCAL" />
-      <updated>1789408924894</updated>
-    </task>
-    <task id="LOCAL-00092" summary="Добавил дозагрузку результатов и подтверждаемый пересчёт">
-      <option name="closed" value="true" />
-      <created>1789409784086</created>
-      <option name="number" value="00092" />
-      <option name="presentableId" value="LOCAL-00092" />
-      <option name="project" value="LOCAL" />
-      <updated>1789409784086</updated>
-    </task>
-    <task id="LOCAL-00093" summary="Центр контроля">
-      <option name="closed" value="true" />
-      <created>1789410341929</created>
-      <option name="number" value="00093" />
-      <option name="presentableId" value="LOCAL-00093" />
-      <option name="project" value="LOCAL" />
-      <updated>1789410341929</updated>
-    </task>
-    <task id="LOCAL-00094" summary="Добавил персональную главную">
-      <option name="closed" value="true" />
-      <created>1789410722196</created>
-      <option name="number" value="00094" />
-      <option name="presentableId" value="LOCAL-00094" />
-      <option name="project" value="LOCAL" />
-      <updated>1789410722196</updated>
     </task>
     <task id="LOCAL-00095" summary="апдейт">
       <option name="closed" value="true" />
@@ -626,7 +588,71 @@
       <option name="project" value="LOCAL" />
       <updated>1791140371419</updated>
     </task>
-    <option name="localTasksCounter" value="136" />
+    <task id="LOCAL-00136" summary="плавные переходы">
+      <option name="closed" value="true" />
+      <created>1791182072240</created>
+      <option name="number" value="00136" />
+      <option name="presentableId" value="LOCAL-00136" />
+      <option name="project" value="LOCAL" />
+      <updated>1791182072240</updated>
+    </task>
+    <task id="LOCAL-00137" summary="фикс плавное появление и прорисовку карты">
+      <option name="closed" value="true" />
+      <created>1791182754695</created>
+      <option name="number" value="00137" />
+      <option name="presentableId" value="LOCAL-00137" />
+      <option name="project" value="LOCAL" />
+      <updated>1791182754695</updated>
+    </task>
+    <task id="LOCAL-00138" summary="Исправил вертикальные отступы на странице истории">
+      <option name="closed" value="true" />
+      <created>1791183235071</created>
+      <option name="number" value="00138" />
+      <option name="presentableId" value="LOCAL-00138" />
+      <option name="project" value="LOCAL" />
+      <updated>1791183235071</updated>
+    </task>
+    <task id="LOCAL-00139" summary="Добавил города и регионы ко всем 25 часовым поясам">
+      <option name="closed" value="true" />
+      <created>1791183715798</created>
+      <option name="number" value="00139" />
+      <option name="presentableId" value="LOCAL-00139" />
+      <option name="project" value="LOCAL" />
+      <updated>1791183715798</updated>
+    </task>
+    <task id="LOCAL-00140" summary="Исправил наложение: в узкой карточке кнопка «Полные результаты» теперь переносится под заголовок с отступом">
+      <option name="closed" value="true" />
+      <created>1791184228090</created>
+      <option name="number" value="00140" />
+      <option name="presentableId" value="LOCAL-00140" />
+      <option name="project" value="LOCAL" />
+      <updated>1791184228090</updated>
+    </task>
+    <task id="LOCAL-00141" summary="Заменил «Гонка завершена» на «Прошёл» во всём календаре">
+      <option name="closed" value="true" />
+      <created>1791184642986</created>
+      <option name="number" value="00141" />
+      <option name="presentableId" value="LOCAL-00141" />
+      <option name="project" value="LOCAL" />
+      <updated>1791184642986</updated>
+    </task>
+    <task id="LOCAL-00142" summary="Убрал обрезку имён и команд в зачётах, результатах гонок, квалификаций, спринтов, практик, сравнении и подиумах. Длинный текст переносится, строки подстраиваются по высоте.">
+      <option name="closed" value="true" />
+      <created>1791185707625</created>
+      <option name="number" value="00142" />
+      <option name="presentableId" value="LOCAL-00142" />
+      <option name="project" value="LOCAL" />
+      <updated>1791185707625</updated>
+    </task>
+    <task id="LOCAL-00143" summary="Добавил отправку итогов в Telegram и веб без обязательного пересчёта">
+      <option name="closed" value="true" />
+      <created>1791191541476</created>
+      <option name="number" value="00143" />
+      <option name="presentableId" value="LOCAL-00143" />
+      <option name="project" value="LOCAL" />
+      <updated>1791191541476</updated>
+    </task>
+    <option name="localTasksCounter" value="144" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -644,14 +670,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="фиксы" />
-    <MESSAGE value="фикс предиктов" />
-    <MESSAGE value="новый тест на проверку результатов" />
-    <MESSAGE value="новые резы для прогнозов результатов" />
-    <MESSAGE value="фикс для прогнозов результатов" />
-    <MESSAGE value="История и знакомство с пилотами&#10;Автоматический рекап&#10;В Telegram добавлены команды:&#10;- /history — история и сравнение.&#10;- /driver ALO — справка о пилоте.&#10;- /recap — последняя гонка.&#10;- /recap 2025 15 — конкретный этап." />
-    <MESSAGE value="Добавил кнопки под рассылкой" />
-    <MESSAGE value="добавлены колизии, новые трассы" />
     <MESSAGE value="исправлены 2 тарссы" />
     <MESSAGE value="новые штуки" />
     <MESSAGE value="группировка кнопок в боте" />
@@ -669,7 +687,15 @@
     <MESSAGE value="фикс" />
     <MESSAGE value="фикс трассы и онбординг добавление" />
     <MESSAGE value="защита от смахивания" />
-    <option name="LAST_COMMIT_MESSAGE" value="защита от смахивания" />
+    <MESSAGE value="плавные переходы" />
+    <MESSAGE value="фикс плавное появление и прорисовку карты" />
+    <MESSAGE value="Исправил вертикальные отступы на странице истории" />
+    <MESSAGE value="Добавил города и регионы ко всем 25 часовым поясам" />
+    <MESSAGE value="Исправил наложение: в узкой карточке кнопка «Полные результаты» теперь переносится под заголовок с отступом" />
+    <MESSAGE value="Заменил «Гонка завершена» на «Прошёл» во всём календаре" />
+    <MESSAGE value="Убрал обрезку имён и команд в зачётах, результатах гонок, квалификаций, спринтов, практик, сравнении и подиумах. Длинный текст переносится, строки подстраиваются по высоте." />
+    <MESSAGE value="Добавил отправку итогов в Telegram и веб без обязательного пересчёта" />
+    <option name="LAST_COMMIT_MESSAGE" value="Добавил отправку итогов в Telegram и веб без обязательного пересчёта" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/FormulaOneBot$fastf1_capabilities_test.coverage" NAME="fastf1_capabilities_test Coverage Results" MODIFIED="1768941910109" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/app" />

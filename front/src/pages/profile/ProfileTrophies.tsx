@@ -47,15 +47,14 @@ export default function ProfileTrophies({ userId, owner, onBadge }: { userId: nu
     } catch (e) { setNotice(e instanceof Error ? e.message : 'Не удалось сохранить бейдж'); }
     finally { setBusy(false); }
   }
-  function details(family: TrophyFamily, compact = false) {
+  function details(family: TrophyFamily, mobile = false) {
     const level = levelFor(family);
     const earned = Boolean(level.earned_at);
     const progress = level.progress || 0;
-    return <div className={compact ? 'trophy-details trophy-details-mobile' : 'trophy-details'}>
-      {compact && <div className="trophy-detail-heading"><Medal family={family.id} level={level.level} /><div><span>{family.group} · {level.tier}</span><h3>{family.name}</h3></div></div>}
-      <div className="trophy-tier-controls" aria-label={`Уровни: ${family.name}`}>{family.levels.map(item => <button key={item.level} type="button" aria-pressed={item.level === level.level} onClick={() => select(family,item)}>{item.tier}</button>)}</div>
+    return <section id={`trophy-details-${mobile ? 'mobile' : 'desktop'}`} className={`trophy-details trophy-details-${mobile ? 'mobile' : 'desktop'}`} aria-label={`Условия: ${family.name}`}>
+      <div className="trophy-detail-heading"><Medal family={family.id} level={level.level} /><div aria-live="polite" aria-atomic="true"><span>{family.group} · {level.earned_at ? '✓ Получен' : 'Не открыт'}</span><h3>{family.name}</h3></div></div>
+      <div className="trophy-tier-controls" role="group" aria-label={`Уровни: ${family.name}`}>{family.levels.map(item => <button key={item.level} type="button" aria-pressed={item.level === level.level} onClick={() => select(family,item)}>{item.tier}</button>)}</div>
       <p className="trophy-level-label">{level.tier} · {level.level + 1} / 3{level.season > 0 && ` · ${level.season}`}</p>
-      {!compact && <h3>{family.name}</h3>}
       {owner ? <><p className="trophy-condition">{level.condition}</p>
         <div className="trophy-progress" role="progressbar" aria-label={`${family.name}, ${level.tier}`} aria-valuemin={0} aria-valuemax={level.target || 1} aria-valuenow={Math.min(progress,level.target || 1)}>
           <i style={{ width: `${earned ? 100 : level.target ? Math.min(100,progress / level.target * 100) : 0}%` }} /></div>
@@ -63,29 +62,31 @@ export default function ProfileTrophies({ userId, owner, onBadge }: { userId: nu
         <details><summary>ⓘ Что засчитывается</summary><p>{level.rule}</p></details>
         <button className="trophy-equip" type="button" disabled={!earned} onClick={() => { setDraft(level.id); setMode('badge'); }}>{data?.badge?.id === level.id ? '✓ Бейдж профиля' : earned ? 'Сделать бейджем' : 'Сначала откройте трофей'}</button></>
         : <p className="trophy-earned-date">Получен {new Date(`${level.earned_at?.replace(' ','T')}Z`).toLocaleDateString('ru-RU')}{level.season > 0 && ` · сезон ${level.season}`}</p>}
-    </div>;
+    </section>;
   }
   const selectedRow = Math.floor(families.indexOf(selected) / 3);
   return <section className="profile-trophies profile-panel" id="profile-trophies" aria-labelledby="profile-trophies-title">
-    <header className="trophy-heading"><div><p>КОЛЛЕКЦИЯ TURBOTEARS</p><h2 id="profile-trophies-title">Трофеи</h2><span>{owner ? `${data?.earned.length ?? '—'} получено · 8 семейств` : `${data?.earned.length ?? '—'} получено`}</span></div>
+    <header className="trophy-heading"><div><p>КОЛЛЕКЦИЯ TURBOTEARS</p><h2 id="profile-trophies-title">Трофеи</h2><span>{owner ? `${data?.earned.length ?? '—'} получено · ${data?.families.length ?? '—'} категорий` : `${data?.earned.length ?? '—'} получено`}</span></div>
       {owner && <nav aria-label="Коллекция и бейдж"><button type="button" aria-pressed={mode === 'collection'} onClick={() => setMode('collection')}>Коллекция</button><button type="button" aria-pressed={mode === 'badge'} onClick={() => { setDraft(data?.badge?.id || null); setMode('badge'); }}>Бейдж профиля</button></nav>}</header>
     {error && <p role="alert">{error}</p>}
     {!data && !error && <p role="status">Загружаем трофеи…</p>}
     {data && mode === 'collection' && <>
-      {owner && <p className="trophy-hint">Бронза, серебро и золото. Свайп меняет уровень, нажатие открывает условие.</p>}
+      <p className="trophy-hint">Выберите трофей, чтобы {owner ? 'посмотреть условия и сменить уровень' : 'посмотреть полученные уровни'}.</p>
       {owner && !data.calendar_known && <p className="profile-muted">Календарь сезона уточняется. Цели за половину и весь сезон появятся после обновления расписания.</p>}
-      <div className="trophy-grid">{families.map((family,index) => {
+      <div className="trophy-collection"><div className="trophy-grid">{families.map((family,index) => {
         const level = levelFor(family);
         return <Fragment key={family.id}><article className={`trophy-card${family.id === selected?.id ? ' is-active' : ''}`} data-family={family.id}>
-          <div className="trophy-card-status"><span>{family.group}</span><span>{level.earned_at ? '✓ Получен' : 'Не открыт'}</span></div>
-          <button type="button" className="trophy-art" aria-label={`${family.name}, ${level.tier}: показать условие`} onClick={() => setActive(family.id)}
+          <button type="button" className="trophy-art" aria-label={`${family.name}, ${level.tier}, ${level.earned_at ? 'получен' : 'не открыт'}: показать условие`} aria-pressed={family.id === selected?.id} aria-controls="trophy-details-desktop trophy-details-mobile" onClick={() => setActive(family.id)}
             onTouchStart={event => { event.currentTarget.dataset.touchX=String(event.touches[0].clientX); event.currentTarget.dataset.touchY=String(event.touches[0].clientY); }}
             onTouchEnd={event => { const x=Number(event.currentTarget.dataset.touchX),y=Number(event.currentTarget.dataset.touchY),dx=event.changedTouches[0].clientX-x,dy=event.changedTouches[0].clientY-y; if(Math.abs(dx)>25 && Math.abs(dx)>Math.abs(dy)*1.3){const i=family.levels.indexOf(level); select(family,family.levels[Math.max(0,Math.min(family.levels.length-1,i+(dx<0?1:-1)))]);} }}>
-            <Medal family={family.id} level={level.level} /></button>
-          <div className="trophy-mobile-title">{family.name}</div><div className="trophy-mobile-dots" aria-hidden="true">{family.levels.map(item => <i key={item.level} className={item.level === level.level ? 'is-active' : ''} />)}</div>
-          <div className="trophy-desktop-details">{details(family)}</div>
+            <Medal family={family.id} level={level.level} />
+            <span className="trophy-card-title">{family.name}</span>
+            <span className="trophy-card-tier">{level.tier}</span>
+            <span className="trophy-card-status">{level.earned_at ? '✓ Получен' : 'Не открыт'}</span>
+            {owner && <span className="trophy-card-progress" aria-hidden="true"><i style={{ width: `${level.earned_at ? 100 : level.target ? Math.min(100,(level.progress || 0) / level.target * 100) : 0}%` }} /></span>}
+          </button>
         </article>{selected && (index === families.length-1 || index % 3 === 2) && Math.floor(index/3) === selectedRow && details(selected,true)}</Fragment>;
-      })}</div>
+      })}</div>{selected && details(selected)}</div>
       {!data.earned.length && !owner && <p className="profile-muted">Первые трофеи ещё впереди.</p>}
       {data.earned.some(award => award.season > 0 && award.season !== data.season) && <div className="trophy-season-archive"><h3>Предыдущие сезоны</h3><div>{data.earned.filter(award => award.season > 0 && award.season !== data.season).map(award => <span key={award.id}><Medal family={award.family} level={award.level} />{award.tier} · {award.season}</span>)}</div></div>}
       {owner && <p className="trophy-hint">Полученные награды сохраняются навсегда. Поддержка — отдельная необязательная ветка.</p>}

@@ -1,0 +1,3 @@
+# Optional desktop connector only; not installed in production containers.
+playwright>=1.50,<2
+paramiko>=3.5,<5
