@@ -7,7 +7,8 @@ import { notifyAuthChanged } from "../../helpers/auth";
 import { visibleInterval } from "../../helpers/visibleInterval";
 import "./AccountPage.css";
 import { safeReturnPath } from '../../helpers/returnPath';
-import { boostySubscriptionLabel, type BoostyStatus } from '../../helpers/boosty';
+import { boostyCheckFailureLabel, boostySubscriptionLabel, type BoostyStatus } from '../../helpers/boosty';
+import { checkBoostySubscription } from '../../helpers/boostyApi';
 
 type User = {
   id: number;
@@ -75,7 +76,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
 
   const checkBoosty = async () => {
     setBoostyBusy(true); setBoostyError("");
-    try { setBoosty(await authFetch<BoostyStatus>("/api/account/boosty/check", { method: "POST" })); }
+    try { setBoosty(await checkBoostySubscription()); }
     catch (reason) { setBoostyError(reason instanceof Error ? reason.message : "Не удалось проверить Boosty"); }
     finally { setBoostyBusy(false); }
   };
@@ -348,7 +349,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
                 : boostySubscriptionLabel(boosty)}</p>
               {boosty?.checked_at && <p className="account-hint">Последняя проверка: {new Date(boosty.checked_at * 1000).toLocaleString("ru-RU")}</p>}
               {boosty?.check_unavailable_reason && <p className="account-hint">{boosty.check_unavailable_reason}</p>}
-              {boosty?.check_failed && <p>{boosty.checked_at ? 'Проверка временно недоступна. Показан последний подтверждённый статус.' : 'Не удалось связаться с Boosty. Повторите проверку позже.'}</p>}
+              {boosty?.check_failed && <p role="alert">{boostyCheckFailureLabel(boosty)}</p>}
               <div className="account-boosty-actions">
                 <a className="account-secondary" href={boosty?.blog_url || "https://boosty.to/turbotears"} target="_blank" rel="noopener noreferrer">Открыть Boosty</a>
                 <button className="account-primary" disabled={!boosty?.configured || boosty?.can_check === false || boostyBusy} onClick={() => void checkBoosty()}>{boostyBusy ? "Проверяем…" : "Проверить подписку"}</button>

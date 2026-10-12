@@ -3,7 +3,8 @@ import { apiRequest } from '../../helpers/api';
 import { avatarUrl, type Avatar, type AvatarOptions } from './avatar';
 import AvatarImage from './AvatarImage';
 import { Link } from 'react-router-dom';
-import { boostySubscriptionLabel, type BoostyStatus } from '../../helpers/boosty';
+import { boostyCheckFailureLabel, boostySubscriptionLabel, type BoostyStatus } from '../../helpers/boosty';
+import { checkBoostySubscription } from '../../helpers/boostyApi';
 import './avatar-editor.css';
 
 export type ProfileStyle = { frame: string; color: string; background: string };
@@ -60,8 +61,9 @@ export default function AvatarEditor({ value, options, style, styleOptions, tier
   async function checkSubscription() {
     setSubscriptionBusy(true); setSubscriptionError('');
     try {
-      const status = await apiRequest<BoostyStatus>('/api/account/boosty/check', {}, 'POST', 120000);
+      const status = await checkBoostySubscription();
       setSubscription(status);
+      if (status.check_failed) return;
       try {
         const updated = await onSubscriptionCheck();
         // Preserve unsaved choices when upgrading, replace newly locked choices when downgrading.
@@ -134,7 +136,7 @@ export default function AvatarEditor({ value, options, style, styleOptions, tier
         {subscription?.premium_override !== null && subscription?.premium_override !== undefined && <p className="profile-muted">{subscription.premium_override ? 'Премиум включён вручную.' : 'Премиум отключён вручную.'}</p>}
         {subscription?.check_unavailable_reason && <p className="profile-muted">{subscription.check_unavailable_reason} <Link to="/account">Открыть аккаунт →</Link></p>}
         {subscription?.checked_at && <p className="profile-muted">Последняя проверка: {new Date(subscription.checked_at * 1000).toLocaleString('ru-RU')}</p>}
-        {subscription?.check_failed && <p className="profile-muted">{subscription.checked_at ? 'Boosty временно недоступен. Показан последний подтверждённый статус.' : 'Не удалось связаться с Boosty. Повторите проверку позже.'}</p>}
+        {subscription?.check_failed && <p className="profile-muted" role="alert">{boostyCheckFailureLabel(subscription)}</p>}
         {subscriptionError && <p className="avatar-editor-subscription-error" role="alert">{subscriptionError}</p>}
       </div>
     </section>
