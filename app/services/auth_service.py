@@ -50,13 +50,17 @@ class VerificationCodeExpired(AuthError):
 class RateLimitExceeded(AuthError):
     code = "rate_limit_exceeded"
 
+    def __init__(self, message: str, *, retry_after: int | None = None, scope: str = "account"):
+        self.retry_after = retry_after
+        self.scope = scope
+        super().__init__(message)
+
 
 class VerificationResendCooldown(RateLimitExceeded):
     code = "verification_resend_cooldown"
 
     def __init__(self, retry_after: int):
-        self.retry_after = retry_after
-        super().__init__(f"Повторное письмо можно запросить через {retry_after} сек.")
+        super().__init__(f"Повторное письмо можно запросить через {retry_after} сек.", retry_after=retry_after)
 
 
 class InvalidInput(AuthError):
@@ -171,7 +175,7 @@ class AuthService:
         try:
             await asyncio.wait_for(self._password_slots.acquire(), timeout=2)
         except TimeoutError as exc:
-            raise RateLimitExceeded("Сервис занят. Повторите попытку позже") from exc
+            raise RateLimitExceeded("Сервис занят. Повторите попытку позже", retry_after=2, scope="global") from exc
         task = asyncio.create_task(asyncio.to_thread(function, *args))
         task.add_done_callback(lambda _: self._password_slots.release())
         return await asyncio.shield(task)
@@ -200,7 +204,9 @@ class AuthService:
             row = await cursor.fetchone()
         if row and datetime.fromisoformat(row["window_expires_at"]) > now:
             if int(row["attempts"]) >= max_attempts:
-                raise RateLimitExceeded("Too many attempts; try again later")
+                remaining = max(1, math.ceil((datetime.fromisoformat(row["window_expires_at"]) - now).total_seconds()))
+                raise RateLimitExceeded("Слишком много попыток. Повторите позже", retry_after=remaining,
+                                        scope="ip" if "ip" in action else "account")
             await conn.execute(
                 "UPDATE auth_rate_limits SET attempts = attempts + 1 WHERE action = ? AND identifier_hash = ?",
                 (action, key),
@@ -221,6 +227,37 @@ class AuthService:
             "DELETE FROM auth_rate_limits WHERE action = ? AND identifier_hash = ?",
             (action, self._hmac("rate-limit", identifier)),
         )
+
+    async def _record_login_failure(self, email: str) -> None:
+        conn = await self._conn()
+        key = self._hmac("rate-limit", email)
+        async with self.database.write_lock:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                row = await (await conn.execute(
+                    "SELECT attempts,window_expires_at FROM auth_rate_limits WHERE action='login' AND identifier_hash=?",
+                    (key,),
+                )).fetchone()
+                now = utc_now()
+                remaining = None
+                if row and int(row["attempts"]) >= 8 and datetime.fromisoformat(row["window_expires_at"]) > now:
+                    deadline = datetime.fromisoformat(row["window_expires_at"])
+                    # Ninth is a blocked-state marker, not another password
+                    # check. Start a full cooldown on the eighth failure once;
+                    # parallel failures and blocked requests cannot extend it.
+                    if int(row["attempts"]) == 8:
+                        deadline = now + timedelta(minutes=15)
+                        await conn.execute(
+                            "UPDATE auth_rate_limits SET attempts=9,window_expires_at=? WHERE action='login' AND identifier_hash=?",
+                            (iso(deadline), key),
+                        )
+                    remaining = max(1, math.ceil((deadline-now).total_seconds()))
+                await conn.commit()
+            except Exception:
+                await conn.rollback()
+                raise
+        if remaining:
+            raise RateLimitExceeded("Слишком много неверных попыток. Вход временно заблокирован", retry_after=remaining)
 
     async def verification_status(self, user_id: int) -> dict[str, int]:
         conn = await self._conn()
@@ -463,6 +500,7 @@ class AuthService:
         old_hash = candidate["password_hash"] if candidate else None
         valid = await self._verify_password(password, old_hash or passwords.DUMMY_HASH)
         if not valid or not old_hash:
+            await self._record_login_failure(normalized)
             raise InvalidCredentials("Неверный email или пароль")
         # Password work must never hold SQLite's writer lock. Re-read the
         # credential inside the transaction to detect password resets/deletion

@@ -328,3 +328,59 @@ async def test_short_link_codes_have_persistent_actor_limit(db_session, flow):
             await restarted.approve_web_short_code("654321", 12345)
         else:
             await restarted.link_with_bot_code(12345, "654321")
+
+
+async def test_eighth_failure_starts_full_cooldown_and_blocked_requests_do_not_extend(auth, db_session, monkeypatch):
+    from app.services import auth_service
+    from tests.support import Clock
+    clock = Clock()
+    monkeypatch.setattr(auth_service, "utc_now", lambda: clock.now)
+    await auth.register("locked@example.test", PASSWORD)
+    for attempt in range(7):
+        with pytest.raises(InvalidCredentials):
+            await auth.login("locked@example.test", "wrong")
+        clock.advance(seconds=100)
+    with pytest.raises(RateLimitExceeded) as eighth:
+        await auth.login("locked@example.test", "wrong")
+    assert eighth.value.retry_after == 900
+    # Correct credentials and a fresh service instance cannot bypass cooldown.
+    restarted = AuthService(db_session, MockMailer(), pepper="security-test-pepper")
+    clock.advance(seconds=899)
+    with pytest.raises(RateLimitExceeded) as blocked:
+        await restarted.login("locked@example.test", PASSWORD)
+    assert blocked.value.retry_after == 1
+    clock.advance(seconds=1)
+    assert (await restarted.login("locked@example.test", PASSWORD)).user["email"] == "locked@example.test"
+
+
+async def test_successful_login_clears_account_failure_streak(auth):
+    await auth.register("streak@example.test", PASSWORD)
+    for _ in range(2):
+        for _ in range(7):
+            with pytest.raises(InvalidCredentials):
+                await auth.login("streak@example.test", "wrong")
+        await auth.login("streak@example.test", PASSWORD)
+
+
+async def test_login_cooldown_has_retry_after_header_and_precise_countdown(client, auth, monkeypatch):
+    from app.services import auth_service
+    from tests.support import Clock
+    clock = Clock()
+    monkeypatch.setattr(auth_service, "utc_now", lambda: clock.now)
+    await auth.register("http-lock@example.test", PASSWORD)
+    data = {"email": "http-lock@example.test", "password": "wrong"}
+    for _ in range(7):
+        assert (await client.post("/api/auth/login", json=data)).status_code == 401
+    locked = await client.post("/api/auth/login", json=data)
+    assert locked.status_code == 429
+    assert locked.headers["Retry-After"] == "900"
+    assert locked.json()["detail"]["retry_after"] == 900
+    assert locked.json()["detail"]["scope"] == "account"
+    clock.advance(seconds=60)
+    retry = await client.post("/api/auth/login", json={**data, "password": PASSWORD})
+    assert retry.status_code == 429
+    assert retry.headers["Retry-After"] == "840"
+    # Other emails are not account-blocked (IP has a separate larger budget).
+    assert (await client.post("/api/auth/login", json={**data, "email": "another@example.test"})).status_code == 401
+    clock.advance(seconds=840)
+    assert (await client.post("/api/auth/login", json={**data, "password": PASSWORD})).status_code == 200

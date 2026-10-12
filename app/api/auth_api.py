@@ -188,9 +188,15 @@ def _auth_http_error(exc: Exception) -> HTTPException:
         return HTTPException(403, detail={"code": exc.code, "message": str(exc)})
     if isinstance(exc, EmailAlreadyRegistered):
         return HTTPException(409, detail={"code": exc.code, "message": str(exc)})
-    if isinstance(exc, (VerificationCodeExpired, RateLimitExceeded)):
-        status = 429 if isinstance(exc, RateLimitExceeded) else 410
-        return HTTPException(status, detail={"code": exc.code, "message": str(exc)})
+    if isinstance(exc, RateLimitExceeded):
+        detail = {"code": exc.code, "message": str(exc), "scope": exc.scope}
+        headers = {}
+        if exc.retry_after:
+            detail["retry_after"] = exc.retry_after
+            headers["Retry-After"] = str(exc.retry_after)
+        return HTTPException(429, detail=detail, headers=headers)
+    if isinstance(exc, VerificationCodeExpired):
+        return HTTPException(410, detail={"code": exc.code, "message": str(exc)})
     if isinstance(exc, PasswordResetExpired):
         return HTTPException(410, detail={"code": exc.code, "message": str(exc)})
     if isinstance(exc, InvalidResetToken):

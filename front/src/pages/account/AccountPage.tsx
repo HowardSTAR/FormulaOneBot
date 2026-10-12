@@ -12,6 +12,7 @@ import { checkBoostySubscription } from '../../helpers/boostyApi';
 import RegistrationFields, { type RegistrationProfile } from './RegistrationFields';
 import { defaultAvatar } from '../profile/avatar';
 import { PasswordField } from '../../components/PasswordField';
+import { useLoginCooldown } from './useLoginCooldown';
 
 type User = {
   id: number;
@@ -30,7 +31,17 @@ type LinkSession = {
 
 type LinkStatus = { status: "pending" | "approved" | "expired" | "cancelled" | "failed" };
 
-type ApiErrorPayload = { detail?: { message?: string; code?: string } | string };
+type ApiErrorPayload = { detail?: { message?: string; code?: string; retry_after?: number; scope?: string } | string };
+
+class AuthRequestError extends Error {
+  readonly retryAfter?: number;
+  readonly scope?: string;
+  constructor(message: string, retryAfter?: number, scope?: string) {
+    super(message);
+    this.retryAfter = retryAfter;
+    this.scope = scope;
+  }
+}
 
 function readCookie(name: string): string | null {
   const prefix = `${encodeURIComponent(name)}=`;
@@ -49,7 +60,9 @@ async function authFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     try { payload = await response.json() as ApiErrorPayload; } catch { /* no-op */ }
     const detail = payload.detail;
     const message = typeof detail === "string" ? detail : detail?.message;
-    throw new Error(message || `Ошибка API: ${response.status}`);
+    throw new AuthRequestError(message || `Ошибка API: ${response.status}`,
+      typeof detail === 'object' ? detail?.retry_after : undefined,
+      typeof detail === 'object' ? detail?.scope : undefined);
   }
   if (response.status === 204) return undefined as T;
   return await response.json() as T;
@@ -95,6 +108,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
     display_name: '', avatar: defaultAvatar, favorite_drivers: [], favorite_teams: [],
   });
   const [email, setEmail] = useState("");
+  const loginCooldown = useLoginCooldown(email);
   const [password, setPassword] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [strategy, setStrategy] = useState<"keep_web" | "keep_telegram">("keep_web");
@@ -153,6 +167,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
 
   const submitAuth = async (event: FormEvent) => {
     event.preventDefault();
+    if (mode === 'login' && loginCooldown.seconds > 0) return;
     setBusy(true); setError(""); setMessage("");
     try {
       if (mode === "register") {
@@ -178,7 +193,10 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
         setUser(result.user);
       }
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Не удалось выполнить запрос");
+      if (mode === 'login' && reason instanceof AuthRequestError && reason.retryAfter) {
+        loginCooldown.block(reason.retryAfter, reason.scope);
+        setError('');
+      } else setError(reason instanceof Error ? reason.message : "Не удалось выполнить запрос");
     } finally { setBusy(false); }
   };
 
@@ -283,7 +301,8 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
                 Забыли пароль?
               </button>
             )}
-            <button className="account-primary" disabled={busy}>{busy ? "Подождите…" : mode === "login" ? "Войти" : mode === "register" ? "Создать профиль" : "Отправить ссылку"}</button>
+            {mode === 'login' && loginCooldown.seconds > 0 && <p className="account-hint" role="status">Вход временно заблокирован. Повторите через {loginCooldown.label}. Можно восстановить пароль по email.</p>}
+            <button className="account-primary" disabled={busy || (mode === 'login' && loginCooldown.seconds > 0)}>{busy ? "Подождите…" : mode === "login" ? loginCooldown.seconds > 0 ? `Войти через ${loginCooldown.label}` : "Войти" : mode === "register" ? "Создать профиль" : "Отправить ссылку"}</button>
             {mode === "forgot" && (
               <button type="button" className="account-text-button account-text-button-center" onClick={() => setMode("login")}>
                 Вернуться ко входу
