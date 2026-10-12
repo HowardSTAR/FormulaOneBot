@@ -1,6 +1,8 @@
 # app/auth.py
 
 from typing import Annotated
+import time
+from urllib.parse import parse_qsl
 
 from fastapi import Header, HTTPException
 from aiogram.utils.web_app import check_webapp_signature, safe_parse_webapp_init_data, WebAppInitData
@@ -23,6 +25,11 @@ async def get_current_user_id(
     settings = get_settings()
 
     try:
+        if len(x_telegram_init_data) > 16384:
+            raise ValueError("Oversized initData")
+        pairs = parse_qsl(x_telegram_init_data, max_num_fields=64)
+        if len({key for key, _ in pairs}) != len(pairs):
+            raise ValueError("Duplicate initData fields")
         # 1. Проверяем валидность подписи (подделаны данные или нет)
         is_valid = check_webapp_signature(settings.bot.token, x_telegram_init_data)
         if not is_valid:
@@ -33,6 +40,11 @@ async def get_current_user_id(
             token=settings.bot.token,
             init_data=x_telegram_init_data
         )
+
+        # A valid signature alone permits indefinite replay of captured data.
+        age = time.time() - web_app_data.auth_date.timestamp()
+        if age < -30 or age >= 3600 or web_app_data.user is None or web_app_data.user.id <= 0:
+            raise ValueError("Expired or invalid initData")
 
         # 3. Достаем ID пользователя
         return web_app_data.user.id

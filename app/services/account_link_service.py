@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import os
 import re
 import secrets
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Literal
 
 from app.db import Database
+from app.security import auth_secret
 from app.services.auth_service import iso, utc_now
 
 MergeStrategy = Literal["keep_web", "keep_telegram"]
@@ -42,10 +42,7 @@ class AccountLinkService:
 
     def __init__(self, database: Database, pepper: str | None = None):
         self.database = database
-        secret = pepper or os.getenv("AUTH_PEPPER") or os.getenv("BOT_TOKEN")
-        if not secret:
-            raise RuntimeError("AUTH_PEPPER (or BOT_TOKEN fallback) must be configured")
-        self._pepper = secret.encode("utf-8")
+        self._pepper = auth_secret(pepper)
 
     async def _conn(self):
         if not self.database.conn:
@@ -54,6 +51,33 @@ class AccountLinkService:
 
     def _hash(self, namespace: str, value: str) -> str:
         return hmac.new(self._pepper, f"{namespace}:{value}".encode(), hashlib.sha256).hexdigest()
+
+    async def _reserve_code_attempt(self, action: str, actor_id: int) -> None:
+        """Six-digit link codes need limits in the bot as well as in HTTP."""
+        conn = await self._conn()
+        key = self._hash("rate-limit", str(actor_id))
+        now = utc_now()
+        async with self.database.write_lock:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                row = await (await conn.execute(
+                    "SELECT attempts,window_expires_at FROM auth_rate_limits WHERE action=? AND identifier_hash=?",
+                    (action, key),
+                )).fetchone()
+                active = row and datetime.fromisoformat(row["window_expires_at"]) > now
+                if active and int(row["attempts"]) >= 8:
+                    raise LinkError("Слишком много попыток ввода кода. Повторите через 15 минут")
+                await conn.execute(
+                    """INSERT INTO auth_rate_limits(action,identifier_hash,attempts,window_expires_at)
+                    VALUES (?,?,?,?) ON CONFLICT(action,identifier_hash) DO UPDATE SET
+                    attempts=excluded.attempts,window_expires_at=excluded.window_expires_at""",
+                    (action, key, int(row["attempts"])+1 if active else 1,
+                     row["window_expires_at"] if active else iso(now+timedelta(minutes=15))),
+                )
+                await conn.commit()
+            except Exception:
+                await conn.rollback()
+                raise
 
     @staticmethod
     def _new_code() -> str:
@@ -180,6 +204,7 @@ class AccountLinkService:
     async def approve_web_short_code(
         self, short_code: str, telegram_id: int, strategy: MergeStrategy | None = None
     ) -> dict[str, Any]:
+        await self._reserve_code_attempt("telegram-link-code", telegram_id)
         if not re.fullmatch(r"\d{6}", short_code):
             raise LinkNotFound("Invalid code")
         conn = await self._conn()
@@ -281,6 +306,7 @@ class AccountLinkService:
     async def link_with_bot_code(
         self, web_user_id: int, code: str, strategy: MergeStrategy | None = None
     ) -> dict[str, Any]:
+        await self._reserve_code_attempt("web-link-code", web_user_id)
         if not re.fullmatch(r"\d{6}", code):
             raise LinkNotFound("Invalid code")
         conn = await self._conn()

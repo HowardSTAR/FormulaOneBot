@@ -37,6 +37,7 @@ def test_transport_selection(mail_environment, monkeypatch, mode, environment, e
 
 @pytest.mark.parametrize('mode,environment', [
     pytest.param('console', 'production', id='console-in-production'),
+    pytest.param('mock', 'production', id='mock-in-production'),
     pytest.param('typo', 'test', id='unknown-mode'),
 ])
 def test_unsafe_or_unknown_transport_rejected(mail_environment, monkeypatch, mode, environment):

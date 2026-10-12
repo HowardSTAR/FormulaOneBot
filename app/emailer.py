@@ -53,6 +53,9 @@ class SMTPConfig:
         password = os.getenv("SMTP_PASSWORD") or None
         if bool(username) != bool(password):
             raise EmailDeliveryError("SMTP_USERNAME and SMTP_PASSWORD must be configured together")
+        start_tls = os.getenv("SMTP_STARTTLS", "true").lower() in {"1", "true", "yes"}
+        if os.getenv("APP_ENV", "development").lower() == "production" and not use_ssl and not start_tls:
+            raise EmailDeliveryError("SMTP TLS is required in production")
         return cls(
             host=host,
             port=int(os.getenv("SMTP_PORT", str(default_port))),
@@ -60,7 +63,7 @@ class SMTPConfig:
             password=password,
             from_email=from_email,
             use_ssl=use_ssl,
-            start_tls=os.getenv("SMTP_STARTTLS", "true").lower() in {"1", "true", "yes"},
+            start_tls=start_tls,
             timeout_seconds=float(os.getenv("SMTP_TIMEOUT_SECONDS", "15")),
         )
 
@@ -303,6 +306,8 @@ class EnvironmentMailer:
 
 def build_mailer() -> VerificationMailer:
     mode = os.getenv("EMAIL_DELIVERY_MODE", "smtp").strip().lower()
+    if mode in {"mock", "console"} and os.getenv("APP_ENV", "development").lower() == "production":
+        raise EmailDeliveryError("Mock and console email modes are forbidden in production")
     if mode == "mock":
         return MockMailer()
     if mode == "console":

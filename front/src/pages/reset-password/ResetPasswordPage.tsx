@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -9,7 +9,15 @@ import "./ResetPasswordPage.css";
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
-  const token = useMemo(() => searchParams.get("token") || "", [searchParams]);
+  const [token, setToken] = useState(() => searchParams.get("token") || "");
+  useEffect(() => {
+    // Keep the credential only in this page's memory, out of history/Referer.
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('token')) {
+      url.searchParams.delete('token');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    }
+  }, []);
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,6 +38,9 @@ export default function ResetPasswordPage() {
         new_password: password,
         password_confirmation: confirmation,
       }, "POST");
+      setPassword("");
+      setConfirmation("");
+      setToken("");
       setComplete(true);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Не удалось изменить пароль");
@@ -47,7 +58,7 @@ export default function ResetPasswordPage() {
         <p>Придумайте новый пароль для входа в аккаунт.</p>
       </header>
       <section className="account-card account-auth-card reset-password-card">
-        {!token ? (
+        {!token && !complete ? (
           <div className="reset-password-result">
             <h2>Ссылка неполная</h2>
             <p>В адресе отсутствует токен восстановления. Запросите новое письмо.</p>

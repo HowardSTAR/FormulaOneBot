@@ -13,5 +13,6 @@ if __name__ == "__main__":
         port=int(os.getenv("WEB_PORT", "8000")),
         reload=os.getenv("WEB_RELOAD", "false").lower() in {"1", "true", "yes"},
         proxy_headers=True,
+        access_log=False,  # Nginx logs sanitized paths; raw query strings may contain reset tokens.
         forwarded_allow_ips=os.getenv("FORWARDED_ALLOW_IPS", "127.0.0.1"),
     )

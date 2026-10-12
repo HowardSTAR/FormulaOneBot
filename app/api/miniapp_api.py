@@ -15,6 +15,9 @@ from fastapi import FastAPI, HTTPException, Query, Depends, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from app.security import SecurityHeadersMiddleware, validate_production_security
 from pydantic import BaseModel, Field, model_validator, field_validator
 from app.race_rules import SUPPORTED_TRACK_IDS, validate_race_path
 
@@ -98,6 +101,7 @@ ASSETS_DIR = PROJECT_ROOT / "app" / "assets"
 # --- Инициализация приложения ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    validate_production_security()
     from app.f1_data import init_redis_cache, close_redis_cache
     await db.connect()
     await db.init_tables()
@@ -149,6 +153,14 @@ web_app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+web_app.add_middleware(SecurityHeadersMiddleware)
+
+
+@web_app.exception_handler(RequestValidationError)
+async def safe_validation_error(request: Request, exc: RequestValidationError):
+    # FastAPI's default includes raw input, including password/token values.
+    errors = [{key: item[key] for key in ("loc", "msg", "type") if key in item} for item in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": errors})
 
 web_app.include_router(auth_router)
 from app.api.boosty_api import router as boosty_router

@@ -84,6 +84,7 @@ services:
       - --workers
       - "1"
       - --proxy-headers
+      - --no-access-log
       - --forwarded-allow-ips=*
     depends_on:
       redis:

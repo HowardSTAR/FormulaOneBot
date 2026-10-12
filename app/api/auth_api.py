@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import io
+import logging
 import os
 import re
 from dataclasses import dataclass
+from datetime import timedelta
 from functools import lru_cache
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Cookie, Depends, Header, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from app.auth import get_current_user_id as get_telegram_user_id
@@ -38,8 +40,33 @@ from app.services.auth_service import (
     VerificationResendCooldown,
 )
 from app.services.activity_service import record_user_activity
+from app.services.auth_service import normalize_email
+from app.security import secure_cookies, validate_request_origin
 
-router = APIRouter(prefix="/api/auth", tags=["authentication"])
+logger = logging.getLogger(__name__)
+
+
+async def auth_request_guard(request: Request):
+    validate_request_origin(request)
+    if request.method in {"GET", "HEAD", "OPTIONS"}:
+        return
+    ip_address = _client_ip(request)
+    if not ip_address:
+        return
+    limits = {
+        "/api/auth/register": (10, timedelta(hours=1)),
+        "/api/auth/password/forgot": (10, timedelta(hours=1)),
+        "/api/auth/password/reset": (10, timedelta(minutes=15)),
+        "/api/auth/verify-email": (20, timedelta(minutes=15)),
+    }
+    limit, window = limits.get(request.url.path, (30, timedelta(minutes=15)))
+    try:
+        await get_auth_service().reserve_attempt("auth-ip:" + request.url.path, ip_address, limit, window)
+    except AuthError as exc:
+        raise _auth_http_error(exc) from exc
+
+
+router = APIRouter(prefix="/api/auth", tags=["authentication"], dependencies=[Depends(auth_request_guard)])
 COOKIE_NAME = "turbotears_session"
 CSRF_COOKIE_NAME = "turbotears_csrf"
 
@@ -118,7 +145,7 @@ def _client_ip(request: Request) -> str | None:
 
 
 def _set_session_cookie(response: Response, token: str, csrf_token: str, max_age: int) -> None:
-    secure = os.getenv("AUTH_COOKIE_SECURE", "false").lower() in {"1", "true", "yes"}
+    secure = secure_cookies()
     response.set_cookie(
         key=COOKIE_NAME,
         value=token,
@@ -171,8 +198,8 @@ def _auth_http_error(exc: Exception) -> HTTPException:
     if isinstance(exc, InvalidInput):
         return HTTPException(422, detail={"code": exc.code, "message": str(exc)})
     if isinstance(exc, EmailDeliveryError):
-        return HTTPException(503, detail={"code": "email_delivery_failed", "message": str(exc)})
-    return HTTPException(400, detail={"code": "auth_error", "message": str(exc)})
+        return HTTPException(503, detail={"code": "email_delivery_failed", "message": "Не удалось отправить письмо. Попробуйте позже"})
+    return HTTPException(400, detail={"code": "auth_error", "message": "Не удалось выполнить запрос"})
 
 
 def _link_http_error(exc: Exception) -> HTTPException:
@@ -207,6 +234,7 @@ async def require_web_session(
     await record_user_activity(auth_service.database, int(user["id"]), "site")
     from_cookie = bearer_token is None
     if from_cookie and request.method.upper() not in {"GET", "HEAD", "OPTIONS"}:
+        validate_request_origin(request)
         if not auth_service.verify_csrf(x_csrf_token, user["csrf_hash"]):
             raise HTTPException(403, detail={"code": "invalid_csrf", "message": "CSRF token is missing or invalid"})
     return WebSessionContext(user=user, raw_token=raw_token, from_cookie=from_cookie)
@@ -375,17 +403,28 @@ def _public_web_url(request: Request) -> str:
 
 
 @router.post("/password/forgot", status_code=202)
-async def forgot_password(data: ForgotPasswordRequest, request: Request):
-    # Always return the same response so the endpoint cannot be used to enumerate accounts.
+async def forgot_password(data: ForgotPasswordRequest, request: Request, background_tasks: BackgroundTasks):
+    # Response is sent before account lookup/delivery, including SMTP failures.
+    # Reserve the same persistent limit for known and unknown email addresses.
     try:
-        await get_auth_service().request_password_reset(data.email, _public_web_url(request))
-    except EmailDeliveryError as exc:
-        raise _auth_http_error(exc) from exc
+        email = normalize_email(data.email)
+        public_url = _public_web_url(request)
+        service = get_auth_service()
+        await service.reserve_attempt("password-reset-request", email, 4, timedelta(hours=1))
     except AuthError as exc:
         raise _auth_http_error(exc) from exc
+    background_tasks.add_task(_deliver_password_reset, service, email, public_url)
     return {
         "message": "Если аккаунт с таким email существует, ссылка для восстановления уже отправлена."
     }
+
+
+async def _deliver_password_reset(service: AuthService, email: str, public_url: str):
+    try:
+        await service.request_password_reset(email, public_url, reserve_limit=False)
+    except Exception as exc:
+        # No email, reset URL, SMTP config or token in logs/responses.
+        logger.warning("Password reset delivery failed (%s)", type(exc).__name__)
 
 
 @router.post("/password/reset")

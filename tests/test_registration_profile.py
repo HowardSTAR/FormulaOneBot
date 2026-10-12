@@ -148,7 +148,7 @@ async def test_resend_cooldown_survives_reload_and_uses_server_time(registration
             registration_clock.advance(seconds=seconds)
             status = await client.get('/api/auth/verification-status')
             assert status.json() == {'retry_after': expected}
-            assert status.headers['cache-control'] == 'no-store'
+            assert 'no-store' in status.headers['cache-control']
             blocked = await client.post('/api/auth/resend-verification', headers=csrf)
             assert blocked.status_code == 429
             assert blocked.headers['retry-after'] == str(expected)

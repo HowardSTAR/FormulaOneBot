@@ -6,15 +6,16 @@ import asyncio
 import hashlib
 import hmac
 import math
-import os
 import re
 import secrets
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import urlsplit
 
 from app.db import Database
 from app import passwords
+from app.security import auth_secret, is_production, url_origin
 from app.emailer import EmailDeliveryError, VerificationMailer
 from app.services.activity_service import is_primary_admin
 from app.services import profile_avatar
@@ -107,14 +108,13 @@ class AuthService:
     verification_resend_interval = timedelta(minutes=1)
     password_reset_ttl = timedelta(minutes=30)
     session_ttl = timedelta(days=30)
+    session_idle_ttl = timedelta(days=7)
+    admin_session_idle_ttl = timedelta(minutes=30)
 
     def __init__(self, database: Database, mailer: VerificationMailer, pepper: str | None = None):
         self.database = database
         self.mailer = mailer
-        secret = pepper or os.getenv("AUTH_PEPPER") or os.getenv("BOT_TOKEN")
-        if not secret:
-            raise RuntimeError("AUTH_PEPPER (or BOT_TOKEN fallback) must be configured")
-        self._pepper = secret.encode("utf-8")
+        self._pepper = auth_secret(pepper)
         self._password_slots = asyncio.Semaphore(2)
 
     async def _conn(self):
@@ -400,7 +400,7 @@ class AuthService:
                     """
                     SELECT vc.*, u.id AS account_id FROM verification_codes vc
                     JOIN users u ON u.id = vc.user_id
-                    WHERE vc.email = ? AND vc.consumed_at IS NULL
+                    WHERE vc.email = ? AND vc.consumed_at IS NULL AND u.archived_at IS NULL
                     ORDER BY vc.id DESC LIMIT 1
                     """,
                     (normalized,),
@@ -495,23 +495,22 @@ class AuthService:
                 await conn.rollback()
                 raise
 
-    async def request_password_reset(self, email: str, public_web_url: str) -> None:
+    async def request_password_reset(self, email: str, public_web_url: str, *, reserve_limit: bool = True) -> None:
         """Create and email a one-time reset link without revealing account existence."""
         normalized = normalize_email(email)
         base_url = public_web_url.strip().rstrip("/")
-        if not re.fullmatch(r"https?://[^\s]+", base_url):
+        if not url_origin(base_url) or urlsplit(base_url).query or urlsplit(base_url).fragment or (is_production() and not base_url.startswith("https://")):
             raise InvalidInput("PUBLIC_WEB_URL must be an absolute http(s) URL")
 
         conn = await self._conn()
+        if reserve_limit:
+            await self.reserve_attempt("password-reset-request", normalized, 4, timedelta(hours=1))
         token: str | None = None
         token_hash: str | None = None
         expires_at = utc_now() + self.password_reset_ttl
         async with self.database.write_lock:
             try:
                 await conn.execute("BEGIN IMMEDIATE")
-                await self._consume_rate_limit(
-                    conn, "password-reset-request", normalized, 4, timedelta(hours=1)
-                )
                 async with conn.execute(
                     """
                     SELECT id FROM users
@@ -634,24 +633,29 @@ class AuthService:
     ) -> None:
         validate_password(new_password)
         conn = await self._conn()
+        await self.reserve_attempt("password-change", str(user_id), 8, timedelta(minutes=15))
+        user = await (await conn.execute(
+            "SELECT password_hash FROM users WHERE id = ? AND archived_at IS NULL", (user_id,)
+        )).fetchone()
+        old_hash = user["password_hash"] if user else None
+        valid = await self._verify_password(current_password, old_hash or passwords.DUMMY_HASH)
+        if not valid or not old_hash:
+            raise InvalidCredentials("Текущий пароль указан неверно")
+        if new_password == current_password:
+            raise InvalidInput("Новый пароль должен отличаться от текущего")
+        new_password_hash = await self._hash_password(new_password)
         async with self.database.write_lock:
             try:
                 await conn.execute("BEGIN IMMEDIATE")
                 async with conn.execute(
-                    "SELECT password_hash FROM users WHERE id = ? AND archived_at IS NULL",
-                    (user_id,),
+                    """SELECT u.password_hash FROM users u JOIN auth_sessions s ON s.user_id=u.id
+                    WHERE u.id=? AND u.archived_at IS NULL AND s.token_hash=?
+                      AND s.revoked_at IS NULL AND s.expires_at > ?""",
+                    (user_id, current_session_hash, iso(utc_now())),
                 ) as cursor:
                     user = await cursor.fetchone()
-                await self._consume_rate_limit(
-                    conn, "password-change", str(user_id), 8, timedelta(minutes=15)
-                )
-                if not user or not user["password_hash"]:
+                if not user or user["password_hash"] != old_hash:
                     raise InvalidCredentials("Текущий пароль указан неверно")
-                if not await self._verify_password(current_password, user["password_hash"]):
-                    raise InvalidCredentials("Текущий пароль указан неверно")
-                if await self._verify_password(new_password, user["password_hash"]):
-                    raise InvalidInput("Новый пароль должен отличаться от текущего")
-                new_password_hash = await self._hash_password(new_password)
                 now = iso(utc_now())
                 await conn.execute(
                     "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
@@ -686,13 +690,14 @@ class AuthService:
         expires_at = utc_now() + self.session_ttl
         await conn.execute(
             """
-            INSERT INTO auth_sessions(token_hash, csrf_hash, user_id, expires_at, user_agent, ip_hash)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO auth_sessions(token_hash, csrf_hash, user_id, expires_at, user_agent, ip_hash, created_at, last_seen_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 self._token_hash(token), self._token_hash(csrf_token), user_id, iso(expires_at),
                 (user_agent or "")[:300] or None,
                 self._hmac("ip", ip_address) if ip_address else None,
+                iso(utc_now()), iso(utc_now()),
             ),
         )
         await self._promote_primary_admin_locked(conn, user_id)
@@ -701,12 +706,12 @@ class AuthService:
         return AuthenticatedSession(token, csrf_token, iso(expires_at), self._public_user(user))
 
     async def authenticate_session(self, token: str) -> dict[str, Any]:
-        if not token or len(token) > 512:
+        if not re.fullmatch(r"[A-Za-z0-9_-]{64}", token or ""):
             raise InvalidCredentials("Invalid session")
         conn = await self._conn()
         async with conn.execute(
             """
-            SELECT s.token_hash, s.csrf_hash, s.expires_at, u.* FROM auth_sessions s
+            SELECT s.token_hash, s.csrf_hash, s.expires_at, s.last_seen_at, u.* FROM auth_sessions s
             JOIN users u ON u.id = s.user_id
             WHERE s.token_hash = ? AND s.revoked_at IS NULL AND u.archived_at IS NULL
             """,
@@ -715,6 +720,15 @@ class AuthService:
             row = await cursor.fetchone()
         if not row or datetime.fromisoformat(row["expires_at"]) <= utc_now():
             raise InvalidCredentials("Invalid or expired session")
+        last_seen = datetime.fromisoformat(row["last_seen_at"]).replace(tzinfo=timezone.utc)
+        idle_ttl = self.admin_session_idle_ttl if row["role"] != "user" else self.session_idle_ttl
+        if utc_now() - last_seen >= idle_ttl:
+            raise InvalidCredentials("Сессия завершена из-за отсутствия активности. Войдите снова")
+        if utc_now() - last_seen >= timedelta(minutes=5):
+            async with self.database.write_lock:
+                await conn.execute("UPDATE auth_sessions SET last_seen_at=? WHERE token_hash=? AND revoked_at IS NULL",
+                                   (iso(utc_now()), self._token_hash(token)))
+                await conn.commit()
         if row["role"] != "superadmin" and is_primary_admin(
             row["email"] if row["email_verified"] else None, row["telegram_id"]
         ):
@@ -726,13 +740,15 @@ class AuthService:
                 await conn.commit()
             async with conn.execute(
                 """
-                SELECT s.token_hash, s.csrf_hash, s.expires_at, u.* FROM auth_sessions s
+                SELECT s.token_hash, s.csrf_hash, s.expires_at, s.last_seen_at, u.* FROM auth_sessions s
                 JOIN users u ON u.id = s.user_id
                 WHERE s.token_hash = ? AND s.revoked_at IS NULL AND u.archived_at IS NULL
                 """,
                 (self._token_hash(token),),
             ) as cursor:
                 row = await cursor.fetchone()
+            if not row:
+                raise InvalidCredentials("Invalid or expired session")
         result = self._public_user(row)
         result["csrf_hash"] = row["csrf_hash"]
         result["session_token_hash"] = row["token_hash"]
@@ -753,6 +769,15 @@ class AuthService:
     async def delete_account(self, user_id: int, current_password: str | None) -> None:
         """Permanently delete a user and records keyed outside users.id cascades."""
         conn = await self._conn()
+        await self.reserve_attempt("account-delete", str(user_id), 8, timedelta(minutes=15))
+        candidate = await (await conn.execute(
+            "SELECT password_hash FROM users WHERE id=? AND archived_at IS NULL", (user_id,)
+        )).fetchone()
+        if not candidate:
+            raise InvalidCredentials("Аккаунт не найден или уже удалён")
+        old_hash = candidate["password_hash"]
+        if old_hash and not await self._verify_password(current_password or "", old_hash):
+            raise InvalidCredentials("Текущий пароль указан неверно")
         async with self.database.write_lock:
             try:
                 await conn.execute("BEGIN IMMEDIATE")
@@ -765,11 +790,8 @@ class AuthService:
                     raise InvalidCredentials("Аккаунт не найден или уже удалён")
                 if user["role"] != "user" or is_primary_admin(user["email"], user["telegram_id"]):
                     raise InvalidInput("Административный аккаунт нельзя удалить через пользовательский интерфейс")
-                if user["password_hash"]:
-                    if not current_password or not await self._verify_password(
-                        current_password, user["password_hash"]
-                    ):
-                        raise InvalidCredentials("Текущий пароль указан неверно")
+                if user["password_hash"] != old_hash:
+                    raise InvalidCredentials("Пароль изменён. Войдите снова")
 
                 telegram_id = int(user["telegram_id"]) if user["telegram_id"] is not None else None
                 if telegram_id is not None:

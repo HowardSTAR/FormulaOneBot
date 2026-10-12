@@ -83,4 +83,4 @@ ARG APP_VERSION=1.0.0
 ENV APP_VERSION=$APP_VERSION
 LABEL version=$APP_VERSION
 
-CMD ["uvicorn", "app.api.miniapp_api:web_app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["uvicorn", "app.api.miniapp_api:web_app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--no-access-log"]

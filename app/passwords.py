@@ -24,7 +24,7 @@ COMMON_PASSWORDS = frozenset({
 def password_policy_error(password: str) -> str | None:
     if not MIN_PASSWORD_LENGTH <= len(password) <= MAX_PASSWORD_LENGTH:
         return "Пароль должен содержать от 15 до 128 символов"
-    if any(ord(char) < 32 or 0x7f <= ord(char) < 0xa0 for char in password):
+    if any(ord(char) < 32 or 0x7f <= ord(char) < 0xa0 or 0xd800 <= ord(char) <= 0xdfff for char in password):
         return "Пароль не должен содержать управляющие символы"
     compact = "".join(char for char in password.casefold() if char.isalnum())
     if len(set(compact)) < 3 or compact in COMMON_PASSWORDS:
