@@ -88,6 +88,33 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
       await page.getByRole('button', { name: 'Регистрация', exact: true }).click();
       assert.equal(await passwordInput.getAttribute('type'), 'password', 'switching forms masks the password again');
       await page.getByLabel('Email', { exact: true }).fill('racer@example.test');
+      const start = page.getByRole('button', { name: 'Продолжить регистрацию', exact: true });
+      const setAutofilledPassword = value => passwordInput.evaluate((input, value) => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, value);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+      }, value);
+      await passwordInput.fill('short');
+      await page.getByLabel('Email', { exact: true }).focus();
+      const passwordError = page.locator('#registration-password-error');
+      await passwordError.getByText('Пароль должен содержать не менее 15 символов.', { exact: true }).waitFor();
+      await start.click();
+      assert.equal(await page.locator('.registration-wizard').count(), 0, 'short typed passwords cannot open the wizard');
+      for (const password of ['autofilled1234', '😀'.repeat(8), 'x'.repeat(129)]) {
+        await setAutofilledPassword(password);
+        assert(await passwordInput.evaluate(input => input.checkValidity()), 'autofill bypasses native length validation');
+        await start.click();
+        await passwordError.getByText(password.length > 128 ? 'Пароль должен содержать не более 128 символов.' : 'Пароль должен содержать не менее 15 символов.', { exact: true }).waitFor();
+        assert.equal(await page.locator('.registration-wizard').count(), 0, 'explicit length validation blocks invalid autofilled passwords');
+        assert.equal(await passwordInput.getAttribute('aria-invalid'), 'true');
+        assert(await passwordInput.evaluate(input => input === document.activeElement), 'invalid password receives focus');
+        assert.equal(registered, null, 'invalid credentials never create an account');
+      }
+      await passwordInput.fill('Турбо Пилот #26');
+      assert.equal(await passwordError.count(), 0, 'correcting a password clears its error immediately');
+      await start.click();
+      await page.getByRole('dialog', { name: 'Ваш ник', exact: true }).waitFor();
+      await page.keyboard.press('Escape');
+      await page.locator('.registration-wizard').waitFor({ state: 'detached' });
       await page.getByLabel('Пароль', { exact: true }).fill('FormulaOne-2026-Secure');
       await page.getByRole('button', { name: 'Показать пароль: Пароль', exact: true }).click();
       assert.equal(await passwordInput.getAttribute('type'), 'text');
@@ -98,7 +125,6 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
       assert.equal(await passwordInput.getAttribute('type'), 'password');
       assert.equal(await passwordInput.inputValue(), 'FormulaOne-2026-Secure');
       assert.equal(await page.getByLabel('Ник на сайте').count(), 0, 'profile fields are not underneath the credentials');
-      const start = page.getByRole('button', { name: 'Продолжить регистрацию', exact: true });
       await start.click();
       const wizard = page.getByRole('dialog', { name: 'Ваш ник', exact: true });
       await wizard.waitFor();

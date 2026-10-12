@@ -44,6 +44,13 @@ class AuthRequestError extends Error {
   }
 }
 
+function registrationPasswordError(password: string): string {
+  const length = [...password].length;
+  if (length < 15) return 'Пароль должен содержать не менее 15 символов.';
+  if (length > 128) return 'Пароль должен содержать не более 128 символов.';
+  return '';
+}
+
 function readCookie(name: string): string | null {
   const prefix = `${encodeURIComponent(name)}=`;
   const item = document.cookie.split("; ").find(value => value.startsWith(prefix));
@@ -114,6 +121,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
   const [email, setEmail] = useState("");
   const loginCooldown = useLoginCooldown(email);
   const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState('');
   const [manualCode, setManualCode] = useState("");
   const [strategy, setStrategy] = useState<"keep_web" | "keep_telegram">("keep_web");
   const [linkSession, setLinkSession] = useState<LinkSession | null>(null);
@@ -189,7 +197,16 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
     event.preventDefault();
     if (busy || (mode === 'login' && loginCooldown.seconds > 0)) return;
     setError(""); setMessage("");
-    if (mode === 'register') { setRegistrationOpen(true); return; }
+    if (mode === 'register') {
+      const validation = registrationPasswordError(password);
+      setPasswordError(validation);
+      if (validation) {
+        event.currentTarget.querySelector<HTMLInputElement>('input[name="password"]')?.focus();
+        return;
+      }
+      setRegistrationOpen(true);
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "forgot") {
@@ -301,15 +318,25 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
       {!user ? (
         <section className="account-card account-auth-card">
           <div className="account-tabs">
-            <button disabled={busy} className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(''); setMessage(''); }}>Вход</button>
-            <button disabled={busy} className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(''); setMessage(''); }}>Регистрация</button>
+            <button disabled={busy} className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(''); setMessage(''); setPasswordError(''); }}>Вход</button>
+            <button disabled={busy} className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(''); setMessage(''); setPasswordError(''); }}>Регистрация</button>
           </div>
           <form onSubmit={submitAuth}>
             <label>Email<input type="email" autoComplete="email" disabled={busy} required value={email} onChange={e => setEmail(e.target.value)} /></label>
             {mode !== "forgot" && (
-              <PasswordField key={mode} label="Пароль" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} disabled={busy} minLength={mode === "register" ? 15 : undefined} maxLength={128} required value={password} onChange={e => setPassword(e.target.value)} />
+              <PasswordField key={mode} name="password" label="Пароль" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} disabled={busy} minLength={mode === "register" ? 15 : undefined} maxLength={128} required value={password}
+                aria-invalid={mode === 'register' && Boolean(passwordError)}
+                aria-describedby={mode === 'register' ? `registration-password-hint${passwordError ? ' registration-password-error' : ''}` : undefined}
+                onBlur={() => { if (mode === 'register') setPasswordError(registrationPasswordError(password)); }}
+                onInvalid={event => { if (mode === 'register') setPasswordError(registrationPasswordError(event.currentTarget.value)); }}
+                onChange={event => {
+                  setPassword(event.target.value);
+                  if (mode === 'register' && passwordError) setPasswordError(registrationPasswordError(event.target.value));
+                }} />
             )}
-            {mode === 'register' && <><p className="account-hint">Пароль: от 15 до 128 символов. Используйте уникальную длинную фразу; можно с пробелами и кириллицей.</p><p className="account-hint">Далее — ник, аватар, любимые пилоты и команды. Каждый шаг откроется в отдельном окне.</p></>}
+            {mode === 'register' && <>
+              {passwordError && <p id="registration-password-error" className="account-password-error" role="alert">{passwordError}</p>}
+              <p id="registration-password-hint" className="account-hint">Пароль: от 15 до 128 символов. Используйте уникальную длинную фразу; можно с пробелами и кириллицей.</p><p className="account-hint">Далее — ник, аватар, любимые пилоты и команды. Каждый шаг откроется в отдельном окне.</p></>}
             {mode === "login" && (
               <button type="button" className="account-text-button" onClick={() => { setMode("forgot"); setError(""); setMessage(""); }}>
                 Забыли пароль?

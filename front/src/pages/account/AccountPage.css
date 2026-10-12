@@ -30,6 +30,7 @@
 .account-code-form { grid-template-columns: minmax(110px,.55fr) minmax(210px,1fr) auto; }
 .account-code-form input { font-size: 20px; letter-spacing: .18em; font-weight: 900; }
 .account-hint { margin-top: 12px; }.account-hint code { color: white; }
+.account-password-error { margin: 0; color: #ffaaa2; font-size: 14px; line-height: 1.5; }
 .account-personal-card h2 { margin: 8px 0 10px; font-size: 28px; }
 .account-personal-card > p { max-width: 600px; margin: 0 0 18px; color: #a6a8ad; line-height: 1.55; }
 .account-quick-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
