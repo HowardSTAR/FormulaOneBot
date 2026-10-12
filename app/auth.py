@@ -20,7 +20,7 @@ async def get_current_user_id(
     """
     if not x_telegram_init_data:
         # Если заголовка нет — значит, запрос не из Телеграма или хакер
-        raise HTTPException(status_code=401, detail="Missing X-Telegram-Init-Data header")
+        raise HTTPException(status_code=401, detail="Откройте приложение через Telegram или войдите в аккаунт на сайте")
 
     settings = get_settings()
 
@@ -33,7 +33,7 @@ async def get_current_user_id(
         # 1. Проверяем валидность подписи (подделаны данные или нет)
         is_valid = check_webapp_signature(settings.bot.token, x_telegram_init_data)
         if not is_valid:
-            raise HTTPException(status_code=401, detail="Invalid WebApp signature")
+            raise HTTPException(status_code=401, detail="Не удалось подтвердить вход через Telegram. Переоткройте приложение")
 
         # 2. Парсим данные
         web_app_data: WebAppInitData = safe_parse_webapp_init_data(
@@ -50,7 +50,7 @@ async def get_current_user_id(
         return web_app_data.user.id
 
     except Exception:
-        raise HTTPException(status_code=401, detail="Authentication failed")
+        raise HTTPException(status_code=401, detail="Не удалось подтвердить вход через Telegram. Переоткройте приложение")
 
 
 async def get_optional_user_id(

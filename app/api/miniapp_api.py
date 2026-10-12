@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from app.security import SecurityHeadersMiddleware, validate_production_security
+from app.api.validation_messages import validation_message
 from pydantic import BaseModel, Field, model_validator, field_validator
 from app.race_rules import SUPPORTED_TRACK_IDS, validate_race_path
 
@@ -159,7 +160,7 @@ web_app.add_middleware(SecurityHeadersMiddleware)
 @web_app.exception_handler(RequestValidationError)
 async def safe_validation_error(request: Request, exc: RequestValidationError):
     # FastAPI's default includes raw input, including password/token values.
-    errors = [{key: item[key] for key in ("loc", "msg", "type") if key in item} for item in exc.errors()]
+    errors = [{"loc": item["loc"], "type": item["type"], "msg": validation_message(item)} for item in exc.errors()]
     return JSONResponse(status_code=422, content={"detail": errors})
 
 web_app.include_router(auth_router)

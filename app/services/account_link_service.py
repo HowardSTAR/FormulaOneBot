@@ -107,7 +107,7 @@ class AccountLinkService:
                 ) as cursor:
                     user = await cursor.fetchone()
                 if not user:
-                    raise LinkError("A verified web account is required")
+                    raise LinkError("Сначала подтвердите email в профиле")
                 await conn.execute(
                     """
                     UPDATE telegram_link_sessions SET status = 'cancelled', updated_at = ?
@@ -143,7 +143,7 @@ class AccountLinkService:
                 session = await self._get_pending_link(conn, token)
                 claimed_by = session["telegram_id"]
                 if claimed_by is not None and int(claimed_by) != int(telegram_id):
-                    raise LinkAlreadyUsed("Link session was opened by another Telegram account")
+                    raise LinkAlreadyUsed("Ссылка уже открыта другим аккаунтом Telegram. Создайте новую")
                 await conn.execute(
                     "UPDATE telegram_link_sessions SET telegram_id = ?, updated_at = ? WHERE token_hash = ?",
                     (int(telegram_id), iso(utc_now()), session["token_hash"]),
@@ -179,7 +179,7 @@ class AccountLinkService:
                 await conn.execute("BEGIN IMMEDIATE")
                 session = await self._get_pending_link(conn, token)
                 if session["telegram_id"] is not None and int(session["telegram_id"]) != int(telegram_id):
-                    raise LinkAlreadyUsed("Link session belongs to another Telegram account")
+                    raise LinkAlreadyUsed("Эта ссылка предназначена для другого аккаунта Telegram")
                 result = await self._merge_accounts_locked(
                     conn, int(session["web_user_id"]), int(telegram_id), strategy
                 )
@@ -206,7 +206,7 @@ class AccountLinkService:
     ) -> dict[str, Any]:
         await self._reserve_code_attempt("telegram-link-code", telegram_id)
         if not re.fullmatch(r"\d{6}", short_code):
-            raise LinkNotFound("Invalid code")
+            raise LinkNotFound("Неверный код. Проверьте его и повторите ввод")
         conn = await self._conn()
         async with conn.execute(
             "SELECT * FROM telegram_link_sessions WHERE short_code_hash = ?",
@@ -214,21 +214,21 @@ class AccountLinkService:
         ) as cursor:
             row = await cursor.fetchone()
         if not row:
-            raise LinkNotFound("Invalid code")
+            raise LinkNotFound("Неверный код. Проверьте его и повторите ввод")
         return await self._approve_link_row(row, telegram_id, strategy)
 
     async def approve_by_hint(
         self, token_hint: str, telegram_id: int, strategy: MergeStrategy | None = None
     ) -> dict[str, Any]:
         if not re.fullmatch(r"[A-Za-z0-9_-]{16}", token_hint):
-            raise LinkNotFound("Link session not found")
+            raise LinkNotFound("Ссылка для привязки не найдена. Создайте новую")
         conn = await self._conn()
         async with conn.execute(
             "SELECT * FROM telegram_link_sessions WHERE token_hint = ?", (token_hint,)
         ) as cursor:
             row = await cursor.fetchone()
         if not row:
-            raise LinkNotFound("Link session not found")
+            raise LinkNotFound("Ссылка для привязки не найдена. Создайте новую")
         return await self._approve_link_row(row, telegram_id, strategy)
 
     async def cancel_by_hint(self, token_hint: str, telegram_id: int) -> None:
@@ -243,7 +243,7 @@ class AccountLinkService:
             )
             await conn.commit()
         if cursor.rowcount != 1:
-            raise LinkNotFound("Link session not found")
+            raise LinkNotFound("Ссылка для привязки не найдена. Создайте новую")
 
     async def _approve_link_row(
         self, row: Any, telegram_id: int, strategy: MergeStrategy | None
@@ -257,10 +257,10 @@ class AccountLinkService:
                 ) as cursor:
                     current_row = await cursor.fetchone()
                 if not current_row:
-                    raise LinkNotFound("Link session not found")
+                    raise LinkNotFound("Ссылка для привязки не найдена. Создайте новую")
                 self._validate_pending_row(current_row)
                 if current_row["telegram_id"] is not None and int(current_row["telegram_id"]) != int(telegram_id):
-                    raise LinkAlreadyUsed("Link session belongs to another Telegram account")
+                    raise LinkAlreadyUsed("Эта ссылка предназначена для другого аккаунта Telegram")
                 result = await self._merge_accounts_locked(
                     conn, int(current_row["web_user_id"]), int(telegram_id), strategy
                 )
@@ -308,7 +308,7 @@ class AccountLinkService:
     ) -> dict[str, Any]:
         await self._reserve_code_attempt("web-link-code", web_user_id)
         if not re.fullmatch(r"\d{6}", code):
-            raise LinkNotFound("Invalid code")
+            raise LinkNotFound("Неверный код. Проверьте его и повторите ввод")
         conn = await self._conn()
         async with self.database.write_lock:
             try:
@@ -319,7 +319,7 @@ class AccountLinkService:
                 ) as cursor:
                     row = await cursor.fetchone()
                 if not row:
-                    raise LinkNotFound("Invalid code")
+                    raise LinkNotFound("Неверный код. Проверьте его и повторите ввод")
                 self._validate_pending_row(row)
                 result = await self._merge_accounts_locked(
                     conn, int(web_user_id), int(row["telegram_id"]), strategy
@@ -343,7 +343,7 @@ class AccountLinkService:
         ) as cursor:
             row = await cursor.fetchone()
         if not row:
-            raise LinkNotFound("Link session not found")
+            raise LinkNotFound("Ссылка для привязки не найдена. Создайте новую")
         status = row["status"]
         if status == "pending" and self._is_expired(row["expires_at"]):
             status = "expired"
@@ -362,7 +362,7 @@ class AccountLinkService:
         ) as cursor:
             row = await cursor.fetchone()
         if not row:
-            raise LinkNotFound("Link session not found")
+            raise LinkNotFound("Ссылка для привязки не найдена. Создайте новую")
         self._validate_pending_row(row)
 
     async def merge_accounts(
@@ -387,10 +387,10 @@ class AccountLinkService:
         ) as cursor:
             web_user = await cursor.fetchone()
         if not web_user or not web_user["email"] or not web_user["email_verified"]:
-            raise LinkError("A verified web account is required")
+            raise LinkError("Сначала подтвердите email в профиле")
         if web_user["telegram_id"] is not None:
             if int(web_user["telegram_id"]) != int(telegram_id):
-                raise LinkConflict("Web account is already linked to another Telegram account")
+                raise LinkConflict("Аккаунт сайта уже привязан к другому аккаунту Telegram")
             return {"user": self._user(web_user), "strategy": strategy or "keep_web", "merged": False}
 
         async with conn.execute(
@@ -409,7 +409,7 @@ class AccountLinkService:
         if int(telegram_user["id"]) == int(web_user_id):
             return {"user": self._user(web_user), "strategy": strategy or "keep_web", "merged": False}
         if strategy not in ("keep_web", "keep_telegram"):
-            raise LinkConflict("Both accounts contain data; choose keep_web or keep_telegram")
+            raise LinkConflict("В обоих аккаунтах есть данные. Выберите, данные какого аккаунта сохранить")
 
         target_id = int(web_user_id if strategy == "keep_web" else telegram_user["id"])
         source_id = int(telegram_user["id"] if strategy == "keep_web" else web_user_id)
@@ -536,22 +536,22 @@ class AccountLinkService:
 
     async def _get_pending_link(self, conn, token: str):
         if not token or len(token) > 256:
-            raise LinkNotFound("Link session not found")
+            raise LinkNotFound("Ссылка для привязки не найдена. Создайте новую")
         async with conn.execute(
             "SELECT * FROM telegram_link_sessions WHERE token_hash = ?",
             (self._hash("link-token", token),),
         ) as cursor:
             row = await cursor.fetchone()
         if not row:
-            raise LinkNotFound("Link session not found")
+            raise LinkNotFound("Ссылка для привязки не найдена. Создайте новую")
         self._validate_pending_row(row)
         return row
 
     def _validate_pending_row(self, row: Any) -> None:
         if row["status"] != "pending":
-            raise LinkAlreadyUsed("Link session is no longer pending")
+            raise LinkAlreadyUsed("Эта ссылка уже использована или отменена. Создайте новую")
         if self._is_expired(row["expires_at"]):
-            raise LinkExpired("Link session has expired")
+            raise LinkExpired("Срок действия ссылки для привязки истёк. Создайте новую")
 
     @staticmethod
     def _is_expired(expires_at: str) -> bool:

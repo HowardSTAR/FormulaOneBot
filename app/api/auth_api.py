@@ -231,7 +231,7 @@ async def require_web_session(
             bearer_token = credentials.strip()
     raw_token = bearer_token or cookie_token
     if not raw_token:
-        raise HTTPException(401, detail={"code": "missing_session", "message": "Authentication required"})
+        raise HTTPException(401, detail={"code": "missing_session", "message": "Войдите в аккаунт, чтобы продолжить"})
     auth_service = get_auth_service()
     try:
         user = await auth_service.authenticate_session(raw_token)
@@ -242,7 +242,7 @@ async def require_web_session(
     if from_cookie and request.method.upper() not in {"GET", "HEAD", "OPTIONS"}:
         validate_request_origin(request)
         if not auth_service.verify_csrf(x_csrf_token, user["csrf_hash"]):
-            raise HTTPException(403, detail={"code": "invalid_csrf", "message": "CSRF token is missing or invalid"})
+            raise HTTPException(403, detail={"code": "invalid_csrf", "message": "Не удалось подтвердить запрос. Обновите страницу и повторите действие"})
     return WebSessionContext(user=user, raw_token=raw_token, from_cookie=from_cookie)
 
 
@@ -273,7 +273,7 @@ async def require_hybrid_telegram_id(
             403,
             detail={
                 "code": "telegram_link_required",
-                "message": "Link Telegram to use personalized features",
+                "message": "Привяжите Telegram в настройках аккаунта, чтобы пользоваться этим разделом",
             },
         )
     return int(telegram_id)
@@ -403,7 +403,7 @@ def _public_web_url(request: Request) -> str:
     if os.getenv("APP_ENV", "development").lower() == "production":
         raise HTTPException(
             503,
-            detail={"code": "public_web_url_missing", "message": "PUBLIC_WEB_URL is not configured"},
+            detail={"code": "public_web_url_missing", "message": "Восстановление пароля временно недоступно. Попробуйте позже"},
         )
     return str(request.base_url).rstrip("/")
 
@@ -497,7 +497,7 @@ def _bot_deep_link(token: str) -> str:
     if not re.fullmatch(r"[A-Za-z0-9_]{5,32}", username):
         raise HTTPException(
             503,
-            detail={"code": "bot_username_missing", "message": "TELEGRAM_BOT_USERNAME is not configured"},
+            detail={"code": "bot_username_missing", "message": "Привязка Telegram временно недоступна. Попробуйте позже"},
         )
     return f"https://t.me/{username}?start=link_{token}"
 
@@ -528,7 +528,7 @@ async def telegram_link_status(token: str, session: WebSessionContext = Depends(
 @router.get("/telegram/link-sessions/{token}/qr.svg")
 async def telegram_link_qr(token: str):
     if not re.fullmatch(r"[A-Za-z0-9_-]{48,59}", token):
-        raise HTTPException(404, detail={"code": "link_not_found", "message": "Link session not found"})
+        raise HTTPException(404, detail={"code": "link_not_found", "message": "Ссылка для привязки не найдена. Создайте новую"})
     try:
         await get_link_service().validate_public_token(token)
     except LinkError as exc:
@@ -537,7 +537,7 @@ async def telegram_link_qr(token: str):
         import qrcode
         import qrcode.image.svg
     except ImportError as exc:
-        raise HTTPException(503, detail={"code": "qr_dependency_missing", "message": "Install qrcode package"}) from exc
+        raise HTTPException(503, detail={"code": "qr_dependency_missing", "message": "Не удалось создать QR-код. Используйте ссылку или введите код вручную"}) from exc
     deep_link = _bot_deep_link(token)
     image = qrcode.make(deep_link, image_factory=qrcode.image.svg.SvgPathImage, box_size=8, border=2)
     output = io.BytesIO()

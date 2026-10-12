@@ -13,6 +13,7 @@ import RegistrationFields, { type RegistrationProfile } from './RegistrationFiel
 import { defaultAvatar } from '../profile/avatar';
 import { PasswordField } from '../../components/PasswordField';
 import { useLoginCooldown } from './useLoginCooldown';
+import { apiErrorMessage } from '../../helpers/errorMessages';
 
 type User = {
   id: number;
@@ -54,18 +55,20 @@ async function authFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   headers.set("Content-Type", "application/json");
   const csrf = sessionStorage.getItem("turbotears_csrf") || readCookie("turbotears_csrf");
   if (csrf) headers.set("X-CSRF-Token", csrf);
-  const response = await fetch(path, { ...init, headers, credentials: "include" });
+  let response: Response;
+  try { response = await fetch(path, { ...init, headers, credentials: "include" }); }
+  catch { throw new AuthRequestError('Нет соединения с сервером. Проверьте сеть и повторите запрос.'); }
   if (!response.ok) {
     let payload: ApiErrorPayload = {};
     try { payload = await response.json() as ApiErrorPayload; } catch { /* no-op */ }
-    const detail = payload.detail;
-    const message = typeof detail === "string" ? detail : detail?.message;
-    throw new AuthRequestError(message || `Ошибка API: ${response.status}`,
+    const detail = payload?.detail;
+    throw new AuthRequestError(apiErrorMessage(payload, response.status),
       typeof detail === 'object' ? detail?.retry_after : undefined,
       typeof detail === 'object' ? detail?.scope : undefined);
   }
   if (response.status === 204) return undefined as T;
-  return await response.json() as T;
+  try { return await response.json() as T; }
+  catch { throw new AuthRequestError('Не удалось прочитать ответ сервера. Попробуйте повторить запрос.'); }
 }
 
 export default function AccountPage({ embedded = false }: { embedded?: boolean }) {

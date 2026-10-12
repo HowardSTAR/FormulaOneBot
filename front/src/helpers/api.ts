@@ -1,5 +1,6 @@
 import { SingleFlight } from './singleFlight';
 import { dataReceiptKey } from './dataReceipt';
+import { apiErrorMessage } from './errorMessages';
 
 // Точно как в web/app/static/js/common.js — читаем при каждом запросе
 function getInitData(): string {
@@ -48,6 +49,7 @@ export function apiAssetUrl(
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) { super(message); this.name = 'ApiError'; this.status = status; }
+  toString(): string { return this.message; }
 }
 
 export function apiRequest<T = unknown>(
@@ -123,7 +125,7 @@ async function executeApiRequest<T = unknown>(
   } catch (e) {
     reportError(0);
     if ((e as Error)?.name === 'AbortError') {
-      throw new Error('Превышено время ожидания ответа сервера.');
+      throw new ApiError('Превышено время ожидания ответа сервера.', 0);
     }
     throw new ApiError('Нет соединения с сервером. Проверьте сеть и повторите запрос.', 0);
   } finally {
@@ -137,19 +139,11 @@ async function executeApiRequest<T = unknown>(
   }
 
   if (!response.ok) {
-    let serverMessage = "";
+    let payload: unknown;
     try {
-      const payload = await response.json() as { detail?: string | { message?: string } | { msg?: string }[] };
-      serverMessage = typeof payload.detail === 'string' ? payload.detail
-        : Array.isArray(payload.detail) ? payload.detail[0]?.msg || ''
-          : payload.detail?.message || '';
+      payload = await response.json();
     } catch { /* response without JSON */ }
-    const msg = serverMessage || (response.status === 401
-      ? 'Войдите в аккаунт или откройте приложение в Telegram'
-      : response.status === 403
-        ? 'Нет доступа к этому действию. Проверьте аккаунт и права доступа.'
-        : 'Не удалось получить ответ сервера. Попробуйте повторить запрос.');
-    throw new ApiError(response.status >= 500 ? 'Сервис временно недоступен. Попробуйте повторить запрос.' : msg, response.status);
+    throw new ApiError(apiErrorMessage(payload, response.status), response.status);
   }
 
   try {

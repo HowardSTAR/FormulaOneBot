@@ -94,10 +94,10 @@ def iso(dt: datetime) -> str:
 def normalize_email(email: str) -> str:
     value = email.strip().lower()
     if len(value) > 254 or not EMAIL_RE.fullmatch(value):
-        raise InvalidInput("Invalid email address")
+        raise InvalidInput("Введите корректный адрес электронной почты")
     local, domain = value.rsplit("@", 1)
     if len(local) > 64 or not local or not domain:
-        raise InvalidInput("Invalid email address")
+        raise InvalidInput("Введите корректный адрес электронной почты")
     return value
 
 
@@ -538,7 +538,7 @@ class AuthService:
         normalized = normalize_email(email)
         base_url = public_web_url.strip().rstrip("/")
         if not url_origin(base_url) or urlsplit(base_url).query or urlsplit(base_url).fragment or (is_production() and not base_url.startswith("https://")):
-            raise InvalidInput("PUBLIC_WEB_URL must be an absolute http(s) URL")
+            raise InvalidInput("Восстановление пароля временно недоступно. Попробуйте позже")
 
         conn = await self._conn()
         if reserve_limit:
@@ -745,7 +745,7 @@ class AuthService:
 
     async def authenticate_session(self, token: str) -> dict[str, Any]:
         if not re.fullmatch(r"[A-Za-z0-9_-]{64}", token or ""):
-            raise InvalidCredentials("Invalid session")
+            raise InvalidCredentials("Сессия недействительна. Войдите снова")
         conn = await self._conn()
         async with conn.execute(
             """
@@ -757,7 +757,7 @@ class AuthService:
         ) as cursor:
             row = await cursor.fetchone()
         if not row or datetime.fromisoformat(row["expires_at"]) <= utc_now():
-            raise InvalidCredentials("Invalid or expired session")
+            raise InvalidCredentials("Сессия завершена. Войдите снова")
         last_seen = datetime.fromisoformat(row["last_seen_at"]).replace(tzinfo=timezone.utc)
         idle_ttl = self.admin_session_idle_ttl if row["role"] != "user" else self.session_idle_ttl
         if utc_now() - last_seen >= idle_ttl:
@@ -786,7 +786,7 @@ class AuthService:
             ) as cursor:
                 row = await cursor.fetchone()
             if not row:
-                raise InvalidCredentials("Invalid or expired session")
+                raise InvalidCredentials("Сессия завершена. Войдите снова")
         result = self._public_user(row)
         result["csrf_hash"] = row["csrf_hash"]
         result["session_token_hash"] = row["token_hash"]
