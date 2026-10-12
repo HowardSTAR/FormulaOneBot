@@ -203,7 +203,8 @@ async function checkTrack(page, selector) {
       assert.equal(await page.locator('dialog[open]').count(), 0);
       if (width === 1440) {
         await checkTrack(page, '.index-hero-track-map');
-        await page.goto(`${base}/season`);
+        // The fixed fixture race remains testable after its date has passed.
+        await page.goto(`${base}/season?filter=all`);
         await checkTrack(page, '.season-desktop-track-svg');
         await page.goto(base);
       }

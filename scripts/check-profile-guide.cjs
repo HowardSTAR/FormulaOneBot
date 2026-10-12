@@ -7,7 +7,8 @@ const titles=['Твой образ','Сезон в цифрах','Твои пр�
   fs.mkdirSync('.tmp/profile-guide-ui',{recursive:true});
   const browser=await chromium.launch({channel:'msedge',headless:true});
   try{
-    for(const [width,height] of [[320,640],[390,844],[768,1024],[1440,1000],[844,390]]){
+    for(const [width,height,safeTop=0,safeBottom=0] of [[320,640],[390,844],[768,1024],[1440,1000],[844,390],[390,844,91,34],[430,932,59,34]]){
+      const stepTitles=safeTop?['Добро пожаловать в профиль',...titles]:titles;
       const page=await browser.newPage({viewport:{width,height},reducedMotion:width===320?'reduce':'no-preference'});
       const errors=[];page.on('pageerror',e=>errors.push(e.message));
       let userId=1,owner=true,serverSeen=false,guideWrites=0,failGuide=false,pending=[];
@@ -23,16 +24,39 @@ const titles=['Твой образ','Сезон в цифрах','Твои пр�
         }
         if(path.endsWith('/trophies'))return route.fulfill({json:{user_id:userId,season:2026,calendar_known:true,season_closed:false,pending,earned:pending,badge:null,families:[{id:'oracle',name:'Оракул паддока',group:'Прогнозы',levels:[{id:'oracle:0:0',level:0,tier:'Бронза',season:0,earned_at:null,target:1,progress:0,condition:'Угадать победителя основной гонки.',rule:'Только рассчитанные прогнозы.'}]}]}});
         if(path==='/api/profiles/me/trophies/seen'){pending=[];return route.fulfill({json:{saved:true}});}
-        if(path.startsWith('/api/profiles/'))return route.fulfill({json:{user_id:userId,is_owner:owner,profile_guide_seen:serverSeen,display_name:'Turbo Racer',tier:0,tier_name:'Участник',supporter:false,style:{frame:'classic',color:'white',background:'carbon'},options:{frame:{classic:0},color:{white:0},background:{carbon:0}},avatar:{helmet:'scarlet',suit:'scarlet',background:'garage'},avatar_options:{helmet:{scarlet:'Алый'},suit:{scarlet:'Алый'},background:{garage:'Гараж'}},season:Number(url.searchParams.get('season'))||2026,seasons:[2026,2025],best_prediction:null,predictions:[],records:[],total_points:0,scored_rounds:0,favorites:{drivers:[],teams:[]}}});
+        if(path.startsWith('/api/profiles/'))return route.fulfill({json:{user_id:userId,is_owner:owner,profile_guide_seen:serverSeen,email:'test@example.com',email_verified:!safeTop,display_name:'Turbo Racer',tier:0,tier_name:'Участник',supporter:false,style:{frame:'classic',color:'white',background:'carbon'},options:{frame:{classic:0},color:{white:0},background:{carbon:0}},avatar:{helmet:'scarlet',suit:'scarlet',background:'garage'},avatar_options:{helmet:{scarlet:'Алый'},suit:{scarlet:'Алый'},background:{garage:'Гараж'}},season:Number(url.searchParams.get('season'))||2026,seasons:[2026,2025],best_prediction:null,predictions:[],records:[],total_points:0,scored_rounds:0,favorites:{drivers:[],teams:[]}}});
         return route.fulfill({json:path==='/api/next-race'?{status:'season_finished'}:{}});
       });
       await page.goto(base+'/profile');
+      await page.evaluate(({safeTop,safeBottom})=>{
+        document.documentElement.style.setProperty('--tg-safe-area-inset-top',`${safeTop}px`);
+        document.documentElement.style.setProperty('--tg-safe-area-inset-bottom',`${safeBottom}px`);
+      },{safeTop,safeBottom});
       const guide=page.getByRole('complementary',{name:'Знакомство с профилем'});
       await guide.waitFor();
       let completion;
-      for(let step=0;step<titles.length;step++){
-        await guide.getByRole('heading',{name:titles[step],exact:true}).waitFor();
+      const checkSpacing=async()=>{
+        const layout=await page.evaluate(()=>{
+          const preview=document.querySelector('.app-content').getBoundingClientRect();
+          const card=document.querySelector('.profile-guide').getBoundingClientRect();
+          return {gap:card.top-preview.bottom,sideBySide:preview.right<=card.left,previewHeight:preview.height,previewTop:preview.top};
+        });
+        if(!layout.sideBySide)assert(Math.abs(layout.gap-12)<=1,`onboarding gap must stay 12px: ${JSON.stringify({width,height,safeTop,safeBottom,...layout})}`);
+        if(!layout.sideBySide)assert(layout.previewTop>=safeTop+11,'profile respects the top safe area');
+      };
+      for(let step=0;step<stepTitles.length;step++){
+        await guide.getByRole('heading',{name:stepTitles[step],exact:true}).waitFor();
         await page.waitForTimeout(width===320?80:380);
+        await checkSpacing();
+        if(stepTitles[step]==='Твои прогнозы'){
+          if(safeTop){
+            await page.setViewportSize({width,height:height-96});
+            await page.waitForTimeout(120);await checkSpacing();
+            await page.setViewportSize({width,height});
+            await page.waitForTimeout(120);await checkSpacing();
+          }
+          await page.screenshot({path:`.tmp/profile-guide-ui/predictions-${width}x${height}-${safeTop}.png`});
+        }
         assert(await guide.evaluate(el=>{const r=el.getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight+1;}),`guide clipped: ${width}x${height} step ${step}`);
         assert(await guide.evaluate(el=>el.scrollWidth<=el.clientWidth),'text horizontally clipped');
         assert.equal(await page.locator('.first-visit-highlight').count(),1);
@@ -43,14 +67,14 @@ const titles=['Твой образ','Сезон в цифрах','Твои пр�
           assert.equal(await page.locator('.trophy-unlock').count(),0,'reward waits for tour');
           await page.screenshot({path:`.tmp/profile-guide-ui/trophies-${width}x${height}.png`});
         }
-        if(titles[step]==='Сезон в цифрах'){
+        if(stepTitles[step]==='Сезон в цифрах'){
           await page.getByRole('combobox',{name:'Сезон профиля'}).selectOption('2025');
           await page.getByRole('heading',{name:'Прогнозы · 2025',exact:true}).waitFor();
-          await guide.getByRole('heading',{name:titles[step],exact:true}).waitFor();
+          await guide.getByRole('heading',{name:stepTitles[step],exact:true}).waitFor();
           assert.equal(await page.locator('.profile-season.first-visit-highlight').count(),1,'season switch retains the current step and highlight');
         }
-        if(step===titles.length-1)completion=page.waitForResponse(response=>response.url().endsWith('/api/profiles/me/guide')&&response.status()===200);
-        await guide.getByRole('button',{name:step===titles.length-1?'Готово, это мой профиль':'Дальше →',exact:true}).click();
+        if(step===stepTitles.length-1)completion=page.waitForResponse(response=>response.url().endsWith('/api/profiles/me/guide')&&response.status()===200);
+        await guide.getByRole('button',{name:step===stepTitles.length-1?'Готово, это мой профиль':'Дальше →',exact:true}).click();
       }
       await guide.waitFor({state:'detached'});
       await completion;
@@ -76,11 +100,11 @@ const titles=['Твой образ','Сезон в цифрах','Твои пр�
       userId=3;serverSeen=false;
       await page.evaluate(()=>window.dispatchEvent(new Event('turbotears-auth-changed')));
       await guide.waitFor();
-      assert.equal(await guide.getByRole('heading',{name:titles[0],exact:true}).count(),1,'switching account on the same page starts its own introduction');
+      assert.equal(await guide.getByRole('heading',{name:stepTitles[0],exact:true}).count(),1,'switching account on the same page starts its own introduction');
       await guide.getByRole('button',{name:'Закрыть знакомство с профилем'}).click();
       await guide.waitFor({state:'detached'});
       assert.deepEqual(errors,[]);
-      console.log(`${width}x${height} PASS: nine steps, highlights, season changes, reward deferral, persisted completion, replay/Escape, public view, account isolation, offline receipt retry`);
+      console.log(`${width}x${height} (insets ${safeTop}/${safeBottom}) PASS: ${stepTitles.length} steps, compact spacing, highlights, season changes, reward deferral, persisted completion, replay/Escape, public view, account isolation, offline receipt retry`);
       await page.close();
     }
   }finally{await browser.close();}

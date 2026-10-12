@@ -35,12 +35,14 @@ html[data-onboarding-phase="leaving"] .app-page-main { opacity: 0; transform: tr
 html[data-onboarding-phase="loading"] .app-page-main { opacity: 0; transform: translateY(8px); pointer-events: none; }
 html[data-onboarding-phase="entering"] .app-page-main { opacity: 1; transform: translateY(0); pointer-events: none; }
 html[data-onboarding-phase="ready"] .app-page-main { opacity: 1; transform: translateY(0); }
-html[data-onboarding-active] .app-content { min-height: 0 !important; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; box-sizing: border-box; transition: height 280ms ease; }
+html[data-onboarding-active] .app-content { min-height: 0 !important; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; box-sizing: border-box; }
 @media (max-width: 1199px) {
   .first-visit-note { display: none; }
   html[data-onboarding-active] .app-header { display: none !important; }
   html[data-onboarding-active] #root .root { max-width: none !important; margin: 0 !important; padding-top: calc(12px + var(--app-safe-top)) !important; padding-bottom: 0 !important; }
-  html[data-onboarding-active] #root .app-content { margin: 0 !important; padding: 12px !important; height: calc(100dvh - var(--app-safe-top) - var(--app-safe-bottom) - var(--onboarding-panel-height, 210px) - 36px); border: 1px solid #3d4655; border-radius: 16px; }
+  /* Use the guide's fixed viewport coordinates too: mobile browser chrome can
+     make 100dvh differ from the viewport used to anchor a fixed bottom panel. */
+  html[data-onboarding-active] #root .app-content { position: fixed; top: calc(12px + var(--app-safe-top)); bottom: calc(var(--onboarding-panel-height, 210px) + var(--app-safe-bottom) + 24px); left: calc(12px + var(--app-safe-left)); right: calc(12px + var(--app-safe-right)); margin: 0 !important; padding: 12px !important; height: auto; border: 1px solid #3d4655; border-radius: 16px; }
 }
 @media (min-width: 768px) and (max-width: 1199px) {
   html[data-onboarding-active] #root .root { padding-left: calc(12px + var(--app-safe-left)) !important; padding-right: calc(12px + var(--app-safe-right)) !important; }
@@ -65,7 +67,7 @@ html[data-onboarding-active] .app-content { min-height: 0 !important; overflow-y
 @media (min-width: 650px) and (max-height: 500px) and (max-width: 1199px) {
   .first-visit-guide { top: calc(12px + var(--app-safe-top)); bottom: auto; left: auto; width: 280px; max-height: calc(100dvh - var(--app-safe-top) - var(--app-safe-bottom) - 24px); }
   html[data-onboarding-active] #root .root { padding-right: calc(304px + var(--app-safe-right)) !important; }
-  html[data-onboarding-active] #root .app-content { height: calc(100dvh - var(--app-safe-top) - var(--app-safe-bottom) - 24px); }
+  html[data-onboarding-active] #root .app-content { right: calc(304px + var(--app-safe-right)); bottom: calc(12px + var(--app-safe-bottom)); height: auto; }
 }
 @keyframes first-visit-arrive { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes first-visit-copy { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
