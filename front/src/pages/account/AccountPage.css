@@ -82,7 +82,7 @@
 .account-details:empty{display:none}.account-grid:not(:has(.account-details > *)) .account-overview{grid-column:1 / -1;grid-template-columns:repeat(2,minmax(0,1fr))}
 .account-details .account-security-card{display:block;grid-column:auto}
 .account-details .account-security-card form{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:20px}
-.account-details .account-security-card form label:first-child{grid-column:1 / -1}
+.account-details .account-security-card form>.password-field:first-child{grid-column:1 / -1}
 .account-details .account-security-card form .account-primary{grid-column:1 / -1;justify-self:start}
 .account-hero{padding:20px 24px}.account-hero h1{font-size:clamp(30px,4vw,46px);line-height:1.05}
 .account-boosty-card h2{margin:8px 0 14px;font-size:28px;line-height:1.15}

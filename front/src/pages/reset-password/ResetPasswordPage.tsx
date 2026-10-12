@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
+import { PasswordField } from '../../components/PasswordField';
 import "../account/AccountPage.css";
 import "./ResetPasswordPage.css";
 
@@ -60,8 +61,8 @@ export default function ResetPasswordPage() {
           </div>
         ) : (
           <form onSubmit={submit}>
-            <label>Новый пароль<input type="password" autoComplete="new-password" minLength={12} required value={password} onChange={e => setPassword(e.target.value)} /></label>
-            <label>Повторите новый пароль<input type="password" autoComplete="new-password" minLength={12} required value={confirmation} aria-invalid={Boolean(confirmation && password !== confirmation)} aria-describedby={confirmation && password !== confirmation ? 'password-mismatch' : undefined} onChange={e => setConfirmation(e.target.value)} /></label>
+            <PasswordField label="Новый пароль" autoComplete="new-password" disabled={busy} minLength={12} required value={password} onChange={e => setPassword(e.target.value)} />
+            <PasswordField label="Повторите новый пароль" autoComplete="new-password" disabled={busy} minLength={12} required value={confirmation} aria-invalid={Boolean(confirmation && password !== confirmation)} aria-describedby={confirmation && password !== confirmation ? 'password-mismatch' : undefined} onChange={e => setConfirmation(e.target.value)} />
             {confirmation && password !== confirmation && <p id="password-mismatch" role="status">Пароли не совпадают. Повторите новый пароль.</p>}
             <p className="reset-password-hint">Не менее 12 символов, обязательно буквы и цифры.</p>
             <button className="account-primary" disabled={busy || password !== confirmation}>{busy ? "Сохраняем…" : "Сохранить новый пароль"}</button>

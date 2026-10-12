@@ -52,9 +52,23 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
         return route.fulfill({ json: path === '/api/next-race' ? { status: 'season_finished' } : {} });
       });
       await page.goto(base + '/account?returnTo=predictions');
+      const passwordInput = page.getByLabel('Пароль', { exact: true });
+      await passwordInput.fill('FormulaOne-2026-Secure');
+      await page.getByRole('button', { name: 'Показать пароль: Пароль', exact: true }).click();
+      assert.equal(await passwordInput.getAttribute('type'), 'text');
+      assert.equal(await passwordInput.inputValue(), 'FormulaOne-2026-Secure');
       await page.getByRole('button', { name: 'Регистрация', exact: true }).click();
+      assert.equal(await passwordInput.getAttribute('type'), 'password', 'switching forms masks the password again');
       await page.getByLabel('Email', { exact: true }).fill('racer@example.test');
       await page.getByLabel('Пароль', { exact: true }).fill('FormulaOne-2026-Secure');
+      await page.getByRole('button', { name: 'Показать пароль: Пароль', exact: true }).click();
+      assert.equal(await passwordInput.getAttribute('type'), 'text');
+      await page.keyboard.type('7');
+      assert.equal(await passwordInput.inputValue(), 'FormulaOne-2026-Secure7', 'typing continues in the password field');
+      await page.keyboard.press('Backspace');
+      await page.getByRole('button', { name: 'Скрыть пароль: Пароль', exact: true }).click();
+      assert.equal(await passwordInput.getAttribute('type'), 'password');
+      assert.equal(await passwordInput.inputValue(), 'FormulaOne-2026-Secure');
       await page.getByLabel('Ник на сайте').fill('Турбо Пилот');
       if (width !== 320) {
         await page.locator('.registration-avatar summary').click();
@@ -118,7 +132,7 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
       await page.getByRole('heading', { name: 'Турбо Пилот', exact: true }).waitFor();
       assert.equal(await page.evaluate(() => sessionStorage.getItem('turbotears_csrf')), 'verified-csrf');
       assert.deepEqual(errors, []);
-      console.log(`${width}px PASS: registration, email tour, invalid code, resend countdown, minute expiry, cooldown after reload, unverified login`);
+      console.log(`${width}px PASS: password visibility and retained input, registration, email tour, resend countdown, cooldown after reload, unverified login`);
       await page.close();
     }
   } finally { await browser.close(); }

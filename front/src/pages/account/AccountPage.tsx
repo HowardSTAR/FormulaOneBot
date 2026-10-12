@@ -11,6 +11,7 @@ import { boostyCheckFailureLabel, boostySubscriptionLabel, type BoostyStatus } f
 import { checkBoostySubscription } from '../../helpers/boostyApi';
 import RegistrationFields, { type RegistrationProfile } from './RegistrationFields';
 import { defaultAvatar } from '../profile/avatar';
+import { PasswordField } from '../../components/PasswordField';
 
 type User = {
   id: number;
@@ -274,7 +275,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
           <form onSubmit={submitAuth}>
             <label>Email<input type="email" autoComplete="email" disabled={busy} required value={email} onChange={e => setEmail(e.target.value)} /></label>
             {mode !== "forgot" && (
-              <label>Пароль<input type="password" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} disabled={busy} minLength={mode === "register" ? 12 : undefined} required value={password} onChange={e => setPassword(e.target.value)} /></label>
+              <PasswordField key={mode} label="Пароль" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} disabled={busy} minLength={mode === "register" ? 12 : undefined} required value={password} onChange={e => setPassword(e.target.value)} />
             )}
             {mode === 'register' && <><p className="account-hint">Пароль: от 12 символов, латинские буквы и цифры.</p><RegistrationFields value={registration} onChange={setRegistration} disabled={busy} /><p className="account-hint">После регистрации откроется профиль со знакомством с сайтом. Код из письма можно ввести там.</p></>}
             {mode === "login" && (
@@ -364,9 +365,9 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
                 <p>После сохранения другие активные сеансы будут завершены.</p>
               </div>
               <form onSubmit={changePassword}>
-                <label>Текущий пароль<input type="password" autoComplete="current-password" required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} /></label>
-                <label>Новый пароль<input type="password" autoComplete="new-password" minLength={12} required value={newPassword} onChange={e => setNewPassword(e.target.value)} /></label>
-                <label>Повторите новый пароль<input type="password" autoComplete="new-password" minLength={12} required value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)} /></label>
+                <PasswordField label="Текущий пароль" autoComplete="current-password" disabled={busy} required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
+                <PasswordField label="Новый пароль" autoComplete="new-password" disabled={busy} minLength={12} required value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                <PasswordField label="Повторите новый пароль" autoComplete="new-password" disabled={busy} minLength={12} required value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)} />
                 <button className="account-primary" disabled={busy || newPassword !== passwordConfirmation}>Изменить пароль</button>
               </form>
             </section>
@@ -389,7 +390,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
             ) : (
               <form onSubmit={deleteAccount}>
                 {user.email && (
-                  <label>Текущий пароль<input type="password" autoComplete="current-password" required value={deletePassword} onChange={e => setDeletePassword(e.target.value)} /></label>
+                  <PasswordField label="Текущий пароль" autoComplete="current-password" disabled={busy} required value={deletePassword} onChange={e => setDeletePassword(e.target.value)} />
                 )}
                 <label>
                   Для подтверждения введите DELETE
