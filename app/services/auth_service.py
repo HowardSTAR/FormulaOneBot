@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import math
 import os
 import re
 import secrets
@@ -48,6 +49,14 @@ class VerificationCodeExpired(AuthError):
 
 class RateLimitExceeded(AuthError):
     code = "rate_limit_exceeded"
+
+
+class VerificationResendCooldown(RateLimitExceeded):
+    code = "verification_resend_cooldown"
+
+    def __init__(self, retry_after: int):
+        self.retry_after = retry_after
+        super().__init__(f"Повторное письмо можно запросить через {retry_after} сек.")
 
 
 class InvalidInput(AuthError):
@@ -100,6 +109,7 @@ def validate_password(password: str) -> None:
 
 class AuthService:
     verification_ttl = timedelta(minutes=10)
+    verification_resend_interval = timedelta(minutes=1)
     password_reset_ttl = timedelta(minutes=30)
     session_ttl = timedelta(days=30)
 
@@ -196,6 +206,23 @@ class AuthService:
             (action, self._hmac("rate-limit", identifier)),
         )
 
+    async def verification_status(self, user_id: int) -> dict[str, int]:
+        conn = await self._conn()
+        row = await (await conn.execute(
+            "SELECT window_expires_at FROM auth_rate_limits WHERE action = ? AND identifier_hash = ?",
+            ("verification-resend-cooldown", self._hmac("rate-limit", str(user_id))),
+        )).fetchone()
+        remaining = max(0, math.ceil((datetime.fromisoformat(row["window_expires_at"]) - utc_now()).total_seconds())) if row else 0
+        return {"retry_after": remaining}
+
+    async def _reserve_verification_send(self, conn, user_id: int) -> None:
+        status = await self.verification_status(user_id)
+        if status["retry_after"]:
+            raise VerificationResendCooldown(status["retry_after"])
+        await self._consume_rate_limit(
+            conn, "verification-resend-cooldown", str(user_id), 1, self.verification_resend_interval
+        )
+
     async def register(
         self, email: str, password: str, *, display_name: str | None = None,
         avatar: dict[str, str] | None = None,
@@ -234,6 +261,7 @@ class AuthService:
                     (normalized, password_hash, name or None),
                 )
                 user_id = int(cursor.lastrowid)
+                await self._reserve_verification_send(conn, user_id)
                 if name:
                     await conn.execute(
                         "INSERT INTO prediction_profiles(user_id, display_name) VALUES (?, ?)",
@@ -276,6 +304,7 @@ class AuthService:
                     "DELETE FROM verification_codes WHERE email = ? AND code_hash = ?",
                     (normalized, code_hash),
                 )
+                await self._clear_rate_limit(conn, "verification-resend-cooldown", str(user_id))
                 await conn.commit()
         async with self.database.write_lock:
             try:
@@ -301,6 +330,7 @@ class AuthService:
                 if not user or not user["email"] or user["email_verified"]:
                     raise InvalidInput("Email не требует подтверждения")
                 email = user["email"]
+                await self._reserve_verification_send(conn, user_id)
                 await self._consume_rate_limit(conn, "resend-verification", str(user_id), 4, timedelta(hours=1))
                 await conn.commit()
             except RateLimitExceeded:
@@ -334,7 +364,7 @@ class AuthService:
                     (user_id, email, code_hash, iso(expires_at)),
                 )
                 await conn.commit()
-                return {"email": email, "expires_at": iso(expires_at)}
+                return {"email": email, "expires_at": iso(expires_at), **await self.verification_status(user_id)}
             except Exception:
                 await conn.rollback()
                 raise

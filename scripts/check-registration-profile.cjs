@@ -11,9 +11,11 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
   try {
     for (const width of [320, 390, 768, 1440]) {
       const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+      await page.clock.install();
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       let user = null, registered = null, seen = false, resent = 0, signedIn = false;
+      let cooldownSeconds = width === 320 ? 0 : 60;
       await page.addInitScript(() => localStorage.setItem('turbotears-onboarding-v2', JSON.stringify({ status: 'skipped' })));
       await page.route('**/api/**', route => {
         const path = new URL(route.request().url()).pathname;
@@ -27,7 +29,8 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
           return route.fulfill({ status: 202, json: { user, csrf_token: 'registration-csrf', email_sent: width !== 320 } });
         }
         if (path === '/api/auth/login') { signedIn = true; return route.fulfill({ json: { user, csrf_token: 'login-csrf' } }); }
-        if (path === '/api/auth/resend-verification') { resent++; return route.fulfill({ status: 202, json: { email: user.email } }); }
+        if (path === '/api/auth/verification-status') return route.fulfill({ json: { retry_after: cooldownSeconds } });
+        if (path === '/api/auth/resend-verification') { resent++; cooldownSeconds = 60; return route.fulfill({ status: 202, json: { email: user.email, retry_after: 60 } }); }
         if (path === '/api/auth/verify-email') {
           assert.equal(route.request().postDataJSON().email, user.email);
           if (route.request().postDataJSON().code !== '123456') return route.fulfill({ status: 401, json: { detail: { message: 'Неверный код из письма' } } });
@@ -82,13 +85,25 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
       await page.getByLabel('Код из письма', { exact: true }).fill('000000');
       await emailCard.getByRole('button', { name: 'Подтвердить email', exact: true }).click();
       await emailCard.getByRole('alert').getByText('Неверный код из письма').waitFor();
-      await emailCard.getByRole('button', { name: 'Отправить код повторно' }).click();
+      const resendButton = emailCard.getByRole('button', { name: /Прислать письмо заново/ });
+      if (width !== 320) {
+        assert(await resendButton.isDisabled(), 'initial delivery starts the one-minute countdown');
+        assert.match(await resendButton.textContent(), /01:00|00:5\d/);
+        await page.clock.fastForward(60_000);
+        cooldownSeconds = 0;
+      }
+      await resendButton.click();
       await emailCard.getByRole('status').getByText('Новый код отправлен.', { exact: false }).waitFor();
       assert.equal(resent, 1);
+      assert(await resendButton.isDisabled(), 'resend is disabled after delivery');
+      assert.match(await resendButton.textContent(), /01:00|00:5\d/);
+      await page.clock.fastForward(1000);
+      assert.match(await resendButton.textContent(), /00:5\d/, 'countdown decreases');
       await guide.getByRole('button', { name: 'Закрыть знакомство с профилем' }).click();
       await guide.waitFor({ state: 'detached' });
       await page.reload();
       await emailCard.waitFor();
+      assert(await resendButton.isDisabled(), 'reload retains the server cooldown');
       assert.equal(await guide.count(), 0, 'skipping the tour persists independently of verification');
       signedIn = false;
       await page.goto(base + '/account?returnTo=predictions');
@@ -103,7 +118,7 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
       await page.getByRole('heading', { name: 'Турбо Пилот', exact: true }).waitFor();
       assert.equal(await page.evaluate(() => sessionStorage.getItem('turbotears_csrf')), 'verified-csrf');
       assert.deepEqual(errors, []);
-      console.log(`${width}px PASS: registration preferences, direct profile, email tour, invalid code, resend, deferred verification, reload, unverified login`);
+      console.log(`${width}px PASS: registration, email tour, invalid code, resend countdown, minute expiry, cooldown after reload, unverified login`);
       await page.close();
     }
   } finally { await browser.close(); }

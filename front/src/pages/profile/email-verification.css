@@ -5,6 +5,8 @@
 .profile-email-verification input{box-sizing:border-box;width:100%;min-height:46px;padding:10px 14px;border:1px solid #ffffff30;border-radius:9px;background:#101217;color:#fff;font:inherit;font-size:20px;letter-spacing:.2em}
 .profile-email-verification button{min-height:46px;padding:12px 16px;border:1px solid #ff8a7d;border-radius:9px;background:#c72c25;color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .profile-email-verification .profile-email-resend{background:#222832;border-color:#ffffff30}
+.profile-email-verification .profile-email-resend:disabled{cursor:not-allowed;font-variant-numeric:tabular-nums}
+.profile-email-verification .profile-email-resend-hint{font-size:12px;margin:12px 0 0}
 .profile-email-verification button:disabled{opacity:.5;cursor:wait}.profile-email-verification .profile-email-error{color:#ff938f}
 .profile-email-verification input:focus-visible,.profile-email-verification button:focus-visible{outline:2px solid #ff8a7d;outline-offset:3px}
 @media(max-width:600px){.profile-email-verification form{display:grid;grid-template-columns:1fr}.profile-email-verification button{width:100%}}

@@ -35,6 +35,7 @@ from app.services.auth_service import (
     PasswordResetExpired,
     RateLimitExceeded,
     VerificationCodeExpired,
+    VerificationResendCooldown,
 )
 from app.services.activity_service import record_user_activity
 
@@ -151,6 +152,9 @@ def _session_payload(session) -> dict:
 
 
 def _auth_http_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, VerificationResendCooldown):
+        return HTTPException(429, detail={"code": exc.code, "message": str(exc), "retry_after": exc.retry_after},
+                             headers={"Retry-After": str(exc.retry_after)})
     if isinstance(exc, (InvalidCredentials, InvalidVerificationCode)):
         return HTTPException(401, detail={"code": exc.code, "message": str(exc)})
     if isinstance(exc, EmailNotVerified):
@@ -309,6 +313,12 @@ async def resend_verification(session: WebSessionContext = Depends(require_web_s
         return await get_auth_service().resend_verification(int(session.user["id"]))
     except (AuthError, EmailDeliveryError) as exc:
         raise _auth_http_error(exc) from exc
+
+
+@router.get("/verification-status")
+async def verification_status(response: Response, session: WebSessionContext = Depends(require_web_session)):
+    response.headers["Cache-Control"] = "no-store"
+    return await get_auth_service().verification_status(int(session.user["id"]))
 
 
 @router.post("/verify-email")

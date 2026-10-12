@@ -8,7 +8,8 @@ from app.api import auth_api
 from app.api.miniapp_api import web_app
 from app.db import ensure_race_game_profile, get_reaction_profile
 from app.emailer import EmailDeliveryError, MockMailer
-from app.services.auth_service import AuthService, EmailAlreadyRegistered, InvalidCredentials, RateLimitExceeded
+from app.services.auth_service import AuthService, EmailAlreadyRegistered, InvalidCredentials, RateLimitExceeded, VerificationResendCooldown
+from tests.support import Clock
 
 PASSWORD = 'FormulaOne-2026-Secure'
 PROFILE = {'display_name': 'Турбо Пилот',
@@ -17,7 +18,14 @@ PROFILE = {'display_name': 'Турбо Пилот',
 
 
 @pytest.fixture
-def registration_auth(db_session, monkeypatch):
+def registration_clock(monkeypatch):
+    clock = Clock()
+    monkeypatch.setattr('app.services.auth_service.utc_now', lambda: clock.now)
+    return clock
+
+
+@pytest.fixture
+def registration_auth(db_session, monkeypatch, registration_clock):
     mailer = MockMailer()
     auth = AuthService(db_session, mailer, pepper='registration-profile-tests')
     monkeypatch.setattr(auth_api, 'get_auth_service', lambda: auth)
@@ -25,7 +33,7 @@ def registration_auth(db_session, monkeypatch):
     return auth, mailer
 
 
-async def test_registration_opens_profile_and_saves_preferences(registration_auth, db_session):
+async def test_registration_opens_profile_and_saves_preferences(registration_auth, db_session, registration_clock):
     auth, mailer = registration_auth
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=web_app), base_url='http://test') as client:
         result = await client.post('/api/auth/register', json={'email': 'New@Example.test', 'password': PASSWORD, **PROFILE})
@@ -52,6 +60,7 @@ async def test_registration_opens_profile_and_saves_preferences(registration_aut
         assert (await client.post('/api/favorites/team', json={'id': 'Ferrari'}, headers=csrf)).json()['status'] == 'removed'
         assert (await client.get('/api/favorites')).json() == {'drivers': ['LEC'], 'teams': ['McLaren']}
         old_code = mailer.messages[-1]['code']
+        registration_clock.advance(seconds=60)
         assert (await client.post('/api/auth/resend-verification', headers=csrf)).status_code == 202
         new_code = mailer.messages[-1]['code']
         if old_code != new_code:
@@ -104,27 +113,71 @@ async def test_mail_failure_keeps_profile_and_resend_can_recover(registration_au
     assert (await auth.verify_email('offline@example.test', mailer.messages[-1]['code'])).user['email_verified']
 
 
-async def test_failed_resend_preserves_previous_code(registration_auth, monkeypatch):
+async def test_failed_resend_preserves_previous_code(registration_auth, monkeypatch, registration_clock):
     auth, mailer = registration_auth
     created = await auth.register('resend@example.test', PASSWORD, **PROFILE)
     code = mailer.messages[-1]['code']
+    registration_clock.advance(seconds=60)
     monkeypatch.setattr(mailer, 'send_verification_code', AsyncMock(side_effect=EmailDeliveryError('offline')))
     with pytest.raises(EmailDeliveryError):
         await auth.resend_verification(created['user']['id'])
     assert (await auth.verify_email('resend@example.test', code)).user['email_verified']
 
 
-async def test_resend_limit_counts_failed_deliveries(registration_auth, monkeypatch):
+async def test_resend_limit_counts_failed_deliveries(registration_auth, monkeypatch, registration_clock):
     auth, mailer = registration_auth
     created = await auth.register('limit@example.test', PASSWORD, **PROFILE)
     failing_send = AsyncMock(side_effect=EmailDeliveryError('offline'))
     monkeypatch.setattr(mailer, 'send_verification_code', failing_send)
     for _ in range(4):
+        registration_clock.advance(seconds=60)
         with pytest.raises(EmailDeliveryError):
             await auth.resend_verification(created['user']['id'])
+    registration_clock.advance(seconds=60)
     with pytest.raises(RateLimitExceeded):
         await auth.resend_verification(created['user']['id'])
     assert failing_send.await_count == 4
+
+
+async def test_resend_cooldown_survives_reload_and_uses_server_time(registration_auth, registration_clock):
+    auth, mailer = registration_auth
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=web_app), base_url='http://test') as client:
+        data = (await client.post('/api/auth/register', json={'email': 'cooldown@example.test', 'password': PASSWORD, **PROFILE})).json()
+        csrf = {'X-CSRF-Token': data['csrf_token']}
+        for seconds, expected in [(0, 60), (59, 1)]:
+            registration_clock.advance(seconds=seconds)
+            status = await client.get('/api/auth/verification-status')
+            assert status.json() == {'retry_after': expected}
+            assert status.headers['cache-control'] == 'no-store'
+            blocked = await client.post('/api/auth/resend-verification', headers=csrf)
+            assert blocked.status_code == 429
+            assert blocked.headers['retry-after'] == str(expected)
+            assert blocked.json()['detail']['code'] == 'verification_resend_cooldown'
+            assert len(mailer.messages) == 1
+        registration_clock.advance(seconds=1)
+        sent = await client.post('/api/auth/resend-verification', headers=csrf)
+        assert sent.status_code == 202 and sent.json()['retry_after'] == 60
+        assert len(mailer.messages) == 2
+        # A fresh service instance reads the same persisted deadline.
+        fresh_auth = AuthService(auth.database, mailer, pepper='registration-profile-tests')
+        assert await fresh_auth.verification_status(data['user']['id']) == {'retry_after': 60}
+        with pytest.raises(VerificationResendCooldown):
+            await fresh_auth.resend_verification(data['user']['id'])
+        registration_clock.advance(seconds=60)
+        assert (await client.get('/api/auth/verification-status')).json() == {'retry_after': 0}
+
+
+async def test_failed_resend_still_reserves_one_minute(registration_auth, registration_clock, monkeypatch):
+    auth, mailer = registration_auth
+    created = await auth.register('failed-cooldown@example.test', PASSWORD, **PROFILE)
+    registration_clock.advance(seconds=60)
+    failing_send = AsyncMock(side_effect=EmailDeliveryError('offline'))
+    monkeypatch.setattr(mailer, 'send_verification_code', failing_send)
+    with pytest.raises(EmailDeliveryError):
+        await auth.resend_verification(created['user']['id'])
+    with pytest.raises(VerificationResendCooldown):
+        await auth.resend_verification(created['user']['id'])
+    assert failing_send.await_count == 1
 
 
 @pytest.mark.parametrize('values', [
