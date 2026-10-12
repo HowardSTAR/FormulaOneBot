@@ -2,11 +2,14 @@
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/sevag/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const { execFileSync } = require('node:child_process');
 const base = process.env.PROFILE_UI_URL || 'http://127.0.0.1:5176';
 const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage' };
 
 (async () => {
   fs.mkdirSync('.tmp/registration-ui', { recursive: true });
+  execFileSync(process.env.PYTHON_EXECUTABLE || '.venv/Scripts/python.exe', ['-c',
+    "from pathlib import Path; from app.utils.portrait_render import render_head_crop_png_bytes; [Path(f'.tmp/registration-ui/{code}.png').write_bytes(render_head_crop_png_bytes(Path(f'app/assets/2026/pilots/{code}.webp'))) for code in ['NOR', 'LEC', 'ANT', 'VER', 'HAM', 'PIA', 'ALB']]"]);
   const browser = await chromium.launch({ channel: 'msedge', headless: true });
   try {
     for (const width of [320, 390, 768, 1440]) {
@@ -18,10 +21,35 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
       let cooldownSeconds = width === 320 ? 0 : 60;
       await page.addInitScript(() => localStorage.setItem('turbotears-onboarding-v2', JSON.stringify({ status: 'skipped' })));
       await page.route('**/api/**', route => {
-        const path = new URL(route.request().url()).pathname;
+        const url = new URL(route.request().url());
+        const path = url.pathname;
+        const season = new Date().getFullYear() - (width === 768 ? 1 : 0);
+        if (width === 768 && Number(url.searchParams.get('season')) !== season && ['/api/drivers', '/api/constructors'].includes(path)) {
+          return route.fulfill({ json: { drivers: [], constructors: [] } });
+        }
         if (path === '/api/auth/me') return route.fulfill(signedIn ? { json: user } : { status: 401, json: { detail: 'Войдите' } });
-        if (path === '/api/drivers') return route.fulfill({ json: { drivers: [{ code: 'NOR', name: 'Ландо Норрис' }, { code: 'LEC', name: 'Шарль Леклер' }] } });
-        if (path === '/api/constructors') return route.fulfill({ json: { constructors: [{ name: 'McLaren' }, { name: 'Ferrari' }] } });
+        if (path === '/api/drivers') return route.fulfill({ json: { drivers: [
+          { code: 'NOR', name: 'Ландо Норрис' }, { code: 'LEC', name: 'Шарль Леклер' },
+          { code: 'ANT', name: 'Andrea Kimi Antonelli' }, { code: 'VER', name: 'Max Verstappen' },
+          { code: 'HAM', name: 'Lewis Hamilton' }, { code: 'PIA', name: 'Oscar Piastri' }, { code: 'ALB', name: 'Alexander Albon' },
+        ] } });
+        if (path === '/api/constructors') return route.fulfill({ json: { constructors: [
+          { name: 'McLaren', constructorId: 'mclaren' }, { name: 'Ferrari', constructorId: 'ferrari' },
+          { name: 'Aston Martin', constructorId: 'aston_martin' }, { name: 'Red Bull Racing', constructorId: 'red_bull' },
+          { name: 'Mercedes', constructorId: 'mercedes' },
+        ] } });
+        if (path === '/api/pilot-portrait') {
+          assert.equal(Number(url.searchParams.get('season')), season, 'portraits match the loaded roster season');
+          const code = new URL(route.request().url()).searchParams.get('code');
+          if (width === 320 && code === 'ANT') return route.fulfill({ status: 404 });
+          return route.fulfill({ contentType: 'image/png', body: fs.readFileSync(`.tmp/registration-ui/${code}.png`) });
+        }
+        if (path === '/api/team-logo') {
+          assert.equal(Number(url.searchParams.get('season')), season, 'logos match the loaded roster season');
+          const name = new URL(route.request().url()).searchParams.get('name');
+          if (width === 320 && name === 'Aston Martin') return route.fulfill({ status: 404 });
+          return route.fulfill({ contentType: 'image/png', body: fs.readFileSync(`app/assets/2026/team-logos/${name.toUpperCase()}.png`) });
+        }
         if (path === '/api/auth/register') {
           registered = route.request().postDataJSON();
           signedIn = true;
@@ -87,29 +115,76 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
       const next = page.getByRole('button', { name: 'Продолжить', exact: true });
       await next.click();
       await page.getByRole('dialog', { name: 'Ваш аватар', exact: true }).waitFor();
+      assert.equal(await page.locator('.registration-step-avatar select').count(), 0);
+      assert.equal(await page.locator('.registration-step-avatar input[type=radio]').count(), 11);
+      assert.equal(await page.locator('.registration-avatar-check').count(), 0, 'avatar selection uses only highlighting');
       if (width !== 320) {
-        await page.getByLabel('Шлем', { exact: true }).selectOption('cobalt');
-        await page.getByLabel('Комбинезон', { exact: true }).selectOption('mint');
-        await page.getByLabel('Фон', { exact: true }).selectOption('gold');
+        const helmet = page.getByRole('radio', { name: 'Кобальт / двойная полоса', exact: true });
+        await helmet.focus();
+        await page.keyboard.press('Space');
+        assert(await helmet.isChecked(), 'keyboard selects a helmet');
+        await page.keyboard.press('ArrowRight');
+        assert(await page.getByRole('radio', { name: 'Жемчуг / мята', exact: true }).isChecked());
+        await page.keyboard.press('ArrowLeft');
+        await page.locator('.registration-avatar-choice[title="Графит / мята"]').click();
+        await page.locator('.registration-avatar-choice[title="Золотой подиум"]').click();
+        assert(await page.getByRole('radio', { name: 'Графит / мята', exact: true }).isChecked());
+        assert(await page.getByRole('radio', { name: 'Золотой подиум', exact: true }).isChecked());
+        assert.match(await page.getByAltText('Выбранный аватар').getAttribute('src'), /helmet=cobalt.*suit=mint.*background=gold/);
       }
       await page.getByRole('button', { name: 'Назад', exact: true }).click();
       assert.equal(await page.getByLabel('Ник на сайте').inputValue(), 'Турбо Пилот');
       await next.click();
       await page.getByRole('dialog', { name: 'Ваш аватар', exact: true }).waitFor();
-      assert.equal(await page.getByLabel('Шлем', { exact: true }).inputValue(), width === 320 ? 'scarlet' : 'cobalt');
+      assert.equal(await page.getByRole('radio', { name: width === 320 ? 'Алый / полоса' : 'Кобальт / двойная полоса', exact: true }).isChecked(), true);
+      assert(await page.locator('.registration-step-avatar').evaluate(el => el.scrollWidth <= el.clientWidth), `avatar choices overflow at ${width}`);
       await page.screenshot({ path: `.tmp/registration-ui/avatar-step-${width}.png` });
       await next.click();
       await page.getByRole('dialog', { name: 'Избранные пилоты', exact: true }).waitFor();
+      const verifyCards = async (kind, count) => {
+        const grid = page.locator('.registration-favorites-grid');
+        assert.equal(await grid.locator('label').count(), count);
+        const boxes = await grid.locator('label').evaluateAll(cards => cards.map(card => {
+          const rect = card.getBoundingClientRect();
+          return { x: rect.x, y: rect.y, width: rect.width };
+        }));
+        assert.equal(boxes[0].y, boxes[1].y, `${kind}: first two cards share a row`);
+        assert.equal(boxes[1].y, boxes[2].y, `${kind}: three cards share a row`);
+        assert(boxes[3].y > boxes[0].y, `${kind}: fourth card starts the next row`);
+        assert(boxes.every(box => box.width >= 44), `${kind}: cards remain touchable`);
+        assert(await grid.evaluate(el => el.scrollWidth <= el.clientWidth), `${kind}: no overflow at ${width}`);
+        assert(await grid.locator('input').evaluateAll(inputs => inputs.every(input => getComputedStyle(input).clipPath === 'inset(50%)')), `${kind}: checkbox marks are hidden`);
+        assert(await grid.locator('label').evaluateAll(cards => cards.every(card =>
+          getComputedStyle(card).backgroundColor === (card.querySelector('input').checked ? 'rgb(68, 35, 42)' : 'rgb(16, 18, 20)'))), `${kind}: selected cards use red highlighting`);
+        await grid.locator('img').first().waitFor();
+        await page.waitForFunction(() => {
+          const image = document.querySelector('.registration-favorites-grid img');
+          return image?.complete && image.naturalWidth > 0;
+        });
+        if (width === 320) await grid.locator('.registration-favorite-placeholder').waitFor();
+        await grid.locator('img').evaluateAll(images => Promise.all(images.map(image => image.decode().catch(() => {}))));
+        await page.screenshot({ path: `.tmp/registration-ui/${kind}-step-${width}.png` });
+      };
       if (width !== 320) {
-        await page.getByRole('checkbox', { name: 'Ландо Норрис NOR' }).check();
-        await page.getByRole('checkbox', { name: 'Шарль Леклер LEC' }).check();
+        const driver = page.getByRole('checkbox', { name: 'Ландо Норрис NOR' });
+        await driver.focus();
+        await page.keyboard.press('Space');
+        assert(await driver.isChecked(), 'keyboard selects a driver card');
+        const leclerc = page.getByRole('checkbox', { name: 'Шарль Леклер LEC' });
+        await leclerc.locator('..').click();
+        assert(await leclerc.isChecked(), 'clicking a card selects it');
+        await leclerc.locator('..').click();
+        assert.equal(await leclerc.isChecked(), false, 'clicking again clears selection');
+        await leclerc.locator('..').click();
       }
+      await verifyCards('drivers', 7);
       await next.click();
       await page.getByRole('dialog', { name: 'Избранные команды', exact: true }).waitFor();
       if (width !== 320) {
-        await page.getByRole('checkbox', { name: 'McLaren' }).check();
-        await page.getByRole('checkbox', { name: 'Ferrari', exact: true }).check();
+        await page.getByRole('checkbox', { name: 'McLaren' }).locator('..').click();
+        await page.getByRole('checkbox', { name: 'Ferrari', exact: true }).locator('..').click();
       }
+      await verifyCards('teams', 5);
       assert.equal(registered, null, 'no account is created before the final confirmation');
       await page.getByRole('button', { name: 'Назад', exact: true }).click();
       assert.equal(await page.getByRole('checkbox', { name: 'Ландо Норрис NOR' }).isChecked(), width !== 320, 'favorites survive returning to a step');
@@ -170,7 +245,7 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
       await page.getByRole('heading', { name: 'Турбо Пилот', exact: true }).waitFor();
       assert.equal(await page.evaluate(() => sessionStorage.getItem('turbotears_csrf')), 'verified-csrf');
       assert.deepEqual(errors, []);
-      console.log(`${width}px PASS: password visibility and retained input, registration, email tour, resend countdown, cooldown after reload, unverified login`);
+      console.log(`${width}px PASS: three-column photo cards, favorites selection, registration, email tour, resend countdown, cooldown after reload, unverified login`);
       await page.close();
     }
   } finally { await browser.close(); }

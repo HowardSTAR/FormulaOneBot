@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { apiRequest } from '../../helpers/api';
+import { apiAssetUrl, apiRequest } from '../../helpers/api';
 import { avatarUrl, type Avatar } from '../profile/avatar';
+import { avatarSprites, avatarVariants } from '../profile/avatarSprites';
 import './registration-wizard.css';
 
 export type RegistrationProfile = {
@@ -10,10 +11,23 @@ export type RegistrationProfile = {
   favorite_teams: string[];
 };
 type Driver = { code: string; name: string };
-type Team = { name: string };
+type Team = { name: string; constructorId?: string };
 const titles = ['Ваш ник', 'Ваш аватар', 'Избранные пилоты', 'Избранные команды'];
+const avatarChoices = {
+  helmet: { title: 'Шлем', labels: ['Алый / полоса', 'Кобальт / двойная полоса', 'Жемчуг / мята'] },
+  suit: { title: 'Комбинезон', labels: ['Алый / графит', 'Индиго / лайм', 'Графит / мята'] },
+  background: { title: 'Фон', labels: ['Ночной бокс', 'Красный сектор', 'Синий час', 'Полярное сияние', 'Золотой подиум'] },
+};
 const toggle = (values: string[], value: string) => values.includes(value)
   ? values.filter(item => item !== value) : [...values, value];
+
+function FavoriteImage({ src, fallback, team = false }: { src: string; fallback: string; team?: boolean }) {
+  const [failed, setFailed] = useState(false);
+  return <span className={`registration-favorite-image${team ? ' registration-favorite-logo' : ''}`} aria-hidden="true">
+    {failed ? <span className="registration-favorite-placeholder">{fallback}</span>
+      : <img src={src} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />}
+  </span>;
+}
 
 export default function RegistrationWizard({ value, onChange, busy, error, onComplete, onClose }: {
   value: RegistrationProfile; onChange: (value: RegistrationProfile) => void; busy: boolean;
@@ -27,6 +41,7 @@ export default function RegistrationWizard({ value, onChange, busy, error, onCom
   const [nameError, setNameError] = useState('');
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [seasons, setSeasons] = useState({ drivers: new Date().getFullYear(), teams: new Date().getFullYear() });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -55,14 +70,22 @@ export default function RegistrationWizard({ value, onChange, busy, error, onCom
       setLoading(true); setLoadError('');
       try {
         const year = new Date().getFullYear();
+        let driverSeason = year, teamSeason = year;
         let [driverData, teamData] = await Promise.all([
           apiRequest<{ drivers?: Driver[] }>('/api/drivers', { season: year }),
           apiRequest<{ constructors?: Team[] }>('/api/constructors', { season: year }),
         ]);
-        if (!driverData.drivers?.length) driverData = await apiRequest('/api/drivers', { season: year - 1 });
-        if (!teamData.constructors?.length) teamData = await apiRequest('/api/constructors', { season: year - 1 });
+        if (!driverData.drivers?.length) {
+          driverSeason = year - 1;
+          driverData = await apiRequest('/api/drivers', { season: driverSeason });
+        }
+        if (!teamData.constructors?.length) {
+          teamSeason = year - 1;
+          teamData = await apiRequest('/api/constructors', { season: teamSeason });
+        }
         if (!active) return;
         setDrivers(driverData.drivers || []); setTeams(teamData.constructors || []);
+        setSeasons({ drivers: driverSeason, teams: teamSeason });
         if (!driverData.drivers?.length || !teamData.constructors?.length) setLoadError('Списки пока недоступны. Избранное можно выбрать позже в профиле.');
       } catch {
         if (active) setLoadError('Не удалось загрузить пилотов и команды. Избранное можно выбрать позже в профиле.');
@@ -114,27 +137,36 @@ export default function RegistrationWizard({ value, onChange, busy, error, onCom
             {nameError && <p className="registration-step-error" role="alert">{nameError}</p>}</>}
           {step === 1 && <div className="registration-step-avatar">
             <img src={avatarUrl(value.avatar)} alt="Выбранный аватар" width="160" height="160" />
-            <label>Шлем<select aria-label="Шлем" value={value.avatar.helmet} onChange={e => onChange({ ...value, avatar: { ...value.avatar, helmet: e.target.value } })}>
-              <option value="scarlet">Алый / полоса</option><option value="cobalt">Кобальт / двойная полоса</option><option value="mint">Жемчуг / мята</option>
-            </select></label>
-            <label>Комбинезон<select aria-label="Комбинезон" value={value.avatar.suit} onChange={e => onChange({ ...value, avatar: { ...value.avatar, suit: e.target.value } })}>
-              <option value="scarlet">Алый / графит</option><option value="cobalt">Индиго / лайм</option><option value="mint">Графит / мята</option>
-            </select></label>
-            <label>Фон<select aria-label="Фон" value={value.avatar.background} onChange={e => onChange({ ...value, avatar: { ...value.avatar, background: e.target.value } })}>
-              <option value="garage">Ночной бокс</option><option value="scarlet">Красный сектор</option><option value="cobalt">Синий час</option><option value="mint">Полярное сияние</option><option value="gold">Золотой подиум</option>
-            </select></label>
+            {(['helmet', 'suit', 'background'] as const).map(part => <fieldset key={part}
+              className="registration-avatar-options" aria-label={avatarChoices[part].title}>
+              <legend>{avatarChoices[part].title}<span>{avatarChoices[part].labels[avatarVariants[part].indexOf(value.avatar[part])]}</span></legend>
+              <div className="registration-avatar-grid" data-part={part}>
+                {avatarVariants[part].map((id, index) => <label key={id} className="registration-avatar-choice" title={avatarChoices[part].labels[index]}>
+                  <input type="radio" name={`avatar-${part}`} value={id} aria-label={avatarChoices[part].labels[index]}
+                    checked={value.avatar[part] === id} onChange={() => onChange({ ...value, avatar: { ...value.avatar, [part]: id } })} />
+                  <span className="registration-avatar-icon" aria-hidden="true" style={{
+                    backgroundImage: `url("${avatarSprites[part]}")`,
+                    backgroundSize: `${avatarVariants[part].length * 100}% 100%`,
+                    backgroundPosition: `${index * 100 / (avatarVariants[part].length - 1)}% 0`,
+                  }} />
+                </label>)}
+              </div>
+            </fieldset>)}
           </div>}
           {step >= 2 && <>
             {loading && <p role="status">Загружаем пилотов и команды…</p>}
             {loadError && <div role="status"><p>{loadError}</p><button type="button" className="account-secondary" onClick={() => setAttempt(n => n + 1)}>Повторить загрузку</button></div>}
-            <fieldset className="registration-step-choices"><legend>Выбрано: {step === 2 ? value.favorite_drivers.length : value.favorite_teams.length}</legend>
-              {step === 2 ? drivers.map(driver => <label key={driver.code}>
+            <fieldset className="registration-step-choices"><legend aria-live="polite">Выбрано: {step === 2 ? value.favorite_drivers.length : value.favorite_teams.length}</legend>
+              <div className="registration-favorites-grid">{step === 2 ? drivers.map(driver => <label key={`${seasons.drivers}:${driver.code}`}>
                 <input type="checkbox" checked={value.favorite_drivers.includes(driver.code)} onChange={() => onChange({ ...value, favorite_drivers: toggle(value.favorite_drivers, driver.code) })} />
-                <span>{driver.name} <small>{driver.code}</small></span>
-              </label>) : teams.map(team => <label key={team.name}>
+                <FavoriteImage src={apiAssetUrl('/api/pilot-portrait', { code: driver.code, name: driver.name, season: seasons.drivers, strict: true, v: 3 })} fallback={driver.code} />
+                <span className="registration-favorite-name">{driver.name} <small>{driver.code}</small></span>
+              </label>) : teams.map(team => <label key={`${seasons.teams}:${team.name}`}>
                 <input type="checkbox" checked={value.favorite_teams.includes(team.name)} onChange={() => onChange({ ...value, favorite_teams: toggle(value.favorite_teams, team.name) })} />
-                <span>{team.name}</span>
-              </label>)}
+                <FavoriteImage src={apiAssetUrl('/api/team-logo', { team: team.constructorId || team.name, name: team.name, season: seasons.teams })}
+                  fallback={team.name.slice(0, 3).toUpperCase()} team />
+                <span className="registration-favorite-name">{team.name}</span>
+              </label>)}</div>
             </fieldset>
           </>}
         </fieldset>

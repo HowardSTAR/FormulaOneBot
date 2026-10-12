@@ -14,17 +14,38 @@
 .registration-step-summary { margin: 18px 0 0; padding: 12px; border-radius: 10px; background: #101214; overflow-wrap: anywhere; }
 .registration-step-fields, .registration-step-choices { min-width: 0; margin: 0; padding: 0; border: 0; }
 .registration-step-fields label { display: grid; gap: 7px; color: #dce1eb; font-size: 14px; font-weight: 700; }
-.registration-step-fields :is(input:not([type=checkbox]), select) { width: 100%; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid #69758a; border-radius: 9px; background: #101214; color: #fff; font: inherit; font-size: 16px; }
+.registration-step-fields input:not([type=checkbox]):not([type=radio]) { width: 100%; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid #69758a; border-radius: 9px; background: #101214; color: #fff; font: inherit; font-size: 16px; }
 .registration-step-fields > .registration-step-description { margin: 8px 0 0; }
 .registration-step-avatar { display: grid; gap: 14px; }
 .registration-step-avatar > img { justify-self: center; width: min(160px, 23dvh); height: auto; aspect-ratio: 1; border-radius: 18px; }
-.registration-step-choices { display: grid; gap: 8px; }
+.registration-avatar-options { min-width: 0; margin: 0; padding: 0; border: 0; }
+.registration-avatar-options legend { width: 100%; margin-bottom: 8px; padding: 0; color: #dce1eb; font-size: 14px; font-weight: 700; }
+.registration-avatar-options legend > span { display: block; margin-top: 3px; color: #b7c1d2; font-size: 12px; line-height: 1.4; font-weight: 400; }
+.registration-avatar-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.registration-avatar-grid[data-part=background] { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.registration-step-fields .registration-avatar-choice { position: relative; display: grid; place-items: center; min-width: 0; min-height: 64px; padding: 8px 0; border: 1px solid #46505f; border-radius: 12px; background: #101214; cursor: pointer; }
+.registration-avatar-choice > input { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip-path: inset(50%); }
+.registration-avatar-choice:has(:checked) { border-color: #ff6157; background: #44232a; box-shadow: inset 0 0 0 1px #ff6157; }
+.registration-avatar-choice:hover { border-color: #ffaaa2; }
+.registration-avatar-choice:has(:focus-visible) { outline: 2px solid #ffaaa2; outline-offset: 3px; }
+.registration-avatar-choice:has(:disabled) { opacity: .5; cursor: wait; }
+.registration-avatar-icon { display: block; width: 72px; height: 45px; background-repeat: no-repeat; pointer-events: none; }
+.registration-avatar-grid[data-part=suit] .registration-avatar-icon { height: 28px; }
+.registration-avatar-grid[data-part=background] .registration-avatar-icon { width: 32px; height: 32px; border-radius: 7px; }
 .registration-step-choices legend { padding: 0 0 12px; color: #c5cfdd; font-size: 14px; }
-.registration-step-choices label { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 10px 12px; border: 1px solid #343941; border-radius: 10px; background: #101214; cursor: pointer; }
-.registration-step-choices label:has(:checked) { border-color: #ff6259; background: #44232a; }
-.registration-step-choices input { flex: 0 0 20px; width: 20px; height: 20px; margin: 0; accent-color: #e10600; }
-.registration-step-choices span { min-width: 0; overflow-wrap: anywhere; }
-.registration-step-choices small { color: #b7c1d2; }
+.registration-favorites-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.registration-step-choices label { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 0; min-width: 0; padding: 0; overflow: hidden; border: 1px solid #343941; border-radius: 12px; background: #101214; cursor: pointer; }
+.registration-step-choices label:has(:checked) { border-color: #ff6259; background: #44232a; box-shadow: inset 0 0 0 1px #ff6259; }
+.registration-step-choices label:hover { border-color: #ffaaa2; }
+.registration-step-choices label:has(:focus-visible) { outline: 2px solid #ffaaa2; outline-offset: 2px; }
+.registration-step-choices label:has(:disabled) { opacity: .5; cursor: wait; }
+.registration-step-choices input { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip-path: inset(50%); }
+.registration-favorite-image { display: grid; place-items: center; width: 100%; aspect-ratio: 1; overflow: hidden; background: radial-gradient(ellipse at top, #34404d, #181d24); }
+.registration-favorite-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.registration-favorite-logo img { box-sizing: border-box; padding: 16px 10px; object-fit: contain; }
+.registration-favorite-placeholder { color: #b7c1d2; font-size: 22px; font-weight: 800; letter-spacing: .04em; }
+.registration-step-choices .registration-favorite-name { flex: 1; min-width: 0; padding: 9px 6px; font-size: clamp(11px, 2.8vw, 13px); line-height: 1.4; text-align: center; overflow-wrap: anywhere; }
+.registration-step-choices small { display: block; margin-top: 3px; color: #b7c1d2; font-size: 10px; letter-spacing: .08em; }
 .registration-step-footer { flex-shrink: 0; padding: 16px 22px 22px; border-top: 1px solid #343941; background: #17191c; }
 .registration-step-footer > div { display: flex; gap: 10px; }
 .registration-step-footer button { flex: 1; min-width: 0; padding: 10px; font: inherit; font-size: 14px; font-weight: 750; }
