@@ -43,9 +43,19 @@ COOKIE_NAME = "turbotears_session"
 CSRF_COOKIE_NAME = "turbotears_csrf"
 
 
+class RegistrationAvatar(BaseModel):
+    helmet: str = Field(max_length=24)
+    suit: str = Field(max_length=24)
+    background: str = Field(max_length=24)
+
+
 class RegisterRequest(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=12, max_length=128)
+    display_name: str = Field(min_length=2, max_length=32)
+    avatar: RegistrationAvatar | None = None
+    favorite_drivers: list[str] = Field(default_factory=list, max_length=30)
+    favorite_teams: list[str] = Field(default_factory=list, max_length=20)
 
 
 class VerifyEmailRequest(BaseModel):
@@ -278,9 +288,25 @@ async def get_optional_hybrid_telegram_id(
 
 
 @router.post("/register", status_code=202)
-async def register(data: RegisterRequest):
+async def register(data: RegisterRequest, request: Request, response: Response):
     try:
-        return await get_auth_service().register(data.email, data.password)
+        result = await get_auth_service().register(
+            data.email, data.password, display_name=data.display_name,
+            avatar=data.avatar.model_dump() if data.avatar else None,
+            favorite_drivers=data.favorite_drivers, favorite_teams=data.favorite_teams,
+            user_agent=request.headers.get("user-agent"), ip_address=_client_ip(request),
+        )
+    except (AuthError, EmailDeliveryError) as exc:
+        raise _auth_http_error(exc) from exc
+    _set_session_cookie(response, result["access_token"], result["csrf_token"],
+                        int(get_auth_service().session_ttl.total_seconds()))
+    return result
+
+
+@router.post("/resend-verification", status_code=202)
+async def resend_verification(session: WebSessionContext = Depends(require_web_session)):
+    try:
+        return await get_auth_service().resend_verification(int(session.user["id"]))
     except (AuthError, EmailDeliveryError) as exc:
         raise _auth_http_error(exc) from exc
 

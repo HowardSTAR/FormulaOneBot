@@ -9,6 +9,8 @@ import "./AccountPage.css";
 import { safeReturnPath } from '../../helpers/returnPath';
 import { boostyCheckFailureLabel, boostySubscriptionLabel, type BoostyStatus } from '../../helpers/boosty';
 import { checkBoostySubscription } from '../../helpers/boostyApi';
+import RegistrationFields, { type RegistrationProfile } from './RegistrationFields';
+import { defaultAvatar } from '../profile/avatar';
 
 type User = {
   id: number;
@@ -87,10 +89,12 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
     if (user && returnParams.get('returnTo') === 'leagues') navigate(`/predictions?tab=leagues${window.location.hash}`, {replace: true});
     if (user && returnParams.get('returnTo') === 'community') navigate('/community', {replace: true});
   }, [user, returnParams, navigate]);
-  const [mode, setMode] = useState<"login" | "register" | "verify" | "forgot">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
+  const [registration, setRegistration] = useState<RegistrationProfile>({
+    display_name: '', avatar: defaultAvatar, favorite_drivers: [], favorite_teams: [],
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [code, setCode] = useState("");
   const [manualCode, setManualCode] = useState("");
   const [strategy, setStrategy] = useState<"keep_web" | "keep_telegram">("keep_web");
   const [linkSession, setLinkSession] = useState<LinkSession | null>(null);
@@ -151,18 +155,13 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
     setBusy(true); setError(""); setMessage("");
     try {
       if (mode === "register") {
-        await authFetch("/api/auth/register", {
-          method: "POST", body: JSON.stringify({ email, password }),
-        });
-        setMode("verify");
-        setMessage("Код отправлен на email. Он действует 10 минут.");
-      } else if (mode === "verify") {
-        const result = await authFetch<{ csrf_token: string; user: User }>("/api/auth/verify-email", {
-          method: "POST", body: JSON.stringify({ email, code }),
+        const result = await authFetch<{ csrf_token: string; user: User; email_sent: boolean }>("/api/auth/register", {
+          method: "POST", body: JSON.stringify({ email, password, ...registration }),
         });
         sessionStorage.setItem("turbotears_csrf", result.csrf_token);
-        setUser(result.user);
+        setPassword('');
         notifyAuthChanged();
+        navigate('/profile', { replace: true, state: { registered: true, emailSent: result.email_sent } });
       } else if (mode === "forgot") {
         const result = await authFetch<{ message: string }>("/api/auth/password/forgot", {
           method: "POST", body: JSON.stringify({ email }),
@@ -173,8 +172,9 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
           method: "POST", body: JSON.stringify({ email, password }),
         });
         sessionStorage.setItem("turbotears_csrf", result.csrf_token);
-        setUser(result.user);
         notifyAuthChanged();
+        if (!result.user.email_verified) { navigate('/profile', { replace: true }); return; }
+        setUser(result.user);
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Не удалось выполнить запрос");
@@ -268,23 +268,21 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
       {!user ? (
         <section className="account-card account-auth-card">
           <div className="account-tabs">
-            <button className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Вход</button>
-            <button className={mode === "register" || mode === "verify" ? "active" : ""} onClick={() => setMode("register")}>Регистрация</button>
+            <button disabled={busy} className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(''); setMessage(''); }}>Вход</button>
+            <button disabled={busy} className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(''); setMessage(''); }}>Регистрация</button>
           </div>
           <form onSubmit={submitAuth}>
-            <label>Email<input type="email" required value={email} onChange={e => setEmail(e.target.value)} /></label>
-            {mode !== "verify" && mode !== "forgot" && (
-              <label>Пароль<input type="password" minLength={mode === "register" ? 12 : undefined} required value={password} onChange={e => setPassword(e.target.value)} /></label>
+            <label>Email<input type="email" autoComplete="email" disabled={busy} required value={email} onChange={e => setEmail(e.target.value)} /></label>
+            {mode !== "forgot" && (
+              <label>Пароль<input type="password" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} disabled={busy} minLength={mode === "register" ? 12 : undefined} required value={password} onChange={e => setPassword(e.target.value)} /></label>
             )}
-            {mode === "verify" && (
-              <label>Код из письма<input inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ""))} /></label>
-            )}
+            {mode === 'register' && <><p className="account-hint">Пароль: от 12 символов, латинские буквы и цифры.</p><RegistrationFields value={registration} onChange={setRegistration} disabled={busy} /><p className="account-hint">После регистрации откроется профиль со знакомством с сайтом. Код из письма можно ввести там.</p></>}
             {mode === "login" && (
               <button type="button" className="account-text-button" onClick={() => { setMode("forgot"); setError(""); setMessage(""); }}>
                 Забыли пароль?
               </button>
             )}
-            <button className="account-primary" disabled={busy}>{busy ? "Подождите…" : mode === "login" ? "Войти" : mode === "register" ? "Получить код" : mode === "verify" ? "Подтвердить email" : "Отправить ссылку"}</button>
+            <button className="account-primary" disabled={busy}>{busy ? "Подождите…" : mode === "login" ? "Войти" : mode === "register" ? "Создать профиль" : "Отправить ссылку"}</button>
             {mode === "forgot" && (
               <button type="button" className="account-text-button account-text-button-center" onClick={() => setMode("login")}>
                 Вернуться ко входу
@@ -301,6 +299,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
             {!embedded && <p><Link to="/profile">Мой профиль · рекорды и прогнозы →</Link></p>}
             {boosty?.premium_active && <span className="account-boosty-badge">{boosty.premium_override === true ? 'Премиум · включён вручную' : `Поддерживает TurboTears · ${boosty.level_name || 'Boosty'}`}</span>}
             <dl><div><dt>Email</dt><dd>{!user.email ? "Не подключён" : user.email_verified ? "Подтверждён" : "Не подтверждён"}</dd></div><div><dt>Telegram</dt><dd>{user.telegram_id ? `ID ${user.telegram_id}` : "Не подключён"}</dd></div></dl>
+            {user.email && !user.email_verified && <p><Link to="/profile">Ввести код из письма в профиле →</Link></p>}
             <button className="account-secondary" onClick={logout}>Выйти</button>
           </section>
           {user.telegram_id ? (

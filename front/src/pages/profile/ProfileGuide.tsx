@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { apiRequest } from '../../helpers/api';
 import { ONBOARDING_CHANGED } from '../../helpers/onboarding';
-import { PROFILE_GUIDE_START, profileGuideSteps, readProfileGuide, saveProfileGuide, type ProfileGuideStatus } from '../../helpers/profileGuide';
+import { PROFILE_GUIDE_START, profileGuideSteps, emailVerificationStep, readProfileGuide, saveProfileGuide, type ProfileGuideStatus } from '../../helpers/profileGuide';
 import '../../components/first-visit-guide.css';
 import './profile-guide.css';
 
 const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-export default function ProfileGuide({ userId, seen }: { userId: number; seen: boolean }) {
+export default function ProfileGuide({ userId, seen, needsEmailVerification = false }: { userId: number; seen: boolean; needsEmailVerification?: boolean }) {
+  const steps = useMemo(() => needsEmailVerification ? [emailVerificationStep, ...profileGuideSteps] : profileGuideSteps, [needsEmailVerification]);
   const [stage, setStage] = useState<number | null>(null);
   const panel = useRef<HTMLElement>(null);
   const started = useRef(false);
@@ -62,7 +63,7 @@ export default function ProfileGuide({ userId, seen }: { userId: number; seen: b
   }, [active,finish]);
   useLayoutEffect(() => {
     if(stage === null)return;
-    const step=profileGuideSteps[stage];
+    const step=steps[stage];
     const preview=document.querySelector<HTMLElement>('.app-content');
     let target: HTMLElement | null = null;
     const prepare=()=>{
@@ -76,15 +77,15 @@ export default function ProfileGuide({ userId, seen }: { userId: number; seen: b
     const observer=new MutationObserver(prepare);
     const scope=document.querySelector('.user-profile-page');if(scope)observer.observe(scope,{childList:true,subtree:true});
     return () => {cancelAnimationFrame(timer);observer.disconnect();target?.classList.remove('first-visit-highlight');};
-  }, [stage]);
+  }, [stage, steps]);
   if(stage === null)return null;
-  const step=profileGuideSteps[stage];
+  const step=steps[stage];
   return createPortal(<aside ref={panel} className="first-visit-guide profile-guide" tabIndex={-1} aria-label="Знакомство с профилем" aria-describedby="profile-guide-description">
-    <div className="first-visit-top"><span>ТВОЙ ПРОФИЛЬ · {stage+1} / {profileGuideSteps.length}</span><button type="button" className="first-visit-close" aria-label="Закрыть знакомство с профилем" onClick={()=>finish('skipped')}>×</button></div>
-    <div className="first-visit-progress" aria-hidden="true">{profileGuideSteps.map((item,index)=><i key={item.title} className={index<=stage?'is-done':''} />)}</div>
+    <div className="first-visit-top"><span>ТВОЙ ПРОФИЛЬ · {stage+1} / {steps.length}</span><button type="button" className="first-visit-close" aria-label="Закрыть знакомство с профилем" onClick={()=>finish('skipped')}>×</button></div>
+    <div className="first-visit-progress" aria-hidden="true">{steps.map((item,index)=><i key={item.title} className={index<=stage?'is-done':''} />)}</div>
     <div className="first-visit-copy" key={step.title} aria-live="polite" aria-atomic="true"><h2>{step.title}</h2><p id="profile-guide-description">{step.text}</p></div>
     <div className="first-visit-actions">{stage>0 && <button type="button" className="first-visit-secondary" aria-label="Предыдущая функция профиля" onClick={()=>setStage(stage-1)}>←</button>}
-      <button type="button" className="first-visit-primary" onClick={()=>stage === profileGuideSteps.length-1?finish('completed'):setStage(stage+1)}>{stage === profileGuideSteps.length-1?'Готово, это мой профиль':'Дальше →'}</button></div>
+      <button type="button" className="first-visit-primary" onClick={()=>stage === steps.length-1?finish('completed'):setStage(stage+1)}>{stage === steps.length-1?'Готово, это мой профиль':'Дальше →'}</button></div>
     <small className="first-visit-note">Можно прокручивать профиль и пробовать его функции.</small>
   </aside>,document.body);
 }

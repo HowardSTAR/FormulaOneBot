@@ -282,7 +282,7 @@ async def ensure_auth_schema(conn: aiosqlite.Connection) -> None:
             """
             UPDATE users
             SET role = 'superadmin', updated_at = CURRENT_TIMESTAMP
-            WHERE (? IS NOT NULL AND lower(COALESCE(email, '')) = ?)
+            WHERE (? IS NOT NULL AND email_verified = 1 AND lower(COALESCE(email, '')) = ?)
                OR (? IS NOT NULL AND telegram_id = ?)
             """,
             (

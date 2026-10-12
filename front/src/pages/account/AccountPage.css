@@ -6,6 +6,19 @@
 .account-grid { display: grid; grid-template-columns: minmax(280px,.72fr) minmax(420px,1.28fr); gap: 14px; }
 .account-card { padding: 22px; border: 1px solid rgba(255,255,255,.08); border-radius: 14px; background: #17191c; }
 .account-auth-card { width: min(520px,100%); margin: 0 auto; }
+.account-auth-card{box-sizing:border-box}
+.registration-profile,.registration-choices{border:0;padding:0;margin:8px 0;min-width:0}
+.registration-profile>legend,.registration-choices>legend{margin-bottom:12px;font-size:16px;font-weight:800;color:#f5f5f5}
+.registration-profile .account-hint{line-height:1.5;margin:8px 0 14px;font-size:13px}
+.registration-profile details{margin-top:12px;border:1px solid #ffffff20;border-radius:10px;padding:12px}
+.registration-profile summary{cursor:pointer;min-height:44px;font-size:14px;font-weight:750;line-height:1.5}
+.registration-avatar summary{display:flex;gap:12px;align-items:center}.registration-avatar img{border-radius:12px;flex-shrink:0}
+.registration-avatar summary small{display:block;color:#a6a8ad;font-size:12px;font-weight:400}
+.registration-avatar-options{display:grid;gap:12px;margin-top:14px}
+.registration-profile .registration-choices{margin-top:16px;display:grid;gap:6px}
+.registration-choices legend{font-size:14px}.account-card .registration-choices label{display:flex;align-items:center;gap:10px;min-height:44px;padding:4px 8px;border-radius:8px;background:#101214}
+.account-card .registration-choices input{appearance:auto;width:18px;height:18px;min-height:18px;flex-shrink:0;accent-color:#e10600}
+.registration-choices small{color:#8e9198}.registration-profile button{font:inherit}
 .account-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 18px; padding: 4px; border-radius: 10px; background: #111214; }
 .account-tabs button { min-height: 42px; border: 0; border-radius: 8px; color: #9da0a6; background: transparent; font-weight: 800; }
 .account-tabs button.active { color: white; background: #e10600; }

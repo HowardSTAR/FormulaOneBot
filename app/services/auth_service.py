@@ -15,8 +15,9 @@ from typing import Any
 import bcrypt
 
 from app.db import Database
-from app.emailer import VerificationMailer
+from app.emailer import EmailDeliveryError, VerificationMailer
 from app.services.activity_service import is_primary_admin
+from app.services import profile_avatar
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
@@ -138,12 +139,12 @@ class AuthService:
     @staticmethod
     async def _promote_primary_admin_locked(conn, user_id: int) -> None:
         async with conn.execute(
-            "SELECT email, telegram_id, role FROM users WHERE id = ?",
+            "SELECT email, email_verified, telegram_id, role FROM users WHERE id = ?",
             (int(user_id),),
         ) as cursor:
             row = await cursor.fetchone()
         if row and row["role"] != "superadmin" and is_primary_admin(
-            row["email"], row["telegram_id"]
+            row["email"] if row["email_verified"] else None, row["telegram_id"]
         ):
             await conn.execute(
                 "UPDATE users SET role = 'superadmin', updated_at = ? WHERE id = ?",
@@ -195,8 +196,26 @@ class AuthService:
             (action, self._hmac("rate-limit", identifier)),
         )
 
-    async def register(self, email: str, password: str) -> dict[str, Any]:
+    async def register(
+        self, email: str, password: str, *, display_name: str | None = None,
+        avatar: dict[str, str] | None = None,
+        favorite_drivers: list[str] | None = None, favorite_teams: list[str] | None = None,
+        user_agent: str | None = None, ip_address: str | None = None,
+    ) -> dict[str, Any]:
         normalized = normalize_email(email)
+        name = " ".join((display_name or "").split())
+        if display_name is not None and (not 2 <= len(name) <= 32 or any(ord(c) < 32 for c in name)):
+            raise InvalidInput("Ник должен содержать от 2 до 32 символов")
+        try:
+            portrait = profile_avatar.validate(avatar or profile_avatar.DEFAULT)
+        except ValueError as exc:
+            raise InvalidInput(str(exc)) from exc
+        drivers = list(dict.fromkeys(favorite_drivers or []))
+        teams = list(dict.fromkeys(favorite_teams or []))
+        if len(drivers) > 30 or any(not re.fullmatch(r"[A-Z0-9]{2,4}", d) for d in drivers):
+            raise InvalidInput("Некорректный список избранных пилотов")
+        if len(teams) > 20 or any(not t.strip() or t != t.strip() or len(t) > 100 for t in teams):
+            raise InvalidInput("Некорректный список избранных команд")
         password_hash = await self._hash_password(password)
         code = f"{secrets.randbelow(1_000_000):06d}"
         code_hash = self._hmac("email-code", f"{normalized}:{code}")
@@ -208,20 +227,30 @@ class AuthService:
                 await self._consume_rate_limit(conn, "register", normalized, 4, timedelta(hours=1))
                 async with conn.execute("SELECT * FROM users WHERE email = ?", (normalized,)) as cursor:
                     existing = await cursor.fetchone()
-                if existing and existing["email_verified"]:
-                    raise EmailAlreadyRegistered("Email is already registered")
                 if existing:
-                    user_id = int(existing["id"])
+                    raise EmailAlreadyRegistered("Этот email уже зарегистрирован. Войдите в аккаунт.")
+                cursor = await conn.execute(
+                    "INSERT INTO users(email, password_hash, email_verified, display_name) VALUES (?, ?, 0, ?)",
+                    (normalized, password_hash, name or None),
+                )
+                user_id = int(cursor.lastrowid)
+                if name:
                     await conn.execute(
-                        "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
-                        (password_hash, iso(utc_now()), user_id),
+                        "INSERT INTO prediction_profiles(user_id, display_name) VALUES (?, ?)",
+                        (user_id, name),
                     )
-                else:
-                    cursor = await conn.execute(
-                        "INSERT INTO users(email, password_hash, email_verified) VALUES (?, ?, 0)",
-                        (normalized, password_hash),
-                    )
-                    user_id = int(cursor.lastrowid)
+                await conn.execute(
+                    "INSERT INTO user_profile_avatars(user_id, helmet, suit, background) VALUES (?, ?, ?, ?)",
+                    (user_id, portrait['helmet'], portrait['suit'], portrait['background']),
+                )
+                await conn.executemany(
+                    "INSERT INTO favorite_drivers(user_id, driver_code) VALUES (?, ?)",
+                    [(user_id, d) for d in drivers],
+                )
+                await conn.executemany(
+                    "INSERT INTO favorite_teams(user_id, constructor_name) VALUES (?, ?)",
+                    [(user_id, t) for t in teams],
+                )
                 await conn.execute(
                     "UPDATE verification_codes SET consumed_at = ? WHERE email = ? AND consumed_at IS NULL",
                     (iso(utc_now()), normalized),
@@ -234,26 +263,88 @@ class AuthService:
             except Exception:
                 await conn.rollback()
                 raise
+        # The profile is usable even if mail delivery is temporarily unavailable.
+        email_sent = True
         try:
             await self.mailer.send_verification_code(
                 normalized, code, int(self.verification_ttl.total_seconds() // 60)
             )
-        except Exception:
+        except EmailDeliveryError:
+            email_sent = False
             async with self.database.write_lock:
                 await conn.execute(
                     "DELETE FROM verification_codes WHERE email = ? AND code_hash = ?",
                     (normalized, code_hash),
                 )
                 await conn.commit()
-            raise
-        return {"email": normalized, "expires_at": iso(expires_at)}
+        async with self.database.write_lock:
+            try:
+                session = await self._create_session_locked(conn, user_id, user_agent, ip_address)
+                await conn.commit()
+            except Exception:
+                await conn.rollback()
+                raise
+        return {
+            "email": normalized, "verification_expires_at": iso(expires_at), "email_sent": email_sent,
+            "access_token": session.token, "token_type": "bearer", "csrf_token": session.csrf_token,
+            "expires_at": session.expires_at, "user": session.user,
+        }
+
+    async def resend_verification(self, user_id: int) -> dict[str, Any]:
+        conn = await self._conn()
+        async with self.database.write_lock:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                user = await (await conn.execute(
+                    "SELECT email, email_verified FROM users WHERE id = ? AND archived_at IS NULL", (user_id,)
+                )).fetchone()
+                if not user or not user["email"] or user["email_verified"]:
+                    raise InvalidInput("Email не требует подтверждения")
+                email = user["email"]
+                await self._consume_rate_limit(conn, "resend-verification", str(user_id), 4, timedelta(hours=1))
+                await conn.commit()
+            except RateLimitExceeded:
+                await conn.commit()
+                raise
+            except Exception:
+                await conn.rollback()
+                raise
+
+        # Mail delivery must not hold the shared SQLite write lock. A failure
+        # leaves the previous code usable and still counts toward the send limit.
+        code = f"{secrets.randbelow(1_000_000):06d}"
+        code_hash = self._hmac("email-code", f"{email}:{code}")
+        expires_at = utc_now() + self.verification_ttl
+        await self.mailer.send_verification_code(email, code, int(self.verification_ttl.total_seconds() // 60))
+        async with self.database.write_lock:
+            try:
+                await conn.execute("BEGIN IMMEDIATE")
+                current = await (await conn.execute(
+                    "SELECT 1 FROM users WHERE id=? AND email=? AND email_verified=0 AND archived_at IS NULL",
+                    (user_id, email),
+                )).fetchone()
+                if not current:
+                    raise InvalidInput("Email уже подтверждён или аккаунт недоступен")
+                await conn.execute(
+                    "UPDATE verification_codes SET consumed_at = ? WHERE email = ? AND consumed_at IS NULL",
+                    (iso(utc_now()), email),
+                )
+                await conn.execute(
+                    "INSERT INTO verification_codes(user_id, email, code_hash, expires_at) VALUES (?, ?, ?, ?)",
+                    (user_id, email, code_hash, iso(expires_at)),
+                )
+                await conn.commit()
+                return {"email": email, "expires_at": iso(expires_at)}
+            except Exception:
+                await conn.rollback()
+                raise
 
     async def verify_email(
         self, email: str, code: str, user_agent: str | None = None, ip_address: str | None = None
     ) -> AuthenticatedSession:
         normalized = normalize_email(email)
         if not re.fullmatch(r"\d{6}", code):
-            raise InvalidVerificationCode("Invalid verification code")
+            raise InvalidVerificationCode("Неверный код из письма")
         conn = await self._conn()
         async with self.database.write_lock:
             try:
@@ -269,15 +360,15 @@ class AuthService:
                 ) as cursor:
                     verification = await cursor.fetchone()
                 if not verification:
-                    raise InvalidVerificationCode("Invalid verification code")
+                    raise InvalidVerificationCode("Неверный код из письма")
                 if datetime.fromisoformat(verification["expires_at"]) <= utc_now():
                     await conn.execute(
                         "UPDATE verification_codes SET consumed_at = ? WHERE id = ?",
                         (iso(utc_now()), verification["id"]),
                     )
-                    raise VerificationCodeExpired("Verification code has expired")
+                    raise VerificationCodeExpired("Срок действия кода истёк. Отправьте новый код.")
                 if int(verification["attempts"]) >= int(verification["max_attempts"]):
-                    raise RateLimitExceeded("Verification code attempt limit reached")
+                    raise RateLimitExceeded("Слишком много попыток. Запросите новый код.")
                 expected = self._hmac("email-code", f"{normalized}:{code}")
                 if not hmac.compare_digest(expected, verification["code_hash"]):
                     await conn.execute(
@@ -285,7 +376,7 @@ class AuthService:
                         (verification["id"],),
                     )
                     await conn.commit()
-                    raise InvalidVerificationCode("Invalid verification code")
+                    raise InvalidVerificationCode("Неверный код из письма")
                 now = iso(utc_now())
                 await conn.execute(
                     "UPDATE verification_codes SET consumed_at = ? WHERE id = ?",
@@ -330,9 +421,6 @@ class AuthService:
                 if not valid:
                     await conn.commit()
                     raise InvalidCredentials("Invalid email or password")
-                if not user["email_verified"]:
-                    await conn.commit()
-                    raise EmailNotVerified("Email address is not verified")
                 await self._clear_rate_limit(conn, "login", normalized)
                 await self._promote_primary_admin_locked(conn, int(user["id"]))
                 session = await self._create_session_locked(conn, int(user["id"]), user_agent, ip_address)
@@ -566,7 +654,9 @@ class AuthService:
             row = await cursor.fetchone()
         if not row or datetime.fromisoformat(row["expires_at"]) <= utc_now():
             raise InvalidCredentials("Invalid or expired session")
-        if row["role"] != "superadmin" and is_primary_admin(row["email"], row["telegram_id"]):
+        if row["role"] != "superadmin" and is_primary_admin(
+            row["email"] if row["email_verified"] else None, row["telegram_id"]
+        ):
             async with self.database.write_lock:
                 await conn.execute(
                     "UPDATE users SET role = 'superadmin', updated_at = ? WHERE id = ?",

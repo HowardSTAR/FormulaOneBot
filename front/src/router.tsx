@@ -66,7 +66,7 @@ export const router = createBrowserRouter([
       { path: "/history", element: <HistoryPage /> },
       { path: '/community', element: <CommunityPage /> },
       { path: '/share/:token', element: <SharePage /> },
-      { path: "/favorites", element: <RequirePersonalAccount><AccountPage /></RequirePersonalAccount> },
+      { path: "/favorites", element: <RequirePersonalAccount requireTelegram={false}><AccountPage /></RequirePersonalAccount> },
       { path: "/next-race", element: <NextRacePage /> },
       { path: "/quali-results", element: <QualiResultsPage /> },
       { path: "/race-details", element: <RaceDetailsPage /> },

@@ -73,7 +73,7 @@ async def profile(user_id, viewer_id, season=None):
     people = await identities()
     if user_id not in people:
         return None
-    user = await (await db.conn.execute('SELECT telegram_id FROM users WHERE id=?', (user_id,))).fetchone()
+    user = await (await db.conn.execute('SELECT telegram_id, email, email_verified FROM users WHERE id=?', (user_id,))).fetchone()
     if season is None:
         season = datetime.now(timezone.utc).year
     own = user_id == viewer_id
@@ -106,7 +106,8 @@ async def profile(user_id, viewer_id, season=None):
             'best_prediction': best, 'predictions': predictions, 'records': records,
             'total_points': sum(p['points'] for p in scored), 'scored_rounds': len(scored), 'options': OPTIONS,
             'avatar_options': profile_avatar.OPTIONS,
-            **({'profile_guide_seen': bool(guide)} if own else {}),
+            **({'profile_guide_seen': bool(guide), 'email': user['email'],
+                'email_verified': bool(user['email_verified'])} if own else {}),
             'favorites': {'drivers': sorted(favorite_drivers), 'teams': sorted(favorite_teams)}}
 
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { apiRequest, ApiError } from '../../helpers/api';
 import { BackButton } from '../../components/BackButton';
 import { ShareButton } from '../../components/ShareButton';
@@ -15,10 +15,11 @@ import { trophyImage, type TrophyAward } from '../../helpers/trophies';
 import ProfileGuide from './ProfileGuide';
 import { PROFILE_GUIDE_START } from '../../helpers/profileGuide';
 import { AUTH_CHANGED_EVENT } from '../../helpers/auth';
+import EmailVerification from './EmailVerification';
 
 type Person = { user_id: number; display_name: string; tier: number; tier_name: string; supporter: boolean; style: Style; avatar?: Avatar; avatar_options?: AvatarOptions; favorites?: ProfileFavoritesData };
 type Prediction = { round: number; event_name: string | null; points: number | null; max_points: number | null; winner_driver: string; second_driver: string; third_driver: string; pole_driver: string; fastest_lap_driver: string; fourth_driver: string; fifth_driver: string; first_retirement_driver: string; safety_car: number; sprint_pole_driver: string | null; sprint_winner_driver: string | null };
-type Profile = Person & { is_owner: boolean; profile_guide_seen?: boolean; season: number; seasons: number[]; best_prediction: Prediction | null; predictions: Prediction[]; records: { track_id: string; track_name: string; best_time_ms: number; attempts: number }[]; total_points: number; scored_rounds: number; options: Record<keyof Style, Record<string, number>> };
+type Profile = Person & { is_owner: boolean; email?: string | null; email_verified?: boolean; profile_guide_seen?: boolean; season: number; seasons: number[]; best_prediction: Prediction | null; predictions: Prediction[]; records: { track_id: string; track_name: string; best_time_ms: number; attempts: number }[]; total_points: number; scored_rounds: number; options: Record<keyof Style, Record<string, number>> };
 const colors: Record<string, string> = { white: '#f4f4f5', red: '#ff786e', blue: '#8ebcff', gold: '#f5ce73', mint: '#8ce5c7' };
 const fields: [keyof Prediction, string][] = [['sprint_pole_driver', 'Спринт-поул'], ['sprint_winner_driver', 'Спринт-победа'], ['pole_driver', 'Поул'], ['winner_driver', 'Победитель'], ['second_driver', '2 место'], ['third_driver', '3 место'], ['fourth_driver', '4 место'], ['fifth_driver', '5 место'], ['fastest_lap_driver', 'Лучший круг'], ['first_retirement_driver', 'Первый сход'], ['safety_car', 'Машина безопасности']];
 function Answers({ prediction }: { prediction: Prediction }) {
@@ -27,6 +28,8 @@ function Answers({ prediction }: { prediction: Prediction }) {
 function lapTime(ms: number) { return `${Math.floor(ms / 60000)}:${((ms % 60000) / 1000).toFixed(3).padStart(6, '0')}`; }
 
 export default function ProfilePage({ embedded = false }: { embedded?: boolean }) {
+  const location = useLocation();
+  const welcome = location.state as { registered?: boolean; emailSent?: boolean } | null;
   const { userId } = useParams();
   const [params, setParams] = useSearchParams();
   const requestedSeason = Number(params.get('season'));
@@ -79,6 +82,7 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
   return <main className="user-profile-page">
     {!embedded && <div className="profile-top"><BackButton fallback="/profile" /><span>ПРОФИЛЬ УЧАСТНИКА</span><Link to="/profile">Мой профиль</Link></div>}
     {loading ? <p role="status">Загружаем профиль…</p> : error ? <div role="alert"><p>{error}</p><Link to="/account">Войти в аккаунт</Link></div> : profile && style && <>
+      {profile.is_owner && profile.email && !profile.email_verified && <EmailVerification key={profile.user_id} email={profile.email} emailSent={welcome?.emailSent} registered={welcome?.registered} />}
       {profile.is_owner && <div className="profile-sharing"><button type="button" className="profile-guide-replay" onClick={() => window.dispatchEvent(new CustomEvent(PROFILE_GUIDE_START,{detail:{userId:profile.user_id}}))}>Возможности профиля</button><ShareButton options={{kind:'profile',season:profile.season}}>Поделиться профилем</ShareButton></div>}
       <div className="profile-content">
       <section className={`profile-hero profile-bg-${style.background}`} style={{ '--profile-nick': colors[style.color] } as CSSProperties}>
@@ -99,6 +103,6 @@ export default function ProfilePage({ embedded = false }: { embedded?: boolean }
       {notice && <p role="status" className="profile-notice">{notice}</p>}
       {profile.is_owner && avatarOpen && profile.avatar_options && <AvatarEditor value={profile.avatar || defaultAvatar} options={profile.avatar_options} style={profile.style} styleOptions={profile.options} tier={profile.tier} onSubscriptionCheck={refreshSubscription} onClose={() => setAvatarOpen(false)} onAvatarSave={avatar => { setProfile(p => p ? { ...p, avatar } : p); setNotice('Аватар сохранён'); }} onStyleSave={style => { setProfile(p => p ? { ...p, style } : p); setNotice('Оформление сохранено'); }} />}
     </>}
-    {profile?.is_owner && !error && (!userId || Number(userId)===profile.user_id) && <ProfileGuide key={profile.user_id} userId={profile.user_id} seen={Boolean(profile.profile_guide_seen)} />}
+    {profile?.is_owner && !error && (!userId || Number(userId)===profile.user_id) && <ProfileGuide key={profile.user_id} userId={profile.user_id} seen={Boolean(profile.profile_guide_seen)} needsEmailVerification={Boolean(profile.email && !profile.email_verified)} />}
   </main>;
 }

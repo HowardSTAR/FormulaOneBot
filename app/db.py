@@ -1004,7 +1004,12 @@ async def get_reaction_profile(telegram_id: int) -> dict:
         row = await cursor.fetchone()
 
     if not row:
-        return {"display_name": "", "participate": False, "prompt_seen": False}
+        user = await (await db.conn.execute(
+            """SELECT pp.display_name FROM users u
+               JOIN prediction_profiles pp ON pp.user_id = u.id WHERE u.telegram_id = ?""", (tg_id,)
+        )).fetchone()
+        return {"display_name": _normalize_reaction_name(user["display_name"] if user else ""),
+                "participate": False, "prompt_seen": False}
 
     return {
         "display_name": (row["display_name"] or "").strip(),
@@ -1067,7 +1072,8 @@ async def ensure_race_game_profile(telegram_id: int) -> tuple[dict, bool]:
             return await get_reaction_profile(tg_id), False
 
     async with db.conn.execute(
-        "SELECT display_name, telegram_username FROM users WHERE telegram_id = ?",
+        """SELECT COALESCE(pp.display_name, u.display_name) AS display_name, u.telegram_username
+           FROM users u LEFT JOIN prediction_profiles pp ON pp.user_id = u.id WHERE u.telegram_id = ?""",
         (tg_id,),
     ) as cursor:
         user = await cursor.fetchone()

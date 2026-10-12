@@ -25,8 +25,7 @@ load_dotenv()
 from app.db import (
     db,
     get_favorite_drivers, get_favorite_teams,
-    remove_favorite_driver, add_favorite_driver,
-    remove_favorite_team, add_favorite_team,
+    get_favorites_for_user_id,
     get_user_settings, update_user_setting, get_or_create_user,
     save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
     get_driver_vote_round_winners,
@@ -1248,38 +1247,42 @@ async def api_pilot_portrait(
 
 
 @web_app.get("/api/favorites")
-async def api_favorites(user_id: int = Depends(get_current_user_id)):
-    drivers = await get_favorite_drivers(user_id)
-    teams = await get_favorite_teams(user_id)
+async def api_favorites(user_id: int = Depends(get_prediction_user_id)):
+    drivers, teams = await get_favorites_for_user_id(user_id)
     return {"drivers": drivers, "teams": teams}
+
+
+async def _toggle_account_favorite(user_id: int, value: str, *, team: bool = False):
+    table, column = ('favorite_teams', 'constructor_name') if team else ('favorite_drivers', 'driver_code')
+    async with db.write_lock:
+        try:
+            cursor = await db.conn.execute(f'DELETE FROM {table} WHERE user_id=? AND {column}=?', (user_id, value))
+            if cursor.rowcount:
+                status = 'removed'
+            else:
+                await db.conn.execute(f'INSERT INTO {table}(user_id,{column}) VALUES (?,?)', (user_id, value))
+                status = 'added'
+            await db.conn.commit()
+        except BaseException:
+            await db.conn.rollback()
+            raise
+    return {'status': status, 'id': value}
 
 
 @web_app.post("/api/favorites/driver")
 async def toggle_favorite_driver(
         item: FavoriteItem,
-        user_id: int = Depends(get_current_user_id)
+        user_id: int = Depends(get_prediction_user_id)
 ):
-    current_favs = await get_favorite_drivers(user_id)
-    if item.id in current_favs:
-        await remove_favorite_driver(user_id, item.id)
-        return {"status": "removed", "id": item.id}
-    else:
-        await add_favorite_driver(user_id, item.id)
-        return {"status": "added", "id": item.id}
+    return await _toggle_account_favorite(user_id, item.id)
 
 
 @web_app.post("/api/favorites/team")
 async def toggle_favorite_team(
         item: FavoriteItem,
-        user_id: int = Depends(get_current_user_id)
+        user_id: int = Depends(get_prediction_user_id)
 ):
-    current_favs = await get_favorite_teams(user_id)
-    if item.id in current_favs:
-        await remove_favorite_team(user_id, item.id)
-        return {"status": "removed", "id": item.id}
-    else:
-        await add_favorite_team(user_id, item.id)
-        return {"status": "added", "id": item.id}
+    return await _toggle_account_favorite(user_id, item.id, team=True)
 
 
 def _get_last_completed_race(schedule: list, now: datetime) -> dict | None:

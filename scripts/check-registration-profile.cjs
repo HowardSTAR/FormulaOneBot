@@ -1,0 +1,110 @@
+// Isolated browser checks for registration, immediate profile access and email onboarding.
+const { chromium } = require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/sevag/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const base = process.env.PROFILE_UI_URL || 'http://127.0.0.1:5176';
+const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage' };
+
+(async () => {
+  fs.mkdirSync('.tmp/registration-ui', { recursive: true });
+  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  try {
+    for (const width of [320, 390, 768, 1440]) {
+      const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
+      const errors = [];
+      page.on('pageerror', error => errors.push(error.message));
+      let user = null, registered = null, seen = false, resent = 0, signedIn = false;
+      await page.addInitScript(() => localStorage.setItem('turbotears-onboarding-v2', JSON.stringify({ status: 'skipped' })));
+      await page.route('**/api/**', route => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/api/auth/me') return route.fulfill(signedIn ? { json: user } : { status: 401, json: { detail: 'Войдите' } });
+        if (path === '/api/drivers') return route.fulfill({ json: { drivers: [{ code: 'NOR', name: 'Ландо Норрис' }, { code: 'LEC', name: 'Шарль Леклер' }] } });
+        if (path === '/api/constructors') return route.fulfill({ json: { constructors: [{ name: 'McLaren' }, { name: 'Ferrari' }] } });
+        if (path === '/api/auth/register') {
+          registered = route.request().postDataJSON();
+          signedIn = true;
+          user = { id: 71, email: registered.email, display_name: registered.display_name, email_verified: false, telegram_id: null, role: 'user' };
+          return route.fulfill({ status: 202, json: { user, csrf_token: 'registration-csrf', email_sent: width !== 320 } });
+        }
+        if (path === '/api/auth/login') { signedIn = true; return route.fulfill({ json: { user, csrf_token: 'login-csrf' } }); }
+        if (path === '/api/auth/resend-verification') { resent++; return route.fulfill({ status: 202, json: { email: user.email } }); }
+        if (path === '/api/auth/verify-email') {
+          assert.equal(route.request().postDataJSON().email, user.email);
+          if (route.request().postDataJSON().code !== '123456') return route.fulfill({ status: 401, json: { detail: { message: 'Неверный код из письма' } } });
+          user = { ...user, email_verified: true };
+          return route.fulfill({ json: { user, csrf_token: 'verified-csrf' } });
+        }
+        if (path === '/api/profiles/me/guide') { seen = true; return route.fulfill({ json: { saved: true } }); }
+        if (path === '/api/profiles/avatar/v1.png') return route.fulfill({ contentType: 'image/png', body: fs.readFileSync('app/profile_avatar_assets/cobalt-v1.png') });
+        if (path === '/api/profiles/me') return route.fulfill({ json: {
+          user_id: user.id, display_name: user.display_name, email: user.email, email_verified: user.email_verified,
+          is_owner: true, profile_guide_seen: seen, tier: 0, tier_name: 'Участник', supporter: false,
+          style: { frame: 'classic', color: 'white', background: 'carbon' },
+          options: { frame: { classic: 0 }, color: { white: 0 }, background: { carbon: 0 } },
+          avatar: registered.avatar, avatar_options: { helmet: { scarlet: 'Алый' }, suit: { scarlet: 'Алый' }, background: { garage: 'Бокс' } },
+          season: 2026, seasons: [2026], best_prediction: null, predictions: [], records: [], total_points: 0, scored_rounds: 0,
+          favorites: { drivers: registered.favorite_drivers, teams: registered.favorite_teams },
+        } });
+        if (path.endsWith('/trophies')) return route.fulfill({ json: { user_id: 71, season: 2026, families: [], pending: [], earned: [], badge: null } });
+        return route.fulfill({ json: path === '/api/next-race' ? { status: 'season_finished' } : {} });
+      });
+      await page.goto(base + '/account?returnTo=predictions');
+      await page.getByRole('button', { name: 'Регистрация', exact: true }).click();
+      await page.getByLabel('Email', { exact: true }).fill('racer@example.test');
+      await page.getByLabel('Пароль', { exact: true }).fill('FormulaOne-2026-Secure');
+      await page.getByLabel('Ник на сайте').fill('Турбо Пилот');
+      if (width !== 320) {
+        await page.locator('.registration-avatar summary').click();
+        await page.getByLabel('Шлем', { exact: true }).selectOption('cobalt');
+        await page.getByLabel('Комбинезон', { exact: true }).selectOption('mint');
+        await page.getByLabel('Фон', { exact: true }).selectOption('gold');
+        await page.locator('.registration-favorites summary').click();
+        await page.getByRole('checkbox', { name: 'Ландо Норрис NOR' }).check();
+        await page.getByRole('checkbox', { name: 'Шарль Леклер LEC' }).check();
+        await page.getByRole('checkbox', { name: 'McLaren' }).check();
+        await page.getByRole('checkbox', { name: 'Ferrari', exact: true }).check();
+      }
+      assert(await page.locator('.account-auth-card').evaluate(el => el.scrollWidth <= el.clientWidth), `registration overflow at ${width}`);
+      await page.screenshot({ path: `.tmp/registration-ui/form-${width}.png`, fullPage: true });
+      await page.getByRole('button', { name: 'Создать профиль', exact: true }).click();
+      await page.waitForURL('**/profile');
+      await page.getByRole('heading', { name: 'Профиль готов — подтвердите email', exact: true }).waitFor();
+      const guide = page.getByRole('complementary', { name: 'Знакомство с профилем' });
+      await guide.getByRole('heading', { name: 'Добро пожаловать в профиль', exact: true }).waitFor();
+      assert.equal(registered.display_name, 'Турбо Пилот');
+      assert.deepEqual(registered.avatar, width === 320 ? defaultAvatar : { helmet: 'cobalt', suit: 'mint', background: 'gold' });
+      assert.deepEqual(registered.favorite_drivers, width === 320 ? [] : ['NOR', 'LEC']);
+      assert.deepEqual(registered.favorite_teams, width === 320 ? [] : ['McLaren', 'Ferrari']);
+      if (width === 320) await page.getByText('Письмо пока не удалось отправить.', { exact: false }).waitFor();
+      await page.screenshot({ path: `.tmp/registration-ui/onboarding-${width}.png` });
+      const emailCard = page.locator('.profile-email-verification');
+      assert(await emailCard.evaluate(el => el.scrollWidth <= el.clientWidth), `verification overflow at ${width}`);
+      await page.getByLabel('Код из письма', { exact: true }).fill('000000');
+      await emailCard.getByRole('button', { name: 'Подтвердить email', exact: true }).click();
+      await emailCard.getByRole('alert').getByText('Неверный код из письма').waitFor();
+      await emailCard.getByRole('button', { name: 'Отправить код повторно' }).click();
+      await emailCard.getByRole('status').getByText('Новый код отправлен.', { exact: false }).waitFor();
+      assert.equal(resent, 1);
+      await guide.getByRole('button', { name: 'Закрыть знакомство с профилем' }).click();
+      await guide.waitFor({ state: 'detached' });
+      await page.reload();
+      await emailCard.waitFor();
+      assert.equal(await guide.count(), 0, 'skipping the tour persists independently of verification');
+      signedIn = false;
+      await page.goto(base + '/account?returnTo=predictions');
+      await page.getByLabel('Email', { exact: true }).fill(user.email);
+      await page.getByLabel('Пароль', { exact: true }).fill('FormulaOne-2026-Secure');
+      await page.getByRole('button', { name: 'Войти', exact: true }).click();
+      await page.waitForURL('**/profile');
+      await emailCard.waitFor();
+      await page.getByLabel('Код из письма', { exact: true }).fill('123456');
+      await emailCard.getByRole('button', { name: 'Подтвердить email', exact: true }).click();
+      await emailCard.waitFor({ state: 'detached' });
+      await page.getByRole('heading', { name: 'Турбо Пилот', exact: true }).waitFor();
+      assert.equal(await page.evaluate(() => sessionStorage.getItem('turbotears_csrf')), 'verified-csrf');
+      assert.deepEqual(errors, []);
+      console.log(`${width}px PASS: registration preferences, direct profile, email tour, invalid code, resend, deferred verification, reload, unverified login`);
+      await page.close();
+    }
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

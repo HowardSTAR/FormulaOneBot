@@ -15,6 +15,11 @@ export const profileGuideSteps = [
   { target: '.personal-hub-header, .profile-top', title: 'Аккаунт и настройки', text: 'В аккаунте — вход, привязка Telegram и проверка Boosty. В настройках — часовой пояс и напоминания. Повторить это знакомство можно кнопкой «Возможности профиля».' },
 ] as const;
 
+export const emailVerificationStep = {
+  target: '.profile-email-verification', title: 'Добро пожаловать в профиль',
+  text: 'Твой ник, аватар и избранное уже сохранены. Введи код из письма в выделенном блоке, чтобы подтвердить email. Можно продолжить знакомство и вернуться к подтверждению позже.',
+};
+
 export function readProfileGuide(userId: number): ProfileGuideStatus | null {
   try {
     const status=localStorage.getItem(key(userId));

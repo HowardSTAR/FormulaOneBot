@@ -33,7 +33,7 @@ async def test_email_session_csrf_and_link_endpoint(temp_db_path, monkeypatch):
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         registered = await client.post(
             "/api/auth/register",
-            json={"email": "api@example.com", "password": "FormulaOne-2026-Secure"},
+            json={"email": "api@example.com", "password": "FormulaOne-2026-Secure", "display_name": "TurboPilot"},
         )
         assert registered.status_code == 202
         code = str(mailer.messages[-1]["code"])
@@ -100,7 +100,7 @@ async def test_account_deletion_removes_linked_personal_data(temp_db_path, monke
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         await client.post(
             "/api/auth/register",
-            json={"email": "delete@example.com", "password": "TurboTears-2026-Secure"},
+            json={"email": "delete@example.com", "password": "TurboTears-2026-Secure", "display_name": "TurboPilot"},
         )
         verified = await client.post(
             "/api/auth/verify-email",
@@ -263,7 +263,7 @@ async def test_email_only_session_can_save_and_load_predictions(temp_db_path, mo
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         assert (await client.post(
             "/api/auth/register",
-            json={"email": "forecast@example.com", "password": "FormulaOne-2031-Secure"},
+            json={"email": "forecast@example.com", "password": "FormulaOne-2031-Secure", "display_name": "TurboPilot"},
         )).status_code == 202
         code = str(mailer.messages[-1]["code"])
         verified = await client.post(
@@ -278,7 +278,7 @@ async def test_email_only_session_can_save_and_load_predictions(temp_db_path, mo
 
         current = await client.get("/api/predictions/current")
         assert current.status_code == 200
-        assert current.json()["profile"]["completed"] is False
+        assert current.json()["profile"] == {"display_name": "TurboPilot", "completed": True}
 
         profile = await client.post(
             "/api/predictions/profile",
@@ -340,7 +340,7 @@ async def test_forgot_password_email_link_resets_password_via_http(temp_db_path,
         new_password = "FormulaOne-2027-Recovered"
         assert (await client.post(
             "/api/auth/register",
-            json={"email": "recover-api@example.com", "password": old_password},
+            json={"email": "recover-api@example.com", "password": old_password, "display_name": "TurboPilot"},
         )).status_code == 202
         code = str(mailer.messages[-1]["code"])
         assert (await client.post(
