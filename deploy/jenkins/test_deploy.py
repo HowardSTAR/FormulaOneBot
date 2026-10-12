@@ -17,6 +17,10 @@ if args[0]=='inspect': print('sha256:old')
 elif args[:2]==['image','inspect']:
  print('sha256:retired' if args[2]=='formulaonebot-rollback:previous' else ('sha256:old' if mode=='unchanged' else 'sha256:new'))
 elif args[0]=='compose':
+ if 'run' in args:
+  with (p/'calls.jsonl').open('a') as f: f.write(json.dumps(['preflight-config',sys.stdin.read()])+'\\n')
+  if mode=='preflight_failure': sys.exit(1)
+  sys.exit(0)
  n=int((p/'count').read_text())+1 if (p/'count').exists() else 1
  (p/'count').write_text(str(n))
  if mode=='rollout_failure' and n==1: sys.exit(1)
@@ -65,13 +69,27 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn(['tag', 'sha256:new', 'formulaonebot-app:latest'], calls)
         self.assertIn(['tag', 'sha256:old', 'formulaonebot-rollback:previous'], calls)
         self.assertIn(['image', 'rm', 'sha256:retired'], calls)
+        preflight = next(call for call in calls if call[0] == 'compose' and 'run' in call)
+        self.assertIn('--no-deps', preflight)
+        self.assertIn('--pull', preflight)
+        self.assertEqual(preflight[-4:-1], ['python', 'web', '-c'])
+        self.assertIn('validate_production_security()', preflight[-1])
+        self.assertIn(['preflight-config', 'services:\n  web:\n    image: sha256:new\n'], calls)
+        self.assertLess(calls.index(preflight), next(index for index, call in enumerate(calls) if call[0] == 'tag'))
+
+    def test_invalid_production_config_stops_before_backup_tags_or_restart(self):
+        code, status, calls = self.scenario('preflight_failure')
+        self.assertNotEqual(code, 0)
+        self.assertIsNone(status)
+        self.assertFalse(any(call[0] in {'tag', 'exec'} for call in calls))
+        self.assertFalse(any(call[0] == 'compose' and 'up' in call for call in calls))
 
     def test_network_override_is_used_for_rollout_and_rollback(self):
         code, status, calls = self.scenario('rollout_failure', network_override=True)
         self.assertNotEqual(code, 0)
         self.assertEqual(status, 'rolled_back')
         compose_calls = [call for call in calls if call[0] == 'compose']
-        self.assertEqual(len(compose_calls), 2)
+        self.assertEqual(len(compose_calls), 3)
         for call in compose_calls:
             self.assertEqual(call[:5], ['compose', '-f', 'docker-compose-build.yml', '-f', 'docker-compose.network.yml'])
 

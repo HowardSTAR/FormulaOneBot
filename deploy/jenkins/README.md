@@ -42,6 +42,13 @@ ci-telegram-admin-id; webhook secret — ci-webhook-secret.
 
 ## Развёртывание и откат
 
+До изменения тегов и перезапуска `deploy-verified.sh` проверяет новый образ с
+фактическими production-параметрами Compose, включая серверный `.env` и сетевой
+override. Проверяется именно кандидат; импорт валидатора не запускает приложение
+или миграции БД. Небезопасные настройки останавливают развёртывание на этом этапе.
+Изолированный smoke check с `APP_ENV=test` проверяет запуск приложения, но не
+заменяет эту проверку production-конфигурации.
+
 Перед обновлением deploy-verified.sh создаёт online backup SQLite:
 /root/FormulaOneBot/data/ci-backups/before-last-deploy.db.
 Предыдущий образ сохраняется как formulaonebot-rollback:previous.
@@ -75,7 +82,8 @@ Job использует установленную копию Jenkinsfile: chec
 сохраните копию `/opt/f1hub-ci`, затем установите новый `Jenkinsfile` в
 `/opt/f1hub-ci/Jenkinsfile`, а `deploy/jenkins/run-ci.sh` и
 `deploy/jenkins/cleanup-images.sh` и `deploy/jenkins/notify.py` — в одноимённые файлы `/opt/f1hub-ci`.
-Скрипты должны быть доступны Jenkins для чтения.
+Также установите `deploy/jenkins/deploy-verified.sh` как
+`/opt/f1hub-ci/deploy-verified.sh`. Скрипты должны быть доступны Jenkins для чтения.
 В административной [Script Console](https://jenkins.f1hub.ru/script) выполните
 содержимое `deploy/jenkins/update-job.groovy`: оно обновляет определение job и
 сразу устанавливает таймер на 09:00/21:00 по Москве, сохраняя webhook и Poll SCM. Bootstrap повторять

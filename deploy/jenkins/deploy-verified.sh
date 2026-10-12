@@ -17,6 +17,13 @@ if [ "$candidate" = "$previous" ]; then
   printf '{"status":"unchanged"}\n' > /reports/deployment.json
   exit 0
 fi
+# Check the candidate with the effective production Compose environment before
+# changing tags or restarting services. CI's APP_ENV=test smoke check cannot
+# catch missing secrets, HTTP origins or insecure mail settings on the host.
+printf '%s\n' 'services:' '  web:' "    image: $candidate" | \
+  compose -f - run --rm --no-deps --pull never -T --entrypoint python web -c \
+  'from app.security import validate_production_security; validate_production_security(); print("Production security configuration validated.")'
+
 docker exec formulaonebot-web-1 python -c '
 import os,sqlite3,pathlib
 p=pathlib.Path("/app/data/ci-backups"); p.mkdir(exist_ok=True)
