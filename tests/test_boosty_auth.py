@@ -65,6 +65,45 @@ async def test_concurrent_401_refreshes_once_and_retries_once(auth):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('proactive', [False, True])
+async def test_separate_auth_instances_share_one_refresh(auth, proactive):
+    if proactive:
+        auth.save({**auth.load(), 'expires_at': time.time() - 1})
+    posts = []
+    async def handle(request):
+        if request.method == 'POST':
+            posts.append(request)
+            await asyncio.sleep(0.1)
+            return httpx.Response(200, json={'access_token': 'new-access',
+                'refresh_token': 'new-refresh', 'expires_in': 3600})
+        return httpx.Response(200 if request.headers['authorization'] == 'Bearer new-access' else 401)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        responses = await asyncio.gather(*[
+            instance.get(client, 'https://api.boosty.to/test', params={})
+            for instance in (auth, BoostyAuth())])
+    assert [response.status_code for response in responses] == [200, 200]
+    assert len(posts) == 1
+    assert BoostyAuth().load()['refresh_token'] == 'new-refresh'
+
+
+@pytest.mark.asyncio
+async def test_cancelled_refresh_releases_file_lock(auth):
+    entered = asyncio.Event()
+    async def hold():
+        async with auth.exclusive():
+            entered.set()
+            await asyncio.Future()
+    task = asyncio.create_task(hold())
+    await entered.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    async with asyncio.timeout(1):
+        async with BoostyAuth().exclusive():
+            pass
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('status', [400, 401, 403])
 async def test_refresh_rejection_keeps_file_and_hides_upstream_body(auth, status):
     before = auth.path.read_bytes()
@@ -76,7 +115,64 @@ async def test_refresh_rejection_keeps_file_and_hides_upstream_body(auth, status
             await auth.get(client, 'https://api.boosty.to/test', params={})
     assert 'old-refresh' not in str(error.value)
     assert 'sensitive' not in str(error.value)
+    assert error.value.code == 'auth_required'
     assert auth.path.read_bytes() == before
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('failure', ['connection', 502, 503, 504, 500])
+async def test_transient_read_failure_recovers_without_rotating_tokens(auth, monkeypatch, failure):
+    calls = []
+    delays = []
+    async def sleep(delay):
+        delays.append(delay)
+    monkeypatch.setattr(asyncio, 'sleep', sleep)
+    def handle(request):
+        calls.append(request.method)
+        if len(calls) == 1:
+            if failure == 'connection':
+                raise httpx.ConnectError('offline', request=request)
+            return httpx.Response(failure)
+        return httpx.Response(200)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        response = await auth.get(client, 'https://api.boosty.to/test', params={})
+    assert response.status_code == 200
+    assert calls == ['GET', 'GET'] and delays == [0.5]
+    assert auth.load()['access_token'] == 'old-access'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('status,headers,expected_calls', [
+    (503, {}, 3), (403, {}, 1), (429, {}, 1),
+    (429, {'Retry-After': '60'}, 1), (429, {'Retry-After': 'invalid'}, 1),
+    (429, {'Retry-After': '0'}, 3),
+])
+async def test_read_retries_are_bounded_and_respect_rate_limits(auth, monkeypatch, status, headers, expected_calls):
+    calls = []
+    async def sleep(delay):
+        pass
+    monkeypatch.setattr(asyncio, 'sleep', sleep)
+    def handle(request):
+        calls.append(request.method)
+        return httpx.Response(status, headers=headers)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        response = await auth.get(client, 'https://api.boosty.to/test', params={})
+    assert response.status_code == status
+    assert calls == ['GET'] * expected_calls
+
+
+@pytest.mark.asyncio
+async def test_refresh_transport_failure_is_never_replayed(auth):
+    calls = []
+    def handle(request):
+        calls.append(request.method)
+        if request.method == 'POST':
+            raise httpx.ReadTimeout('response lost', request=request)
+        return httpx.Response(401)
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handle)) as client:
+        with pytest.raises(httpx.ReadTimeout):
+            await auth.get(client, 'https://api.boosty.to/test', params={})
+    assert calls == ['GET', 'POST']
 
 
 def test_failed_write_retains_rotated_pair_for_retry(auth, monkeypatch):
@@ -90,6 +186,20 @@ def test_failed_write_retains_rotated_pair_for_retry(auth, monkeypatch):
     monkeypatch.setattr(auth.path.__class__, 'replace', original)
     assert auth.load() == rotated
     assert BoostyAuth().load() == rotated
+
+
+def test_new_owner_session_supersedes_an_unsaved_old_rotation(auth, monkeypatch):
+    original = auth.path.__class__.replace
+    def fail(*args):
+        raise OSError('disk full')
+    monkeypatch.setattr(auth.path.__class__, 'replace', fail)
+    with pytest.raises(BoostyUnavailable):
+        auth.save({**auth.load(), 'access_token': 'unsaved-old-session'})
+    monkeypatch.setattr(auth.path.__class__, 'replace', original)
+    fresh = {**BoostyAuth().load(), 'access_token': 'fresh-owner-session'}
+    BoostyAuth().save(fresh)
+    assert auth.load() == fresh
+    assert BoostyAuth().load() == fresh
 
 
 @pytest.mark.parametrize('value', [[], {'access_token': 'bad\nheader'},

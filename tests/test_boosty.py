@@ -3,6 +3,8 @@ import time
 import hashlib
 import hmac
 import json
+from unittest.mock import AsyncMock
+from types import SimpleNamespace
 from urllib.parse import urlencode
 
 import httpx
@@ -324,3 +326,151 @@ def test_earliest_confirmed_end_limits_access():
     row = subscriber(offTime=now-1, nextPayTime=now+86400)
     assert BoostyService.expiry(row) == row['offTime']
     assert not BoostyService.membership(row, now)[1]
+
+
+@pytest.mark.asyncio
+async def test_reconnect_failure_is_visible_and_recovers_without_losing_membership(boosty, monkeypatch):
+    async def fetch():
+        return [subscriber()]
+    monkeypatch.setattr(boosty, 'fetch_subscribers', fetch)
+    await boosty.sync()
+    saved = await boosty.status(await pilot(boosty))
+    async def rejected():
+        raise BoostyUnavailable('Подключение Boosty требует обновления владельцем проекта', code='auth_required')
+    monkeypatch.setattr(boosty, 'fetch_subscribers', rejected)
+    monkeypatch.setattr(boosty_api, 'get_boosty_service', lambda: boosty)
+    async def user_id():
+        return (await pilot(boosty))['id']
+    web_app.dependency_overrides[auth_api.require_hybrid_user_id] = user_id
+    boosty.last_attempt = 0
+    try:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=web_app), base_url='http://test') as client:
+            assert (await client.post('/api/account/boosty/check')).status_code == 503
+            failed = (await client.get('/api/account/boosty')).json()
+            assert failed['check_failed'] and failed['check_error_code'] == 'auth_required'
+            assert failed['active'] and failed['checked_at'] == saved['checked_at']
+            # A throttled repeat retains the cause rather than replacing it with a network error.
+            response = await client.post('/api/account/boosty/check')
+            assert response.status_code == 503 and 'владельцем' in response.json()['detail']
+            monkeypatch.setattr(boosty, 'fetch_subscribers', fetch)
+            boosty.last_attempt = 0
+            restored = (await client.post('/api/account/boosty/check')).json()
+            assert restored['active'] and not restored['check_failed']
+            assert restored['check_error_code'] is None
+    finally:
+        web_app.dependency_overrides.pop(auth_api.require_hybrid_user_id, None)
+
+
+@pytest.mark.asyncio
+async def test_new_owner_session_bypasses_failed_check_cooldown(boosty, monkeypatch):
+    async def broken():
+        raise BoostyUnavailable('reconnect', code='auth_required')
+    monkeypatch.setattr(boosty, 'fetch_subscribers', broken)
+    with pytest.raises(BoostyUnavailable):
+        await boosty.sync()
+    boosty.auth.save({'access_token': 'fresh-owner-session'})
+    fetch = AsyncMock(return_value=[subscriber()])
+    monkeypatch.setattr(boosty, 'fetch_subscribers', fetch)
+    await boosty.sync()
+    fetch.assert_awaited_once()
+    assert (await boosty.status(await pilot(boosty)))['active']
+
+
+@pytest.mark.asyncio
+async def test_subscription_lifecycle_enforces_renewal_expiry_and_rejoin(boosty, monkeypatch):
+    from app.services import user_profiles
+    monkeypatch.setattr(user_profiles, 'db', boosty.database)
+    now = time.time()
+    monkeypatch.setattr(time, 'time', lambda: now)
+    rows = [subscriber(level={'name': 'Полный газ'}, nextPayTime=now + 120)]
+    async def fetch():
+        return rows
+    monkeypatch.setattr(boosty, 'fetch_subscribers', fetch)
+    user = await pilot(boosty)
+    user_id = user['id']
+    selected = dict(frame='neon', color='mint', background='aurora')
+
+    async def sync():
+        boosty.last_attempt = 0
+        await boosty.sync()
+    async def rights():
+        status = await boosty.status(user)
+        person = (await user_profiles.identities(boosty.database))[user_id]
+        assert status['premium_active'] is (person['tier'] > 0)
+        return status, person
+
+    await sync()
+    await user_profiles.save_style(user_id, selected)
+    assert (await rights())[1]['tier'] == 3
+    # A renewal extends the paid end without revoking the current access.
+    old_end = rows[0]['nextPayTime']
+    now += 60
+    rows[0]['nextPayTime'] = now + 3600
+    await sync()
+    now = old_end + 1
+    assert (await rights())[1]['style'] == selected
+    # Cancelling renewal retains the paid period, including during an API outage.
+    rows[0].update(subscribed=False, nextPayTime=None, offTime=now + 300)
+    await sync()
+    paid_end = rows[0]['offTime']
+    async def outage():
+        raise httpx.ConnectError('unavailable')
+    monkeypatch.setattr(boosty, 'fetch_subscribers', outage)
+    boosty.last_attempt = 0
+    with pytest.raises(BoostyUnavailable):
+        await boosty.sync()
+    assert (await rights())[1]['tier'] == 3
+    # At the exact paid deadline the server denies paid features, even offline.
+    now = paid_end
+    status, person = await rights()
+    assert not status['active'] and person['tier'] == 0
+    assert person['style'] == dict(frame='classic', color='white', background='carbon')
+    with pytest.raises(PermissionError):
+        await user_profiles.save_style(user_id, selected)
+    with pytest.raises(PermissionError):
+        await user_profiles.supporter_league(user_id, 2026)
+    # Rejoining restores access and the previously saved selections.
+    rows[0].update(subscribed=True, nextPayTime=now + 86400, offTime=None)
+    monkeypatch.setattr(boosty, 'fetch_subscribers', fetch)
+    await sync()
+    assert (await rights())[1]['style'] == selected
+    rows[0]['level'] = {'name': 'На старт'}
+    await sync()
+    assert (await rights())[1]['tier'] == 1
+    # Removal from a complete successful subscriber snapshot revokes the rest.
+    rows.clear()
+    await sync()
+    assert (await rights())[1]['tier'] == 0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('mode,expected', [
+    ('healthy', [1000, 1300, 1600]),
+    ('network', [1000, 1060, 1360]),
+    ('reconnect', [1000, 1045, 1345]),
+])
+async def test_worker_schedule_and_owner_reconnection(boosty, monkeypatch, mode, expected):
+    clock = [1000]
+    attempts = []
+    class StopWorker(Exception):
+        pass
+    monkeypatch.setattr('app.services.boosty_service.time', SimpleNamespace(
+        monotonic=lambda: clock[0], time=time.time))
+    async def fetch():
+        attempts.append(clock[0])
+        if len(attempts) == 1 and mode == 'network':
+            raise httpx.ConnectError('offline')
+        if len(attempts) == 1 and mode == 'reconnect':
+            raise BoostyUnavailable('reconnect', code='auth_required')
+        return [subscriber()]
+    async def sleep(seconds):
+        clock[0] += seconds
+        if clock[0] == 1045 and mode == 'reconnect':
+            boosty.auth.save({'access_token': 'new-owner-session'})
+        if len(attempts) >= 3:
+            raise StopWorker()
+    monkeypatch.setattr(boosty, 'fetch_subscribers', fetch)
+    monkeypatch.setattr('app.services.boosty_service.asyncio.sleep', sleep)
+    with pytest.raises(StopWorker):
+        await boosty.worker()
+    assert attempts == expected

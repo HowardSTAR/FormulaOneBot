@@ -41,9 +41,11 @@ class BoostyService:
     def __init__(self, database):
         self.database = database
         self.lock = asyncio.Lock()
-        self.last_attempt = 0.0
+        self.last_attempt = None
         self.last_failed = False
+        self.last_error_code = None
         self.auth = BoostyAuth()
+        self.auth_revision = self.auth.revision()
 
     @property
     def blog(self):
@@ -73,7 +75,8 @@ class BoostyService:
                     params={"offset": len(subscribers), "limit": 100},
                 )
                 if response.status_code in (401, 403):
-                    raise BoostyUnavailable('Подключение Boosty требует обновления владельцем проекта')
+                    raise BoostyUnavailable('Подключение Boosty требует обновления владельцем проекта',
+                                            code='auth_required')
                 response.raise_for_status()
                 payload = response.json()
                 rows, total = payload.get("data"), payload.get("total")
@@ -134,12 +137,19 @@ class BoostyService:
 
     async def sync(self):
         async with self.lock:
-            if time.monotonic() - self.last_attempt < 60:
+            revision = self.auth.revision()
+            if (self.last_attempt is not None and revision == self.auth_revision
+                    and time.monotonic() - self.last_attempt < 60):
                 if self.last_failed:
+                    if self.last_error_code == 'auth_required':
+                        raise BoostyUnavailable('Подключение Boosty требует обновления владельцем проекта',
+                                                code='auth_required')
                     raise BoostyUnavailable("Boosty временно недоступен. Повторите позже")
                 return
             self.last_attempt = time.monotonic()
+            self.auth_revision = revision
             self.last_failed = True
+            self.last_error_code = 'unavailable'
             try:
                 rows = await self.fetch_subscribers()
                 by_email = {}
@@ -195,6 +205,11 @@ class BoostyService:
                         await conn.rollback()
                         raise
                 self.last_failed = False
+                self.last_error_code = None
+                self.auth_revision = self.auth.revision()
+            except BoostyUnavailable as exc:
+                self.last_error_code = exc.code
+                raise
             except (httpx.HTTPError, ValueError, TypeError, AttributeError) as exc:
                 # Never expose upstream bodies, tokens or subscriber emails in errors/logs.
                 raise BoostyUnavailable("Boosty временно недоступен. Статус сохранён") from exc
@@ -230,18 +245,25 @@ class BoostyService:
             "level_name": row["level_name"] if row and verified else None,
             "checked_at": row["checked_at"] if row and verified else None,
             "check_failed": self.last_failed and configured and verified,
+            "check_error_code": self.last_error_code if self.last_failed and configured and verified else None,
             "expires_at": expires_at,
             "can_check": check_unavailable_reason is None,
             "check_unavailable_reason": check_unavailable_reason,
         }
 
     async def worker(self):
+        next_check = 0
         while True:
-            if self.configured:
+            changed = self.auth.revision() != self.auth_revision
+            if self.configured and (changed or time.monotonic() >= next_check):
                 try:
                     await self.sync()
                 except BoostyUnavailable as exc:
                     logger.warning("Boosty sync failed: %s; last confirmed membership retained", str(exc))
                 except Exception:
                     logger.warning("Boosty sync failed; last confirmed membership retained")
-            await asyncio.sleep(900)
+                # Renewals are detected within five minutes; short network outages retry sooner.
+                delay = 60 if self.last_failed and self.last_error_code != 'auth_required' else 300
+                next_check = time.monotonic() + delay
+            # Notice a newly connected owner session without restarting the web server.
+            await asyncio.sleep(15)
