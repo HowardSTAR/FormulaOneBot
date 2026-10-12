@@ -3,29 +3,34 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  gap: 10px;
-  min-width: 44px;
-  min-height: 44px;
-  border: 1px solid #414550;
-  border-radius: 12px;
-  background: #15171e;
-  color: #f4f5f8;
-  font-size: 14px;
-  font-weight: 700;
+  gap: 7px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #c5cfdd;
+  font-size: 13px;
+  font-weight: 600;
   text-decoration: none;
+  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
 }
-.account-shortcut img { display: block; flex-shrink: 0; border-radius: 10px; }
-.account-shortcut:hover, .account-shortcut[data-active] { border-color: #ff6259; background: #44232a; }
-.account-shortcut:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.account-shortcut img { display: block; flex-shrink: 0; width: 28px; height: 28px; border-radius: 7px; }
+.account-shortcut:hover { border-color: #ffffff1a; background: #ffffff08; color: #fff; }
+.account-shortcut[data-active] { background: #e106000d; color: #ffb4a8; }
+.account-shortcut:focus-visible { outline: 2px solid #ffaaa2; outline-offset: 2px; }
 .account-shortcut-bar { display: none; }
 @media (min-width: 900px) {
-  .account-shortcut-bar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
-  .account-shortcut-bar .account-shortcut { padding-right: 14px; }
+  .account-shortcut-bar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
   .app-header > .account-shortcut { display: none; }
 }
 @media (max-width: 899px) {
-  .app-header > .account-shortcut { margin-left: auto; }
+  .app-header > .account-shortcut { margin-left: auto; min-width: 44px; min-height: 44px; padding: 7px; border-radius: 50%; }
   .app-header > .account-shortcut span { display: none; }
   .app-header .app-header-brand-wrap { min-width: 0; }
 }
 html[data-onboarding-active] .account-shortcut-bar { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .account-shortcut { transition: none; }
+}

@@ -11,7 +11,7 @@ export function AccountShortcut() {
   const active = ['/profile', '/account', '/settings', '/favorites'].includes(pathname);
 
   return <Link to={destination} className="account-shortcut" aria-label={label} title={label} data-active={active || undefined} aria-current={pathname === destination ? 'page' : undefined}>
-    <img src={accountIcon} width="44" height="44" alt="" aria-hidden="true" />
-    <span>{label}</span>
+    <img src={accountIcon} width="28" height="28" alt="" aria-hidden="true" />
+    <span>{!loaded ? 'Аккаунт' : signedIn ? 'Профиль' : 'Войти'}</span>
   </Link>;
 }
