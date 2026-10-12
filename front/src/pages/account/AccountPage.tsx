@@ -9,7 +9,7 @@ import "./AccountPage.css";
 import { safeReturnPath } from '../../helpers/returnPath';
 import { boostyCheckFailureLabel, boostySubscriptionLabel, type BoostyStatus } from '../../helpers/boosty';
 import { checkBoostySubscription } from '../../helpers/boostyApi';
-import RegistrationFields, { type RegistrationProfile } from './RegistrationFields';
+import RegistrationWizard, { type RegistrationProfile } from './RegistrationWizard';
 import { defaultAvatar } from '../profile/avatar';
 import { PasswordField } from '../../components/PasswordField';
 import { useLoginCooldown } from './useLoginCooldown';
@@ -110,6 +110,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
   const [registration, setRegistration] = useState<RegistrationProfile>({
     display_name: '', avatar: defaultAvatar, favorite_drivers: [], favorite_teams: [],
   });
+  const [registrationOpen, setRegistrationOpen] = useState(false);
   const [email, setEmail] = useState("");
   const loginCooldown = useLoginCooldown(email);
   const [password, setPassword] = useState("");
@@ -168,20 +169,30 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
     };
   }, [linkSession]);
 
-  const submitAuth = async (event: FormEvent) => {
-    event.preventDefault();
-    if (mode === 'login' && loginCooldown.seconds > 0) return;
+  const createProfile = async () => {
+    if (busy) return;
     setBusy(true); setError(""); setMessage("");
     try {
-      if (mode === "register") {
-        const result = await authFetch<{ csrf_token: string; user: User; email_sent: boolean }>("/api/auth/register", {
-          method: "POST", body: JSON.stringify({ email, password, ...registration }),
-        });
-        sessionStorage.setItem("turbotears_csrf", result.csrf_token);
-        setPassword('');
-        notifyAuthChanged();
-        navigate('/profile', { replace: true, state: { registered: true, emailSent: result.email_sent } });
-      } else if (mode === "forgot") {
+      const result = await authFetch<{ csrf_token: string; user: User; email_sent: boolean }>("/api/auth/register", {
+        method: "POST", body: JSON.stringify({ email, password, ...registration }),
+      });
+      sessionStorage.setItem("turbotears_csrf", result.csrf_token);
+      setPassword('');
+      notifyAuthChanged();
+      navigate('/profile', { replace: true, state: { registered: true, emailSent: result.email_sent } });
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Не удалось создать профиль. Попробуйте ещё раз.');
+    } finally { setBusy(false); }
+  };
+
+  const submitAuth = async (event: FormEvent) => {
+    event.preventDefault();
+    if (busy || (mode === 'login' && loginCooldown.seconds > 0)) return;
+    setError(""); setMessage("");
+    if (mode === 'register') { setRegistrationOpen(true); return; }
+    setBusy(true);
+    try {
+      if (mode === "forgot") {
         const result = await authFetch<{ message: string }>("/api/auth/password/forgot", {
           method: "POST", body: JSON.stringify({ email }),
         });
@@ -298,14 +309,14 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
             {mode !== "forgot" && (
               <PasswordField key={mode} label="Пароль" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} disabled={busy} minLength={mode === "register" ? 15 : undefined} maxLength={128} required value={password} onChange={e => setPassword(e.target.value)} />
             )}
-            {mode === 'register' && <><p className="account-hint">Пароль: от 15 до 128 символов. Используйте уникальную длинную фразу; можно с пробелами и кириллицей.</p><RegistrationFields value={registration} onChange={setRegistration} disabled={busy} /><p className="account-hint">После регистрации откроется профиль со знакомством с сайтом. Код из письма можно ввести там.</p></>}
+            {mode === 'register' && <><p className="account-hint">Пароль: от 15 до 128 символов. Используйте уникальную длинную фразу; можно с пробелами и кириллицей.</p><p className="account-hint">Далее — ник, аватар, любимые пилоты и команды. Каждый шаг откроется в отдельном окне.</p></>}
             {mode === "login" && (
               <button type="button" className="account-text-button" onClick={() => { setMode("forgot"); setError(""); setMessage(""); }}>
                 Забыли пароль?
               </button>
             )}
             {mode === 'login' && loginCooldown.seconds > 0 && <p className="account-hint" role="status">Вход временно заблокирован. Повторите через {loginCooldown.label}. Можно восстановить пароль по email.</p>}
-            <button className="account-primary" disabled={busy || (mode === 'login' && loginCooldown.seconds > 0)}>{busy ? "Подождите…" : mode === "login" ? loginCooldown.seconds > 0 ? `Войти через ${loginCooldown.label}` : "Войти" : mode === "register" ? "Создать профиль" : "Отправить ссылку"}</button>
+            <button className="account-primary" disabled={busy || (mode === 'login' && loginCooldown.seconds > 0)}>{busy ? "Подождите…" : mode === "login" ? loginCooldown.seconds > 0 ? `Войти через ${loginCooldown.label}` : "Войти" : mode === "register" ? "Продолжить регистрацию" : "Отправить ссылку"}</button>
             {mode === "forgot" && (
               <button type="button" className="account-text-button account-text-button-center" onClick={() => setMode("login")}>
                 Вернуться ко входу
@@ -433,7 +444,9 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
         </div>
       )}
       {message && <div className="account-notice success">{message}</div>}
-      {error && <div className="account-notice error">{error}</div>}
+      {error && !registrationOpen && <div className="account-notice error">{error}</div>}
+      {registrationOpen && <RegistrationWizard value={registration} onChange={setRegistration} busy={busy} error={error}
+        onComplete={() => void createProfile()} onClose={() => { setRegistrationOpen(false); setError(''); }} />}
     </main>
   );
 }

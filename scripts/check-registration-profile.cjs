@@ -69,19 +69,57 @@ const defaultAvatar = { helmet: 'scarlet', suit: 'scarlet', background: 'garage'
       await page.getByRole('button', { name: 'Скрыть пароль: Пароль', exact: true }).click();
       assert.equal(await passwordInput.getAttribute('type'), 'password');
       assert.equal(await passwordInput.inputValue(), 'FormulaOne-2026-Secure');
+      assert.equal(await page.getByLabel('Ник на сайте').count(), 0, 'profile fields are not underneath the credentials');
+      const start = page.getByRole('button', { name: 'Продолжить регистрацию', exact: true });
+      await start.click();
+      const wizard = page.getByRole('dialog', { name: 'Ваш ник', exact: true });
+      await wizard.waitFor();
+      await page.getByLabel('Ник на сайте').fill('  ');
+      await wizard.getByRole('button', { name: 'Продолжить', exact: true }).click();
+      await wizard.getByRole('alert').getByText('Введите ник от 2 до 32 символов.').waitFor();
       await page.getByLabel('Ник на сайте').fill('Турбо Пилот');
+      await page.keyboard.press('Escape');
+      await wizard.waitFor({ state: 'detached' });
+      assert.equal(await start.evaluate(el => el === document.activeElement), true, 'closing returns focus');
+      assert.equal(await passwordInput.inputValue(), 'FormulaOne-2026-Secure');
+      await start.click();
+      assert.equal(await page.getByLabel('Ник на сайте').inputValue(), 'Турбо Пилот', 'draft survives closing');
+      const next = page.getByRole('button', { name: 'Продолжить', exact: true });
+      await next.click();
+      await page.getByRole('dialog', { name: 'Ваш аватар', exact: true }).waitFor();
       if (width !== 320) {
-        await page.locator('.registration-avatar summary').click();
         await page.getByLabel('Шлем', { exact: true }).selectOption('cobalt');
         await page.getByLabel('Комбинезон', { exact: true }).selectOption('mint');
         await page.getByLabel('Фон', { exact: true }).selectOption('gold');
-        await page.locator('.registration-favorites summary').click();
+      }
+      await page.getByRole('button', { name: 'Назад', exact: true }).click();
+      assert.equal(await page.getByLabel('Ник на сайте').inputValue(), 'Турбо Пилот');
+      await next.click();
+      await page.getByRole('dialog', { name: 'Ваш аватар', exact: true }).waitFor();
+      assert.equal(await page.getByLabel('Шлем', { exact: true }).inputValue(), width === 320 ? 'scarlet' : 'cobalt');
+      await page.screenshot({ path: `.tmp/registration-ui/avatar-step-${width}.png` });
+      await next.click();
+      await page.getByRole('dialog', { name: 'Избранные пилоты', exact: true }).waitFor();
+      if (width !== 320) {
         await page.getByRole('checkbox', { name: 'Ландо Норрис NOR' }).check();
         await page.getByRole('checkbox', { name: 'Шарль Леклер LEC' }).check();
+      }
+      await next.click();
+      await page.getByRole('dialog', { name: 'Избранные команды', exact: true }).waitFor();
+      if (width !== 320) {
         await page.getByRole('checkbox', { name: 'McLaren' }).check();
         await page.getByRole('checkbox', { name: 'Ferrari', exact: true }).check();
       }
-      assert(await page.locator('.account-auth-card').evaluate(el => el.scrollWidth <= el.clientWidth), `registration overflow at ${width}`);
+      assert.equal(registered, null, 'no account is created before the final confirmation');
+      await page.getByRole('button', { name: 'Назад', exact: true }).click();
+      assert.equal(await page.getByRole('checkbox', { name: 'Ландо Норрис NOR' }).isChecked(), width !== 320, 'favorites survive returning to a step');
+      await next.click();
+      const dialog = page.locator('.registration-wizard');
+      assert(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth), `registration overflow at ${width}`);
+      const bounds = await dialog.boundingBox();
+      assert.ok(bounds.y >= 0 && bounds.y + bounds.height <= 901, 'dialog fits the viewport');
+      await page.keyboard.press('Tab');
+      assert(await dialog.evaluate(el => el.contains(document.activeElement)), 'focus stays in the modal');
       await page.screenshot({ path: `.tmp/registration-ui/form-${width}.png`, fullPage: true });
       await page.getByRole('button', { name: 'Создать профиль', exact: true }).click();
       await page.waitForURL('**/profile');
