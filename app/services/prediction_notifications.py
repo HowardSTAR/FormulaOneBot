@@ -4,7 +4,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot
-from app.db import was_reminder_sent
+from app.db import db, was_reminder_sent
 
 from app.f1_data import (
     get_quali_for_round_async,
@@ -14,6 +14,7 @@ from app.f1_data import (
     get_sprint_results_async,
 )
 from app.services.prediction_service import (
+    PREDICTION_FIELDS,
     build_actual_answers,
     get_notification_state,
     get_prediction_window,
@@ -32,6 +33,43 @@ from app.services.web_notifications import publish_safely as publish_web
 
 
 logger = logging.getLogger(__name__)
+RESULT_RECOVERY_WINDOW = timedelta(days=7)
+
+
+async def _prediction_results_queued(season: int, round_num: int) -> bool:
+    """A legacy results_sent flag alone is not evidence of a queued broadcast."""
+    if not db.conn:
+        await db.connect()
+    async with db.conn.execute(
+        "SELECT 1 FROM telegram_delivery_batches WHERE event_key IN (?, ?) "
+        "OR event_key LIKE ? LIMIT 1",
+        (f"prediction:results:{season}:{round_num}",
+         f"prediction:results-updated:{season}:{round_num}",
+         f"prediction:results-manual:{season}:{round_num}:%"),
+    ) as cursor:
+        return await cursor.fetchone() is not None
+
+
+async def _saved_prediction_score(season: int, round_num: int) -> dict | None:
+    """Recover delivery from saved totals, including manually verified facts."""
+    if not db.conn:
+        await db.connect()
+    async with db.conn.execute(
+        "SELECT * FROM prediction_round_results WHERE season=? AND round=? "
+        "AND NOT EXISTS (SELECT 1 FROM race_predictions WHERE season=? AND round=? "
+        "AND (points IS NULL OR max_points IS NULL))",
+        (season, round_num, season, round_num),
+    ) as cursor:
+        saved = await cursor.fetchone()
+    if saved is None:
+        return None
+    async with db.conn.execute(
+        "SELECT COUNT(*) FROM race_predictions WHERE season=? AND round=?",
+        (season, round_num),
+    ) as cursor:
+        scored = (await cursor.fetchone())[0]
+    return {"available_fields": [field for field in PREDICTION_FIELDS if saved[field] is not None],
+            "max_points": saved["max_points"], "scored": scored}
 
 
 async def _queue_prediction(bot, event, kind, text, keyboard, users):
@@ -224,46 +262,59 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
                     sent,
                 )
 
-        if state["results_sent"] or not race_at or now < race_at + timedelta(hours=3):
+        if not race_at or now < race_at + timedelta(hours=3):
             continue
+        recoverable = now - race_at <= RESULT_RECOVERY_WINDOW
+        if state["results_sent"] and not recoverable:
+            continue
+        if await _prediction_results_queued(season, round_num):
+            # The outbox worker resumes existing deliveries; never rescore or replay them.
+            if not state["results_sent"]:
+                await mark_notification_state(season, round_num, "results_sent")
+            continue
+        if state["results_sent"]:
+            logger.info("Recovering prediction results without a queued broadcast for %s/%s",
+                        season, round_num)
 
-        try:
-            race_results, quali_payload, sprint_quali_results, sprint_results = await asyncio.gather(
-                get_race_results_async(season, round_num),
-                get_quali_for_round_async(season, round_num),
-                get_sprint_quali_results_async(season, round_num)
-                if event.get("sprint_quali_start_utc")
-                else asyncio.sleep(0, result=[]),
-                get_sprint_results_async(season, round_num)
-                if event.get("sprint_start_utc")
-                else asyncio.sleep(0, result=None),
-            )
-        except Exception:
-            logger.exception("Prediction result data failed for %s/%s", season, round_num)
-            continue
-        if race_results is None or race_results.empty or len(race_results.index) < 10:
-            continue
-        if "DataComplete" in race_results.columns and not race_results["DataComplete"].fillna(False).all():
-            continue
-        if "Points" in race_results.columns:
-            top_ten = race_results[race_results["Position"].between(1, 10)]
-            if len(top_ten) >= 10 and top_ten["Points"].fillna(0).eq(0).all():
+        score_info = await _saved_prediction_score(season, round_num)
+        if score_info is None:
+            try:
+                race_results, quali_payload, sprint_quali_results, sprint_results = await asyncio.gather(
+                    get_race_results_async(season, round_num),
+                    get_quali_for_round_async(season, round_num),
+                    get_sprint_quali_results_async(season, round_num)
+                    if event.get("sprint_quali_start_utc")
+                    else asyncio.sleep(0, result=[]),
+                    get_sprint_results_async(season, round_num)
+                    if event.get("sprint_start_utc")
+                    else asyncio.sleep(0, result=None),
+                )
+            except Exception:
+                logger.exception("Prediction result data failed for %s/%s", season, round_num)
                 continue
-        qualifying_results = quali_payload[1] if isinstance(quali_payload, tuple) else quali_payload
-        race_facts = await get_prediction_race_facts(season, round_num)
-        answers = build_actual_answers(
-            race_results,
-            qualifying_results or [],
-            sprint_qualifying_results=sprint_quali_results or [],
-            sprint_results=sprint_results,
-            extra_facts=race_facts,
-        )
-        score_info = await score_prediction_round(
-            season,
-            round_num,
-            str(event.get("event_name") or "Гран-при"),
-            answers,
-        )
+            if race_results is None or race_results.empty or len(race_results.index) < 10:
+                continue
+            if "DataComplete" in race_results.columns and not race_results["DataComplete"].fillna(False).all():
+                continue
+            if "Points" in race_results.columns:
+                top_ten = race_results[race_results["Position"].between(1, 10)]
+                if len(top_ten) >= 10 and top_ten["Points"].fillna(0).eq(0).all():
+                    continue
+            qualifying_results = quali_payload[1] if isinstance(quali_payload, tuple) else quali_payload
+            race_facts = await get_prediction_race_facts(season, round_num)
+            answers = build_actual_answers(
+                race_results,
+                qualifying_results or [],
+                sprint_qualifying_results=sprint_quali_results or [],
+                sprint_results=sprint_results,
+                extra_facts=race_facts,
+            )
+            score_info = await score_prediction_round(
+                season,
+                round_num,
+                str(event.get("event_name") or "Гран-при"),
+                answers,
+            )
         top = await get_stage_top(season, round_num)
         expected = {
             "pole_driver", "winner_driver", "second_driver", "third_driver",
@@ -273,8 +324,9 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
         if event.get("sprint_start_utc") or event.get("sprint_quali_start_utc"):
             expected.update({"sprint_pole_driver", "sprint_winner_driver"})
         provisional = not expected.issubset(set(score_info.get("available_fields") or []))
-        # Keep historical scoring intact, but never replay old broadcasts on boot.
-        skipped_result = not_before is not None and race_at + timedelta(hours=3) < not_before
+        # Recover recent unsent results after restarts, while suppressing old backlog.
+        skipped_result = (not_before is not None and race_at + timedelta(hours=3) < not_before
+                          and not recoverable)
         sent = 0 if skipped_result else await _send_prediction_results(
             bot, {**event, "season": season}, top, notification_users, provisional=provisional,
         )
