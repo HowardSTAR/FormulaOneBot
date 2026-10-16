@@ -468,11 +468,13 @@ async def api_prediction_league_join(data: LeagueJoinRequest, user_id: int = Dep
 
 
 @web_app.get("/api/predictions/leagues/{league_id}")
-async def api_prediction_league_scores(league_id: int, response: Response, user_id: int = Depends(get_prediction_user_id)):
+async def api_prediction_league_scores(league_id: int, response: Response,
+                                      season: int | None = Query(None, ge=1950, le=2100),
+                                      user_id: int = Depends(get_prediction_user_id)):
     from app.services.prediction_social import league_scores
     response.headers["Cache-Control"] = "private, no-store"
     try:
-        return await league_scores(user_id, league_id)
+        return await league_scores(user_id, league_id, season)
     except PermissionError as exc:
         raise HTTPException(403, str(exc)) from exc
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../../helpers/api';
 import SupporterBadge from '../../components/SupporterBadge';
 import './supporter-league.css';
@@ -44,8 +44,8 @@ function Standings({ board }: { board: Board }) {
   </div>;
 }
 
-function MemberLeague({ season }: { season: number }) {
-  const [open, setOpen] = useState(false);
+function MemberLeague({ season, defaultOpen }: { season: number; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const [board, setBoard] = useState<Board | null>(null);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -67,9 +67,14 @@ function MemberLeague({ season }: { season: number }) {
 }
 
 export default function SupporterLeague({ season, supporter }: { season: number; supporter: boolean }) {
-  return <section className="profile-panel supporter-league" data-profile-guide="club">
+  const [params] = useSearchParams();
+  const defaultOpen = params.get('league') === 'supporters';
+  useEffect(() => {
+    if (supporter && defaultOpen) document.getElementById('supporter-league')?.scrollIntoView({block: 'start'});
+  }, [season, supporter, defaultOpen]);
+  return <section id="supporter-league" className="profile-panel supporter-league" data-profile-guide="club">
     <div className="supporter-league-heading"><div><p className="supporter-league-eyebrow">ЛИГА ПОДПИСЧИКОВ · {season}</p><h2>Клуб TurboTears</h2></div><SupporterBadge large /></div>
     <p className="profile-muted">Твой круг соперников. Общий зачёт прогнозов за сезон для уровней «На старт», «Свой стиль» и «Полный газ».</p>
-    {supporter ? <MemberLeague key={season} season={season} /> : <div className="supporter-league-join"><p>Подписка открывает клубный зачёт и золотой значок рядом с именем.</p><a href="https://boosty.to/turbotears" target="_blank" rel="noopener noreferrer">Присоединиться на Boosty →</a></div>}
+    {supporter ? <MemberLeague key={`${season}:${defaultOpen}`} season={season} defaultOpen={defaultOpen} /> : <div className="supporter-league-join"><p>Подписка открывает клубный зачёт и золотой значок рядом с именем.</p><a href="https://boosty.to/turbotears" target="_blank" rel="noopener noreferrer">Присоединиться на Boosty →</a></div>}
   </section>;
 }

@@ -1,5 +1,6 @@
 import { SelectField } from '../../components/CustomSelect';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../../helpers/api';
 import './season-progress.css';
 import { ShareButton } from '../../components/ShareButton';
@@ -15,8 +16,19 @@ export function StageScores({entries, round}: {entries: ScoreEntry[]; round: num
 }
 
 export function LeaguePanel() {
+  const [params, setParams] = useSearchParams();
+  const leagueId = Number(params.get('league'));
+  const selected = Number.isSafeInteger(leagueId) && leagueId > 0 ? leagueId : null;
+  const year = Number(params.get('season'));
+  const season = Number.isInteger(year) && year >= 1950 && year <= 2100 ? year : undefined;
+  const scoreKey = `${selected}:${season}`;
+  const selectLeague = (id: number | null) => setParams(previous => {
+    const next = new URLSearchParams(previous);
+    if (id) next.set('league', String(id)); else next.delete('league');
+    return next;
+  });
   const [leagues, setLeagues] = useState<League[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [loadedKey, setLoadedKey] = useState('');
   const [scores, setScores] = useState<{entries: ScoreEntry[]; rounds: {round: number; event_name: string}[]; season: number; mode: string; cup_rounds?: {round: number; event_name: string}[]} | null>(null);
   const [round, setRound] = useState(0);
   const [name, setName] = useState('');
@@ -34,12 +46,17 @@ export function LeaguePanel() {
   useEffect(() => {
     if (!selected) return;
     let active = true;
-    apiRequest<NonNullable<typeof scores>>(`/api/predictions/leagues/${selected}`).then(d => {if (active) setScores(d);}).catch(e => {if (active) setError(e.message);});
+    apiRequest<NonNullable<typeof scores>>(`/api/predictions/leagues/${selected}`, {season}).then(d => {
+      if (active) { setScores(d); setLoadedKey(scoreKey); }
+    }).catch(e => {if (active) setError(e.message);});
     return () => {active = false;};
-  }, [selected, version]);
+  }, [selected, season, scoreKey, version]);
+  useEffect(() => {
+    if (scores && loadedKey === scoreKey) document.getElementById(`prediction-league-${selected}`)?.scrollIntoView({block: 'start'});
+  }, [scores, loadedKey, scoreKey, selected]);
   const action = async (path: string, body: Record<string, string>) => {
     setBusy(true); setError('');
-    try {const result = await apiRequest<{id?: number}>(path, body, 'POST'); setVersion(v => v + 1); setScores(null); setSelected(result.id || null); setSuccess(path.endsWith('/join') ? 'Вы вступили в лигу.' : path.endsWith('/leagues') ? 'Лига создана. Пригласите друзей кнопкой ниже.' : 'Изменения сохранены.');}
+    try {const result = await apiRequest<{id?: number}>(path, body, 'POST'); setVersion(v => v + 1); setScores(null); selectLeague(result.id || null); setSuccess(path.endsWith('/join') ? 'Вы вступили в лигу.' : path.endsWith('/leagues') ? 'Лига создана. Пригласите друзей кнопкой ниже.' : 'Изменения сохранены.');}
     catch (e) {setError(e instanceof Error ? e.message : 'Не удалось выполнить действие');}
     finally {setBusy(false);}
   };
@@ -59,15 +76,15 @@ export function LeaguePanel() {
         <button disabled={busy}>Вступить</button>
       </form>
     </details>
-    {leagues.map(l => <article key={l.id}>
-      <button onClick={() => {setScores(null); setRound(0); setSelected(l.id); setVersion(v => v + 1);}}>{l.name} · {l.mode === 'cup' ? '3 этапа' : 'Сезон'} →</button>
+    {leagues.map(l => <article key={l.id} id={`prediction-league-${l.id}`}>
+      <button onClick={() => {setScores(null); setRound(0); selectLeague(l.id); setVersion(v => v + 1);}}>{l.name} · {l.mode === 'cup' ? '3 этапа' : 'Сезон'} →</button>
       {l.mode === 'cup' && <p>{l.season}: {l.rounds.map(r => r.event_name).join(' · ')}</p>}
       {l.owner && <ShareButton options={{kind: 'league', league_id: l.id}}>Пригласить друзей</ShareButton>}
       {l.owner ? <details><summary>Управление приглашением (30 дней)</summary>
         <input aria-label="Ссылка приглашения" readOnly value={`${window.location.origin}/predictions?tab=leagues#invite=${l.invite_token}`} onFocus={e => e.target.select()} />
         <button disabled={busy} onClick={() => void action(`/api/predictions/leagues/${l.id}`, {action: 'rotate'})}>Заменить ссылку и отозвать старую</button>
       </details> : <button disabled={busy} onClick={() => void action(`/api/predictions/leagues/${l.id}`, {action: 'leave'})}>Покинуть лигу</button>}
-      {selected === l.id && (scores ? <>
+      {selected === l.id && (scores && loadedKey === scoreKey ? <>
         <label>Зачёт <SelectField value={round} onChange={e => setRound(Number(e))}><option value={0}>{scores.mode === 'cup' ? 'Мини-чемпионат · 3 этапа' : `Сезон ${scores.season}`}</option>{scores.rounds.map(r => <option key={r.round} value={r.round}>{r.event_name}</option>)}</SelectField></label>
         {round ? <StageScores entries={scores.entries} round={round} /> : <ol className="league-score-list">{scores.entries.map((e, index) => <li key={e.user_id}>#{index + 1} {e.display_name} {e.place_change != null && <small>{e.place_change > 0 ? '↑' : e.place_change < 0 ? '↓' : '·'}{Math.abs(e.place_change)}</small>}<b>{e.total_points} очк.</b></li>)}</ol>}
       </> : <p role="status">Загружаем таблицу…</p>)}

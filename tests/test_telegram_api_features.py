@@ -200,7 +200,7 @@ async def test_rejected_ephemeral_message_never_becomes_public(local, monkeypatc
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("data", ["personal:review:2026:15:42", "personal:review:2026:99", "personal:admin:2026:15"])
+@pytest.mark.parametrize("data", ["personal:review:2026:15:42", "personal:review:2026:99", "personal:admin:2026:15", "personal:leagues:2026:15:-1"])
 async def test_forged_personal_callbacks_are_rejected(local, monkeypatch, data):
     lookup = AsyncMock()
     monkeypatch.setattr(telegram_features, "linked_user_id", lookup)
@@ -229,11 +229,63 @@ async def test_archived_user_is_not_created_or_reactivated(temp_db_path, monkeyp
 async def test_league_response_does_not_expose_invitation_tokens(local, monkeypatch):
     bot, session = local
     monkeypatch.setattr(telegram_features, "linked_user_id", AsyncMock(return_value=42))
-    monkeypatch.setattr(telegram_features, "list_leagues", AsyncMock(return_value=[{"name": "Friends <league>", "invite_token": "SECRET"}]))
+    monkeypatch.setattr(telegram_features, "personal_league_summaries", AsyncMock(return_value={
+        'page': 0, 'pages': 1, 'total': 1, 'leagues': [{
+            'id': 1, 'name': 'Friends <league>', 'season': 2026, 'mode': 'season',
+            'participants': 0, 'top': [], 'own': None, 'invite_token': 'SECRET'}]}))
+    monkeypatch.setenv('MINI_APP_URL', 'https://example.test')
     await telegram_features.personal_view(callback(bot, "personal:leagues:2026:15", group=True))
     sent = session.methods[-1]
-    assert isinstance(sent, SendMessage) and "SECRET" not in sent.text and "&lt;league&gt;" in sent.text
+    assert isinstance(sent, SendRichMessage) and "SECRET" not in sent.rich_message.model_dump_json()
+    assert 'Friends <league>' in sent.rich_message.model_dump_json()
     assert sent.ephemeral_message_parameters.receiver_user_id == 777
+    assert sent.reply_markup.inline_keyboard[0][0].url == 'https://example.test/predictions?tab=leagues&league=1&season=2026'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('rich,group', [(True, False), (False, False), (True, True), (False, True)])
+async def test_leagues_show_top_three_self_and_direct_full_tables(local, monkeypatch, rich, group):
+    bot, session = local
+    monkeypatch.setenv('MINI_APP_URL', 'https://example.test')
+    monkeypatch.setenv('TELEGRAM_RICH_MESSAGES', '1' if rich else '0')
+    monkeypatch.setattr(telegram_features, 'linked_user_id', AsyncMock(return_value=42))
+    entries = [{'user_id': i, 'display_name': f'Pilot {i}', 'place': i, 'total_points': 100 - i}
+               for i in (1, 2, 3)]
+    own = {'user_id': 42, 'display_name': 'Me <pilot>', 'place': 8, 'total_points': 17}
+    view = {'page': 0, 'pages': 2, 'total': 4, 'leagues': [
+        {'id': 'supporters', 'name': 'Лига подписчиков', 'season': 2026, 'mode': 'season',
+         'participants': 12, 'top': entries, 'own': own},
+        {'id': 7, 'name': 'Friends', 'season': 2026, 'mode': 'season',
+         'participants': 8, 'top': entries, 'own': own}]}
+    load = AsyncMock(return_value=view)
+    monkeypatch.setattr(telegram_features, 'personal_league_summaries', load)
+    await telegram_features.personal_view(callback(bot, 'personal:leagues:2026:15', group=group))
+    load.assert_awaited_once_with(42, 2026, 0)
+    sent = session.methods[-1]
+    payload = sent.rich_message.model_dump_json() if rich else sent.text
+    for value in ('Pilot 1', 'Pilot 2', 'Pilot 3', 'Лига подписчиков', 'Ваше место: #8 · 17 баллов'):
+        assert value in payload
+    assert ('Me <pilot> (вы)' if rich else 'Me &lt;pilot&gt; (вы)') in payload
+    buttons = sent.reply_markup.inline_keyboard
+    urls = [row[0].url if group else row[0].web_app.url for row in buttons[:2]]
+    assert urls == ['https://example.test/profile?league=supporters&season=2026',
+                    'https://example.test/predictions?tab=leagues&league=7&season=2026']
+    assert buttons[-1][0].callback_data == 'personal:leagues:2026:15:1'
+    assert sent.protect_content
+    if group:
+        assert sent.ephemeral_message_parameters.receiver_user_id == 777
+
+
+@pytest.mark.asyncio
+async def test_league_navigation_loads_requested_page_for_the_clicker(local, monkeypatch):
+    bot, session = local
+    monkeypatch.setattr(telegram_features, 'linked_user_id', AsyncMock(return_value=42))
+    load = AsyncMock(return_value={'leagues': [], 'page': 1, 'pages': 2, 'total': 4})
+    monkeypatch.setattr(telegram_features, 'personal_league_summaries', load)
+    await telegram_features.personal_view(callback(bot, 'personal:leagues:2026:15:1', group=True))
+    load.assert_awaited_once_with(42, 2026, 1)
+    sent = session.methods[-1]
+    assert sent.reply_markup.inline_keyboard[-1][0].callback_data == 'personal:leagues:2026:15:0'
 
 
 @pytest.mark.asyncio

@@ -4,14 +4,15 @@ import re
 
 from aiogram import F, Router
 from aiogram.exceptions import TelegramAPIError
-from aiogram.types import CallbackQuery, EphemeralMessageParameters, Message
+from aiogram.types import CallbackQuery, EphemeralMessageParameters, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.db import db
 from app.services.prediction_service import get_personal_prediction_review
-from app.services.prediction_social import list_leagues
+from app.services.prediction_social import personal_league_summaries
 from app.utils.activity_status import stop_activity
 from app.utils.safe_send import safe_answer_callback
-from app.utils.telegram_presentation import review_card, send_card
+from app.utils.telegram_presentation import leagues_card, review_card, send_card
+from app.utils.mini_app_links import mini_app_button
 
 router = Router(name="telegram_features")
 
@@ -33,12 +34,13 @@ async def linked_user_id(telegram_id):
 
 @router.callback_query(F.data.startswith("personal:"))
 async def personal_view(callback: CallbackQuery):
-    match = re.fullmatch(r"personal:(review|leagues):(\d{4}):(\d{1,2})", callback.data or "")
+    match = re.fullmatch(r"personal:(review|leagues):(\d{4}):(\d{1,2})(?::(\d{1,6}))?", callback.data or "")
     if not match or not isinstance(callback.message, Message) or callback.message.chat.type not in {"private", "group", "supergroup"}:
         await safe_answer_callback(callback, "Откройте итоги этапа снова.")
         return
     kind, season, round_num = match.group(1), int(match.group(2)), int(match.group(3))
-    if not 1950 <= season <= 2100 or not 1 <= round_num <= 30 or callback.from_user.is_bot:
+    if (not 1950 <= season <= 2100 or not 1 <= round_num <= 30 or callback.from_user.is_bot
+            or (kind != 'leagues' and match.group(4) is not None)):
         await safe_answer_callback(callback, "Некорректный этап.")
         return
     private = callback.message.chat.type == "private"
@@ -67,11 +69,33 @@ async def personal_view(callback: CallbackQuery):
                 else:
                     text = "У вас нет сохранённого прогноза на этот этап."
             elif uid is not None:
-                from html import escape
-                leagues = await list_leagues(uid)
-                text = "<b>Мои лиги</b>\n" + ("\n".join(escape(item["name"][:100]) for item in leagues[:20]) or "Вы пока не вступили в лигу.")
-                if len(leagues) > 20:
-                    text += "\n\nВсе лиги доступны в Mini App → Прогнозы → Лиги друзей."
+                view = await personal_league_summaries(uid, season, int(match.group(4) or 0))
+                card, text = leagues_card(view, uid)
+                rows = []
+                for league in view['leagues']:
+                    supporter = league['id'] == 'supporters'
+                    keyboard = await mini_app_button(
+                        callback.bot, f"🏆 {league['name'][:70]} · Полная таблица",
+                        '/profile' if supporter else '/predictions',
+                        **({'league': 'supporters', 'season': league['season']} if supporter else
+                           {'tab': 'leagues', 'league': league['id'], 'season': league['season']}),
+                    )
+                    if keyboard:
+                        rows.extend([
+                            [button.model_copy(update={'url': button.web_app.url, 'web_app': None})
+                             if not private and button.web_app else button for button in row]
+                            for row in keyboard.inline_keyboard
+                        ])
+                navigation = []
+                for offset, label in ((-1, '← Назад'), (1, 'Далее →')):
+                    page = view['page'] + offset
+                    if 0 <= page < view['pages']:
+                        navigation.append(InlineKeyboardButton(
+                            text=label, callback_data=f'personal:leagues:{season}:{round_num}:{page}'))
+                if navigation:
+                    rows.append(navigation)
+                if rows:
+                    kwargs['reply_markup'] = InlineKeyboardMarkup(inline_keyboard=rows)
             if card:
                 await send_card(callback.bot, callback.message.chat.id, card, text, **kwargs)
             else:

@@ -132,14 +132,15 @@ async def join_league(user_id: int, token: str):
     return {"id": league["id"]}
 
 
-async def league_scores(user_id: int, league_id: int):
+async def league_scores(user_id: int, league_id: int, season: int | None = None):
     db = await _connection()
     member = await (await db.conn.execute("SELECT 1 FROM prediction_league_members WHERE league_id=? AND user_id=?", (league_id, user_id))).fetchone()
     if not member:
         raise PermissionError("Лига доступна только её участникам")
     members = {r[0] for r in await (await db.conn.execute("SELECT user_id FROM prediction_league_members WHERE league_id=?", (league_id,))).fetchall()}
     league = await (await db.conn.execute('SELECT * FROM prediction_leagues WHERE id=?', (league_id,))).fetchone()
-    board = deepcopy(await predictions.get_prediction_leaderboard(league['season']) if league['season'] is not None else await predictions.get_prediction_leaderboard())
+    selected_season = league['season'] if league['season'] is not None else season
+    board = deepcopy(await predictions.get_prediction_leaderboard(selected_season))
     board["entries"] = [e for e in board["entries"] if e["user_id"] in members]
     if league['mode'] == 'cup':
         rounds = json.loads(league['rounds_json'])
@@ -170,6 +171,37 @@ async def league_scores(user_id: int, league_id: int):
         entry["place_change"] = previous[entry["user_id"]] - entry["place"] if entry["user_id"] in previous else None
     # Leaderboard contains scores only; never serialize race_predictions rows here.
     return board
+
+
+async def personal_league_summaries(user_id: int, season: int, page: int = 0):
+    """All memberships, with a bounded score-only preview for private bot replies."""
+    from app.services.user_profiles import identities, supporter_league
+    database = await _connection()
+    leagues = await list_leagues(user_id)
+    person = (await identities(database)).get(user_id, {})
+    if person.get('supporter'):
+        leagues.insert(0, {'id': 'supporters', 'name': 'Лига подписчиков · Клуб TurboTears'})
+    page_size = 3
+    pages = max(1, (len(leagues) + page_size - 1) // page_size)
+    page = min(max(0, page), pages - 1)
+    summaries = []
+    for league in leagues[page * page_size:(page + 1) * page_size]:
+        if league['id'] == 'supporters':
+            # Resolve access again in the same service used by the Mini App.
+            try:
+                board = await supporter_league(user_id, season)
+            except PermissionError:
+                continue
+        else:
+            board = await league_scores(user_id, league['id'], season)
+        def score(entry):
+            return {key: entry[key] for key in ('user_id', 'display_name', 'place', 'total_points')}
+        own = next((entry for entry in board['entries'] if entry['user_id'] == user_id), None)
+        summaries.append({'id': league['id'], 'name': league['name'], 'season': board['season'],
+                          'mode': board.get('mode', 'season'), 'participants': len(board['entries']),
+                          'top': [score(entry) for entry in board['entries'][:3]],
+                          'own': score(own) if own else None})
+    return {'leagues': summaries, 'page': page, 'pages': pages, 'total': len(leagues)}
 
 
 async def manage_league(user_id: int, league_id: int, action: str):

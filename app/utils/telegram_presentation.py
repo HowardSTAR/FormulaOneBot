@@ -93,6 +93,45 @@ def review_card(review):
     return InputRichMessage(blocks=blocks), fallback
 
 
+def leagues_card(view, user_id):
+    title = f"Мои лиги · {view['total']}"
+    blocks = [InputRichBlockSectionHeading(text=title, size=3)]
+    fallback = [f"<b>{escape(title)}</b>"]
+    for league in view['leagues']:
+        name = league['name'][:100]
+        scope = 'Мини-чемпионат · 3 этапа' if league['mode'] == 'cup' else 'Сезон'
+        context = f"{scope} {league['season']} · Участников: {league['participants']}"
+        blocks.extend([InputRichBlockSectionHeading(text=name, size=4),
+                       InputRichBlockParagraph(text=context)])
+        lines = [f"<b>{escape(name)}</b>", escape(context)]
+        entries = list(league['top'])
+        own = league['own']
+        if own and all(entry['user_id'] != user_id for entry in entries):
+            entries.append(own)
+        if entries:
+            rows = [[entry['place'], entry['display_name'] + (' (вы)' if entry['user_id'] == user_id else ''),
+                     entry['total_points']] for entry in entries]
+            blocks.append(table(['Место', 'Участник', 'Баллы'], rows))
+            lines.extend(escape(f"#{place} · {name} — {points} баллов") for place, name, points in rows)
+        else:
+            blocks.append(InputRichBlockParagraph(text='Результатов пока нет.'))
+            lines.append('Результатов пока нет.')
+        own_text = (f"Ваше место: #{own['place']} · {own['total_points']} баллов" if own
+                    else 'Вашего результата пока нет. Сделайте первый прогноз.')
+        blocks.append(InputRichBlockParagraph(text=own_text))
+        lines.append(escape(own_text))
+        fallback.append('\n'.join(lines))
+    if not view['total']:
+        text = 'Вы пока не состоите в лигах.'
+        blocks.append(InputRichBlockParagraph(text=text))
+        fallback.append(text)
+    if view['pages'] > 1:
+        text = f"Страница {view['page'] + 1} из {view['pages']}"
+        blocks.append(InputRichBlockParagraph(text=text))
+        fallback.append(text)
+    return InputRichMessage(blocks=blocks), '\n\n'.join(fallback)
+
+
 def feature_rejected(exc):
     description = str(exc).lower()
     return any(part in description for part in ("method not found", "unsupported", "not supported", "rich_message", "rich message"))
