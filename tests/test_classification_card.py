@@ -120,11 +120,13 @@ async def test_partial_delivery_retries_only_failed_recipient():
 
 
 @pytest.mark.asyncio
-async def test_startup_does_not_send_old_predictions_but_still_scores():
+async def test_startup_does_not_send_old_predictions_but_still_scores(db_session):
     import pandas as pd
     from app.services.prediction_notifications import check_and_notify_predictions
     now = datetime.now(timezone.utc)
-    event = {"round": 1, "event_name": "Old GP", "race_start_utc": (now - timedelta(days=7)).isoformat()}
+    # Initialize the isolated DB for durable delivery checks and stay strictly
+    # outside the seven-day recovery window, independent of clock resolution.
+    event = {"round": 1, "event_name": "Old GP", "race_start_utc": (now - timedelta(days=8)).isoformat()}
     prefix = "app.services.prediction_notifications."
     from contextlib import ExitStack
     with ExitStack() as stack:
