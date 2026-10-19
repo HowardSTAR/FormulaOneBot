@@ -25,10 +25,25 @@ for (const file of files) {
   totals[kind] += data.byteLength;
   totals[`${kind}_gzip`] += gzipSync(data).byteLength;
 }
-console.log(JSON.stringify({ root, startup_files: [...files], bytes: totals }, null, 2));
+// Public classic scripts are not part of Vite's import graph. Account for them
+// separately so moving an SDK to our origin cannot hide its startup cost.
+const classic = { js: 0, js_gzip: 0 };
+const html = readFileSync(resolve(root, 'index.html'), 'utf8');
+for (const match of html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/g)) {
+  const file = match[1].replace(/^\//, '');
+  if (files.has(file)) continue;
+  assert.ok(!/^https?:/.test(file), 'Startup scripts must not depend on an external host');
+  const data = readFileSync(resolve(root, file));
+  files.add(file);
+  classic.js += data.byteLength;
+  classic.js_gzip += gzipSync(data).byteLength;
+}
+console.log(JSON.stringify({ root, startup_files: [...files], bytes: totals, classic_scripts_bytes: classic,
+  total_js: totals.js + classic.js, total_js_gzip: totals.js_gzip + classic.js_gzip }, null, 2));
 if (!process.argv.includes('--report-only')) {
   assert.ok(totals.js < 450000, 'Initial JS exceeds 450 KB; keep chart/game code lazy');
   assert.ok(totals.js_gzip < 145000, 'Initial compressed JS exceeds 145 KB');
+  assert.ok(classic.js < 130000 && classic.js_gzip < 32000, 'Classic startup scripts exceed the Telegram SDK allowance');
   for (const key of visited) assert.ok(!/chart|ComparePage|GamePage|AdminPage|PredictionAnalyticsPage/.test(key), `Heavy code eagerly loaded: ${key}`);
   console.log('Startup performance budget passed.');
 }

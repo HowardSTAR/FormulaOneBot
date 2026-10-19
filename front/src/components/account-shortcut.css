@@ -30,7 +30,16 @@
   .app-header > .account-shortcut span { display: none; }
   .app-header .app-header-brand-wrap { min-width: 0; }
 }
-html[data-onboarding-active] .account-shortcut-bar { display: none; }
+html[data-onboarding-active] .account-shortcut-bar {
+  display: flex;
+  justify-content: flex-end;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin-bottom: 12px;
+  background: var(--bg-color);
+}
+html[data-onboarding-active] .account-shortcut-bar .account-shortcut { min-height: 44px; }
 @media (prefers-reduced-motion: reduce) {
   .account-shortcut { transition: none; }
 }

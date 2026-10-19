@@ -324,7 +324,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
           <form onSubmit={submitAuth}>
             <label>Email<input type="email" autoComplete="email" disabled={busy} required value={email} onChange={e => setEmail(e.target.value)} /></label>
             {mode !== "forgot" && (
-              <PasswordField key={mode} name="password" label="Пароль" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} disabled={busy} minLength={mode === "register" ? 15 : undefined} maxLength={128} required value={password}
+              <PasswordField racer key={mode} name="password" label="Пароль" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} disabled={busy} minLength={mode === "register" ? 15 : undefined} maxLength={128} required value={password}
                 aria-invalid={mode === 'register' && Boolean(passwordError)}
                 aria-describedby={mode === 'register' ? `registration-password-hint${passwordError ? ' registration-password-error' : ''}` : undefined}
                 onBlur={() => { if (mode === 'register') setPasswordError(registrationPasswordError(password)); }}
@@ -426,7 +426,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
               </div>
               <form onSubmit={changePassword}>
                 <PasswordField label="Текущий пароль" autoComplete="current-password" disabled={busy} required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
-                <PasswordField label="Новый пароль" autoComplete="new-password" disabled={busy} minLength={15} maxLength={128} required value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                <PasswordField racer label="Новый пароль" autoComplete="new-password" disabled={busy} minLength={15} maxLength={128} required value={newPassword} onChange={e => setNewPassword(e.target.value)} />
                 <PasswordField label="Повторите новый пароль" autoComplete="new-password" disabled={busy} minLength={15} maxLength={128} required value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)} />
                 <p className="account-hint">От 15 до 128 символов. Выберите уникальную длинную фразу.</p>
                 <button className="account-primary" disabled={busy || newPassword !== passwordConfirmation}>Изменить пароль</button>
