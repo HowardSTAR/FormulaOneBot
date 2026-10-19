@@ -1,6 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+const backendProxy = {
+  target: process.env.F1HUB_PREVIEW_API || 'http://127.0.0.1:8000',
+  changeOrigin: true,
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -18,19 +23,14 @@ export default defineConfig({
       ignored: ['**/public/race-game/**'],
     },
     proxy: {
-      '/api': {
-        target: process.env.F1HUB_PREVIEW_API || 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-      '/static': {
-        target: process.env.F1HUB_PREVIEW_API || 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      },
-      '/assets': {
-        target: process.env.F1HUB_PREVIEW_API || 'http://127.0.0.1:8000',
-        changeOrigin: true,
-      }
+      '/api': backendProxy,
+      '/static': backendProxy,
+      '/assets': backendProxy,
     }
+  },
+  // Built JS/CSS live in /static; preview must serve these from dist itself.
+  preview: {
+    proxy: { '/api': backendProxy, '/assets': backendProxy },
   },
   build: {
     assetsDir: 'static',
