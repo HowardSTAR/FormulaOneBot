@@ -18,6 +18,9 @@ x-app-common: &app-common
     APP_ENV: production
     AUTH_COOKIE_SECURE: "true"
     DATABASE_PATH: /app/data/bot.db
+    DATABASE_AUTO_MIGRATE: "false"
+    BACKUP_DIR: /app/data/backups
+    BACKUP_KEEP: ${BACKUP_KEEP:-7}
     PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-https://f1hub.ru}
     WEB_ORIGINS: ${WEB_ORIGINS:-https://f1hub.ru,https://www.f1hub.ru}
     REDIS_URL: redis://redis:6379/0
@@ -39,6 +42,11 @@ x-app-common: &app-common
       max-file: "3"
 
 services:
+  migrate:
+    <<: *app-common
+    command: ["python", "-m", "app.migrate"]
+    restart: "no"
+
   redis:
     image: redis:7.4-alpine
     restart: unless-stopped
@@ -63,10 +71,12 @@ services:
     <<: *app-common
     command: ["python", "-m", "app.main"]
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]
+      test: ["CMD", "python", "-c", "import sys; from app.db import DB_PATH; from app.services.operations import component_ready; sys.exit(0 if component_ready(DB_PATH, 'bot') else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -87,6 +97,8 @@ services:
       - --no-access-log
       - --forwarded-allow-ips=*
     depends_on:
+      migrate:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     healthcheck:
@@ -95,6 +107,21 @@ services:
         - python
         - -c
         - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()"
+      interval: 15s
+      timeout: 7s
+      retries: 5
+      start_period: 45s
+
+  worker:
+    <<: *app-common
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.worker", "--check"]
       interval: 15s
       timeout: 7s
       retries: 5

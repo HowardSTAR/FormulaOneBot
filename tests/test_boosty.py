@@ -452,8 +452,6 @@ async def test_subscription_lifecycle_enforces_renewal_expiry_and_rejoin(boosty,
 async def test_worker_schedule_and_owner_reconnection(boosty, monkeypatch, mode, expected):
     clock = [1000]
     attempts = []
-    class StopWorker(Exception):
-        pass
     monkeypatch.setattr('app.services.boosty_service.time', SimpleNamespace(
         monotonic=lambda: clock[0], time=time.time))
     async def fetch():
@@ -463,14 +461,15 @@ async def test_worker_schedule_and_owner_reconnection(boosty, monkeypatch, mode,
         if len(attempts) == 1 and mode == 'reconnect':
             raise BoostyUnavailable('reconnect', code='auth_required')
         return [subscriber()]
-    async def sleep(seconds):
-        clock[0] += seconds
+    monkeypatch.setattr(boosty, 'fetch_subscribers', fetch)
+    for _ in range(50):
         if clock[0] == 1045 and mode == 'reconnect':
             boosty.auth.save({'access_token': 'new-owner-session'})
+        try:
+            await boosty.poll()
+        except BoostyUnavailable:
+            pass  # The shared worker records failure and schedules the next poll.
         if len(attempts) >= 3:
-            raise StopWorker()
-    monkeypatch.setattr(boosty, 'fetch_subscribers', fetch)
-    monkeypatch.setattr('app.services.boosty_service.asyncio.sleep', sleep)
-    with pytest.raises(StopWorker):
-        await boosty.worker()
+            break
+        clock[0] += 15
     assert attempts == expected

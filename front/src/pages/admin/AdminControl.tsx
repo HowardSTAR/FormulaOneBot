@@ -6,7 +6,8 @@ import './admin-control.css';
 
 const labels:Record<string,string>={pending:'В очереди',sending:'Отправляется',retry:'Ожидает повтора',sent:'Принято сервисом',unknown:'Доставка не подтверждена',failed:'Ошибка',blocked:'Получатель недоступен',expired:'Срок истёк',cancelled:'Отменено'};
 const facts:Record<string,string>={fastest_lap_driver:'лучший круг',first_retirement_driver:'первый сход',safety_car:'машина безопасности'};
-type Summary={as_of:number;counts:Record<string,number>;oldest_pending:number|null;recoveries:Record<string,number>;push_configured:boolean;incomplete:{season:number;round:number;event_name:string;missing:string[]}[]};
+type Operations={worker_healthy:boolean;disk_free_bytes:number;forecasts:{pending:number;oldest:number|null};backups:{last_verified:number|null;pending_replication:number;last_replicated:number|null};jobs:{name:string;last_success:number|null;error:string|null;overdue:boolean}[]};
+type Summary={operations:Operations;as_of:number;counts:Record<string,number>;oldest_pending:number|null;recoveries:Record<string,number>;push_configured:boolean;incomplete:{season:number;round:number;event_name:string;missing:string[]}[]};
 type Delivery={event_key:string;recipient:number;channel:string;status:string;attempts:number;next_attempt:number;updated:number;message_id:number|null;error:string|null;expires:number};
 const date=(value:number)=>new Date(value*1000).toLocaleString();
 
@@ -35,6 +36,13 @@ export function AdminControl({mode, onNavigate, onBusy}:{mode:'delivery'|'recove
     {error&&<p role="alert">{error}</p>}{busy&&<p role="status">Обновляю данные…</p>}
     {summary&&mode==='delivery'&&<><small>Обновлено: {date(summary.as_of)}</small>
       <div className="control-metrics">{[['failed','Нужна диагностика'],['retry','Временные сбои'],['blocked','Получатель недоступен'],['unknown','Проверить доставку'],['pending','В очереди']].map(([s,title])=><button key={s} aria-pressed={status===s} onClick={()=>{setStatus(s);setOffset(0);}}><strong>{summary.counts[s]||0}</strong><span>{title}</span></button>)}</div>
+      <article className={`control-job ${summary.operations.worker_healthy?'':'control-failed'}`}>
+        <h3>Фоновые задачи: {summary.operations.worker_healthy?'работают':'нет свежего сигнала'}</h3>
+        <p>Расчётов в очереди: {summary.operations.forecasts.pending}. Свободно на диске: {(summary.operations.disk_free_bytes/1024**3).toFixed(1)} ГБ.</p>
+        <p>Проверенная резервная копия: {summary.operations.backups.last_verified?date(summary.operations.backups.last_verified):'ещё не создана'}. Ожидают переноса на ПК: {summary.operations.backups.pending_replication}.</p>
+        <p>Последний перенос на ПК: {summary.operations.backups.last_replicated?date(summary.operations.backups.last_replicated):'ещё не подтверждён'}. Выключенный ПК не мешает созданию копий на сервере.</p>
+        <details><summary>Выполнение задач</summary>{summary.operations.jobs.map(job=><p key={job.name}><code>{job.name}</code> {job.last_success?date(job.last_success):'ожидает первого запуска'}{job.error?' · ошибка выполнения':''}{job.overdue?' · давно нет успешного выполнения':''}</p>)}</details>
+      </article>
       <p className="ui-data-context">Сводка: все каналы; завершённые доставки за последние 7 дней, очередь — за всё время. Фильтры ниже меняют только журнал.</p>
       <p className="ui-data-context">Ошибка: проверьте причину в технических сведениях. Получатель недоступен: повтор не поможет, пока он не восстановит доступ к боту. Неподтверждённую доставку нельзя повторять без проверки Telegram.</p>
       <p>Push: {summary.push_configured?'ключи настроены':'не настроен — проверьте VAPID'}. {summary.oldest_pending?`Самое старое ожидающее задание: ${date(summary.oldest_pending)}.`:'Ожидающих заданий нет.'}</p>

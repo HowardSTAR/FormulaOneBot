@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import time
+import uuid
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from xml.etree import ElementTree
@@ -105,7 +106,7 @@ async def context_data(client, event, start, cutoff):
             if probability is not None and abs(timestamp(hourly["time"][index]) - start) <= 3600:
                 weather = {"available": True, "source": "https://open-meteo.com/", "rain": probability / 100,
                            "temperature": hourly["temperature_2m"][index], "wind": hourly["wind_speed_10m"][index],
-                           "hour": hourly["time"][index], "fetched_at": cutoff}
+                           "hour": hourly["time"][index], "fetched_at": time.time()}
         except (httpx.HTTPError, ValueError, KeyError, IndexError):
             weather["reason"] = "Погодный сервис недоступен"
     news = []
@@ -129,15 +130,19 @@ async def context_data(client, event, start, cutoff):
     return {"weather": weather, "news": news[:6], "news_available": news_available}
 
 
-async def build_forecast(season, round_number, session):
-    cutoff = time.time()
+class ForecastClosed(ValueError):
+    """A forecast cannot be created once its target session has started."""
+
+
+async def prepare_forecast(season, round_number, session, *, cutoff=None):
+    cutoff = time.time() if cutoff is None else cutoff
     schedule = await get_season_schedule_short_async(season)
     event = next((e for e in schedule if int(e["round"]) == round_number and not e.get("is_cancelled")), None)
     if not event:
         raise ValueError("Этап отсутствует в расписании")
     start = timestamp(event.get("race_start_utc" if session == "race" else "quali_start_utc"))
-    if start <= cutoff:
-        raise ValueError("Сессия началась или время старта неизвестно. Новый прогноз запрещён")
+    if start <= max(cutoff, time.time()):
+        raise ForecastClosed("Сессия началась или время старта неизвестно. Новый прогноз запрещён")
     warnings, history = [], []
     async with httpx.AsyncClient(timeout=12, follow_redirects=True) as client:
         history, coverage = await load_history(client, season, event, cutoff, normalize_classification, timestamp)
@@ -182,43 +187,89 @@ async def build_forecast(season, round_number, session):
                         break
         context = await context_data(client, event, start, cutoff)
     if time.time() >= start:
-        raise ValueError("Во время расчёта сессия началась. Прогноз не сохранён")
+        raise ForecastClosed("Во время расчёта сессия началась. Прогноз не сохранён")
     inputs = {"roster": roster, "history": history, "current": current, "coverage": coverage, **context}
-    seed = int(hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()[:8], 16)
-    model = simulate(roster, history, session, current, context["weather"].get("rain"), seed, news=context["news"])
-    return {"event": event, "season": season, "session": session, "start_at": start, "cutoff": cutoff,
-            "inputs": inputs, "model": model, "warnings": warnings, "current_label": current_label,
+    return {"event": event, "season": season, "session": session, "start_at": start, "cutoff": cutoff, "acquired_at": time.time(),
+            "inputs": inputs, "warnings": warnings, "current_label": current_label,
             "news_policy": "Упоминание фамилии и слов о риске (авария, штраф, травма, надёжность) в английском заголовке увеличивает разброс на 5%, максимум 15%. Это экспериментальный сигнал неопределённости, не подтверждение события; скорость и штрафы по заголовкам не назначаются.",
             "source": "https://jolpi.ca/ergast/"}
 
 
-async def run_job(job_id):
-    row = await (await db.conn.execute("SELECT * FROM prediction_analytics WHERE id=?", (job_id,))).fetchone()
-    if not row or row["status"] != "pending":
-        return
+def finish_forecast(snapshot):
+    inputs = snapshot['inputs']
+    seed = int(hashlib.sha256(json.dumps(inputs, sort_keys=True).encode()).hexdigest()[:8], 16)
+    model = simulate(inputs['roster'], inputs['history'], snapshot['session'], inputs['current'],
+                     inputs['weather'].get('rain'), seed, news=inputs['news'])
+    return {**snapshot, 'model': model}
+
+
+async def build_forecast(season, round_number, session, *, snapshot=None, cutoff=None, save_snapshot=None):
+    if snapshot is None:
+        snapshot = await prepare_forecast(season, round_number, session, cutoff=cutoff)
+        if save_snapshot is not None:
+            await save_snapshot(snapshot)
+    if time.time() >= snapshot['start_at']:
+        raise ForecastClosed('Сессия началась. Расчёт закрыт без использования поздних данных')
+    return await asyncio.to_thread(finish_forecast, snapshot)
+
+
+async def run_job(job_id=None):
+    """Atomically claim, retry and fence one durable calculation after a crash."""
+    from app.services.operations import connection
+    now, token = time.time(), uuid.uuid4().hex
+    async with connection(db) as conn:
+        await conn.execute('BEGIN IMMEDIATE')
+        row = await (await conn.execute(
+            "SELECT * FROM prediction_analytics WHERE status='pending' AND next_attempt<=? AND lease_until<=? AND (? IS NULL OR id=?) ORDER BY created_at LIMIT 1",
+            (now, now, job_id, job_id))).fetchone()
+        if row is None:
+            await conn.commit()
+            return False
+        await conn.execute('UPDATE prediction_analytics SET lease_token=?,lease_until=?,attempts=attempts+1 WHERE id=?',
+                           (token, now+240, row['id']))
+        await conn.commit()
+
+    async def save_snapshot(snapshot):
+        async with connection(db) as conn:
+            cursor = await conn.execute("UPDATE prediction_analytics SET snapshot=?,start_at=? WHERE id=? AND lease_token=? AND status='pending'",
+                (json.dumps(snapshot, ensure_ascii=False, allow_nan=False), snapshot['start_at'], row['id'], token))
+            await conn.commit()
+            if not cursor.rowcount:
+                raise RuntimeError('Forecast lease lost')
+
     try:
-        payload = await asyncio.wait_for(build_forecast(row["season"], row["round"], row["session"]), 180)
-        async with db.write_lock:
-            if time.time() >= payload['start_at']:
-                raise ValueError('Сессия началась до сохранения расчёта. Прогноз не сохранён')
-            await db.conn.execute("UPDATE prediction_analytics SET status='ready',payload=?,start_at=? WHERE id=? AND status='pending'",
-                                  (json.dumps(payload, ensure_ascii=False, allow_nan=False), payload["start_at"], job_id))
-            await db.conn.commit()
+        if now-row['created_at'] > 86400:
+            raise ForecastClosed('Истёк срок ожидания исходных данных (24 часа)')
+        snapshot = json.loads(row['snapshot']) if row['snapshot'] else None
+        payload = await asyncio.wait_for(build_forecast(row['season'], row['round'], row['session'],
+            snapshot=snapshot, cutoff=row['created_at'], save_snapshot=save_snapshot), 180)
+        if time.time() >= payload['start_at']:
+            raise ForecastClosed('Сессия началась до сохранения расчёта. Прогноз не сохранён')
+        async with connection(db) as conn:
+            await conn.execute("UPDATE prediction_analytics SET status='ready',payload=?,start_at=?,error=NULL,lease_token=NULL,lease_until=0 WHERE id=? AND lease_token=? AND status='pending'",
+                (json.dumps(payload, ensure_ascii=False, allow_nan=False), payload['start_at'], row['id'], token))
+            await conn.commit()
+    except asyncio.CancelledError:
+        # Worker shutdown releases the claim; an abrupt kill is recovered by lease expiry.
+        async with connection(db) as conn:
+            await conn.execute('UPDATE prediction_analytics SET lease_token=NULL,lease_until=0 WHERE id=? AND lease_token=?', (row['id'],token))
+            await conn.commit()
+        raise
     except Exception as exc:
-        logger.exception("Prediction analytics calculation failed: %s", job_id)
-        message = str(exc) if isinstance(exc, ValueError) else "Источники недоступны или расчёт превысил 3 минуты. Попробуйте позже"
-        async with db.write_lock:
-            await db.conn.execute("UPDATE prediction_analytics SET status='error',error=? WHERE id=? AND status='pending'", (message, job_id))
-            await db.conn.commit()
+        closed = isinstance(exc, ForecastClosed)
+        message = str(exc) if closed else 'Данные временно недоступны. Расчёт будет повторён автоматически'
+        delay = min(300, 15 * 2**min(row['attempts'], 5))
+        async with connection(db) as conn:
+            await conn.execute('UPDATE prediction_analytics SET status=?,error=?,next_attempt=?,lease_token=NULL,lease_until=0 WHERE id=? AND lease_token=?',
+                ('error' if closed else 'pending', message, time.time()+delay, row['id'], token))
+            await conn.commit()
+        logger.warning('Forecast %s %s: %s', row['id'], 'closed' if closed else 'will retry', type(exc).__name__)
+    return True
 
 
 async def settle_forecasts():
     """Only stored forecasts are inspected. No historical broadcasts or Telegram calls."""
     now = time.time()
-    # A restart cannot leave an unfinishable job spinning forever.
-    async with db.write_lock:
-        await db.conn.execute("UPDATE prediction_analytics SET status='error', error='Расчёт прерван. Создайте новый прогноз' WHERE status='pending' AND created_at<?", (now - 600,))
-        await db.conn.commit()
     rows = await (await db.conn.execute("SELECT * FROM prediction_analytics WHERE status='ready' AND actual IS NULL AND start_at<? ORDER BY start_at DESC LIMIT 50", (now - 4 * 3600,))).fetchall()
     async with httpx.AsyncClient(timeout=12, follow_redirects=True) as client:
         cache = {}

@@ -1,0 +1,10 @@
+version: 1
+name: Jolpica forecast recovery fixture
+slug: forecast-recovery
+protocol: http
+port: 4900
+interceptRequests: true
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true

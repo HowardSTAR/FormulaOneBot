@@ -110,7 +110,7 @@ export default function PredictionAnalyticsPage() {
     </section>
     {error && <p className="pa-warning" role="alert">{error}</p>}
     {index?.warning && <p role="status">{index.warning}</p>}
-    {snapshot?.status === "pending" && <section className="pa-panel" role="status"><h2>Собираем данные и моделируем сессию…</h2><p>До трёх минут. Расчёт продолжится, даже если закрыть страницу; его можно открыть из истории.</p></section>}
+    {snapshot?.status === "pending" && <section className="pa-panel" role="status"><h2>Собираем данные и моделируем сессию…</h2><p>Обычно до трёх минут. При временном сбое расчёт повторится автоматически; страницу можно закрыть. После начала сессии новый прогноз не создаётся.</p></section>}
     {snapshot?.error && <p className="pa-warning" role="alert">{snapshot.error}</p>}
     {p && snapshot && <>
       <section className="pa-heading"><div><div className="pa-eyebrow">Открытый расчёт · {snapshot.season} · этап {snapshot.round} · {sessionName(snapshot.session)} · {date(p.cutoff)}</div><h2>{p.event.event_name}</h2></div><span className="pa-badge">{snapshot.actual ? "Результат зафиксирован" : "Прогноз сохранён"}</span></section>

@@ -104,28 +104,13 @@ ASSETS_DIR = PROJECT_ROOT / "app" / "assets"
 async def lifespan(app: FastAPI):
     validate_production_security()
     from app.f1_data import init_redis_cache, close_redis_cache
-    await db.connect()
-    await db.init_tables()
+    await db.initialize()
     redis_url = os.getenv("REDIS_URL")
     if redis_url:
         await init_redis_cache(redis_url)
-    from app.services.posthog_bridge import worker as posthog_worker
-    posthog_task = asyncio.create_task(posthog_worker(db))
-    from app.api.boosty_api import get_boosty_service
-    boosty_task = asyncio.create_task(get_boosty_service().worker())
     try:
         yield
     finally:
-        boosty_task.cancel()
-        try:
-            await boosty_task
-        except asyncio.CancelledError:
-            pass
-        posthog_task.cancel()
-        try:
-            await posthog_task
-        except asyncio.CancelledError:
-            pass
         try:
             await db.close()
         finally:

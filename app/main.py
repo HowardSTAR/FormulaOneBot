@@ -2,31 +2,20 @@ import asyncio
 import logging
 import os
 import sys
+import uuid
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from datetime import datetime, timezone
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import MenuButtonWebApp, WebAppInfo
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.bot import create_bot_and_dispatcher
 from app.config import get_settings
 from app.db import db
-from app.f1_data import init_redis_cache, close_redis_cache, warmup_cache
+from app.f1_data import init_redis_cache, close_redis_cache
 from app.handlers import account_link, menu, start, races, drivers, teams, favorites, secret, settings, compare, feedback, groups, insights, telegram_features, guest
 from app.middlewares.error_logging import ErrorLoggingMiddleware
-from app.utils.backup import create_backup
-from app.utils.notifications import (
-    check_and_send_notifications,
-    check_and_send_session_results,
-    check_and_notify_voting_results,
-    initialize_result_notification_state,
-)
-from app.services.prediction_notifications import check_and_notify_predictions
-from app.services.web_notifications import poll_web_notifications
-from app.services.prediction_analytics import settle_forecasts
 
 
 # --- НАСТРОЙКА ЛОГИРОВАНИЯ ---
@@ -54,14 +43,16 @@ def setup_logging():
 
 setup_logging()
 logger = logging.getLogger(__name__)
+_instance = uuid.uuid4().hex
+_heartbeat = None
 
 
 async def on_startup(bot: Bot):
+    global _heartbeat
     settings = get_settings()
 
     # 1. Подключаем БД и СОЗДАЕМ ТАБЛИЦЫ
-    await db.connect()
-    await db.init_tables()
+    await db.initialize()
 
     mini_app_url = os.getenv("MINI_APP_URL", "").strip().rstrip("/")
     if mini_app_url:
@@ -80,9 +71,17 @@ async def on_startup(bot: Bot):
         await init_redis_cache(settings.bot.redis_url)
 
     logger.info("Bot started, DB connected, tables initialized.")
+    from app.services.operations import component, heartbeat
+    await component('bot', _instance, starting=True)
+    _heartbeat = asyncio.create_task(heartbeat('bot', _instance))
 
 
 async def on_shutdown(bot: Bot):
+    if _heartbeat is not None:
+        _heartbeat.cancel()
+        await asyncio.gather(_heartbeat, return_exceptions=True)
+        from app.services.operations import component
+        await component('bot', _instance, stopping=True)
     try:
         await db.close()
     finally:
@@ -119,116 +118,6 @@ async def main():
         feedback.router
     )
 
-    # 4. Настраиваем ОДИН планировщик задач
-    scheduler = AsyncIOScheduler(timezone="UTC")
-    from app.services.recap_news import refresh_recent_news
-    from app.services.recap_chronicle import refresh_recent_race_control
-    scheduler.add_job(refresh_recent_news, "interval", minutes=15, id="recap_news",
-                      max_instances=1, coalesce=True, misfire_grace_time=60)
-    scheduler.add_job(refresh_recent_race_control, "interval", minutes=15, id="recap_race_control",
-                      max_instances=1, coalesce=True, misfire_grace_time=60)
-    scheduler.add_job(settle_forecasts, "interval", minutes=10,
-                      id="prediction_analytics_settlement", max_instances=1, coalesce=True)
-
-    scheduler.add_job(create_backup, 'interval', hours=24)
-    scheduler.add_job(
-        check_and_send_notifications,
-        "interval",
-        seconds=30,
-        args=[bot],
-        id="notifications_job",
-        replace_existing=True
-    )
-    scheduler.add_job(
-        warmup_cache,
-        "interval",
-        hours=1,
-        max_instances=1,
-        coalesce=True,
-        id="warmup_sessions",
-        replace_existing=True,
-    )
-    result_notification_state_ready = False
-    notification_started_at = datetime.now(timezone.utc)
-    scheduler.add_job(
-        poll_web_notifications, "interval", seconds=30,
-        kwargs={"not_before": notification_started_at.timestamp()},
-        id="web_notifications_job", replace_existing=True, max_instances=1, coalesce=True,
-    )
-
-    async def check_session_results_after_startup_baseline():
-        nonlocal result_notification_state_ready
-        if not result_notification_state_ready:
-            result_notification_state_ready = await initialize_result_notification_state()
-            # Baseline old sessions and preserve recent races for recovery.
-            # Dispatch begins on the following poll.
-            return
-        await check_and_send_session_results(bot)
-
-    scheduler.add_job(
-        check_session_results_after_startup_baseline,
-        "interval",
-        seconds=30,
-        id="results_job",
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
-    scheduler.add_job(
-        check_and_notify_voting_results,
-        "interval",
-        minutes=5,
-        args=[bot],
-        id="voting_results_job",
-        kwargs={"not_before": notification_started_at},
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
-    scheduler.add_job(
-        check_and_notify_predictions,
-        "interval",
-        seconds=30,
-        args=[bot],
-        id="prediction_notifications_job",
-        kwargs={"not_before": notification_started_at},
-        replace_existing=True,
-        max_instances=1,
-        coalesce=True,
-    )
-    from app.services.telegram_outbox import drain as drain_telegram_outbox
-    from app.services.prediction_recovery import refresh_missing
-    scheduler.add_job(refresh_missing, 'interval', minutes=30, id='prediction_recovery',
-                      replace_existing=True, max_instances=1, coalesce=True)
-    scheduler.add_job(
-        drain_telegram_outbox, "interval", seconds=30, args=[bot],
-        id="telegram_outbox", replace_existing=True, max_instances=1, coalesce=True,
-    )
-    from app.services.reminder_status import refresh_reminder_messages
-    from app.services.weekly_race_notifications import check_and_notify_weekly_race
-    from app.services.weekly_race_overtakes import dispatch_overtakes
-    scheduler.add_job(dispatch_overtakes, "interval", seconds=30, args=[bot],
-                      id="weekly_race_overtakes", replace_existing=True, max_instances=1, coalesce=True)
-    scheduler.add_job(
-        check_and_notify_weekly_race, "interval", seconds=30, args=[bot],
-        id="weekly_race_notifications", replace_existing=True, max_instances=1, coalesce=True,
-    )
-    scheduler.add_job(
-        refresh_reminder_messages, "interval", seconds=30,
-        id="reminder_status", replace_existing=True, max_instances=1, coalesce=True,
-    )
-    async def start_background_jobs_after_database(**_kwargs):
-        nonlocal result_notification_state_ready
-        result_notification_state_ready = await initialize_result_notification_state()
-        scheduler.modify_job("recap_news", next_run_time=datetime.now(timezone.utc))
-        scheduler.modify_job("recap_race_control", next_run_time=datetime.now(timezone.utc))
-        scheduler.start()
-        # Запускаем прогрев кэша в фоне сразу после подключения БД и baseline.
-        asyncio.create_task(warmup_cache())
-
-    # on_startup подключает БД первым; только затем разрешаем планировщик.
-    dp.startup.register(start_background_jobs_after_database)
-
     # 5. Сбрасываем старые апдейты (чтобы бот не обрабатывал клики, сделанные пока он лежал)
     await bot.delete_webhook(drop_pending_updates=True)
 
@@ -242,8 +131,6 @@ async def main():
         logger.info("Остановка бота пользователем")
     finally:
         # 7. Корректное закрытие всех процессов
-        if scheduler.running:
-            scheduler.shutdown(wait=False)
         try:
             await bot.session.close()
         except Exception as exc:

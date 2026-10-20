@@ -1,0 +1,5 @@
+simulation: forecast-recovery
+routing: path
+mocks:
+  - routeKey: jolpica
+    path: ../mocks/jolpica/config.yaml

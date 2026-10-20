@@ -90,11 +90,3 @@ async def flush(database, session):
                 await database.conn.execute('UPDATE posthog_outbox SET attempts=?,next_attempt=? WHERE event_id=?',
                     (attempts,time.time()+min(3600,30*2**min(attempts,7)),row['event_id']))
                 await database.conn.commit()
-async def worker(database):
-    async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
-        while True:
-            try:
-                await flush(database,session)
-            except Exception:
-                log.warning('PostHog forwarding failed; will retry')
-            await asyncio.sleep(15)

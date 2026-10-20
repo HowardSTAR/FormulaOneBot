@@ -155,6 +155,8 @@ async def test_snapshot_save_idempotent_and_settle_without_rewriting_forecast(ap
         assert response.status_code == 202
         job_id = response.json()["id"]
         assert (await client.post(url, json={"season": 2026, "round": 4, "session": "race"})).json()["id"] == job_id
+        assert (await client.get(f"{url}/{job_id}")).json()["status"] == "pending"
+        await service.run_job()
         before = (await client.get(f"{url}/{job_id}")).json()
         assert before["status"] == "ready" and before["actual"] is None
         monkeypatch.setattr(service.time,'time',lambda:clock+25000)
@@ -185,7 +187,7 @@ async def test_job_cannot_be_saved_after_start(app_with_overrides,monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_failed_job_is_persisted_and_restart_job_expires(app_with_overrides, monkeypatch):
+async def test_failed_job_is_retried_and_settlement_does_not_discard_it(app_with_overrides, monkeypatch):
     from app.db import db
     from app.services import prediction_analytics as service
     await db.conn.execute("INSERT INTO prediction_analytics(id,season,round,session,created_at,created_by) VALUES('test',2026,1,'race',?,1)", (time.time(),))
@@ -193,9 +195,9 @@ async def test_failed_job_is_persisted_and_restart_job_expires(app_with_override
     monkeypatch.setattr(service, "build_forecast", AsyncMock(side_effect=ValueError("Нет данных")))
     await service.run_job("test")
     row = await (await db.conn.execute("SELECT status,error,payload FROM prediction_analytics WHERE id='test'")).fetchone()
-    assert tuple(row) == ("error", "Нет данных", None)
+    assert row["status"] == "pending" and "автоматически" in row["error"] and row["payload"] is None
     await db.conn.execute("UPDATE prediction_analytics SET status='pending',created_at=?", (time.time() - 1000,))
     await db.conn.commit()
     await service.settle_forecasts()
     row = await (await db.conn.execute("SELECT status,error FROM prediction_analytics WHERE id='test'")).fetchone()
-    assert row[0] == "error" and "прерван" in row[1]
+    assert row[0] == "pending" and "автоматически" in row[1]

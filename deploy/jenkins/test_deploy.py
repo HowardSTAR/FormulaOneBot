@@ -13,17 +13,21 @@ import json,os,pathlib,sys
 p=pathlib.Path(os.environ['VALIDATION_DIR']); args=sys.argv[1:]
 with (p/'calls.jsonl').open('a') as f: f.write(json.dumps(args)+'\\n')
 mode=os.environ['VALIDATION_MODE']
-if args[0]=='inspect': print('sha256:old')
+if args[0]=='inspect':
+ if args[1]!='formulaonebot-worker-1' or mode!='first_worker_failure': print('sha256:old')
 elif args[:2]==['image','inspect']:
  print('sha256:retired' if args[2]=='formulaonebot-rollback:previous' else ('sha256:old' if mode=='unchanged' else 'sha256:new'))
 elif args[0]=='compose':
  if 'run' in args:
-  with (p/'calls.jsonl').open('a') as f: f.write(json.dumps(['preflight-config',sys.stdin.read()])+'\\n')
-  if mode=='preflight_failure': sys.exit(1)
+  if '-' in args:
+   with (p/'calls.jsonl').open('a') as f: f.write(json.dumps(['preflight-config',sys.stdin.read()])+'\\n')
+  if mode=='preflight_failure' and 'web' in args: sys.exit(1)
+  if mode=='migration_failure' and 'migrate' in args: sys.exit(1)
   sys.exit(0)
+ if 'up' not in args: sys.exit(0)
  n=int((p/'count').read_text())+1 if (p/'count').exists() else 1
  (p/'count').write_text(str(n))
- if mode=='rollout_failure' and n==1: sys.exit(1)
+ if mode in {'rollout_failure','first_worker_failure'} and n==1: sys.exit(1)
  if mode=='rollback_failure': sys.exit(1)
 elif args[:3]==['exec','formulaonebot-web-1','python']:
  if mode=='backup_failure' and 'src.backup' in args[-1]: sys.exit(1)
@@ -58,6 +62,7 @@ class DeploymentTests(unittest.TestCase):
             env = dict(os.environ, PATH=os.pathsep.join((str(root),str(Path(sys.executable).parent),os.environ['PATH'])),
                        VALIDATION_DIR=str(root), VALIDATION_MODE=mode, APP_IMAGE='ci:test', BUILD_NUMBER='test')
             process = subprocess.run([self.shell], input=script, text=True, capture_output=True, env=env, timeout=30)
+            self.assertTrue((root / 'calls.jsonl').exists(), process.stderr)
             status_path = root / 'reports/deployment.json'
             status = json.loads(status_path.read_text())['status'] if status_path.exists() else None
             calls = [json.loads(line) for line in (root / 'calls.jsonl').read_text().splitlines()]
@@ -89,7 +94,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertEqual(status, 'rolled_back')
         compose_calls = [call for call in calls if call[0] == 'compose']
-        self.assertEqual(len(compose_calls), 3)
+        self.assertEqual(len(compose_calls), 6)
         for call in compose_calls:
             self.assertEqual(call[:5], ['compose', '-f', 'docker-compose-build.yml', '-f', 'docker-compose.network.yml'])
 
@@ -99,6 +104,24 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(status, 'rolled_back')
         self.assertIn(['tag', 'sha256:old', 'formulaonebot-app:latest'], calls)
         self.assertNotIn(['image', 'rm', 'sha256:retired'], calls)
+
+    def test_first_worker_rollback_restores_only_the_legacy_bot_and_web(self):
+        code, status, calls = self.scenario('first_worker_failure')
+        self.assertNotEqual(code, 0)
+        self.assertEqual(status, 'rolled_back')
+        rollouts = [call for call in calls if call[0] == 'compose' and 'up' in call]
+        self.assertEqual(rollouts[0][-3:], ['bot', 'web', 'worker'])
+        self.assertEqual(rollouts[1][-2:], ['bot', 'web'])
+        stops = [call for call in calls if call[0] == 'compose' and 'stop' in call]
+        self.assertEqual(stops[-1][-1], 'worker')
+
+    def test_migration_failure_restores_previous_runtime(self):
+        code, status, calls = self.scenario('migration_failure')
+        self.assertNotEqual(code, 0)
+        self.assertEqual(status, 'rolled_back')
+        migrate = next(call for call in calls if call[0] == 'compose' and 'migrate' in call)
+        stop = next(call for call in calls if call[0] == 'compose' and 'stop' in call)
+        self.assertLess(calls.index(stop), calls.index(migrate))
 
     def test_failed_public_health_check_also_rolls_back(self):
         code, status, calls = self.scenario('public_failure')

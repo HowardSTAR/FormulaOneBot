@@ -10,7 +10,9 @@ compose() {
 }
 previous=$(docker inspect formulaonebot-web-1 --format '{{.Image}}')
 previous_bot=$(docker inspect formulaonebot-bot-1 --format '{{.Image}}')
+previous_worker=$(docker inspect formulaonebot-worker-1 --format '{{.Image}}' 2>/dev/null || true)
 test "$previous" = "$previous_bot"
+if [ -n "$previous_worker" ]; then test "$previous" = "$previous_worker"; fi
 candidate=$(docker image inspect "$APP_IMAGE" --format '{{.Id}}')
 retired=$(docker image inspect formulaonebot-rollback:previous --format '{{.Id}}' 2>/dev/null || true)
 if [ "$candidate" = "$previous" ]; then
@@ -40,8 +42,22 @@ rollback() {
   trap - EXIT INT TERM
   if [ "$changed" = 1 ]; then
     echo 'Deploy failed. Restoring the previous application image.' >&2
+    # The original release owned schedules in the bot. Never leave a new worker
+    # running alongside it when rolling back the first worker deployment.
+    compose stop worker || true
     docker tag "$previous" formulaonebot-app:latest
-    if compose up -d --no-build --no-deps --wait --wait-timeout 120 bot web && \
+    restore_runtime() {
+      if [ -n "$previous_worker" ]; then
+        compose up -d --no-build --no-deps --wait --wait-timeout 120 bot web worker
+      else
+        compose rm -f worker
+        # The first pre-worker image cannot import the new heartbeat probe.
+        printf '%s\n' 'services:' '  bot:' '    healthcheck:' \
+          '      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]' | \
+          compose -f - up -d --no-build --no-deps --wait --wait-timeout 120 bot web
+      fi
+    }
+    if restore_runtime && \
       docker exec formulaonebot-nginx-1 nginx -s reload; then
       printf '{"status":"rolled_back"}\n' > /reports/deployment.json
     else
@@ -56,7 +72,11 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 docker tag "$candidate" formulaonebot-app:latest
 changed=1
-compose up -d --no-build --no-deps --wait --wait-timeout 120 bot web
+# Stop the old schedule owner before the new one can run. Schema changes in this
+# release are additive, allowing the old image to resume if deployment fails.
+compose stop bot worker
+compose run --rm --no-deps --pull never -T migrate
+compose up -d --no-build --no-deps --wait --wait-timeout 120 bot web worker
 docker exec formulaonebot-nginx-1 nginx -t
 docker exec formulaonebot-nginx-1 nginx -s reload
 docker exec formulaonebot-web-1 python -c '

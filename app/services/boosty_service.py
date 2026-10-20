@@ -46,6 +46,7 @@ class BoostyService:
         self.last_error_code = None
         self.auth = BoostyAuth()
         self.auth_revision = self.auth.revision()
+        self.next_check = 0
 
     @property
     def blog(self):
@@ -251,19 +252,11 @@ class BoostyService:
             "check_unavailable_reason": check_unavailable_reason,
         }
 
-    async def worker(self):
-        next_check = 0
-        while True:
-            changed = self.auth.revision() != self.auth_revision
-            if self.configured and (changed or time.monotonic() >= next_check):
-                try:
-                    await self.sync()
-                except BoostyUnavailable as exc:
-                    logger.warning("Boosty sync failed: %s; last confirmed membership retained", str(exc))
-                except Exception:
-                    logger.warning("Boosty sync failed; last confirmed membership retained")
-                # Renewals are detected within five minutes; short network outages retry sooner.
+    async def poll(self):
+        changed = self.auth.revision() != self.auth_revision
+        if self.configured and (changed or time.monotonic() >= self.next_check):
+            try:
+                await self.sync()
+            finally:
                 delay = 60 if self.last_failed and self.last_error_code != 'auth_required' else 300
-                next_check = time.monotonic() + delay
-            # Notice a newly connected owner session without restarting the web server.
-            await asyncio.sleep(15)
+                self.next_check = time.monotonic() + delay

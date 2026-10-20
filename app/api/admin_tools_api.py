@@ -102,14 +102,16 @@ async def product_analytics(response: Response, days: int=Query(30,ge=1,le=90), 
 
 
 @router.get('/control')
-async def control_summary(actor: AdminContext = Depends(require_admin_session)):
+async def control_summary(response: Response, actor: AdminContext = Depends(require_admin_session)):
+    response.headers['Cache-Control'] = 'no-store'
     now = time.time()
     async with connection() as conn:
         counts = await (await conn.execute("SELECT status,COUNT(*) n FROM telegram_deliveries WHERE updated>=? OR status IN ('pending','retry','sending') GROUP BY status",(now-7*86400,))).fetchall()
         oldest = await (await conn.execute("SELECT MIN(b.created) FROM telegram_deliveries d JOIN telegram_delivery_batches b USING(event_key) WHERE d.status IN ('pending','retry','sending')")).fetchone()
         recoveries = await (await conn.execute("SELECT state,COUNT(*) n FROM prediction_recovery WHERE created>=? GROUP BY state",(now-7*86400,))).fetchall()
         missing = await (await conn.execute("SELECT season,round,event_name,fastest_lap_driver,first_retirement_driver,safety_car,calculated_at FROM prediction_round_results WHERE fastest_lap_driver IS NULL OR first_retirement_driver IS NULL OR safety_car IS NULL ORDER BY season DESC,round DESC LIMIT 30")).fetchall()
-        return {'as_of':now,'counts':{r['status']:r['n'] for r in counts},'oldest_pending':oldest[0],
+        from app.services.operations import status as operations_status
+        return {'as_of':now,'operations':await operations_status(db),'counts':{r['status']:r['n'] for r in counts},'oldest_pending':oldest[0],
                 'recoveries':{r['state']:r['n'] for r in recoveries},'push_configured':push_config()['enabled'],
                 'incomplete':[{'season':r['season'],'round':r['round'],'event_name':r['event_name'],
                                'missing':[key for key in ('fastest_lap_driver','first_retirement_driver','safety_car') if r[key] is None]} for r in missing]}

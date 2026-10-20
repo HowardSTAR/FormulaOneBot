@@ -78,8 +78,19 @@ async def delivery_counts(event_key):
         return {row['status']: row['n'] for row in rows}
 
 
+async def prune_payloads():
+    """Drop old binary bodies while retaining event keys, recipients and statuses."""
+    async with connection() as conn:
+        await conn.execute('BEGIN IMMEDIATE')
+        eligible = "SELECT event_key FROM telegram_delivery_batches b WHERE expires<? AND NOT EXISTS (SELECT 1 FROM telegram_deliveries d WHERE d.event_key=b.event_key AND d.status IN ('pending','retry','sending'))"
+        cutoff = time.time()-30*86400
+        await conn.execute(f"UPDATE delivery_payloads SET payload='{{}}' WHERE event_key IN ({eligible})", (cutoff,))
+        await conn.execute(f'DELETE FROM delivery_progress WHERE event_key IN ({eligible})', (cutoff,))
+        await conn.execute(f"UPDATE telegram_delivery_batches SET text='',keyboard=NULL WHERE event_key IN ({eligible})", (cutoff,))
+        await conn.commit()
+
+
 async def drain(bot=None, *, event_key=None, limit=50):
-    from app.utils.notifications import is_quiet_hours
     for _ in range(limit):
         now = time.time()
         async with connection() as conn:
