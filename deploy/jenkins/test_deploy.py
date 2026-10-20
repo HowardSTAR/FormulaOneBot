@@ -1,12 +1,11 @@
 """Exercise deployment and rollback with a fake Docker CLI; production is untouched."""
 import json
-import os
 from pathlib import Path
 import subprocess
-import shutil
-import sys
 import tempfile
 import unittest
+
+from cli_fixtures import shell_path, cli_environment, write_fake_cli
 
 FAKE_DOCKER = '''#!/usr/bin/python3
 import json,os,pathlib,sys
@@ -38,13 +37,7 @@ elif args[:3]==['exec','formulaonebot-web-1','python']:
 class DeploymentTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.shell = shutil.which('sh')
-        if cls.shell is None and os.name == 'nt':
-            candidate = Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'Git/bin/bash.exe'
-            if candidate.is_file():
-                cls.shell = str(candidate)
-        if cls.shell is None:
-            raise unittest.SkipTest('Deployment contract tests require sh or Git Bash')
+        cls.shell = shell_path('sh')
 
     def scenario(self, mode, network_override=False):
         with tempfile.TemporaryDirectory(prefix='f1hub-ci-validation-') as tmp:
@@ -52,15 +45,12 @@ class DeploymentTests(unittest.TestCase):
             (root / 'reports').mkdir()
             if network_override:
                 (root / 'docker-compose.network.yml').write_text('services: {}\n')
-            cli = root / 'docker'
-            interpreter = '/usr/bin/env python' if os.name == 'nt' else sys.executable
-            cli.write_text(FAKE_DOCKER.replace('/usr/bin/python3', interpreter), encoding='utf-8')
-            cli.chmod(0o700)
+            write_fake_cli(root / 'docker', FAKE_DOCKER)
             script = Path(__file__).with_name('deploy-verified.sh').read_text()
             script = script.replace('cd /root/FormulaOneBot', 'cd "$VALIDATION_DIR"')
             script = script.replace('/reports/deployment.json', '"$VALIDATION_DIR/reports/deployment.json"')
-            env = dict(os.environ, PATH=os.pathsep.join((str(root),str(Path(sys.executable).parent),os.environ['PATH'])),
-                       VALIDATION_DIR=str(root), VALIDATION_MODE=mode, APP_IMAGE='ci:test', BUILD_NUMBER='test')
+            env = cli_environment(root, VALIDATION_DIR=str(root), VALIDATION_MODE=mode,
+                                  APP_IMAGE='ci:test', BUILD_NUMBER='test')
             process = subprocess.run([self.shell], input=script, text=True, capture_output=True, env=env, timeout=30)
             self.assertTrue((root / 'calls.jsonl').exists(), process.stderr)
             status_path = root / 'reports/deployment.json'

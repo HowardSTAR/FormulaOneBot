@@ -1,12 +1,11 @@
 """Run image cleanup against a fake Docker daemon; no real images are removed."""
 import json
-import os
 from pathlib import Path
-import shutil
 import subprocess
-import sys
 import tempfile
 import unittest
+
+from cli_fixtures import shell_path, cli_environment, write_fake_cli
 
 
 FAKE_DOCKER = r"""#!/usr/bin/python3
@@ -51,24 +50,13 @@ else:
 class ImageCleanupTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.shell = shutil.which('bash')
-        if os.name == 'nt':
-            candidate = Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'Git/bin/bash.exe'
-            if candidate.is_file():
-                cls.shell = str(candidate)
-        if cls.shell is None:
-            raise unittest.SkipTest('Image cleanup tests require Bash')
+        cls.shell = shell_path()
 
     def scenario(self, mode='success'):
         with tempfile.TemporaryDirectory(prefix='f1hub-cleanup-') as tmp:
             root = Path(tmp)
-            interpreter = '/usr/bin/env python' if os.name == 'nt' else sys.executable
-            cli = root / 'docker'
-            cli.write_text(FAKE_DOCKER.replace('/usr/bin/python3', interpreter), encoding='utf-8')
-            cli.chmod(0o700)
-            env = dict(os.environ,
-                       PATH=os.pathsep.join((str(root), str(Path(sys.executable).parent), os.environ['PATH'])),
-                       VALIDATION_DIR=str(root), VALIDATION_MODE=mode)
+            write_fake_cli(root / 'docker', FAKE_DOCKER)
+            env = cli_environment(root, VALIDATION_DIR=str(root), VALIDATION_MODE=mode)
             script = Path(__file__).with_name('cleanup-images.sh').read_text()
             process = subprocess.run([self.shell], input=script, text=True,
                                      capture_output=True, env=env, timeout=30)
