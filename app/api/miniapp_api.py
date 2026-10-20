@@ -72,7 +72,7 @@ from app.f1_data import (
     set_cached_quali_results,
     get_season_schedule_short,
 )
-from app.handlers.races import build_next_race_payload
+from app.services.race_schedule import build_next_race_payload
 from app.services.admin_feedback_service import send_admin_feedback
 from app.services.prediction_service import (
     PREDICTION_FIELDS,

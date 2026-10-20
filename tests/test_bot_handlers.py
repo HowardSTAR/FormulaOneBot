@@ -22,9 +22,9 @@ async def test_build_next_race_payload_ok():
     schedule = [
         {"round": 1, "date": "2030-06-01", "event_name": "Monaco GP", "country": "Monaco", "location": "Monte Carlo", "race_start_utc": "2030-06-01T13:00:00+00:00"},
     ]
-    with patch("app.handlers.races.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+    with patch("app.services.race_schedule.get_season_schedule_short_async", new_callable=AsyncMock) as m:
         m.return_value = schedule
-        with patch("app.handlers.races.get_user_settings", new_callable=AsyncMock) as m2:
+        with patch("app.services.race_schedule.get_user_settings", new_callable=AsyncMock) as m2:
             m2.return_value = {"timezone": "Europe/Moscow"}
             payload = await build_next_race_payload(2030, user_id=123)
     assert payload["status"] == "ok"
@@ -48,7 +48,7 @@ async def test_build_next_race_payload_cancelled_next_event():
             "is_cancelled": True,
         },
     ]
-    with patch("app.handlers.races.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+    with patch("app.services.race_schedule.get_season_schedule_short_async", new_callable=AsyncMock) as m:
         m.return_value = schedule
         payload = await build_next_race_payload(2030)
     assert payload["status"] == "ok"
@@ -58,7 +58,7 @@ async def test_build_next_race_payload_cancelled_next_event():
 @pytest.mark.asyncio
 async def test_build_next_race_payload_no_schedule():
     """build_next_race_payload — нет расписания."""
-    with patch("app.handlers.races.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+    with patch("app.services.race_schedule.get_season_schedule_short_async", new_callable=AsyncMock) as m:
         m.return_value = []
         payload = await build_next_race_payload(2024)
     assert payload["status"] == "no_schedule"
@@ -70,7 +70,7 @@ async def test_build_next_race_payload_season_finished():
     schedule = [
         {"round": 1, "date": "2020-03-01", "event_name": "Bahrain GP", "country": "Bahrain", "location": "Sakhir"},
     ]
-    with patch("app.handlers.races.get_season_schedule_short_async", new_callable=AsyncMock) as m:
+    with patch("app.services.race_schedule.get_season_schedule_short_async", new_callable=AsyncMock) as m:
         m.return_value = schedule
         payload = await build_next_race_payload(2020)
     assert payload["status"] == "season_finished"
