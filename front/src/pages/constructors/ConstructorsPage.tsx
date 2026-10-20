@@ -1,20 +1,13 @@
+import { formatRaceDate } from '../../helpers/presentation';
+import { teamLogoUrl, carImageUrl } from '../../helpers/f1Assets';
 import { PageFeedback } from '../../components/PageFeedback';
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
-import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { apiRequest } from "../../helpers/api";
 
 const currentRealYear = new Date().getFullYear();
-
-function teamLogoUrl(teamId: string, teamName: string, season: number): string {
-  const team = teamId || teamName;
-  return apiAssetUrl("/api/team-logo", { team, name: teamName, season });
-}
-
-function carImageUrl(teamName: string, season: number): string {
-  return apiAssetUrl("/api/car-image", { team: teamName, season });
-}
 
 type Constructor = {
   position: number;
@@ -53,18 +46,6 @@ function ConstructorsPage() {
   const [nextRace, setNextRace] = useState<NextRaceInfo | null>(null);
   const standingsRequest = useRef(0);
   const cancelStandingsRequest = useCallback(() => { standingsRequest.current++; }, []);
-
-  const formatRaceDate = (isoDate?: string): string => {
-    if (!isoDate) return "";
-    const parts = isoDate.split("-");
-    if (parts.length !== 3) return isoDate;
-    const y = Number(parts[0]);
-    const m = Number(parts[1]);
-    const d = Number(parts[2]);
-    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) return isoDate;
-    const dt = new Date(Date.UTC(y, m - 1, d));
-    return dt.toLocaleDateString("ru-RU", { timeZone: "UTC", day: "numeric", month: "long" });
-  };
 
   const loadTeams = useCallback(async (season: number) => {
     const request = ++standingsRequest.current;

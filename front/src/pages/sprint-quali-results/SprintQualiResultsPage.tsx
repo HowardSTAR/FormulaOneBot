@@ -1,10 +1,11 @@
+import { pilotPortraitUrl } from '../../helpers/f1Assets';
 import { useSessionFilters } from '../../helpers/sessionFilters';
 import { ResultsSeasonFilter } from '../../components/ResultsSeasonFilter';
 import { useState, useEffect } from "react";
 import { Link } from 'react-router-dom';
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
-import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { apiRequest } from "../../helpers/api";
 import { ResultsFeedback, ResultsMobileRow, SessionBadge } from "../../components/SessionResultsUI";
 
 type Result = {
@@ -28,14 +29,6 @@ type SeasonRace = {
   sprint_start_utc?: string | null;
   sprint_quali_start_utc?: string | null;
 };
-
-function pilotPortraitUrl(code: string, fullName: string, season: number): string {
-  return apiAssetUrl("/api/pilot-portrait", {
-    season,
-    code,
-    name: fullName,
-  });
-}
 
 function SprintQualiResultsPage() {
   const {season, setSeason, mode, setMode, selectedRound, setSelectedRound} = useSessionFilters(2021);

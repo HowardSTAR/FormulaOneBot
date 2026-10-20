@@ -12,6 +12,16 @@ export function localDateTime(value?: string | null, timeZone?: string): string 
   catch { return date.toLocaleString("ru-RU"); }
 }
 
+export function formatRaceDate(isoDate?: string): string {
+  if (!isoDate) return '';
+  const parts = isoDate.split('-');
+  if (parts.length !== 3) return isoDate;
+  const [year, month, day] = parts.map(Number);
+  if (![year, month, day].every(Number.isFinite)) return isoDate;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.toLocaleDateString('ru-RU', { timeZone: 'UTC', day: 'numeric', month: 'long' });
+}
+
 // These are fixed offsets. Use places without seasonal clock changes so the
 // city examples stay accurate year-round (IANA tzdb, checked October 2026).
 const FIXED_TIMEZONE_PLACES: Record<string, string> = {

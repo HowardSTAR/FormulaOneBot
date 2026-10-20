@@ -1,10 +1,11 @@
+import { pilotPortraitUrl, teamLogoUrl } from '../../helpers/f1Assets';
 import { useSessionFilters } from '../../helpers/sessionFilters';
 import { ResultsSeasonFilter } from '../../components/ResultsSeasonFilter';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { CustomSelect } from "../../components/CustomSelect";
-import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { apiRequest } from "../../helpers/api";
 import { ResultsFeedback, ResultsMobileRow } from "../../components/SessionResultsUI";
 
 type Result = {
@@ -39,22 +40,6 @@ type DriverTeamInfo = {
   constructorName?: string;
 };
 type DriversResponse = { drivers?: DriverTeamInfo[] };
-
-function pilotPortraitUrl(code: string, fullName: string, season: number): string {
-  return apiAssetUrl("/api/pilot-portrait", {
-    season,
-    code,
-    name: fullName,
-  });
-}
-
-function teamLogoUrl(teamId: string, teamName: string, season: number): string {
-  return apiAssetUrl("/api/team-logo", {
-    team: teamId || teamName,
-    name: teamName,
-    season,
-  });
-}
 
 function SprintResultsPage() {
   const navigate = useNavigate();

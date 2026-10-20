@@ -32,12 +32,16 @@ export function invalidateApiReads(): void {
   pendingReads.clear();
 }
 
+function apiUrl(endpoint: string): URL {
+  const path = (PATH_BASE + endpoint).replace(/\/+/g, '/');
+  return API_BASE ? new URL(endpoint, API_BASE) : new URL(path, window.location.origin);
+}
+
 export function apiAssetUrl(
   endpoint: string,
   params: Record<string, string | number | boolean | undefined> = {}
 ): string {
-  const path = (PATH_BASE + endpoint).replace(/\/+/g, '/');
-  const url = API_BASE ? new URL(endpoint, API_BASE) : new URL(path, window.location.origin);
+  const url = apiUrl(endpoint);
   Object.entries(params).forEach(([key, value]) => {
     if (value !== undefined && value !== '') {
       url.searchParams.set(key, String(value));
@@ -73,9 +77,8 @@ async function executeApiRequest<T = unknown>(
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET',
   timeoutMs: number = REQUEST_TIMEOUT_MS
 ): Promise<T> {
-  const path = (PATH_BASE + endpoint).replace(/\/+/g, '/');
   const requestedRoute = dataReceiptKey(window.location.pathname, window.location.search);
-  const url = API_BASE ? new URL(endpoint, API_BASE) : new URL(path, window.location.origin);
+  const url = apiUrl(endpoint);
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -101,7 +104,7 @@ async function executeApiRequest<T = unknown>(
       }
     });
   } else if (method !== 'DELETE' || Object.keys(params).length > 0) {
-    (options as RequestInit & { body?: string }).body = JSON.stringify(params);
+    options.body = JSON.stringify(params);
   }
 
   if (import.meta.env.DEV) {

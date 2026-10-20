@@ -1,28 +1,12 @@
+import { pilotPortraitUrl, teamLogoUrl, carImageUrl } from '../../helpers/f1Assets';
 import { useState, useEffect } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { GlossaryText } from "../../components/GlossaryText";
 import { BackButton } from "../../components/BackButton";
-import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { apiRequest } from "../../helpers/api";
 import { getFlagUrlForNationality, nationalityLabel } from "../../constants/flags";
 import { PageFeedback } from "../../components/PageFeedback";
 import { cleanBiography } from "../../helpers/presentation";
-
-function teamLogoUrl(teamId: string, teamName: string, season: number): string {
-  const team = teamId || teamName;
-  return apiAssetUrl("/api/team-logo", { team, name: teamName, season });
-}
-
-function carImageUrl(teamName: string, season: number): string {
-  return apiAssetUrl("/api/car-image", { team: teamName, season });
-}
-
-function pilotPortraitUrl(code: string, fullName: string, season: number): string {
-  return apiAssetUrl("/api/pilot-portrait", {
-    season,
-    code,
-    name: fullName,
-  });
-}
 
 type SeasonStats = {
   position: number | string;

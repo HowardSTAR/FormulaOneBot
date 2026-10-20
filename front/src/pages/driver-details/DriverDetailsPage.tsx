@@ -1,20 +1,13 @@
+import { pilotPortraitUrl } from '../../helpers/f1Assets';
 import { GlossaryText } from "../../components/GlossaryText";
 import { DriverGuide } from "../../components/DriverGuide";
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
-import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { apiRequest } from "../../helpers/api";
 import { PageFeedback } from "../../components/PageFeedback";
 import { cleanBiography } from "../../helpers/presentation";
 import { getFlagUrlForNationality, nationalityLabel } from "../../constants/flags";
-
-function pilotPortraitUrl(code: string, fullName: string, season: number): string {
-  return apiAssetUrl("/api/pilot-portrait", {
-    season,
-    code,
-    name: fullName,
-  });
-}
 
 type SeasonStats = {
   position: number;

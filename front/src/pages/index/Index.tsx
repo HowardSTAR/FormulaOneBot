@@ -1,8 +1,9 @@
+import { teamLogoUrl } from '../../helpers/f1Assets';
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useHeroData } from "../../context/useHeroData";
 import { useAuthState } from "../../helpers/auth";
-import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { apiRequest } from "../../helpers/api";
 import { useMediaQuery } from '../../helpers/useMediaQuery';
 import { getCountryFlagUrl } from "../../constants/flags";
 import "./styles.css";
@@ -29,11 +30,6 @@ type ConstructorStanding = {
 };
 type DriversResponse = { drivers?: DriverStanding[] };
 type ConstructorsResponse = { constructors?: ConstructorStanding[] };
-function teamLogoUrl(teamId: string, teamName: string, season: number): string {
-  const team = teamId || teamName;
-  return apiAssetUrl("/api/team-logo", { team, name: teamName, season });
-}
-
 const DRIVER_FLAG_BY_CODE: Record<string, string> = {
   VER: "nl",
   TSU: "jp",
