@@ -1,4 +1,4 @@
-"""Shared next-race presentation for the web and Telegram adapters."""
+"""Shared schedule rules and next-race presentation for web and Telegram."""
 import asyncio
 from datetime import datetime, date, timezone, timedelta
 
@@ -7,12 +7,60 @@ from app.f1_data import get_season_schedule_short_async, get_season_schedule_sho
 from app.utils.time_tools import format_race_time
 
 
-def _parse_utc_iso(value):
+def parse_utc_iso(value: str | None) -> datetime | None:
     try:
         parsed = datetime.fromisoformat(value)
         return parsed.replace(tzinfo=parsed.tzinfo or timezone.utc)
     except (ValueError, TypeError):
         return None
+
+
+def latest_started_weekend_round(schedule: list[dict], now: datetime) -> int | None:
+    """Find the latest started weekend in a chronologically ordered schedule."""
+    latest_round = None
+    for race in schedule:
+        starts = [
+            parsed
+            for key in (
+                "first_session_start_utc", "sprint_quali_start_utc",
+                "quali_start_utc", "sprint_start_utc", "race_start_utc",
+            )
+            if (parsed := parse_utc_iso(race.get(key))) is not None
+        ]
+        if not starts:
+            continue
+        if min(starts) > now:
+            break
+        latest_round = race.get("round")
+    return latest_round
+
+
+def should_reset_previous_results(schedule: list[dict], now: datetime, results_round: int | None) -> bool:
+    """Hide previous results once a newer weekend has started."""
+    if results_round is None:
+        return False
+    started_round = latest_started_weekend_round(schedule, now)
+    try:
+        return started_round is not None and int(results_round) < int(started_round)
+    except (TypeError, ValueError):
+        return False
+
+
+def last_completed_race(schedule: list[dict], now: datetime) -> dict | None:
+    """Use the existing result windows: one hour after a race, nine after testing."""
+    finished = None
+    for race in schedule:
+        start = parse_utc_iso(race.get("race_start_utc"))
+        if start is None:
+            continue
+        try:
+            end = start + timedelta(hours=9 if race.get("is_testing") else 1)
+        except OverflowError:
+            continue
+        if now <= end:
+            break
+        finished = race
+    return finished
 
 
 async def build_next_race_payload(season: int | None = None, user_id: int | None = None) -> dict:
@@ -29,13 +77,13 @@ async def build_next_race_payload(season: int | None = None, user_id: int | None
     now_utc = datetime.now(timezone.utc)
 
     def _race_anchor_utc(race: dict) -> datetime | None:
-        race_start = _parse_utc_iso(race.get("race_start_utc"))
+        race_start = parse_utc_iso(race.get("race_start_utc"))
         if race_start is not None:
             return race_start
         try:
             race_day = date.fromisoformat(str(race.get("date") or ""))
             return datetime.combine(race_day, datetime.max.time(), tzinfo=timezone.utc)
-        except Exception:
+        except (TypeError, ValueError):
             return None
 
     def _select_future_races(items: list[dict]) -> list[dict]:
@@ -79,7 +127,7 @@ async def build_next_race_payload(season: int | None = None, user_id: int | None
         try:
             utc_dt = datetime.fromisoformat(race_start_utc_str)
             utc_str = utc_dt.strftime("%d.%m.%Y %H:%M UTC")
-        except:
+        except (TypeError, ValueError):
             utc_str = race_start_utc_str
 
     return {

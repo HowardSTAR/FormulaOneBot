@@ -44,7 +44,8 @@ def validate_button_destination(destination: str):
         raise ValueError('В ссылке не должно быть пробелов, управляющих символов или обратного слеша')
     try:
         url = urlsplit(destination)
-        port = url.port
+        # Accessing port validates its syntax and range; urlsplit alone does not.
+        _ = url.port
     except ValueError:
         raise ValueError('Некорректная ссылка кнопки') from None
     if destination in BOT_BUTTON_ACTIONS:

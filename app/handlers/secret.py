@@ -5,7 +5,6 @@ import secrets
 import time
 import pandas as pd
 from datetime import datetime, timezone
-from io import BytesIO
 
 from aiogram import F, Router
 from aiogram.filters import Command, CommandObject
@@ -15,7 +14,6 @@ from aiogram.types import BufferedInputFile
 from app.admin_config import get_primary_admin_telegram_id
 from app.config import get_settings
 from app.db import (
-    get_all_users,
     get_favorite_drivers,
     get_race_avg_for_round,
     get_driver_vote_winner,

@@ -2,7 +2,6 @@ import asyncio
 import datetime
 
 import aiohttp
-from signalrcore.hub_connection_builder import HubConnectionBuilder
 
 
 async def test_method_1_openf1():

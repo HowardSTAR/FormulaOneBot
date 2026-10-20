@@ -12,7 +12,7 @@ import tempfile
 import threading
 from collections import OrderedDict
 from datetime import date as _date, timezone, timedelta, datetime
-from typing import Optional, Any, Dict, Tuple, List
+from typing import Optional, Any
 from urllib.parse import unquote
 
 import aiohttp
@@ -2565,7 +2565,6 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
     # Career stats
     gp_entered = len(career_results)
     career_points = sum(r["points"] for r in career_results)
-    wins = sum(1 for r in career_results if r.get("position") == "1")
     podiums = sum(1 for r in career_results if r.get("position") in ("1", "2", "3"))
     poles = sum(1 for r in career_results if r.get("grid") == "1")
     dnfs = sum(1 for r in career_results if r.get("positionText") in ("R", "D", "W", "F", "N", "E", "EX"))

@@ -49,13 +49,10 @@ async def safe_answer(
     **kwargs — всё, что ты обычно передаёшь в message.answer(...).
     """
     await _apply_sound_preference(message.chat.id, kwargs)
-    last_exc: Exception | None = None
-
     for attempt in range(1, retries + 1):
         try:
             return await message.answer(text, **kwargs)
         except TelegramNetworkError as exc:
-            last_exc = exc
             logging.warning(
                 "TelegramNetworkError при отправке сообщения (попытка %s/%s, chat_id=%s): %s",
                 attempt,

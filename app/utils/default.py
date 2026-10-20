@@ -1,6 +1,18 @@
 import random
 from datetime import datetime
 
+
+def parse_command_season(text: str | None) -> int:
+    """Read a command's year argument, defaulting to the current season."""
+    parts = (text or "").strip().split(maxsplit=1)
+    if len(parts) == 2:
+        try:
+            return int(parts[1])
+        except ValueError:
+            pass
+    return datetime.now().year
+
+
 # Фразы для "путешественников во времени"
 TIME_MACHINE_PHRASES = [
     "🏎️ Бот не машина времени! Марти Макфлай еще не вернулся с результатами.",

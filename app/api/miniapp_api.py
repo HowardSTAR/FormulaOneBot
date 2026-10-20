@@ -72,7 +72,9 @@ from app.f1_data import (
     set_cached_quali_results,
     get_season_schedule_short,
 )
-from app.services.race_schedule import build_next_race_payload
+from app.services.race_schedule import (
+    build_next_race_payload, last_completed_race, latest_started_weekend_round, parse_utc_iso,
+)
 from app.services.admin_feedback_service import send_admin_feedback
 from app.services.prediction_service import (
     PREDICTION_FIELDS,
@@ -1285,86 +1287,11 @@ async def toggle_favorite_team(
     return await _toggle_account_favorite(user_id, item.id, team=True)
 
 
-def _get_last_completed_race(schedule: list, now: datetime) -> dict | None:
-    """Последний этап, гонка которого уже завершилась (race_start + 1ч для обычных, +9ч для тестов)."""
-    finished_event = None
-    for r in schedule:
-        if not r.get("race_start_utc"):
-            continue
-        try:
-            race_dt = datetime.fromisoformat(r["race_start_utc"])
-            if race_dt.tzinfo is None:
-                race_dt = race_dt.replace(tzinfo=timezone.utc)
-            finish_offset = 9 if r.get("is_testing") else 1
-            if now > race_dt + timedelta(hours=finish_offset):
-                finished_event = r
-            else:
-                break
-        except Exception:
-            continue
-    return finished_event
-
-
-def _parse_utc_iso(dt_str: Optional[str]) -> Optional[datetime]:
-    if not dt_str:
-        return None
-    try:
-        dt = datetime.fromisoformat(dt_str)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt
-    except Exception:
-        return None
-
-
-def _get_latest_started_weekend_round(schedule: list, now: datetime) -> Optional[int]:
-    """
-    Возвращает round самого позднего этапа, у которого уже стартовала первая сессия уикенда.
-    Используем для скрытия прошлых результатов после старта нового уикенда.
-    """
-    latest_started_round = None
-    for r in schedule:
-        candidates = []
-        for key in (
-            "first_session_start_utc",
-            "sprint_quali_start_utc",
-            "quali_start_utc",
-            "sprint_start_utc",
-            "race_start_utc",
-        ):
-            dt = _parse_utc_iso(r.get(key))
-            if dt is not None:
-                candidates.append(dt)
-
-        if not candidates:
-            continue
-
-        weekend_start = min(candidates)
-        if weekend_start <= now:
-            latest_started_round = r.get("round")
-        else:
-            break
-
-    return latest_started_round
-
-
-def _should_reset_previous_results(schedule: list, now: datetime, results_round: Optional[int]) -> bool:
-    if results_round is None:
-        return False
-    started_round = _get_latest_started_weekend_round(schedule, now)
-    if started_round is None:
-        return False
-    try:
-        return int(results_round) < int(started_round)
-    except Exception:
-        return False
-
-
 def _get_latest_started_quali_round(schedule: list, now: datetime) -> Optional[int]:
     """Последний этап, квалификация которого уже началась согласно расписанию."""
     started_rounds: list[int] = []
     for event in schedule:
-        qualifying_at = _parse_utc_iso(event.get("quali_start_utc"))
+        qualifying_at = parse_utc_iso(event.get("quali_start_utc"))
         if qualifying_at is not None:
             if qualifying_at <= now:
                 try:
@@ -1384,7 +1311,7 @@ def _get_latest_started_quali_round(schedule: list, now: datetime) -> Optional[i
 
 
 def _empty_results_payload_during_active_weekend(schedule: list, now: datetime, season: int) -> dict:
-    started_round = _get_latest_started_weekend_round(schedule, now)
+    started_round = latest_started_weekend_round(schedule, now)
     race_info = next((r for r in schedule if r.get("round") == started_round), None) if started_round else None
     return {"results": [], "race_info": race_info, "season": season, "round": started_round}
 
@@ -2180,17 +2107,16 @@ async def api_race_details(
     return data
 
 
-import asyncio  # Убедись, что это импортировано вверху файла
 
 
 def _get_last_completed_race_round_for_standings(schedule: list) -> int | None:
     """Номер последнего завершённого этапа (для standings)."""
-    ev = _get_last_completed_race(schedule, datetime.now(timezone.utc))
+    ev = last_completed_race(schedule, datetime.now(timezone.utc))
     return ev["round"] if ev else None
 
 
 def _get_passed_races(schedule: list, now: datetime) -> list:
-    """Этапы, гонки которых уже завершились (логика как в _get_last_completed_race)."""
+    """Этапы, гонки которых уже завершились (логика как в last_completed_race)."""
     passed = []
     for r in schedule:
         if not r.get("race_start_utc"):

@@ -21,7 +21,7 @@ from app.f1_data import (
     get_driver_standings_async,
     sort_standings_zero_last,
 )
-from app.utils.default import validate_f1_year
+from app.utils.default import parse_command_season, validate_f1_year
 from app.utils.image_render import create_driver_standings_image
 from app.utils.loader import Loader
 from app.utils.safe_send import safe_answer_callback
@@ -115,7 +115,7 @@ async def _send_drivers_for_year(message: Message, season: int, telegram_id: int
             img_buf = await asyncio.to_thread(
                 create_driver_standings_image, title, subtitle, rows, season=season
             )
-        except Exception as exc:
+        except Exception:
             await message.answer("Не удалось сформировать изображение таблицы.")
             return
 
@@ -138,20 +138,9 @@ async def _send_drivers_for_year(message: Message, season: int, telegram_id: int
             return
 
 
-def _parse_season_from_text(text: str) -> int:
-    text = (text or "").strip()
-    parts = text.split(maxsplit=1)
-    if len(parts) == 2:
-        try:
-            return int(parts[1])
-        except ValueError:
-            pass
-    return datetime.now().year
-
-
 @router.message(Command("drivers"))
 async def cmd_drivers(message: Message) -> None:
-    season = _parse_season_from_text(message.text or "")
+    season = parse_command_season(message.text)
     telegram_id = message.from_user.id if message.chat.type == ChatType.PRIVATE else None
     await _send_drivers_for_year(message, season, telegram_id=telegram_id)
 

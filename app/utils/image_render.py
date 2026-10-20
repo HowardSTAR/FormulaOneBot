@@ -7,7 +7,7 @@ import unicodedata
 from datetime import date, datetime
 from io import BytesIO
 from pathlib import Path
-from typing import List, Tuple, Callable, Optional
+from typing import List, Tuple, Callable
 
 import matplotlib
 import pandas as pd
@@ -401,7 +401,6 @@ def _text_size(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFon
 
 
 def _create_vertical_gradient(width: int, height: int, top_color: tuple, bottom_color: tuple) -> Image.Image:
-    base = Image.new('RGB', (width, height), top_color)
     gradient_strip = Image.new('RGB', (1, height), top_color)
     draw = ImageDraw.Draw(gradient_strip)
     r1, g1, b1 = top_color

@@ -19,7 +19,7 @@ from aiogram.types import (
 
 from app.db import get_favorite_teams
 from app.f1_data import get_constructor_standings_async, sort_standings_zero_last
-from app.utils.default import validate_f1_year
+from app.utils.default import parse_command_season, validate_f1_year
 from app.utils.image_render import create_constructor_standings_image
 from app.utils.loader import Loader
 from app.utils.safe_send import safe_answer_callback
@@ -167,28 +167,13 @@ async def _send_teams_for_year(message: Message, season: int, telegram_id: int |
             except TelegramNetworkError:
                 return
 
-def _parse_season_from_text(text: str) -> int:
-    """
-    Для команды /teams [год].
-    Если год не указан или указан криво — берём текущий.
-    """
-    text = (text or "").strip()
-    parts = text.split(maxsplit=1)
-    if len(parts) == 2:
-        try:
-            return int(parts[1])
-        except ValueError:
-            pass
-    return datetime.now().year
-
-
 @router.message(Command("teams"))
 async def cmd_teams(message: Message) -> None:
     """
     Старое поведение: /teams или /teams 2005.
     В группах — без избранного.
     """
-    season = _parse_season_from_text(message.text or "")
+    season = parse_command_season(message.text)
     telegram_id = message.from_user.id if message.chat.type == ChatType.PRIVATE else None
     await _send_teams_for_year(message, season, telegram_id)
 

@@ -2,7 +2,7 @@ import asyncio
 
 import pandas as pd
 from collections import defaultdict
-from datetime import datetime, date, timezone, timedelta
+from datetime import datetime, timezone
 
 from aiogram import Router, F
 from aiogram.enums import ChatType
@@ -20,7 +20,7 @@ from app.f1_data import (
     get_season_schedule_short_async, get_weekend_schedule, get_race_results_async,
     get_constructor_standings_async, get_driver_standings_async,
     get_quali_for_round_async, _get_latest_quali_async,
-    points_for_race_position, get_season_schedule_short,
+    points_for_race_position,
 )
 from app.utils.default import SESSION_NAME_RU, validate_f1_year
 from app.utils.image_render import (
@@ -28,12 +28,13 @@ from app.utils.image_render import (
 )
 from app.utils.loader import Loader
 from app.utils.safe_send import safe_answer_callback
-from app.utils.time_tools import format_race_time, telegram_time
+from app.utils.time_tools import telegram_time
 
-from app.services.race_schedule import build_next_race_payload
+from app.services.race_schedule import (
+    build_next_race_payload, last_completed_race, should_reset_previous_results,
+)
 
 router = Router()
-UTC_PLUS_3 = timezone(timedelta(hours=3))
 
 
 class RacesYearState(StatesGroup):
@@ -53,57 +54,6 @@ async def _notify_callback_user(callback: CallbackQuery, text: str, show_alert: 
             await callback.message.answer(text)
         except Exception:
             pass
-
-
-def _parse_utc_iso(dt_str: str | None) -> datetime | None:
-    if not dt_str:
-        return None
-    try:
-        dt = datetime.fromisoformat(dt_str)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        return dt
-    except Exception:
-        return None
-
-
-def _get_latest_started_weekend_round(schedule: list, now: datetime) -> int | None:
-    latest_started_round = None
-    for r in schedule:
-        candidates: list[datetime] = []
-        for key in (
-            "first_session_start_utc",
-            "sprint_quali_start_utc",
-            "quali_start_utc",
-            "sprint_start_utc",
-            "race_start_utc",
-        ):
-            dt = _parse_utc_iso(r.get(key))
-            if dt is not None:
-                candidates.append(dt)
-
-        if not candidates:
-            continue
-
-        weekend_start = min(candidates)
-        if weekend_start <= now:
-            latest_started_round = r.get("round")
-        else:
-            break
-
-    return latest_started_round
-
-
-def _should_reset_previous_results(schedule: list, now: datetime, results_round: int | None) -> bool:
-    if results_round is None:
-        return False
-    started_round = _get_latest_started_weekend_round(schedule, now)
-    if started_round is None:
-        return False
-    try:
-        return int(results_round) < int(started_round)
-    except Exception:
-        return False
 
 
 async def _send_next_race_message(message: Message, user_id: int, season: int | None = None, is_edit: bool = False):
@@ -253,7 +203,7 @@ async def quali_callback(callback: CallbackQuery) -> None:
             await _notify_callback_user(callback, "Квалификация еще не прошла", show_alert=True)
             return
 
-        if _should_reset_previous_results(schedule or [], now, latest_round):
+        if should_reset_previous_results(schedule or [], now, latest_round):
             await _notify_callback_user(callback, "Данных по квалификации еще нет", show_alert=True)
             return
 
@@ -304,33 +254,12 @@ async def quali_callback(callback: CallbackQuery) -> None:
             [InlineKeyboardButton(text="🔙 Вернуться", callback_data=f"back_to_race_{season}")]
         ])
 
-        user_settings = await get_user_settings(callback.from_user.id)
         await callback.message.answer_photo(
             photo=photo,
             caption=f"⏱ Результаты квалификации. Сезон {season}, этап {latest_round}.",
             reply_markup=kb
         )
     await safe_answer_callback(callback)
-
-
-def _get_last_completed_race_round(schedule: list, now: datetime) -> int | None:
-    """Последний этап, гонка которого уже завершилась (race_start + 1ч для обычных, +9ч для тестов)."""
-    finished_event = None
-    for r in schedule:
-        if not r.get("race_start_utc"):
-            continue
-        try:
-            race_dt = datetime.fromisoformat(r["race_start_utc"])
-            if race_dt.tzinfo is None:
-                race_dt = race_dt.replace(tzinfo=timezone.utc)
-            finish_offset = 9 if r.get("is_testing") else 1
-            if now > race_dt + timedelta(hours=finish_offset):
-                finished_event = r
-            else:
-                break
-        except Exception:
-            continue
-    return finished_event["round"] if finished_event else None
 
 
 @router.callback_query(F.data.startswith("race_"))
@@ -348,12 +277,13 @@ async def race_callback(callback: CallbackQuery) -> None:
             return
 
         now = datetime.now(timezone.utc)
-        last_round = _get_last_completed_race_round(schedule, now)
-        if last_round is None:
+        race_info = last_completed_race(schedule, now)
+        if race_info is None:
             await _notify_callback_user(callback, "Гонка еще не прошла", show_alert=True)
             return
 
-        if _should_reset_previous_results(schedule, now, last_round):
+        last_round = race_info["round"]
+        if should_reset_previous_results(schedule, now, last_round):
             await _notify_callback_user(callback, "Данных по гонке еще нет", show_alert=True)
             return
 
@@ -361,9 +291,6 @@ async def race_callback(callback: CallbackQuery) -> None:
         if race_results is None or race_results.empty:
             await _notify_callback_user(callback, "Этап еще не прошел", show_alert=True)
             return
-
-        schedule = await get_season_schedule_short_async(season)
-        race_info = next((r for r in schedule if r["round"] == last_round), None)
 
         constructor_standings = await get_constructor_standings_async(season, round_number=last_round)
 
@@ -632,6 +559,7 @@ async def race_callback(callback: CallbackQuery) -> None:
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔙 Вернуться", callback_data=f"back_to_race_{season}")]
         ])
+        user_settings = await get_user_settings(callback.from_user.id)
         await callback.message.answer_photo(
             photo=photo,
             caption=caption,
