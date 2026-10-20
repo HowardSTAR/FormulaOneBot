@@ -71,6 +71,11 @@ pip install -r requirements.txt
 python run_web.py
 ```
 
+Фоновые задачи теперь запускаются отдельным процессом: `python -m app.worker`.
+Перед production-запуском выполняется `python -m app.migrate`; Docker Compose
+делает это отдельным шагом. Восстановление расчётов, проверяемые резервные копии
+и перенос на ПК описаны в [docs/background-runtime.md](docs/background-runtime.md).
+
 Frontend:
 
 ```bash
