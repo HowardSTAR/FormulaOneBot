@@ -293,7 +293,8 @@ async def test_legacy_telegram_prediction_profile_migrates_to_user_id(temp_db_pa
 
     database = Database(temp_db_path)
     await database.connect()
-    await database.init_tables()
+    from app.migrations.legacy import initialize_legacy_schema
+    await initialize_legacy_schema(database.conn)
     cursor = await database.conn.execute("INSERT INTO users(telegram_id) VALUES (770077)")
     user_id = int(cursor.lastrowid)
     await database.conn.execute("DROP TABLE prediction_profiles")

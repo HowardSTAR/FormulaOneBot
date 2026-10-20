@@ -135,7 +135,8 @@ async def test_private_review_snapshot_and_old_history(temp_db_path, monkeypatch
     database = Database(temp_db_path)
     await database.connect()
     try:
-        await database.init_tables()
+        from app.migrations.legacy import initialize_legacy_schema
+        await initialize_legacy_schema(database.conn)
         monkeypatch.setattr(service,'db',database)
         await database.conn.executemany("INSERT INTO users(id,telegram_id) VALUES(?,?)",[(1,10001),(2,10002)])
         p = prediction()
