@@ -3,7 +3,7 @@ export const ONBOARDING_CHANGED = 'turbotears-onboarding-changed';
 export const ONBOARDING_START = 'turbotears-onboarding-start';
 export const startOnboarding = () => window.dispatchEvent(new Event(ONBOARDING_START));
 export const onboardingSteps = [
-  { route: '/', title: 'Главная', target: '.weekend-board', text: 'Здесь ближайшие сессии и время старта. Строка расписания открывает подробности этапа.' },
+  { route: '/', title: 'Главная', target: '.home-schedule', text: 'Здесь ближайшие сессии и время старта. Строка расписания открывает подробности этапа.' },
   { route: '/season', title: 'Календарь', target: '.season-filters', text: 'Переключайте предстоящие и прошедшие этапы. Нажмите на название гонки, чтобы открыть трассу и расписание.' },
   { route: '/race-results', title: 'Результаты', target: '.race-results-desktop-controls, .race-results-mobile .segmented-tabs, .segmented-tabs', text: 'Последняя гонка — в первой вкладке. В архиве можно выбрать сезон и этап; ниже показана классификация.' },
   { route: '/drivers', title: 'Пелотон', target: '.drivers-standings-table, .standings-cards-grid', text: 'Места и очки пилотов. Откройте карточку участника; зачёт команд доступен в меню пелотона.' },

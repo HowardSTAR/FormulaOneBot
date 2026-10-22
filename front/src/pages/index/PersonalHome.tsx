@@ -5,10 +5,11 @@ import { AUTH_CHANGED_EVENT, type AuthState } from '../../helpers/auth';
 import { predictionSummary, type PersonalPrediction } from './personal-summary';
 import { formatTimezoneLabel } from '../../helpers/timezone';
 import { useVisibleClock } from '../../helpers/useVisibleClock';
+import { HomeLinkList } from './HomeLinkList';
+import { HomeIcon } from './HomeIcon';
 import './personal-home.css';
 
 function PersonalCards({ timezone, personalized }: { timezone: string; personalized: boolean }) {
-  const [expanded, setExpanded] = useState(false);
   const [prediction, setPrediction] = useState<PersonalPrediction | null>(null);
   const [latest, setLatest] = useState<{points: number | null; season: number; round: number; items?: {status: string}[]} | null>(null);
   const [unread, setUnread] = useState<number | null>(null);
@@ -29,7 +30,7 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
       setPrediction(p.status === 'fulfilled' ? p.value : null);
       setUnread(n.status === 'fulfilled' ? n.value.unread : null);
       setLatest(h.status === 'fulfilled' ? h.value.latest : null);
-      setFailed([...(p.status === 'rejected' ? ['прогноз'] : []), ...(n.status === 'rejected' ? ['уведомления'] : [])]);
+      setFailed([...(p.status === 'rejected' ? ['прогноз'] : []), ...(n.status === 'rejected' ? ['уведомления'] : []), ...(h.status === 'rejected' ? ['результаты'] : [])]);
       setLoaded(true);
     });
     return () => { active = false; };
@@ -48,6 +49,7 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
     (latest.season === prediction?.season && latest.round === prediction?.round)
   );
   const deadline = Date.parse(prediction?.deadline_utc || '');
+  const reload = () => { setLoaded(false); setRefresh(v => v + 1); };
   return <>
     <div className="personal-home-row">
       <Link to={showRecap || prediction?.prediction?.points != null ? '/predictions?tab=history' : '/predictions'} className={`personal-home-prediction${view?.urgent ? ' personal-home-urgent' : ''}`}>
@@ -59,20 +61,21 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
         <span>{unread === null ? '—' : unread > 99 ? '99+' : unread}</span>
       </Link>
-      <button className="personal-home-toggle" aria-expanded={expanded} aria-controls="personal-home-more" onClick={() => setExpanded(v => !v)}>Ещё <span aria-hidden="true">{expanded ? '−' : '+'}</span></button>
     </div>
-    {failed.length > 0 && <p className="personal-home-error" role="status">Не загрузились: {failed.join(', ')}. <button onClick={() => setRefresh(v => v + 1)}>Повторить</button></p>}
-    {expanded && <div className="personal-home-more" id="personal-home-more">
-      {prediction?.event_name && <p>{prediction.event_name}</p>}
-      {prediction && Number.isFinite(deadline) && <p>Закрытие: {new Date(deadline).toLocaleString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} · {formatTimezoneLabel(timezone)}</p>}
-      <nav aria-label="Личные разделы">
-        <Link to="/account">Аккаунт</Link><Link to="/settings">Напоминания</Link>
-        {personalized && <Link to="/favorites">Избранное</Link>}
-        <Link to="/predictions?tab=history">Мои результаты</Link>
-        <Link to="/community">С друзьями · трасса недели</Link>
-        <button onClick={() => setRefresh(v => v + 1)}>Обновить</button>
-      </nav>
-    </div>}
+    {failed.length > 0 && <p className="personal-home-error" role="status">Не загрузились: {failed.join(', ')}. <button type="button" onClick={reload} disabled={!loaded}>Повторить</button></p>}
+    <details className="personal-home-details">
+      <summary>Личные разделы <HomeIcon name="chevronDown" /></summary>
+      <div className="personal-home-more">
+        {prediction?.event_name && <p className="personal-home-event">{prediction.event_name}</p>}
+        {prediction && Number.isFinite(deadline) && <dl className="personal-home-facts"><div><dt>Приём прогнозов до</dt><dd><time dateTime={new Date(deadline).toISOString()}>{new Date(deadline).toLocaleString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</time><span>{formatTimezoneLabel(timezone)}</span></dd></div></dl>}
+        <HomeLinkList label="Личные разделы" items={[
+          { to: '/account', label: 'Аккаунт', icon: 'account' }, { to: '/settings', label: 'Напоминания', icon: 'notifications' },
+          ...(personalized ? [{ to: '/favorites', label: 'Избранное', icon: 'favorite' } as const] : []),
+          { to: '/predictions?tab=history', label: 'Результаты прогнозов', icon: 'results' }, { to: '/community', label: 'С друзьями · трасса недели', icon: 'social' },
+        ]} />
+        <button type="button" className="personal-home-refresh" onClick={reload} disabled={!loaded}><HomeIcon name="refresh" />{loaded ? 'Обновить данные' : 'Обновляем…'}</button>
+      </div>
+    </details>
   </>;
 }
 

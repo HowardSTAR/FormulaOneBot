@@ -2,46 +2,35 @@ import { Link } from 'react-router-dom';
 import type { NextRaceResponse, SessionItem } from '../../context/HeroDataContext';
 import { formatTimezoneLabel } from '../../helpers/timezone';
 import { useVisibleClock } from '../../helpers/useVisibleClock';
-import IndexIcon from './IndexIcon';
-import './weekend-board.css';
+import { orderedSessions } from './home-session';
+import { HomeIcon } from './HomeIcon';
 
-export function WeekendBoard({ race, sessions, timezone, total, loaded }: {
-  race: NextRaceResponse | null; sessions: SessionItem[]; timezone: string; total: number; loaded: boolean;
+export function WeekendBoard({ race, sessions, timezone, loaded }: {
+  race: NextRaceResponse | null; sessions: SessionItem[]; timezone: string; loaded: boolean;
 }) {
   const now = useVisibleClock(30000);
-  const rows = sessions.filter(s => s.utc_iso && Number.isFinite(Date.parse(s.utc_iso)))
-    .map(s => ({ ...s, date: new Date(s.utc_iso!) })).sort((a, b) => +a.date - +b.date);
-  const active = rows.find(s => now >= +s.date && now < +s.date + 90 * 60000)
-    || rows.find(s => +s.date > now);
+  const unavailable = race?.is_cancelled || race?.status === 'season_finished' || race?.status === 'error';
+  const rows = unavailable ? [] : orderedSessions(sessions);
+  const next = rows.find(session => Date.parse(session.utc_iso) > now);
   const details = race?.round ? `/next-race?season=${race.season}&round=${race.round}` : '/next-race';
-  return <section className="weekend-board">
-    <div className="weekend-board-top"><span>Этап {race?.round || '—'}{total > 0 ? ` из ${total}` : ''}</span>
-      <Link to="/season" data-analytics-action="calendar_open">Весь сезон →</Link></div>
-    <h2>Расписание уик-энда</h2>
-    <div className="weekend-board-location"><span>📍 {race?.location || race?.country || 'Место уточняется'}</span>
-      <span>Время: {formatTimezoneLabel(timezone)}</span></div>
-    <div className="weekend-board-sessions">{rows.map(s => <Link key={`${s.name}:${s.utc_iso}`} to={details}
-      data-analytics-action="session_open" className={`weekend-board-row${s === active ? ' is-current' : ''}`}>
-      <span className="weekend-board-date"><strong>{s.date.toLocaleDateString('ru-RU', {timeZone: timezone, weekday: 'short'})}</strong>
-        <span>{s.date.toLocaleDateString('ru-RU', {timeZone: timezone, day: 'numeric', month: 'short'}).replace(/\.$/, '')}</span></span>
-      <span className="weekend-board-session">{s.name}{s === active && now >= +s.date && <small>Старт по расписанию</small>}</span>
-      <time dateTime={s.utc_iso}>{s.date.toLocaleTimeString('ru-RU', {timeZone: timezone, hour: '2-digit', minute: '2-digit'})}</time>
-      <span className="weekend-board-arrow" aria-hidden>›</span>
-    </Link>)}</div>
-    {!rows.length && <p>{!loaded ? 'Загружаем расписание…' : 'Расписание пока не опубликовано.'}</p>}
-    {!rows.length && loaded && <Link className="ui-action-link" to="/season">Открыть календарь →</Link>}
+  return <section className="home-schedule home-panel" aria-labelledby="home-schedule-title">
+    <header className="home-section-head"><h2 id="home-schedule-title">Расписание</h2><Link to="/season" data-analytics-action="calendar_open">Календарь <span aria-hidden="true">↗</span></Link></header>
+    <p className="home-timezone">{formatTimezoneLabel(timezone)}</p>
+    <ol className="home-sessions">{rows.map(session => {
+      const date = new Date(session.utc_iso);
+      return <li key={`${session.name}:${session.utc_iso}`}><Link to={details} data-analytics-action="session_open" className={session === next ? 'is-next' : undefined}>
+        <span className="home-session-day"><strong>{date.toLocaleDateString('ru-RU', { timeZone: timezone, weekday: 'short' })}</strong><span>{date.toLocaleDateString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'short' }).replace(/\.$/, '')}</span></span>
+        <span className="home-session-name">{session.name}{session === next && <small>Следующая сессия</small>}</span><time dateTime={session.utc_iso}>{date.toLocaleTimeString('ru-RU', { timeZone: timezone, hour: '2-digit', minute: '2-digit' })}</time>
+      </Link></li>;
+    })}</ol>
+    {!rows.length && <p className="home-empty" role="status">{!loaded ? 'Загружаем расписание…' : race?.is_cancelled ? 'Этап отменён. Другие этапы — в календаре.' : race?.status === 'season_finished' ? 'Все этапы сезона завершены.' : race?.status === 'error' ? 'Не удалось загрузить расписание.' : 'Расписание пока не опубликовано.'}</p>}
   </section>;
 }
-
-export function QuickAccess({season}: {season: number}) {
+export function QuickAccess() {
   const links = [
-    {to: '/season', icon: 'calendar' as const, title: 'Календарь сезона', text: `Все этапы ${season} года`, action: 'calendar_open'},
-    {to: '/race-results', icon: 'results' as const, title: 'Результаты', text: 'Гонки, квалификации и практики', action: 'results_open'},
-    {to: '/compare', icon: 'compare' as const, title: 'Сравнение пилотов', text: 'Очки, статистика и результаты', action: 'compare_open'},
-    {to: '/history', icon: 'analytics' as const, title: 'История чемпионата', text: 'Графики пилотов и команд по сезонам', action: 'history_open'},
-    {to: '/wiki', icon: 'wiki' as const, title: 'Справочник F1', text: 'Термины и правила простыми словами', action: 'wiki_open'},
-  ];
-  return <section className="quick-access"><h2>Быстрый доступ</h2><div>{links.map(item =>
-    <Link key={item.to} to={item.to} data-analytics-action={item.action}><IndexIcon name={item.icon}/>
-      <span><strong>{item.title}</strong><small>{item.text}</small></span><b aria-hidden>›</b></Link>)}</div></section>;
+    { to: '/race-results', icon: 'results', title: 'Результаты', text: 'Каждая сессия в деталях', action: 'results_open' },
+    { to: '/compare', icon: 'compare', title: 'Сравнение пилотов', text: 'Кто быстрее на дистанции', action: 'compare_open' },
+    { to: '/wiki', icon: 'wiki', title: 'Справочник', text: 'Ближе к пониманию гонок', action: 'wiki_open' },
+  ] as const;
+  return <nav className="home-explore" aria-label="Исследовать чемпионат">{links.map(item => <Link className="home-panel" key={item.to} to={item.to} data-analytics-action={item.action}><HomeIcon name={item.icon} /><span><strong>{item.title}</strong><small>{item.text}</small></span><span className="home-explore-arrow" aria-hidden="true">↗</span></Link>)}</nav>;
 }

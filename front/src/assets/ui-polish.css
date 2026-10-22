@@ -1,7 +1,7 @@
 /* Navigational actions stay links for browser accessibility, but look like controls. */
 #root .app-page-main :is(.ui-action-link, .standings-history-link, .ui-section-links a,
-  .ui-feedback-actions a, .driver-bio-link, .share-actions a, .personal-home-more a,
-  .personal-home-guest a, .pa-panel > a:not(.pa-news), .community-card p > a,
+  .ui-feedback-actions a, .driver-bio-link, .share-actions a,
+  .pa-panel > a:not(.pa-news), .community-card p > a,
   .community-share-row a, .admin-tools h3 > a, .pr-manual-grid a),
 body .glossary-hint .ui-action-link {
   display: inline-flex;

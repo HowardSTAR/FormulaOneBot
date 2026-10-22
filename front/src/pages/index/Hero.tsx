@@ -1,185 +1,28 @@
-import { useMemo } from "react";
-import { Link } from "react-router-dom";
-import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
+import { Link } from 'react-router-dom';
+import { AnimatedTrackMap } from '../../components/AnimatedTrackMap';
 import { useVisibleClock } from '../../helpers/useVisibleClock';
-import type { NextRaceResponse, SessionItem } from "../../context/HeroDataContext";
+import type { NextRaceResponse, SessionItem } from '../../context/HeroDataContext';
+import { upcomingSession, countdownLabel } from './home-session';
 
-const SESSION_DURATION_MS = 90 * 60 * 1000;
-
-type HeroProps = {
-  nextRace: NextRaceResponse | null;
-  schedule: SessionItem[];
-  userTz: string;
-  showTrackMap?: boolean;
-};
-
-type HeroView = {
-  status: "future" | "running" | "completed";
-  timerText: string;
-  dateText: string;
-  subLabel: string;
-  showTimer: boolean;
-};
-
-function formatCountdown(targetMs: number, nowMs: number): string {
-  const distance = Math.max(0, targetMs - nowMs);
-  const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-  return `${days > 0 ? `${days}д ` : ""}${hours.toString().padStart(2, "0")}:${minutes
-    .toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+export default function Hero({ nextRace: race, schedule, userTz, loaded, onRetry }: {
+  nextRace: NextRaceResponse | null; schedule: SessionItem[]; userTz: string; loaded: boolean; onRetry: () => void;
+}) {
+  const now = useVisibleClock(30000, race?.status === 'ok');
+  const upcoming = upcomingSession(schedule, race, now);
+  if (!race && !loaded) return <section className="home-race home-panel home-race-state" aria-busy="true" aria-label="Ближайший этап"><p className="home-eyebrow">Ближайший этап</p><h2 role="status">Загружаем уик-энд…</h2><p>Расписание и трасса появятся здесь.</p></section>;
+  if (race?.status === 'error' || !race) return <section className="home-race home-panel home-race-state"><p className="home-eyebrow">Ближайший этап</p><h2>Расписание недоступно</h2><p>Попробуйте загрузить данные ещё раз.</p><button className="home-button" type="button" onClick={onRetry}>Повторить загрузку</button></section>;
+  const finished = race.status === 'season_finished';
+  const title = finished ? `До встречи в ${(race.season || new Date().getFullYear()) + 1}` : race.event_name || 'Название уточняется';
+  const date = upcoming?.utc_iso || race.race_start_utc || race.date;
+  const validDate = date && Number.isFinite(Date.parse(date)) ? date : null;
+  return <section className={`home-race home-panel${upcoming ? ' home-race--upcoming' : ''}`} aria-labelledby="home-race-title">
+    <div className="home-race-meta"><span aria-label={upcoming ? `Ближайшая сессия: ${upcoming.name}` : undefined}>{finished ? 'Сезон завершён' : race.is_cancelled ? 'Этап отменён' : upcoming?.name || 'Ближайший этап'}</span>{race.round && !finished && <span>Этап {String(race.round).padStart(2, '0')}</span>}</div>
+    <div className="home-race-content"><div className="home-race-copy"><h2 id="home-race-title"><Link to={finished || race.is_cancelled ? '/season' : '/next-race'} className="home-race-title-link" aria-label={`${finished || race.is_cancelled ? 'Календарь' : 'Уик-энд'}: ${title}`} data-analytics-action="session_open">{title}</Link></h2>
+      <p className="home-race-location">{finished ? 'Результаты сезона — в зачёте ниже' : [race.location, race.country].filter(Boolean).join(' · ') || 'Место уточняется'}</p>
+      {validDate && !finished && !race.is_cancelled && <time className="home-race-date" dateTime={validDate}>{new Date(validDate).toLocaleDateString('ru-RU', { timeZone: userTz, day: 'numeric', month: 'long' })}</time>}
+    </div>{!finished && race.event_name && <div className="home-circuit" aria-hidden="true"><AnimatedTrackMap eventName={race.event_name} location={race.location} season={race.season} className="home-circuit-map" svgClassName="home-circuit-svg" loadingClassName="home-circuit-loading" /></div>}</div>
+    <div className="home-race-bottom"><div className="home-next-session"><span>{race.is_cancelled ? 'Сессии не состоятся' : finished ? 'Спасибо за этот сезон' : upcoming ? 'До ближайшей сессии' : 'Расписание и результаты'}</span>
+      {!finished && !race.is_cancelled && upcoming?.utc_iso && <strong>{countdownLabel(upcoming.utc_iso, now)}</strong>}
+    </div></div>
+  </section>;
 }
-
-function formatSessionDate(value: string, timeZone: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("ru-RU", {
-    timeZone,
-    day: "numeric",
-    month: "long",
-  }).toUpperCase();
-}
-
-function Hero({ nextRace, schedule, userTz, showTrackMap = false }: HeroProps) {
-  const now = useVisibleClock(1000, nextRace?.status === 'ok');
-  const displayTz = userTz;
-  const dates = useMemo(() => {
-    const values = [...schedule.map(s => s.utc_iso), nextRace?.next_session_iso, nextRace?.race_start_utc, nextRace?.date];
-    return new Map(values.filter((value): value is string => Boolean(value)).map(value => [value, formatSessionDate(value, displayTz)]));
-  }, [schedule, nextRace, displayTz]);
-
-  const view: HeroView = (() => {
-    for (const session of schedule) {
-      if (!session.utc_iso) continue;
-      const start = new Date(session.utc_iso).getTime();
-      if (!Number.isFinite(start)) continue;
-      if (now < start) {
-        return {
-          status: "future",
-          timerText: formatCountdown(start, now),
-          dateText: dates.get(session.utc_iso) || '',
-          subLabel: session.name,
-          showTimer: true,
-        };
-      }
-      if (now <= start + SESSION_DURATION_MS) {
-        return {
-          status: "running",
-          timerText: "СЕССИЯ ИДЕТ",
-          dateText: dates.get(session.utc_iso) || '',
-          subLabel: `LIVE: ${session.name}`,
-          showTimer: true,
-        };
-      }
-    }
-    if (schedule.length > 0) {
-      return { status: "completed", timerText: "", dateText: "", subLabel: "УИК-ЭНД ЗАВЕРШЕН", showTimer: false };
-    }
-
-    const targetIso = nextRace?.next_session_iso || nextRace?.race_start_utc;
-    const label = nextRace?.next_session_name || "ГОНКА";
-    if (targetIso) {
-      const target = new Date(targetIso).getTime();
-      if (Number.isFinite(target)) {
-        const running = now >= target && now <= target + SESSION_DURATION_MS;
-        const completed = now > target + SESSION_DURATION_MS;
-        return {
-          status: running ? "running" : completed ? "completed" : "future",
-          timerText: running ? "СЕССИЯ ИДЕТ" : completed ? "" : formatCountdown(target, now),
-          dateText: dates.get(targetIso) || '',
-          subLabel: running ? `LIVE: ${label}` : label,
-          showTimer: !completed,
-        };
-      }
-    }
-
-    return {
-      status: "completed",
-      timerText: "",
-      dateText: nextRace?.date ? dates.get(nextRace.date) || '' : "--.--",
-      subLabel: "БЛИЖАЙШИЙ ЭТАП",
-      showTimer: false,
-    };
-  })();
-
-  const { status, timerText, dateText, subLabel, showTimer } = view;
-
-  if (!nextRace?.status && !nextRace?.event_name) {
-    return (
-      <div className="btn hero-btn" id="hero-btn">
-        <div className="hero-sub" id="hero-sub">БЛИЖАЙШИЙ ЭТАП</div>
-        <div id="hero-title" className="hero-title">Загрузка...</div>
-        <div id="hero-date" className="hero-date">--.--</div>
-      </div>
-    );
-  }
-
-  if ((nextRace.status as string) === "season_finished") {
-    const nextSeason = (nextRace.season || new Date().getFullYear()) + 1;
-    return (
-      <Link to="/next-race" className="btn hero-btn" id="hero-btn">
-        <div className="hero-sub" id="hero-sub">{`ДО ВСТРЕЧИ В ${nextSeason}!`}</div>
-        <div id="hero-title" className="hero-title">Сезон завершен</div>
-      </Link>
-    );
-  }
-
-  if (nextRace.is_cancelled) {
-    return (
-      <Link to="/next-race" className="btn hero-btn" id="hero-btn">
-        <div className="hero-sub" id="hero-sub">
-          <span className="session-badge">ЭТАП ОТМЕНЕН</span>
-        </div>
-        <div id="hero-title" className="hero-title">
-          {nextRace.event_name || "Ближайший этап"}
-        </div>
-        <div id="hero-date" className="hero-date">ОТМЕНЕН</div>
-      </Link>
-    );
-  }
-
-  const subDisplay = status === "running" ? (
-    <span className="session-badge" style={{ background: "white", color: "#e10600" }}>
-      {subLabel}
-    </span>
-  ) : (
-    <span className="session-badge">{subLabel}</span>
-  );
-
-  return (
-    <Link to="/next-race" className="btn hero-btn" id="hero-btn">
-      {showTrackMap && nextRace.event_name && (
-        <AnimatedTrackMap
-          eventName={nextRace.event_name}
-          location={nextRace.location}
-          season={nextRace.season}
-          className="index-hero-track-map"
-          svgClassName="index-hero-track-svg"
-          loadingClassName="index-hero-track-loading"
-        />
-      )}
-      <div className="hero-sub" id="hero-sub">{subDisplay}</div>
-      <div id="hero-title" className="hero-title">
-        {nextRace.event_name || "Нет расписания"}
-      </div>
-      {(nextRace.status as string) !== "season_finished" && (
-        <div id="hero-date" className="hero-date" style={{ display: dateText ? "inline-block" : "none" }}>
-          {dateText}
-        </div>
-      )}
-      {showTimer && (
-        <div id="hero-timer" className="hero-timer" style={{ display: "block" }}>
-          {timerText !== "СЕССИЯ ИДЕТ" && (
-            <span style={{ fontSize: "12px", opacity: 0.8, marginRight: "4px" }}>До старта:</span>
-          )}
-          <span id="timer-val" style={{ fontFamily: "monospace", fontWeight: 700 }}>
-            {timerText}
-          </span>
-        </div>
-      )}
-    </Link>
-  );
-}
-
-export default Hero;

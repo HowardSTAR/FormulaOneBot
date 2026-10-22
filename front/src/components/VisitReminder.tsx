@@ -43,8 +43,9 @@ export function VisitReminder() {
   if (auth.signedIn && data.user_id===null || !auth.signedIn && data.user_id!==null) return null;
   const sessions = nextRace?.is_cancelled ? [] : schedule.length ? schedule : nextRace?.next_session_iso
     ? [{name:nextRace.next_session_name || 'Сессия',utc_iso:nextRace.next_session_iso}] : [];
+  // Home already has the next session and the personal prediction action.
   const reminder = visitReminders(data,sessions,now,nextRace?.event_name)
-    .find(item=>item.to.split('?')[0]!==pathname && reminderAllowed(item,data.user_id,now));
+    .find(item=>item.to.split('?')[0]!==pathname && (pathname !== '/' || !/^(session:|(?:new|missing)-prediction:)/.test(item.id)) && reminderAllowed(item,data.user_id,now));
   if (!reminder) return null;
   const close = () => {dismissReminder(reminder,data.user_id,Date.now());setClosed(true)};
   return <aside className={`visit-reminder${reminder.priority>=80 ? ' is-urgent' : ''}`} aria-label="Напоминание">
