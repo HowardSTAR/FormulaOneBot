@@ -35,7 +35,8 @@ async def test_existing_database_upgrades_without_rewriting_data(tmp_path):
         await database.init_tables()
         assert (await fetch(database))['status'] == 'pending'
         assert (await fetch(database))['attempts'] == 0
-        assert [r[0] for r in await (await database.conn.execute('SELECT version FROM schema_migrations ORDER BY version')).fetchall()] == [1,2]
+        from app.migrations import LATEST_VERSION
+        assert [r[0] for r in await (await database.conn.execute('SELECT version FROM schema_migrations ORDER BY version')).fetchall()] == list(range(1, LATEST_VERSION + 1))
     finally:
         await database.close()
 

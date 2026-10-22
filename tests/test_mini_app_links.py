@@ -47,7 +47,7 @@ async def test_prediction_notifications_contain_destination_buttons(monkeypatch,
     bot = AsyncMock()
     event = {"event_name": "Italian <Grand Prix>", "round": 15}
     users = [(123, "UTC")]
-    assert await _send_prediction_opened(bot, event, users) == 1
+    assert await _send_prediction_opened(bot, event, users, schedule=[event]) == 1
     opened = bot.send_message.await_args.kwargs
     assert opened["reply_markup"].inline_keyboard[0][0].web_app.url.endswith("/predictions?tab=form")
     assert "&lt;Grand Prix&gt;" in opened["text"]

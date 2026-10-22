@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import io
+import json
 import math
 import os
 import unicodedata
@@ -250,6 +251,7 @@ class PredictionRequest(BaseModel):
     fastest_lap_driver: str
     first_retirement_driver: str
     safety_car: bool
+    championship: Optional[dict] = None
 
 
 class AdminFeedbackRequest(BaseModel):
@@ -314,7 +316,17 @@ def _serialize_prediction(row: dict | None) -> dict | None:
         "points": row.get("points"),
         "max_points": row.get("max_points"),
         "updated_at": row.get("updated_at"),
+        "championship": row.get('championship') if 'championship' in row else json.loads(row.get('championship_json') or 'null'),
     }
+
+
+@web_app.get('/api/predictions/championship')
+async def api_prediction_championship():
+    from app.services.championship import get_championship_context
+    context = await get_prediction_context()
+    if context.get('status') != 'ok' or not context.get('round'):
+        return {'status': 'not_applicable', 'drivers': [], 'constructors': []}
+    return await get_championship_context(context['season'], context['round'], phase='auto')
 
 
 @web_app.get("/api/predictions/current")
@@ -372,6 +384,10 @@ async def api_prediction_save(
         raise HTTPException(status_code=409, detail="Приём прогнозов закрыт: квалификация уже началась")
     drivers = await get_prediction_drivers(context["season"])
     allowed_codes = {item["code"] for item in drivers}
+    title_context = None
+    if data.championship is not None:
+        from app.services.championship import get_championship_context
+        title_context = await get_championship_context(context['season'], context['round'])
     try:
         prediction = await save_user_prediction(
             user_id,
@@ -380,6 +396,7 @@ async def api_prediction_save(
             data.model_dump(),
             allowed_driver_codes=allowed_codes or None,
             require_sprint=bool(context.get("has_sprint")),
+            championship_context=title_context,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

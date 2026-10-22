@@ -4,7 +4,7 @@ import time
 
 from app.utils.process_lock import ProcessLock
 
-LATEST_VERSION = 2
+LATEST_VERSION = 3
 
 
 async def migrate(database):
@@ -28,12 +28,15 @@ async def migrate(database):
             await initialize_legacy_schema(conn)
             await conn.execute('INSERT INTO schema_migrations VALUES(1,?)', (time.time(),))
             await conn.commit()
-        if 2 not in applied:
-            from app.migrations.runtime import upgrade
+        from app.migrations.runtime import upgrade as runtime_upgrade
+        from app.migrations.championship import upgrade as championship_upgrade
+        for version, upgrade in ((2, runtime_upgrade), (3, championship_upgrade)):
+            if version in applied:
+                continue
             await conn.execute('BEGIN IMMEDIATE')
             try:
                 await upgrade(conn)
-                await conn.execute('INSERT INTO schema_migrations VALUES(2,?)', (time.time(),))
+                await conn.execute('INSERT INTO schema_migrations VALUES(?,?)', (version, time.time()))
                 await conn.commit()
             except BaseException:
                 await conn.rollback()

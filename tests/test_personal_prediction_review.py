@@ -186,6 +186,8 @@ async def test_private_review_snapshot_and_old_history(temp_db_path, monkeypatch
         )).fetchall()]
         for row in after:
             assert row.pop('breakdown_json') is None
+            assert row.pop('championship_json') is None
+            assert row.pop('championship_context_json') is None
         assert after == before
         assert await service.get_personal_prediction_review(1,2026,14) == legacy
         await service.score_prediction_round(2026,14,'Test Grand Prix',answers)

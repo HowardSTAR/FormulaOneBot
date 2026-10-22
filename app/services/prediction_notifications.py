@@ -102,7 +102,7 @@ def _prediction_open_trigger(sessions: list[dict]) -> datetime | None:
     return min(candidates) if candidates else None
 
 
-async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple]) -> int:
+async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple], *, schedule=None) -> int:
     keyboard = await mini_app_button(bot, "🔮 Сделать прогноз", "/predictions", tab="form")
     sprint_line = (
         "\nНа спринт-уикенде также доступны прогнозы на спринт-поул и победителя спринта."
@@ -119,6 +119,9 @@ async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple]) -> 
     _, deadline = get_prediction_window(event)
     if deadline:
         text += "\nЗакрытие: " + telegram_time(deadline)
+    from app.services.championship import enrich_event, notification_text
+    event = await enrich_event(event, event.get('season') or datetime.now(timezone.utc).year, phase='weekend', schedule=schedule)
+    text += notification_text(event.get('championship') or {})
     await publish_web(f"prediction-open:{event.get('season')}:{event.get('round')}", "Открыт приём прогнозов", text, "/predictions?tab=form")
     return await _queue_prediction(bot, event, 'open', text, keyboard, users)
 
@@ -250,7 +253,7 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
             if now >= opens_at:
                 skipped_open = not_before is not None and opens_at < not_before
                 sent = 0 if skipped_open else await _send_prediction_opened(
-                    bot, {**event, "season": season}, notification_users,
+                    bot, {**event, "season": season}, notification_users, schedule=schedule,
                 )
                 # The flag prevents re-enqueueing. Individual delivery is in the outbox.
                 if skipped_open or sent or not notification_users:

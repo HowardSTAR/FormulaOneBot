@@ -188,6 +188,10 @@ async def poll_web_notifications(*, not_before: float):
                     due = start.timestamp() - minutes * 60
                     if due < max(not_before,user["joined_at"]) or not 0 <= now-due <= 90:
                         continue
-                    text = get_notification_text(event,user["timezone"] or "Europe/Moscow",(start.timestamp()-now)/60,event_kind=kind)
+                    display_event = event
+                    if kind in {'race', 'sprint'}:
+                        from app.services.championship import enrich_event
+                        display_event = await enrich_event(event, season, phase='race' if kind == 'race' else 'weekend', schedule=schedule)
+                    text = get_notification_text(display_event,user["timezone"] or "Europe/Moscow",(start.timestamp()-now)/60,event_kind=kind)
                     await publish_safely(f"reminder:{season}:{event['round']}:{kind}:{minutes}", "Скоро сессия", text,
                         f"/race-details?season={season}&round={event['round']}", user_id=user["id"], expires=start.timestamp())

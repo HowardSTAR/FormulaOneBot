@@ -189,9 +189,11 @@ def get_notification_text(
         time_label = "Начало было в"
     time_line = "" if for_group else f"⏰ {time_label} {local_time}\n"
     schedule_note = "Статус по расписанию.\n" if estimated else ""
+    from app.services.championship import notification_text
+    title_note = notification_text(race.get('championship') or {}) if phase == 'before' and event_kind in {'race', 'sprint'} else ''
     return (f"{heading}\n\n{event_line}\n"
             f"📍 Трасса: {html.escape(str(race.get('location') or ''))}\n"
-            f"📅 Дата: {start_date_str}\n{time_line}{schedule_note}")
+            f"📅 Дата: {start_date_str}\n{time_line}{schedule_note}{title_note}")
 
 
 async def get_users_with_settings(notifications_only: bool = False):
@@ -327,10 +329,16 @@ async def check_and_send_notifications(bot: Bot):
                             f"Не забудьте следить за результатами!"
                         )
                     else:
+                        if event_kind in {'race', 'sprint'}:
+                            from app.services.championship import enrich_event
+                            race = await enrich_event(race, season, phase='race' if event_kind == 'race' else 'weekend', schedule=schedule)
                         text = get_notification_text(race, tz, mins, event_kind=event_kind)
 
                     quiet = is_quiet_hours(tz)
-                    if await safe_send_message(bot, tg_id, text, disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num}:{event_kind}:{notify_min}', expires=datetime.now(timezone.utc).timestamp()+max(0,mins)*60):
+                    extra = {}
+                    if race.get('championship', {}).get('drivers') or race.get('championship', {}).get('constructors'):
+                        extra['reply_markup'] = await mini_app_button(bot, '🏆 Все условия титула', '/predictions', tab='form', championship=1)
+                    if await safe_send_message(bot, tg_id, text, disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num}:{event_kind}:{notify_min}', expires=datetime.now(timezone.utc).timestamp()+max(0,mins)*60, **extra):
                         sent_count += 1
                         if round_num is not None:
                             await set_reminder_sent(tg_id, season, round_num, is_quali_key, notify_key)
@@ -348,6 +356,9 @@ async def check_and_send_notifications(bot: Bot):
             if abs(mins - GROUP_NOTIFY_BEFORE) <= half_window:
                 round_num_g = race.get("round")
                 is_quali_key, notify_key = _event_reminder_key(event_kind, GROUP_NOTIFY_BEFORE)
+                if event_kind in {'race', 'sprint'}:
+                    from app.services.championship import enrich_event
+                    race = await enrich_event(race, season, phase='race' if event_kind == 'race' else 'weekend', schedule=schedule)
                 text = get_notification_text(race, GROUP_TIMEZONE, mins, event_kind=event_kind, for_group=True)
                 quiet = is_quiet_hours(GROUP_TIMEZONE)
                 for chat_id in group_chats:

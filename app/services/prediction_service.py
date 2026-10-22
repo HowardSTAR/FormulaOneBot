@@ -252,6 +252,7 @@ async def save_user_prediction(
     payload: dict[str, Any],
     allowed_driver_codes: set[str] | None = None,
     require_sprint: bool = False,
+    championship_context: dict | None = None,
 ) -> dict[str, Any]:
     profile = await get_prediction_profile(user_id)
     if not profile["completed"]:
@@ -272,6 +273,12 @@ async def save_user_prediction(
     if not isinstance(safety_car, bool):
         raise ValueError("Для машины безопасности выберите Да или Нет")
     normalized["safety_car"] = int(safety_car)
+    title_answers = None
+    if championship_context is not None:
+        from app.services.championship import normalize_answers
+        if championship_context.get('status') == 'unavailable' and payload.get('championship'):
+            raise ValueError('Условия титула временно недоступны. Обновите прогноз')
+        title_answers = normalize_answers(payload.get('championship'), championship_context)
 
     values = [normalized[field] for field in PREDICTION_FIELDS]
     async with db.write_lock:
@@ -299,10 +306,19 @@ async def save_user_prediction(
             """,
             (user_id, int(season), int(round_num), *values),
         )
+        if title_answers is not None:
+            title_snapshot = {k: v for k, v in championship_context.items() if k not in {'drivers', 'constructors'}}
+            for kind in ('drivers', 'constructors'):
+                title_snapshot[kind] = [{k: v for k, v in c.items() if k != 'scenarios'} for c in championship_context.get(kind, [])]
+            await db.conn.execute(
+                'UPDATE race_predictions SET championship_json=?, championship_context_json=? '
+                'WHERE user_id=? AND season=? AND round=?',
+                (json.dumps(title_answers, ensure_ascii=False), json.dumps(title_snapshot, ensure_ascii=False),
+                 user_id, int(season), int(round_num)))
         await db.conn.commit()
     from app.services.engagement import activate_saved
     await activate_saved(user_id, 'prediction', int(season), int(round_num), database=db)
-    return normalized
+    return {**normalized, 'championship': title_answers}
 
 
 def _row_code(row: pd.Series) -> str | None:
@@ -533,10 +549,17 @@ async def get_personal_prediction_review(user_id: int, season: int, round_num: i
     # Missing snapshots use the same read-only fallback as historic NULL values.
     items = historical_prediction_breakdown(row, dict(actual) if actual else {})
     complete = all(i["points"] is not None for i in items) and row["points"] is not None and sum(i["points"] for i in items) == row["points"]
+    title_answers = json.loads(dict(row).get('championship_json') or 'null')
+    race_facts = json.loads(dict(actual).get('race_facts_json') or 'null') if actual else None
+    if title_answers and actual and not (race_facts or {}).get('championship'):
+        from app.services.championship import confirmed_titles
+        title_result = await confirmed_titles(int(season), int(round_num))
+        if title_result:
+            race_facts = {**(race_facts or {}), 'championship': title_result}
     return {"season":season,"round":round_num,"event_name":actual["event_name"] if actual else f"Этап {round_num}",
             "points":row["points"],"max_points":row["max_points"],"scored_at":row["scored_at"],
             "complete":complete,"items":items,
-            "race_facts": json.loads(dict(actual).get("race_facts_json") or "null") if actual else None}
+            "championship": title_answers, "race_facts": race_facts}
 
 
 async def score_prediction_round(
@@ -579,6 +602,8 @@ async def score_prediction_round(
             (int(season), int(round_num), event_name, *result_values, max_points),
         )
         saved_facts = dict(answers.get("_race_facts") or {})
+        if answers.get('_championship') is not None:
+            saved_facts['championship'] = answers['_championship']
         if answers.get("_race_positions"):
             saved_facts["race_positions"] = dict(answers["_race_positions"])
         await db.conn.execute(
