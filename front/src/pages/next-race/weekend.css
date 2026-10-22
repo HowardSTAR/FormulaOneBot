@@ -1,0 +1,108 @@
+.weekend-page { display: grid; gap: 28px; color: var(--design-ink); font-size: 1rem; line-height: 1.6; }
+.weekend-page :is(h1,h2,h3,p,ol,dl,dd) { margin: 0; }
+.weekend-page :is(h1,h2,h3) { color: var(--design-ink); text-transform: none; font-style: normal; letter-spacing: -.035em; }
+.weekend-page a { color: var(--design-ink); text-decoration: none; }
+.weekend-page button { font-family: inherit; cursor: pointer; }
+.weekend-heading, .weekend-section-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.weekend-heading > div { flex: 1 1 10rem; min-width: 0; }
+.weekend-heading h1 { font-size: clamp(2rem,3vw,2.5rem); font-weight: 700; line-height: 1.2; margin-top: 6px; }
+.weekend-eyebrow { color: var(--design-muted); font-size: .8125rem; }
+.weekend-panel { min-width: 0; background: var(--design-surface); border: 1px solid var(--design-line); border-radius: 20px; }
+.weekend-page .weekend-secondary { display: inline-flex; align-items: center; justify-content: center; gap: 12px; min-height: 44px; padding: 10px 14px; border: 1px solid var(--design-control); background: transparent; color: var(--design-ink); border-radius: 10px; font: inherit; font-size: .875rem; cursor: pointer; }
+.weekend-page .weekend-secondary:hover { background: var(--design-tint); color: var(--design-accent); }
+.weekend-page .weekend-button { display: inline-flex; align-items: center; min-height: 48px; padding: 12px 18px; border: 0; border-radius: 10px; background: #b92b25; color: #fff; font: 600 .9375rem/1.5 system-ui; cursor: pointer; }
+.weekend-page .weekend-button:hover { background: #97231f; }
+.weekend-status { min-height: 260px; padding: 32px; display: grid; align-content: center; justify-items: start; gap: 16px; }
+.weekend-status h2 { font-size: 1.75rem; }
+.weekend-status p { color: var(--design-muted); }
+.weekend-status > div { display: flex; flex-wrap: wrap; gap: 12px; }
+.weekend-hero { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 40px; padding: 32px; }
+.weekend-hero-copy { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.weekend-hero h2 { font-size: clamp(2rem,3.4vw,3.25rem); line-height: 1.12; font-weight: 680; margin-top: 20px; text-wrap: balance; overflow-wrap: anywhere; }
+.weekend-location { color: var(--design-muted); margin-top: 16px !important; font-size: .9375rem; }
+.weekend-race-start { width: 100%; padding-top: 24px; margin-top: auto; display: grid; gap: 6px; }
+.weekend-race-start > span { color: var(--design-muted); font-size: .8125rem; }
+.weekend-race-start strong { font-weight: 600; font-size: 1.25rem; }
+.weekend-race-start time { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: baseline; }
+.weekend-race-start time > span { color: var(--design-muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.weekend-track { display: grid; align-content: start; min-width: 0; }
+.weekend-track-heading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; color: var(--design-muted); font-size: .8125rem; }
+.weekend-track-map { width: 100%; height: 230px; padding: 24px; }
+.weekend-track-svg { width: 100%; height: 100%; }
+.weekend-track-loading { color: var(--design-muted); font-size: .875rem; }
+#root .weekend-page .animated-track-svg .track-outline.track-route-border { stroke: var(--design-accent) !important; filter: none !important; stroke-width: 4px !important; }
+#root .weekend-page .animated-track-svg .track-outline.track-route-surface { stroke: var(--design-surface) !important; stroke-width: 1px !important; }
+#root .weekend-page .circuit-map-launcher-label { color: var(--design-muted); font-size: .8125rem; }
+.weekend-schedule, .weekend-results { padding: 24px 28px; }
+.weekend-section-head h2, .weekend-insights > h2 { font-size: 1.375rem; font-weight: 650; }
+.weekend-section-head p, .weekend-section-head > span { color: var(--design-muted); font-size: .8125rem; margin-top: 4px; }
+.weekend-page .calendar-weekend { max-width: 340px; }
+#root .weekend-page .calendar-download { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 14px; border: 1px solid var(--design-control); border-radius: 10px; color: var(--design-ink); background: transparent; font-size: .875rem; }
+.weekend-page .calendar-download:hover { background: var(--design-tint); }
+#root .weekend-page .calendar-note { color: var(--design-muted); font-size: .75rem; line-height: 1.6; margin-top: 8px; }
+.weekend-timetable { list-style: none; padding: 16px 0 0; }
+.weekend-timetable li { display: grid; grid-template-columns: 90px minmax(0,1fr) auto; align-items: center; gap: 20px; min-height: 76px; padding: 14px 16px; border-radius: 10px; }
+.weekend-timetable li + li { border-top: 1px solid var(--design-line); }
+.weekend-timetable li.is-next { background: var(--design-tint); }
+.weekend-session-day { display: grid; font-size: .8125rem; color: var(--design-muted); }
+.weekend-session-day strong { color: var(--design-ink); font-size: .875rem; font-weight: 550; text-transform: capitalize; }
+.weekend-session-name { font-size: 1rem; font-weight: 550; overflow-wrap: anywhere; }
+.weekend-session-name small { display: block; color: var(--design-accent); font-size: .75rem; margin-top: 2px; }
+.weekend-timetable time { font-size: 1.125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.weekend-time-pending { color: var(--design-muted); font-size: .8125rem; }
+.weekend-empty { padding-block: 24px 8px; color: var(--design-muted); font-size: .9375rem; }
+.weekend-empty button { margin-top: 12px; }
+.weekend-results nav { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.weekend-results-note { color: var(--design-muted); font-size: .8125rem; margin-top: 16px !important; }
+.weekend-insights { display: grid; gap: 20px; }
+.weekend-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; }
+.weekend-stats > div { padding: 20px; }
+.weekend-stats dt { color: var(--design-muted); font-size: .8125rem; }
+.weekend-stats dd { margin-top: 10px; font-size: clamp(1.25rem,2vw,1.75rem); font-weight: 600; letter-spacing: -.04em; overflow-wrap: anywhere; }
+.weekend-stats p { font-size: .8125rem; color: var(--design-muted); margin-top: 6px; }
+.weekend-facts { padding: 0 24px; }
+.weekend-facts details + details { border-top: 1px solid var(--design-line); }
+.weekend-facts summary { min-height: 56px; padding: 16px 0; font-size: 1rem; font-weight: 550; cursor: pointer; }
+.weekend-facts details > p { padding: 0 0 20px; color: var(--design-muted); font-size: .9375rem; line-height: 1.8; }
+#root .weekend-page .glossary-term { color: var(--design-accent); }
+#root .design-shell .circuit-dialog { background: var(--design-surface); color: var(--design-ink); border-color: var(--design-control); }
+#root .design-shell .circuit-dialog :is(.circuit-data-pending,.circuit-source,summary) { color: var(--design-muted); }
+#root .design-shell .circuit-dialog :is(button,.circuit-layer-controls label) { color: var(--design-ink); min-height: 44px; }
+#root .design-shell .circuit-dialog button { background: var(--design-surface); border-color: var(--design-control); }
+#root .design-shell .circuit-dialog a { color: var(--design-accent); }
+#root .design-shell .circuit-dialog .circuit-legend { color: var(--design-ink); }
+#root .design-shell .circuit-dialog::backdrop { background: #0009; backdrop-filter: none; }
+/* The technical diagram keeps a dark canvas so sector colors retain contrast. */
+.design-shell .circuit-zoom-scroll .detailed-circuit-svg { background: #11141b; border-radius: 12px; }
+.design-shell .circuit-dialog :is(button,input,summary):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
+@media (max-width: 1199px) {
+  .weekend-hero { gap: 24px; padding: 28px; }
+  .weekend-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 699px) {
+  .weekend-page { gap: 24px; }
+  .weekend-hero { grid-template-columns: minmax(0,1fr); gap: 24px; padding: 24px; }
+  .weekend-hero h2 { font-size: 2rem; }
+  .weekend-race-start { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--design-line); }
+  .weekend-track { border-top: 1px solid var(--design-line); padding-top: 16px; }
+  .weekend-track-map { height: 170px; padding: 12px; }
+  .weekend-panel { border-radius: 16px; }
+  .weekend-schedule, .weekend-results { padding: 20px; }
+  .weekend-timetable li { grid-template-columns: 54px minmax(0,1fr) auto; gap: 10px; padding: 12px 8px; }
+  .weekend-session-name { font-size: .9375rem; }
+  .weekend-timetable time { font-size: 1rem; }
+  .weekend-time-pending { grid-column: 2 / -1; }
+  .weekend-stats { gap: 12px; }
+  .weekend-stats > div { padding: 16px; }
+  .weekend-facts { padding: 0 20px; }
+}
+@media (max-width: 359px) {
+  .weekend-stats { grid-template-columns: minmax(0,1fr); }
+}
+@media (prefers-contrast: more) {
+  .weekend-timetable li.is-next { outline: 2px solid var(--design-accent); }
+}
+@media (forced-colors: active) {
+  .weekend-panel, .weekend-page .weekend-button { border: 1px solid CanvasText; }
+  .weekend-timetable li.is-next { outline: 2px solid Highlight; }
+}
