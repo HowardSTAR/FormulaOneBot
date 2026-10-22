@@ -1,13 +1,7 @@
 import { useState } from 'react';
 import { SelectField } from '../../components/CustomSelect';
+import type { Candidate, ChampionshipContext, TitleAnswer, TitleAnswers } from './championship';
 import './championship.css';
-
-export type TitleAnswer = { id: string; yes: boolean | null; name?: string };
-export type TitleAnswers = Partial<Record<'drivers' | 'constructors', TitleAnswer>>;
-type Finish = { race: number[]; sprint: number[] };
-type Scenario = { points: number; rivals: { id: string; name: string; points: number; max_points: number; tie_points: number | null }[]; finishes: Finish[] };
-type Candidate = { id: string; name: string; points: number; wins: number; remaining_points: number; future_races: number; scenarios: Scenario[]; has_sprint: boolean };
-export type ChampionshipContext = { status: string; season?: number; round?: number; scope?: string; note?: string; drivers: Candidate[]; constructors: Candidate[] };
 
 function places(values: number[]) {
   return values.map(p => p ? `P${p}` : 'без классификации').join(' + ');
@@ -74,10 +68,4 @@ export function ChampionshipForecast({ context, answers, onChange, disabled = fa
     })}
     <details className="title-method"><summary>Как рассчитаны условия</summary><p>{context.note}</p></details>
   </section>;
-}
-
-export function titleAnswersComplete(context: ChampionshipContext | null | undefined, answers: TitleAnswers) {
-  if (!context || context.status !== 'ok') return true;
-  return (['drivers', 'constructors'] as const).every(kind => !context[kind].length ||
-    (typeof answers[kind]?.yes === 'boolean' && context[kind].some(c => c.id === answers[kind]?.id)));
 }

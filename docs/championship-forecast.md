@@ -66,6 +66,15 @@
 
 ## Проверка и предпросмотр
 
+React-компонент находится в `ChampionshipForecast.tsx`, общие типы и проверка
+заполненности ответов — в `championship.ts`. Это сохраняет совместимость с
+правилом Fast Refresh: модуль компонента экспортирует только компонент.
+
+```powershell
+npm.cmd --prefix front run lint -- --ignore-pattern "public/race-game/**"
+npm.cmd --prefix front test
+```
+
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/test_championship.py -q
 .\.venv\Scripts\python.exe scripts/build-championship-preview.py

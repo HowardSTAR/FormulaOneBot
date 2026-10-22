@@ -3,7 +3,7 @@ import { apiRequest } from "../../helpers/api";
 import "./personal-review.css";
 import { ShareButton } from '../../components/ShareButton';
 import { confirmedFactsNote, localDateTime, optionalNumber, resultStatus } from '../../helpers/presentation';
-import type { TitleAnswers } from './ChampionshipForecast';
+import type { TitleAnswers } from './championship';
 
 type Item = { key: string; label: string; predicted: string | number | null; actual: string | number | string[] | null;
   position: number | null; points: number | null; maximum: number; status: string; reason: string;

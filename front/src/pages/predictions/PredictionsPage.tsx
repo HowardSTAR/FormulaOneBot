@@ -13,7 +13,8 @@ import { trackPrediction } from '../../helpers/analytics';
 import { SeasonProgress } from './SeasonProgress';
 import { LeaguePanel, StageScores } from './LeaguePanel';
 import { canEditPrediction } from './prediction-window';
-import { ChampionshipForecast, titleAnswersComplete, type ChampionshipContext, type TitleAnswers } from './ChampionshipForecast';
+import { ChampionshipForecast } from './ChampionshipForecast';
+import { titleAnswersComplete, type ChampionshipContext, type TitleAnswers } from './championship';
 
 type Driver = PickerDriver;
 type Prediction = {
