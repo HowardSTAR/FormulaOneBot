@@ -6,10 +6,6 @@
   <component name="ChangeListManager">
     <list default="true" id="fc63f330-4e19-4b72-b862-a7f170aed3fa" name="Changes" comment="Добавил отправку итогов в Telegram и веб без обязательного пересчёта">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deploy/jenkins/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/jenkins/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deploy/jenkins/deploy-verified.sh" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/jenkins/deploy-verified.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/deploy/jenkins/test_deploy.py" beforeDir="false" afterPath="$PROJECT_DIR$/deploy/jenkins/test_deploy.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/auth-security.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/auth-security.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
