@@ -61,3 +61,5 @@ artifacts/.coverage*
 .vite/
 artifacts/boosty/
 artifacts/race-message-preview/
+artifacts/championship-cards/
+artifacts/championship-*.log
