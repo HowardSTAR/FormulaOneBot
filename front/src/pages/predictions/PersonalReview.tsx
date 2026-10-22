@@ -3,17 +3,19 @@ import { apiRequest } from "../../helpers/api";
 import "./personal-review.css";
 import { ShareButton } from '../../components/ShareButton';
 import { confirmedFactsNote, localDateTime, optionalNumber, resultStatus } from '../../helpers/presentation';
+import type { TitleAnswers } from './ChampionshipForecast';
 
 type Item = { key: string; label: string; predicted: string | number | null; actual: string | number | string[] | null;
   position: number | null; points: number | null; maximum: number; status: string; reason: string;
   rule: { exact: number; offsets: number[] } };
 type RaceFacts = { source: string; note?: string; fastest_lap?: {driver: string; lap: number; seconds: number};
   first_retirement_drivers?: string[]; retirement_order_method?: string;
+  championship?: { confirmed: boolean; drivers: string | null; constructors: string | null };
   laps?: {driver: string; lap: number; seconds: number}[];
   retirements?: {driver: string; status: string; laps: number | null; time: string | null}[];
   retirement_order_confirmed?: boolean; safety_car?: number | null;
   safety_events?: {type: string; time: string; status: string}[] };
-type Review = { event_name: string; points: number | null; max_points: number | null; complete: boolean; items: Item[]; race_facts?: RaceFacts | null };
+type Review = { event_name: string; points: number | null; max_points: number | null; complete: boolean; items: Item[]; race_facts?: RaceFacts | null; championship?: TitleAnswers | null };
 function lapTime(seconds: number) {
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toFixed(3).padStart(6, "0")}`;
 }
@@ -76,6 +78,15 @@ export function PersonalReview({ season, round, onClose }: { season: number; rou
             <li>Если фактические данные отсутствуют, пункт не учитывается в максимуме.</li></ul></details>
         </article>)}</div>
         {visibleItems.length === 0 && <p className="review-empty">{items.length === 0 ? 'Подробности расчёта пока не сохранены.' : 'В этой группе нет категорий. Выберите другой результат или покажите все категории.'}</p>}
+        {result.data.championship && Object.keys(result.data.championship).length > 0 && <section className="review-facts" aria-label="Итоги прогноза на титул"><h4>Прогноз на чемпионство</h4>
+          {(['drivers', 'constructors'] as const).map(kind => {
+            const answer = result.data?.championship?.[kind];
+            if (!answer) return null;
+            const actual = result.data?.race_facts?.championship;
+            return <p key={kind}><strong>{answer.name || answer.id}</strong> · ваш ответ: {answer.yes ? 'Да' : 'Нет'}<br />
+              {actual?.confirmed ? <>Результат: {actual[kind] === answer.id ? 'Да' : 'Нет'} · {(actual[kind] === answer.id) === answer.yes ? 'Угадано' : 'Не угадано'}</> : 'Ожидаем подтверждённые таблицы чемпионата.'}</p>;
+          })}
+        </section>}
         {result.data.race_facts && <details className="review-facts" aria-label="Дополнительные данные гонки"><summary>Данные гонки<span>Источники, круги и сходы</span></summary><div className="review-facts-content">
           <p className="review-facts-source">Источник: {result.data.race_facts.source}</p>
           {confirmedFactsNote(result.data.race_facts.note, result.data.items) && <p>{confirmedFactsNote(result.data.race_facts.note, result.data.items)}</p>}

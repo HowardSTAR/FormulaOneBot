@@ -13,6 +13,7 @@ import { trackPrediction } from '../../helpers/analytics';
 import { SeasonProgress } from './SeasonProgress';
 import { LeaguePanel, StageScores } from './LeaguePanel';
 import { canEditPrediction } from './prediction-window';
+import { ChampionshipForecast, titleAnswersComplete, type ChampionshipContext, type TitleAnswers } from './ChampionshipForecast';
 
 type Driver = PickerDriver;
 type Prediction = {
@@ -27,6 +28,7 @@ type Prediction = {
   fastest_lap_driver: string;
   first_retirement_driver: string;
   safety_car: boolean;
+  championship?: TitleAnswers | null;
   points?: number | null;
   max_points?: number | null;
 };
@@ -43,6 +45,7 @@ type CurrentResponse = {
   drivers: Driver[];
   prediction: Prediction | null;
   scoring_rules: ScoringRule[];
+  championship?: ChampionshipContext | null;
 };
 type ScoringRule = { key: string; label: string; exact: number; offsets: [number, number, number] };
 type HistoryItem = { season: number; round: number; event_name?: string; short_code: string; points: number; max_points: number };
@@ -147,13 +150,23 @@ function PredictionsContent({ guest }: { guest: boolean }) {
     setLoading(true);
     setError("");
     try {
-      const [currentData, leaderboardData] = await Promise.all([
+      const [currentData, leaderboardData, championship] = await Promise.all([
         apiRequest<CurrentResponse>(guest ? "/api/predictions/preview" : "/api/predictions/current"),
         guest ? Promise.resolve<LeaderboardResponse>({season: 0, entries: [], rounds: [], current_user_id: 0}) : apiRequest<LeaderboardResponse>("/api/predictions/leaderboard", {season:requestedSeason}),
+        apiRequest<ChampionshipContext>('/api/predictions/championship').catch(() => null),
       ]);
-      setCurrent(currentData);
+      setCurrent({ ...currentData, championship });
       setDisplayName(currentData.profile.display_name || "");
-      setForm(currentData.prediction ? { ...EMPTY_PREDICTION, ...currentData.prediction } : EMPTY_PREDICTION);
+      const loaded = currentData.prediction ? { ...EMPTY_PREDICTION, ...currentData.prediction } : { ...EMPTY_PREDICTION };
+      if (championship?.status === 'ok' && canEditPrediction(currentData)) {
+        const valid: TitleAnswers = {};
+        for (const kind of ['drivers', 'constructors'] as const) {
+          const answer = loaded.championship?.[kind];
+          if (answer && championship[kind].some(c => c.id === answer.id)) valid[kind] = answer;
+        }
+        loaded.championship = valid;
+      }
+      setForm(loaded);
       if (!currentData.prediction) {
         try {
           const draft = JSON.parse(sessionStorage.getItem(`prediction-draft:${currentData.season}:${currentData.round}`) || 'null');
@@ -164,6 +177,14 @@ function PredictionsContent({ guest }: { guest: boolean }) {
               else if (typeof draft[key] === 'string' && currentData.drivers.some(d => d.code === draft[key])) Object.assign(safe, {[key]: draft[key]});
             }
             setForm(safe);
+            if (draft.championship && typeof draft.championship === 'object') {
+              const restored: TitleAnswers = {};
+              for (const kind of ['drivers', 'constructors'] as const) {
+                const choice = draft.championship[kind];
+                if (typeof choice?.yes === 'boolean' && championship?.[kind].some(c => c.id === choice.id)) restored[kind] = { id: choice.id, yes: choice.yes };
+              }
+              setForm({ ...safe, championship: restored });
+            }
             setNotice('Черновик восстановлен только в форме, он ещё не отправлен. Можно изменить выбор и нажать «Отправить прогноз».');
           }
         } catch { /* Storage may be unavailable in private browsing. */ }
@@ -241,7 +262,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
     setError("");
     setNotice("");
     try {
-      await apiRequest("/api/predictions/current", form, "POST");
+      await apiRequest("/api/predictions/current", { ...form, championship: current?.championship?.status === 'ok' ? form.championship || {} : null }, "POST");
       try { sessionStorage.removeItem(`prediction-draft:${current?.season}:${current?.round}`); } catch { /* optional browser storage */ }
       setNotice("Прогноз сохранён. Его можно изменить до начала квалификации.");
       await load();
@@ -255,7 +276,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
   const driverFields = current?.has_sprint
     ? [...SPRINT_DRIVER_FIELDS, ...BASE_DRIVER_FIELDS]
     : BASE_DRIVER_FIELDS;
-  const formComplete = driverFields.every(({ key }) => Boolean(form[key]));
+  const formComplete = driverFields.every(({ key }) => Boolean(form[key])) && titleAnswersComplete(current?.championship, form.championship || {});
   const visibleRounds = [...rounds].sort((a,b) => b.round-a.round).slice(0, showAllStages ? rounds.length : 3);
   const editable = canEditPrediction(current);
   const beforeOpening = Date.parse(current?.opens_at_utc || '') > Date.now();
@@ -356,6 +377,8 @@ function PredictionsContent({ guest }: { guest: boolean }) {
             <h3>{current.event_name || "Следующий Гран-при"}</h3>
           </div>
 
+          {!current.profile.completed && <ChampionshipForecast context={current.championship} answers={{}} conditionsOnly
+            open={searchParams.get('championship') === '1'} onChange={() => {}} />}
           {!current.profile.completed ? (
             <div className="prediction-name-card">
               <span className="prediction-step">Шаг 01</span>
@@ -408,6 +431,9 @@ function PredictionsContent({ guest }: { guest: boolean }) {
                 </fieldset>
               </div>
 
+              <ChampionshipForecast context={current.championship} answers={form.championship || {}} disabled={!editable} conditionsOnly={!editable}
+                open={searchParams.get('championship') === '1'} onChange={championship => editPrediction({ championship })} />
+              {current.championship?.status === 'unavailable' && <p className="predictions-message">Условия титула временно недоступны. Основной прогноз можно сохранить.</p>}
               <div className="prediction-submit-row">
                 <p>{beforeOpening ? 'Приём ещё не открыт. Заполнение и редактирование станут доступны после открытия; прогноз не отправлен автоматически.' : guest ? 'Это только черновик в вашем браузере. Для участия нужно войти и отправить прогноз в период приёма.' : current.is_open
                   ? `После старта ${current.has_sprint ? "спринт-квалификации" : "квалификации"} сервер заблокирует любые изменения.`
