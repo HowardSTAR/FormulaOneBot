@@ -7,6 +7,7 @@ import "./assets/ui-polish.css"
 import "./assets/readability.css"
 import "./assets/mobile-safe-area.css"
 import "./assets/standings-results.css"
+import "./assets/design-system.css"
 import { lazy, Suspense, useEffect } from 'react';
 import { observeActions } from './helpers/analytics';
 import { RouterProvider } from "react-router-dom"

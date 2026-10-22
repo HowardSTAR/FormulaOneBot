@@ -1,13 +1,13 @@
 import type { AuthState } from './auth';
-import type { IndexIconName } from '../pages/index/IndexIcon';
+import type { HomeIconName } from '../pages/index/HomeIcon';
 
-export type NavigationItem = { to: string; label: string; icon: IndexIconName; activePaths: string[]; access?: 'signedIn' | 'personalized' | 'admin' };
-export type NavigationAction = { id: 'onboarding'; label: string; icon: IndexIconName };
-export type NavigationGroup = { id: string; label: string; icon: IndexIconName; items: NavigationItem[]; actions?: NavigationAction[] };
+export type NavigationItem = { to: string; label: string; icon: HomeIconName; activePaths: string[]; access?: 'signedIn' | 'personalized' | 'admin' };
+export type NavigationAction = { id: 'onboarding'; label: string; icon: HomeIconName };
+export type NavigationGroup = { id: string; label: string; icon: HomeIconName; items: NavigationItem[]; actions?: NavigationAction[] };
 export type NavigationSection = { id: string; label: string; items: (NavigationItem | NavigationGroup)[] };
-const item = (to: string, label: string, icon: IndexIconName, activePaths = [to], access?: NavigationItem['access']): NavigationItem => ({ to, label, icon, activePaths, access });
+const item = (to: string, label: string, icon: HomeIconName, activePaths = [to], access?: NavigationItem['access']): NavigationItem => ({ to, label, icon, activePaths, access });
 const home = item('/', 'Обзор', 'home');
-const weekend = item('/next-race', 'Уик-энд', 'race');
+const weekend = item('/next-race', 'Уик-энд', 'weekend');
 const calendar = item('/season', 'Календарь', 'calendar', ['/season', '/race-details']);
 const predictions = item('/predictions', 'Прогнозы', 'predictions');
 const community = item('/community', 'С друзьями', 'social');
@@ -28,7 +28,7 @@ const groups: NavigationGroup[] = [
   { id: 'peloton', label: 'Пелотон', icon: 'peloton', items: [
     item('/drivers', 'Пилоты', 'drivers', ['/drivers', '/driver-details']), item('/constructors', 'Команды', 'teams', ['/constructors', '/constructor-details', '/team-principal']),
   ] },
-  { id: 'comparison', label: 'Сравнение', icon: 'compare', items: [item('/compare', 'Сравнение пилотов', 'compare'), item('/history', 'История сезонов', 'compare')] },
+  { id: 'comparison', label: 'Сравнение', icon: 'compare', items: [item('/compare', 'Сравнение пилотов', 'compare'), item('/history', 'История сезонов', 'history')] },
   { id: 'games', label: 'Игры', icon: 'games', items: [item('/reaction-game', 'Тест реакции', 'reaction'), item('/reflex-grid-game', 'Reflex Grid', 'grid'), item('/race-game', 'Emerald Loop', 'arcade')] },
 ];
 const [results, peloton, comparison, games] = groups;

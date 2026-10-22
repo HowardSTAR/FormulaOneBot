@@ -14,6 +14,9 @@ import { FirstVisitGuide } from './FirstVisitGuide';
 import { PageMotion } from './PageMotion';
 import { VisitReminder } from './VisitReminder';
 import { AccountShortcut } from './AccountShortcut';
+import { ThemeToggle } from './ThemeToggle';
+import { HomeToolbar } from './HomeToolbar';
+import '../assets/home-glass.css';
 
 const EDGE_THRESHOLD = 30;
 const SWIPE_THRESHOLD = 60;
@@ -85,16 +88,17 @@ export function SwipeBackLayout() {
           .toLowerCase() || "page";
 
   return (
-    <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className="app-shell">
+    <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`app-shell design-shell${routeKey === 'home' ? ' glass-home' : ''}`}>
       <EngagementEntry />
       <NotificationEntry />
       <RouteContext />
+      <a className="design-skip" href="#page-content">Перейти к содержимому</a>
       <AppHeader />
       <InstallHint />
       <FirstVisitGuide />
       <div className="app-content">
-        <div className="account-shortcut-bar"><AccountShortcut /></div>
-        <section className={`app-page-main route-${routeKey}`}>
+        {routeKey === 'home' ? <HomeToolbar /> : <div className="account-shortcut-bar"><ThemeToggle /><AccountShortcut /></div>}
+        <section className={`app-page-main route-${routeKey}`} id="page-content" tabIndex={-1}>
           <VisitReminder />
           <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
             <PageMotion key={location.pathname} pathname={location.pathname} previousPathRef={previousPathRef} />

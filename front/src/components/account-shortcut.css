@@ -4,22 +4,22 @@
   justify-content: center;
   flex-shrink: 0;
   gap: 7px;
-  min-width: 36px;
-  min-height: 36px;
-  padding: 3px 8px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 12px;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
-  color: #c5cfdd;
-  font-size: 13px;
+  color: var(--design-ink, #c5cfdd);
+  font-size: .8125rem;
   font-weight: 600;
   text-decoration: none;
-  transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease;
+  transition: none;
 }
-.account-shortcut img { display: block; flex-shrink: 0; width: 28px; height: 28px; border-radius: 7px; }
-.account-shortcut:hover { border-color: #ffffff1a; background: #ffffff08; color: #fff; }
-.account-shortcut[data-active] { background: #e106000d; color: #ffb4a8; }
-.account-shortcut:focus-visible { outline: 2px solid #ffaaa2; outline-offset: 2px; }
+.account-shortcut svg { display: block; flex-shrink: 0; }
+.account-shortcut:hover { border-color: var(--design-line, #ffffff1a); background: var(--design-tint, #ffffff08); color: var(--design-ink, #fff); }
+.account-shortcut[data-active] { background: var(--design-tint, #e106000d); color: var(--design-accent, #ffb4a8); }
+.account-shortcut:focus-visible { outline: 2px solid var(--design-focus, #ffaaa2); outline-offset: 2px; }
 .account-shortcut-bar { display: none; }
 @media (min-width: 900px) {
   .account-shortcut-bar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
@@ -40,6 +40,3 @@ html[data-onboarding-active] .account-shortcut-bar {
   background: var(--bg-color);
 }
 html[data-onboarding-active] .account-shortcut-bar .account-shortcut { min-height: 44px; }
-@media (prefers-reduced-motion: reduce) {
-  .account-shortcut { transition: none; }
-}

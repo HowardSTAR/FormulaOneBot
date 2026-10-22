@@ -1,0 +1,42 @@
+const paths = {
+  menu: 'M4 6h16M4 12h16M4 18h16',
+  chevronRight: 'm9 5 7 7-7 7',
+  chevronDown: 'm5 9 7 7 7-7',
+  refresh: 'M20 4v6h-6M4 20v-6h6M20 10a8 8 0 0 0-14-5M4 14a8 8 0 0 0 14 5',
+  weekend: 'M5 22V3c5-3 9 3 14 0v11c-5 3-9-3-14 0',
+  race: 'M5 21V3h16v12H5',
+  practice: 'm14 6 4-4a6 6 0 0 1-7 8L5 20a2 2 0 0 1-3-3l10-6a6 6 0 0 1 8-7l-4 4-2-2Z',
+  quali: 'M9 2h6m-3 0v3m6 1 2-2M12 9v4l3 2M20 13a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z',
+  sprintQuali: 'M9 2h6m-3 0v3m6 1 2-2M12 9v4H9M19 10l-4 7h4l-2 6 6-9h-4l2-4M12 21a8 8 0 1 1 7-12',
+  sprint: 'm3 5 8 7-8 7V5Zm10 0 8 7-8 7V5Z',
+  arcade: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM2 12h6m8 0h6M12 16v6m4-10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',
+  history: 'M3 4v5h5M3 9a9 9 0 1 1 0 6M12 7v5l3 2',
+  social: 'M3 21v-2a5 5 0 0 1 10 0v2m1-7a5 5 0 0 1 7 5v2M11 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm8 1a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+  contact: 'M3 5h18v14H3zM3 5l9 8 9-8',
+  favorite: 'm12 3 3 6 6 1-4 5 1 6-6-3-6 3 1-6-4-5 6-1z',
+  settings: 'M12 3v3m0 12v3M3 12h3m12 0h3M5.6 5.6l2.1 2.1m8.6 8.6 2.1 2.1m-12.8 0 2.1-2.1m8.6-8.6 2.1-2.1M17 12a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z',
+  admin: 'm12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3zm-4 9 3 3 5-6',
+  reaction: 'm13 2-9 12h7l-1 8 10-12h-7z',
+  grid: 'M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z',
+  vote: 'm8 6 6-3 5 7-6 4-5-8zM5 11l-2 5v5h18v-5l-2-3M3 16h18',
+  home: 'm3 10 9-7 9 7M5 9v11h5v-6h4v6h5V9',
+  calendar: 'M4 5h16v16H4zM8 3v4m8-4v4M4 11h16m-12 4h2m4 0h2',
+  results: 'M4 4v16h17M8 16v-5m5 5V7m5 9v-7',
+  compare: 'M8 4v16m8-16v16M4 8h8m0 8h8M6 6l2 2-2 2m12 4-2 2 2 2',
+  wiki: 'M12 6c-3-3-7-2-9-1v15c2-1 6-2 9 1 3-3 7-2 9-1V5c-2-1-6-2-9 1zm0 0v15',
+  predictions: 'm12 3 3 6 6 1-4 5 1 6-6-3-6 3 1-6-4-5 6-1z',
+  account: 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a8 8 0 0 1 16 0v2',
+  drivers: 'M4 14a8 8 0 0 1 16 0v5H4v-5Zm0 0h16M8 14l3 5m9-9h-6v4',
+  teams: 'M3 21v-2a5 5 0 0 1 10 0v2m1-7a5 5 0 0 1 7 5v2M11 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm8 1a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+  notifications: 'M6 9a6 6 0 0 1 12 0c0 7 3 7 3 9H3c0-2 3-2 3-9m4 12h4',
+  games: 'M7 7h10c4 0 7 13 3 13-2 0-3-4-5-4H9c-2 0-3 4-5 4C0 20 3 7 7 7Zm0 3v5m-2-2h4m7-2h.01m2 3h.01',
+  analytics: 'M4 4v16h17M7 15l4-5 4 3 5-7',
+  predictionAnalytics: 'M4 4v16h17M7 15l4-5 4 3 5-7',
+  peloton: 'M3 21v-2a5 5 0 0 1 10 0v2m1-7a5 5 0 0 1 7 5v2M11 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm8 1a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+  help: 'M9 8a3 3 0 1 1 5 2c-2 1-2 2-2 3m0 4h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z',
+} as const;
+export type HomeIconName = keyof typeof paths;
+
+export function HomeIcon({ name }: { name: HomeIconName }) {
+  return <svg className="home-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} />{name === 'race' && <path d="M5 3h4v4H5zM13 3h4v4h-4zM9 7h4v4H9zM17 7h4v4h-4zM5 11h4v4H5zM13 11h4v4h-4z" fill="currentColor" stroke="none" />}</svg>;
+}
