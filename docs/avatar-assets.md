@@ -1,6 +1,6 @@
 # Modular racing avatars
 
-Created 2026-10-10 using the built-in image_gen tool. Original transparent PNGs are versioned in `app/profile_avatar_assets/`; they depict fictional anonymous racers with no real likenesses, logos or sponsors. The production Pillow renderer registers each bust at the neck seal and independently combines the helmet, suit and five procedural backgrounds. All 45 combinations are available to every account. Subscription profile frames, nickname colors and card backgrounds keep their existing rules.
+Created 2026-10-10 using the built-in image_gen tool. Original transparent PNGs are stored in `app-assets.zip` and restored to `app/profile_avatar_assets/` by `python scripts/pack_assets.py --extract`; they depict fictional anonymous racers with no real likenesses, logos or sponsors. The production Pillow renderer registers each bust at the neck seal and independently combines the helmet, suit and five procedural backgrounds. All 45 combinations are available to every account. Subscription profile frames, nickname colors and card backgrounds keep their existing rules.
 
 The public, versioned `/api/profiles/avatar/v1.png` endpoint validates all three identifiers before rendering and caches its finite set of combinations. Selection is saved separately from profile style in `user_profile_avatars` and survives account linking. Shared profile cards capture the saved avatar at creation time; older cards without avatar data use the default.
 

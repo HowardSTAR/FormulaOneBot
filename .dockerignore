@@ -8,10 +8,22 @@ race-game/dist
 __pycache__
 *.pyc
 .venv
+.venv-*
 venv
 .pytest_cache
 .ruff_cache
 app/assets
+app/profile_avatar_assets
+front/src/assets/navigation
+front/src/assets/avatar
+front/public/images
+front/public/static/circuit/*.svg
+front/public/models/password-racer/*.webp
+front/public/app-icon*.png
+front/public/app-icon.svg
+front/public/race-game
+race-game/public
+artifacts
 artifacts/portrait-migration-*
 
 # Git

@@ -1,3 +1,9 @@
+FROM python:3.11-slim AS asset-builder
+WORKDIR /source
+COPY app-assets.zip ./
+COPY scripts/pack_assets.py ./scripts/pack_assets.py
+RUN python scripts/pack_assets.py --extract --destination /unpacked
+
 FROM node:20-alpine AS race-builder
 ENV NODE_OPTIONS=--max-old-space-size=512
 WORKDIR /race-game
@@ -5,7 +11,7 @@ COPY race-game/package*.json ./
 RUN npm ci --no-audit --no-fund
 COPY race-game/index.html race-game/tsconfig.json race-game/vite.config.ts ./
 COPY race-game/src ./src
-COPY race-game/public ./public
+COPY --from=asset-builder /unpacked/race-game/public ./public
 COPY app/race_tracks.json /app/race_tracks.json
 RUN npm run build
 
@@ -22,6 +28,7 @@ COPY front/index.html front/vite.config.ts front/tsconfig*.json ./
 COPY front/public ./public
 COPY --from=race-builder /race-game/dist ./public/race-game
 COPY front/src ./src
+COPY --from=asset-builder /unpacked/front/ ./
 # Legal pages import these root-level registers via ../../../../*.md?raw.
 # Keep them beside /front, matching the repository layout during Vite build.
 COPY THIRD_PARTY_NOTICES.md ASSET_LICENSES.md /
@@ -66,11 +73,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir --prefer-binary --no-compile -r requirements.txt
 
-COPY app-assets.zip /tmp/app-assets.zip
-RUN python -m zipfile -e /tmp/app-assets.zip /app \
-    && test -d /app/app/assets \
-    && rm /tmp/app-assets.zip
-
+COPY --from=asset-builder /unpacked/app/ ./app/
 COPY app/ ./app/
 COPY run_web.py .
 

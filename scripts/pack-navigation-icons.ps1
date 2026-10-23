@@ -18,15 +18,17 @@ $preserved = @{}
 $zip = [IO.Compression.ZipFile]::Open($temporary, [IO.Compression.ZipArchiveMode]::Update)
 try {
  foreach ($entry in $zip.Entries) {
-  if (-not $entry.FullName.StartsWith('app/assets/navigation/')) {
+  if (-not $entry.FullName.StartsWith('app/assets/navigation/') -and -not $entry.FullName.StartsWith('front/src/assets/navigation/')) {
    $preserved[$entry.FullName] = Get-EntryHash $entry
   }
  }
  foreach ($icon in $icons) {
-  $entryName = 'app/assets/navigation/' + $icon.Name
-  $existing = $zip.GetEntry($entryName)
-  if ($existing) { $existing.Delete() }
-  [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $icon.FullName, $entryName, [IO.Compression.CompressionLevel]::Optimal) | Out-Null
+  foreach ($prefix in @('app/assets/navigation/', 'front/src/assets/navigation/')) {
+   $entryName = $prefix + $icon.Name
+   $existing = $zip.GetEntry($entryName)
+   if ($existing) { $existing.Delete() }
+   [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip, $icon.FullName, $entryName, [IO.Compression.CompressionLevel]::Optimal) | Out-Null
+  }
  }
 } finally { $zip.Dispose() }
 $zip = [IO.Compression.ZipFile]::OpenRead($temporary)

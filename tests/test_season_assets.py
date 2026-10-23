@@ -129,7 +129,7 @@ def test_asset_archive_matches_runtime_files_and_has_no_obsolete_media():
             for path in ASSETS_ROOT.rglob("*")
             if path.is_file()
         }
-        assert set(names) == set(extracted)
+        assert {name for name in names if name.startswith("app/assets/")} == set(extracted)
         for name, path in extracted.items():
             assert archive.read(name) == path.read_bytes(), name
         assert not any("/verified-pilots/" in name or "/2026/teams/" in name for name in names)
