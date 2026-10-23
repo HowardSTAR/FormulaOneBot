@@ -28,6 +28,13 @@ p.with_suffix(".replicated").write_text(sys.argv[3])
 '''
 
 
+def run_hidden(command, timeout):
+    # pythonw hides the parent only: console SSH/SCP children need this flag too.
+    flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == 'nt' else 0
+    return subprocess.run(command, check=True, capture_output=True, text=True,
+                          stdin=subprocess.DEVNULL, creationflags=flags, timeout=timeout)
+
+
 class SSH:
     def __init__(self, source, directory, identity=None):
         if source.startswith('-') or not re.fullmatch(r'[A-Za-z0-9_.@:-]+', source):
@@ -41,15 +48,14 @@ class SSH:
 
     def command(self, code, *args):
         command = 'python3 -c '+shlex.quote(code)+' '+shlex.join([self.directory, *args])
-        return subprocess.run(['ssh', *self.options, self.source, command], check=True,
-                              capture_output=True, text=True, timeout=60).stdout
+        return run_hidden(['ssh', *self.options, self.source, command], timeout=60).stdout
 
     def list(self):
         return json.loads(self.command(LIST))
 
     def download(self, name, target):
-        subprocess.run(['scp', '-q', *self.options, f'{self.source}:{self.directory}/{name}', str(target)],
-                       check=True, capture_output=True, timeout=300)
+        run_hidden(['scp', '-q', *self.options, f'{self.source}:{self.directory}/{name}', str(target)],
+                   timeout=300)
 
     def acknowledge(self, name, checksum):
         self.command(ACK, name, checksum)
