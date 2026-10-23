@@ -1,0 +1,307 @@
+/* Preview-only styles. Shared semantic palette comes from design-system.css. */
+* { box-sizing: border-box; }
+html { scroll-padding-block: 6rem 7rem; }
+body { margin: 0; background: var(--design-bg); color: var(--design-ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 1.0625rem; line-height: 1.5; }
+button, input { font: inherit; }
+button, a, summary, input { -webkit-tap-highlight-color: transparent; }
+a { color: inherit; text-decoration: none; }
+button, summary { cursor: pointer; }
+button { color: inherit; }
+button, a { touch-action: manipulation; }
+:is(a, button, summary, input):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 4px; }
+:is(h1, h2, h3, p) { margin: 0; }
+svg { flex-shrink: 0; }
+.glass { background: var(--design-surface); border: 1px solid var(--design-control); box-shadow: var(--design-glass-shadow); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: var(--design-glass-fill); border-color: var(--design-glass-edge); -webkit-backdrop-filter: blur(28px) saturate(1.3); backdrop-filter: blur(28px) saturate(1.3); }
+  .concept :is(.concept-toolbar, .concept-bottom, .concept-to-top) { background: color-mix(in srgb, var(--design-surface) 74%, transparent); box-shadow: 0 8px 28px rgb(0 0 0 / 9%), inset 0 1px 0 var(--design-glass-edge); }
+}
+.concept { --concept-space: clamp(20px, 3.2vw, 48px); min-height: 100dvh; background: var(--design-bg); }
+.concept-skip { position: fixed; top: -8rem; left: 1rem; z-index: 50; padding: 12px; background: var(--design-surface); border: 2px solid var(--design-focus); }
+.concept-skip:focus { top: 1rem; }
+.concept-brand { display: inline-flex; gap: 0; align-items: center; min-height: 44px; font-size: 1.2rem; font-weight: 800; letter-spacing: -.07em; white-space: nowrap; }
+.concept-brand > span:first-child { color: var(--design-accent); }
+.brand-dot { display: inline-block; width: 5px; height: 5px; background: var(--design-accent); border-radius: 50%; margin-left: 5px; align-self: center; }
+.concept-sidebar { position: fixed; z-index: 20; left: 16px; top: 16px; bottom: 16px; width: 210px; border-radius: 28px; padding: 22px 12px; display: flex; flex-direction: column; overflow-y: auto; scrollbar-width: thin; }
+.concept-sidebar .concept-brand { margin: 0 12px 22px; }
+.sidebar-label { padding: 10px 12px 6px; color: var(--design-glass-muted); font-size: .6875rem; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; }
+.concept-sidebar nav, .sidebar-secondary { display: grid; }
+.concept-sidebar :is(nav, .sidebar-secondary) a { display: flex; align-items: center; gap: 12px; min-height: 46px; border-radius: 13px; padding: 10px 12px; font-size: .875rem; font-weight: 550; }
+.concept-sidebar nav [aria-current] { background: var(--design-tint); color: var(--design-accent); }
+.concept-sidebar a:hover, .toolbar-actions a:hover { background: var(--design-tint); }
+.sidebar-secondary { margin-top: 18px; }
+.sidebar-season { margin: auto 12px 4px; padding-top: 24px; font-size: .8125rem; font-weight: 650; }
+.sidebar-season span { display: block; margin-top: 2px; color: var(--design-glass-muted); font-size: .6875rem; font-weight: 400; }
+.concept-toolbar { position: sticky; z-index: 30; top: 16px; display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 60px; border-radius: 30px; padding: 6px 8px 6px 20px; margin: 16px var(--concept-space) 0 auto; width: fit-content; }
+.concept-toolbar > .concept-brand, .panorama-nav { display: none; }
+.toolbar-actions { display: flex; align-items: center; gap: 4px; }
+.theme-toggle, .icon-control { display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: transparent; color: var(--design-ink); border: 0; border-radius: 999px; min-height: 44px; min-width: 44px; padding: 10px 12px; font-size: .8125rem; font-weight: 550; }
+.theme-toggle:hover { background: var(--design-tint); }
+.icon-control { position: relative; padding: 10px; }
+.notification-dot { position: absolute; top: 6px; right: 6px; width: 6px; height: 6px; border-radius: 50%; background: var(--design-accent); }
+.concept-main { margin-left: 242px; padding: 22px var(--concept-space) 36px 16px; max-width: 1600px; }
+.concept-main:focus { outline: 0; }
+.concept-heading { display: flex; align-items: end; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 28px; }
+.concept-heading p { color: var(--design-muted); font-size: .8125rem; margin-bottom: 6px; }
+.concept-heading h1 { font-size: clamp(2.25rem, 3.8vw, 3.25rem); font-weight: 750; letter-spacing: -.055em; line-height: 1.08; }
+.season-link { display: inline-flex; align-items: center; gap: 16px; min-height: 44px; color: var(--design-muted); font-size: .8125rem; }
+.season-link:hover { color: var(--design-accent); }
+.content-surface { background: var(--design-surface); border: 1px solid var(--design-line); border-radius: 24px; }
+.concept-event-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(290px, .9fr); grid-template-areas: 'race schedule' 'personal schedule'; gap: 16px; }
+.concept-race { grid-area: race; min-width: 0; position: relative; display: flex; align-items: center; overflow: hidden; min-height: 300px; border-radius: 26px; padding: 28px; background: var(--design-surface); border: 1px solid var(--design-line); }
+.concept-focus .concept-race::before { content: ''; position: absolute; top: 30px; bottom: 30px; left: 0; width: 4px; border-radius: 0 4px 4px 0; background: var(--design-accent); }
+.race-copy { position: relative; z-index: 1; width: 100%; }
+.race-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px; font-size: .6875rem; font-weight: 650; margin-bottom: 20px; }
+.race-meta > span:first-child { padding: 5px 9px; border-radius: 6px; color: var(--design-accent); background: var(--design-tint); }
+.race-meta > span:last-child { color: var(--design-muted); }
+.concept-race h2 { font-size: clamp(1.75rem, 2.6vw, 2.8rem); letter-spacing: -.055em; line-height: 1.12; max-width: 85%; }
+.concept-race h2 a::after { content: ''; position: absolute; inset: -200px; z-index: 2; }
+.concept-race h2 a:focus-visible { outline: 0; }
+.concept-race:has(a:focus-visible) { outline: 3px solid var(--design-focus); outline-offset: 4px; }
+.concept-race:hover { border-color: var(--design-control); }
+.concept-race h2 a > span { font-size: .6em; vertical-align: top; }
+.race-place { margin-top: 14px; font-size: .8125rem; color: var(--design-muted); }
+.race-start { display: flex; flex-wrap: wrap; gap: 16px 30px; margin-top: 32px; }
+.race-start > div { display: grid; gap: 3px; }
+.race-start > div > span { font-size: .6875rem; color: var(--design-muted); }
+.race-start strong { font-size: 1rem; font-variant-numeric: tabular-nums; letter-spacing: -.025em; }
+.race-start small { font-size: .6875rem; font-weight: 500; }
+.concept-track { position: absolute; width: 50%; right: -4%; top: 20%; color: var(--design-line); pointer-events: none; }
+.concept-track svg { width: 100%; height: auto; display: block; }
+.concept-track span { display: none; }
+.concept-personal { grid-area: personal; display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 20px; }
+.personal-symbol { display: grid; place-items: center; width: 40px; height: 40px; border: 1px solid var(--design-line); border-radius: 14px; }
+.concept-personal h2 { font-size: .875rem; font-weight: 650; letter-spacing: -.02em; }
+.concept-personal p { font-size: .6875rem; color: var(--design-muted); margin-top: 3px; }
+.primary-action { display: inline-flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; background: var(--design-accent); color: var(--design-surface); border-radius: 14px; padding: 10px 14px; font-weight: 650; font-size: .8125rem; }
+[data-theme="dark"] .primary-action { color: #202126; }
+.concept-personal .primary-action { margin-left: auto; }
+.primary-action:hover { box-shadow: inset 0 0 0 2px currentColor; }
+.concept-schedule { grid-area: schedule; min-width: 0; overflow: hidden; }
+.section-head { min-height: 66px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 12px; padding: 18px 20px 12px; }
+.section-head :is(h2, h3) { font-size: 1rem; letter-spacing: -.03em; font-weight: 650; }
+.section-head > span { color: var(--design-muted); font-size: .6875rem; }
+.section-head a { display: flex; align-items: center; min-height: 44px; font-size: .6875rem; color: var(--design-muted); }
+.section-head a:hover { color: var(--design-accent); }
+.section-head a svg { width: 16px; height: 16px; }
+.concept-schedule ol, .concept-standing ol { padding: 0; margin: 0; list-style: none; }
+.concept-schedule li { margin: 0 10px; }
+.concept-schedule li a { display: flex; align-items: center; gap: 12px; padding: 13px 10px; border-radius: 12px; min-height: 64px; }
+.concept-schedule li + li { border-top: 1px solid var(--design-line); }
+.session-icon { color: var(--design-muted); display: flex; }
+.session-icon svg { width: 19px; height: 19px; }
+.session-copy { min-width: 0; flex: 1; }
+.session-copy strong { display: block; font-size: .8125rem; font-weight: 550; overflow-wrap: anywhere; }
+.session-copy small { display: block; margin-top: 3px; color: var(--design-muted); font-size: .6875rem; }
+.concept-schedule time { font-size: .875rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.concept-schedule .next-session a { background: var(--design-tint); }
+.next-session .session-icon { color: var(--design-accent); }
+.concept-schedule a:hover { background: var(--design-bg); }
+.section-link { display: flex; align-items: center; justify-content: space-between; min-height: 54px; padding: 12px 20px; color: var(--design-muted); font-size: .8125rem; border-top: 1px solid var(--design-line); margin-top: 4px; }
+.section-link svg { width: 18px; height: 18px; }
+.concept-championship { margin-top: 30px; }
+.championship-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.championship-heading h2 { font-size: 1.25rem; letter-spacing: -.04em; }
+.championship-heading > span { font-size: .6875rem; color: var(--design-muted); }
+.concept-standings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.concept-standing li { display: flex; align-items: center; gap: 14px; margin: 0 20px; padding: 14px 0; border-top: 1px solid var(--design-line); }
+.standing-position { width: 22px; color: var(--design-muted); font-variant-numeric: tabular-nums; font-size: .8125rem; }
+.concept-standing li > span:nth-child(2) { flex: 1; min-width: 0; }
+.concept-standing strong { display: block; font-size: .875rem; font-weight: 600; overflow-wrap: anywhere; }
+.concept-standing small { display: block; font-size: .6875rem; color: var(--design-muted); font-weight: 400; }
+.standing-points { text-align: right; font-variant-numeric: tabular-nums; }
+.standing-points small { font-size: .625rem; }
+.concept-more { margin-top: 20px; }
+.concept-more summary { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; min-height: 60px; font-size: .875rem; font-weight: 550; list-style: none; }
+.concept-more summary::-webkit-details-marker { display: none; }
+.concept-more summary > span { display: flex; align-items: center; gap: 12px; }
+.concept-more[open] summary > svg { transform: rotate(180deg); }
+.concept-more > div { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 16px; }
+.concept-more a { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 10px; font-size: .8125rem; }
+.concept-more a:hover { color: var(--design-accent); }
+.concept-footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 26px; font-size: .6875rem; color: var(--design-muted); }
+.concept-bottom { display: none; }
+.concept-to-top { position: fixed; z-index: 35; right: 24px; bottom: 24px; width: 48px; height: 48px; border-radius: 50%; font-size: 1.5rem; }
+/* Panorama spends its visual emphasis on the actual circuit silhouette. */
+.concept-panorama .concept-sidebar { display: none; }
+.concept-panorama .concept-toolbar { width: auto; margin: 16px var(--concept-space) 0; }
+.concept-panorama .concept-toolbar > .concept-brand, .concept-panorama .panorama-nav { display: flex; }
+.panorama-nav nav { display: flex; align-items: center; gap: 4px; }
+.panorama-nav a { display: flex; align-items: center; gap: 8px; padding: 10px 14px; min-height: 44px; font-size: .8125rem; border-radius: 22px; }
+.panorama-nav .home-icon { display: none; }
+.panorama-nav [aria-current] { background: var(--design-tint); color: var(--design-accent); }
+.panorama-nav a:hover { background: var(--design-tint); }
+.concept-panorama .concept-main { margin: 0 auto; padding: 36px var(--concept-space); max-width: 1440px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+.concept-panorama :is(.concept-heading, .concept-more, .concept-footer) { grid-column: 1 / -1; }
+.concept-panorama .concept-event-grid { display: contents; }
+.concept-panorama .concept-race { grid-area: auto; grid-column: 1 / -1; min-height: 360px; background: #27292e; color: #ffffff; padding: 36px 40px; border: 0; }
+.concept-panorama .race-copy { width: 60%; }
+.concept-panorama .concept-race h2 { font-size: clamp(2.5rem, 5vw, 4.5rem); max-width: none; }
+.concept-panorama .race-meta > span:first-child { background: #b92b25; color: white; }
+.concept-panorama :is(.race-place, .race-meta > span:last-child, .race-start > div > span) { color: #d2d3d9; }
+.concept-panorama .race-start { gap: 28px; margin-top: 26px; }
+.concept-panorama .concept-track { width: 44%; right: 3%; top: 8%; color: #e25d54; }
+.concept-panorama .concept-track span { display: block; text-align: right; margin: -20px 20px 0; font-size: .6875rem; color: #d2d3d9; }
+.concept-panorama .concept-personal { grid-area: auto; grid-column: 1; grid-row: 3; min-height: 100px; }
+.concept-panorama .concept-schedule { grid-area: auto; grid-column: 2; grid-row: 3 / 5; }
+.concept-panorama .concept-championship { grid-column: 1; grid-row: 4; margin-top: 0; }
+.concept-panorama .concept-standings { grid-template-columns: 1fr; }
+/* Pit-wall uses the width for data rather than enlarging the hero. */
+.concept-pitwall .concept-heading h1 { font-size: 2.5rem; }
+.concept-pitwall .concept-main { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.concept-pitwall :is(.concept-heading, .concept-more, .concept-footer) { grid-column: 1 / -1; }
+.concept-pitwall .concept-event-grid { display: contents; }
+.concept-pitwall .concept-race { grid-area: auto; grid-column: 1; grid-row: 2; min-height: 240px; border-left: 4px solid var(--design-accent); }
+.concept-pitwall .concept-track { width: 40%; right: 0; top: 20%; }
+.concept-pitwall .concept-race h2 { font-size: 1.9rem; }
+.concept-pitwall .race-start { margin-top: 20px; }
+.concept-pitwall .concept-personal { grid-area: auto; grid-column: 1; grid-row: 3; padding: 16px; }
+.concept-pitwall .concept-schedule { grid-area: auto; grid-column: 1; grid-row: 4; }
+.concept-pitwall .personal-symbol { display: none; }
+.concept-pitwall .concept-championship { grid-column: 2; grid-row: 2 / 5; margin-top: 0; }
+.concept-pitwall .concept-standings { grid-template-columns: 1fr; }
+.concept-pitwall .championship-heading { margin-bottom: 12px; }
+.concept-pitwall .championship-heading > span { display: none; }
+.concept-pitwall .concept-standing li { padding: 10px 0; }
+/* Gallery is an authoring surface outside the proposed app. */
+.options-gallery { max-width: 1800px; margin: auto; padding: 40px clamp(16px, 3vw, 52px); }
+.gallery-heading { display: flex; align-items: start; justify-content: space-between; gap: 24px; }
+.gallery-heading > div > p:first-child { color: var(--design-accent); font-size: .8125rem; font-weight: 650; margin-bottom: 12px; }
+.gallery-heading h1 { font-size: clamp(1.75rem, 3vw, 3rem); letter-spacing: -.055em; line-height: 1.15; margin-bottom: 14px; }
+.gallery-heading p:last-child { font-size: .875rem; color: var(--design-muted); }
+.gallery-heading .theme-toggle { background: var(--design-surface); border: 1px solid var(--design-control); flex-shrink: 0; }
+.variant-picker { border: 0; padding: 0; margin: 32px 0 24px; display: flex; gap: 12px; flex-wrap: wrap; }
+.variant-picker legend { font-size: .8125rem; margin-bottom: 12px; color: var(--design-muted); }
+.variant-picker label { flex: 1; min-width: 200px; display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 14px 18px; border: 1px solid var(--design-control); border-radius: 18px; cursor: pointer; background: var(--design-surface); }
+.variant-picker label.selected { border-color: var(--design-accent); box-shadow: inset 0 0 0 1px var(--design-accent); background: var(--design-tint); }
+.variant-picker label > span { font-size: .8125rem; color: var(--design-muted); font-variant-numeric: tabular-nums; }
+.variant-picker strong { font-size: .9375rem; letter-spacing: -.02em; }
+.variant-picker input { accent-color: var(--design-accent); width: 18px; height: 18px; flex-shrink: 0; }
+.variant-picker label:has(:focus-visible) { outline: 3px solid var(--design-focus); outline-offset: 4px; }
+.gallery-description { display: flex; align-items: start; justify-content: space-between; gap: 24px; margin-bottom: 28px; }
+.gallery-description h2 { font-size: 1.1875rem; letter-spacing: -.025em; }
+.gallery-description p { color: var(--design-muted); font-size: .875rem; max-width: 760px; margin-top: 7px; }
+.preview-settings { display: flex; flex-wrap: wrap; flex-shrink: 0; gap: 0 16px; }
+.preview-settings label { display: flex; align-items: center; gap: 8px; min-height: 44px; font-size: .8125rem; cursor: pointer; }
+.preview-settings input { accent-color: var(--design-accent); width: 18px; height: 18px; }
+.device-grid { display: grid; grid-template-columns: minmax(0, 1fr) 390px; gap: 28px; align-items: start; }
+.device-column { min-width: 0; }
+.device-column > header { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 44px; margin-bottom: 8px; }
+.device-column h3 { font-size: .8125rem; font-weight: 600; }
+.device-column > header a { font-size: .75rem; color: var(--design-muted); min-height: 44px; display: inline-flex; align-items: center; text-decoration: underline; text-underline-offset: 4px; }
+.device-frame { border: 1px solid var(--design-control); border-radius: 20px; overflow: hidden; background: var(--design-bg); position: relative; }
+.device-frame iframe { display: block; border: 0; transform-origin: top left; }
+.phone-frame { border-radius: 28px; }
+.gallery-notes { margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--design-line); font-size: .8125rem; color: var(--design-muted); }
+.gallery-notes p { max-width: 1050px; margin-bottom: 14px; }
+.gallery-notes a { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 1100px) {
+  .gallery-description { flex-direction: column; gap: 12px; }
+  .device-grid { grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; }
+  .concept-panorama .concept-toolbar .theme-toggle span { display: none; }
+}
+@media (max-width: 899px) {
+  .concept { --concept-space: 20px; }
+  .concept-sidebar, .concept-panorama .panorama-nav { display: none; }
+  .concept-toolbar, .concept-panorama .concept-toolbar { margin: 12px 16px 0; width: auto; top: calc(10px + env(safe-area-inset-top, 0px)); min-height: 60px; border-radius: 24px; padding: 6px 8px 6px 16px; gap: 8px; }
+  .concept-toolbar > .concept-brand { display: flex; font-size: 1.2rem; }
+  .toolbar-actions { gap: 0; }
+  .concept-toolbar .theme-toggle { padding: 10px; }
+  .concept-toolbar .theme-toggle span { display: none; }
+  .concept-toolbar .icon-control[href="/notifications"] { display: none; }
+  .concept-main, .concept-panorama .concept-main, .concept-pitwall .concept-main { display: block; margin: 0; padding: 26px var(--concept-space) calc(120px + env(safe-area-inset-bottom, 0px)); }
+  .concept-heading { margin-bottom: 20px; gap: 8px; }
+  .concept-heading h1, .concept-pitwall .concept-heading h1 { font-size: 2.125rem; }
+  .concept-heading p { font-size: .75rem; }
+  .season-link { font-size: .75rem; gap: 6px; }
+  .concept-event-grid, .concept-panorama .concept-event-grid, .concept-pitwall .concept-event-grid { display: grid; grid-template-columns: 1fr; grid-template-areas: 'race' 'personal' 'schedule'; gap: 16px; width: auto; }
+  .concept .concept-event-grid .concept-race { grid-area: race; }
+  .concept .concept-event-grid .concept-personal { grid-area: personal; }
+  .concept .concept-event-grid .concept-schedule { grid-area: schedule; }
+  .concept-race, .concept-panorama .concept-race, .concept-pitwall .concept-race { padding: 24px; min-height: 238px; border-radius: 24px; background: var(--design-event-bg); color: white; border: 0; }
+  .concept-focus .concept-race::before { display: none; }
+  .race-copy, .concept-panorama .race-copy { width: 100%; }
+  .concept-race h2, .concept-panorama .concept-race h2, .concept-pitwall .concept-race h2 { font-size: 1.875rem; line-height: 1.14; max-width: none; }
+  .race-meta { font-size: .6875rem; margin-bottom: 14px; }
+  .race-meta > span:first-child, .concept-panorama .race-meta > span:first-child { color: white; background: #91201c; }
+  .concept :is(.race-place, .race-meta > span:last-child, .race-start > div > span) { color: #ffffff; }
+  .race-place { font-size: .75rem; margin-top: 8px; }
+  .race-start, .concept-panorama .race-start, .concept-pitwall .race-start { gap: 14px 20px; margin-top: 22px; justify-content: space-between; }
+  .race-start > div > span { font-size: .6875rem; }
+  .race-start strong { font-size: .875rem; }
+  .concept-track { display: none; }
+  .concept-personal, .concept-panorama .concept-personal, .concept-pitwall .concept-personal { gap: 12px; padding: 18px; }
+  .personal-symbol { display: none; }
+  .concept-personal .primary-action { width: 100%; margin: 4px 0 0; }
+  .concept-personal h2 { font-size: 1rem; }
+  .concept-personal p { font-size: .75rem; }
+  .concept-schedule { border-radius: 22px; }
+  .section-head :is(h2, h3) { font-size: 1.0625rem; }
+  .section-head > span { font-size: .6875rem; }
+  .session-copy strong { font-size: 1.0625rem; }
+  .session-copy small { font-size: .75rem; }
+  .concept-schedule li a { padding-block: 14px; gap: 10px; }
+  .concept-schedule time { font-size: .9375rem; }
+  .concept-championship, .concept-panorama .concept-championship, .concept-pitwall .concept-championship { position: static; width: auto; margin-top: 28px; }
+  .championship-heading h2 { font-size: 1.25rem; }
+  .concept-standings { grid-template-columns: 1fr; }
+  .concept-standing strong { font-size: .9375rem; }
+  .concept-standing small { font-size: .75rem; }
+  .concept-footer { display: grid; font-size: .75rem; }
+  .concept-bottom { display: block; position: fixed; z-index: 30; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); left: max(12px, env(safe-area-inset-left, 0px)); right: max(12px, env(safe-area-inset-right, 0px)); border-radius: 28px; padding: 5px; }
+  .concept-bottom nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 3px; }
+  .concept-bottom a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-height: 60px; padding: 6px 2px; font-size: .6875rem; font-weight: 600; border-radius: 22px; }
+  .concept-bottom [aria-current] { background: var(--design-tint); color: var(--design-accent); }
+  .concept-bottom a:hover { background: var(--design-tint); }
+  .concept-to-top { bottom: calc(104px + env(safe-area-inset-bottom, 0px)); right: 18px; }
+  .concept-panorama .concept-race { min-height: 320px; background: #27292e; padding-bottom: 120px; }
+  .concept-panorama .concept-track { display: block; width: 45%; top: auto; right: 16px; bottom: 2px; color: #e25d54; }
+  .concept-panorama .concept-track span { display: none; }
+  .concept-panorama .race-start { margin-top: 18px; }
+  .concept-pitwall .concept-race { min-height: 210px; padding: 20px; }
+  .concept-pitwall .concept-race h2 { font-size: 1.75rem; }
+  .concept-pitwall .concept-personal { background: transparent; border-color: transparent; padding: 0 4px; }
+}
+@media (max-width: 720px) {
+  .device-grid { grid-template-columns: 1fr; }
+  .phone-column { max-width: 390px; width: 100%; margin-inline: auto; }
+  .gallery-heading { flex-direction: column; gap: 16px; }
+  .options-gallery { padding-top: 24px; }
+}
+/* Reflow at large text: use the same DOM, stack data and expand controls. */
+@media (min-width: 900px) {
+  html[style*="200%"] .concept-sidebar { width: 280px; overflow-y: auto; }
+  html[style*="200%"] .concept-main { margin-left: 300px; }
+  html[style*="200%"] :is(.concept-panorama, .concept-pitwall) .concept-main { display: block; }
+  html[style*="200%"] .concept-panorama .concept-main { margin: 0; }
+  html[style*="200%"] .concept-event-grid { display: flex; flex-direction: column; width: auto; }
+  html[style*="200%"] .concept-event-grid > * { width: 100%; }
+  html[style*="200%"] .concept-championship { position: static; width: auto; margin-top: 28px; }
+  html[style*="200%"] .concept-standings { grid-template-columns: 1fr; }
+  html[style*="200%"] .panorama-nav { display: none; }
+}
+@media (max-width: 599px) {
+  html[style*="200%"] .concept-toolbar { flex-wrap: wrap; }
+  html[style*="200%"] .concept-bottom nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  html[style*="200%"] .concept-bottom a { flex-direction: row; font-size: .6875rem; }
+  html[style*="200%"] .concept-main { padding-bottom: 240px; }
+  html[style*="200%"] .concept-to-top { bottom: 190px; }
+  html[style*="200%"] .concept-schedule li a { flex-wrap: wrap; }
+  html[style*="200%"] .session-copy { flex-basis: 70%; }
+  html[style*="200%"] .concept-schedule time { margin-left: 30px; }
+  html[style*="200%"] .concept-panorama .concept-race { padding-bottom: 24px; }
+  html[style*="200%"] .concept-panorama .concept-track { display: none; }
+  html[style*="200%"] .concept-standing li { gap: 8px; margin-inline: 14px; }
+}
+.concept.solid-controls .glass { background: var(--design-surface); border-color: var(--design-control); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .concept .glass { background: var(--design-surface); border-color: var(--design-control); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+}
+@media (forced-colors: active) {
+  .glass, .content-surface, .concept-race { background: Canvas !important; color: CanvasText !important; border: 1px solid CanvasText !important; -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+  .concept :is(.race-place, .race-meta span, .race-start > div > span), .primary-action { background: Canvas; color: CanvasText; }
+  [aria-current="page"] { outline: 2px solid Highlight; }
+}
