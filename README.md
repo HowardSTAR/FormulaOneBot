@@ -123,6 +123,11 @@ DATA_STORAGE_LOCATION=
 
 ## Дизайн: Apple Design Skill и WCAG 2.2 AA
 
+Три новые композиции главной для телефона и десктопа доступны в локальной
+галерее `/tests/home-glass-options.html` после запуска `npm run dev` из `front`.
+Варианты, применение Liquid Glass и результаты проверки описаны в
+[home-glass-options.md](docs/home-glass-options.md).
+
 Интерфейс развивается по [Apple Design Skill](https://github.com/dickwu/apple-design-skill)
 и с целевыми требованиями [WCAG 2.2 AA](https://www.w3.org/TR/WCAG22/).
 TurboTears использует React, TypeScript и HTML/CSS. Рекомендации HIG
