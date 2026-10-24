@@ -21,13 +21,11 @@ const render = nextRace => renderToStaticMarkup(React.createElement(MemoryRouter
   nextRace, schedule: [], userTz: 'UTC', loaded: true, onRetry() {},
 })));
 
-test('upcoming event is one named native link without a nested button or link', () => {
+test('upcoming event is informational without redundant navigation or a stretched card link', () => {
   const html = render(race);
-  assert.equal((html.match(/<a\b/g) || []).length, 1);
-  assert.match(html, /href="\/next-race"/);
-  assert.match(html, /aria-label="Уик-энд: Test Grand Prix"/);
-  assert.match(html, /<h2 id="home-race-title"><a\b/);
-  assert.doesNotMatch(html, /<button|Открыть уик-энд/);
+  assert.equal((html.match(/<a\b/g) || []).length, 0);
+  assert.match(html, /<h2 id="home-race-title">Test Grand Prix<\/h2>/);
+  assert.doesNotMatch(html, /<button|Открыть уик-энд|home-race-title-link/);
 });
 
 test('cancelled and completed seasons lead to the calendar; errors retain retry', () => {
@@ -37,4 +35,14 @@ test('cancelled and completed seasons lead to the calendar; errors retain retry'
     assert.doesNotMatch(html, /home-race--upcoming/);
   }
   assert.match(render({ status: 'error' }), /<button[^>]*>Повторить загрузку<\/button>/);
+});
+
+test('race headline contains the Grand Prix date and time rather than the earlier practice', () => {
+  const html = render({ ...race, race_start_utc: '2026-10-25T20:00:00Z', next_session_iso: '2026-10-23T17:30:00Z' });
+  assert.match(html, /class="home-race-date" dateTime="2026-10-25T20:00:00Z"/);
+  assert.match(html, /25 октября/);
+  assert.match(html, /<strong>20:00<\/strong>/);
+  const unknown = render({ ...race, date: '2026-10-25' });
+  assert.match(unknown, /Время старта уточняется/);
+  assert.doesNotMatch(unknown, /class="home-race-date"|<strong>00:00/);
 });

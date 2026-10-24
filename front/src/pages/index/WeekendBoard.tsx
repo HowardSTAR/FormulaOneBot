@@ -2,35 +2,45 @@ import { Link } from 'react-router-dom';
 import type { NextRaceResponse, SessionItem } from '../../context/HeroDataContext';
 import { formatTimezoneLabel } from '../../helpers/timezone';
 import { useVisibleClock } from '../../helpers/useVisibleClock';
-import { orderedSessions } from './home-session';
+import { orderedSessions, upcomingSession } from './home-session';
 import { HomeIcon } from './HomeIcon';
 
-export function WeekendBoard({ race, sessions, timezone, loaded }: {
-  race: NextRaceResponse | null; sessions: SessionItem[]; timezone: string; loaded: boolean;
+export function WeekendBoard({ race, sessions, timezone, loaded, onRetry }: {
+  race: NextRaceResponse | null; sessions: SessionItem[]; timezone: string; loaded: boolean; onRetry: () => void;
 }) {
   const now = useVisibleClock(30000);
-  const unavailable = race?.is_cancelled || race?.status === 'season_finished' || race?.status === 'error';
-  const rows = unavailable ? [] : orderedSessions(sessions);
-  const next = rows.find(session => Date.parse(session.utc_iso) > now);
+  const inactive = race?.is_cancelled || race?.status === 'season_finished';
+  const unavailable = inactive || race?.status === 'error';
+  const timed = orderedSessions(sessions);
+  const untimed = sessions.filter(session => !session.utc_iso || !Number.isFinite(Date.parse(session.utc_iso)));
+  const rows = unavailable ? [] : [...timed, ...untimed];
+  const next = upcomingSession(sessions, race, now);
   const details = race?.round ? `/next-race?season=${race.season}&round=${race.round}` : '/next-race';
-  return <section className="home-schedule home-panel" aria-labelledby="home-schedule-title">
-    <header className="home-section-head"><h2 id="home-schedule-title">Расписание</h2><Link to="/season" data-analytics-action="calendar_open">Календарь <span aria-hidden="true">↗</span></Link></header>
-    <p className="home-timezone">{formatTimezoneLabel(timezone)}</p>
-    <ol className="home-sessions">{rows.map(session => {
-      const date = new Date(session.utc_iso);
-      return <li key={`${session.name}:${session.utc_iso}`}><Link to={details} data-analytics-action="session_open" className={session === next ? 'is-next' : undefined}>
-        <span className="home-session-day"><strong>{date.toLocaleDateString('ru-RU', { timeZone: timezone, weekday: 'short' })}</strong><span>{date.toLocaleDateString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'short' }).replace(/\.$/, '')}</span></span>
-        <span className="home-session-name">{session.name}{session === next && <small>Следующая сессия</small>}</span><time dateTime={session.utc_iso}>{date.toLocaleTimeString('ru-RU', { timeZone: timezone, hour: '2-digit', minute: '2-digit' })}</time>
-      </Link></li>;
-    })}</ol>
-    {!rows.length && <p className="home-empty" role="status">{!loaded ? 'Загружаем расписание…' : race?.is_cancelled ? 'Этап отменён. Другие этапы — в календаре.' : race?.status === 'season_finished' ? 'Все этапы сезона завершены.' : race?.status === 'error' ? 'Не удалось загрузить расписание.' : 'Расписание пока не опубликовано.'}</p>}
-  </section>;
-}
-export function QuickAccess() {
-  const links = [
-    { to: '/race-results', icon: 'results', title: 'Результаты', text: 'Каждая сессия в деталях', action: 'results_open' },
-    { to: '/compare', icon: 'compare', title: 'Сравнение пилотов', text: 'Кто быстрее на дистанции', action: 'compare_open' },
-    { to: '/wiki', icon: 'wiki', title: 'Справочник', text: 'Ближе к пониманию гонок', action: 'wiki_open' },
-  ] as const;
-  return <nav className="home-explore" aria-label="Исследовать чемпионат">{links.map(item => <Link className="home-panel" key={item.to} to={item.to} data-analytics-action={item.action}><HomeIcon name={item.icon} /><span><strong>{item.title}</strong><small>{item.text}</small></span><span className="home-explore-arrow" aria-hidden="true">↗</span></Link>)}</nav>;
+  const status = !loaded ? 'Загружаем расписание…'
+    : race?.is_cancelled ? 'Этап отменён'
+    : race?.status === 'season_finished' ? 'Все этапы завершены'
+    : next?.utc_iso ? `${next.name} · ${new Date(next.utc_iso).toLocaleString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+    : rows.length ? 'Даты, время и все сессии этапа' : 'Расписание пока недоступно';
+
+  return <details className="home-schedule" key={`${race?.season}:${race?.round}:${race?.status}`}>
+    <summary><HomeIcon name="calendar" /><span><strong>Расписание уик-энда</strong><small>{status}</small></span><HomeIcon name="chevronDown" /></summary>
+    <div className="home-schedule-content">
+      <p className="home-timezone">Время на вашем устройстве: {formatTimezoneLabel(timezone)}</p>
+      <ol className="home-sessions">{rows.map((session, index) => {
+        const date = session.utc_iso && Number.isFinite(Date.parse(session.utc_iso)) ? new Date(session.utc_iso) : null;
+        const isNext = session.utc_iso === next?.utc_iso && session.name === next?.name;
+        return <li key={`${session.name}:${session.utc_iso}:${index}`}>
+          <Link to={details} data-analytics-action="session_open" className={isNext ? 'is-next' : undefined}>
+            <span className="home-session-name">{session.name}{isNext && <small>Ближайшая сессия</small>}</span>
+            {date ? <time dateTime={session.utc_iso}><span>{date.toLocaleDateString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'short' })}</span><strong>{date.toLocaleTimeString('ru-RU', { timeZone: timezone, hour: '2-digit', minute: '2-digit' })}</strong></time> : <span className="home-session-unconfirmed">Время уточняется</span>}
+          </Link>
+        </li>;
+      })}</ol>
+      {!rows.length && <div className="home-empty" role="status">
+        <p>{inactive ? 'Другие этапы и даты — в календаре сезона.' : !loaded ? 'Загружаем расписание…' : 'Подробное расписание пока недоступно. Попробуйте обновить данные.'}</p>
+        {loaded && !inactive && <button type="button" className="home-text-action" onClick={onRetry}>Обновить расписание</button>}
+        {inactive && <Link to="/season" className="home-text-action">Открыть календарь</Link>}
+      </div>}
+    </div>
+  </details>;
 }

@@ -1,0 +1,11 @@
+/* Hidden panels contribute intrinsic height without exposing focusable content. */
+.home-banner-stage { display: grid; min-width: 0; min-height: 20rem; }
+.home-banner-panel { grid-area: 1 / 1; min-width: 0; display: grid; visibility: hidden; pointer-events: none; }
+.home-banner-panel[data-active] { visibility: visible; pointer-events: auto; }
+.home-banner-panel > .home-section-hero { height: 100%; }
+.home-banner-panel > .home-spotlight { display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+/* The desktop uses the existing simultaneous race/favorites composition. */
+@media (min-width: 1200px) {
+  .home-screen[data-overview] .home-banner-stage, .home-screen[data-overview] .home-banner-panel[data-active] { display: contents; }
+  .home-screen[data-overview] .home-banner-panel:not([data-active]) { display: none; }
+}

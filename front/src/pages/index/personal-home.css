@@ -1,14 +1,6 @@
 .personal-home { min-width: 0; color: var(--design-ink); font-size: .875rem; line-height: 1.5; }
 .personal-home a { color: inherit; text-decoration: none; }
-.personal-home-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
-.personal-home-prediction { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; min-height: 52px; min-width: 0; padding: 4px 0; }
-.personal-home-prediction strong { font-size: .875rem; font-weight: 600; color: var(--design-accent); }
-.personal-home-prediction > span { color: var(--design-muted); font-size: .8125rem; overflow-wrap: anywhere; }
-.personal-home-prediction small { color: var(--design-accent); font-size: .75rem; }
-.personal-home .personal-home-urgent { border-left: 3px solid var(--design-accent); padding-left: 10px; }
-.personal-home-inbox, .personal-home-guest a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 10px; color: var(--design-ink); font-size: .8125rem; }
-.personal-home-inbox:hover { background: var(--design-tint); }
-.personal-home-inbox svg { flex-shrink: 0; }
+.personal-home-guest a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 10px; color: var(--design-ink); font-size: .8125rem; }
 .personal-home-details { margin-top: 4px; }
 .personal-home-details > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 8px 0; list-style: none; color: var(--design-muted); cursor: pointer; }
 .personal-home-details > summary::-webkit-details-marker { display: none; }
@@ -29,3 +21,30 @@
 .personal-home-guest { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0 12px; }
 .personal-home-guest > span { color: var(--design-muted); font-size: .8125rem; }
 .personal-home-guest a { color: var(--design-accent); padding-inline: 0; }
+
+/* The same full-background destinations as games, sized for the personal column. */
+.personal-destinations > ul { display: flex; flex-wrap: wrap; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.personal-destinations li { display: flex; flex: 1 1 8rem; min-width: 0; }
+.personal-destinations :is(.personal-destination--account, .personal-destination--community) { flex-basis: 100%; }
+.home-screen .personal-destination { flex: 1; min-height: 184px; }
+.home-screen .personal-destination--account > a { min-height: 176px; }
+.home-screen .personal-destination--community > a { min-height: 168px; }
+.personal-destination .home-media-caption { display: block; padding: 18px 16px; }
+.personal-destination > .home-media-enter { position: absolute; top: 12px; right: 12px; z-index: 1; width: 24px; height: 24px; }
+.personal-destination .home-media-caption strong { font-size: 1.125rem; }
+.personal-destination--account .home-media-caption strong, .personal-destination--community .home-media-caption strong { font-size: 1.375rem; }
+.personal-destination:hover::after { background: transparent; }
+.personal-destination:active .home-media-enter { color: var(--design-accent); }
+.personal-destination-preview { gap: 16px; color: var(--design-media-muted); }
+.personal-destination-preview--account { justify-content: flex-end; padding: 12px 24px; transform: rotate(-10deg); }
+.personal-destination-preview--account .home-preview-avatar { width: 112px; height: 112px; }
+.personal-destination-preview--account .home-preview-avatar + span { margin-left: -40px; transform: translateY(-24px); }
+.personal-destination-preview--reminders { align-items: flex-start; justify-content: flex-start; gap: 8px; padding: 16px; transform: rotate(-8deg); }
+.personal-destination-preview--reminders > span { display: grid; justify-items: center; gap: 12px; min-width: 64px; padding: 12px 8px; background: var(--design-media-bg); box-shadow: inset 0 1px 0 var(--design-control); border-radius: 12px; font-size: 1.5rem; font-weight: 650; }
+.personal-destination-preview--reminders svg { color: var(--design-profile-red); }
+.personal-destination-preview--results { align-items: flex-end; gap: 8px; padding: 16px 12px 32px; transform: rotate(8deg); }
+.personal-destination-preview--results > span { display: grid; place-items: start center; flex: 1; height: 60%; padding-top: 12px; border-radius: 12px 12px 0 0; background: var(--design-control); color: var(--design-media-bg); font-size: 2.25rem; font-weight: 650; }
+.personal-destination-preview--results > span:nth-child(2) { height: 90%; background: var(--design-profile-red); }
+.personal-destination-preview--results > span:last-child { height: 45%; }
+.personal-destination-preview--favorites { gap: 24px; transform: rotate(-10deg); }
+.personal-destination-preview--favorites > svg { width: 88px; height: 88px; color: var(--design-profile-red); }

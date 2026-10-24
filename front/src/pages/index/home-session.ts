@@ -13,6 +13,14 @@ export function upcomingSession(sessions: SessionItem[], race: NextRaceResponse 
   return utc_iso && Number.isFinite(Date.parse(utc_iso)) && Date.parse(utc_iso) > now
     ? { name: race.next_session_name || 'Гонка', utc_iso } : null;
 }
+/** The Grand Prix start must never fall back to a practice, sprint, or date-only midnight. */
+export function raceStart(sessions: SessionItem[], race: NextRaceResponse | null): string | null {
+  if (race?.is_cancelled || race?.status !== 'ok') return null;
+  const grandPrixStarts = sessions.filter(session => /^(гонка|race)$/i.test(session.name.trim())).map(session => session.utc_iso);
+  const candidates = [race.race_start_utc, ...grandPrixStarts,
+    /^(гонка|race)$/i.test(race.next_session_name?.trim() || '') ? race.next_session_iso : null, race.date];
+  return candidates.find((iso): iso is string => Boolean(iso && /T\d{2}:\d{2}.*(?:Z|[+-]\d{2}:\d{2})$/i.test(iso) && Number.isFinite(Date.parse(iso)))) || null;
+}
 export function countdownLabel(iso: string, now: number): string {
   const target = Date.parse(iso);
   if (!Number.isFinite(target)) return 'Время уточняется';

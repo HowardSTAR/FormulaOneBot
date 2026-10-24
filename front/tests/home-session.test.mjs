@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadTs } from './support/modules.mjs';
-const { orderedSessions, upcomingSession, countdownLabel } = await loadTs(new URL('../src/pages/index/home-session.ts', import.meta.url));
+const { orderedSessions, upcomingSession, countdownLabel, raceStart } = await loadTs(new URL('../src/pages/index/home-session.ts', import.meta.url));
 const now = Date.parse('2026-10-22T23:30:00Z');
 const race = { status: 'ok', next_session_iso: '2026-10-24T12:00:00Z', next_session_name: 'Гонка' };
 
@@ -24,4 +24,15 @@ test('countdowns round up at the last minute and handle midnight and invalid dat
   assert.equal(countdownLabel(new Date(now + 86400000).toISOString(), now), 'Через 1 д');
   assert.equal(countdownLabel(new Date(now - 1).toISOString(), now), 'Старт по расписанию');
   assert.equal(countdownLabel('bad', now), 'Время уточняется');
+});
+test('the headline shows the Grand Prix start, independently of the nearest practice or sprint', () => {
+  const start = '2026-10-25T20:00:00Z';
+  const sessions = [{ name: 'Практика 1', utc_iso: '2026-10-23T17:30:00Z' }, { name: 'Спринт', utc_iso: '2026-10-24T17:00:00Z' }, { name: 'Гонка', utc_iso: start }];
+  assert.equal(raceStart(sessions, { status: 'ok', next_session_name: 'Практика 1', next_session_iso: sessions[0].utc_iso }), start);
+  assert.equal(raceStart([], { status: 'ok', race_start_utc: start }), start);
+  assert.equal(raceStart([], { status: 'ok', next_session_name: 'Race', next_session_iso: start }), start);
+  assert.equal(raceStart([], { status: 'ok', race_start_utc: 'bad', date: start }), start);
+  assert.equal(raceStart([], { status: 'ok', next_session_name: 'Практика 1', next_session_iso: sessions[0].utc_iso, date: '2026-10-25' }), null);
+  assert.equal(raceStart([{ name: 'Гонка', utc_iso: '2026-10-25T20:00:00' }], { status: 'ok' }), null);
+  for (const state of [{ status: 'ok', is_cancelled: true }, { status: 'season_finished' }, { status: 'error' }, null]) assert.equal(raceStart(sessions, state), null);
 });

@@ -1,0 +1,68 @@
+@media (min-width: 900px) { .app-shell .home-screen .home-sections { display: none; } }
+
+/* On wide windows the race and all favorites form a simultaneous overview. */
+@media (min-width: 1200px) {
+  .home-screen[data-overview] { grid-template-columns: minmax(0, 1.55fr) minmax(19rem, 1fr); gap: 20px 24px; align-items: start; }
+  .home-screen[data-overview] .home-showcase, .home-screen[data-overview] .home-spotlight, .home-screen[data-overview] .home-spotlight-viewport { display: contents; }
+  .home-screen[data-overview] .home-spotlight-slide { min-width: 0; align-self: stretch; }
+  .home-screen[data-overview] .home-spotlight-slide:first-child { grid-column: 1; grid-row: 1 / span 2; }
+  .home-screen[data-overview] .home-spotlight-slide:nth-child(2) { grid-column: 2; grid-row: 1; }
+  .home-screen[data-overview] .home-spotlight-slide:nth-child(3) { grid-column: 2; grid-row: 2; }
+  .home-screen[data-overview] .home-spotlight-slide:nth-child(4) { grid-column: 2; grid-row: 3; }
+  .home-screen[data-overview] .home-spotlight-controls { display: none; }
+  .home-screen[data-overview] .home-weekend { grid-column: 1; grid-row: 3; }
+  .home-screen[data-overview] .home-championship { grid-column: 1; grid-row: 4 / span 2; margin-top: 0; }
+  .home-screen[data-overview] .home-personal-column { grid-column: 2; grid-row: 4 / span 2; display: flex; flex-direction: column; gap: 20px; align-self: start; margin-top: 0; }
+  .home-screen[data-overview] .personal-home { margin-top: 0; }
+  .home-screen[data-overview] .home-explore { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; align-self: stretch; }
+  /* Personal destinations form their own full-width band, below the standings. */
+  .home-screen[data-overview][data-account="member"] .home-championship { grid-column: 1 / -1; grid-row: 4; }
+  .home-screen[data-overview][data-account="member"] .home-personal-column { grid-column: 1 / -1; grid-row: 5; }
+  .home-screen[data-overview][data-account="member"] .home-explore { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .home-screen[data-overview] .personal-destinations > ul { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .home-screen[data-overview] .personal-destinations > ul:has(.personal-destination--favorites) { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .home-screen[data-overview] .personal-destinations > ul:has(.personal-destination--favorites) > li { grid-column: span 2; }
+  .home-screen[data-overview] .personal-destinations > ul:has(.personal-destination--favorites) > :is(.personal-destination--account, .personal-destination--reminders) { grid-column: span 3; }
+  .home-screen[data-overview] .personal-destination { min-height: 208px; }
+  .home-screen[data-overview]:not([data-section="season"]) { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+  .home-screen[data-overview] .home-section-hero { grid-column: 1 / -1; grid-row: 1; }
+  .home-screen[data-overview] .home-section-content { grid-column: 1 / -1; grid-row: 2; }
+  .home-screen[data-overview] .home-spotlight-slide > .home-race { height: 100%; min-height: 320px; }
+  .home-screen[data-overview] .home-race h2 { font-size: clamp(1.75rem, 2.3vw, 2.25rem); }
+  .home-screen[data-overview] .home-favorite-card { min-height: 142px; height: 100%; padding: 14px 8px; gap: 12px; grid-template-columns: minmax(0, 1fr) 88px; }
+  .home-screen[data-overview] .home-favorite-copy { height: 100%; }
+  .home-screen[data-overview] .home-favorite-kind { font-size: .6875rem; gap: 6px; }
+  .home-screen[data-overview] .home-favorite-kind svg { width: 14px; height: 14px; }
+  .home-screen[data-overview] .home-favorite-card h2 { font-size: 1.125rem; margin-top: 5px; line-height: 1.2; }
+  .home-screen[data-overview] .home-favorite-identity { gap: 10px; margin-top: 5px; }
+  .home-screen[data-overview] .home-favorite-identity h2 { margin-top: 0; }
+  .home-screen[data-overview] .home-favorite-team { margin-top: 3px !important; font-size: .75rem; }
+  .home-screen[data-overview] .home-favorite-stats { gap: 22px; margin: 6px 0 0; }
+  .home-screen[data-overview] .home-favorite-stats dt { font-size: .6875rem; }
+  .home-screen[data-overview] .home-favorite-stats dd { font-size: 1.5rem; }
+  .home-screen[data-overview] .home-favorite-watermark { bottom: 7%; left: 16%; width: 55%; }
+  .home-screen[data-overview] .home-favorite-card--team { display: block; min-height: 86px; }
+  .home-screen[data-overview] .home-favorite-card--team .home-favorite-copy { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; align-items: center; }
+  .home-screen[data-overview] .home-favorite-card--team .home-favorite-kind { grid-column: 1; }
+  .home-screen[data-overview] .home-favorite-card--team .home-favorite-team { display: none; }
+  .home-screen[data-overview] .home-favorite-card--team .home-favorite-identity { grid-column: 1; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 0; }
+  .home-screen[data-overview] .home-favorite-card--team .home-favorite-stats { grid-column: 2; grid-row: 1 / span 2; margin: 0; gap: 20px; }
+  .home-screen[data-overview] .home-favorite-card--team .home-favorite-error { grid-column: 1 / -1; }
+  .home-screen[data-overview] .home-team-logo { flex: 0 0 44px; width: 44px; height: 24px; }
+  .home-screen[data-overview] .home-team-car { position: absolute; inset: 0 10px 0 35%; opacity: .15; }
+  .home-screen[data-overview] .home-personalize { min-height: 320px; display: block; }
+  .home-screen[data-overview] .home-personalize h2 { font-size: 1.75rem; margin: 0; }
+  .home-screen[data-overview] .home-personalize .home-favorite-copy { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+  .home-screen[data-overview] .home-personalize-symbols { display: none; }
+  .home-screen[data-overview][data-account="guest"] .home-spotlight-slide:first-child { grid-row: 1; }
+  .home-screen[data-overview][data-account="guest"] .home-weekend { grid-row: 2; }
+  .home-screen[data-overview][data-account="guest"] .home-championship { grid-row: 3 / span 2; }
+  .home-screen[data-overview][data-account="guest"] .home-personal-column { grid-row: 2; margin-top: 0; }
+  .home-screen[data-overview] .home-sessions { display: block; }
+  .home-screen[data-overview] .home-sessions li + li { border-top: 1px solid var(--design-line); }
+  .home-screen[data-overview] .home-sessions a { flex-direction: row; align-items: center; min-height: 64px; gap: 12px; border: 0; padding: 10px 0; }
+  .home-screen[data-overview] .home-sessions a.is-next { margin-inline: -10px; padding-inline: 10px; }
+  .home-screen[data-overview] .home-sessions time { text-align: right; flex-shrink: 0; }
+  .home-screen[data-overview] .home-favorite-empty { min-height: 142px; display: flex; }
+  .home-screen[data-overview] .home-favorite-empty h2 { margin: 0; }
+}

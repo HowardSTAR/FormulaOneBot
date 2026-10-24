@@ -1,0 +1,92 @@
+.home-showcase { display: grid; min-width: 0; gap: 8px; }
+.home-spotlight { min-width: 0; }
+.home-spotlight-viewport { display: flex; align-items: stretch; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.home-spotlight-viewport::-webkit-scrollbar { display: none; }
+.home-spotlight-slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
+.home-spotlight-slide > .home-race { height: 100%; }
+.home-spotlight-controls { display: flex; align-items: center; justify-content: space-between; gap: 0; min-height: 48px; padding-inline: 8px; }
+.home-screen .home-spotlight-controls button { display: inline-grid; place-content: center; min-width: 44px; min-height: 44px; padding: 8px; border: 0; border-radius: 12px; background: transparent; color: var(--design-muted); }
+.home-screen .home-spotlight-controls button:hover:not(:disabled) { color: var(--design-accent); background: var(--design-tint); }
+.home-screen .home-spotlight-controls button:disabled { opacity: .35; cursor: default; }
+.home-spotlight-prev { display: inline-flex; transform: rotate(180deg); }
+.home-spotlight-pages { display: flex; }
+.home-spotlight-pages button > span { display: block; width: 7px; height: 7px; border-radius: 4px; background: var(--design-control); }
+.home-spotlight-pages button[aria-current] > span { width: 24px; background: var(--design-accent); }
+.home-favorite-card { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 24px; align-items: center; height: 100%; min-height: 320px; padding: 28px 8px; background: transparent; color: var(--design-ink); }
+.home-favorite-copy { min-width: 0; }
+.home-favorite-kind { display: flex; align-items: center; gap: 8px; color: var(--design-muted); font-size: .8125rem; }
+.home-favorite-kind .home-icon { width: 16px; height: 16px; }
+.home-screen .home-favorite-card h2 { margin-top: 10px; font-size: clamp(1.75rem, 3.4vw, 3rem); font-weight: 700; line-height: 1.1; }
+.home-favorite-team { margin-top: 8px !important; color: var(--design-muted); font-size: .875rem; }
+.home-favorite-stats { display: flex; gap: 36px; margin: 24px 0 12px; font-variant-numeric: tabular-nums; }
+.home-favorite-stats div { display: flex; flex-direction: column; }
+.home-favorite-stats dt { color: var(--design-muted); font-size: .75rem; }
+.home-favorite-stats dd { margin: 0; font-size: 2.5rem; line-height: 1.2; font-weight: 650; letter-spacing: -.03em; }
+.home-favorite-stats div:first-child dd { color: var(--design-accent); }
+.home-screen .home-favorite-card a { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; color: var(--design-ink); font-size: .8125rem; }
+.home-favorite-card a svg { width: 16px; height: 16px; }
+.home-screen .home-favorite-card a:hover { color: var(--design-accent); }
+.home-spotlight-art { position: relative; display: grid; place-items: center; align-self: stretch; min-width: 0; background: var(--design-glass-sheen), var(--design-tint); border-radius: 12px; overflow: hidden; box-shadow: inset 0 1px 0 var(--design-glass-edge); }
+.home-spotlight-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.home-spotlight-monogram { color: var(--design-accent); font-size: clamp(2rem, 7vw, 6rem); font-weight: 750; letter-spacing: -.04em; line-height: 1; }
+.home-favorite-empty { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; }
+.home-screen .home-favorite-empty h2 { margin: 0; font-size: 1.5rem; }
+.home-favorite-empty p { max-width: 45ch; font-size: .9375rem; color: var(--design-muted); }
+/* A readable material for content; glass belongs to the controls above it. */
+.home-favorite-error { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin-top: 12px; font-size: .75rem; color: var(--design-muted); }
+
+.home-screen .home-personalize h2 { margin: 0; max-width: 16ch; }
+.home-screen .home-personalize p { max-width: 38ch; margin: 16px 0 20px; color: var(--design-muted); font-size: .9375rem; text-wrap: pretty; }
+.home-personalize-symbols { display: flex; justify-content: center; align-items: center; min-width: 0; isolation: isolate; }
+.home-personalize-symbols span { display: grid; place-items: center; width: 92px; height: 112px; border-radius: 20px; background: var(--design-glass-sheen), var(--design-tint); box-shadow: 0 12px 24px rgb(0 0 0 / 10%), inset 0 1px 0 var(--design-glass-edge); color: var(--design-accent); }
+.home-personalize-symbols span + span { margin-left: -30px; }
+.home-personalize-symbols span:first-child { transform: rotate(-12deg) translateY(12px); }
+.home-personalize-symbols span:last-child { transform: rotate(12deg) translateY(12px); z-index: -1; }
+.home-personalize-symbols svg { width: 40px; height: 40px; }
+@media (max-width: 899px) {
+  .home-favorite-card { min-height: 232px; padding: 16px 8px; gap: 16px; grid-template-columns: minmax(0, 1.3fr) minmax(0, .7fr); }
+  .home-screen .home-favorite-card h2 { font-size: clamp(1.25rem, 4vw, 1.75rem); margin-top: 8px; }
+  .home-favorite-kind { font-size: .6875rem; gap: 6px; }
+  .home-favorite-team { font-size: .75rem; margin-top: 4px !important; }
+  .home-favorite-stats { gap: 24px; margin: 12px 0 8px; }
+  .home-favorite-stats dd { font-size: 1.75rem; }
+  .home-favorite-stats dt { font-size: .6875rem; }
+  .home-spotlight-art { max-height: none; }
+  .home-spotlight-controls { padding: 4px 0; }
+  .home-personalize { grid-template-columns: minmax(0, 1fr); }
+  .home-personalize-symbols { display: none; }
+  .home-screen .home-personalize p { margin: 10px 0 14px; font-size: .8125rem; max-width: 38ch; }
+  .home-screen .home-personalize h2 { font-size: 1.5rem; }
+  .home-spotlight-monogram { font-size: clamp(2rem, 8vw, 3.5rem); }
+  .home-screen .home-favorite-card a { font-size: .75rem; gap: 6px; }
+}
+@media (max-width: 24em) {
+  .home-favorite-card { gap: 10px; }
+  .home-favorite-card a { flex-wrap: wrap; }
+}
+@media (forced-colors: active) { .home-spotlight-pages button[aria-current] > span { background: Highlight; } }
+/* Reserve distinct space for team identity, data and the complete car silhouette. */
+.home-favorite-card { position: relative; isolation: isolate; overflow: hidden; }
+.home-favorite-copy { position: relative; z-index: 1; }
+.home-favorite-identity { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; min-width: 0; margin-top: 10px; }
+.home-screen .home-favorite-identity h2 { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.home-team-logo { display: grid; place-items: center; width: 64px; height: 28px; }
+.home-team-logo-image { display: block; width: 100%; height: 100%; object-fit: contain; filter: brightness(0); }
+.home-team-logo .home-spotlight-monogram { font-size: 1.25rem; }
+.home-favorite-watermark { position: absolute; pointer-events: none; z-index: 0; left: 18%; bottom: 12%; width: 42%; height: 66%; opacity: .07; }
+.home-favorite-watermark img { width: 100%; height: 100%; object-fit: contain; filter: brightness(0); }
+.home-favorite-card--team { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(3.5rem, 1fr); }
+.home-favorite-card--team .home-favorite-copy { grid-row: 1; width: 100%; }
+.home-team-car { position: relative; grid-row: 2; align-self: stretch; min-width: 0; min-height: 0; pointer-events: none; z-index: 0; }
+.home-team-car img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center; }
+:root[data-theme="dark"] .home-team-logo-image, :root[data-theme="dark"] .home-favorite-watermark img { filter: brightness(0) invert(1); }
+@media (max-width: 899px) {
+  .home-favorite-identity { gap: 12px; margin-top: 8px; }
+  .home-team-logo { width: 56px; height: 28px; }
+  .home-favorite-watermark { left: 17%; bottom: 15%; width: 48%; height: 60%; }
+}
+@media (prefers-contrast: more), (forced-colors: active) { .home-favorite-watermark, .home-team-car { display: none; } }
+
+/* Names are the destination, without a second control over the artwork. */
+.home-screen .home-favorite-card h2 .home-favorite-name { display: inline; min-height: 0; padding-block: 12px; font: inherit; line-height: inherit; }
+.home-screen .home-favorite-card h2 .home-favorite-name:hover { text-decoration: underline; text-underline-offset: 4px; }

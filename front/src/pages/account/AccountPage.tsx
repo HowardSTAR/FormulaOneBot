@@ -113,7 +113,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
     if (user && returnParams.get('returnTo') === 'leagues') navigate(`/predictions?tab=leagues${window.location.hash}`, {replace: true});
     if (user && returnParams.get('returnTo') === 'community') navigate('/community', {replace: true});
   }, [user, returnParams, navigate]);
-  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">(() => returnParams.get("mode") === "register" ? "register" : "login");
   const [registration, setRegistration] = useState<RegistrationProfile>({
     display_name: '', avatar: defaultAvatar, favorite_drivers: [], favorite_teams: [],
   });
