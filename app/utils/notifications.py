@@ -53,7 +53,7 @@ from app.f1_data import (
     get_driver_full_name_async,
     set_cached_quali_results,
 )
-from app.services.delivery_adapters import queued_message as safe_send_message, queued_photo as safe_send_photo
+from app.services.delivery_adapters import queued_message as safe_send_message, queued_photo as safe_send_photo, queued_illustrated_message
 from app.utils.image_render import create_f1_style_classification_image
 
 logger = logging.getLogger(__name__)
@@ -217,6 +217,12 @@ async def get_users_with_settings(notifications_only: bool = False):
 
 # --- ЗАДАЧА 1: АНОНСЫ (ГОНКИ И ТЕСТЫ) ---
 
+async def _queue_reminder(bot, chat_id, text, photos, **options):
+    if photos:
+        return await queued_illustrated_message(bot, chat_id, text, photos=photos, **options)
+    return await safe_send_message(bot, chat_id, text, **options)
+
+
 async def check_and_send_notifications(bot: Bot):
     season = datetime.now(timezone.utc).year
     schedule = await get_season_schedule_short_async(season)
@@ -291,6 +297,16 @@ async def check_and_send_notifications(bot: Bot):
     # Окно ±1 мин от целевого времени, чтобы не слать «за 32 мин» вместо «за 30»
     half_window = 1.0
 
+    # Share a fresh snapshot and its rendered artwork across this tick's audience.
+    # The next interval/tick gets new standings, including completed Sprint points.
+    prepared = {}
+    async def prepare(race, kind):
+        from app.services.championship_notifications import prepare_reminder
+        key = (id(race), kind)
+        if key not in prepared:
+            prepared[key] = await prepare_reminder(race, season, kind, schedule=schedule)
+        return prepared[key]
+
     sent_count = 0
     for user in users:
         try:
@@ -321,6 +337,7 @@ async def check_and_send_notifications(bot: Bot):
                         if await was_reminder_sent(tg_id, season, round_num, is_quali_key, notify_key):
                             continue
 
+                    race, photos = await prepare(race, event_kind)
                     if race.get("is_testing"):
                         text = (
                             f"🧪 Предсезонные тесты!\n\n"
@@ -329,21 +346,19 @@ async def check_and_send_notifications(bot: Bot):
                             f"Не забудьте следить за результатами!"
                         )
                     else:
-                        if event_kind in {'race', 'sprint'}:
-                            from app.services.championship import enrich_event
-                            race = await enrich_event(race, season, phase='race' if event_kind == 'race' else 'weekend', schedule=schedule)
                         text = get_notification_text(race, tz, mins, event_kind=event_kind)
 
                     quiet = is_quiet_hours(tz)
                     extra = {}
                     if race.get('championship', {}).get('drivers') or race.get('championship', {}).get('constructors'):
                         extra['reply_markup'] = await mini_app_button(bot, '🏆 Все условия титула', '/predictions', tab='form', championship=1)
-                    if await safe_send_message(bot, tg_id, text, disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num}:{event_kind}:{notify_min}', expires=datetime.now(timezone.utc).timestamp()+max(0,mins)*60, **extra):
+                    if await _queue_reminder(bot, tg_id, text, photos, parse_mode="HTML", disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num}:{event_kind}:{notify_min}', expires=datetime.now(timezone.utc).timestamp()+max(0,mins)*60, **extra):
                         sent_count += 1
                         if round_num is not None:
                             await set_reminder_sent(tg_id, season, round_num, is_quali_key, notify_key)
                     await asyncio.sleep(0.05)
         except Exception:
+            logger.exception('Could not queue event reminder')
             continue
 
     # === Рассылка в группы (общая информация, без избранного) — один раз на группу ===
@@ -356,18 +371,19 @@ async def check_and_send_notifications(bot: Bot):
             if abs(mins - GROUP_NOTIFY_BEFORE) <= half_window:
                 round_num_g = race.get("round")
                 is_quali_key, notify_key = _event_reminder_key(event_kind, GROUP_NOTIFY_BEFORE)
-                if event_kind in {'race', 'sprint'}:
-                    from app.services.championship import enrich_event
-                    race = await enrich_event(race, season, phase='race' if event_kind == 'race' else 'weekend', schedule=schedule)
+                recipients = []
+                for chat_id in group_chats:
+                    group_key = -abs(int(chat_id)) if round_num_g is not None else None
+                    if group_key is not None and await was_reminder_sent(group_key, season, round_num_g, is_quali_key, notify_key):
+                        continue
+                    recipients.append((chat_id, group_key))
+                if not recipients:
+                    continue
+                race, photos = await prepare(race, event_kind)
                 text = get_notification_text(race, GROUP_TIMEZONE, mins, event_kind=event_kind, for_group=True)
                 quiet = is_quiet_hours(GROUP_TIMEZONE)
-                for chat_id in group_chats:
-                    group_key = None
-                    if round_num_g is not None:
-                        group_key = -abs(int(chat_id))
-                        if await was_reminder_sent(group_key, season, round_num_g, is_quali_key, notify_key):
-                            continue
-                    if await safe_send_message(bot, chat_id, text, parse_mode="HTML", disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num_g}:{event_kind}:{GROUP_NOTIFY_BEFORE}', expires=datetime.now(timezone.utc).timestamp()+max(0,mins)*60):
+                for chat_id, group_key in recipients:
+                    if await _queue_reminder(bot, chat_id, text, photos, parse_mode="HTML", disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num_g}:{event_kind}:{GROUP_NOTIFY_BEFORE}', expires=datetime.now(timezone.utc).timestamp()+max(0,mins)*60):
                         sent_count += 1
                         if group_key is not None:
                             await set_reminder_sent(group_key, season, round_num_g, is_quali_key, notify_key)
