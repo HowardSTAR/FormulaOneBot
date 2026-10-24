@@ -4,6 +4,16 @@ For interface changes, apply [Apple Design Skill](https://github.com/dickwu/appl
 and use WCAG 2.2 AA as the accessibility target. Read the skill and relevant HIG
 references before making a new design decision; translate their principles to
 React and the web. Preserve TurboTears branding and existing product behavior.
+Also apply `web-design-guidelines`, `frontend-design`, and `impeccable`, installed
+under `$CODEX_HOME/skills/<skill-name>/SKILL.md` (normally `~/.codex/skills/`).
+Use web-design-guidelines for web interaction/accessibility review,
+frontend-design for subject-specific composition, and Impeccable for scoped
+critique, simplification and polish. The user's request for a usable, modular,
+uncluttered interface takes priority over decorative skill suggestions.
+After each meaningful batch of interface changes, review the affected surface
+against these skills and inspect desktop and mobile renders before reporting it
+complete. Keep the checks scoped; do not expand into real race-data validation
+when the task is visual design.
 Use the installed `apple-design` skill at `$CODEX_HOME/skills/apple-design/SKILL.md`
 (normally `~/.codex/skills/apple-design/SKILL.md`). Route topics with its
 `references/hig-lookup.md` and read the relevant HIG files before reviewing.
