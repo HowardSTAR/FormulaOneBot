@@ -40,11 +40,11 @@ async function checkCard(page) {
   }
 }
 async function replayGuide(page, width) {
-  if (width < 768) {
-    await page.getByRole('button', { name: 'Меню', exact: true }).click();
-    const section = page.locator('.mobile-menu-dialog section').filter({ has: page.getByRole('heading', { name: 'Справка и аккаунт', exact: true }) });
+  if (width < 900) {
+    await page.getByRole('link', { name: 'Меню', exact: true }).filter({ visible: true }).click();
+    const section = page.locator('.menu-page section').filter({ has: page.getByRole('heading', { name: 'Справка и аккаунт', exact: true }) });
     await section.getByRole('button', { name: 'Короткое знакомство', exact: true }).click();
-    await page.locator('.mobile-menu-dialog').waitFor({ state: 'hidden' });
+    await page.locator('.menu-page').waitFor({ state: 'hidden' });
   } else {
     const header = page.locator('.app-header');
     const help = header.getByRole('button', { name: 'Помощь', exact: true });

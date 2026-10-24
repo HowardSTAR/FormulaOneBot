@@ -1,0 +1,22 @@
+.menu-page { color: var(--design-ink); line-height: 1.5; }
+.menu-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+.menu-page h1 { margin: 0; color: inherit; font-size: 1.75rem; font-weight: 650; letter-spacing: -.03em; }
+.menu-page-heading button { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; padding: 8px 0 8px 12px; border: 0; background: transparent; color: var(--design-muted); font: inherit; font-size: .875rem; cursor: pointer; }
+.menu-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 28px 40px; }
+.menu-sections section { min-width: 0; }
+.menu-page h2 { margin: 0 0 8px; color: var(--design-muted); font-size: .8125rem; font-weight: 550; letter-spacing: 0; text-transform: none; }
+.menu-sections ul { margin: 0; padding: 0; list-style: none; }
+.menu-sections li + li { border-top: 1px solid var(--design-line); }
+.menu-sections :is(a, button) { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 12px 0; border: 0; border-radius: 0; background: transparent; color: var(--design-ink); font: inherit; font-size: .9375rem; text-align: left; text-decoration: none; cursor: pointer; box-sizing: border-box; }
+.menu-sections :is(a, button) > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.menu-sections :is(a, button) > svg:last-child { width: 16px; color: var(--design-muted); }
+.app-shell .menu-page .menu-sections a { color: var(--design-ink); }
+.app-shell .menu-page :is(a, button):hover { color: var(--design-accent); }
+.menu-page :is(a, button):active { background: var(--design-tint); }
+.menu-project { margin-top: 32px; border-top: 1px solid var(--design-line); }
+.menu-project > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; color: var(--design-muted); font-size: .875rem; cursor: pointer; list-style: none; }
+.menu-project > summary::-webkit-details-marker { display: none; }
+.menu-project[open] > summary svg { transform: rotate(180deg); }
+.app-shell.design-shell .menu-project .legal-footer { margin-top: 0; border: 0; padding-top: 8px; }
+.menu-page :is(a, button, summary):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
+@media (max-width: 699px) { .menu-sections { grid-template-columns: minmax(0, 1fr); gap: 24px; } }

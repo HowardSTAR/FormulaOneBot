@@ -3,17 +3,16 @@
 .app-shell.design-shell.glass-home { --home-toolbar-space: 6rem; }
 html:has(.glass-home) { scroll-padding-top: 0; }
 .glass-home #page-content { scroll-margin-top: var(--home-toolbar-space); }
-.glass-home #page-content :is(a, button, summary) { scroll-margin-block: var(--home-toolbar-space) 7rem; }
+.glass-home #page-content :is(a, button, summary) { scroll-margin-block: var(--home-toolbar-space) 24px; }
 .app-shell.design-shell.glass-home .app-content { padding-top: 20px !important; }
 .glass-home .home-toolbar {
-  position: sticky; top: calc(16px + env(safe-area-inset-top, 0px)); z-index: 110;
-  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px;
+  position: sticky; top: calc(16px + var(--app-safe-top, 0px)); z-index: 110;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px;
   margin-bottom: 28px; min-height: 64px; border-radius: 24px;
   color: var(--design-ink); font-size: .875rem;
 }
 .app-shell.design-shell.glass-home .app-header,
-.glass-home .home-toolbar,
-#root .app-shell.design-shell.glass-home .mobile-primary-nav {
+.glass-home .home-toolbar {
   background: var(--design-surface) !important;
   border: 1px solid var(--design-line) !important;
   box-shadow: var(--design-glass-shadow) !important;
@@ -30,8 +29,7 @@ html:has(.glass-home) { scroll-padding-top: 0; }
 .app-shell.design-shell.glass-home .app-header-link.active { color: var(--design-accent) !important; }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .app-shell.design-shell.glass-home .app-header,
-  .glass-home .home-toolbar,
-  #root .app-shell.design-shell.glass-home .mobile-primary-nav {
+  .glass-home .home-toolbar {
     background: var(--design-glass-fill) !important;
     border-color: var(--design-glass-edge) !important;
     -webkit-backdrop-filter: blur(24px) saturate(1.3);
@@ -46,18 +44,15 @@ html:has(.glass-home) { scroll-padding-top: 0; }
 }
 @media (max-width: 899px) {
   /* The toolbar replaces the mobile header, rather than stacking two bars. */
-  .app-shell.design-shell.glass-home { --home-toolbar-space: calc(7rem + env(safe-area-inset-top, 0px)); }
+  .app-shell.design-shell.glass-home { --home-toolbar-space: calc(7rem + var(--app-safe-top, 0px)); }
   #root .root:has(.glass-home) { padding: 0; }
   .app-shell.design-shell.glass-home .app-header { display: none !important; }
-  .app-shell.design-shell.glass-home .app-content { padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important; padding-left: max(16px, env(safe-area-inset-left, 0px)) !important; padding-right: max(16px, env(safe-area-inset-right, 0px)) !important; }
-  .glass-home .home-toolbar { gap: 8px; top: calc(8px + env(safe-area-inset-top, 0px)); margin-bottom: 24px; border-radius: 22px; }
-  .home-toolbar-brand { display: flex; align-items: center; flex-wrap: wrap; min-width: 0; min-height: 44px; line-height: 1.25; }
+  .app-shell.design-shell.glass-home .app-content { padding-top: calc(12px + var(--app-safe-top, 0px)) !important; padding-left: calc(16px + var(--app-safe-left, 0px)) !important; padding-right: calc(16px + var(--app-safe-right, 0px)) !important; }
+  .glass-home .home-toolbar { gap: 8px; top: calc(8px + var(--app-safe-top, 0px)); margin-bottom: 24px; border-radius: 22px; }
+  .home-toolbar-brand { display: flex; align-items: center; min-width: 0; min-height: 44px; line-height: 1.25; }
   .home-toolbar-actions { flex-shrink: 0; gap: 4px; }
   .glass-home .home-toolbar .account-shortcut { padding: 10px; min-width: 44px; }
   .glass-home .home-toolbar .account-shortcut span { display: none; }
-  #root .app-shell.design-shell.glass-home .mobile-primary-nav { left: calc(12px + env(safe-area-inset-left, 0px)); right: calc(12px + env(safe-area-inset-right, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); border-radius: 24px; padding: 6px; gap: 2px; }
-  .app-shell.design-shell.glass-home .mobile-primary-nav :is(a, button) { color: var(--design-glass-muted); border-radius: 18px; min-height: 56px; }
-  .app-shell.design-shell.glass-home .mobile-primary-nav .active { color: var(--design-accent); background: var(--design-tint); }
 }
 @media (max-width: 439px) {
   .glass-home .home-toolbar .theme-toggle { min-width: 44px; padding-inline: 10px; }
@@ -65,8 +60,7 @@ html:has(.glass-home) { scroll-padding-top: 0; }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
   .app-shell.design-shell.glass-home .app-header,
-  .glass-home .home-toolbar,
-  #root .app-shell.design-shell.glass-home .mobile-primary-nav {
+  .glass-home .home-toolbar {
     background: var(--design-surface) !important;
     border-color: var(--design-control) !important;
     -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none !important;
@@ -74,6 +68,20 @@ html:has(.glass-home) { scroll-padding-top: 0; }
 }
 @media (forced-colors: active) {
   .app-shell.design-shell.glass-home .app-header,
-  .glass-home .home-toolbar,
-  #root .app-shell.design-shell.glass-home .mobile-primary-nav { background: Canvas !important; border-color: CanvasText !important; }
+  .glass-home .home-toolbar { background: Canvas !important; border-color: CanvasText !important; }
+}
+
+@media (max-width: 359px) {
+  .glass-home .home-toolbar { padding-inline: 8px; }
+  .home-toolbar-brand { font-size: 1rem; }
+}
+
+/* Icon controls free the toolbar for profile and an always-visible inbox. */
+.glass-home .home-toolbar .theme-toggle { min-width: 44px; width: 44px; padding-inline: 0; }
+@media (min-width: 900px) {
+  .app-shell.design-shell .account-shortcut-bar { position: sticky; top: 16px; z-index: 110; width: fit-content; margin-left: auto; padding: 8px; border-radius: 24px; background: var(--design-surface); border: 1px solid var(--design-line); }
+}
+@media (max-width: 899px) {
+  .glass-home .home-toolbar .menu-shortcut { display: none; }
+  .home-toolbar-actions { gap: 4px; }
 }

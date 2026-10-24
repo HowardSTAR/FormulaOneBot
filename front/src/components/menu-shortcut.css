@@ -1,0 +1,5 @@
+.menu-shortcut { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 8px; border-radius: 12px; color: var(--design-ink); font-size: .8125rem; font-weight: 550; text-decoration: none; }
+.menu-shortcut:hover, .menu-shortcut:active, .menu-shortcut[aria-current] { background: var(--design-tint); color: var(--design-accent); }
+.menu-shortcut:focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
+@media (max-width: 359px) { .menu-shortcut > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } }
+@media (min-width: 900px) { .menu-shortcut { display: none; } }

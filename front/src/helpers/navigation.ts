@@ -1,7 +1,8 @@
 import type { AuthState } from './auth';
 import type { HomeIconName } from '../pages/index/HomeIcon';
+import { homeSections, homeSectionFromSearch, homeSectionPath, type HomeSection } from './homeSections.ts';
 
-export type NavigationItem = { to: string; label: string; icon: HomeIconName; activePaths: string[]; access?: 'signedIn' | 'personalized' | 'admin' };
+export type NavigationItem = { to: string; label: string; icon: HomeIconName; activePaths: string[]; homeView?: HomeSection; access?: 'signedIn' | 'personalized' | 'admin' };
 export type NavigationAction = { id: 'onboarding'; label: string; icon: HomeIconName };
 export type NavigationGroup = { id: string; label: string; icon: HomeIconName; items: NavigationItem[]; actions?: NavigationAction[] };
 export type NavigationSection = { id: string; label: string; items: (NavigationItem | NavigationGroup)[] };
@@ -31,19 +32,27 @@ const groups: NavigationGroup[] = [
   { id: 'comparison', label: 'Сравнение', icon: 'compare', items: [item('/compare', 'Сравнение пилотов', 'compare'), item('/history', 'История сезонов', 'history')] },
   { id: 'games', label: 'Игры', icon: 'games', items: [item('/reaction-game', 'Тест реакции', 'reaction'), item('/reflex-grid-game', 'Reflex Grid', 'grid'), item('/race-game', 'Emerald Loop', 'arcade')] },
 ];
-const [results, peloton, comparison, games] = groups;
+const [results, peloton, comparison] = groups;
+const desktopHome = (id: HomeSection, paths: string[] = []): NavigationItem => {
+  const section = homeSections.find(section => section.id === id)!;
+  return { ...item(homeSectionPath(id), section.label, section.icon, paths), homeView: id };
+};
 const desktopSections: NavigationSection[] = [
-  { id: 'racing', label: 'Гонки', items: [home, weekend, calendar, results, peloton] },
+  { id: 'home', label: 'Главная', items: [
+    desktopHome('season'), desktopHome('games', ['/reaction-game', '/reflex-grid-game', '/race-game']),
+    desktopHome('guide', ['/wiki']), desktopHome('subscription'),
+  ] },
+  { id: 'racing', label: 'Гонки', items: [weekend, calendar, results, peloton] },
   { id: 'statistics', label: 'Прогнозы и статистика', items: [predictions, comparison] },
   { id: 'community', label: 'Сообщество', items: [
-    { id: 'social', label: 'С друзьями', icon: 'social', items: [{ ...community, label: 'Сообщество' }, voting] }, games,
+    { id: 'social', label: 'С друзьями', icon: 'social', items: [{ ...community, label: 'Сообщество' }, voting] },
   ] },
   { id: 'personal', label: 'Личное и справка', items: [
     { id: 'personal', label: 'Мой профиль', icon: 'account', items: [
       item('/profile', 'Профиль', 'account', undefined, 'signedIn'), item('/account', 'Аккаунт', 'account'),
       item('/favorites', 'Избранное', 'favorite', undefined, 'personalized'), notifications,
       item('/settings', 'Настройки', 'settings', undefined, 'signedIn'),
-    ] }, wiki,
+    ] },
     { id: 'help', label: 'Помощь', icon: 'help', items: [feedback], actions: [{ id: 'onboarding', label: 'Короткое знакомство', icon: 'wiki' }] },
   ] },
 ];
@@ -51,7 +60,7 @@ const management: NavigationGroup = { id: 'management', label: 'Управлен
 
 // Section entry points never need an in-page back button. Detail routes still do.
 const sectionRoots = new Set([
-  '/', '/next-race', '/account', '/settings', '/favorites',
+  '/', '/menu', '/next-race', '/account', '/settings', '/favorites',
   ...[...primary, ...general, ...personal, ...groups.flatMap(group => group.items)].map(link => link.to),
 ]);
 export const isSectionRoot = (pathname: string) => sectionRoots.has(pathname.replace(/\/+$/, '') || '/');
@@ -70,4 +79,7 @@ export function navigationFor(auth: Pick<AuthState, 'signedIn' | 'personalized' 
     management: filteredManagement.items.length ? filteredManagement : null,
   };
 }
-export const navigationActive = (item: NavigationItem, pathname: string) => item.activePaths.some(path => pathname === path || path !== '/' && pathname.startsWith(`${path}/`));
+export const navigationActive = (item: NavigationItem, pathname: string, search = '') => {
+  if (item.homeView && pathname === '/') return item.homeView === homeSectionFromSearch(search);
+  return item.activePaths.some(path => pathname === path || path !== '/' && pathname.startsWith(`${path}/`));
+};

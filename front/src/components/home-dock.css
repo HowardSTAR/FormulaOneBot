@@ -1,0 +1,46 @@
+.home-dock { display: none; }
+@media (max-width: 899px) {
+  .home-dock { position: fixed; z-index: 120; bottom: calc(12px + var(--app-safe-bottom, 0px)); left: calc(16px + var(--app-safe-left, 0px)); right: calc(16px + var(--app-safe-right, 0px)); display: grid; gap: 10px; max-width: 420px; margin-inline: auto; color: var(--design-ink); }
+  .home-dock .home-dock-nav { display: grid; width: 100%; }
+  .home-dock-card { max-height: 32dvh; overflow-y: auto; overscroll-behavior: contain; padding: 8px; border-radius: 24px; border: 1px solid var(--home-control-edge); background: var(--home-control-sheen), var(--home-control-fill); box-shadow: var(--home-control-shadow); -webkit-backdrop-filter: var(--home-control-blur); backdrop-filter: var(--home-control-blur); }
+  .home-dock-card-heading { display: flex; align-items: flex-start; gap: 2px; }
+  .home-dock-copy { flex: 1; min-width: 0; display: grid; gap: 3px; padding: 6px 8px; min-height: 44px; color: var(--design-ink); text-decoration: none; overflow-wrap: anywhere; }
+  .home-dock-copy strong { font-size: .8125rem; font-weight: 650; line-height: 1.3; }
+  .home-dock-copy small { font-size: .6875rem; line-height: 1.4; color: var(--design-muted); }
+  .home-dock-card--update { padding: 4px; border-radius: 20px; }
+  .home-dock-card--update .home-dock-card-heading { align-items: center; }
+  .home-dock-card--update .home-dock-copy { gap: 2px; padding: 4px 10px; }
+  .home-dock :is(button, a) { touch-action: manipulation; -webkit-tap-highlight-color: var(--design-tint); }
+  .home-dock :is(.home-dock-next, .home-dock-close) { flex: 0 0 44px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--design-muted); cursor: pointer; }
+  .home-dock :is(button, a):focus-visible { outline: 3px solid var(--design-focus); outline-offset: -3px; }
+  .home-dock :is(.home-dock-next, .home-dock-close):hover, .home-dock-copy:hover { background: var(--design-tint); color: var(--design-accent); }
+  .home-dock-stars { position: relative; display: grid; grid-template-columns: repeat(5, minmax(44px, 1fr)); padding-inline: 4px; }
+  .home-dock-stars button { display: grid; place-items: center; min-width: 44px; min-height: 44px; border: 0; border-radius: 14px; background: transparent; color: var(--design-control); cursor: pointer; }
+  .home-dock-stars button > svg { width: 30px; height: 30px; fill: currentColor; stroke-width: 1.2; transition: transform 140ms ease-out, color 140ms ease-out; }
+  .home-dock-stars .is-filled { color: var(--design-profile-gold); }
+  .home-dock-stars .is-filled > svg { stroke: var(--design-rating-outline); }
+  .home-dock-stars button:disabled { cursor: wait; }
+  .home-dock-stars button:hover:not(:disabled) { color: var(--design-profile-gold); }
+  .home-dock-stars button:active:not(:disabled) > svg { transform: scale(.88); }
+  .home-dock-stars[data-celebrate] .is-filled > svg { animation: dock-star-pop 520ms cubic-bezier(.16, 1, .3, 1); }
+  .home-dock-sparkles { position: absolute; inset: 0; pointer-events: none; color: var(--design-profile-gold); }
+  .home-dock-sparkles i { position: absolute; left: 46%; top: 25%; font-style: normal; animation: dock-star-spark 650ms ease-out both; }
+  .home-dock-sparkles svg { width: 12px; height: 12px; fill: currentColor; }
+  .home-dock-sparkles i:nth-child(2) { left: 25%; top: 5%; animation-delay: 40ms; }
+  .home-dock-sparkles i:last-child { left: 72%; top: 30%; animation-delay: 80ms; }
+  .home-dock-account { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-inline: 8px; color: var(--design-accent); font-size: .8125rem; text-decoration: none; }
+  .home-dock-feedback { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .home-dock-error { margin: 4px 8px; font-size: .75rem; color: var(--design-ink); }
+  .app-shell:has(.home-dock) .app-content { padding-bottom: calc(var(--home-dock-space, 200px) + var(--app-safe-bottom, 0px) + 24px) !important; }
+  html:has(.home-dock) { scroll-padding-bottom: calc(var(--home-dock-space, 200px) + var(--app-safe-bottom, 0px)); }
+  .app-shell:has(.home-dock) #page-content :is(a, button, summary, input, textarea, select) { scroll-margin-bottom: calc(var(--home-dock-space, 200px) + 24px); }
+  html:has(.home-dock) button.scroll-to-top.scroll-to-top { bottom: calc(var(--home-dock-space, 200px) + var(--app-safe-bottom, 0px) + 12px); }
+  .app-shell:has(.home-dock) .settings-save-bar { bottom: calc(var(--home-dock-space, 200px) + var(--app-safe-bottom, 0px)); }
+  .app-shell:has(.home-dock) .menu-shortcut { display: none; }
+  .app-shell.design-shell:not(.glass-home):has(.home-dock) .app-header { position: sticky !important; top: var(--app-safe-top, 0px); z-index: 110; }
+}
+@keyframes dock-star-pop { 0% { transform: scale(.75) rotate(-12deg); } 50% { transform: scale(1.18) rotate(6deg); } 100% { transform: scale(1) rotate(0); } }
+@keyframes dock-star-spark { 0% { opacity: 0; transform: translateY(5px) scale(.5); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-24px) scale(1.2); } }
+@media (prefers-reduced-motion: reduce) { .home-dock-stars button > svg { transition: none; } .home-dock-stars[data-celebrate] .is-filled > svg { animation: none; } .home-dock-sparkles { display: none; } }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) { .home-dock-card { background: var(--design-surface); border-color: var(--design-control); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; } }
+@media (forced-colors: active) { .home-dock-stars .is-filled { color: Highlight; } .home-dock-card { background: Canvas; color: CanvasText; } }

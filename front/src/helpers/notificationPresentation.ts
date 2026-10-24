@@ -4,3 +4,4 @@ export function notificationBody(body: string, url: string): {body: string; unce
   const uncertainPoints = /^\/(race|sprint)-results\?/.test(url) && rows.length >= 5 && rows.every(line => / · 0(?:\.0+)?$/.test(line.trim()));
   return {body: uncertainPoints ? body.replace(/( · )0(?:\.0+)?(?=\n|$)/g, '$1—') : body, uncertainPoints};
 }
+export const NOTIFICATIONS_CHANGED_EVENT = 'turbotears:notifications-changed';

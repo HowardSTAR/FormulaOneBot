@@ -4,7 +4,6 @@ import { hapticImpact } from "../helpers/telegram";
 import { AppHeader } from "./AppHeader";
 import { LegalFooter } from "./LegalFooter";
 import { InstallHint } from "./InstallHint";
-import { MobileNav } from "./MobileNav";
 import { trackScreen } from '../helpers/analytics';
 import { EngagementEntry } from './EngagementEntry';
 import { NotificationEntry } from './NotificationEntry';
@@ -15,6 +14,9 @@ import { PageMotion } from './PageMotion';
 import { VisitReminder } from './VisitReminder';
 import { AccountShortcut } from './AccountShortcut';
 import { ThemeToggle } from './ThemeToggle';
+import { NotificationShortcut } from './NotificationShortcut';
+import { HomeDock } from './HomeDock';
+import { useMediaQuery } from '../helpers/useMediaQuery';
 import { HomeToolbar } from './HomeToolbar';
 import '../assets/home-glass.css';
 
@@ -87,8 +89,10 @@ export function SwipeBackLayout() {
           .replace(/[^a-z0-9-_]/gi, "")
           .toLowerCase() || "page";
 
+  const mobile = useMediaQuery('(max-width: 899px)');
+  const overview = routeKey === 'home' || routeKey === 'menu';
   return (
-    <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`app-shell design-shell${routeKey === 'home' ? ' glass-home' : ''}`}>
+    <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`app-shell design-shell${overview ? ' glass-home' : ''}`}>
       <EngagementEntry />
       <NotificationEntry />
       <RouteContext />
@@ -97,18 +101,18 @@ export function SwipeBackLayout() {
       <InstallHint />
       <FirstVisitGuide />
       <div className="app-content">
-        {routeKey === 'home' ? <HomeToolbar /> : <div className="account-shortcut-bar"><ThemeToggle /><AccountShortcut /></div>}
+        {overview ? <HomeToolbar /> : <div className="account-shortcut-bar"><ThemeToggle /><NotificationShortcut enabled={!mobile} /><AccountShortcut /></div>}
         <section className={`app-page-main route-${routeKey}`} id="page-content" tabIndex={-1}>
-          <VisitReminder />
+          {!mobile && routeKey !== 'menu' && <VisitReminder includeHome={overview} />}
           <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
             <PageMotion key={location.pathname} pathname={location.pathname} previousPathRef={previousPathRef} />
             <Outlet />
           </Suspense>
           <DataReceipt />
         </section>
-        <LegalFooter />
+        {!overview && <LegalFooter />}
+        <HomeDock />
       </div>
-      <MobileNav />
     </div>
   );
 }

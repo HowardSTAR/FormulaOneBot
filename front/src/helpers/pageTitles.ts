@@ -1,4 +1,5 @@
 export const pageTitles: Record<string, string> = {
+  '/menu': 'Меню',
   '/': 'Обзор', '/account': 'Аккаунт', '/compare': 'Сравнение', '/prediction-analytics': 'Аналитика предсказаний',
   '/constructor-details': 'Карточка команды', '/team-principal': 'Руководитель команды', '/constructors': 'Кубок конструкторов',
   '/driver-details': 'Карточка пилота', '/drivers': 'Личный зачёт', '/history': 'История чемпионата', '/community': 'С друзьями',

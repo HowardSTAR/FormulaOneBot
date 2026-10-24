@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
 import { BackButton } from "../../components/BackButton";
 import "./notifications.css";
-import { notificationBody } from '../../helpers/notificationPresentation';
+import { notificationBody, NOTIFICATIONS_CHANGED_EVENT } from '../../helpers/notificationPresentation';
 import { reminderBody, reminderClock, type ReminderTiming } from '../../helpers/reminderClock';
 import { visibleInterval } from '../../helpers/visibleInterval';
 
@@ -106,7 +106,7 @@ export default function NotificationsPage() {
   };
   const markRead = async () => {
     if (!data?.items.length) return;
-    try { await apiRequest("/api/web-notifications/read", { through_id:data.items[0].id }, "POST"); await refresh(); }
+    try { await apiRequest("/api/web-notifications/read", { through_id:data.items[0].id }, "POST"); window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT)); await refresh(); }
     catch { setError("Не удалось отметить уведомления прочитанными"); }
   };
   const more = async () => {

@@ -1,0 +1,31 @@
+const {chromium}=require('playwright');const assert=require('node:assert/strict');
+const base=process.env.HOME_UI_URL||'http://127.0.0.1:5173';
+(async()=>{const b=await chromium.launch({channel:'chrome',headless:true});let cases=0;
+try{for(const [width,theme,auth,scale]of [[390,'dark','linked',1],[320,'light','linked',1],[820,'light','member',1],[390,'dark','guest',1],[320,'dark','linked',2],[1440,'dark','linked',1]]){
+ const p=await b.newPage({viewport:{width,height:1000},reducedMotion:'reduce'});const errors=[];p.on('pageerror',e=>errors.push(e.message));await p.clock.install({time:new Date('2026-10-24T07:17:00Z')});await p.route('https://telegram.org/**',r=>r.abort());
+ await p.goto(`${base}/tests/home-design-preview.html?theme=${theme}&auth=${auth}&scale=${scale}&demoVotes=1`);await p.locator('.home-standing-table').waitFor();
+ const dock=p.locator('.home-dock');const nav=p.getByRole('navigation',{name:'Основная навигация',exact:true});
+ assert.equal(await dock.isVisible(),width<900);
+ assert.equal(await p.locator('.theme-toggle').first().getByText(/тема/i).count(),0);
+ if(width<900){
+  const local=p.getByRole('navigation',{name:'Разделы главной',exact:true});assert.equal(await local.getByRole('link').count(),4);assert.equal(await nav.getByRole('link').count(),5);
+  assert.deepEqual(await nav.getByRole('link').evaluateAll(a=>a.map(e=>e.getAttribute('href'))),['/','/season','/predictions','/community','/menu']);
+  assert.equal(await local.evaluate(e=>Boolean(e.closest('.home-showcase'))),true);assert.equal(await local.evaluate(e=>Boolean(e.closest('.home-dock'))),false);
+  await p.getByRole('link',{name:'Игры',exact:true}).filter({has:p.locator('svg')}).first().click();await p.locator('.home-section-content').waitFor();assert.equal(await nav.getByRole('link',{name:'Главная',exact:true}).getAttribute('aria-current'),'page');
+  await p.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));assert.ok((await dock.boundingBox()).y<1000);assert.equal(await nav.isVisible(),true);
+  if(auth==='linked'){
+   const rate=p.getByRole('button',{name:'Оценить последний этап',exact:true});if(await rate.isVisible())await rate.click();
+   const stars=p.getByRole('group',{name:'Оценка последнего этапа',exact:true});await stars.waitFor();await stars.getByRole('button',{name:'Оценить гонку на 4 из 5',exact:true}).click();await p.getByText('Оценка сохранена',{exact:true}).waitFor();assert.equal(await stars.getByRole('button',{name:'Оценить гонку на 4 из 5',exact:true}).getAttribute('aria-pressed'),'true');
+   assert.equal(await stars.locator('button').first().evaluate(e=>getComputedStyle(e.querySelector('svg')).animationName),'none');
+  }
+  await p.keyboard.press('Tab');await nav.getByRole('link',{name:'Календарь',exact:true}).focus();assert.equal(await nav.getByRole('link',{name:'Календарь',exact:true}).evaluate(e=>getComputedStyle(e).outlineStyle),'solid');
+  await p.emulateMedia({contrast:'more'});if(await p.locator('.home-dock-card').count())assert.equal(await p.locator('.home-dock-card').evaluate(e=>getComputedStyle(e).backdropFilter),'none');await p.emulateMedia({contrast:'no-preference'});
+  await p.evaluate(()=>scrollTo(0,0));await p.screenshot({path:`/tmp/dock-final-${width}-${theme}-${auth}-${scale}.png`});
+  if(width===390&&auth==='linked'){await nav.getByRole('link',{name:'Меню',exact:true}).click();await p.locator('.menu-page').waitFor();assert.equal(await nav.getByRole('link',{name:'Меню',exact:true}).getAttribute('aria-current'),'page');await p.getByRole('button',{name:'Назад из меню',exact:true}).click();await p.locator('.home-section-content').waitFor();assert.equal(await local.getByRole('link',{name:'Игры',exact:true}).getAttribute('aria-current'),'page');}
+ }
+ assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);assert.deepEqual(errors,[]);await p.close();cases++;
+}
+const p=await b.newPage({viewport:{width:390,height:1000},reducedMotion:'no-preference'});await p.clock.install({time:new Date('2026-10-24T07:17:00Z')});await p.route('https://telegram.org/**',r=>r.abort());await p.goto(`${base}/tests/home-design-preview.html?auth=linked&state=rating-error&demoVotes=1`);await p.locator('.home-standing-table').waitFor();await p.getByRole('button',{name:'Оценить последний этап',exact:true}).click();const star=p.getByRole('button',{name:'Оценить гонку на 5 из 5',exact:true});await star.click();await p.getByRole('alert').filter({hasText:'Выберите звезду'}).waitFor();assert.equal(await star.getAttribute('aria-pressed'),'false');await star.click();await p.getByText('Оценка сохранена',{exact:true}).waitFor();assert.equal(await star.getAttribute('aria-pressed'),'true');assert.equal(await star.locator('svg').evaluate(e=>getComputedStyle(e).animationName),'dock-star-pop');await p.getByRole('button',{name:'Скрыть подсказку',exact:true}).click();assert.equal(await p.locator('.home-dock-card').count(),0);assert.equal(await p.getByRole('navigation',{name:'Основная навигация',exact:true}).isVisible(),true);await p.close();cases++;
+const inbox=await b.newPage({viewport:{width:390,height:1000},reducedMotion:'reduce'});await inbox.route('https://telegram.org/**',r=>r.abort());await inbox.goto(`${base}/tests/home-design-preview.html?auth=linked&demoVotes=1`);await inbox.locator('.home-standing-table').waitFor();await inbox.getByRole('link',{name:'Уведомления: непрочитанных 2',exact:true}).click();await inbox.getByRole('heading',{name:'Уведомления',exact:true}).waitFor();await inbox.getByRole('button',{name:'Отметить прочитанными до этой даты',exact:true}).click();await inbox.getByRole('link',{name:'Уведомления: непрочитанных 0',exact:true}).waitFor();assert.equal(await inbox.locator('.notification-shortcut:visible > span').count(),0);await inbox.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));assert.ok((await inbox.locator('.notification-shortcut:visible').boundingBox()).y>=0);await inbox.close();cases++;
+console.log(`${cases} dock scenarios passed: separate local/global navigation, sticky position, guests and linked users, rating save/error/retry, animation/reduced motion, themes, keyboard, contrast and 200% text.`);
+}finally{await b.close()}})().catch(e=>{console.error(e);process.exitCode=1});

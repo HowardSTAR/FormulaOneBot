@@ -18,6 +18,7 @@ const HistoryPage = lazy(() => import("./pages/history/HistoryPage"));
 const CommunityPage = lazy(() => import('./pages/community/CommunityPage'));
 const SharePage = lazy(() => import('./pages/community/SharePage'));
 const NextRacePage = lazy(() => import("./pages/next-race/NextRacePage"));
+const MenuPage = lazy(() => import('./pages/menu/MenuPage'));
 const QualiResultsPage = lazy(() => import("./pages/quali-results/QualiResultsPage"));
 const RaceDetailsPage = lazy(() => import("./pages/race-details/RaceDetailsPage"));
 const RaceResultsPage = lazy(() => import("./pages/race-results/RaceResultsPage"));
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       { path: "/", element: <IndexPage /> },
+      { path: '/menu', element: <MenuPage /> },
       { path: "*", element: <NotFoundPage /> },
       { path: "/account", element: <AccountPage /> },
       { path: "/profile", element: <AccountPage /> },

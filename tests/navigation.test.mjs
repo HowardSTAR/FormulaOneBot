@@ -43,7 +43,7 @@ const desktopLinks = nav => [...nav.sections.flatMap(section => section.items.fl
 
 test('Desktop groups season history with comparison and keeps help actions together', () => {
   const nav = navigationFor({signedIn:true, personalized:true, role:'user'});
-  assert.deepEqual(nav.sections.map(section => section.label), ['Гонки', 'Прогнозы и статистика', 'Сообщество', 'Личное и справка']);
+  assert.deepEqual(nav.sections.map(section => section.label), ['Главная', 'Гонки', 'Прогнозы и статистика', 'Сообщество', 'Личное и справка']);
   const groups = nav.sections.flatMap(section => section.items).filter(entry => 'items' in entry);
   assert.deepEqual(groups.find(group => group.id === 'comparison').items.map(link => link.to), ['/compare', '/history']);
   assert.ok(!groups.find(group => group.id === 'peloton').items.some(link => link.to === '/history'));
@@ -64,7 +64,7 @@ for (const auth of [
   const nav = navigationFor(auth);
   const values = desktopLinks(nav).map(link => link.to);
   assert.equal(new Set(values).size, values.length);
-  for (const path of ['/','/next-race','/season','/predictions','/compare','/history','/community','/wiki','/contact-admin','/account']) assert.ok(values.includes(path), path);
+  for (const path of ['/','/next-race','/season','/predictions','/compare','/history','/community','/?view=games','/?view=guide','/?view=subscription','/contact-admin','/account']) assert.ok(values.includes(path), path);
   for (const path of ['/settings','/profile']) assert.equal(values.includes(path), auth.signedIn, path);
   for (const path of ['/notifications','/favorites','/voting']) assert.equal(values.includes(path), auth.personalized, path);
   const isAdmin = ['admin','superadmin'].includes(auth.role);
@@ -87,5 +87,15 @@ test('Every bottom tab and menu section is a root, including protected sections'
   }
   for (const path of ['/driver-details', '/constructor-details', '/team-principal', '/profile/123', '/share/token', '/reset-password', '/account/delete']) {
     assert.equal(isSectionRoot(path), false, path);
+  }
+});
+
+test('Desktop home views have exactly one active destination, including legacy links', () => {
+  const values = desktopLinks(navigationFor({ signedIn: false, personalized: false, role: null }));
+  for (const [search, expected] of [['', '/'], ['?standing=teams&spotlight=team', '/'], ['?view=games', '/?view=games'], ['?view=guide', '/?view=guide'], ['?view=reviews', '/?view=guide'], ['?view=wiki', '/?view=guide'], ['?view=subscription', '/?view=subscription'], ['?view=unknown', '/']]) {
+    assert.deepEqual(values.filter(link => navigationActive(link, '/', search)).map(link => link.to), [expected], search);
+  }
+  for (const [pathname, expected] of [['/wiki', '/?view=guide'], ['/reaction-game', '/?view=games'], ['/reflex-grid-game', '/?view=games']]) {
+    assert.deepEqual(values.filter(link => navigationActive(link, pathname)).map(link => link.to), [expected], pathname);
   }
 });

@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
-const base = process.env.MOBILE_SAFE_AREA_UI_URL || 'http://127.0.0.1:5174';
+const base = process.env.MOBILE_SAFE_AREA_UI_URL || 'http://127.0.0.1:5173';
 const mobileCases = [
   { name: 'browser', width: 320, height: 640, top: 0, bottom: 0, left: 0, right: 0 },
   { name: 'telegram-portrait', width: 390, height: 844, top: 47, contentTop: 44, bottom: 34, left: 0, right: 0 },
@@ -17,12 +17,12 @@ async function applyInsets(page, values) {
 }
 async function checkNavigation(page, values) {
   const metrics = await page.evaluate(() => {
-    const nav = document.querySelector('.mobile-primary-nav').getBoundingClientRect();
+    const nav = [...document.querySelectorAll('.menu-shortcut')].find(node => node.checkVisibility()).getBoundingClientRect();
     const back = document.querySelector('.btn-back').getBoundingClientRect();
     const brand = document.querySelector('.app-header-brand').getBoundingClientRect();
     return { nav: { bottom: nav.bottom, left: nav.left, right: nav.right }, back: { top: back.top, width: back.width, height: back.height }, brandTop: brand.top, width: innerWidth, height: innerHeight, overflow: document.documentElement.scrollWidth > innerWidth };
   });
-  assert.ok(metrics.height - metrics.nav.bottom >= values.bottom + 11);
+  assert.ok(metrics.nav.bottom <= metrics.height - values.bottom);
   assert.ok(metrics.nav.left >= values.left + 11);
   assert.ok(metrics.nav.right <= metrics.width - values.right - 11);
   assert.ok(metrics.brandTop >= values.top + (values.contentTop || 0));
@@ -34,7 +34,7 @@ async function checkNavigation(page, values) {
   assert.equal(await page.getByRole('button', { name: 'Назад', exact: true }).first().isVisible(), true);
 }
 (async () => {
-  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  const browser = await chromium.launch({ channel: process.env.BROWSER_CHANNEL || 'chrome', headless: true });
   try {
     for (const values of mobileCases) {
       const context = await browser.newContext({ viewport: { width: values.width, height: values.height }, reducedMotion: 'reduce' });
@@ -52,13 +52,13 @@ async function checkNavigation(page, values) {
       await applyInsets(page, values);
       await checkNavigation(page, values);
       await page.screenshot({ path: `artifacts/mobile-safe-area-${values.name}.png` });
-      await page.getByRole('button', { name: 'Меню', exact: true }).click();
-      const menu = page.locator('.mobile-menu-dialog');
+      await page.getByRole('link', { name: 'Меню', exact: true }).filter({ visible: true }).click();
+      const menu = page.locator('.menu-page');
       await menu.waitFor();
-      const rect = await menu.evaluate(node => { const r = node.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; });
+      const rect = await page.locator('.home-toolbar').evaluate(node => { const r = node.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; });
       assert.ok(rect.top >= values.top + (values.contentTop || 0) + 11);
       assert.ok(rect.bottom <= values.height - values.bottom - 11);
-      await page.getByRole('button', { name: 'Закрыть меню' }).click();
+      await page.getByRole('button', { name: 'Назад из меню' }).click();
       if (values.name === 'telegram-portrait') {
         const resized = { ...values, contentTop: 60, bottom: 48 };
         await applyInsets(page, resized);
@@ -68,7 +68,7 @@ async function checkNavigation(page, values) {
       await page.waitForURL('**/drivers?year=*');
       await page.locator('.btn-back').waitFor({ state: 'hidden' });
       assert.equal(await page.locator('.btn-back').count(), 0, 'Root section has no back button');
-      await page.getByRole('button', { name: 'Меню', exact: true }).click();
+      await page.getByRole('link', { name: 'Меню', exact: true }).filter({ visible: true }).click();
       await menu.getByRole('button', { name: 'Короткое знакомство', exact: true }).click();
       await menu.waitFor({ state: 'hidden' });
       await page.waitForURL(`${base}/`);
@@ -98,14 +98,14 @@ async function checkNavigation(page, values) {
       await page.screenshot({ path: `artifacts/onboarding-safe-area-${values.name}.png` });
       await page.keyboard.press('Escape');
       assert.deepEqual(errors, []);
-      console.log(`${values.name}: safe header, floating navigation, menu bounds and icon back passed`);
+      console.log(`${values.name}: safe header, menu route, toolbar bounds and icon back passed`);
       await context.close();
     }
     const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     await desktop.route('**/api/**', route => route.fulfill({ status: 401, json: { detail: 'Guest' } }));
     await desktop.goto(`${base}/driver-details`);
     await desktop.locator('.btn-back .back-button-arrow').first().waitFor();
-    assert.equal(await desktop.locator('.mobile-primary-nav').isVisible(), false);
+    assert.equal(await desktop.locator('.mobile-primary-nav').count(), 0);
     assert.equal(await desktop.locator('.back-button-arrow').first().textContent(), '←');
     console.log('Desktop navigation unchanged.');
   } finally { await browser.close(); }

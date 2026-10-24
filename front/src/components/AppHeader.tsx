@@ -1,26 +1,31 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuthState } from '../helpers/auth';
+import { homeSectionPath } from '../helpers/homeSections';
 import { navigationFor, navigationActive, type NavigationGroup, type NavigationItem } from '../helpers/navigation';
 import './SidebarIcons.css';
 import { startOnboarding } from '../helpers/onboarding';
 import { AccountShortcut } from './AccountShortcut';
 import { HomeIcon, type HomeIconName } from '../pages/index/HomeIcon';
 import { ThemeToggle } from './ThemeToggle';
+import { useMediaQuery } from '../helpers/useMediaQuery';
+import { NotificationShortcut } from './NotificationShortcut';
+import { MenuShortcut } from './MenuShortcut';
 
 function NavigationIcon({ name }: { name: HomeIconName }) {
   return <HomeIcon name={name} />;
 }
 
-function SidebarLink({ item, pathname }: { item: NavigationItem; pathname: string }) {
-  const active = navigationActive(item, pathname);
-  return <Link to={item.to} className={`app-header-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}>
+function SidebarLink({ item, pathname, search }: { item: NavigationItem; pathname: string; search: string }) {
+  const active = navigationActive(item, pathname, search);
+  const to = item.homeView ? homeSectionPath(item.homeView, pathname === '/' ? search : '') : item.to;
+  return <Link to={to} className={`app-header-link${active ? ' active' : ''}`} aria-current={active ? 'page' : undefined}>
     <span className="app-header-link-icon"><NavigationIcon name={item.icon} /></span><span className="app-header-link-label">{item.label}</span>
   </Link>;
 }
 
-function SidebarAccordion({ group, pathname }: { group: NavigationGroup; pathname: string }) {
-  const active = group.items.some(item => navigationActive(item, pathname));
+function SidebarAccordion({ group, pathname, search }: { group: NavigationGroup; pathname: string; search: string }) {
+  const active = group.items.some(item => navigationActive(item, pathname, search));
   const [choice, setChoice] = useState<{ pathname: string; open: boolean } | null>(null);
   const expanded = choice?.pathname === pathname ? choice.open : active;
   const id = `app-header-${group.id}-menu`;
@@ -32,7 +37,7 @@ function SidebarAccordion({ group, pathname }: { group: NavigationGroup; pathnam
       {expanded && group.actions?.map(action => <button key={action.id} type="button" className="app-header-submenu-link" onClick={startOnboarding}>
         <span className="app-header-submenu-icon" aria-hidden><NavigationIcon name={action.icon} /></span>{action.label}
       </button>)}
-      {expanded && group.items.map(item => { const selected = navigationActive(item, pathname); return <Link key={item.to} to={item.to} className={`app-header-submenu-link${selected ? ' active' : ''}`} aria-current={selected ? 'page' : undefined}>
+      {expanded && group.items.map(item => { const selected = navigationActive(item, pathname, search); return <Link key={item.to} to={item.to} className={`app-header-submenu-link${selected ? ' active' : ''}`} aria-current={selected ? 'page' : undefined}>
         <span className="app-header-submenu-icon" aria-hidden><NavigationIcon name={item.icon} /></span>{item.label}
       </Link>; })}
     </div>
@@ -41,19 +46,20 @@ function SidebarAccordion({ group, pathname }: { group: NavigationGroup; pathnam
 
 export function AppHeader() {
   const auth = useAuthState();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const nav = navigationFor(auth);
+  const mobile = useMediaQuery('(max-width: 899px)');
   return <header className="app-header">
     <div className="app-header-brand-wrap"><Link to="/" className="app-header-brand" aria-label="TurboTears — главная"><span className="app-header-brand-accent">Turbo</span><span>Tears</span></Link><span className="app-header-brand-caption">Race intelligence</span></div>
-    <div className="app-header-actions"><ThemeToggle /><AccountShortcut /></div>
+    <div className="app-header-actions"><ThemeToggle /><NotificationShortcut enabled={mobile && pathname !== '/' && pathname !== '/menu'} /><AccountShortcut /><MenuShortcut /></div>
     <nav className="app-header-nav" aria-label="Главное меню">
       {nav.sections.map(section => <section key={section.id} className="app-header-section" aria-labelledby={`app-header-section-${section.id}`}>
         <h2 id={`app-header-section-${section.id}`} className="app-header-section-label">{section.label}</h2>
-        {section.items.map(entry => 'to' in entry ? <SidebarLink key={entry.to} item={entry} pathname={pathname} /> : <SidebarAccordion key={entry.id} group={entry} pathname={pathname} />)}
+        {section.items.map(entry => 'to' in entry ? <SidebarLink key={entry.to} item={entry} pathname={pathname} search={search} /> : <SidebarAccordion key={entry.id} group={entry} pathname={pathname} search={search} />)}
       </section>)}
     </nav>
     <div className="app-header-bottom">
-      {nav.management && <nav className="app-header-nav app-header-nav-secondary" aria-label="Управление"><SidebarAccordion group={nav.management} pathname={pathname} /></nav>}
+      {nav.management && <nav className="app-header-nav app-header-nav-secondary" aria-label="Управление"><SidebarAccordion group={nav.management} pathname={pathname} search={search} /></nav>}
       {auth.loaded && !auth.signedIn && <div className="app-header-guest"><div><i aria-hidden />Гостевой режим</div><p>Календарь, результаты и статистика доступны без входа.</p></div>}
       <div className="app-header-status"><small>Неофициальные данные автоспорта</small></div>
     </div>

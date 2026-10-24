@@ -25,7 +25,6 @@
   .first-visit-desktop-copy { display: inline; }
 }
 html[data-onboarding-active] .install-hint,
-html[data-onboarding-active] .mobile-primary-nav,
 html[data-onboarding-active] .legal-footer,
 html[data-onboarding-active] .reaction-modal-overlay,
 html[data-onboarding-active] button.scroll-to-top { display: none !important; }
