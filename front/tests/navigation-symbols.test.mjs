@@ -5,9 +5,8 @@ import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { loadTs } from './support/modules.mjs';
+import { navigationFor } from '../src/helpers/navigation.ts';
 
-const { navigationFor } = await loadTs(new URL('../src/helpers/navigation.ts', import.meta.url));
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL('../src/pages/index/HomeIcon.tsx', import.meta.url))],
   bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', external: ['react'],

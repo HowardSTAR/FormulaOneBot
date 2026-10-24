@@ -1,5 +1,6 @@
 const paths = {
   menu: 'M4 6h16M4 12h16M4 18h16',
+  clock: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 6v6l4 2',
   chevronRight: 'm9 5 7 7-7 7',
   chevronDown: 'm5 9 7 7 7-7',
   refresh: 'M20 4v6h-6M4 20v-6h6M20 10a8 8 0 0 0-14-5M4 14a8 8 0 0 0 14 5',
@@ -24,7 +25,7 @@ const paths = {
   results: 'M4 4v16h17M8 16v-5m5 5V7m5 9v-7',
   compare: 'M8 4v16m8-16v16M4 8h8m0 8h8M6 6l2 2-2 2m12 4-2 2 2 2',
   wiki: 'M12 6c-3-3-7-2-9-1v15c2-1 6-2 9 1 3-3 7-2 9-1V5c-2-1-6-2-9 1zm0 0v15',
-  predictions: 'm12 3 3 6 6 1-4 5 1 6-6-3-6 3 1-6-4-5 6-1z',
+  predictions: 'M3 21V12h6m0 9V5h6v16m0-12h6v12M2 21h20M11 9h2m-1-1v5',
   account: 'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a8 8 0 0 1 16 0v2',
   drivers: 'M4 14a8 8 0 0 1 16 0v5H4v-5Zm0 0h16M8 14l3 5m9-9h-6v4',
   teams: 'M3 21v-2a5 5 0 0 1 10 0v2m1-7a5 5 0 0 1 7 5v2M11 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm8 1a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',

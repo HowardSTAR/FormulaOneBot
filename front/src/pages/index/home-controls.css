@@ -1,0 +1,58 @@
+/* One material recipe for home actions. Opaque fill is the no-blur fallback. */
+.home-screen, .home-dock {
+  --home-control-fill: var(--design-surface);
+  --home-control-blur: none;
+  --home-control-sheen: var(--design-glass-sheen);
+  --home-control-shadow: var(--design-glass-shadow);
+  --home-control-edge: var(--design-card-edge);
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .home-screen, .home-dock { --home-control-fill: var(--design-glass-fill); --home-control-blur: blur(24px) saturate(1.25); }
+}
+.app-shell .home-screen :is(.home-glass-button, .home-full-standing, .home-text-action, .personal-home-refresh, .personal-home-error :where(button), .home-spotlight-controls > :where(button)) {
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--home-control-edge);
+  border-radius: 24px;
+  background: var(--home-control-sheen), var(--home-control-fill);
+  box-shadow: var(--home-control-shadow);
+  -webkit-backdrop-filter: var(--home-control-blur);
+  backdrop-filter: var(--home-control-blur);
+  color: var(--design-ink);
+  text-decoration: none;
+}
+.app-shell .home-screen :is(.home-glass-button, .home-full-standing, .home-text-action, .personal-home-refresh, .personal-home-error :where(button), .home-spotlight-controls > :where(button)):hover {
+  border-color: var(--design-control);
+  color: var(--design-accent);
+}
+.app-shell .home-screen :is(.home-glass-button, .home-full-standing, .home-text-action, .personal-home-refresh, .personal-home-error :where(button), .home-spotlight-controls > :where(button)):active {
+  background: var(--design-tint);
+  box-shadow: inset 0 1px 4px rgb(0 0 0 / 8%);
+}
+.app-shell .home-screen .home-glass-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: .8125rem; font-weight: 600; }
+.app-shell .home-screen .home-glass-button--primary { background: var(--design-glass-primary-sheen), var(--design-event-bg); color: var(--design-event-ink); border-color: transparent; }
+.app-shell .home-screen .home-glass-button--primary:hover { background: var(--design-event-bg); color: var(--design-event-ink); border-color: var(--design-event-ink); }
+.app-shell .home-screen .home-glass-button--primary:focus-visible { outline-color: var(--design-focus); }
+.app-shell .home-screen .home-spotlight-controls > :where(button) { min-width: 44px; padding: 8px; }
+.app-shell .home-screen .home-sections { background: var(--home-control-sheen), var(--home-control-fill); border-color: var(--home-control-edge); box-shadow: var(--home-control-shadow); -webkit-backdrop-filter: var(--home-control-blur); backdrop-filter: var(--home-control-blur); }
+.app-shell .home-screen .home-schedule > summary { border-radius: 16px; background: var(--home-control-sheen), var(--home-control-fill); -webkit-backdrop-filter: var(--home-control-blur); backdrop-filter: var(--home-control-blur); }
+.app-shell .home-screen .home-schedule[open] > summary { border-radius: 16px 16px 0 0; }
+/* The selected segment has a lens edge; other icons share one pane. */
+.app-shell .home-screen .home-race-cta { color: var(--design-event-ink); border-radius: 24px; background: var(--design-glass-primary-sheen), var(--design-event-bg); box-shadow: var(--home-control-shadow); }
+.app-shell .home-screen .home-race-cta:hover { background: var(--design-event-ink); color: var(--design-event-bg); }
+.app-shell .home-screen .home-race button.home-text-action { color: var(--design-event-ink); background: var(--design-glass-primary-sheen), var(--design-event-bg); }
+.glass-home .home-toolbar :is(.theme-toggle, .account-shortcut, .menu-shortcut) { border-radius: 22px; background: var(--design-glass-sheen); box-shadow: inset 0 1px 0 var(--design-glass-edge); }
+body:has(.glass-home) .scroll-to-top { background: var(--design-glass-sheen), var(--design-glass-fill); -webkit-backdrop-filter: blur(24px) saturate(1.25); backdrop-filter: blur(24px) saturate(1.25); box-shadow: var(--design-glass-shadow); }
+@media (max-width: 599px) {
+  .app-shell .home-screen :is(.home-full-standing) { padding-inline: 12px; }
+  .app-shell .home-screen .home-favorite-card .home-glass-button { padding-inline: 12px; font-size: .75rem; }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  .home-screen, .home-dock { --home-control-fill: var(--design-surface); --home-control-blur: none; --home-control-sheen: linear-gradient(transparent, transparent); --home-control-shadow: none; --home-control-edge: var(--design-control); --design-glass-primary-sheen: linear-gradient(transparent, transparent); }
+  .glass-home .home-toolbar :is(.theme-toggle, .account-shortcut, .menu-shortcut) { background: var(--design-surface); box-shadow: none; }
+  body:has(.glass-home) .scroll-to-top { background: var(--design-surface); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+}
+@media (forced-colors: active) {
+  .app-shell .home-screen :is(.home-glass-button, .home-sections, .home-standing-switch, .home-full-standing, .home-text-action, .home-spotlight-controls > :where(button)) { color: ButtonText; background: ButtonFace; border-color: ButtonText; }
+  .app-shell .home-screen .home-standing-switch a[aria-current] { outline: 2px solid Highlight; color: HighlightText; background: Highlight; }
+}
