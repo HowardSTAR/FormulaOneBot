@@ -101,9 +101,9 @@ export function SwipeBackLayout() {
       <InstallHint />
       <FirstVisitGuide />
       <div className="app-content">
-        {overview ? <HomeToolbar /> : <div className="account-shortcut-bar"><ThemeToggle /><NotificationShortcut enabled={!mobile} /><AccountShortcut /></div>}
+        {overview ? <div className="home-header-row"><div className="home-header-reminder">{!mobile && <VisitReminder includeHome />}</div><HomeToolbar /></div> : <div className="account-shortcut-bar"><ThemeToggle /><NotificationShortcut enabled={!mobile} /><AccountShortcut /></div>}
         <section className={`app-page-main route-${routeKey}`} id="page-content" tabIndex={-1}>
-          {!mobile && routeKey !== 'menu' && <VisitReminder includeHome={overview} />}
+          {!mobile && !overview && <VisitReminder />}
           <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
             <PageMotion key={location.pathname} pathname={location.pathname} previousPathRef={previousPathRef} />
             <Outlet />

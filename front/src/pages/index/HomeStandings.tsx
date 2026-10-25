@@ -3,10 +3,23 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { apiRequest } from '../../helpers/api';
 import { optionalNumber } from '../../helpers/presentation';
 import { GlassSwitch } from './GlassSwitch';
+import { teamLogoUrl } from '../../helpers/f1Assets';
+import { spotlightTeamMedia } from './spotlight-team-media';
+import { homeTeamIdentity } from './team-identity';
+import './home-standings.css';
 
-type Standing = { position: number; name: string; points: number; constructorName?: string };
+type Standing = { position: number; name: string; points: number; constructorName?: string; constructorId?: string; number?: string; code?: string };
 type StandingsState = { season: number; round?: number; rows: Standing[]; failed: boolean };
 type Category = 'drivers' | 'teams';
+
+function TeamMark({ id, name, season }: { id: string; name: string; season: number }) {
+  const [status, setStatus] = useState<'pending' | 'ready' | 'error'>('pending');
+  const src = spotlightTeamMedia(id, name, season).logo[0] || teamLogoUrl(id, name, season);
+  return <>
+    {status !== 'ready' && <span className="home-standing-initials">{name.replace(/\b(racing|team|f1)\b/gi, '').trim().slice(0, 3).toUpperCase()}</span>}
+    {status !== 'error' && <img className="home-standing-logo" data-loaded={status === 'ready' || undefined} src={src} alt="" width="40" height="28" loading="lazy" decoding="async" onLoad={() => setStatus('ready')} onError={() => setStatus('error')} />}
+  </>;
+}
 
 export function HomeStandings({ season }: { season: number }) {
   const [params] = useSearchParams();
@@ -59,9 +72,15 @@ export function HomeStandings({ season }: { season: number }) {
         <tbody>{state.rows.map(row => {
           const points = optionalNumber(row.points);
           const gap = points !== null && leaderPoints !== null && leaderPoints >= points ? leaderPoints - points : null;
-          return <tr key={`${row.position}-${row.name}`}>
+          const team = drivers ? row.constructorName || '' : row.name;
+          const number = String(row.number || '').trim();
+          const hasNumber = /^\d{1,2}$/.test(number);
+          return <tr key={`${row.position}-${row.name}`} data-team={homeTeamIdentity(row.constructorId || '', team)}>
             <td className="home-position">{row.position}</td>
-            <th scope="row"><span className="home-entrant"><strong>{row.name}</strong>{drivers && row.constructorName && <small>{row.constructorName}</small>}</span></th>
+            <th scope="row"><span className="home-standing-identity">
+              <span className="home-standing-mark" aria-hidden="true">{drivers ? <span className="home-standing-number" data-code={!hasNumber || undefined}>{hasNumber ? number : row.code || '—'}</span> : <TeamMark key={`${season}-${row.constructorId}-${team}`} id={row.constructorId || ''} name={team} season={season} />}</span>
+              <span className="home-entrant"><strong>{row.name}</strong>{drivers && row.constructorName && <small>{row.constructorName}</small>}{drivers && hasNumber && <span className="home-sr-only">Номер {number}</span>}</span>
+            </span></th>
             <td className="home-points">{points?.toLocaleString('ru-RU') ?? '—'}</td>
             <td className="home-gap">{gap === null ? '—' : gap === 0 ? Number(row.position) === 1 ? 'Лидер' : '0' : `−${gap.toLocaleString('ru-RU')}`}</td>
           </tr>;

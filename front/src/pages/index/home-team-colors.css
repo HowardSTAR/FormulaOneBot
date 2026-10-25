@@ -1,0 +1,11 @@
+/* Entrant colors are shared by the standings and the favorite banners. */
+.home-screen [data-team] { --home-team-accent: var(--design-control); }
+.home-screen [data-team="mclaren"] { --home-team-accent: #ff8700; }
+.home-screen [data-team="mercedes"] { --home-team-accent: #00d2be; }
+.home-screen [data-team="ferrari"] { --home-team-accent: #e10600; }
+.home-screen [data-team="redbull"] { --home-team-accent: #4775f5; }
+.home-screen [data-team="williams"] { --home-team-accent: #468cff; }
+.home-screen [data-team="astonmartin"] { --home-team-accent: #229971; }
+.home-screen [data-team="alpine"] { --home-team-accent: #ef86b7; }
+.home-screen [data-team="audi"] { --home-team-accent: #f33b42; }
+.home-screen [data-team="racingbulls"] { --home-team-accent: #6b79f5; }

@@ -50,7 +50,7 @@ export default function Hero({ nextRace: race, schedule, userTz, loaded, onRetry
         </time> : <><p className="home-race-unconfirmed">Расписание уточняется</p><span className="home-ticket-timezone">{formatTimezoneLabel(userTz)}</span></>}
       </div>
       {race.event_name && <div className="home-circuit" aria-hidden="true">
-        <AnimatedTrackMap eventName={race.event_name} location={race.location} season={race.season} className="home-circuit-map" svgClassName="home-circuit-svg" loadingClassName="home-circuit-loading" />
+        <AnimatedTrackMap fitRoute eventName={race.event_name} location={race.location} season={race.season} className="home-circuit-map" svgClassName="home-circuit-svg" loadingClassName="home-circuit-loading" />
       </div>}
     </div>}
     <div className="home-race-actions">

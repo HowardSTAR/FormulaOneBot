@@ -8,22 +8,25 @@
 .home-screen :is(a, button, summary) { touch-action: manipulation; -webkit-tap-highlight-color: var(--design-tint); }
 .home-screen :is(a, button, summary):focus-visible, .home-screen:focus-visible { outline: 3px solid var(--design-focus); outline-offset: 4px; }
 .home-weekend { min-width: 0; }
+.home-season-column { display: grid; gap: var(--home-module-gap); min-width: 0; }
 /* A borderless race poster: event, start, then countdown. Artwork owns its column. */
-.home-race { display: grid; grid-template-columns: minmax(0, 1fr); align-content: space-between; gap: 24px; padding: 24px 8px; background: transparent; color: var(--design-ink); }
+.home-race { display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; gap: 20px; padding: 24px 8px; background: transparent; color: var(--design-ink); }
 .home-screen .home-race :is(h2, p) { color: var(--design-ink); }
 .home-race-copy { min-width: 0; }
 .home-screen .home-race h2 { max-width: 24ch; font-size: clamp(1.75rem, 3vw, 3rem); font-weight: 700; line-height: 1.08; letter-spacing: -.03em; overflow-wrap: anywhere; }
 .home-screen .home-race .home-race-location { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; color: var(--design-muted); font-size: .875rem; }
 .home-race-details { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 24px; min-width: 0; }
-.home-race-ticket { flex: 1 1 12rem; display: grid; gap: 6px; min-width: 0; color: var(--design-ink); }
+.home-race-ticket { flex: 0 1 12rem; display: grid; gap: 6px; min-width: 0; color: var(--design-ink); }
 .home-ticket-label { font-size: .8125rem; color: var(--design-muted); }
 .home-race-date { display: grid; gap: 2px; min-width: 0; }
 .home-race-date > span { font-size: 1.125rem; font-weight: 550; overflow-wrap: anywhere; }
 .home-race-date strong { color: var(--design-accent); font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif; font-size: clamp(3rem, 10vw, 4.5rem); font-weight: 600; letter-spacing: -.035em; line-height: 1.1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .home-ticket-timezone { font-size: .75rem; color: var(--design-muted); }
-.home-circuit { flex: 1 1 8rem; height: clamp(100px, 16vw, 180px); min-width: 0; opacity: .7; pointer-events: none; }
+.home-circuit { flex: 1 1 8rem; height: clamp(160px, 23vw, 280px); min-width: 0; opacity: 1; pointer-events: none; }
 .home-circuit-map, .home-circuit-svg { width: 100%; height: 100%; }
 .home-circuit-map { position: relative; margin-inline: auto; }
+.home-circuit-svg { position: relative; min-width: 0; min-height: 0; }
+.home-circuit-svg svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; max-width: 100%; max-height: 100%; }
 .home-circuit-loading { display: grid; place-content: center; height: 100%; font-size: .8125rem; color: var(--design-muted); }
 #root .home-circuit .animated-track-svg .track-outline.track-route-border { stroke: var(--design-accent) !important; filter: none !important; stroke-width: 4px !important; }
 #root .home-circuit .animated-track-svg .track-outline.track-route-surface { stroke: var(--design-bg) !important; stroke-width: 1px !important; }
@@ -92,7 +95,7 @@
 .home-screen .home-text-action { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: var(--design-accent); text-decoration: underline; font-size: .875rem; }
 .home-screen .home-text-action:hover { color: var(--design-ink); }
 .home-screen .home-text-action:active { background: var(--design-tint); }
-.home-screen .personal-home { margin: 0; padding: 16px 0; border-block: 1px solid var(--design-line); background: transparent; color: var(--design-ink); }
+.home-screen .personal-home { margin: 0; padding: 0; border: 0; background: transparent; color: var(--design-ink); }
 .home-explore { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding-top: 8px; }
 .app-shell .home-screen .home-explore > a { display: flex; align-items: center; gap: 12px; min-height: 56px; padding-block: 12px; border-top: 1px solid var(--design-line); color: var(--design-muted); font-size: .875rem; }
 .home-explore > a > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -126,8 +129,8 @@
   .home-schedule-content { padding: 16px; }
   .home-championship-head h2 { font-size: 1.25rem; }
   .home-full-standing { font-size: .8125rem; }
-  .home-standing-table :is(th, td):first-child { width: 28px; }
-  .home-standing-table :is(th, td):nth-child(3) { width: 52px; }
+  .home-standing-table :is(th, td):first-child { width: max(28px, 1.5rem); }
+  .home-standing-table :is(th, td):nth-child(3) { width: max(52px, 3rem); }
   .home-standing-table :is(th, td):last-child { display: none; }
   .home-standing-table tbody :is(th, td) { padding-block: 14px; }
   .home-standing-table thead th { font-size: .6875rem; }

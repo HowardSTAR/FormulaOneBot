@@ -1,0 +1,18 @@
+/* Team identity belongs to the entrant, while points keep one scan line. */
+.home-standing-identity { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.home-standing-mark { display: grid; place-items: center; flex: 0 0 52px; height: 48px; border-radius: 12px; color: color-mix(in srgb, var(--home-team-accent) 55%, var(--design-ink)); background: color-mix(in srgb, var(--home-team-accent) 12%, transparent); }
+.home-standing-number { font-size: 28px; font-style: italic; font-weight: 750; letter-spacing: -.04em; line-height: 1; }
+.home-standing-number[data-code] { color: var(--design-ink); font-size: 12px; font-style: normal; letter-spacing: 0; }
+.home-standing-initials { grid-area: 1 / 1; color: var(--design-ink); font-size: 12px; font-weight: 700; }
+.home-standing-logo { grid-area: 1 / 1; display: block; width: 40px; height: 28px; object-fit: contain; filter: invert(1); opacity: 0; }
+.home-standing-logo[data-loaded] { opacity: 1; }
+:root[data-theme="dark"] .home-standing-logo { filter: none; }
+.home-standing-identity .home-entrant { flex: 1; }
+@media (max-width: 599px) {
+  .home-standing-identity { gap: 10px; }
+  .home-standing-mark { flex-basis: 40px; height: 40px; border-radius: 10px; }
+  .home-standing-number { font-size: 24px; }
+  .home-standing-logo { width: 30px; height: 24px; }
+}
+@media (max-width: 360px) { .home-standing-mark { flex-basis: 32px; } .home-standing-identity { gap: 8px; } }
+@media (prefers-contrast: more), (forced-colors: active) { .home-standing-mark { color: var(--design-ink); background: transparent; } }

@@ -35,7 +35,7 @@ async function check(page) {
     }
     const viewport = document.querySelector('.home-spotlight-viewport');
     const pageIndex = [...document.querySelectorAll('.home-spotlight-pages button')].findIndex(el => el.hasAttribute('aria-current'));
-    return { overflow: document.documentElement.scrollWidth > innerWidth, issues, contrast, season: root.dataset.section === 'season', alignment: root.dataset.section === 'season' && viewport ? Math.abs(viewport.scrollLeft - pageIndex * viewport.getBoundingClientRect().width) : 0, sections: document.querySelectorAll('.home-sections a').length,
+    return { overflow: document.documentElement.scrollWidth > innerWidth, issues, contrast, season: root.dataset.section === 'season', alignment: root.dataset.section === 'season' && viewport ? Math.abs(viewport.scrollLeft - (pageIndex + 1) * viewport.getBoundingClientRect().width) : 0, sections: document.querySelectorAll('.home-sections a').length,
       inlineNavigation: document.querySelector('.home-sections').checkVisibility(), desktop: innerWidth >= 900, overview: innerWidth >= 1200, visibleSlides: document.querySelectorAll('.home-banner-panel[data-active] .home-spotlight-slide:not([inert])').length, slides: document.querySelectorAll('.home-spotlight-slide').length, dots: document.querySelectorAll('.home-spotlight-pages button').length, guest: Boolean(document.querySelector('.home-personalize')) };
   });
   assert.equal(evidence.overflow, false, JSON.stringify(evidence));
@@ -50,7 +50,7 @@ async function check(page) {
 }
 async function selected(page, index) {
   await page.waitForFunction(index => [...document.querySelectorAll('.home-spotlight-pages button')].findIndex(el => el.hasAttribute('aria-current')) === index, index);
-  await page.waitForFunction(index => { const v = document.querySelector('.home-spotlight-viewport'); return Math.abs(v.scrollLeft - index * v.getBoundingClientRect().width) < 2; }, index);
+  await page.waitForFunction(index => { const v = document.querySelector('.home-spotlight-viewport'); return Math.abs(v.scrollLeft - (index + 1) * v.getBoundingClientRect().width) < 2; }, index);
 }
 async function swipe(page, from, to) {
   const session = await page.context().newCDPSession(page);
@@ -73,11 +73,11 @@ async function swipe(page, from, to) {
       await selected(page, 0); await check(page);
       assert.equal(await page.locator('.mobile-primary-nav').count(), 0);
       for (let index = 1; index <= 4; index++) {
-        await page.getByRole('button', { name: 'Следующий слайд', exact: true }).click();
+        await page.locator('.home-spotlight-viewport').press('ArrowRight');
         await selected(page, index % 4); await check(page);
         assert.equal(await page.locator('.home-race-cue, .home-spotlight-preferences').count(), 0);
       }
-      await page.getByRole('button', { name: 'Предыдущий слайд', exact: true }).click();
+      await page.locator('.home-spotlight-viewport').press('ArrowLeft');
       await selected(page, 3);
       await page.locator('.home-spotlight-viewport').focus(); await page.keyboard.press('ArrowRight'); await selected(page, 0);
       await page.keyboard.press('ArrowLeft'); await selected(page, 3);
@@ -157,7 +157,7 @@ async function swipe(page, from, to) {
       if (extra.includes('favorites-error')) assert.match(await page.locator('.home-spotlight-slide:not([inert]) .home-favorite-error').innerText(), /Избранное не загрузилось/);
       if (extra.includes('favorites-empty')) assert.equal(await page.locator('.home-spotlight-slide:not([inert]) .home-favorite-kind').innerText(), 'В лидерах сезона');
       if (extra.includes('scale=2')) { await page.getByRole('button', { name: /4 из 4:/ }).click(); await selected(page, 3); await check(page); }
-      if (!extra) { assert.equal(await page.locator('.home-personalize').isVisible(), true); assert.equal(await page.getByRole('link', { name: /Создать аккаунт/ }).getAttribute('href'), '/account?mode=register'); }
+      if (!extra) { assert.equal(await page.locator('[data-slide-index] .home-personalize').isVisible(), true); assert.equal(await page.getByRole('link', { name: /Создать аккаунт/ }).getAttribute('href'), '/account?mode=register'); }
       assert.deepEqual(errors, []); await context.close(); checks++;
     }
     for (const theme of ['light', 'dark']) for (const width of [320, 390, 1440]) {
@@ -198,7 +198,7 @@ async function swipe(page, from, to) {
     await real.waitForURL(url => url.searchParams.get('view') === 'games' && url.searchParams.get('spotlight') === 'team');
     await real.goBack(); await real.waitForURL(url => url.searchParams.get('view') === 'guide');
     await sectionNav(real).getByRole('link', { name: 'Сезон', exact: true }).click(); await selected(real, 3);
-    await real.getByRole('button', { name: 'Следующий слайд' }).click(); await selected(real, 0);
+    await real.locator('.home-spotlight-viewport').press('ArrowRight'); await selected(real, 0);
     assert.equal(new URL(real.url()).searchParams.has('spotlight'), false);
     await real.close(); checks++;
     console.log(`${checks} carousel scenarios passed: two guest/four member slides, four icon sections, favorites/fallbacks, circular buttons/keyboard/native touch/trackpad, momentum and slow swipes, vertical scrolling, guest signup slide, views, image failures, glass accessibility, registration, 200% text and URL state.`);

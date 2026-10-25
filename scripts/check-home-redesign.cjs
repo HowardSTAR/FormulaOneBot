@@ -82,7 +82,7 @@ async function verify(page, label) {
       await page.keyboard.press('Enter');
       await page.getByRole('link', { name: 'Команды', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('.home-standing-switch a[aria-current]')?.textContent === 'Команды');
-      assert.equal(await page.locator('.home-standing-table tbody th').first().innerText(), 'McLaren');
+      assert.equal(await page.locator('.home-standing-table tbody .home-entrant strong').first().innerText(), 'McLaren');
       assert.equal(await page.locator('.home-points').first().textContent(), '559');
       assert.equal(await page.locator('.home-full-standing').getAttribute('href'), '/constructors?year=2026');
       await verify(page, `${theme} ${width} teams`);
@@ -111,7 +111,7 @@ async function verify(page, label) {
     for (const width of [320, 390, 1440]) {
       const page = await fixture(browser, width, 'light', '&scale=2&auth=member');
       await page.locator('.home-schedule > summary').click();
-      await page.locator('.personal-home-details > summary').click();
+      await page.getByRole('navigation', { name: 'Личные разделы', exact: true }).waitFor();
       await verify(page, `200% ${width}`);
       if (screenshots && width === 390) await page.screenshot({ path: path.join(screenshots, 'turbotears-alt-large-text.png'), fullPage: true });
       await page.close(); checks++;
@@ -183,7 +183,7 @@ async function verify(page, label) {
     assert.equal(new URL(page.url()).searchParams.get('standing'), 'teams');
     await page.reload();
     await page.locator('.home-standing-table').waitFor();
-    assert.equal(await page.locator('.home-standing-table tbody th').first().innerText(), 'Team One');
+    assert.equal(await page.locator('.home-standing-table tbody .home-entrant strong').first().innerText(), 'Team One');
     await page.getByRole('link', { name: 'Пилоты', exact: true }).click();
     await page.waitForURL(url => !url.searchParams.has('standing'));
     await page.goBack();

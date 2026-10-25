@@ -11,6 +11,7 @@ import { HomeShortcuts } from './HomeShortcuts';
 import { PersonalHome } from './PersonalHome';
 import './home.css';
 import './home-controls.css';
+import './home-team-colors.css';
 import './home-desktop.css';
 
 export type { NextRaceResponse, SessionItem } from '../../context/HeroDataContext';
@@ -27,10 +28,12 @@ export default function IndexPage() {
     <h1 className="home-sr-only">{section === 'season' ? 'Формула-1' : section === 'games' ? 'Игры' : section === 'guide' ? 'Справка и отзывы' : 'Подписка'}</h1>
     <HomeShowcase season={season} section={section} />
     {section === 'season' ? <>
-    <div className="home-weekend">
-      <WeekendBoard race={nextRace} sessions={schedule} timezone={userTz} loaded={loaded} onRetry={() => void load()} />
+    <div className="home-season-column">
+      <div className="home-weekend">
+        <WeekendBoard race={nextRace} sessions={schedule} timezone={userTz} loaded={loaded} onRetry={() => void load()} />
+      </div>
+      <HomeStandings season={season} />
     </div>
-    <HomeStandings season={season} />
     <div className="home-personal-column">
       {auth.signedIn && <PersonalHome auth={auth} timezone={userTz} />}
       <HomeShortcuts />

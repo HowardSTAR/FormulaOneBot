@@ -4,11 +4,10 @@
 .home-spotlight-viewport::-webkit-scrollbar { display: none; }
 .home-spotlight-slide { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; }
 .home-spotlight-slide > .home-race { height: 100%; }
-.home-spotlight-controls { display: flex; align-items: center; justify-content: space-between; gap: 0; min-height: 48px; padding-inline: 8px; }
+.home-spotlight-controls { display: flex; align-items: center; justify-content: center; gap: 0; min-height: 44px; }
 .home-screen .home-spotlight-controls button { display: inline-grid; place-content: center; min-width: 44px; min-height: 44px; padding: 8px; border: 0; border-radius: 12px; background: transparent; color: var(--design-muted); }
 .home-screen .home-spotlight-controls button:hover:not(:disabled) { color: var(--design-accent); background: var(--design-tint); }
 .home-screen .home-spotlight-controls button:disabled { opacity: .35; cursor: default; }
-.home-spotlight-prev { display: inline-flex; transform: rotate(180deg); }
 .home-spotlight-pages { display: flex; }
 .home-spotlight-pages button > span { display: block; width: 7px; height: 7px; border-radius: 4px; background: var(--design-control); }
 .home-spotlight-pages button[aria-current] > span { width: 24px; background: var(--design-accent); }
@@ -26,8 +25,13 @@
 .home-screen .home-favorite-card a { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; color: var(--design-ink); font-size: .8125rem; }
 .home-favorite-card a svg { width: 16px; height: 16px; }
 .home-screen .home-favorite-card a:hover { color: var(--design-accent); }
-.home-spotlight-art { position: relative; display: grid; place-items: center; align-self: stretch; min-width: 0; background: var(--design-glass-sheen), var(--design-tint); border-radius: 12px; overflow: hidden; box-shadow: inset 0 1px 0 var(--design-glass-edge); }
-.home-spotlight-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.home-spotlight-art { position: relative; display: grid; place-items: center; align-self: stretch; min-width: 0; background: transparent; overflow: hidden;
+  -webkit-mask-image: linear-gradient(#000 55%, rgb(0 0 0 / 85%) 70%, rgb(0 0 0 / 35%) 88%, transparent), linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(#000 55%, rgb(0 0 0 / 85%) 70%, rgb(0 0 0 / 35%) 88%, transparent), linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  -webkit-mask-composite: source-in; mask-composite: intersect;
+}
+/* Crop the full-body source at the waist without changing its proportions. */
+.home-spotlight-art img { position: absolute; top: 0; left: 50%; width: auto; max-width: none; height: 200%; transform: translateX(-50%); }
 .home-spotlight-monogram { color: var(--design-accent); font-size: clamp(2rem, 7vw, 6rem); font-weight: 750; letter-spacing: -.04em; line-height: 1; }
 .home-favorite-empty { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 12px; }
 .home-screen .home-favorite-empty h2 { margin: 0; font-size: 1.5rem; }
@@ -87,6 +91,30 @@
 }
 @media (prefers-contrast: more), (forced-colors: active) { .home-favorite-watermark, .home-team-car { display: none; } }
 
-/* Names are the destination, without a second control over the artwork. */
-.home-screen .home-favorite-card h2 .home-favorite-name { display: inline; min-height: 0; padding-block: 12px; font: inherit; line-height: inherit; }
-.home-screen .home-favorite-card h2 .home-favorite-name:hover { text-decoration: underline; text-underline-offset: 4px; }
+/* A native full-surface link keeps modifier-click and keyboard navigation. */
+.home-screen .home-favorite-open { position: absolute; inset: 0; z-index: 2; }
+.home-screen .home-favorite-open:focus-visible { outline-offset: -3px; }
+.home-favorite-card[data-team] .home-favorite-copy { z-index: 3; pointer-events: none; }
+.home-favorite-card[data-team] .home-favorite-copy button { pointer-events: auto; }
+.home-favorite-card[data-team]::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse 50% 50% at 50% 50%, color-mix(in srgb, var(--home-team-accent) 32%, transparent), transparent 100%); opacity: .55; transition: opacity 180ms ease-out; }
+@media (hover: hover) { .home-favorite-card[data-team]:hover::before { opacity: 1; } }
+.home-favorite-card[data-team]:has(> .home-favorite-open:focus-visible)::before { opacity: 1; }
+
+/* Buffers are inert snapshots, never a second accessible copy of a slide. */
+.home-spotlight-buffer { flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; pointer-events: none; }
+.home-spotlight-buffer > .home-spotlight-snapshot, .home-spotlight-snapshot > section { height: 100%; }
+.home-spotlight-buffer .home-favorite-name { pointer-events: none; }
+.home-favorite-card--team { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); padding: 24px 16px; }
+.home-favorite-card--team .home-favorite-copy { width: 56%; align-self: center; }
+.home-favorite-card--team > .home-team-logo { position: absolute; display: block; z-index: 0; inset: 12% 20%; width: auto; height: auto; opacity: .12; pointer-events: none; }
+.home-favorite-card--team .home-team-logo-image { position: absolute; inset: 0; }
+.home-favorite-card--team .home-favorite-identity { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.home-team-car { position: absolute; inset: 50% 4% 0 10%; opacity: 1; transform: none; }
+.home-team-car img { object-fit: contain; }
+@media (prefers-contrast: more), (forced-colors: active) { .home-team-car, .home-team-logo, .home-favorite-card[data-team]::before { display: none; } .home-favorite-card--team .home-favorite-copy { width: 100%; } }
+.home-favorite-card--team .home-team-car { grid-area: auto; }
+
+@media (max-width: 1199px) {
+  .home-favorite-card--team .home-favorite-copy { width: 72%; align-self: start; margin-top: 40px; }
+  .home-favorite-card--team .home-favorite-copy::before { content: ''; position: absolute; inset: -24px -32px; z-index: -1; pointer-events: none; background: radial-gradient(ellipse 50% 50% at 50% 50%, color-mix(in srgb, var(--design-bg) 70%, transparent), transparent 100%); }
+}

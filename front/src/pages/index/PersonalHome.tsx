@@ -40,15 +40,15 @@ function PersonalCards({ timezone, personalized }: { timezone: string; personali
   const reload = () => { setLoaded(false); setRefresh(v => v + 1); };
   return <>
     {failed.length > 0 && <p className="personal-home-error" role="status">Не загрузились: {failed.join(', ')}. <button type="button" onClick={reload} disabled={!loaded}>Повторить</button></p>}
-    <details className="personal-home-details">
-      <summary>Личные разделы <HomeIcon name="chevronDown" /></summary>
-      <div className="personal-home-more">
-        {prediction?.event_name && <p className="personal-home-event">{prediction.event_name}</p>}
-        {prediction && Number.isFinite(deadline) && <dl className="personal-home-facts"><div><dt>Приём прогнозов до</dt><dd><time dateTime={new Date(deadline).toISOString()}>{new Date(deadline).toLocaleString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</time><span>{formatTimezoneLabel(timezone)}</span></dd></div></dl>}
-        <PersonalDestinations personalized={personalized} />
-        <button type="button" className="personal-home-refresh" onClick={reload} disabled={!loaded}><HomeIcon name="refresh" />{loaded ? 'Обновить данные' : 'Обновляем…'}</button>
-      </div>
-    </details>
+    <header className="personal-home-heading">
+      <h2>Личные разделы</h2>
+    </header>
+    <div className="personal-home-more">
+      {prediction?.event_name && <p className="personal-home-event">{prediction.event_name}</p>}
+      {prediction && Number.isFinite(deadline) && <dl className="personal-home-facts"><div><dt>Приём прогнозов до</dt><dd><time dateTime={new Date(deadline).toISOString()}>{new Date(deadline).toLocaleString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</time><span>{formatTimezoneLabel(timezone)}</span></dd></div></dl>}
+      <PersonalDestinations />
+      {personalized && <Link className="personal-home-favorites" to="/favorites"><HomeIcon name="favorite" />Избранные пилоты и команда<HomeIcon name="chevronRight" /></Link>}
+    </div>
   </>;
 }
 

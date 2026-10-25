@@ -85,3 +85,16 @@ html:has(.glass-home) { scroll-padding-top: 0; }
   .glass-home .home-toolbar .menu-shortcut { display: none; }
   .home-toolbar-actions { gap: 4px; }
 }
+
+/* Status and account tools share a row instead of stacking above the hero. */
+.glass-home .home-header-row { position: sticky; top: calc(8px + var(--app-safe-top, 0px)); z-index: 110; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; margin-bottom: 16px; }
+.glass-home .home-header-row .home-toolbar { position: static; margin: 0; }
+.glass-home .home-header-reminder .visit-reminder { margin: 0 !important; }
+@media (min-width: 900px) {
+  .app-shell.design-shell.glass-home .app-content { padding-top: 16px !important; }
+  .app-shell.design-shell.glass-home .app-content > * { max-width: none; }
+}
+@media (max-width: 899px) {
+  .glass-home .home-header-row { display: block; margin-bottom: 16px; }
+  .home-header-reminder { display: none; }
+}

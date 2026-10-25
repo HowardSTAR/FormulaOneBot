@@ -49,7 +49,7 @@ async function frames(page) {
       }
       const count = auth === 'member' ? 4 : 2;
       for (let i = 0; i < count; i++) {
-        await page.getByRole('button', { name: 'Следующий слайд', exact: true }).click();
+        await page.locator('.home-spotlight-viewport').press('ArrowRight');
         assert.ok(Math.abs((await geometry(page)).height - initial.height) <= 1);
       }
       await page.setViewportSize({ width: width === 390 ? 820 : 390, height: 1600 });

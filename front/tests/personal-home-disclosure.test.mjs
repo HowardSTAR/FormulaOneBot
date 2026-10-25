@@ -19,12 +19,13 @@ const { PersonalHome } = mod.exports;
 const render = (signedIn, personalized = false) => renderToStaticMarkup(React.createElement(MemoryRouter, null,
   React.createElement(PersonalHome, { auth: { loaded: true, signedIn, personalized }, timezone: 'UTC' })));
 
-test('personal navigation is a closed native disclosure with labelled destinations', () => {
+test('personal destinations stay visible and the account shortcut is replaced by predictions', () => {
   const html = render(true);
-  assert.match(html, /<details class="personal-home-details"><summary>Личные разделы/);
+  assert.match(html, /<h2>Личные разделы<\/h2>/);
   assert.match(html, /<nav class="personal-destinations" aria-label="Личные разделы"><ul>/);
-  for (const href of ['/account', '/settings', '/predictions?tab=history', '/community']) assert.ok(html.includes(`href="${href}"`));
-  assert.equal((html.match(/<summary/g) || []).length, 1);
+  for (const href of ['/predictions', '/settings', '/predictions?tab=history', '/community']) assert.ok(html.includes(`href="${href}"`));
+  assert.equal((html.match(/<summary/g) || []).length, 0);
+  assert.doesNotMatch(html, /href="\/account"|<details/);
   assert.doesNotMatch(html, /aria-controls="personal-home-more"|personal-home-toggle|<details[^>]*\sopen/);
 });
 
