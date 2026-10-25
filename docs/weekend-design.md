@@ -165,3 +165,11 @@ Live read-only checks extracted C2/C3/C4 for Austin and C3/C4/C5 for Mexico City
 Verification: 195 frontend tests; scoped TypeScript/ESLint and production build; 41 backend tests across the new service and existing insights API. Scoped Impeccable layout/type scan reported only the three existing Space Grotesk warnings retained by the brand contract. Browser checks covered both themes, 320–1920 px and breakpoint boundaries, rain disclosure, all three meter colours on Singapore, retry recovery, Escape/focus restoration, empty profiles, archive isolation, and 200% text at 320/390/1440 px. A narrow rain grid stacks at large text; the descriptive copy explicitly overrides a legacy map paragraph colour to keep light-theme contrast.
 
 The visual fixture uses the same response contract and recorded fact samples, with fictional calendar rounds clearly separated from production. `venue=singapore|mexico`, `state=profile-error|profile-unavailable|profile-stale` and `scale=2` cover these states without modifying accounts or backend data.
+
+## Фон страны этапа
+
+В основной сцене гонки используется общий `RaceFlagBackdrop`: локальный флаг
+страны показанного этапа мягко затухает по всем четырём краям. Текст, карта,
+кнопки и клавиатурный фокус не маскируются. На главной завершённый сезон
+показывается без флага. При повышенном контрасте декорация скрывается.
+Правила выбора страны и источники SVG описаны в `calendar-design.md`.
