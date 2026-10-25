@@ -1,6 +1,12 @@
-.weekend-session-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
-.weekend-session-select { width: min(100%, 22rem); }
-#root .weekend-session-page .custom-select-trigger { min-height: 48px; background: var(--design-surface); color: var(--design-ink); border: 1px solid var(--design-line); border-radius: 24px; font: inherit; }
+.weekend-session-page { gap: 20px; }
+.weekend-result-controls { display: grid; grid-template-columns: repeat(2,minmax(0,22rem)); align-items: start; justify-content: space-between; gap: 10px 16px; min-width: 0; }
+.weekend-result-controls .weekend-session-select, .app-shell .weekend-session-page .weekend-result-switch { width: 100%; min-width: 0; }
+.app-shell .weekend-session-page .weekend-result-switch a { min-height: 44px; overflow-wrap: anywhere; text-align: center; font-size: .875rem; padding: 6px 8px; }
+.weekend-result-controls > .weekend-session-select { grid-column: 2; grid-row: 1; }
+.weekend-result-controls > .weekend-result-switch { grid-column: 1; grid-row: 1; }
+.weekend-result-session-name { grid-column: 1 / -1; color: var(--design-muted); font-size: .875rem; }
+.weekend-session-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+#root .weekend-session-page .custom-select-trigger { min-height: 54px; background: var(--design-surface); color: var(--design-ink); border: 1px solid var(--design-line); border-radius: 24px; font: inherit; font-size: .875rem; }
 #root .weekend-session-page .custom-select-trigger:hover { background: var(--design-tint); }
 .weekend-session-page .select-arrow { border-color: var(--design-muted); }
 .weekend-session-page .custom-select-listbox { background: var(--design-surface); color: var(--design-ink); border: 1px solid var(--design-control); box-shadow: var(--design-glass-shadow); font-family: inherit; }
@@ -9,33 +15,34 @@
 .weekend-session-page .custom-select-option[aria-disabled="true"] { color: var(--design-muted); opacity: 1; }
 .weekend-session-title h1 { font-size: 1.75rem; line-height: 1.2; scroll-margin-top: 100px; }
 .weekend-session-title h1:focus-visible { outline: 3px solid var(--design-focus); outline-offset: 4px; }
-.weekend-session-title p { margin-top: 8px; color: var(--design-muted); font-size: .875rem; }
-.weekend-classification { list-style: none; padding: 0; }
-.weekend-classification > li { display: grid; grid-template-columns: 3rem minmax(0,1fr) minmax(0,1fr); align-items: start; gap: 16px; padding-block: 24px; border-top: 1px solid var(--design-line); }
-.weekend-result-position { font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.weekend-result-identity { min-width: 0; }
-.weekend-result-identity h2 { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; font-size: 1.25rem; font-weight: 650; }
-#root .weekend-result-identity a { display: inline-flex; align-items: center; min-height: 44px; color: var(--design-ink); overflow-wrap: anywhere; }
-#root .weekend-result-identity a:hover { color: var(--design-accent); text-decoration: none; }
-.weekend-result-identity p { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; color: var(--design-muted); font-size: .875rem; }
-.weekend-result-favorite { color: var(--design-rating-outline); font-size: 1rem; }
-.weekend-result-segment { color: var(--design-accent); font-size: .8125rem; font-weight: 600; }
-.weekend-result-metrics { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,5rem),1fr)); gap: 12px 16px; align-self: center; }
-.weekend-result-metrics > div { display: flex; flex-direction: column-reverse; min-width: 0; }
-.weekend-result-metrics dt { margin-top: 4px; color: var(--design-muted); font-size: .8125rem; }
-.weekend-result-metrics dd { font-family: 'Space Grotesk', sans-serif; font-size: 1.125rem; font-weight: 600; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.weekend-session-page .weekend-full-results { justify-self: start; }
+.weekend-session-title p { margin-top: 6px; color: var(--design-muted); font-size: .875rem; }
 .weekend-result-feedback { display: grid; justify-items: start; gap: 16px; }
 .weekend-result-feedback p { max-width: 65ch; color: var(--design-muted); }
 .weekend-result-loading { display: grid; gap: 16px; color: var(--design-muted); }
-.weekend-result-loading > div { display: grid; gap: 16px; }
+.weekend-result-loading > div { display: grid; gap: 12px; }
 .weekend-result-loading span { min-height: 88px; background: var(--design-surface); border-radius: 12px; }
-@media (max-width: 899px) {
-  .weekend-classification > li { grid-template-columns: 2.5rem minmax(0,1fr); gap: 8px 12px; }
-  .weekend-result-metrics { grid-column: 2; padding-top: 8px; }
-  .weekend-result-identity h2 { font-size: 1.125rem; }
+.session-results-archive { display: grid; grid-template-columns: repeat(2,minmax(0,22rem)); align-items: start; gap: 16px; }
+.app-shell .weekend-session-page .session-results-archive > .home-glass-switch { width: 100%; }
+.session-results-year { display: flex; align-items: center; gap: 10px; color: var(--design-muted); font-size: .875rem; }
+.session-results-year > .custom-select-wrapper { width: 7rem; }
+.session-results-round { max-width: 45rem; }
+@container weekend (max-width: 28rem) {
+  .weekend-result-controls { grid-template-columns: minmax(0,1fr); }
+  .weekend-result-controls > .weekend-session-select { grid-column: 1; grid-row: 1; }
+  .weekend-result-controls > .weekend-result-switch { grid-column: 1; grid-row: 2; }
+  .session-results-archive { grid-template-columns: minmax(0,1fr); }
 }
-@container weekend (max-width: 16rem) {
-  .weekend-classification > li { grid-template-columns: minmax(0,1fr); }
-  .weekend-result-metrics { grid-column: 1; }
+.weekend-session-page .race-recap-fold > summary { min-height: 44px; padding-block: 10px; cursor: pointer; font-weight: 600; }
+.weekend-session-page .race-recap-panel { background: var(--design-surface); color: var(--design-ink); border-color: var(--design-line); border-radius: 12px; }
+.weekend-session-page .race-recap-panel :is(p,small,.history-note) { color: var(--design-muted); }
+.weekend-session-page .race-recap-panel a { color: var(--design-accent); }
+.weekend-session-page .race-recap-panel summary { min-height: 44px; padding-block: 8px; }
+.weekend-session-page .race-recap-panel button { min-height: 44px; color: var(--design-ink); background: var(--design-surface); border: 1px solid var(--design-control); border-radius: 12px; padding: 8px 12px; }
+
+.weekend-result-switch.is-unavailable :is(.home-section-lens,.home-section-light) { display: none; }
+
+@media (max-width: 899px) {
+  .weekend-result-controls { grid-template-columns: minmax(0,1fr); }
+  .weekend-result-controls > .weekend-session-select { grid-column: 1; grid-row: 1; }
+  .weekend-result-controls > .weekend-result-switch { grid-column: 1; grid-row: 2; }
 }

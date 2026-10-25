@@ -15,6 +15,7 @@ export function GlassSwitch({ items, selected: active, label, className, replace
     onPointerDown={event => {
       if (!event.isPrimary || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const links = event.currentTarget.querySelectorAll('a');
+      if (links.length < 2) return;
       const first = links[0].getBoundingClientRect(), second = links[1].getBoundingClientRect();
       suppressClickUntil.current = 0;
       drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, center: first.left + first.width / 2, step: second.left - first.left, moved: false, position: selected };

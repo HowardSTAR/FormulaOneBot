@@ -1,0 +1,3 @@
+.entrant-portrait { position: relative; overflow: hidden; display: grid; align-items: end; justify-items: center; flex: 0 0 3.5rem; width: 3.5rem; height: 4.5rem; }
+.entrant-portrait img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; mask-image: linear-gradient(to bottom, #000 65%, transparent); }
+.entrant-portrait > span { align-self: center; color: var(--design-muted); font-size: .8125rem; font-weight: 600; }
