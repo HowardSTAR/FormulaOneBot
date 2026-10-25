@@ -9,7 +9,7 @@ import { apiRequest } from '../../helpers/api';
 import { getDisplayTimezone, formatTimezoneLabel } from '../../helpers/timezone';
 import { useVisibleClock } from '../../helpers/useVisibleClock';
 import type { NextRaceResponse, SessionItem } from '../../context/HeroDataContext';
-import { sessionStart, sortedWeekend, stageSelection, weekendSession, weekendSessionLink, type StageSelection } from './weekend-model';
+import { sessionStart, sortedWeekend, stageSelection, matchesWeekendStage, weekendSession, weekendSessionLink, type StageSelection } from './weekend-model';
 import { WeekendCircuitInfo, WeekendCircuitStats } from './WeekendCircuitInfo';
 import { WeekendSessionResults } from './WeekendSessionResults';
 import { useCircuitProfile } from './useCircuitProfile';
@@ -26,8 +26,8 @@ function WeekendStatus({ title, message, retry, loading = false }: { title: stri
   </section>;
 }
 
-function WeekendHeading({ season }: { season?: number }) {
-  return <header className="weekend-heading"><h1 tabIndex={-1}>Уик-энд{season && <span className="weekend-season">{season}</span>}</h1><Link to="/season" className="weekend-secondary">Календарь <span aria-hidden="true">↗</span></Link></header>;
+function WeekendHeading({ season, round }: { season?: number; round?: number }) {
+  return <header className="weekend-heading"><h1 tabIndex={-1}>Уик-энд{season && <span className="weekend-season">{season}</span>}</h1><Link to={season && round ? `/season?year=${season}&round=${round}&filter=all` : '/season'} className="weekend-secondary">Календарь <span aria-hidden="true">↗</span></Link></header>;
 }
 
 function WeekendContent({ selection }: { selection: Exclude<StageSelection, { kind: 'invalid' }> }) {
@@ -51,9 +51,14 @@ function WeekendContent({ selection }: { selection: Exclude<StageSelection, { ki
     let active = true;
     const load = async () => {
       try {
-        const race: Race = season && round
-          ? { ...await apiRequest<Race>('/api/race-details', { season, round }), status: 'ok', season, round }
-          : await apiRequest<Race>('/api/next-race');
+        let race: Race;
+        if (season && round) {
+          const selected = await apiRequest<Race>('/api/race-details', { season, round });
+          if (!matchesWeekendStage(selected, season, round)) throw new Error('Источник вернул другой этап. Повторите загрузку или выберите гонку в календаре.');
+          race = { ...selected, status: 'ok', season };
+        } else {
+          race = await apiRequest<Race>('/api/next-race');
+        }
         if (race.status === 'season_finished') {
           if (active) setState({ status: 'ready', race, sessions: [], scheduleFailed: false });
           return;
@@ -81,7 +86,7 @@ function WeekendContent({ selection }: { selection: Exclude<StageSelection, { ki
   if (state.status === 'loading') return <main className="weekend-page"><WeekendHeading season={season ?? undefined} /><WeekendStatus title="Загружаем уик-энд…" message="Расписание, старт гонки и схема трассы появятся здесь." loading /></main>;
   if (state.status === 'error') return <main className="weekend-page"><WeekendHeading /><WeekendStatus title="Не удалось загрузить этап" message={state.message} retry={retry} /></main>;
   const { race, sessions, scheduleFailed } = state;
-  if (race.status === 'season_finished') return <main className="weekend-page"><WeekendHeading season={race.season} /><WeekendStatus title="Сезон завершён" message="Результаты прошедших этапов доступны в календаре. До встречи в новом сезоне." /></main>;
+  if (race.status === 'season_finished') return <main className="weekend-page"><WeekendHeading season={race.season} round={race.round} /><WeekendStatus title="Сезон завершён" message="Результаты прошедших этапов доступны в календаре. До встречи в новом сезоне." /></main>;
 
   const next = sessions.find(session => (sessionStart(session) ?? -Infinity) > now);
   const raceSession = sessions.find(session => /^(гонка|race)$/i.test(session.name.trim()));
@@ -91,14 +96,14 @@ function WeekendContent({ selection }: { selection: Exclude<StageSelection, { ki
   const insights = getCircuitInsightsRu({ season: race.season, eventName: race.event_name || '', country: race.country || '', location: race.location || '', eventFormat: race.event_format, sessionsCount: sessions.length });
   const circuitProfile = profileState.profile;
 
-  if (selectedSession && !race.is_cancelled && race.season && race.round) return <WeekendSessionResults
-    key={`${race.season}:${race.round}:${selectedSession}`} selected={selectedSession} now={now}
+  if ((selectedSession || params.get('results') === '1') && !race.is_cancelled && race.season && race.round) return <WeekendSessionResults
+    key={`${race.season}:${race.round}:${selectedSession}`} selected={selectedSession || ''} now={now}
     season={race.season} round={race.round} eventName={race.event_name || 'Этап'} sessions={sessions} />;
   const dated = sessions.flatMap(session => { const start = sessionStart(session); return start === null ? [] : [start]; });
   const weekendDates = dated.length ? new Intl.DateTimeFormat('ru-RU', { timeZone: timezone, day: 'numeric', month: 'long' }).formatRange(new Date(Math.min(...dated)), new Date(Math.max(...dated))) : null;
 
   return <main className="weekend-page">
-    <WeekendHeading season={race.season} />
+    <WeekendHeading season={race.season} round={race.round} />
     <section className="weekend-hero race-flag-scene" aria-labelledby="weekend-race-title">
       <RaceFlagBackdrop country={race.country} eventName={race.event_name} />
       <div className="weekend-hero-copy">

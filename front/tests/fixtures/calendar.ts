@@ -1,5 +1,5 @@
 // Fictional calendar data for the Vite design fixture only.
-import type { CalendarRace } from '../../src/helpers/seasonCalendar';
+import { raceSessions, type CalendarRace } from '../../src/helpers/seasonCalendar.ts';
 export function calendarPreviewRaces(year: number): CalendarRace[] {
   const venues = [
     [17, 'Azerbaijan Grand Prix', 'Баку', 'Азербайджан', '09-27'],
@@ -20,4 +20,11 @@ export function calendarPreviewRaces(year: number): CalendarRace[] {
       race_start_utc: round === 24 ? null : iso(0), quali_start_utc: round === 24 ? null : iso(24),
       practice1_start_utc: iso(51), ...(round === 19 ? { sprint_start_utc: iso(29), sprint_quali_start_utc: iso(47) } : { practice2_start_utc: iso(47), practice3_start_utc: iso(27) }) };
   });
+}
+
+// The calendar, stage overview and results must share the same event identity.
+export function calendarPreviewStage(season: number, round: number) {
+  const race = calendarPreviewRaces(season).find(race => race.round === round);
+  if (!race) return null;
+  return { ...race, season, sessions: raceSessions(race).map(session => ({ name: session.label, utc_iso: session.iso || undefined })) };
 }

@@ -97,13 +97,9 @@ export function raceSessions(race: CalendarRace) {
     {key: 'race', label: 'Гонка', iso: race.race_start_utc},
   ].filter(session => session.iso || session.key === 'quali' || session.key === 'race');
 }
-export function calendarResultLinks(race: CalendarRace, year: number, nowMs: number, status?: CalendarRaceStatus) {
-  if (race.is_cancelled) return [];
-  const fallback = isCompletedStatus(status);
-  return [
-    {key: 'sprintQuali', label: 'Спринт-квалификация', page: 'sprint-quali-results', visible: Boolean(race.sprint_quali_start_utc) && sessionHasStarted(race.sprint_quali_start_utc, nowMs)},
-    {key: 'sprint', label: 'Спринт', page: 'sprint-results', visible: Boolean(race.sprint_start_utc) && sessionHasStarted(race.sprint_start_utc, nowMs)},
-    {key: 'quali', label: 'Квалификация', page: 'quali-results', visible: sessionHasStarted(race.quali_start_utc, nowMs, fallback)},
-    {key: 'race', label: 'Гонка', page: 'race-results', visible: sessionHasStarted(race.race_start_utc, nowMs, fallback)},
-  ].filter(link => link.visible).map(link => ({key: link.key, label: link.label, href: `/${link.page}?mode=archive&season=${year}&round=${race.round}`}));
+export function calendarWeekendLink(race: CalendarRace, year: number): string {
+  return `/next-race?season=${year}&round=${race.round}`;
+}
+export function calendarResultsLink(race: CalendarRace, year: number): string | null {
+  return race.is_cancelled ? null : `${calendarWeekendLink(race, year)}&results=1&from=calendar`;
 }

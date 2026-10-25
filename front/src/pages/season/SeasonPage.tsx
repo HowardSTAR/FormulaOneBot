@@ -11,7 +11,7 @@ import { visibleInterval } from "../../helpers/visibleInterval";
 import { PageFeedback } from '../../components/PageFeedback';
 import { GlossaryText } from '../../components/GlossaryText';
 import { calendarState as getCalendarState, calendarStatusLabel, filteredCalendar, isCompletedStatus,
-  parseRaceTime, readCalendarQuery, selectedCalendarRace, raceDateParts, raceSessions, calendarResultLinks } from '../../helpers/seasonCalendar';
+  parseRaceTime, readCalendarQuery, selectedCalendarRace, raceDateParts, raceSessions, calendarResultsLink, calendarWeekendLink } from '../../helpers/seasonCalendar';
 import type { CalendarRace as Race, CalendarFilter } from '../../helpers/seasonCalendar';
 import { GlassSwitch } from '../index/GlassSwitch';
 import { RaceFlagBackdrop } from '../../components/RaceFlagBackdrop';
@@ -193,7 +193,7 @@ function SeasonPage() {
     : null;
 
   const selectedDateLabel = selectedRace ? raceDateParts(selectedRace, userTz).label : '—';
-  const selectedResultLinks = selectedRace ? calendarResultLinks(selectedRace, year, calendarNowMs, selectedStatus) : [];
+  const selectedResultsHref = selectedRace ? calendarResultsLink(selectedRace, year) : null;
   const formatSessionTime = (iso?: string | null): string => localDateTime(iso, userTz);
   const loadPodium = useCallback(async (round: number) => {
     const request = calendarRequest.current;
@@ -317,7 +317,7 @@ function SeasonPage() {
               </div>
               <div className="calendar-race-start">
                 <div><span>Гонка</span><strong>{selectedDateLabel}<span>{parseRaceTime(selectedRace.race_start_utc) !== null ? new Intl.DateTimeFormat('ru-RU', { timeZone: userTz, hour: '2-digit', minute: '2-digit' }).format(new Date(selectedRace.race_start_utc!)) : 'Время уточняется'}</span></strong><small>{timezoneName(userTz)}</small></div>
-                <Link className="calendar-primary" to={`/next-race?season=${year}&round=${selectedRace.round}`}>Открыть уик-энд<CalendarChevron /></Link>
+                <Link className="calendar-primary" to={calendarWeekendLink(selectedRace, year)}>Открыть уик-энд<CalendarChevron /></Link>
               </div>
             </div>
             {selectedRace.is_cancelled ? <p className="calendar-cancelled-note">Этап отменён. Указанные даты сохранены для справки.</p> : <details className="calendar-disclosure">
@@ -329,9 +329,8 @@ function SeasonPage() {
                 </div>)}
               </dl>
             </details>}
-            {selectedResultLinks.length > 0 && <div className="calendar-results">
-              <h3>Результаты сессий</h3>
-              <div>{selectedResultLinks.map(link => <Link className="calendar-secondary" key={link.key} to={link.href}>{link.label}<CalendarChevron /></Link>)}</div>
+            {selectedResultsHref && <div className="calendar-results">
+              <Link className="calendar-secondary" to={selectedResultsHref}>Результаты<CalendarChevron /></Link>
             </div>}
             {isCompletedStatus(selectedStatus) && <details className="calendar-disclosure calendar-podium" onToggle={event => {
               if (event.currentTarget.open) void loadPodium(selectedRace.round);

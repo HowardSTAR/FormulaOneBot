@@ -6,7 +6,7 @@ const links = auth => { const nav = navigationFor(auth); return [...nav.primary,
 const paths = auth => links(auth).map(link => link.to);
 test('Guest has all public sections but no protected links', () => {
   const values = paths({signedIn:false, personalized:false, role:null});
-  for (const path of ['/history','/drivers','/constructors','/practice-results','/compare','/predictions','/wiki','/reaction-game','/reflex-grid-game','/race-game','/contact-admin']) assert.ok(values.includes(path), path);
+  for (const path of ['/history','/drivers','/constructors','/season','/compare','/predictions','/wiki','/reaction-game','/reflex-grid-game','/race-game','/contact-admin']) assert.ok(values.includes(path), path);
   for (const path of ['/notifications','/favorites','/voting','/settings','/admin','/prediction-analytics']) assert.ok(!values.includes(path), path);
 });
 test('Email account opens personal features through My profile', () => {
@@ -63,8 +63,9 @@ for (const auth of [
 ]) test(`Desktop permissions and unique destinations: ${JSON.stringify(auth)}`, () => {
   const nav = navigationFor(auth);
   const values = desktopLinks(nav).map(link => link.to);
+  assert.ok(!values.includes('/next-race'));
   assert.equal(new Set(values).size, values.length);
-  for (const path of ['/','/next-race','/season','/predictions','/compare','/history','/community','/?view=games','/?view=guide','/?view=subscription','/contact-admin','/account']) assert.ok(values.includes(path), path);
+  for (const path of ['/','/season','/predictions','/compare','/history','/community','/?view=games','/?view=guide','/?view=subscription','/contact-admin','/account']) assert.ok(values.includes(path), path);
   for (const path of ['/settings','/profile']) assert.equal(values.includes(path), auth.signedIn, path);
   for (const path of ['/notifications','/favorites','/voting']) assert.equal(values.includes(path), auth.personalized, path);
   const isAdmin = ['admin','superadmin'].includes(auth.role);
@@ -74,7 +75,7 @@ for (const auth of [
 
 test('Desktop selects exactly one destination on profile, weekend and detail pages', () => {
   const nav = navigationFor({signedIn:true, personalized:true, role:'admin'});
-  for (const [route, expected] of [['/account','/account'], ['/settings','/settings'], ['/favorites','/favorites'], ['/notifications','/notifications'], ['/next-race','/next-race'], ['/driver-details','/drivers'], ['/constructor-details','/constructors'], ['/profile/123','/profile']]) {
+  for (const [route, expected] of [['/account','/account'], ['/settings','/settings'], ['/favorites','/favorites'], ['/notifications','/notifications'], ['/next-race','/season'], ['/driver-details','/drivers'], ['/constructor-details','/constructors'], ['/profile/123','/profile']]) {
     assert.deepEqual(desktopLinks(nav).filter(link => navigationActive(link,route)).map(link => link.to), [expected], route);
   }
 });
@@ -98,4 +99,16 @@ test('Desktop home views have exactly one active destination, including legacy l
   for (const [pathname, expected] of [['/wiki', '/?view=guide'], ['/reaction-game', '/?view=games'], ['/reflex-grid-game', '/?view=games']]) {
     assert.deepEqual(values.filter(link => navigationActive(link, pathname)).map(link => link.to), [expected], pathname);
   }
+});
+
+test('results are reached through the calendar instead of menu groups', () => {
+  const nav=navigationFor({signedIn:false,personalized:false,role:null});
+  assert.ok(!nav.groups.some(group=>group.id==='results'));
+  assert.ok(!nav.sections.flatMap(section=>section.items).some(entry=>entry.id==='results'));
+  const items=desktopLinks(nav);
+  for(const route of ['/practice-results','/sprint-quali-results','/sprint-results','/quali-results','/race-results']) {
+    assert.deepEqual(items.filter(item=>navigationActive(item,route)).map(item=>item.to),['/season']);
+  }
+  assert.deepEqual(items.filter(item=>navigationActive(item,'/next-race','?season=2025&round=4&session=fp2&from=calendar')).map(item=>item.to),['/season']);
+  assert.deepEqual(items.filter(item=>navigationActive(item,'/next-race','?season=2025&round=4&session=fp2')).map(item=>item.to),['/season']);
 });

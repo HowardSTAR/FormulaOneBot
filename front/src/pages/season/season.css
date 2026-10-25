@@ -66,8 +66,6 @@
 .calendar-sessions dd { color: var(--design-ink); text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .calendar-sessions .calendar-session-race :is(dt,dd) { font-weight: 600; color: var(--design-accent); }
 .calendar-results { margin-top: 20px; }
-.calendar-results h3 { font-size: .9375rem; margin-bottom: 12px; font-weight: 600; }
-.calendar-results > div { display: flex; flex-wrap: wrap; gap: 8px; }
 .calendar-podium > p, .calendar-podium-error { color: var(--design-muted); font-size: .875rem; padding-block: 12px; }
 .calendar-podium-error p { margin-bottom: 12px; }
 .calendar-podium-list { list-style: none; padding: 0; }

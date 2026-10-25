@@ -1,10 +1,7 @@
 // Vite-only visual fixture. Uses the real app with deterministic, fictional data.
 // No requests are sent to a backend, and no accounts or records are modified.
-import circuitSvg from '../public/static/circuit/United States Grand Prix.svg?raw';
-import singaporeSvg from '../public/static/circuit/Singapore Grand Prix.svg?raw';
-import mexicoSvg from '../public/static/circuit/Mexico City Grand Prix.svg?raw';
 import circuitProfiles from './fixtures/circuit-profiles.json';
-import { calendarPreviewRaces } from './fixtures/calendar';
+import { calendarPreviewRaces, calendarPreviewStage } from './fixtures/calendar';
 const calendarCircuits = import.meta.glob<string>('../public/static/circuit/*.svg', { query: '?raw', import: 'default' });
 import { createRoot } from 'react-dom/client';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
@@ -23,6 +20,7 @@ const linked = query.get('auth') === 'linked';
 const demoVotes: Record<number, number> = {};
 let previewRead = false;
 let calendarFailures = scenario === 'calendar-error' ? 1 : 0;
+let resultFailures = scenario === 'results-error' ? 1 : 0;
 let podiumFailures = scenario === 'podium-error' ? 1 : 0;
 let voteFailures = scenario === 'rating-error' ? 1 : 0;
 if (query.get('scale') === '2') document.documentElement.style.fontSize = '200%';
@@ -41,23 +39,44 @@ if (query.get('format') === 'standard') {
 if (scenario === 'past') sessions.forEach(session => { session.utc_iso = session.utc_iso.replace('-10-23', '-10-16').replace('-10-24', '-10-17').replace('-10-25', '-10-18'); });
 if (scenario === 'untimed') sessions[0].utc_iso = '';
 if (scenario === 'race-untimed') sessions[4].utc_iso = '';
-const drivers = [
-  { position: 1, code: 'NOR', number: '4', imageUrl: 'https://media.formula1.com/image/upload/c_fill,w_720/q_auto/v1740000001/common/f1/2026/mclaren/lannor01/2026mclarenlannor01right.webp', driverId: 'norris', name: 'Ландо Норрис', constructorName: 'McLaren', points: 287 },
-  { position: 2, code: 'PIA', number: '81', imageUrl: 'https://media.formula1.com/image/upload/c_fill,w_720/q_auto/v1740000001/common/f1/2026/mclaren/oscpia01/2026mclarenoscpia01right.webp', driverId: 'piastri', name: 'Оскар Пиастри', constructorName: 'McLaren', points: 272 },
-  { position: 3, code: 'VER', number: '3', name: 'Макс Ферстаппен', constructorName: 'Red Bull Racing', points: 255 },
-  { position: 4, code: 'RUS', number: '63', name: 'Джордж Расселл', constructorName: 'Mercedes', points: 214 },
-  { position: 5, code: 'LEC', number: '16', name: 'Шарль Леклер', constructorName: 'Ferrari', points: 196 },
+function requestedPreviewStage(season: number, round: number) {
+  // Explicit venue demos keep their dedicated profile; calendar clicks always use the selected card.
+  if (query.get('page') !== 'calendar' && query.has('venue') && season === fixtureProfile.season && round === fixtureProfile.round) {
+    return { season, round, event_name: fixtureProfile.eventName, location: fixtureLocation, country: fixtureCountry,
+      date: sessions[4].utc_iso.slice(0,10), race_start_utc: sessions[4].utc_iso, is_cancelled: false, sessions };
+  }
+  const stage = calendarPreviewStage(season, round);
+  return stage && query.get('page') !== 'calendar' && query.get('format') === 'standard' && round === 19 ? { ...stage, sessions } : stage;
+}
+const portraitAssets = import.meta.glob<string>('../../app/assets/2026/pilots/*.{webp,jpg}', { query: '?url', import: 'default', eager: true });
+// Complete illustrative field; portraits come from the verified originals in app-assets.zip.
+const previewField = [
+  ['NOR','4','norris','Ландо Норрис','McLaren'], ['PIA','81','piastri','Оскар Пиастри','McLaren'],
+  ['VER','3','max_verstappen','Макс Ферстаппен','Red Bull Racing'], ['RUS','63','russell','Джордж Расселл','Mercedes'],
+  ['LEC','16','leclerc','Шарль Леклер','Ferrari'], ['HAM','44','hamilton','Льюис Хэмилтон','Ferrari'],
+  ['ANT','12','antonelli','Кими Антонелли','Mercedes'], ['HAD','6','hadjar','Исак Хаджар','Red Bull Racing'],
+  ['GAS','10','gasly','Пьер Гасли','Alpine'], ['COL','43','colapinto','Франко Колапинто','Alpine'],
+  ['ALB','23','albon','Александр Албон','Williams'], ['SAI','55','sainz','Карлос Сайнс','Williams'],
+  ['ALO','14','alonso','Фернандо Алонсо','Aston Martin'], ['STR','18','stroll','Лэнс Стролл','Aston Martin'],
+  ['LAW','30','lawson','Лиам Лоусон','Racing Bulls'], ['LIN','41','lindblad','Арвид Линдблад','Racing Bulls'],
+  ['OCO','31','ocon','Эстебан Окон','Haas'], ['BEA','87','bearman','Оливер Берман','Haas'],
+  ['HUL','27','hulkenberg','Нико Хюлькенберг','Audi'], ['BOR','5','bortoleto','Габриэл Бортолето','Audi'],
+  ['PER','11','perez','Серхио Перес','Cadillac'], ['BOT','77','bottas','Валттери Боттас','Cadillac'],
 ];
+const drivers = previewField.map(([code,number,driverId,name,constructorName], index) => ({
+  position: index + 1, code, number, driverId, name, constructorName,
+  imageUrl: portraitAssets[`../../app/assets/2026/pilots/${code}.webp`],
+  points: [287,272,255,214,196][index] ?? Math.max(0,160 - index * 7),
+}));
 const constructors = [{ position: 1, name: 'McLaren', points: 559 }, { position: 2, name: 'Mercedes', points: 382 }, { position: 3, name: 'Ferrari', points: 361 }, { position: 4, name: 'Red Bull Racing', points: 329 }, { position: 5, name: 'Williams', points: 94 }];
 const previewStats = { grand_prix_races: 0, grand_prix_points: 0, grand_prix_wins: 0, grand_prix_podiums: 0, grand_prix_poles: 0, grand_prix_top10s: 0, fastest_laps: 0, dnfs: 0, sprint_races: 0, sprint_points: 0, sprint_wins: 0, sprint_podiums: 0, sprint_poles: 0, sprint_top10s: 0 };
 const previewCareer = { available: false, grand_prix_entered: 0, career_points: 0, highest_race_finish: { position: '—', count: 0 }, podiums: 0, highest_grid: { position: '—', count: 0 }, pole_positions: 0, world_championships: 0, dnfs: 0 };
 window.fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input), location.origin);
-  if (url.pathname.startsWith('/static/circuit/') && query.get('page') === 'calendar') {
+  if (url.pathname.startsWith('/static/circuit/')) {
     const asset = calendarCircuits[`../public${decodeURIComponent(url.pathname)}`];
     return asset ? new Response(await asset(), { headers: { 'Content-Type': 'image/svg+xml' } }) : new Response('', { status: 404 });
   }
-  if (url.pathname.startsWith('/static/circuit/')) return new Response(decodeURIComponent(url.pathname).includes('Singapore') ? singaporeSvg : decodeURIComponent(url.pathname).includes('Mexico') ? mexicoSvg : circuitSvg, { headers: { 'Content-Type': 'image/svg+xml' } });
   if (!url.pathname.startsWith('/api/')) return realFetch(input, init);
   const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
   if ((init?.method || (input instanceof Request ? input.method : 'GET')) !== 'GET') {
@@ -75,23 +94,33 @@ window.fetch = async (input, init) => {
   if (scenario === 'schedule-error' && url.pathname === '/api/weekend-schedule') return json({ detail: 'Демонстрация ошибки расписания' }, 503);
   if (['/api/practice-results', '/api/quali-results', '/api/sprint-quali-results', '/api/sprint-results', '/api/race-results'].includes(url.pathname)) {
     if (url.pathname === '/api/race-results' && podiumFailures-- > 0) return json({ detail: 'Не удалось получить подиум' }, 503);
-    if (scenario === 'results-error') return json({ detail: 'Демонстрация ошибки результатов' }, 503);
-    return json({ season: Number(url.searchParams.get('season') || 2026), round: scenario === 'results-mismatch' ? 18 : Number(url.searchParams.get('round') || 19),
-      session: Number(url.searchParams.get('session') || 1), available_sessions: [1, 2, 3], is_sprint_weekend: false,
-      results: scenario === 'results-empty' ? [] : drivers.map((driver, index) => ({ position: index + 1, driver: driver.code, code: driver.code, name: driver.name, team: driver.constructorName, points: 25 - index * 5,
-        best: `1:36.${String(52 + index * 84).padStart(3, '0')}`, gap: index ? `+0.${String(index * 84).padStart(3, '0')}` : null, laps: 26 - index, is_favorite_driver: member && index === 0 })) });
+    if (resultFailures-- > 0) return json({ detail: 'Демонстрация ошибки результатов' }, 503);
+    const qualifying = url.pathname.includes('quali-results');
+    const stage = requestedPreviewStage(Number(url.searchParams.get('season') || 2026), Number(url.searchParams.get('round') || 19));
+    if (!stage) return json({ detail: 'Этап отсутствует в демо-календаре' }, 404);
+    return json({ race_info: { event_name: stage.event_name }, season: Number(url.searchParams.get('season') || 2026), round: scenario === 'results-mismatch' ? 18 : Number(url.searchParams.get('round') || 19),
+      session: Number(url.searchParams.get('session') || 1), available_sessions: stage.sessions.some(session => /Спринт/.test(session.name)) ? [1] : [1,2,3], is_sprint_weekend: stage.sessions.some(session => /Спринт/.test(session.name)),
+      results: scenario === 'results-empty' ? [] : drivers.map((driver, index) => ({ position: index + 1, segment: qualifying ? (index < 10 ? 'Q3' : index < 16 ? 'Q2' : 'Q1') : undefined, time: index ? `+${index * 3}.084` : '1:32:14.052', driver: driver.code, code: driver.code, name: driver.name, team: driver.constructorName, points: (url.pathname === '/api/sprint-results' ? [8,7,6,5,4,3,2,1] : [25,18,15,12,10,8,6,4,2,1])[index] ?? 0,
+        best: `1:${36 + Math.floor((52 + index * 84) / 1000)}.${String((52 + index * 84) % 1000).padStart(3, '0')}`, gap: index ? `+${(index * .084).toFixed(3)}` : null, laps: 26 - index, is_favorite_driver: member && index === 0 })) });
   }
   if (scenario === 'personal-error' && ['/api/predictions/current', '/api/web-notifications/unread-count', '/api/predictions/personal-season'].includes(url.pathname)) return json({ detail: 'Демонстрация ошибки личного раздела' }, 503);
   switch (url.pathname) {
+    case '/api/race-recap': return json({ status: 'waiting', items: [], note: 'Демонстрационный обзор: ожидаем подтверждённые данные.' });
     case '/api/auth/me': return member ? json({ id: 1, email: null, telegram_id: linked ? 1 : null, role: 'user', email_verified: true, display_name: 'Болельщик' }) : json({}, 401);
     case '/api/favorites': return scenario === 'favorites-error' ? json({}, 503) : json(scenario === 'favorites-empty' ? { drivers: [], teams: [] } : scenario === 'favorites-missing' ? { drivers: ['OLD'], teams: ['Old Team'] } : { drivers: ['PIA', 'NOR'], teams: ['McLaren'] });
     case '/api/next-race': return json({ status: scenario === 'finished' ? 'season_finished' : 'ok', is_cancelled: scenario === 'cancelled', event_name: fixtureProfile.eventName, location: fixtureLocation, country: fixtureCountry, season: 2026, round: fixtureProfile.round, race_start_utc: sessions[4].utc_iso, next_session_iso: sessions[0].utc_iso, next_session_name: sessions[0].name });
-    case '/api/race-details': return json({ event_name: fixtureProfile.eventName, location: fixtureLocation, country: fixtureCountry, season: Number(url.searchParams.get('season')), round: Number(url.searchParams.get('round')), sessions: scenario === 'empty' ? [] : sessions });
+    case '/api/race-details': {
+      const stage = requestedPreviewStage(Number(url.searchParams.get('season')), Number(url.searchParams.get('round')));
+      if (!stage) return json({ detail: 'Этап отсутствует в демо-календаре' }, 404);
+      return json({ ...stage, ...(scenario === 'stage-mismatch' ? { round: stage.round + 1 } : {}), sessions: scenario === 'empty' ? [] : stage.sessions });
+    }
     case '/api/circuit-profile': {
       if (profileFailures-- > 0) return json({ detail: 'Профиль временно недоступен' }, 503);
       const season = Number(url.searchParams.get('season'));
       const round = Number(url.searchParams.get('round'));
-      const profile = scenario === 'profile-unavailable' || season !== fixtureProfile.season || round !== fixtureProfile.round ? null : { ...fixtureProfile, stale: scenario === 'profile-stale' };
+      const stage = requestedPreviewStage(season, round);
+      const sample = Object.values(circuitProfiles).find(profile => profile.season === season && profile.eventName === stage?.event_name);
+      const profile = scenario === 'profile-unavailable' || !sample ? null : { ...sample, round, stale: scenario === 'profile-stale' };
       return json({ status: profile ? profile.stale ? 'stale' : 'ok' : 'unavailable', season, round, profile });
     }
     case '/api/weekend-schedule': return json({ sessions: scenario === 'empty' ? [] : sessions });
@@ -139,7 +168,10 @@ const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
 const calendarQuery = new URLSearchParams();
 for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
-const initialPath = query.get('page') === 'menu' ? '/menu' : query.get('page') === 'calendar' ? `/season${calendarQuery.size ? `?${calendarQuery}` : ''}` : query.get('page') === 'weekend' ? `/next-race${weekendQuery.size ? `?${weekendQuery}` : ''}` : `/${initialQuery.size ? `?${initialQuery}` : ''}`;
+const resultRoutes = ['drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
+const resultQuery = new URLSearchParams(weekendQuery);
+if (query.has('mode')) resultQuery.set('mode', query.get('mode')!);
+const initialPath = resultRoutes.includes(query.get('page') || '') ? `/${query.get('page')}?${resultQuery}` : query.get('page') === 'menu' ? '/menu' : query.get('page') === 'calendar' ? `/season${calendarQuery.size ? `?${calendarQuery}` : ''}` : query.get('page') === 'weekend' ? `/next-race${weekendQuery.size ? `?${weekendQuery}` : ''}` : `/${initialQuery.size ? `?${initialQuery}` : ''}`;
 createRoot(document.getElementById('root')!).render(<HeroDataProvider><div className="root"><RouterProvider router={createMemoryRouter(router.routes, { initialEntries: [initialPath] })} /></div><ScrollToTop /></HeroDataProvider>);
 const note = document.createElement('aside');
 note.textContent = 'Демо · данные вымышлены · оценки до перезагрузки';

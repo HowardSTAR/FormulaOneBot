@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadTs } from './support/modules.mjs';
-const { stageSelection, sessionStart, sortedWeekend, availableResults, sessionResultsPath, weekendSession, weekendSessionLink, matchesWeekendResult } = await loadTs(new URL('../src/pages/next-race/weekend-model.ts', import.meta.url));
+const { stageSelection, sessionStart, sortedWeekend, availableResults, sessionResultsPath, weekendSession, weekendSessionLink, matchesWeekendResult, matchesWeekendStage } = await loadTs(new URL('../src/pages/next-race/weekend-model.ts', import.meta.url));
 
 test('weekend links preserve valid archives and reject partial or malformed selections', () => {
   assert.deepEqual(stageSelection(null, null), { kind: 'next' });
@@ -43,4 +43,12 @@ test('a fallback stage or practice is never shown under the requested result tit
   assert.equal(matchesWeekendResult({ season: 2026, round: 19, session: 1 }, 2026, 19, 2), false);
   assert.equal(matchesWeekendResult({}, 2026, 19), false);
   assert.equal(matchesWeekendResult({ season: 2026, round: 19 }, 2026, 19), true);
+});
+
+test('selected weekend rejects another round or season instead of replacing its identity', () => {
+  assert.equal(matchesWeekendStage({ season: 2026, round: 18 }, 2026, 18), true);
+  assert.equal(matchesWeekendStage({ round: 18 }, 2026, 18), true); // Legacy API omits season.
+  assert.equal(matchesWeekendStage({ season: 2026, round: 19 }, 2026, 18), false);
+  assert.equal(matchesWeekendStage({ season: 2025, round: 18 }, 2026, 18), false);
+  assert.equal(matchesWeekendStage({}, 2026, 18), false);
 });

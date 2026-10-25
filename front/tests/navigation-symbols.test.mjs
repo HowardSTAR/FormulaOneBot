@@ -27,9 +27,8 @@ test('subscription uses the decorative supporter badge instead of the favorite s
 });
 
 test('weekend, each result type and racing game have distinct symbols', () => {
-  const entries = [nav.primary.find(item => item.to === '/next-race'), ...nav.groups.find(group => group.id === 'results').items,
-    nav.groups.find(group => group.id === 'games').items.find(item => item.to === '/race-game')];
-  assert.equal(new Set(entries.map(item => render(item.icon))).size, entries.length);
+  const icons=['weekend','practice','sprintQuali','sprint','quali','race','arcade'];
+  assert.equal(new Set(icons.map(render)).size,icons.length);
 });
 
 test('history and comparison do not reuse the same symbol', () => {

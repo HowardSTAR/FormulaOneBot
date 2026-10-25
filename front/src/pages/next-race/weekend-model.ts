@@ -8,6 +8,11 @@ export function stageSelection(season: string | null, round: string | null): Sta
   return { kind: 'selected', season: Number(season), round: Number(round) };
 }
 
+// Older race-details responses omit season, but must still identify their round.
+export function matchesWeekendStage(response: { season?: number; round?: number | null }, season: number, round: number) {
+  return response.round === round && (response.season === undefined || response.season === season);
+}
+
 export function sessionStart(session: SessionItem): number | null {
   if (!session.utc_iso || !/(Z|[+-]\d\d:\d\d)$/i.test(session.utc_iso)) return null;
   const time = Date.parse(session.utc_iso);
@@ -58,4 +63,16 @@ export function availableResults(sessions: SessionItem[], now: number) {
     seen.add(path);
     return [{ path, title: path === '/practice-results' ? 'Свободные заезды' : session.name }];
   });
+}
+
+export function weekendResultGroups(sessions: SessionItem[]) {
+  const definitions = [
+    { id: 'practice', label: 'Практика', ids: ['fp1', 'fp2', 'fp3'], labels: ['P1', 'P2', 'P3'] },
+    { id: 'sprint', label: 'Спринт', ids: ['sprint-quali', 'sprint'], labels: ['SQ', 'SR'] },
+    { id: 'weekend', label: 'Уик-энд', ids: ['quali', 'race'], labels: ['Квалификация', 'Гонка'] },
+  ];
+  return definitions.map(group => ({ id: group.id, label: group.label, sessions: group.ids.flatMap((id, index) => {
+    const session = sessions.find(item => weekendSession(item.name)?.id === id);
+    return session ? [{ id, label: group.labels[index], session }] : [];
+  }) })).filter(group => group.sessions.length > 0);
 }

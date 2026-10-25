@@ -169,7 +169,7 @@ test('calendar cancelled stages never replace the next race or count as complete
   assert.equal(state.nextRound,3);
   assert.deepEqual(calendar.filteredCalendar(races,state.statusByRound,'past').map(r=>r.round),[1]);
   assert.equal(calendar.filteredCalendar(races,state.statusByRound,'all').length,3);
-  assert.deepEqual(calendar.calendarResultLinks(races[1],2026,Date.now(),'cancelled'),[]);
+  assert.equal(calendar.calendarResultsLink(races[1],2026),null);
 });
 test('calendar selection prefers the latest past race and respects deep links', () => {
   const races=[calendarRace(1,'2026-03-01T12:00:00Z'),calendarRace(2,'2026-03-08T12:00:00Z')];
@@ -185,13 +185,9 @@ test('calendar dates respect real session times but date-only archives do not sh
   assert.equal(calendar.raceDateParts({...race,race_start_utc:null,date:'bad'},'UTC').label,'Дата уточняется');
   assert.equal(calendar.calendarState([calendarRace(1,null)],2026,Date.parse('2026-03-10T12:00:00Z')).statusByRound.get(1),'unknown');
 });
-test('calendar shows practices and only links to sessions that have started', () => {
-  const race=calendarRace(16,'2026-10-04T14:00:00Z',{practice1_start_utc:'2026-10-02T10:00:00Z',practice2_start_utc:'2026-10-02T14:00:00Z',practice3_start_utc:'2026-10-03T10:00:00Z',quali_start_utc:'2026-10-03T14:00:00Z'});
-  assert.equal(calendar.raceSessions(race).length,5);
-  assert.deepEqual(calendar.calendarResultLinks(race,2026,Date.parse('2026-10-02T12:00:00Z'),'weekend'),[]);
-  const links=calendar.calendarResultLinks(race,2026,Date.parse('2026-10-03T15:00:00Z'),'weekend');
-  assert.deepEqual(links.map(link=>link.key),['quali']);
-  assert.match(links[0].href,/season=2026&round=16$/);
+test('calendar results entry preserves the selected stage and season', () => {
+  const race=calendarRace(16,'2026-10-04T14:00:00Z');
+  assert.equal(calendar.calendarResultsLink(race,2026),'/next-race?season=2026&round=16&results=1&from=calendar');
 });
 
 test('calendar has one overview, native disclosures and guarded retryable requests', () => {

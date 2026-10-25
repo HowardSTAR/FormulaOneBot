@@ -9,7 +9,7 @@ export type NavigationSection = { id: string; label: string; items: (NavigationI
 const item = (to: string, label: string, icon: HomeIconName, activePaths = [to], access?: NavigationItem['access']): NavigationItem => ({ to, label, icon, activePaths, access });
 const home = item('/', 'Обзор', 'home');
 const weekend = item('/next-race', 'Уик-энд', 'weekend');
-const calendar = item('/season', 'Календарь', 'calendar', ['/season', '/race-details']);
+const calendar = item('/season', 'Календарь', 'calendar', ['/season', '/race-details', '/practice-results', '/sprint-quali-results', '/sprint-results', '/quali-results', '/race-results']);
 const predictions = item('/predictions', 'Прогнозы', 'predictions');
 const community = item('/community', 'С друзьями', 'social');
 const wiki = item('/wiki', 'Wiki Formula 1™', 'wiki');
@@ -23,16 +23,13 @@ const primary = [home, weekend, calendar, predictions];
 const general = [community, wiki, profile, notifications, feedback];
 const personal = [admin, predictionAnalytics, voting];
 const groups: NavigationGroup[] = [
-  { id: 'results', label: 'Результаты', icon: 'results', items: [
-    item('/practice-results', 'Свободные заезды', 'practice'), item('/sprint-quali-results', 'Спринт-квалификация', 'sprintQuali'), item('/sprint-results', 'Спринт-гонка', 'sprint'), item('/quali-results', 'Квалификация', 'quali'), item('/race-results', 'Гонка', 'race'),
-  ] },
   { id: 'peloton', label: 'Пелотон', icon: 'peloton', items: [
     item('/drivers', 'Пилоты', 'drivers', ['/drivers', '/driver-details']), item('/constructors', 'Команды', 'teams', ['/constructors', '/constructor-details', '/team-principal']),
   ] },
   { id: 'comparison', label: 'Сравнение', icon: 'compare', items: [item('/compare', 'Сравнение пилотов', 'compare'), item('/history', 'История сезонов', 'history')] },
   { id: 'games', label: 'Игры', icon: 'games', items: [item('/reaction-game', 'Тест реакции', 'reaction'), item('/reflex-grid-game', 'Reflex Grid', 'grid'), item('/race-game', 'Emerald Loop', 'arcade')] },
 ];
-const [results, peloton, comparison] = groups;
+const [peloton, comparison] = groups;
 const desktopHome = (id: HomeSection, paths: string[] = []): NavigationItem => {
   const section = homeSections.find(section => section.id === id)!;
   return { ...item(homeSectionPath(id), section.label, section.icon, paths), homeView: id };
@@ -42,7 +39,7 @@ const desktopSections: NavigationSection[] = [
     desktopHome('season'), desktopHome('games', ['/reaction-game', '/reflex-grid-game', '/race-game']),
     desktopHome('guide', ['/wiki']), desktopHome('subscription'),
   ] },
-  { id: 'racing', label: 'Гонки', items: [weekend, calendar, results, peloton] },
+  { id: 'racing', label: 'Гонки', items: [{ ...calendar, activePaths: [...calendar.activePaths, weekend.to] }, peloton] },
   { id: 'statistics', label: 'Прогнозы и статистика', items: [predictions, comparison] },
   { id: 'community', label: 'Сообщество', items: [
     { id: 'social', label: 'С друзьями', icon: 'social', items: [{ ...community, label: 'Сообщество' }, voting] },
@@ -80,6 +77,10 @@ export function navigationFor(auth: Pick<AuthState, 'signedIn' | 'personalized' 
   };
 }
 export const navigationActive = (item: NavigationItem, pathname: string, search = '') => {
+  if (pathname === '/next-race' && new URLSearchParams(search).get('from') === 'calendar' && (new URLSearchParams(search).has('session') || new URLSearchParams(search).get('results') === '1')) {
+    if (item.to === '/season') return true;
+    if (item.to === '/next-race') return false;
+  }
   if (item.homeView && pathname === '/') return item.homeView === homeSectionFromSearch(search);
   return item.activePaths.some(path => pathname === path || path !== '/' && pathname.startsWith(`${path}/`));
 };
