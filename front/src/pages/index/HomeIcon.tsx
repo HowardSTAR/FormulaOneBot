@@ -1,3 +1,5 @@
+import SupporterBadge from '../../components/SupporterBadge';
+
 const paths = {
   menu: 'M4 6h16M4 12h16M4 18h16',
   clock: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 6v6l4 2',
@@ -36,8 +38,9 @@ const paths = {
   peloton: 'M3 21v-2a5 5 0 0 1 10 0v2m1-7a5 5 0 0 1 7 5v2M11 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm8 1a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
   help: 'M9 8a3 3 0 1 1 5 2c-2 1-2 2-2 3m0 4h.01M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0Z',
 } as const;
-export type HomeIconName = keyof typeof paths;
+export type HomeIconName = keyof typeof paths | 'subscription';
 
 export function HomeIcon({ name }: { name: HomeIconName }) {
+  if (name === 'subscription') return <span className="home-icon home-subscription-icon" aria-hidden="true"><SupporterBadge /></span>;
   return <svg className="home-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={paths[name]} />{name === 'race' && <path d="M5 3h4v4H5zM13 3h4v4h-4zM9 7h4v4H9zM17 7h4v4h-4zM5 11h4v4H5zM13 11h4v4h-4z" fill="currentColor" stroke="none" />}</svg>;
 }

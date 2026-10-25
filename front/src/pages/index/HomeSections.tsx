@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { HomeIcon } from './HomeIcon';
 import SupporterBadge from '../../components/SupporterBadge';
+import AvatarPortrait from '../profile/AvatarPortrait';
 import { GlassSwitch } from './GlassSwitch';
 import { homeSectionPath } from '../../helpers/homeSections';
 import './home-sections.css';
@@ -28,9 +29,9 @@ export function HomeSectionHero({ section }: { section: FeatureSection }) {
   const text = games ? 'Выберите свою тройку на гонку и соревнуйтесь с друзьями в зачёте прогнозов.' : guide ? 'Расскажите, чего не хватает, предложите идею или сообщите об ошибке.' : 'Поддержите проект, присоединитесь к клубному зачёту и откройте оформление профиля.';
   return <section className={`home-section-hero home-section-hero--${section}`} aria-labelledby={`home-banner-title-${section}`}>
     <div className="home-banner-copy"><h2 id={`home-banner-title-${section}`}>{title}</h2><p>{text}</p>
-      {section === 'subscription' ? <a className="home-glass-button home-glass-button--primary" href="https://boosty.to/turbotears" target="_blank" rel="noopener noreferrer">Подписаться на Boosty<HomeIcon name="chevronRight" /></a> : <Link className="home-glass-button home-glass-button--primary" to={games ? '/predictions' : '/contact-admin'}>{games ? 'Сделать прогноз' : 'Написать отзыв'}<HomeIcon name="chevronRight" /></Link>}
+      {section === 'subscription' ? <a className="home-glass-button home-glass-button--primary home-subscribe-button" href="https://boosty.to/turbotears" target="_blank" rel="noopener noreferrer"><span className="home-subscribe-symbol" aria-hidden="true"><SupporterBadge /></span><span>Подписаться на Boosty</span><HomeIcon name="chevronRight" /></a> : <Link className="home-glass-button home-glass-button--primary" to={games ? '/predictions' : '/contact-admin'}>{games ? 'Сделать прогноз' : 'Написать отзыв'}<HomeIcon name="chevronRight" /></Link>}
     </div>
-    {games ? <div className="home-banner-art home-podium-preview" aria-hidden="true"><span>2</span><span>1</span><span>3</span></div> : guide ? <div className="home-banner-art home-feedback-art" aria-hidden="true"><span>Есть идея?</span><HomeIcon name="contact" /></div> : <div className="home-banner-art home-member-preview" aria-hidden="true"><div><HomeIcon name="account" /><span>TurboTears<SupporterBadge tierName="Свой стиль" /></span></div><span>Пример оформления профиля</span></div>}
+    {games ? <div className="home-banner-art home-podium-preview" aria-hidden="true"><span>2</span><span>1</span><span>3</span></div> : guide ? <div className="home-banner-art home-feedback-art" aria-hidden="true"><span className="home-feedback-note"><i /><i /><i /></span><HomeIcon name="contact" /><span className="home-feedback-reply"><i /><i /><i /></span></div> : <div className="home-banner-art home-member-preview" aria-hidden="true">{(['cobalt', 'scarlet', 'mint'] as const).map(color => <span className={`home-member-frame home-member-frame--${color}`} key={color}><AvatarPortrait avatar={{ helmet: color, suit: color, background: color }} /></span>)}</div>}
   </section>;
 }
 

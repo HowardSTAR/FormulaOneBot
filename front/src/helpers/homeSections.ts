@@ -3,7 +3,7 @@ export const homeSections = [
   { id: 'season', label: 'Сезон', icon: 'home' },
   { id: 'games', label: 'Игры', icon: 'games' },
   { id: 'guide', label: 'Справка и отзывы', icon: 'wiki' },
-  { id: 'subscription', label: 'Подписка', icon: 'favorite' },
+  { id: 'subscription', label: 'Подписка', icon: 'subscription' },
 ] as const;
 export type HomeSection = typeof homeSections[number]['id'];
 export function homeSectionFromSearch(search: string | URLSearchParams): HomeSection {

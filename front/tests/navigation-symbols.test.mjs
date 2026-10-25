@@ -10,12 +10,21 @@ import { navigationFor } from '../src/helpers/navigation.ts';
 const bundle = await build({
   entryPoints: [fileURLToPath(new URL('../src/pages/index/HomeIcon.tsx', import.meta.url))],
   bundle: true, write: false, format: 'cjs', platform: 'node', jsx: 'automatic', external: ['react'],
+  loader: { '.css': 'empty' },
 });
 const mod = { exports: {} };
 new Function('require', 'module', 'exports', bundle.outputFiles[0].text)(createRequire(import.meta.url), mod, mod.exports);
 const { HomeIcon } = mod.exports;
 const render = icon => renderToStaticMarkup(React.createElement(HomeIcon, { name: icon }));
 const nav = navigationFor({ signedIn: false, personalized: false, role: null });
+
+test('subscription uses the decorative supporter badge instead of the favorite star', () => {
+  const subscription = nav.sections.flatMap(section => section.items).find(item => item.homeView === 'subscription');
+  assert.equal(subscription.icon, 'subscription');
+  assert.match(render(subscription.icon), /supporter-badge-shield/);
+  assert.match(render(subscription.icon), /aria-hidden="true"/);
+  assert.notEqual(render(subscription.icon), render('favorite'));
+});
 
 test('weekend, each result type and racing game have distinct symbols', () => {
   const entries = [nav.primary.find(item => item.to === '/next-race'), ...nav.groups.find(group => group.id === 'results').items,
