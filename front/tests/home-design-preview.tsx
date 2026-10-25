@@ -1,6 +1,7 @@
 // Vite-only visual fixture. Uses the real app with deterministic, fictional data.
 // No requests are sent to a backend, and no accounts or records are modified.
 import circuitSvg from '../public/static/circuit/United States Grand Prix.svg?raw';
+import singaporeSvg from '../public/static/circuit/Singapore Grand Prix.svg?raw';
 import { createRoot } from 'react-dom/client';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { HeroDataProvider } from '../src/context/HeroDataContext';
@@ -28,20 +29,23 @@ if (scenario === 'race-untimed') sessions[4].utc_iso = '';
 const drivers = [
   { position: 1, code: 'NOR', number: '4', imageUrl: 'https://media.formula1.com/image/upload/c_fill,w_720/q_auto/v1740000001/common/f1/2026/mclaren/lannor01/2026mclarenlannor01right.webp', driverId: 'norris', name: 'Ландо Норрис', constructorName: 'McLaren', points: 287 },
   { position: 2, code: 'PIA', number: '81', imageUrl: 'https://media.formula1.com/image/upload/c_fill,w_720/q_auto/v1740000001/common/f1/2026/mclaren/oscpia01/2026mclarenoscpia01right.webp', driverId: 'piastri', name: 'Оскар Пиастри', constructorName: 'McLaren', points: 272 },
-  { position: 3, name: 'Макс Ферстаппен', constructorName: 'Red Bull Racing', points: 255 },
-  { position: 4, name: 'Джордж Расселл', constructorName: 'Mercedes', points: 214 },
-  { position: 5, name: 'Шарль Леклер', constructorName: 'Ferrari', points: 196 },
+  { position: 3, code: 'VER', number: '3', name: 'Макс Ферстаппен', constructorName: 'Red Bull Racing', points: 255 },
+  { position: 4, code: 'RUS', number: '63', name: 'Джордж Расселл', constructorName: 'Mercedes', points: 214 },
+  { position: 5, code: 'LEC', number: '16', name: 'Шарль Леклер', constructorName: 'Ferrari', points: 196 },
 ];
+const constructors = [{ position: 1, name: 'McLaren', points: 559 }, { position: 2, name: 'Mercedes', points: 382 }, { position: 3, name: 'Ferrari', points: 361 }, { position: 4, name: 'Red Bull Racing', points: 329 }, { position: 5, name: 'Williams', points: 94 }];
+const previewStats = { grand_prix_races: 0, grand_prix_points: 0, grand_prix_wins: 0, grand_prix_podiums: 0, grand_prix_poles: 0, grand_prix_top10s: 0, fastest_laps: 0, dnfs: 0, sprint_races: 0, sprint_points: 0, sprint_wins: 0, sprint_podiums: 0, sprint_poles: 0, sprint_top10s: 0 };
+const previewCareer = { available: false, grand_prix_entered: 0, career_points: 0, highest_race_finish: { position: '—', count: 0 }, podiums: 0, highest_grid: { position: '—', count: 0 }, pole_positions: 0, world_championships: 0, dnfs: 0 };
 window.fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input), location.origin);
-  if (url.pathname.startsWith('/static/circuit/')) return new Response(circuitSvg, { headers: { 'Content-Type': 'image/svg+xml' } });
+  if (url.pathname.startsWith('/static/circuit/')) return new Response(decodeURIComponent(url.pathname).includes('Singapore') ? singaporeSvg : circuitSvg, { headers: { 'Content-Type': 'image/svg+xml' } });
   if (!url.pathname.startsWith('/api/')) return realFetch(input, init);
   const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
   if ((init?.method || (input instanceof Request ? input.method : 'GET')) !== 'GET') {
-    if (query.get('demoVotes') === '1' && url.pathname === '/api/votes/race' && init?.method === 'POST') {
+    if (query.get('demoVotes') !== '0' && url.pathname === '/api/votes/race' && init?.method === 'POST') {
       const body = JSON.parse(String(init.body));
       if (voteFailures-- > 0) return json({ detail: 'Не удалось сохранить оценку' }, 503);
-      if (!linked || !Number.isInteger(body.rating) || body.rating < 1 || body.rating > 5) return json({}, 400);
+      if (!member || !Number.isInteger(body.rating) || body.rating < 1 || body.rating > 5) return json({}, 400);
       demoVotes[body.round] = body.rating;
       return json({ status: 'ok' }); // Local fixture only; no backend request.
     }
@@ -58,7 +62,19 @@ window.fetch = async (input, init) => {
     case '/api/race-details': return json({ event_name: 'United States Grand Prix', location: 'Остин', country: 'США', season: Number(url.searchParams.get('season')), round: Number(url.searchParams.get('round')), sessions: scenario === 'empty' ? [] : sessions });
     case '/api/weekend-schedule': return json({ sessions: scenario === 'empty' ? [] : sessions });
     case '/api/drivers': return json({ drivers: scenario === 'empty' ? [] : drivers });
-    case '/api/constructors': return json({ constructors: scenario === 'empty' ? [] : [{ position: 1, name: 'McLaren', points: 559 }, { position: 2, name: 'Mercedes', points: 382 }, { position: 3, name: 'Ferrari', points: 361 }, { position: 4, name: 'Red Bull Racing', points: 329 }, { position: 5, name: 'Williams', points: 94 }] });
+    case '/api/constructors': return json({ constructors: scenario === 'empty' ? [] : constructors });
+    case '/api/driver-details': {
+      const row = drivers.find(driver => driver.code === url.searchParams.get('code') || driver.driverId === url.searchParams.get('driverId'));
+      if (!row) return json({ detail: 'Нет пилота в демо' }, 404);
+      const [givenName, ...familyName] = row.name.split(' ');
+      return json({ driverId: row.driverId || row.code.toLowerCase(), code: row.code, givenName, familyName: familyName.join(' '), permanentNumber: row.number, dateOfBirth: '', nationality: '', url: '', bio: 'Демонстрационная карточка для проверки переходов.', headshot_url: row.imageUrl || '', season: 2026, season_stats: { ...previewStats, position: row.position, points: row.points }, career_stats: previewCareer });
+    }
+    case '/api/constructor-details': {
+      const normalize = (value: string) => value.toLowerCase().replace(/[^a-z]/g, '');
+      const row = constructors.find(team => normalize(team.name) === normalize(url.searchParams.get('constructorId') || ''));
+      if (!row) return json({ detail: 'Нет команды в демо' }, 404);
+      return json({ constructorId: normalize(row.name), name: row.name, nationality: '', url: '', bio: 'Демонстрационная карточка для проверки переходов.', drivers: [], principal: null, season: 2026, season_stats: { ...previewStats, position: row.position, points: row.points }, career_stats: previewCareer });
+    }
     case '/api/predictions/preview':
     case '/api/predictions/current': return json({ status: 'ok', is_open: true, season: 2026, round: 19, event_name: 'United States Grand Prix', deadline_utc: sessions[4].utc_iso, prediction: null });
     case '/api/web-notifications/unread-count': return json({ unread: previewRead ? 0 : Number(query.get('unread') ?? 2) });
@@ -84,7 +100,7 @@ for (const key of ['standing', 'view', 'spotlight']) if (query.has(key)) initial
 const initialPath = query.get('page') === 'menu' ? '/menu' : query.get('page') === 'weekend' ? `/next-race${query.has('season') || query.has('round') ? `?season=${query.get('season') || ''}&round=${query.get('round') || ''}` : ''}` : `/${initialQuery.size ? `?${initialQuery}` : ''}`;
 createRoot(document.getElementById('root')!).render(<HeroDataProvider><div className="root"><RouterProvider router={createMemoryRouter(router.routes, { initialEntries: [initialPath] })} /></div><ScrollToTop /></HeroDataProvider>);
 const note = document.createElement('aside');
-note.textContent = 'Демонстрация дизайна · расписание и очки вымышлены';
+note.textContent = 'Демо · данные вымышлены · оценки до перезагрузки';
 note.style.cssText = 'padding:6px 16px;text-align:center;font:12px/1.5 system-ui;background:#faeeec;color:#78221d;position:relative;z-index:101';
 document.body.prepend(note);
 export {};

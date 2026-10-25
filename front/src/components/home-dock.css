@@ -13,10 +13,11 @@
   .home-dock :is(button, a) { touch-action: manipulation; -webkit-tap-highlight-color: var(--design-tint); }
   .home-dock :is(.home-dock-next, .home-dock-close) { flex: 0 0 44px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--design-muted); cursor: pointer; }
   .home-dock :is(button, a):focus-visible { outline: 3px solid var(--design-focus); outline-offset: -3px; }
-  .home-dock :is(.home-dock-next, .home-dock-close):hover, .home-dock-copy:hover { background: var(--design-tint); color: var(--design-accent); }
-  .home-dock-stars { position: relative; display: grid; grid-template-columns: repeat(5, minmax(44px, 1fr)); padding-inline: 4px; }
-  .home-dock-stars button { display: grid; place-items: center; min-width: 44px; min-height: 44px; border: 0; border-radius: 14px; background: transparent; color: var(--design-control); cursor: pointer; }
-  .home-dock-stars button > svg { width: 30px; height: 30px; fill: currentColor; stroke-width: 1.2; transition: transform 140ms ease-out, color 140ms ease-out; }
+  .home-dock :is(.home-dock-next, .home-dock-close):hover { color: var(--design-accent); }
+  .home-dock .home-dock-copy:hover { background: transparent; color: var(--design-ink); }
+  .home-dock-stars { position: relative; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); min-width: 0; }
+  .home-dock-stars :is(button, a) { display: grid; place-items: center; min-width: 0; min-height: 44px; padding: 0; border: 0; border-radius: 14px; background: transparent; color: var(--design-control); cursor: pointer; }
+  .home-dock-stars :is(button, a) > svg { width: 30px; height: 30px; fill: currentColor; stroke-width: 1.2; transition: transform 140ms ease-out, color 140ms ease-out; }
   .home-dock-stars .is-filled { color: var(--design-profile-gold); }
   .home-dock-stars .is-filled > svg { stroke: var(--design-rating-outline); }
   .home-dock-stars button:disabled { cursor: wait; }
@@ -28,7 +29,6 @@
   .home-dock-sparkles svg { width: 12px; height: 12px; fill: currentColor; }
   .home-dock-sparkles i:nth-child(2) { left: 25%; top: 5%; animation-delay: 40ms; }
   .home-dock-sparkles i:last-child { left: 72%; top: 30%; animation-delay: 80ms; }
-  .home-dock-account { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-inline: 8px; color: var(--design-accent); font-size: .8125rem; text-decoration: none; }
   .home-dock-feedback { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .home-dock-error { margin: 4px 8px; font-size: .75rem; color: var(--design-ink); }
   .app-shell:has(.home-dock) .app-content { padding-bottom: calc(var(--home-dock-space, 200px) + var(--app-safe-bottom, 0px) + 24px) !important; }
@@ -41,6 +41,20 @@
 }
 @keyframes dock-star-pop { 0% { transform: scale(.75) rotate(-12deg); } 50% { transform: scale(1.18) rotate(6deg); } 100% { transform: scale(1) rotate(0); } }
 @keyframes dock-star-spark { 0% { opacity: 0; transform: translateY(5px) scale(.5); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-24px) scale(1.2); } }
-@media (prefers-reduced-motion: reduce) { .home-dock-stars button > svg { transition: none; } .home-dock-stars[data-celebrate] .is-filled > svg { animation: none; } .home-dock-sparkles { display: none; } }
+@media (prefers-reduced-motion: reduce) { .home-dock-stars :is(button, a) > svg { transition: none; } .home-dock-stars[data-celebrate] .is-filled > svg { animation: none; } .home-dock-sparkles { display: none; } }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) { .home-dock-card { background: var(--design-surface); border-color: var(--design-control); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; } }
 @media (forced-colors: active) { .home-dock-stars .is-filled { color: Highlight; } .home-dock-card { background: Canvas; color: CanvasText; } }
+
+@media (max-width: 899px) {
+  .home-dock-card--rating { padding: 4px; border-radius: 28px; }
+  .home-dock-rating-row { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; }
+  .home-dock-track, .home-dock-rating-open { display: grid; place-items: center; min-width: 44px; min-height: 44px; padding: 4px; border: 0; border-radius: 50%; background: transparent; color: var(--design-ink); cursor: pointer; }
+  .home-dock-track-map, .home-dock-track-svg, .home-dock-track-svg svg { width: 100%; height: 36px; }
+  #root .home-dock-track-svg .track-outline { fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+  #root .home-dock-track-svg .track-route-border { stroke: var(--design-ink); stroke-width: 2px; }
+  #root .home-dock-track-svg .track-route-surface, #root .home-dock-track-svg .track-fill { display: none; }
+  .home-dock-track-loading { display: none; }
+  .home-dock-rating-open svg { width: 20px; height: 20px; }
+  .home-dock-rating-open:hover, .home-dock-track:hover { color: var(--design-accent); background: transparent; }
+  .home-dock-error button { min-height: 44px; padding: 4px; border: 0; background: transparent; color: var(--design-accent); text-decoration: underline; cursor: pointer; }
+}

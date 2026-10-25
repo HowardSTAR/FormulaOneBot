@@ -25,12 +25,12 @@ export function useDockRating(enabled: boolean, auth: AuthState, season: number)
         let race = latestDockRace(schedule.races || [], Date.now());
         if (!race) { year--; schedule = await apiRequest<{ races?: DockRace[] }>('/api/season', { season: year, completed_only: true }); race = latestDockRace(schedule.races || [], Date.now()); }
         if (!race || request !== generation.current) return;
-        let value = 0, canRate = auth.personalized;
-        if (auth.personalized) {
+        let value = 0, canRate = auth.signedIn;
+        if (auth.signedIn) {
           try { const votes = await apiRequest<{ race_votes: Record<number, number> }>('/api/votes/me', { season: year }); const saved = votes.race_votes?.[race.round]; value = Number.isInteger(saved) && saved >= 1 && saved <= 5 ? saved : 0; }
-          catch { canRate = false; }
+          catch { canRate = false; if (request === generation.current) setError('Не удалось загрузить вашу оценку.'); }
         }
-        if (request === generation.current) setData({ race, season: year, value, canRate });
+        if (request === generation.current) { setData({ race, season: year, value, canRate }); if (canRate) setError(''); }
       } catch { /* A failed schedule is not evidence that there was a rateable race. */ }
     };
     void load();
@@ -40,7 +40,7 @@ export function useDockRating(enabled: boolean, auth: AuthState, season: number)
     window.addEventListener('focus', refresh);
     window.addEventListener(AUTH_CHANGED_EVENT, reset);
     return () => { invalidate(); stop(); window.removeEventListener('focus', refresh); window.removeEventListener(AUTH_CHANGED_EVENT, reset); };
-  }, [enabled, auth.loaded, auth.personalized, season, attempt]);
+  }, [enabled, auth.loaded, auth.signedIn, season, attempt]);
   useEffect(() => { if (!celebrate) return; const timer = window.setTimeout(() => setCelebrate(false), 700); return () => clearTimeout(timer); }, [celebrate]);
   const rate = async (value: number) => {
     if (!data?.canRate || saving.current) return;
@@ -53,5 +53,5 @@ export function useDockRating(enabled: boolean, auth: AuthState, season: number)
     } catch (e) { if (request === generation.current) setError(e instanceof Error ? e.message : 'Не удалось сохранить оценку. Попробуйте ещё раз.'); }
     finally { if (save === saveSequence.current) { saving.current = false; setBusy(false); } }
   };
-  return { data: enabled && auth.loaded ? data : null, busy, error, celebrate, rate };
+  return { data: enabled && auth.loaded ? data : null, busy, error, celebrate, rate, retry: () => setAttempt(v => v + 1) };
 }

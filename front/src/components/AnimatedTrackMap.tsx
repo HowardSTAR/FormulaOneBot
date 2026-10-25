@@ -10,6 +10,8 @@ type AnimatedTrackMapProps = {
   svgClassName: string;
   loadingClassName: string;
   onRevealComplete?: () => void;
+  fitRoute?: boolean;
+  animate?: boolean;
 };
 
 export function AnimatedTrackMap({
@@ -20,6 +22,8 @@ export function AnimatedTrackMap({
   svgClassName,
   loadingClassName,
   onRevealComplete,
+  fitRoute = false,
+  animate = true,
 }: AnimatedTrackMapProps) {
   const assetName = resolveCircuitAsset(eventName, location, season);
   const [trackState, setTrackState] = useState<{
@@ -117,6 +121,10 @@ export function AnimatedTrackMap({
     svg.innerHTML = "";
     svg.appendChild(fillGroup);
     svg.appendChild(outlineGroup);
+    if (fitRoute) {
+      const bounds = outlineGroup.getBBox();
+      if (bounds.width && bounds.height) svg.setAttribute('viewBox', `${bounds.x - 4} ${bounds.y - 4} ${bounds.width + 8} ${bounds.height + 8}`);
+    }
     // non-scaling-stroke measures dashes in screen pixels. A normalized
     // pathLength of 1 repeats the dash after scaling and exposes distant pieces.
     const drawingPaths = Array.from(outlineGroup.querySelectorAll<SVGGeometryElement>('.track-outline'));
@@ -141,7 +149,7 @@ export function AnimatedTrackMap({
       });
       onRevealComplete?.();
     };
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) complete();
+    if (!animate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) complete();
     else {
       animations.push(container.animate([
         { opacity: 0 },
@@ -158,7 +166,7 @@ export function AnimatedTrackMap({
       }).catch(() => { /* Unmounts and stage changes cancel the previous drawing. */ });
     }
     return () => { disposed = true; animations.forEach(animation => animation.cancel()); };
-  }, [trackSvg, eventName, onRevealComplete]);
+  }, [trackSvg, eventName, onRevealComplete, fitRoute, animate]);
 
   return (
     <div className={`${className} animated-track-map`} aria-hidden="true">
