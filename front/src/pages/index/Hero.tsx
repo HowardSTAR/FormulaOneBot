@@ -5,6 +5,7 @@ import { formatTimezoneLabel } from '../../helpers/timezone';
 import type { NextRaceResponse, SessionItem } from '../../context/HeroDataContext';
 import { countdownLabel, raceStart } from './home-session';
 import { HomeIcon } from './HomeIcon';
+import { RaceFlagBackdrop } from '../../components/RaceFlagBackdrop';
 
 export default function Hero({ nextRace: race, schedule, userTz, loaded, onRetry }: {
   nextRace: NextRaceResponse | null; schedule: SessionItem[]; userTz: string; loaded: boolean; onRetry: () => void;
@@ -35,7 +36,8 @@ export default function Hero({ nextRace: race, schedule, userTz, loaded, onRetry
     : start ? Date.parse(start) > now ? countdownLabel(start, now) : 'Плановое время старта прошло'
     : 'Время старта уточняется';
 
-  return <section className={`home-race${inactive ? ' home-race--inactive' : ''}`} aria-labelledby="home-race-title">
+  return <section className={`home-race race-flag-scene${inactive ? ' home-race--inactive' : ''}`} aria-labelledby="home-race-title">
+    {!finished && <RaceFlagBackdrop country={race.country} eventName={race.event_name} />}
     <div className="home-race-copy">
       <h2 id="home-race-title">{title}</h2>
       {!finished && <p className="home-race-location"><span>{[race.location, race.country].filter(Boolean).join(' · ') || 'Место уточняется'}</span>{race.round && <span>Этап {race.round}</span>}</p>}

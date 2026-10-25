@@ -26,7 +26,7 @@
 .weekend-hero-copy { grid-column: 1; min-width: 0; }
 .weekend-hero h2 { max-width: 24ch; font-size: 2.5rem; line-height: 1.1; font-weight: 700; letter-spacing: -.03em; }
 .weekend-location { display: flex; flex-wrap: wrap; gap: 4px 16px; color: var(--design-muted); margin-top: 12px !important; font-size: .875rem; }
-.weekend-dates { margin-top: 8px !important; font-size: 1rem; font-weight: 550; }
+.weekend-page .weekend-dates { color: var(--design-ink); margin-top: 8px !important; font-size: 1rem; font-weight: 550; }
 .weekend-circuit-summary { grid-column: 1; min-width: 0; }
 .weekend-stats { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px 24px; }
 .weekend-stats dt { color: var(--design-muted); font-size: .8125rem; }

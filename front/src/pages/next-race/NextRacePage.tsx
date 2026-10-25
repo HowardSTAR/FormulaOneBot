@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { RaceFlagBackdrop } from '../../components/RaceFlagBackdrop';
 import { AnimatedTrackMap } from '../../components/AnimatedTrackMap';
 import { DetailedTrackMap } from '../../components/DetailedTrackMap';
 import { CalendarDownload } from '../../components/CalendarDownload';
@@ -98,7 +99,8 @@ function WeekendContent({ selection }: { selection: Exclude<StageSelection, { ki
 
   return <main className="weekend-page">
     <WeekendHeading season={race.season} />
-    <section className="weekend-hero" aria-labelledby="weekend-race-title">
+    <section className="weekend-hero race-flag-scene" aria-labelledby="weekend-race-title">
+      <RaceFlagBackdrop country={race.country} eventName={race.event_name} />
       <div className="weekend-hero-copy">
         <h2 id="weekend-race-title">{race.event_name || 'Название уточняется'}</h2>
         <p className="weekend-location"><span>{[race.location, race.country].filter(Boolean).join(' · ') || 'Место уточняется'}</span>{race.round && <span>Этап {race.round}</span>}</p>
