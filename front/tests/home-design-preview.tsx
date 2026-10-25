@@ -4,6 +4,8 @@ import circuitSvg from '../public/static/circuit/United States Grand Prix.svg?ra
 import singaporeSvg from '../public/static/circuit/Singapore Grand Prix.svg?raw';
 import mexicoSvg from '../public/static/circuit/Mexico City Grand Prix.svg?raw';
 import circuitProfiles from './fixtures/circuit-profiles.json';
+import { calendarPreviewRaces } from './fixtures/calendar';
+const calendarCircuits = import.meta.glob<string>('../public/static/circuit/*.svg', { query: '?raw', import: 'default' });
 import { createRoot } from 'react-dom/client';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { HeroDataProvider } from '../src/context/HeroDataContext';
@@ -20,6 +22,8 @@ const member = ['member', 'linked'].includes(query.get('auth') || '');
 const linked = query.get('auth') === 'linked';
 const demoVotes: Record<number, number> = {};
 let previewRead = false;
+let calendarFailures = scenario === 'calendar-error' ? 1 : 0;
+let podiumFailures = scenario === 'podium-error' ? 1 : 0;
 let voteFailures = scenario === 'rating-error' ? 1 : 0;
 if (query.get('scale') === '2') document.documentElement.style.fontSize = '200%';
 const realFetch = window.fetch.bind(window);
@@ -49,6 +53,10 @@ const previewStats = { grand_prix_races: 0, grand_prix_points: 0, grand_prix_win
 const previewCareer = { available: false, grand_prix_entered: 0, career_points: 0, highest_race_finish: { position: '—', count: 0 }, podiums: 0, highest_grid: { position: '—', count: 0 }, pole_positions: 0, world_championships: 0, dnfs: 0 };
 window.fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input), location.origin);
+  if (url.pathname.startsWith('/static/circuit/') && query.get('page') === 'calendar') {
+    const asset = calendarCircuits[`../public${decodeURIComponent(url.pathname)}`];
+    return asset ? new Response(await asset(), { headers: { 'Content-Type': 'image/svg+xml' } }) : new Response('', { status: 404 });
+  }
   if (url.pathname.startsWith('/static/circuit/')) return new Response(decodeURIComponent(url.pathname).includes('Singapore') ? singaporeSvg : decodeURIComponent(url.pathname).includes('Mexico') ? mexicoSvg : circuitSvg, { headers: { 'Content-Type': 'image/svg+xml' } });
   if (!url.pathname.startsWith('/api/')) return realFetch(input, init);
   const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -66,10 +74,11 @@ window.fetch = async (input, init) => {
   if (scenario === 'error' && ['/api/next-race', '/api/drivers', '/api/constructors'].includes(url.pathname)) return json({ detail: 'Демонстрация ошибки' }, 503);
   if (scenario === 'schedule-error' && url.pathname === '/api/weekend-schedule') return json({ detail: 'Демонстрация ошибки расписания' }, 503);
   if (['/api/practice-results', '/api/quali-results', '/api/sprint-quali-results', '/api/sprint-results', '/api/race-results'].includes(url.pathname)) {
+    if (url.pathname === '/api/race-results' && podiumFailures-- > 0) return json({ detail: 'Не удалось получить подиум' }, 503);
     if (scenario === 'results-error') return json({ detail: 'Демонстрация ошибки результатов' }, 503);
     return json({ season: Number(url.searchParams.get('season') || 2026), round: scenario === 'results-mismatch' ? 18 : Number(url.searchParams.get('round') || 19),
       session: Number(url.searchParams.get('session') || 1), available_sessions: [1, 2, 3], is_sprint_weekend: false,
-      results: scenario === 'results-empty' ? [] : drivers.map((driver, index) => ({ position: index + 1, driver: driver.code, code: driver.code, name: driver.name, team: driver.constructorName,
+      results: scenario === 'results-empty' ? [] : drivers.map((driver, index) => ({ position: index + 1, driver: driver.code, code: driver.code, name: driver.name, team: driver.constructorName, points: 25 - index * 5,
         best: `1:36.${String(52 + index * 84).padStart(3, '0')}`, gap: index ? `+0.${String(index * 84).padStart(3, '0')}` : null, laps: 26 - index, is_favorite_driver: member && index === 0 })) });
   }
   if (scenario === 'personal-error' && ['/api/predictions/current', '/api/web-notifications/unread-count', '/api/predictions/personal-season'].includes(url.pathname)) return json({ detail: 'Демонстрация ошибки личного раздела' }, 503);
@@ -106,7 +115,11 @@ window.fetch = async (input, init) => {
     case '/api/web-notifications': return json({ items: [{ id: 2, title: 'Открыты прогнозы', body: 'Выберите свою тройку на ближайшую гонку.', url: '/predictions', created_at: 1792742400, read_at: previewRead ? 1792828800 : null }, { id: 1, title: 'Как вам последний этап?', body: 'Оцените гонку и выберите пилота дня.', url: '/voting?season=2026&round=18', created_at: 1791806400, read_at: previewRead ? 1792828800 : null }], unread: previewRead ? 0 : 2, next_before: null, push: { enabled: false, public_key: '' } });
     case '/api/engagement/weekly/me': return json({ user_id: member ? 1 : null, weekly: null });
     case '/api/engagement/weekly': return json({});
-    case '/api/season': return json({ races: [{ round: 18, event_name: 'Singapore Grand Prix', race_start_utc: '2026-10-11T12:00:00Z', date: '2026-10-11' }, { round: 19, event_name: 'United States Grand Prix', race_start_utc: '2026-10-25T20:00:00Z', date: '2026-10-25' }] });
+    case '/api/season': {
+      if (!url.searchParams.has('completed_only') && calendarFailures-- > 0) return json({ detail: 'Календарь временно недоступен' }, 503);
+      if (scenario === 'calendar-loading' && !url.searchParams.has('completed_only')) return new Promise<Response>((_, reject) => { init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))); });
+      return json({ races: scenario === 'calendar-empty' ? [] : calendarPreviewRaces(Number(url.searchParams.get('season') || 2026)) });
+    }
     case '/api/votes/me': return json({ race_votes: demoVotes, driver_votes: {} });
     case '/api/predictions/personal-season': return json({ latest: null });
     default: return json({});
@@ -124,7 +137,9 @@ const initialQuery = new URLSearchParams();
 for (const key of ['standing', 'view', 'spotlight']) if (query.has(key)) initialQuery.set(key, query.get(key)!);
 const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
-const initialPath = query.get('page') === 'menu' ? '/menu' : query.get('page') === 'weekend' ? `/next-race${weekendQuery.size ? `?${weekendQuery}` : ''}` : `/${initialQuery.size ? `?${initialQuery}` : ''}`;
+const calendarQuery = new URLSearchParams();
+for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
+const initialPath = query.get('page') === 'menu' ? '/menu' : query.get('page') === 'calendar' ? `/season${calendarQuery.size ? `?${calendarQuery}` : ''}` : query.get('page') === 'weekend' ? `/next-race${weekendQuery.size ? `?${weekendQuery}` : ''}` : `/${initialQuery.size ? `?${initialQuery}` : ''}`;
 createRoot(document.getElementById('root')!).render(<HeroDataProvider><div className="root"><RouterProvider router={createMemoryRouter(router.routes, { initialEntries: [initialPath] })} /></div><ScrollToTop /></HeroDataProvider>);
 const note = document.createElement('aside');
 note.textContent = 'Демо · данные вымышлены · оценки до перезагрузки';

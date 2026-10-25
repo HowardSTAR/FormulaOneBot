@@ -37,13 +37,6 @@
 @media (max-width: 767px) {
   .wiki-page .wiki-alphabet summary { min-height: 44px; cursor: pointer; }
   .reflex-grid { max-width: min(100%, 46dvh); margin-inline: auto; }
-  .app-page-main.route-season .race-card { flex-wrap: wrap; }
-  .app-page-main.route-season .season-mobile-race-open { width: 100%; display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px 12px; }
-  .app-page-main.route-season .season-mobile-race-open .race-date-box { grid-row: span 2; }
-  .app-page-main.route-season .season-mobile-race-open .race-info { min-width: 0; }
-  .app-page-main.route-season .season-mobile-race-open .race-name { white-space: normal; overflow-wrap: normal; }
-  .app-page-main.route-season .season-mobile-race-open .race-status { grid-column: 2; justify-self: start; font-size: 11px; }
-  .app-page-main.route-season .race-insights-toggle { margin: 8px 0 0 64px; }
   .settings-page .settings-save-bar { bottom: calc(76px + env(safe-area-inset-bottom)); }
   .standings-history-link { display: block; clear: both; }
   .ui-section-links a { min-height: 44px; }

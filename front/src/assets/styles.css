@@ -1173,10 +1173,6 @@ p {
     display: none;
 }
 
-.season-desktop-layout {
-    display: none;
-}
-
 /* Compare page */
 .selectors { display: flex; gap: 10px; margin-bottom: 20px; }
 .driver-select {
@@ -1386,194 +1382,6 @@ p {
     display: block;
     margin-top: 3px;
     font-size: 24px;
-}
-
-.season-desktop-primary {
-    min-width: 0;
-}
-
-.season-desktop-primary-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 12px;
-    margin-bottom: 12px;
-}
-
-.season-desktop-main-heading {
-    margin: 0;
-    text-transform: uppercase;
-}
-
-.season-desktop-main-subheading {
-    margin: 4px 0 0;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 11px;
-}
-
-.season-desktop-season-picker {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.season-desktop-season-label {
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--text-secondary);
-    font-weight: 700;
-}
-
-.season-desktop-season-select {
-    border: 1px solid var(--border-color);
-    background: var(--surface-color);
-    color: var(--text-primary);
-    border-radius: 10px;
-    padding: 10px 14px;
-    min-width: 120px;
-    font-family: "Space Grotesk", "Inter", sans-serif;
-    font-weight: 700;
-    font-size: 22px;
-}
-
-.season-desktop-hero-card {
-    display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
-    gap: 14px;
-}
-
-.season-desktop-hero-media {
-    border-radius: 12px;
-    min-height: 350px;
-    padding: 18px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    background:
-        linear-gradient(180deg, rgba(18, 19, 20, 0.2), rgba(18, 19, 20, 0.82)),
-        url("https://lh3.googleusercontent.com/aida-public/AB6AXuBoSu1U_lcv3gHlJVA_kOyg_p49AdeZr8LzlyjezHlNtJ_niXgPWYDKYQRsWNQMbXNL2xCTjxyygc9vEYkB536pv-AeuUbFNJ4JECp5QdPU8yx6qQYDbM9ZlAMSOy2MCUIFg1H35PPA3qDZ_LQm929bqmQgqG0NmEiuEU8ElmnhgCvyw59NTNg_8s9_CuL3rlPH203434aVIHyCC90oWI3uOznN_15B2OWSRGL2MkTBpjqF8aHVlsRTVl5oouO2fzbCZrvKsMArDPDN")
-            center/cover no-repeat;
-}
-
-.season-desktop-hero-next {
-    display: inline-flex;
-    align-self: flex-start;
-    margin-bottom: 10px;
-    padding: 4px 8px;
-    border-radius: 6px;
-    background: var(--primary);
-    color: #fff;
-    font-size: 10px;
-    font-weight: 700;
-    text-transform: uppercase;
-}
-
-.season-desktop-hero-media h4 {
-    margin: 0;
-    font-size: clamp(40px, 4.1vw, 62px);
-    line-height: 0.95;
-    text-transform: uppercase;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-
-.season-desktop-hero-meta {
-    display: flex;
-    gap: 14px;
-    margin-top: 10px;
-    font-size: 12px;
-    color: rgba(227, 226, 227, 0.75);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-}
-
-.season-desktop-hero-schedule h5 {
-    margin: 0 0 12px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--text-secondary);
-}
-
-.season-desktop-session-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-    margin-bottom: 12px;
-}
-
-.season-desktop-session-item {
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 10px;
-}
-
-.season-desktop-session-item span {
-    display: block;
-    font-size: 10px;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-}
-
-.season-desktop-session-item b {
-    display: block;
-    margin-top: 3px;
-    font-size: 22px;
-    line-height: 1;
-}
-
-.season-desktop-session-item.focus {
-    border-color: rgba(225, 6, 0, 0.6);
-}
-
-.season-desktop-facts-grid {
-    margin-top: 12px;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-}
-
-.season-desktop-facts-grid .season-desktop-fact-item {
-    border-left: 0;
-    padding: 14px;
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-}
-
-.season-desktop-timeline-title {
-    margin: 0 0 10px;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
-    color: var(--text-secondary);
-}
-
-.season-desktop-race-action {
-    font-size: 18px;
-    line-height: 1;
-    color: var(--text-secondary);
-}
-
-.season-desktop-race-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 999px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: rgba(227, 226, 227, 0.72);
-    font-size: 12px;
-    flex-shrink: 0;
-}
-
-.season-desktop-fact-text {
-    font-style: italic;
 }
 
 /* Favorites tabs - segmented control with slider */
@@ -1876,180 +1684,10 @@ input:checked + .slider:before {
     to { bottom: 0; opacity: 0; }
 }
 
-/* Season calendar */
-.race-card {
-    display: flex;
-    align-items: center;
-    background: var(--surface-color);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 12px;
-    position: relative;
-    cursor: pointer;
-}
-.race-date-box {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
-    width: 50px;
-    height: 50px;
-    margin-right: 16px;
-    flex-shrink: 0;
-}
-.date-day { font-weight: 800; font-size: 18px; color: var(--text-primary); }
-.date-month { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; }
-.race-info { flex: 1; }
-.race-round { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; }
-.race-name { font-weight: 700; font-size: 15px; margin: 2px 0; }
-.race-loc { font-size: 12px; color: var(--text-secondary); }
-.race-status { font-size: 18px; color: var(--text-secondary); margin-left: 10px; }
-.race-card.finished { opacity: 0.6; }
-.race-card.live {
-    border: 1px solid #ff2a23;
-    background: linear-gradient(90deg, rgba(225, 6, 0, 0.2), rgba(21, 23, 30, 0.94));
-    box-shadow: 0 0 18px rgba(225, 6, 0, 0.28);
-}
-.race-card.live .race-status,
-.race-card.recent .race-status {
-    padding: 4px 8px;
-    border-radius: 6px;
-    color: #fff;
-    font-size: 10px;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-}
-.race-card.live .race-status { background: #e10600; }
-.race-card.recent {
-    border-color: rgba(255, 180, 168, 0.45);
-    background: linear-gradient(90deg, rgba(255, 180, 168, 0.08), rgba(21, 23, 30, 0.94));
-}
-.race-card.recent .race-status { background: rgba(148, 82, 72, 0.72); }
-.race-card.next {
-    border: 1px solid var(--primary);
-    background: linear-gradient(90deg, rgba(225, 6, 0, 0.1), rgba(21, 23, 30, 0.9));
-    box-shadow: 0 0 15px rgba(225, 6, 0, 0.2);
-    z-index: 2;
-}
-.race-card.next .date-day { color: var(--primary); }
-.race-card.next .race-status { font-size: 12px; background: var(--primary); color: white; padding: 4px 8px; border-radius: 6px; font-weight: bold; }
-.race-card.cancelled {
-    border: 1px solid rgba(220, 38, 38, 0.7);
-    background: linear-gradient(90deg, rgba(120, 16, 16, 0.2), rgba(21, 23, 30, 0.9));
-}
-.race-card.cancelled .race-status {
-    font-size: 10px;
-    background: rgba(220, 38, 38, 0.95);
-    color: #fff;
-    padding: 5px 8px;
-    border-radius: 6px;
-    font-weight: 800;
-    letter-spacing: 0.4px;
-}
-.race-card.cancelled .race-name {
-    color: #fca5a5;
-}
-.race-insights-toggle {
-  margin-left: 10px;
-  flex-shrink: 0;
-  border: 1px solid var(--border-color);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-secondary);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  cursor: pointer;
-}
-.race-insights-toggle:hover {
-  color: var(--text-primary);
-  border-color: rgba(225, 6, 0, 0.35);
-}
-.season-race-insights {
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
-  margin: -6px 0 14px;
-  padding: 12px;
-}
-.season-results-links {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.season-result-link {
-  border: 1px solid var(--border-color);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-secondary);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.season-result-link:hover {
-  color: var(--text-primary);
-  border-color: rgba(225, 6, 0, 0.35);
-}
-.season-race-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-bottom: 10px;
-}
-.season-race-stat-box {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  padding: 8px;
-}
-.season-race-stat-label {
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-.season-race-stat-value {
-  font-size: 15px;
-  font-weight: 700;
-}
-.season-race-facts {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.season-race-fact-item {
-  border-left: 2px solid rgba(225, 6, 0, 0.45);
-  padding-left: 10px;
-}
-.season-race-fact-title {
-  font-size: 13px;
-  font-weight: 700;
-}
-.season-race-fact-text {
-  margin-top: 4px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
 .archive-note {
   margin: -2px 0 12px;
   font-size: 12px;
   color: var(--text-secondary);
-}
-.season-races-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 10px;
-}
-.season-race-item {
-  min-width: 0;
-}
-.season-empty-state {
-  margin-top: 0;
-}
-.season-desktop-layout {
-  display: none;
 }
 
 /* Race details */
@@ -3132,18 +2770,6 @@ input:checked + .slider:before {
   .compare-results-panel .chart-container {
     height: 320px;
   }
-
-  .season-races-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    align-items: start;
-  }
-
-  .season-races-grid .loading,
-  .season-races-grid .empty-state,
-  .season-races-grid .page-error {
-    grid-column: 1 / -1;
-  }
 }
 
 @media (min-width: 900px) {
@@ -3331,305 +2957,7 @@ input:checked + .slider:before {
     .desktop-side-list-row.pos-2 { border-left-color: var(--silver); }
     .desktop-side-list-row.pos-3 { border-left-color: var(--bronze); }
 
-    .season-desktop-layout {
-        display: none;
-    }
 
-    .season-desktop-list {
-        max-height: none;
-        overflow: visible;
-        padding-right: 2px;
-        scrollbar-width: thin;
-        scrollbar-color: rgba(255, 255, 255, 0.28) rgba(255, 255, 255, 0.06);
-    }
-
-    .season-desktop-list::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .season-desktop-list::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.06);
-        border-radius: 999px;
-    }
-
-    .season-desktop-list::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.28);
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-    }
-
-    .season-desktop-race-item {
-        width: 100%;
-        border: 1px solid var(--border-color);
-        border-radius: 12px;
-        background: var(--surface-color);
-        color: var(--text-primary);
-        padding: 12px;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        text-align: left;
-        cursor: pointer;
-    }
-
-    .season-desktop-race-item + .season-desktop-race-item {
-        margin-top: 8px;
-    }
-
-    .season-desktop-race-item.active {
-        border-color: rgba(225, 6, 0, 0.75);
-        box-shadow: 0 0 0 1px rgba(225, 6, 0, 0.28) inset, 0 4px 14px rgba(225, 6, 0, 0.14);
-        background: linear-gradient(90deg, rgba(225, 6, 0, 0.1), rgba(21, 23, 30, 0.95));
-    }
-
-    .season-desktop-race-item.finished {
-        opacity: 0.75;
-    }
-
-    .season-desktop-race-item.next:not(.active) {
-        border-color: rgba(59, 130, 246, 0.65);
-    }
-
-    .season-desktop-race-item.live {
-        border-color: rgba(225, 6, 0, 0.7) !important;
-        box-shadow: inset 3px 0 0 #e10600, 0 0 16px rgba(225, 6, 0, 0.12) !important;
-    }
-
-    .season-desktop-race-item.recent:not(.active) {
-        border-color: rgba(255, 180, 168, 0.34) !important;
-    }
-
-    .season-desktop-race-info {
-        min-width: 0;
-        flex: 1;
-    }
-
-    .season-desktop-race-topline {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-    }
-
-    /* Чтобы "Этап XX • ЗАВЕРШЕН/СКОРО" не вылезала: ellipsis только для префикса, бейдж не режем */
-    .season-desktop-race-topline .race-round {
-        min-width: 0;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        letter-spacing: 0.35px; /* уменьшение от 1px, чтобы строка помещалась */
-    }
-
-    .season-desktop-race-topline .race-round-prefix {
-        min-width: 0;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .season-desktop-race-item .race-name,
-    .season-desktop-race-item .race-loc {
-        min-width: 0;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    /* Контрастное выделение статуса (завершён / скоро) */
-    .race-round-status {
-        display: inline-block;
-        padding: 2px 8px;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        background: rgba(255, 255, 255, 0.04);
-        font-weight: 900;
-        letter-spacing: 0.6px;
-        text-transform: uppercase;
-        flex-shrink: 0;
-    }
-
-    .race-round-status.next {
-        color: rgb(147, 197, 253);
-        border-color: rgba(59, 130, 246, 0.55);
-        background: rgba(59, 130, 246, 0.2);
-    }
-
-    .race-round-status.finished {
-        color: #ffd5d1;
-        border-color: rgba(225, 6, 0, 0.62);
-        background: rgba(225, 6, 0, 0.26);
-    }
-
-    .race-round-status.cancelled {
-        color: rgb(254, 202, 202);
-        border-color: rgba(220, 38, 38, 0.6);
-        background: rgba(220, 38, 38, 0.25);
-    }
-
-    .season-desktop-status {
-        font-size: 10px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.4px;
-        padding: 3px 8px;
-        border-radius: 999px;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        color: var(--text-secondary);
-        background: rgba(255, 255, 255, 0.04);
-        flex-shrink: 0;
-    }
-
-    .season-desktop-status.active {
-        color: #fff;
-        border-color: rgba(225, 6, 0, 0.65);
-        background: rgba(225, 6, 0, 0.75);
-    }
-
-    .season-desktop-status.next {
-        color: rgb(147, 197, 253);
-        border-color: rgba(59, 130, 246, 0.55);
-        background: rgba(59, 130, 246, 0.2);
-    }
-
-    .season-desktop-status.finished {
-        color: #ffd5d1;
-        border-color: rgba(225, 6, 0, 0.62);
-        background: rgba(225, 6, 0, 0.26);
-    }
-
-    .season-desktop-status.cancelled {
-        color: rgb(254, 202, 202);
-        border-color: rgba(220, 38, 38, 0.6);
-        background: rgba(220, 38, 38, 0.25);
-    }
-
-    .season-desktop-date-box {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
-        width: 54px;
-        height: 54px;
-        flex-shrink: 0;
-    }
-
-    .season-desktop-toolbar {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 10px;
-    }
-
-    .season-desktop-year-select {
-        flex: 1;
-    }
-
-    .season-desktop-main-card {
-        background: var(--surface-color);
-        border: 1px solid var(--border-color);
-        border-radius: 14px;
-        padding: 14px;
-    }
-
-    .season-desktop-track-wrap {
-        height: 160px;
-        border: 1px solid var(--border-color);
-        border-radius: 10px;
-        background: rgba(255, 255, 255, 0.02);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 10px;
-    }
-
-    .track-map-container.season-desktop-track {
-        width: 100%;
-        height: 100%;
-        min-height: 100%;
-        margin: 0;
-        padding: 8px;
-        background: transparent;
-        border: none;
-    }
-
-    .season-desktop-title {
-        font-size: 24px;
-        font-weight: 800;
-        margin-bottom: 4px;
-    }
-
-    .season-desktop-subtitle {
-        color: var(--text-secondary);
-        margin-bottom: 10px;
-        font-size: 14px;
-    }
-
-    .season-desktop-stats {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-        margin-bottom: 10px;
-        align-items: start;
-    }
-
-    .season-desktop-stat-box {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 8px;
-        padding: 8px;
-        align-self: start;
-    }
-
-    .season-desktop-stat-label {
-        font-size: 11px;
-        color: var(--text-secondary);
-    }
-
-    .season-desktop-stat-value {
-        font-size: 20px;
-        font-weight: 800;
-        line-height: 1.05;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
-
-    .season-desktop-facts {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-bottom: 10px;
-    }
-
-    .season-desktop-fact-item {
-        border-left: 2px solid rgba(225, 6, 0, 0.5);
-        padding-left: 10px;
-    }
-
-    .season-desktop-fact-title {
-        font-size: 13px;
-        font-weight: 700;
-    }
-
-    .season-desktop-fact-text {
-        font-size: 13px;
-        color: var(--text-secondary);
-        line-height: 1.4;
-    }
-
-    .season-desktop-links {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-    }
-
-    .season-page-head .page-head-controls {
-        display: block;
-    }
-
-    .season-races-grid {
-        display: grid;
-    }
 
     .standings-cards-grid {
         display: grid;
@@ -3666,14 +2994,6 @@ input:checked + .slider:before {
   .team-points {
     min-width: 58px;
     font-size: 15px;
-  }
-
-  .race-card {
-    padding: 18px;
-  }
-
-  .season-race-insights {
-    padding: 14px;
   }
 
   .compare-layout {
@@ -3719,11 +3039,6 @@ input:checked + .slider:before {
     gap: 14px;
   }
 
-  .season-races-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 14px;
-  }
-
   .compare-layout {
     grid-template-columns: minmax(360px, 460px) minmax(0, 1fr);
     gap: 28px;
@@ -3757,29 +3072,27 @@ input:checked + .slider:before {
   }
 
   .card,
-  .menu-item,
-  .driver-card,
-  .team-card,
-  .race-card,
-  .schedule-card,
-  .setting-card,
-  .compare-controls-panel,
-  .stat-card,
-  .chart-container,
-  .index-panel,
-  .index-standings-card {
+.menu-item,
+.driver-card,
+.team-card,
+.schedule-card,
+.setting-card,
+.compare-controls-panel,
+.stat-card,
+.chart-container,
+.index-panel,
+.index-standings-card {
     background: var(--surface-container-high);
     border-color: rgba(175, 135, 129, 0.18);
   }
 
   .menu-item:hover,
-  .driver-card:hover,
-  .team-card:hover,
-  .race-card:hover,
-  .setting-card:hover,
-  .compare-controls-panel:hover,
-  .index-panel:hover,
-  .index-standings-card:hover {
+.driver-card:hover,
+.team-card:hover,
+.setting-card:hover,
+.compare-controls-panel:hover,
+.index-panel:hover,
+.index-standings-card:hover {
     background: var(--surface-container-highest);
     transition: background 0.2s ease, border-color 0.2s ease;
   }
@@ -3889,14 +3202,13 @@ input:checked + .slider:before {
   }
 
   .voting-accordion-item,
-  .voting-chart-accordion,
-  .setting-card,
-  .season-race-insights,
-  .circuit-insights-card,
-  .driver-stats-block,
-  .driver-bio-block,
-  .driver-card-header,
-  .constructor-hero {
+.voting-chart-accordion,
+.setting-card,
+.circuit-insights-card,
+.driver-stats-block,
+.driver-bio-block,
+.driver-card-header,
+.constructor-hero {
     border-color: rgba(94, 63, 58, 0.24);
     background: rgba(41, 42, 43, 0.72);
   }
@@ -4097,48 +3409,6 @@ input:checked + .slider:before {
     border-radius: 12px;
     border: 1px solid rgba(94, 63, 58, 0.22);
     background: rgba(31, 32, 33, 0.82);
-  }
-
-  .app-page-main.route-season .season-desktop-layout {
-    display: grid;
-    grid-template-columns: minmax(350px, 0.95fr) minmax(0, 1fr);
-    gap: 16px;
-    margin-bottom: 12px;
-  }
-
-  .app-page-main.route-season .season-races-grid {
-    display: none;
-  }
-
-  .app-page-main.route-season .season-page-head .page-head-controls {
-    display: none;
-  }
-
-  .app-page-main.route-season .season-desktop-main-card {
-    border-radius: 14px;
-    border: 1px solid rgba(94, 63, 58, 0.24);
-    background: var(--surface-container-low);
-    padding: 16px;
-  }
-
-  .app-page-main.route-season .season-desktop-title {
-    font-family: "Space Grotesk", "Inter", sans-serif;
-    font-size: clamp(30px, 3vw, 52px);
-    line-height: 0.95;
-    text-transform: uppercase;
-    font-style: italic;
-    letter-spacing: -0.03em;
-  }
-
-  .app-page-main.route-season .season-desktop-race-item {
-    border-radius: 12px;
-    border-color: rgba(94, 63, 58, 0.24);
-    background: rgba(31, 32, 33, 0.82);
-  }
-
-  .app-page-main.route-season .season-desktop-race-item.active {
-    background: var(--surface-container-highest);
-    border-color: rgba(225, 6, 0, 0.58);
   }
 
   .app-page-main.route-compare .compare-controls-panel {

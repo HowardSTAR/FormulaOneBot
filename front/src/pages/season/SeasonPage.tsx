@@ -1,10 +1,10 @@
 import { localDateTime, optionalNumber, timezoneName } from '../../helpers/presentation';
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect, useCallback, useMemo, useRef, useLayoutEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { AnimatedTrackMap } from "../../components/AnimatedTrackMap";
 import { BackButton } from "../../components/BackButton";
 import { YearSelect } from "../../components/YearSelect";
-import { apiAssetUrl, apiRequest } from "../../helpers/api";
+import { apiRequest } from "../../helpers/api";
 import { getDisplayTimezone } from "../../helpers/timezone";
 import { getCircuitInsightsRu } from "../../assets/circuitInsightsRu";
 import { visibleInterval } from "../../helpers/visibleInterval";
@@ -12,8 +12,11 @@ import { PageFeedback } from '../../components/PageFeedback';
 import { GlossaryText } from '../../components/GlossaryText';
 import { calendarState as getCalendarState, calendarStatusLabel, filteredCalendar, isCompletedStatus,
   parseRaceTime, readCalendarQuery, selectedCalendarRace, raceDateParts, raceSessions, calendarResultLinks } from '../../helpers/seasonCalendar';
-import type { CalendarRace as Race, CalendarFilter, CalendarRaceStatus } from '../../helpers/seasonCalendar';
-import './season-filters.css';
+import type { CalendarRace as Race, CalendarFilter } from '../../helpers/seasonCalendar';
+import { GlassSwitch } from '../index/GlassSwitch';
+import { RaceFlagBackdrop } from '../../components/RaceFlagBackdrop';
+import '../index/home-controls.css';
+import './season.css';
 
 const currentRealYear = new Date().getFullYear();
 
@@ -39,7 +42,6 @@ type PodiumState = {
 const RACE_RESULTS_MIN_AGE_MS = 2 * 60 * 60 * 1000;
 
 function SeasonPage() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const {year, round: selectedRound, filter} = readCalendarQuery(searchParams, currentRealYear);
   const calendarRequest = useRef(0);
@@ -49,22 +51,20 @@ function SeasonPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emptyMessage, setEmptyMessage] = useState<string | null>(null);
-  const [expandedPodiumRound, setExpandedPodiumRound] = useState<number | null>(null);
-  const [expandedFactsRound, setExpandedFactsRound] = useState<number | null>(null);
+  const selectedHeading = useRef<HTMLHeadingElement>(null);
+  const focusRound = useRef<number | null>(null);
   const [calendarNowMs, setCalendarNowMs] = useState(() => Date.now());
   const [latestReadyRound, setLatestReadyRound] = useState<number | null>(null);
   const [podiums, setPodiums] = useState<Record<number, PodiumState>>({});
   const activeRaces = loadedYear === year ? races : [];
   const isLoading = loading || loadedYear !== year;
-  const setFilter = (value: CalendarFilter) => {
-    setExpandedPodiumRound(null);
-    setExpandedFactsRound(null);
-    setSearchParams(previous => {
-      const next = new URLSearchParams(previous); next.set('filter', value);
-      if (!filteredCalendar(activeRaces, calendarState.statusByRound, value).some(race => race.round === selectedRound)) next.delete('round');
-      return next;
-    }, {replace: true});
+  const filterParams = (value: CalendarFilter) => {
+    const next = new URLSearchParams(searchParams);
+    next.set('filter', value);
+    if (!filteredCalendar(activeRaces, calendarState.statusByRound, value).some(race => race.round === selectedRound)) next.delete('round');
+    return next;
   };
+  const setFilter = (value: CalendarFilter) => setSearchParams(filterParams(value), { replace: true });
 
   const loadCalendar = useCallback(async (season: number) => {
     const request = ++calendarRequest.current;
@@ -73,8 +73,6 @@ function SeasonPage() {
     setEmptyMessage(null);
     setLatestReadyRound(null);
     setPodiums({});
-    setExpandedPodiumRound(null);
-    setExpandedFactsRound(null);
     try {
       const data = await apiRequest<SeasonResponse>("/api/season", { season });
       if (request !== calendarRequest.current) return;
@@ -101,8 +99,6 @@ function SeasonPage() {
   }, [year, loadCalendar]);
 
   const updateYear = useCallback((y: number) => {
-    setExpandedPodiumRound(null);
-    setExpandedFactsRound(null);
     setPodiums({});
     setSearchParams(y === currentRealYear ? {} : { year: String(y) }, { replace: true });
   }, [setSearchParams]);
@@ -181,25 +177,24 @@ function SeasonPage() {
 
   const calendarState = useMemo(() => getCalendarState(loadedYear === year ? races : [], year, calendarNowMs, latestReadyRound), [calendarNowMs, latestReadyRound, races, year, loadedYear]);
   const visibleRaces = filteredCalendar(activeRaces, calendarState.statusByRound, filter);
-  const desktopRace = selectedCalendarRace(visibleRaces, selectedRound, filter, calendarState.statusByRound);
-  const desktopRaceStatus = desktopRace ? calendarState.statusByRound.get(desktopRace.round) : undefined;
+  const selectedRace = selectedCalendarRace(visibleRaces, selectedRound, filter, calendarState.statusByRound);
+  const selectedStatus = selectedRace ? calendarState.statusByRound.get(selectedRace.round) : undefined;
   const completedRacesCount = filteredCalendar(activeRaces, calendarState.statusByRound, 'past').length;
   const upcomingRacesCount = filteredCalendar(activeRaces, calendarState.statusByRound, 'upcoming').length;
-  const desktopInsights = desktopRace
+  const selectedInsights = selectedRace
     ? getCircuitInsightsRu({
         season: year,
-        eventName: desktopRace.event_name,
-        country: desktopRace.country ?? "",
-        location: desktopRace.location,
-        eventFormat: desktopRace.sprint_start_utc ? 'Со спринтом' : 'Стандартный',
-        sessionsCount: raceSessions(desktopRace).filter(session => session.iso).length,
+        eventName: selectedRace.event_name,
+        country: selectedRace.country ?? "",
+        location: selectedRace.location,
+        eventFormat: selectedRace.sprint_start_utc ? 'Со спринтом' : 'Стандартный',
+        sessionsCount: raceSessions(selectedRace).filter(session => session.iso).length,
       })
     : null;
 
-  const selectedDateLabel = desktopRace ? raceDateParts(desktopRace, userTz).label : '—';
-  const selectedResultLinks = desktopRace ? calendarResultLinks(desktopRace, year, calendarNowMs, desktopRaceStatus) : [];
+  const selectedDateLabel = selectedRace ? raceDateParts(selectedRace, userTz).label : '—';
+  const selectedResultLinks = selectedRace ? calendarResultLinks(selectedRace, year, calendarNowMs, selectedStatus) : [];
   const formatSessionTime = (iso?: string | null): string => localDateTime(iso, userTz);
-  const timelineRaceName = (name: string): string => name.replace(/Grand Prix/gi, "GP");
   const loadPodium = useCallback(async (round: number) => {
     const request = calendarRequest.current;
     if (podiums[round]?.loading || podiums[round]?.results.length) return;
@@ -239,321 +234,152 @@ function SeasonPage() {
     }
   }, [podiums, year]);
 
-  const toggleRaceExpansion = useCallback((
-    race: Race,
-    status: CalendarRaceStatus,
-    selectDesktopRace = false,
-  ) => {
-    if (selectDesktopRace) setSearchParams(previous => {
-      const next = new URLSearchParams(previous); next.set('round', String(race.round)); return next;
-    }, {replace: true});
-    if (!isCompletedStatus(status)) {
-      setExpandedPodiumRound(null);
+  useLayoutEffect(() => {
+    if (focusRound.current === selectedRace?.round) {
+      focusRound.current = null;
+      selectedHeading.current?.focus();
+    }
+  }, [selectedRace?.round]);
+
+  const selectRace = (race: Race) => {
+    if (selectedRace?.round === race.round) {
+      selectedHeading.current?.focus();
       return;
     }
-    const shouldOpen = expandedPodiumRound !== race.round;
-    setExpandedPodiumRound(shouldOpen ? race.round : null);
-    if (shouldOpen) void loadPodium(race.round);
-  }, [expandedPodiumRound, loadPodium, setSearchParams]);
-
-  const toggleRaceFacts = useCallback((race: Race) => {
-    const shouldOpen = expandedFactsRound !== race.round;
-    setExpandedFactsRound(shouldOpen ? race.round : null);
-    if (shouldOpen && isCompletedStatus(calendarState.statusByRound.get(race.round) || 'future')) void loadPodium(race.round);
-  }, [expandedFactsRound, calendarState.statusByRound, loadPodium]);
-
-  const renderPodium = (race: Race) => {
-    const state = podiums[race.round];
-    return (
-      <div className="season-podium-content">
-        <div className="season-podium-head">
-          <div>
-            <span>Итоги гонки</span>
-            <strong>Топ-3 пилота</strong>
-          </div>
-          <button
-            type="button"
-            className="season-podium-all-results"
-            onClick={() => navigate(`/race-results?mode=archive&season=${year}&round=${race.round}`)}
-          >
-            Полные результаты
-            <span aria-hidden="true">→</span>
-          </button>
-        </div>
-        {state?.loading && (
-          <div className="season-podium-loading" role="status">
-            <span className="spinner" />
-            Загружаем подиум…
-          </div>
-        )}
-        {!state?.loading && state?.error && (
-          <div className="season-podium-message" role="status">{state.error} <button type="button" className="season-retry" onClick={() => void loadPodium(race.round)}>Повторить</button></div>
-        )}
-        {!state?.loading && Boolean(state?.results.length) && (
-          <ol className="season-podium-list">
-            {state.results.map((result) => (
-              <li key={`${race.round}-${result.position}-${result.code}`} className={`position-${result.position}`}>
-                <span className="season-podium-position">{String(result.position).padStart(2, "0")}</span>
-                <span className="season-podium-code">
-                  <img className="season-podium-portrait" src={apiAssetUrl('/api/pilot-portrait', {season: year, code: result.code, name: result.name})}
-                    alt="" loading="lazy" onError={event => { event.currentTarget.hidden = true; }} />
-                  {result.code || "—"}
-                </span>
-                <span className="season-podium-driver">
-                  <strong>{result.name}</strong>
-                  <small>{result.team || "Команда не указана"}</small>
-                </span>
-                <span className="season-podium-points">{optionalNumber(result.points) ?? '—'} оч.</span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
-    );
+    focusRound.current = race.round;
+    setSearchParams(previous => {
+      const next = new URLSearchParams(previous);
+      next.set('round', String(race.round));
+      return next;
+    }, { replace: true });
   };
+  const selectedPodium = selectedRace ? podiums[selectedRace.round] : undefined;
+  const selectedSessions = selectedRace ? raceSessions(selectedRace) : [];
+  const filterLabel = filter === 'upcoming' ? 'Предстоящие этапы' : filter === 'past' ? 'Прошедшие этапы' : 'Все этапы';
 
   return (
-    <>
+    <div className="season-page">
       <BackButton>← <span>Главное меню</span></BackButton>
-      <header className="page-head-row season-page-head">
+      <header className="calendar-heading">
         <div>
-          <h1 className="page-head-title season-calendar-title">Календарь</h1>
-          <p className="season-calendar-summary">Сезон {year}{!isLoading && !error && activeRaces.length > 0 ? ` · Этапов: ${activeRaces.length} · Прошедших: ${completedRacesCount}` : ''}</p>
+          <h1>Календарь</h1>
+          <p>Гоночные уик-энды Формулы-1 · {year}</p>
         </div>
-        <div className="page-head-controls">
-          <span className="season-year-label">Сезон</span>
-          <YearSelect
-            value={year}
-            onChange={handleYearChange}
-            minYear={1950}
-            maxYear={currentRealYear}
-            ariaLabel="Сезон календаря"
-          />
+        <div className="calendar-year">
+          <YearSelect value={year} onChange={handleYearChange} minYear={1950}
+            maxYear={currentRealYear} ariaLabel="Сезон календаря" showCurrentYearBtn={year !== currentRealYear} />
         </div>
       </header>
 
-      <nav className="season-filters" aria-label="Фильтр календаря">
-        <button type="button" aria-pressed={filter === 'upcoming'} onClick={() => setFilter('upcoming')}>Предстоящие{!isLoading && !error && <span className="season-filter-count">{upcomingRacesCount}</span>}</button>
-        <button type="button" aria-pressed={filter === 'past'} onClick={() => setFilter('past')}>Прошедшие{!isLoading && !error && <span className="season-filter-count">{completedRacesCount}</span>}</button>
-        <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Весь сезон{!isLoading && !error && <span className="season-filter-count">{activeRaces.length}</span>}</button>
-      </nav>
-      {!isLoading && !error && activeRaces.length > 0 && !visibleRaces.length && <section className="season-calendar-empty" role="status"><p>В сезоне {year} {filter === 'past' ? 'пока нет прошедших этапов' : 'не осталось предстоящих этапов'}.</p><button type="button" className="season-retry" onClick={() => setFilter('all')}>Показать весь сезон</button></section>}
-      {error && !isLoading && <PageFeedback message={error} retry={() => void loadCalendar(year)} />}
-      {isLoading && <div className="loading full-width" role="status"><div className="spinner" /><div>Загрузка календаря {year}…</div></div>}
-      {!isLoading && !error && emptyMessage && <section className="season-calendar-empty" role="status"><p>{emptyMessage} для сезона {year}.</p><button type="button" className="season-retry" onClick={() => void loadCalendar(year)}>Повторить загрузку</button></section>}
-
-      {!isLoading && !error && !emptyMessage && desktopRace && (
-        <div className="season-desktop-layout">
-          <section className="season-desktop-primary">
-            <article className="season-desktop-main-card season-desktop-hero-card" aria-labelledby="season-selected-name">
-              <div className="season-desktop-hero-media">
-                <AnimatedTrackMap
-                  key={desktopRace.event_name}
-                  eventName={desktopRace.event_name}
-                  location={desktopRace.location}
-                  season={year}
-                  className="season-desktop-track-map"
-                  svgClassName="season-desktop-track-svg"
-                  loadingClassName="season-track-loading"
-                />
-                <div className="season-desktop-hero-next">
-                  {calendarStatusLabel[desktopRaceStatus ?? 'unknown']} · Этап {desktopRace.round}
-                </div>
-                <h2 id="season-selected-name">{desktopRace.event_name}</h2>
-                <div className="season-desktop-hero-meta">
-                  <span>{selectedDateLabel}</span>
-                  <span>{desktopRace.location}</span>
-                </div>
-              </div>
-
-              <div className="season-desktop-hero-schedule">
-                <h3 className="season-schedule-title">Расписание сессий</h3><p className="ui-data-context">Время: {timezoneName(userTz)}</p>
-                <div className="season-desktop-session-grid">
-                  {raceSessions(desktopRace).map(session => <div key={session.key} className={`season-desktop-session-item ${session.key === 'race' ? 'focus' : ''}`}>
-                    <span><GlossaryText>{session.label}</GlossaryText></span><b>{parseRaceTime(session.iso) === null ? 'Время уточняется' : formatSessionTime(session.iso)}</b>
-                  </div>)}
-                </div>
-                <div className="season-selected-actions">
-                  <Link className="season-calendar-action primary" to={`/next-race?season=${year}&round=${desktopRace.round}`}>Расписание и трасса →</Link>
-                  {selectedResultLinks.map(link => <Link className="season-calendar-action" key={link.key} to={link.href}>Результаты: {link.label}</Link>)}
-                </div>
-                <div className="season-desktop-stats">
-                  {desktopInsights?.stats.slice(0, 4).map((item) => (
-                    <div className="season-desktop-stat-box" key={item.label}>
-                      <div className="season-desktop-stat-label">{item.label}</div>
-                      <div className="season-desktop-stat-value">{item.value}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-            </article>
-
-            <div className="season-desktop-facts-grid">
-              {desktopInsights?.facts.slice(0, 3).map((fact) => (
-                <div key={fact.title} className="season-desktop-fact-item">
-                  <div className="season-desktop-fact-title">{fact.title}</div>
-                  <div className="season-desktop-fact-text">{fact.text}</div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <aside className="season-desktop-list season-desktop-timeline">
-            <h2 className="season-desktop-timeline-title">{filter === 'upcoming' ? 'Предстоящие' : filter === 'past' ? 'Прошедшие' : 'Весь сезон'} · {visibleRaces.length}{filter !== 'all' ? ` из ${activeRaces.length}` : ''}</h2>
-            <p className="season-calendar-list-help">Выберите этап, чтобы открыть расписание{filter !== 'upcoming' ? ' и подиум' : ''}.</p>
-            {visibleRaces.map((race) => {
-              const statusClass = calendarState.statusByRound.get(race.round) || "future";
-              const isFinished = isCompletedStatus(statusClass);
-              const isSelected = desktopRace.round === race.round;
-              const isExpanded = expandedPodiumRound === race.round && isFinished;
-              const statusLabel = calendarStatusLabel[statusClass];
-              const dateLabel = raceDateParts(race, userTz).label;
-              return (
-                <div
-                  key={`desktop-${race.round}`}
-                  className={`season-desktop-stage-shell ${isExpanded ? "expanded" : ""}`}
-                >
-                  <button
-                    type="button"
-                    aria-label={`Выбрать этап ${race.round}: ${race.event_name}`}
-                    className={`season-desktop-race-item ${statusClass} ${isSelected ? "active" : ""}`}
-                    onClick={() => toggleRaceExpansion(race, statusClass, true)}
-                    aria-pressed={isSelected}
-                    aria-expanded={isFinished ? isExpanded : undefined}
-                    aria-controls={isFinished ? `season-podium-${race.round}` : undefined}
-                  >
-                    <div className="season-desktop-race-info">
-                      <div className="season-desktop-race-topline">
-                        <div className="race-round">
-                          <span className="race-round-prefix">
-                            Этап {String(race.round).padStart(2, "0")} •
-                          </span>
-                          <span className={`race-round-status ${statusClass}`}>{statusLabel}</span>
-                        </div>
-                        <span className="season-desktop-race-icon" aria-hidden="true">
-                          {isFinished ? (isExpanded ? "−" : "+") : isSelected ? "✓" : "→"}
-                        </span>
-                      </div>
-                      <div className="race-name">{timelineRaceName(race.event_name)}</div>
-                      <div className="race-loc">{dateLabel} • {race.location}</div>
-                    </div>
-                  </button>
-                  <div
-                    id={`season-podium-${race.round}`}
-                    className={`season-stage-expansion ${isExpanded ? "open" : ""}`}
-                    aria-hidden={!isExpanded}
-                  >
-                    <div className="season-stage-expansion-inner">
-                      {isExpanded && renderPodium(race)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </aside>
-        </div>
-      )}
-
-      <div className="season-races-grid">
-        {!isLoading && !error && !emptyMessage &&
-          visibleRaces.map((race) => {
-            const statusClass = calendarState.statusByRound.get(race.round) || "future";
-            const statusIcon = calendarStatusLabel[statusClass];
-            const {day, month} = raceDateParts(race, userTz);
-            const insights = getCircuitInsightsRu({
-              season: year,
-              eventName: race.event_name,
-              country: race.country ?? "",
-              location: race.location,
-              eventFormat: race.sprint_start_utc ? 'Со спринтом' : 'Стандартный',
-              sessionsCount: raceSessions(race).filter(session => session.iso).length,
-            });
-            const areFactsExpanded = expandedFactsRound === race.round;
-            const resultLinks = calendarResultLinks(race, year, calendarNowMs, statusClass);
-            return (
-              <div key={race.round} className="season-race-item">
-                <div
-                  id={race.round === calendarState.nextRound ? "next-race-card" : undefined}
-                  className={`race-card ${statusClass} ${areFactsExpanded ? "expanded" : ""}`}
-                >
-                  <button
-                    type="button"
-                    className="season-mobile-race-open"
-                    onClick={() => navigate(`/next-race?season=${year}&round=${race.round}`)}
-                    aria-label={`Открыть ${race.event_name}`}
-                  >
-                    <span className="race-date-box">
-                      <span className="date-day">{day}</span>
-                      <span className="date-month">{month}</span>
-                    </span>
-                    <span className="race-info">
-                      <span className="race-round">Этап {race.round}</span>
-                      <span className="race-name">{race.event_name}</span>
-                      <span className="race-loc">📍 {race.location}</span>
-                    </span>
-                  </button>
-                  <div className="season-mobile-card-actions">
-                    <span className="race-status">{statusIcon}</span>
-                    <button
-                      type="button"
-                      className="race-insights-toggle"
-                      onClick={() => toggleRaceFacts(race)}
-                      aria-expanded={areFactsExpanded}
-                      aria-controls={`season-mobile-facts-${race.round}`}
-                      aria-label={`${resultLinks.length ? 'Результаты и факты' : 'Факты'}: ${race.event_name}`}
-                    >
-                      {resultLinks.length ? 'Результаты и факты' : 'Факты'}
-                      <span aria-hidden="true">{areFactsExpanded ? "−" : "+"}</span>
-                    </button>
-                  </div>
-                  <div
-                    id={`season-mobile-facts-${race.round}`}
-                    className={`season-stage-expansion season-mobile-stage-expansion ${areFactsExpanded ? "open" : ""}`}
-                    aria-hidden={!areFactsExpanded}
-                  >
-                    <div className="season-stage-expansion-inner">
-                      {areFactsExpanded && <div className="season-race-insights season-mobile-race-facts-panel">
-                        {isCompletedStatus(statusClass) && renderPodium(race)}
-                        {resultLinks.length > 0 && (
-                          <div className="season-mobile-results">
-                            <div className="season-mobile-results-head">Результаты этапа</div>
-                            <div className="season-mobile-results-links">
-                              {resultLinks.map((item) => (
-                                <Link key={item.key} to={item.href} className="season-mobile-result-link">
-                                  {item.label}
-                                  <span aria-hidden="true">→</span>
-                                </Link>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        <div className="season-race-stats">
-                          {insights.stats.map((item) => (
-                            <div className="season-race-stat-box" key={`${race.round}-${item.label}`}>
-                              <div className="season-race-stat-label">{item.label}</div>
-                              <div className="season-race-stat-value">{item.value}</div>
-                            </div>
-                          ))}
-                        </div>
-                        <div className="season-race-facts">
-                          {insights.facts.map((fact) => (
-                            <div className="season-race-fact-item" key={`${race.round}-${fact.title}`}>
-                              <div className="season-race-fact-title">{fact.title}</div>
-                              <div className="season-race-fact-text">{fact.text}</div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+      <div className="calendar-controls">
+        <GlassSwitch className="calendar-filters" label="Фильтр календаря" selected={filter} replace
+          items={([
+            ['upcoming', 'Предстоящие', 'clock', upcomingRacesCount],
+            ['past', 'Прошедшие', 'history', completedRacesCount],
+            ['all', 'Весь сезон', 'calendar', activeRaces.length],
+          ] as const).map(([value, label, icon, count]) => ({
+            id: value, icon, label: !isLoading && !error ? `${label}: ${count}` : label,
+            to: `/season?${filterParams(value)}`,
+          }))} />
+        {!isLoading && !error && activeRaces.length > 0 && <p className="calendar-season-total">{completedRacesCount} из {activeRaces.length} этапов завершено</p>}
       </div>
-    </>
+
+      {isLoading && <section className="calendar-loading" role="status" aria-label={`Загрузка календаря ${year}`}>
+        <p>Загружаем календарь {year}…</p>
+        <div aria-hidden="true"><span /><span /><span /></div>
+      </section>}
+      {error && !isLoading && <PageFeedback message={error} retry={() => void loadCalendar(year)} />}
+      {!isLoading && !error && emptyMessage && <section className="calendar-empty" role="status">
+        <h2>Расписание пока недоступно</h2><p>{emptyMessage} для сезона {year}.</p>
+        <button type="button" className="calendar-secondary" onClick={() => void loadCalendar(year)}>Повторить загрузку</button>
+      </section>}
+      {!isLoading && !error && activeRaces.length > 0 && !visibleRaces.length && <section className="calendar-empty" role="status">
+        <h2>{filter === 'past' ? 'Все гонки ещё впереди' : 'Сезон завершён'}</h2>
+        <p>В сезоне {year} {filter === 'past' ? 'пока нет прошедших этапов' : 'не осталось предстоящих этапов'}.</p>
+        <button type="button" className="calendar-secondary" onClick={() => setFilter('all')}>Показать весь сезон</button>
+      </section>}
+
+      {!isLoading && !error && !emptyMessage && selectedRace && <div className="calendar-layout">
+        <section className="calendar-overview" id="calendar-overview" aria-labelledby="calendar-selected-name">
+          <article className="calendar-selected" key={`${year}-${selectedRace.round}`}>
+            <div className="calendar-race-scene race-flag-scene">
+              <RaceFlagBackdrop country={selectedRace.country} eventName={selectedRace.event_name} />
+              <div className="calendar-race-hero">
+                <div className="calendar-race-copy">
+                  <h2 id="calendar-selected-name" ref={selectedHeading} tabIndex={-1}>{selectedRace.event_name}</h2>
+                  <p className="calendar-venue">{[selectedRace.location, selectedRace.country].filter(Boolean).filter((part, index, parts) => parts.indexOf(part) === index).join(', ')}</p>
+                  <p className="calendar-round-status">Этап {selectedRace.round}<span className={`calendar-status calendar-status--${selectedStatus}`}>{calendarStatusLabel[selectedStatus ?? 'unknown']}</span></p>
+                </div>
+                <div className="calendar-track" aria-hidden="true">
+                  <AnimatedTrackMap eventName={selectedRace.event_name} location={selectedRace.location} season={year}
+                    className="calendar-track-map" svgClassName="calendar-track-svg" loadingClassName="calendar-track-loading" fitRoute animate={false} />
+                </div>
+              </div>
+              <div className="calendar-race-start">
+                <div><span>Гонка</span><strong>{selectedDateLabel}<span>{parseRaceTime(selectedRace.race_start_utc) !== null ? new Intl.DateTimeFormat('ru-RU', { timeZone: userTz, hour: '2-digit', minute: '2-digit' }).format(new Date(selectedRace.race_start_utc!)) : 'Время уточняется'}</span></strong><small>{timezoneName(userTz)}</small></div>
+                <Link className="calendar-primary" to={`/next-race?season=${year}&round=${selectedRace.round}`}>Открыть уик-энд<CalendarChevron /></Link>
+              </div>
+            </div>
+            {selectedRace.is_cancelled ? <p className="calendar-cancelled-note">Этап отменён. Указанные даты сохранены для справки.</p> : <details className="calendar-disclosure">
+              <summary><span>Расписание сессий<small>{timezoneName(userTz)}</small></span><CalendarChevron /></summary>
+              <dl className="calendar-sessions">
+                {selectedSessions.map(session => <div key={session.key} className={session.key === 'race' ? 'calendar-session-race' : ''}>
+                  <dt><GlossaryText>{session.label}</GlossaryText></dt>
+                  <dd>{parseRaceTime(session.iso) === null ? 'Время уточняется' : <time dateTime={session.iso!}>{formatSessionTime(session.iso)}</time>}</dd>
+                </div>)}
+              </dl>
+            </details>}
+            {selectedResultLinks.length > 0 && <div className="calendar-results">
+              <h3>Результаты сессий</h3>
+              <div>{selectedResultLinks.map(link => <Link className="calendar-secondary" key={link.key} to={link.href}>{link.label}<CalendarChevron /></Link>)}</div>
+            </div>}
+            {isCompletedStatus(selectedStatus) && <details className="calendar-disclosure calendar-podium" onToggle={event => {
+              if (event.currentTarget.open) void loadPodium(selectedRace.round);
+            }}>
+              <summary><span>Подиум гонки</span><CalendarChevron /></summary>
+              {selectedPodium?.loading && <p role="status">Загружаем подиум…</p>}
+              {!selectedPodium?.loading && selectedPodium?.error && <div className="calendar-podium-error" role="status"><p>{selectedPodium.error}</p><button type="button" className="calendar-secondary" onClick={() => void loadPodium(selectedRace.round)}>Повторить</button></div>}
+              {!selectedPodium?.loading && Boolean(selectedPodium?.results.length) && <ol className="calendar-podium-list">
+                {selectedPodium!.results.map(result => <li key={result.position}>
+                  <span className="calendar-podium-place">{result.position}</span><span><strong>{result.name}</strong><small>{result.team || 'Команда не указана'}</small></span><span>{optionalNumber(result.points) ?? '—'} оч.</span>
+                </li>)}
+              </ol>}
+            </details>}
+          </article>
+          {selectedInsights && <details className="calendar-disclosure calendar-circuit-facts" key={`facts-${year}-${selectedRace.round}`}>
+            <summary><span>О трассе<small>{selectedRace.location}</small></span><CalendarChevron /></summary>
+            <dl className="calendar-circuit-stats">{selectedInsights.stats.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.value}</dd></div>)}</dl>
+            <div className="calendar-facts">{selectedInsights.facts.map(fact => <div key={fact.title}><h3>{fact.title}</h3><p>{fact.text}</p></div>)}</div>
+          </details>}
+        </section>
+
+        <section className="calendar-race-list" aria-labelledby="calendar-list-title">
+          <div className="calendar-list-heading"><h2 id="calendar-list-title">{filterLabel}</h2><span>{visibleRaces.length}</span></div>
+          <p className="calendar-list-help">Выберите этап, чтобы посмотреть расписание.</p>
+          <ol className="calendar-stages">
+            {visibleRaces.map(race => {
+              const status = calendarState.statusByRound.get(race.round) || 'future';
+              const date = raceDateParts(race, userTz);
+              const selected = selectedRace.round === race.round;
+              return <li key={race.round}>
+                <button type="button" className={`calendar-stage race-flag-scene${selected ? ' is-selected' : ''}`}
+                  aria-label={`Выбрать этап ${race.round}: ${race.event_name}`} aria-pressed={selected} aria-controls="calendar-overview" onClick={() => selectRace(race)}>
+                  <RaceFlagBackdrop country={race.country} eventName={race.event_name} />
+                  <span className="calendar-stage-date"><strong>{date.day}</strong><span>{date.month}</span></span>
+                  <span className="calendar-stage-info"><span className="calendar-stage-meta">Этап {race.round}{race.sprint_start_utc && <span>Спринт</span>}</span><strong>{race.event_name.replace(/Grand Prix/gi, 'GP')}</strong><span className="calendar-stage-location">{race.location}</span><span className={`calendar-status calendar-status--${status}`}>{calendarStatusLabel[status]}</span></span>
+                  <CalendarChevron />
+                </button>
+              </li>;
+            })}
+          </ol>
+        </section>
+      </div>}
+    </div>
   );
+}
+
+function CalendarChevron() {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>;
 }
 
 export default SeasonPage;

@@ -194,17 +194,17 @@ test('calendar shows practices and only links to sessions that have started', ()
   assert.match(links[0].href,/season=2026&round=16$/);
 });
 
-test('calendar uses one accessible header and mounts details only when expanded', () => {
+test('calendar has one overview, native disclosures and guarded retryable requests', () => {
   const source=readFileSync(new URL('../src/pages/season/SeasonPage.tsx',import.meta.url),'utf8');
   assert.equal((source.match(/<h1\b/g)||[]).length,1);
   assert.match(source,/ariaLabel="Сезон календаря"/);
-  assert.match(source,/areFactsExpanded && <div/);
-  assert.match(source,/isExpanded && renderPodium/);
+  assert.equal((source.match(/id="calendar-overview"/g)||[]).length,1);
+  assert.match(source,/<details className="calendar-disclosure calendar-podium" onToggle=/);
+  assert.match(source,/if \(event.currentTarget.open\) void loadPodium/);
+  assert.match(source,/aria-controls="calendar-overview"/);
   assert.match(source,/PageFeedback message=\{error\} retry=/);
   assert.match(source,/request !== calendarRequest.current/);
   assert.match(source,/<GlossaryText>\{session.label\}<\/GlossaryText>/);
-  const styles=readFileSync(new URL('../src/pages/season/season-filters.css',import.meta.url),'utf8');
-  assert.match(styles,/header\.season-page-head \.page-head-controls \{ display: flex !important/);
   assert.doesNotMatch(source,/desktopFactTitles|ТОЛЬКО ЧТО|"LIVE"/);
 });
 
@@ -231,7 +231,7 @@ test('peer cards stretch by row across public and administrative sections withou
   assert.equal(cssValue(rows[0],'align-items'),'stretch');
   assert.equal(cssValue(rows[1],'align-self'),'stretch');
   assert.equal(cssValue(rows[1],'box-sizing'),'border-box');
-  for (const group of ['season-desktop-facts-grid','season-desktop-stats','next-race-desktop-stats','driver-stats-grid',
+  for (const group of ['next-race-desktop-stats','driver-stats-grid',
     'compare-facts-grid','prediction-grid','settings-fields-grid','account-grid','community-grid','wiki-grid',
     'pa-scenarios','admin-metric-grid','at-columns','control-metrics']) {
     for (const rule of rows) assert.ok(rule.selector.includes(`.${group}`),group);

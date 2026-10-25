@@ -34,41 +34,20 @@ const details = { ...driver, givenName: 'Max', familyName: 'Verstappen', permane
         return route.fulfill({ json });
       });
 
-      if (width < 900) {
-        await page.goto(`${base}/season?filter=all`);
-        const items = page.locator('.season-races-grid .season-race-item');
-        await items.nth(3).waitFor();
-        const target = items.nth(1);
-        const card = target.locator('.race-card');
-        const toggle = target.locator('.race-insights-toggle');
-        await toggle.click();
-        assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
-        // Check containment and neighbouring cards during the reveal, not only after it.
-        assert.ok(await target.evaluate(async el => {
-          const start = performance.now();
-          do {
-            const card = el.querySelector('.race-card').getBoundingClientRect();
-            const panel = el.querySelector('.season-mobile-race-facts-panel').getBoundingClientRect();
-            const actions = el.querySelector('.season-mobile-card-actions').getBoundingClientRect();
-            const next = el.nextElementSibling.getBoundingClientRect();
-            if (panel.top < actions.bottom || panel.bottom > card.bottom || next.top < card.bottom) return false;
-            await new Promise(requestAnimationFrame);
-          } while (performance.now() - start < 650);
-          return true;
-        }), `Facts overlap at ${width}px`);
-        assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `Horizontal overflow at ${width}px`);
-        await toggle.evaluate(el => el.blur());
-        await card.screenshot({ path: `artifacts/calendar-card-expanded-${width}.png` });
-        await items.nth(0).locator('.race-insights-toggle').click();
-        assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
-        assert.equal(await target.locator('.season-mobile-stage-expansion').isVisible(), false);
-        const pastToggle = items.nth(0).locator('.race-insights-toggle');
-        await pastToggle.focus();
-        await page.keyboard.press('Enter');
-        assert.equal(await pastToggle.getAttribute('aria-expanded'), 'false');
-        await page.getByRole('button', { name: 'Открыть United States Grand Prix', exact: true }).click();
-        await page.waitForURL('**/race-details?season=2026&round=18');
-      }
+      await page.goto(`${base}/season?filter=all`);
+      const stages = page.locator('.calendar-stages > li');
+      await stages.nth(3).waitFor();
+      assert.equal(await page.locator('#calendar-overview').count(), 1);
+      await stages.nth(1).getByRole('button').click();
+      await page.getByRole('heading', { name: 'United States Grand Prix', exact: true }).waitFor();
+      await page.locator('.calendar-disclosure > summary').filter({ hasText: 'Расписание сессий' }).click();
+      assert.ok(await page.locator('.calendar-sessions').isVisible());
+      await page.locator('.calendar-disclosure > summary').filter({ hasText: 'О трассе' }).click();
+      assert.ok(await page.locator('.calendar-facts').isVisible());
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `Horizontal overflow at ${width}px`);
+      await page.screenshot({ path: `artifacts/calendar-expanded-${width}.png` });
+      await page.getByRole('link', { name: 'Открыть уик-энд', exact: true }).click();
+      await page.waitForURL('**/next-race?season=2026&round=18');
 
       // Direct entry has no router history: back retains the requested standings season.
       await page.goto(`${base}/driver-details?code=VER&season=2025`);

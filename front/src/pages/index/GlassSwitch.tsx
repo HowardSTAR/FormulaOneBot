@@ -4,7 +4,7 @@ import { HomeIcon, type HomeIconName } from './HomeIcon';
 import './glass-switch.css';
 
 export type GlassSwitchItem = { id: string; label: string; to: string; icon?: HomeIconName; state?: unknown };
-export function GlassSwitch({ items, selected: active, label, className }: { items: readonly GlassSwitchItem[]; selected: string; label: string; className: string }) {
+export function GlassSwitch({ items, selected: active, label, className, replace = false }: { items: readonly GlassSwitchItem[]; selected: string; label: string; className: string; replace?: boolean }) {
   const navigate = useNavigate();
   const selected = items.findIndex(item => item.id === active);
   const [position, setPosition] = useState<number | null>(null);
@@ -36,11 +36,11 @@ export function GlassSwitch({ items, selected: active, label, className }: { ite
       if (!gesture || gesture.id !== event.pointerId || !gesture.moved) return;
       suppressClickUntil.current = performance.now() + 350;
       const destination = items[Math.round(gesture.position)];
-      navigate(destination.to, { preventScrollReset: true, state: destination.state });
+      navigate(destination.to, { preventScrollReset: true, state: destination.state, replace });
     }} onPointerCancel={() => { drag.current = null; setPosition(null); }} onLostPointerCapture={event => { if (event.target === event.currentTarget) { drag.current = null; setPosition(null); } }}
     onClickCapture={event => { if (event.detail > 0 && performance.now() < suppressClickUntil.current) { event.preventDefault(); event.stopPropagation(); } }}>
     <span className="home-section-light" aria-hidden="true" />
     <span className="home-section-lens" aria-hidden="true" />
-    {items.map((item, index) => <Link key={item.id} to={item.to} state={item.state} draggable={false} preventScrollReset aria-label={item.label} title={item.label} aria-current={active === item.id ? 'page' : undefined} data-highlighted={highlighted === index || undefined}>{item.icon ? <HomeIcon name={item.icon} /> : <span>{item.label}</span>}</Link>)}
+    {items.map((item, index) => <Link key={item.id} to={item.to} state={item.state} replace={replace} draggable={false} preventScrollReset aria-label={item.label} title={item.label} aria-current={active === item.id ? 'page' : undefined} data-highlighted={highlighted === index || undefined}>{item.icon ? <HomeIcon name={item.icon} /> : <span>{item.label}</span>}</Link>)}
   </nav>;
 }

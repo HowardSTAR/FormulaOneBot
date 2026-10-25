@@ -18,11 +18,10 @@
   }
 
   .desktop-standings-board,
-  .desktop-side-card,
-  .season-desktop-main-card,
-  .compare-controls-panel,
-  .race-results-desktop-content,
-  .next-race-desktop-main {
+.desktop-side-card,
+.compare-controls-panel,
+.race-results-desktop-content,
+.next-race-desktop-main {
     box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
   }
 
@@ -260,11 +259,10 @@
   }
 
   .app-page-main > h2,
-  .page-head-title,
-  .desktop-standings-heading,
-  .season-desktop-title,
-  .driver-card-name,
-  .constructor-hero-title {
+.page-head-title,
+.desktop-standings-heading,
+.driver-card-name,
+.constructor-hero-title {
     font-family: "Space Grotesk", sans-serif !important;
     text-transform: uppercase !important;
     font-style: italic !important;
@@ -279,19 +277,18 @@
   }
 
   .index-panel,
-  .desktop-standings-board,
-  .desktop-side-card,
-  .season-desktop-main-card,
-  .compare-controls-panel,
-  .setting-card,
-  .voting-accordion-item,
-  .voting-chart-accordion,
-  .driver-card-header,
-  .driver-stats-block,
-  .driver-bio-block,
-  .constructor-hero,
-  #race-content,
-  #quali-content {
+.desktop-standings-board,
+.desktop-side-card,
+.compare-controls-panel,
+.setting-card,
+.voting-accordion-item,
+.voting-chart-accordion,
+.driver-card-header,
+.driver-stats-block,
+.driver-bio-block,
+.constructor-hero,
+#race-content,
+#quali-content {
     background: #1b1c1d !important;
     border: 1px solid rgba(94, 63, 58, 0.24) !important;
     border-radius: 12px !important;
@@ -1157,20 +1154,6 @@
     font-family: "Space Grotesk", sans-serif !important;
     font-weight: 700 !important;
     padding: 0 12px !important;
-  }
-
-  .app-page-main.route-season .season-desktop-layout {
-    display: grid !important;
-    grid-template-columns: minmax(340px, 0.95fr) minmax(0, 1fr) !important;
-    gap: 14px !important;
-  }
-
-  .app-page-main.route-season .season-races-grid {
-    display: none !important;
-  }
-
-  .app-page-main.route-season .season-page-head .page-head-controls {
-    display: none !important;
   }
 
   .app-page-main.route-compare .driver-select .custom-select-trigger {
@@ -2394,8 +2377,7 @@
     font-style: italic !important;
   }
 
-  .app-page-main.route-race-details .race-details-result-link,
-  .app-page-main.route-season .season-result-link {
+  .app-page-main.route-race-details .race-details-result-link {
     border-radius: 8px !important;
     border: 1px solid rgba(94, 63, 58, 0.3) !important;
     background: #292a2b !important;
@@ -2403,377 +2385,6 @@
     font-size: 11px !important;
     text-transform: uppercase !important;
     letter-spacing: 0.08em !important;
-  }
-
-  .app-page-main.route-season .season-desktop-layout {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1.65fr) minmax(320px, 1fr) !important;
-    gap: 18px !important;
-    align-items: start !important;
-  }
-
-  .app-page-main.route-season .season-desktop-primary {
-    position: sticky !important;
-    top: 12px !important;
-    align-self: start !important;
-  }
-
-  .app-page-main.route-season .btn-back,
-  .app-page-main.route-season .season-page-head {
-    display: none !important;
-  }
-
-  .app-page-main.route-season .season-desktop-list {
-    border: 1px solid rgba(94, 63, 58, 0.2) !important;
-    border-radius: 12px !important;
-    background: #1b1c1d !important;
-    padding: 10px !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-
-  .app-page-main.route-season .season-desktop-race-item {
-    border: 1px solid rgba(94, 63, 58, 0.18) !important;
-    border-radius: 10px !important;
-    background: #292a2b !important;
-  }
-
-  .app-page-main.route-season .season-desktop-race-item.active {
-    border-color: rgba(225, 6, 0, 0.75) !important;
-    background: #343536 !important;
-  }
-
-  .app-page-main.route-season .season-desktop-main-card {
-    border-radius: 14px !important;
-    padding: 16px !important;
-  }
-
-  .app-page-main.route-season .season-desktop-primary-head {
-    display: flex !important;
-    justify-content: space-between !important;
-    align-items: flex-end !important;
-    gap: 14px !important;
-    margin-bottom: 14px !important;
-  }
-
-  .app-page-main.route-season .season-desktop-main-heading {
-    margin: 0 !important;
-    font-family: "Space Grotesk", sans-serif !important;
-    text-transform: uppercase !important;
-    font-style: italic !important;
-    letter-spacing: -0.03em !important;
-    line-height: 0.95 !important;
-    font-size: clamp(38px, 4.8vw, 78px) !important;
-  }
-
-  .app-page-main.route-season .season-desktop-main-subheading {
-    margin: 8px 0 0 !important;
-    font-size: 12px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.16em !important;
-    color: #e10600 !important;
-    font-family: "Space Grotesk", sans-serif !important;
-    font-weight: 700 !important;
-  }
-
-  .app-page-main.route-season .season-desktop-season-picker {
-    display: flex !important;
-    align-items: center !important;
-    gap: 12px !important;
-  }
-
-  .app-page-main.route-season .season-desktop-season-label {
-    font-size: 10px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.14em !important;
-    color: rgba(227, 226, 227, 0.5) !important;
-    font-family: "Space Grotesk", sans-serif !important;
-    font-weight: 700 !important;
-  }
-
-  .app-page-main.route-season .season-desktop-season-select {
-    min-width: 128px !important;
-    border-radius: 10px !important;
-    border: 1px solid rgba(94, 63, 58, 0.22) !important;
-    background: #292a2b !important;
-    color: #e3e2e3 !important;
-    padding: 10px 14px !important;
-    font-family: "Space Grotesk", sans-serif !important;
-    font-size: 34px !important;
-    line-height: 1 !important;
-    font-weight: 700 !important;
-  }
-
-  @media (max-width: 1360px) {
-    .app-page-main.route-season .season-desktop-layout {
-      grid-template-columns: minmax(0, 1fr) !important;
-      gap: 12px !important;
-    }
-
-    .app-page-main.route-season .season-desktop-primary {
-      position: static !important;
-      top: auto !important;
-    }
-
-    .app-page-main.route-season .season-desktop-primary-head {
-      flex-wrap: wrap !important;
-      align-items: flex-start !important;
-      gap: 10px !important;
-    }
-  }
-
-  @media (max-width: 1240px) {
-    .app-page-main.route-season .season-desktop-primary-head {
-      flex-direction: column !important;
-      align-items: flex-start !important;
-      gap: 10px !important;
-    }
-
-    .app-page-main.route-season .season-desktop-season-picker {
-      align-self: flex-start !important;
-      flex-wrap: wrap !important;
-      gap: 8px !important;
-    }
-
-    .app-page-main.route-season .season-desktop-season-select {
-      min-width: 112px !important;
-      font-size: 28px !important;
-      padding: 8px 12px !important;
-    }
-  }
-
-  .app-page-main.route-season .season-desktop-hero-card {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr) !important;
-    gap: 14px !important;
-  }
-
-  .app-page-main.route-season .season-desktop-hero-media {
-    min-height: 420px !important;
-    border-radius: 12px !important;
-    border: 1px solid rgba(94, 63, 58, 0.2) !important;
-    padding: 22px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: flex-end !important;
-    background:
-      linear-gradient(180deg, rgba(18, 19, 20, 0.18) 0%, rgba(18, 19, 20, 0.86) 100%),
-      url("https://lh3.googleusercontent.com/aida-public/AB6AXuBoSu1U_lcv3gHlJVA_kOyg_p49AdeZr8LzlyjezHlNtJ_niXgPWYDKYQRsWNQMbXNL2xCTjxyygc9vEYkB536pv-AeuUbFNJ4JECp5QdPU8yx6qQYDbM9ZlAMSOy2MCUIFg1H35PPA3qDZ_LQm929bqmQgqG0NmEiuEU8ElmnhgCvyw59NTNg_8s9_CuL3rlPH203434aVIHyCC90oWI3uOznN_15B2OWSRGL2MkTBpjqF8aHVlsRTVl5oouO2fzbCZrvKsMArDPDN")
-      center/cover no-repeat !important;
-  }
-
-  .app-page-main.route-season .season-desktop-hero-next {
-    align-self: flex-start !important;
-    margin-bottom: 12px !important;
-    padding: 5px 10px !important;
-    border-radius: 6px !important;
-    background: #e10600 !important;
-    color: #fff2f0 !important;
-    font-family: "Space Grotesk", sans-serif !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.1em !important;
-    font-size: 10px !important;
-    font-weight: 700 !important;
-  }
-
-  .app-page-main.route-season .season-desktop-hero-media h4 {
-    margin: 0 !important;
-    font-family: "Space Grotesk", sans-serif !important;
-    text-transform: uppercase !important;
-    font-style: italic !important;
-    letter-spacing: -0.03em !important;
-    line-height: 0.92 !important;
-    font-size: clamp(42px, 4.2vw, 68px) !important;
-    max-width: 100% !important;
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
-  }
-
-  .app-page-main.route-season .season-desktop-hero-meta {
-    margin-top: 10px !important;
-    display: flex !important;
-    gap: 14px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.12em !important;
-    font-size: 11px !important;
-    color: rgba(227, 226, 227, 0.72) !important;
-  }
-
-  .app-page-main.route-season .season-desktop-hero-schedule h5 {
-    margin: 0 0 12px !important;
-    font-family: "Space Grotesk", sans-serif !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.14em !important;
-    font-size: 11px !important;
-    color: #e10600 !important;
-  }
-
-  .app-page-main.route-season .season-desktop-session-grid {
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 10px !important;
-    margin-bottom: 12px !important;
-  }
-
-  .app-page-main.route-season .season-desktop-session-item {
-    border: 1px solid rgba(94, 63, 58, 0.2) !important;
-    border-radius: 10px !important;
-    background: #121314 !important;
-    padding: 10px !important;
-  }
-
-  .app-page-main.route-season .season-desktop-session-item span {
-    display: block !important;
-    font-size: 10px !important;
-    text-transform: uppercase !important;
-    color: rgba(227, 226, 227, 0.48) !important;
-    letter-spacing: 0.08em !important;
-  }
-
-  .app-page-main.route-season .season-desktop-session-item b {
-    display: block !important;
-    margin-top: 3px !important;
-    font-family: "Space Grotesk", sans-serif !important;
-    font-size: 27px !important;
-    line-height: 1 !important;
-    letter-spacing: -0.02em !important;
-  }
-
-  .app-page-main.route-season .season-desktop-session-item.focus {
-    border-color: rgba(225, 6, 0, 0.65) !important;
-  }
-
-  .app-page-main.route-season .season-desktop-title {
-    font-size: clamp(28px, 3.1vw, 46px) !important;
-    line-height: 1 !important;
-    font-style: italic !important;
-    text-transform: uppercase !important;
-    letter-spacing: -0.03em !important;
-    font-family: "Space Grotesk", sans-serif !important;
-  }
-
-  .app-page-main.route-season .season-desktop-subtitle {
-    text-transform: uppercase !important;
-    letter-spacing: 0.08em !important;
-    font-size: 11px !important;
-    color: rgba(227, 226, 227, 0.6) !important;
-  }
-
-  .app-page-main.route-season .season-desktop-stat-box,
-  .app-page-main.route-season .season-desktop-fact-item {
-    border: 1px solid rgba(94, 63, 58, 0.2) !important;
-    border-radius: 10px !important;
-    background: #292a2b !important;
-  }
-
-  .app-page-main.route-season .season-desktop-stats {
-    align-items: start !important;
-  }
-
-  .app-page-main.route-season .season-desktop-stat-box {
-    align-self: start !important;
-  }
-
-  .app-page-main.route-season .season-desktop-stat-value {
-    line-height: 1.05 !important;
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
-  }
-
-  .app-page-main.route-season .season-desktop-facts-grid {
-    margin-top: 14px !important;
-    display: grid !important;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-    gap: 12px !important;
-  }
-
-  .app-page-main.route-season .season-desktop-facts-grid .season-desktop-fact-item {
-    border-left: 0 !important;
-    padding: 16px !important;
-    min-height: 180px !important;
-  }
-
-  .app-page-main.route-season .season-desktop-timeline-title {
-    margin: 0 0 10px !important;
-    color: rgba(227, 226, 227, 0.46) !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.14em !important;
-    font-size: 11px !important;
-    font-family: "Space Grotesk", sans-serif !important;
-  }
-
-  .app-page-main.route-season .season-desktop-timeline {
-    max-height: none !important;
-    overflow: visible !important;
-  }
-
-  .app-page-main.route-season .season-desktop-race-item {
-    padding: 12px 14px !important;
-  }
-
-  .app-page-main.route-season .season-desktop-race-item .race-round {
-    font-size: 10px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.1em !important;
-    color: rgba(227, 226, 227, 0.5) !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 6px !important;
-    min-width: 0 !important;
-  }
-
-  .app-page-main.route-season .season-desktop-race-item .race-round-prefix {
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    min-width: 0 !important;
-  }
-
-  .app-page-main.route-season .season-desktop-race-item .race-name {
-    font-family: "Space Grotesk", sans-serif !important;
-    font-size: 48px !important;
-    line-height: 0.95 !important;
-    text-transform: uppercase !important;
-    font-style: italic !important;
-    letter-spacing: -0.03em !important;
-    margin-top: 4px !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    max-width: 100% !important;
-  }
-
-  .app-page-main.route-season .season-desktop-race-item .race-loc {
-    margin-top: 4px !important;
-    font-size: 12px !important;
-    color: rgba(227, 226, 227, 0.6) !important;
-    white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    max-width: 100% !important;
-  }
-
-  .app-page-main.route-season .season-desktop-race-icon {
-    color: #ffb4a8 !important;
-    width: 28px !important;
-    height: 28px !important;
-    border-radius: 999px !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    font-size: 12px !important;
-    border: 1px solid rgba(94, 63, 58, 0.28) !important;
-    background: #292a2b !important;
-  }
-
-  .app-page-main.route-season .season-desktop-fact-text {
-    font-style: italic !important;
-  }
-
-  .app-page-main.route-season .season-desktop-track-wrap {
-    border-radius: 12px !important;
-    border: 1px solid rgba(94, 63, 58, 0.2) !important;
-    background: #121314 !important;
   }
 
   .app-page-main.route-driver-details .driver-card-header,

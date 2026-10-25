@@ -58,8 +58,6 @@
    The scoped priority overrides historical !important alignment rules. */
 #root .app-page-main :is(
   .ui-equal-card-row,
-  .season-desktop-facts-grid, .season-desktop-stats, .season-desktop-session-grid,
-  .season-race-stats, .season-mobile-results-links,
   .circuit-insights-stats, .next-race-desktop-stats, .next-race-desktop-schedule-grid,
   .stats-grid, .driver-stats-grid, .constructor-season-metrics, .constructor-drivers-grid,
   .compare-facts-grid, .drivers-insights-grid, .constructors-season-stats, .constructors-hero-grid,
@@ -75,8 +73,6 @@
 }
 #root .app-page-main :is(
   .ui-equal-card-row,
-  .season-desktop-facts-grid, .season-desktop-stats, .season-desktop-session-grid,
-  .season-race-stats, .season-mobile-results-links,
   .circuit-insights-stats, .next-race-desktop-stats, .next-race-desktop-schedule-grid,
   .stats-grid, .driver-stats-grid, .constructor-season-metrics, .constructor-drivers-grid,
   .compare-facts-grid, .drivers-insights-grid, .constructors-season-stats, .constructors-hero-grid,
@@ -94,51 +90,18 @@
 }
 
 /* Statistic and schedule values align even when their headings wrap. */
-#root .app-page-main :is(.season-desktop-stat-box, .season-race-stat-box, .circuit-stat-box,
-  .next-race-desktop-stat, .season-desktop-session-item) {
+#root .app-page-main :is( .circuit-stat-box,
+  .next-race-desktop-stat) {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-#root .app-page-main :is(.season-desktop-stat-value, .season-race-stat-value, .circuit-stat-value),
-#root .app-page-main .next-race-desktop-stat > strong,
-#root .app-page-main .season-desktop-session-item > b { margin-top: auto !important; }
+#root .app-page-main :is( .circuit-stat-value),
+#root .app-page-main .next-race-desktop-stat > strong { margin-top: auto !important; }
 
 /* Names are data, including long historic names and sponsor names. Wrap them
    within their own cells instead of clipping text or overlapping the next cell.
    Keep this eager so visiting a lazy results page cannot restore ellipsis. */
-#root .app-page-main :is(
-  .desktop-standings-name, .desktop-standings-meta, .drivers-row-team span,
-  .driver-name, .team-name, .team-name-main,
-  .constructors-leader-main span, .constructors-season-stats small,
-  .constructor-hero-title, .constructor-driver-name, .constructor-driver-team,
-  .constructor-profile-desktop-brand h1, .constructor-profile-desktop-brand h1 span,
-  .constructor-profile-desktop-brand h1 em, .constructor-profile-driver-row b,
-  .standings-name, .standings-code, .results-mobile-team,
-  .race-results-driver-cell > span, .race-results-driver-cell strong, .race-results-team-cell span,
-  .race-results-desktop-winner-team strong,
-  .quali-results-table .race-results-desktop-row > span:nth-child(2),
-  .practice-unified-table .race-results-desktop-row > span:nth-child(2),
-  .practice-unified-table .race-results-desktop-row > span:nth-child(3),
-  .practice-driver b, .practice-team, .constructors-row-copy small,
-  .season-podium-driver strong, .season-podium-driver small,
-  .index-standing-line > div > span, .index-standing-line > div > small,
-  .index-standings-entity, .index-standings-row > span:nth-child(2),
-  .compare-table-driver strong, .compare-table-driver small,
-  .compare-driver-chip-copy strong, .compare-driver-chip-copy small,
-  .compare-driver-option strong, .compare-driver-option small,
-  .compare-summary-participant strong, .compare-multi-summary strong,
-  .compare-legend-item small
-) {
-  min-width: 0;
-  max-width: 100%;
-  overflow: visible !important;
-  text-overflow: clip !important;
-  white-space: normal !important;
-  overflow-wrap: anywhere;
-  word-break: normal;
-  line-height: 1.4 !important;
-}
 #root .app-page-main :is(
   .desktop-standings-driver, .drivers-row-driver > div, .drivers-row-team,
   .race-results-driver-cell > span, .race-results-team-cell,
@@ -150,8 +113,7 @@
 #root .constructor-driver-card-content { box-sizing: border-box; min-height: 160px; padding-bottom: 78px; }
 #root .app-page-main :is(
   .desktop-standings-row, .race-results-desktop-row, .standings-item,
-  .driver-card, .constructor-card, .index-standing-line, .season-podium-list li
-) { height: auto !important; max-height: none !important; }
+  .driver-card, .constructor-card, .index-standing-line) { height: auto !important; max-height: none !important; }
 #root .results-mobile-row .standings-code { flex-wrap: wrap; gap: 4px 8px; }
 #root .results-mobile-team { flex-basis: 100%; }
 
@@ -170,19 +132,6 @@
 
 /* The podium can be a narrow desktop card as well as a mobile panel. Give the
    driver's name its own line based on card width, leaving points beside the code. */
-#root .season-podium-content { container: season-podium / inline-size; }
-#root .season-podium-driver strong { font-size: 14px; }
-#root .season-podium-code { gap: 4px; padding: 4px; }
-#root .season-podium-portrait { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; background: var(--surface-color); }
-#root .season-podium-portrait[hidden] { display: none; }
-#root .season-mobile-race-facts-panel .season-podium-content { margin-bottom: 16px; }
-@container season-podium (max-width: 320px) {
-  #root .season-podium-list li { grid-template-columns: 24px 42px minmax(0, 1fr); gap: 8px; }
-  #root .season-podium-position { grid-column: 1; grid-row: 1; }
-  #root .season-podium-code { grid-column: 2; grid-row: 1; }
-  #root .season-podium-points { grid-column: 3; grid-row: 1; justify-self: end; }
-  #root .season-podium-driver { grid-column: 2 / -1; grid-row: 2; }
-}
 
 @media (max-width: 767px) {
   #root select { font-size: 16px; }

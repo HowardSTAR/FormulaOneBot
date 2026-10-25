@@ -1,0 +1,176 @@
+/* Calendar uses the home palette; the only graphic is the selected circuit. */
+.season-page { display: grid; gap: 24px; color: var(--design-ink); font-size: 1rem; line-height: 1.5; }
+.season-page *, .season-page *::before, .season-page *::after { box-sizing: border-box; }
+.season-page :is(h1,h2,h3,p,ol,dl,dd) { margin: 0; }
+.season-page :is(h1,h2,h3) { font-family: inherit; color: var(--design-ink); font-style: normal; letter-spacing: -.025em; text-transform: none; text-wrap: balance; overflow-wrap: anywhere; }
+.season-page :is(button,a,summary) { touch-action: manipulation; -webkit-tap-highlight-color: var(--design-tint); }
+.season-page :is(button,a,summary):focus-visible, .season-page h2:focus { outline: 3px solid var(--design-focus); outline-offset: 4px; }
+.season-page h2 { scroll-margin-top: calc(var(--home-toolbar-space, 6rem) + 16px); }
+.season-page button { font-family: inherit; cursor: pointer; }
+.season-page a { text-decoration: none; }
+.season-page ::selection { background: var(--design-tint); color: var(--design-ink); }
+.calendar-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.calendar-heading h1 { font-size: 2.5rem; font-weight: 700; line-height: 1.1; }
+.calendar-heading p { color: var(--design-muted); font-size: .9375rem; margin-top: 10px; }
+.calendar-year { min-width: 144px; max-width: 100%; }
+#root .season-page .year-select-wrapper { width: auto; margin: 0; }
+#root .season-page .year-select-container { display: flex; flex-wrap: wrap; gap: 8px; width: auto; margin: 0; padding: 0; background: transparent; border: 0; box-shadow: none; }
+#root .season-page .custom-select-wrapper { width: auto; min-width: 128px; max-width: 100%; }
+#root .season-page .custom-select-trigger, #root .season-page .current-year-btn { min-height: 44px; margin: 0; padding: 10px 16px; border: 1px solid var(--design-control); border-radius: 24px; background: var(--design-surface); color: var(--design-ink); font: inherit; font-size: .875rem; letter-spacing: normal; text-transform: none; box-shadow: none; }
+#root .season-page .custom-select-trigger:hover, #root .season-page .current-year-btn:hover { background: var(--design-tint); border-color: var(--design-accent); }
+#root .season-page .custom-select-listbox { background: var(--design-surface); color: var(--design-ink); border-color: var(--design-control); font-family: inherit; }
+#root .season-page .custom-select-option { min-height: 44px; color: var(--design-ink); font-family: inherit; }
+#root .season-page .custom-select-option:is(:hover,.focused,[aria-selected="true"]) { background: var(--design-tint); color: var(--design-accent); }
+.calendar-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.calendar-filters { width: min(100%, 15rem); }
+.calendar-season-total { color: var(--design-muted); font-size: .8125rem; }
+.calendar-layout { display: grid; grid-template-columns: minmax(0,1fr); align-items: start; gap: 28px; }
+.calendar-overview { display: grid; min-width: 0; gap: 16px; }
+.calendar-selected { min-width: 0; padding: 24px; background: var(--design-surface); border-radius: 16px; }
+.calendar-race-scene { border-radius: 12px; }
+.calendar-race-hero { display: grid; grid-template-columns: minmax(0,1fr) minmax(120px,.65fr); align-items: center; gap: 16px; }
+.calendar-race-copy { min-width: 0; }
+.calendar-race-copy h2 { font-size: 2rem; font-weight: 650; line-height: 1.12; }
+.calendar-venue { color: var(--design-muted); font-size: .875rem; margin-top: 12px !important; overflow-wrap: anywhere; }
+.calendar-round-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 14px !important; color: var(--design-muted); font-size: .8125rem; }
+.calendar-status { color: var(--design-muted); font-size: .75rem; font-weight: 500; line-height: 1.5; }
+.calendar-status--next, .calendar-status--weekend, .calendar-status--live { color: var(--design-accent); }
+.calendar-round-status .calendar-status { padding: 4px 8px; border-radius: 6px; background: var(--design-bg); }
+.calendar-track { min-width: 0; }
+.calendar-track-map { width: 100%; height: 180px; display: block; padding: 12px; }
+.calendar-track-svg, .calendar-track-svg svg { display: block; width: 100%; height: 100%; }
+.calendar-track-loading { color: var(--design-muted); font-size: .8125rem; }
+#root .season-page .calendar-track-svg .track-outline.track-route-border { stroke: var(--design-accent) !important; filter: none !important; stroke-width: 4px !important; }
+#root .season-page .calendar-track-svg .track-outline.track-route-surface { stroke: var(--design-surface) !important; stroke-width: 1px !important; }
+.calendar-race-start { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--design-line); }
+.calendar-race-start > div { display: grid; gap: 4px; }
+.calendar-race-start > div > span, .calendar-race-start small { color: var(--design-muted); font-size: .8125rem; }
+.calendar-race-start strong { display: flex; flex-wrap: wrap; gap: 6px 16px; font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.calendar-race-start strong span { color: var(--design-accent); }
+.season-page :is(.calendar-primary,.calendar-secondary) { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 44px; padding: 10px 16px; border: 1px solid var(--design-control); border-radius: 24px; background: var(--design-surface); color: var(--design-ink); font: inherit; font-size: .8125rem; font-weight: 550; line-height: 1.5; text-align: center; transition: background-color 160ms, color 160ms, border-color 160ms; }
+.season-page .calendar-primary { background: var(--design-event-bg); color: var(--design-event-ink); border-color: transparent; }
+.season-page .calendar-primary:hover { border-color: var(--design-ink); text-decoration: none; }
+.season-page .calendar-secondary:hover { background: var(--design-tint); color: var(--design-accent); border-color: var(--design-accent); text-decoration: none; }
+.season-page :is(.calendar-primary,.calendar-secondary):active { background: var(--design-tint); color: var(--design-accent); }
+.season-page svg { flex-shrink: 0; }
+.calendar-disclosure { border-top: 1px solid var(--design-line); margin-top: 20px; }
+.calendar-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 60px; padding-block: 12px; color: var(--design-ink); cursor: pointer; list-style: none; font-size: .9375rem; font-weight: 600; border-radius: 8px; }
+.calendar-disclosure > summary::-webkit-details-marker { display: none; }
+.calendar-disclosure > summary > span { display: grid; gap: 4px; }
+.calendar-disclosure > summary small { color: var(--design-muted); font-size: .75rem; font-weight: 400; }
+.calendar-disclosure > summary svg { transform: rotate(90deg); transition: transform 180ms; }
+.calendar-disclosure[open] > summary svg { transform: rotate(-90deg); }
+.calendar-disclosure > summary:hover { color: var(--design-accent); }
+.calendar-sessions > div { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; align-items: baseline; padding: 12px 0; border-top: 1px solid var(--design-line); font-size: .8125rem; }
+.calendar-sessions dt { color: var(--design-muted); overflow-wrap: anywhere; }
+.calendar-sessions dd { color: var(--design-ink); text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.calendar-sessions .calendar-session-race :is(dt,dd) { font-weight: 600; color: var(--design-accent); }
+.calendar-results { margin-top: 20px; }
+.calendar-results h3 { font-size: .9375rem; margin-bottom: 12px; font-weight: 600; }
+.calendar-results > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.calendar-podium > p, .calendar-podium-error { color: var(--design-muted); font-size: .875rem; padding-block: 12px; }
+.calendar-podium-error p { margin-bottom: 12px; }
+.calendar-podium-list { list-style: none; padding: 0; }
+.calendar-podium-list li { display: grid; grid-template-columns: 28px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 14px 0; border-top: 1px solid var(--design-line); font-size: .8125rem; }
+.calendar-podium-place { font-family: 'Space Grotesk', sans-serif; font-size: 1.375rem; font-variant-numeric: tabular-nums; color: var(--design-accent); }
+.calendar-podium-list strong { display: block; font-weight: 600; }
+.calendar-podium-list small { display: block; color: var(--design-muted); margin-top: 4px; }
+.calendar-podium-list li > span:last-child { font-variant-numeric: tabular-nums; }
+.calendar-circuit-facts { margin: 0; padding: 0 24px; border: 1px solid var(--design-line); border-radius: 16px; }
+.calendar-circuit-stats { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px; padding-block: 16px 24px; }
+.calendar-circuit-stats dt { color: var(--design-muted); font-size: .8125rem; }
+.calendar-circuit-stats dd { font-size: 1.125rem; font-weight: 600; margin-top: 4px; overflow-wrap: anywhere; }
+.calendar-facts { display: grid; gap: 20px; padding-bottom: 24px; }
+.calendar-facts h3 { font-size: .9375rem; font-weight: 600; margin-bottom: 6px; }
+.calendar-facts p { color: var(--design-muted); font-size: .875rem; max-width: 65ch; }
+.calendar-race-list { container: calendar-list / inline-size; min-width: 0; }
+.calendar-list-heading { display: flex; align-items: baseline; gap: 12px; }
+.calendar-list-heading h2 { font-size: 1.25rem; font-weight: 650; }
+.calendar-list-heading > span { color: var(--design-muted); font-size: .875rem; font-variant-numeric: tabular-nums; }
+.calendar-list-help { margin-top: 6px !important; color: var(--design-muted); font-size: .8125rem; }
+.calendar-stages { list-style: none; display: grid; gap: 4px; padding: 0; margin-top: 16px !important; }
+.calendar-stages li { min-width: 0; }
+.calendar-stage { --calendar-stage-fill: var(--design-surface); position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: 40px minmax(0,1fr) 18px; align-items: center; gap: 12px; width: 100%; min-height: 96px; padding: 12px 10px; border: 1px solid transparent; border-radius: 12px; background: var(--calendar-stage-fill); color: var(--design-ink); text-align: left; font: inherit; transition: background-color 160ms, border-color 160ms; }
+.calendar-stage:hover { border-color: var(--design-control); }
+.calendar-stage.is-selected { --calendar-stage-fill: var(--design-tint); border-color: var(--design-accent); }
+.calendar-stage:active { --race-flag-opacity: .03; --race-flag-opacity-dark: .1; background: var(--design-tint); }
+.calendar-stage { --race-flag-opacity: .1; --race-flag-opacity-dark: .13; }
+.calendar-stage.is-selected { --race-flag-opacity: .03; --race-flag-opacity-dark: .1; }
+.calendar-stage-date { display: grid; justify-items: center; align-self: center; font-variant-numeric: tabular-nums; }
+.calendar-stage-date strong { font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; font-weight: 600; line-height: 1.1; }
+.calendar-stage-date > span { color: var(--design-muted); font-size: .8125rem; margin-top: 4px; }
+.calendar-stage-info { display: grid; gap: 4px; min-width: 0; }
+.calendar-stage-info > strong { font-size: 1rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.calendar-stage-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: .75rem; color: var(--design-muted); }
+.calendar-stage-meta > span { color: var(--design-accent); }
+.calendar-stage-location { font-size: .8125rem; color: var(--design-muted); overflow-wrap: anywhere; }
+.calendar-stage > svg { color: var(--design-accent); }
+.calendar-empty, .calendar-loading { padding: 32px 24px; background: var(--design-surface); border-radius: 16px; }
+.calendar-empty h2 { font-size: 1.5rem; }
+.calendar-empty p { margin-block: 12px 20px; color: var(--design-muted); }
+.calendar-cancelled-note { margin-top: 20px !important; color: var(--design-muted); font-size: .875rem; }
+.calendar-loading { display: grid; gap: 24px; color: var(--design-muted); }
+.calendar-loading > div { display: grid; gap: 12px; }
+.calendar-loading span { display: block; height: 64px; background: var(--design-bg); border-radius: 12px; }
+.season-page .ui-feedback { color: var(--design-ink); background: var(--design-surface); border-color: var(--design-line); }
+#root .season-page .ui-feedback .action-button { background: var(--design-event-bg); color: var(--design-event-ink); border-color: transparent; }
+@media (min-width: 1100px) {
+  .calendar-layout { grid-template-columns: minmax(0,1.35fr) minmax(320px,1fr); gap: 32px; }
+  .calendar-track-map { height: 220px; }
+}
+@media (max-width: 599px) {
+  .season-page { gap: 20px; }
+  .calendar-heading h1 { font-size: 2rem; }
+  .calendar-heading p { font-size: .8125rem; }
+  .calendar-heading { gap: 12px; }
+  .calendar-year { min-width: 112px; }
+  #root .season-page .custom-select-wrapper { min-width: 112px; }
+  .calendar-controls { gap: 12px; }
+  .calendar-selected { padding: 20px 16px; }
+  .calendar-race-hero { grid-template-columns: minmax(0,1fr); gap: 8px; }
+  .calendar-race-copy h2 { font-size: 1.75rem; max-width: 20ch; }
+  .calendar-track-map { height: 128px; padding: 8px 20px; }
+  .calendar-venue { margin-top: 8px !important; }
+  .calendar-round-status { margin-top: 8px !important; }
+  .calendar-race-start { margin-top: 12px; padding-top: 16px; }
+  .calendar-race-start strong { font-size: 1.25rem; }
+  .calendar-race-start .calendar-primary { width: 100%; }
+  .calendar-circuit-facts { padding-inline: 16px; }
+  .calendar-stage { gap: 12px; padding-inline: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .season-page *, .season-page *::before, .season-page *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+@media (prefers-contrast: more) {
+  .calendar-stage, .calendar-selected { border: 1px solid var(--design-control); }
+  .calendar-stage.is-selected { border-color: var(--design-accent); outline: 1px solid var(--design-accent); }
+}
+@media (forced-colors: active) {
+  .calendar-selected, .calendar-stage { border: 1px solid CanvasText; }
+  .calendar-stage.is-selected { border-color: Highlight; outline: 2px solid Highlight; }
+}
+
+
+/* Use available card width for the city and status; large text naturally
+   returns to the vertical reading order through this rem-based query. */
+@container calendar-list (min-width: 22rem) {
+  .calendar-stage-info { grid-template-columns: minmax(0,1fr) auto; column-gap: 12px; align-items: baseline; }
+  .calendar-stage-meta, .calendar-stage-info > strong { grid-column: 1 / -1; }
+  .calendar-stage-location { grid-column: 1; }
+  .calendar-stage-info > .calendar-status { grid-column: 2; text-align: right; }
+}
+
+/* Share the top row only when its actual content width can fit the tools.
+   The rem-based container query returns to a vertical flow with large text. */
+@media (min-width: 1100px) {
+  .app-shell.glass-home:has(.season-page):not(:has(.home-header-reminder .visit-reminder)) .app-content { container: calendar-header / inline-size; display: grid; grid-template-columns: minmax(0,1fr); }
+  .app-shell.glass-home:has(.season-page) .route-season { width: 100%; min-width: 0; }
+  .calendar-heading > div { min-width: 0; }
+  .season-page { gap: 20px; }
+}
+@container calendar-header (min-width: 48rem) {
+  .app-shell.glass-home:has(.season-page) .home-header-row { grid-area: 1 / 1; justify-self: end; align-self: start; width: fit-content; grid-template-columns: auto; margin: 0; }
+  .app-shell.glass-home:has(.season-page) .home-header-reminder { display: none; }
+  .app-shell.glass-home:has(.season-page) .route-season { grid-area: 1 / 1; }
+  .calendar-heading { padding-right: 20rem; }
+}

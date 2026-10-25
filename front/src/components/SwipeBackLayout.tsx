@@ -92,7 +92,8 @@ export function SwipeBackLayout() {
   const mobile = useMediaQuery('(max-width: 899px)');
   const overview = routeKey === 'home' || routeKey === 'menu';
   const weekend = routeKey === 'next-race';
-  const homeFrame = overview || weekend;
+  const calendar = routeKey === 'season';
+  const homeFrame = overview || weekend || calendar;
   return (
     <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`app-shell design-shell${homeFrame ? ' glass-home' : ''}`}>
       <EngagementEntry />
