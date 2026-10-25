@@ -1,5 +1,7 @@
+import { DriverPortrait } from '../../components/DriverPortrait';
+import { homeTeamIdentity } from '../index/team-identity';
 import { formatRaceDate } from '../../helpers/presentation';
-import { pilotPortraitUrl, teamLogoUrl } from '../../helpers/f1Assets';
+import { teamLogoUrl } from '../../helpers/f1Assets';
 import { PageFeedback } from '../../components/PageFeedback';
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -29,6 +31,7 @@ type Driver = {
   constructorId?: string;
   constructorName?: string;
   driverId?: string;
+  imageUrl?: string;
 };
 
 type DriversResponse = { round?: number | null; drivers?: Driver[] };
@@ -246,13 +249,14 @@ function DriversPage() {
                       key={`desktop-${driver.code}`}
                       role="button"
                       tabIndex={0}
-                      className={`desktop-standings-row pos-${driver.position}`}
+                      data-team={homeTeamIdentity(driver.constructorId || '', driver.constructorName || '')}
+                      className={`desktop-standings-row entrant-highlight pos-${driver.position}`}
                       onClick={() => navigate(toDriver)}
                       onKeyDown={(e) => e.key === "Enter" && navigate(toDriver)}
                     >
                       <span className="desktop-standings-pos">{driver.position}</span>
                       <div className="desktop-standings-driver drivers-row-driver">
-                        <img src={pilotPortraitUrl(driver.code, driver.name, year)} alt={driver.name} />
+                        <DriverPortrait key={`${year}:${driver.code}`} code={driver.code} name={driver.name} season={year} src={driver.imageUrl} />
                         <div>
                           <span className="desktop-standings-name">
                             {driver.name}
@@ -360,12 +364,14 @@ function DriversPage() {
                 key={driver.code}
                 role="button"
                 tabIndex={0}
-                className={isChampion ? "driver-card champion-card driver-card-clickable" : "driver-card driver-card-clickable"}
+                data-team={homeTeamIdentity(driver.constructorId || '', driver.constructorName || '')}
+                className={isChampion ? "entrant-highlight driver-card champion-card driver-card-clickable" : "entrant-highlight driver-card driver-card-clickable"}
                 onClick={() => navigate(toDriver)}
                 onKeyDown={(e) => e.key === "Enter" && navigate(toDriver)}
               >
                 {isChampion && <div className="champion-badge">Чемпион мира</div>}
                 <div className={`pos-box ${posClass}`}>{driver.position}</div>
+                <DriverPortrait key={`${year}:${driver.code}`} code={driver.code} name={driver.name} season={year} src={driver.imageUrl} />
                 <div className="driver-info">
                   <div className="driver-name" style={isChampion ? { color: "#ffd700" } : undefined}>
                     {driver.name} {driver.is_favorite && <span style={{ fontSize: 14, marginLeft: 4 }}>⭐️</span>}

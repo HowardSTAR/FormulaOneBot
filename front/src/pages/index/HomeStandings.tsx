@@ -75,7 +75,7 @@ export function HomeStandings({ season }: { season: number }) {
           const team = drivers ? row.constructorName || '' : row.name;
           const number = String(row.number || '').trim();
           const hasNumber = /^\d{1,2}$/.test(number);
-          return <tr key={`${row.position}-${row.name}`} data-team={homeTeamIdentity(row.constructorId || '', team)}>
+          return <tr className="entrant-highlight" key={`${row.position}-${row.name}`} data-team={homeTeamIdentity(row.constructorId || '', team)}>
             <td className="home-position">{row.position}</td>
             <th scope="row"><span className="home-standing-identity">
               <span className="home-standing-mark" aria-hidden="true">{drivers ? <span className="home-standing-number" data-code={!hasNumber || undefined}>{hasNumber ? number : row.code || '—'}</span> : <TeamMark key={`${season}-${row.constructorId}-${team}`} id={row.constructorId || ''} name={team} season={season} />}</span>

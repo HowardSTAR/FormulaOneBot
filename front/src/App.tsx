@@ -8,6 +8,8 @@ import "./assets/readability.css"
 import "./assets/mobile-safe-area.css"
 import "./assets/standings-results.css"
 import "./assets/design-system.css"
+import "./pages/index/home-team-colors.css"
+import "./assets/entrant-highlight.css"
 import { lazy, Suspense, useEffect } from 'react';
 import { observeActions } from './helpers/analytics';
 import { RouterProvider } from "react-router-dom"

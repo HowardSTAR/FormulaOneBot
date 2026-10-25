@@ -1,3 +1,4 @@
+import { homeTeamIdentity } from '../index/team-identity';
 import { formatRaceDate } from '../../helpers/presentation';
 import { teamLogoUrl, carImageUrl } from '../../helpers/f1Assets';
 import { PageFeedback } from '../../components/PageFeedback';
@@ -262,7 +263,8 @@ function ConstructorsPage() {
                       key={`desktop-${team.name}`}
                       role="button"
                       tabIndex={0}
-                      className={`desktop-standings-row pos-${team.position}`}
+                      data-team={homeTeamIdentity(team.constructorId || '', team.name)}
+                      className={`desktop-standings-row entrant-highlight pos-${team.position}`}
                       onClick={() => navigate(toTeam)}
                       onKeyDown={(e) => e.key === "Enter" && navigate(toTeam)}
                     >
@@ -381,7 +383,8 @@ function ConstructorsPage() {
                 key={team.name}
                 role="button"
                 tabIndex={0}
-                className={isChampion ? "team-card champion-card team-card-clickable" : "team-card team-card-clickable"}
+                data-team={homeTeamIdentity(team.constructorId || '', team.name)}
+                className={isChampion ? "entrant-highlight team-card champion-card team-card-clickable" : "entrant-highlight team-card team-card-clickable"}
                 onClick={() => navigate(toTeam)}
                 onKeyDown={(e) => e.key === "Enter" && navigate(toTeam)}
               >

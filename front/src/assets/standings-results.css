@@ -35,7 +35,7 @@
   background: #1b1c1d !important;
 }
 #root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-row:last-child { border-bottom: 0 !important; }
-#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-row:is(.pos-1, :hover) { background: #292a2b !important; }
+#root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-row:is(.pos-1, :hover) { background: #1b1c1d !important; }
 #root .app-page-main:is(.route-drivers, .route-constructors) .desktop-standings-pos {
   font-size: 26px !important;
   font-weight: 700 !important;
@@ -57,10 +57,12 @@
   border-bottom: 1px solid var(--border-color);
   box-shadow: none;
 }
-#root .app-page-main:is(.route-drivers, .route-constructors) :is(.driver-card, .team-card):first-child { border-radius: 12px 12px 0 0; }
-#root .app-page-main:is(.route-drivers, .route-constructors) :is(.driver-card, .team-card):last-child { border-radius: 0 0 12px 12px; border-bottom: 0; }
+#root .app-page-main:is(.route-drivers, .route-constructors) :is(.driver-card, .team-card):first-child { border-radius: 0; }
+#root .app-page-main:is(.route-drivers, .route-constructors) :is(.driver-card, .team-card):last-child { border-radius: 0; border-bottom: 0; }
 #root .app-page-main:is(.route-drivers, .route-constructors) :is(.driver-points, .team-points) {
   background: transparent !important;
   color: var(--text-primary) !important;
   font-size: 18px;
 }
+
+#root .app-page-main.route-drivers .drivers-row-driver .entrant-portrait img { width: 100% !important; height: 100% !important; border-radius: 0; }

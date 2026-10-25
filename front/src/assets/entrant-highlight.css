@@ -1,0 +1,6 @@
+/* One team-colour treatment for classification and championship rows. Only the
+   decorative layer fades; content, links and keyboard focus stay opaque. */
+.entrant-highlight { position: relative; isolation: isolate; --entrant-highlight-strength: 12%; }
+.entrant-highlight::before { content: ''; position: absolute; z-index: -1; inset: 0; pointer-events: none; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--home-team-accent, var(--design-accent)) var(--entrant-highlight-strength), transparent) 9%, color-mix(in srgb, var(--home-team-accent, var(--design-accent)) 3%, transparent) 34%, transparent 50%, color-mix(in srgb, var(--home-team-accent, var(--design-accent)) 3%, transparent) 66%, color-mix(in srgb, var(--home-team-accent, var(--design-accent)) var(--entrant-highlight-strength), transparent) 91%, transparent); mask-image: linear-gradient(transparent, #000 18%, #000 82%, transparent); }
+.entrant-highlight:is(:hover,:focus-visible) { --entrant-highlight-strength: 20%; }
+@media (prefers-contrast: more), (forced-colors: active) { .entrant-highlight::before { display: none; } }
