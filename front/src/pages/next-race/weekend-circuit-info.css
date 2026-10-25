@@ -1,0 +1,75 @@
+.weekend-circuit-info { display: grid; gap: 0; margin-top: 28px; padding: 0; border: 0; }
+.circuit-compounds { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-bottom: 28px; }
+.circuit-compound { display: grid; justify-items: start; align-content: start; gap: 4px; padding: 16px; border: 1px solid var(--design-line); border-radius: 16px; min-width: 0; }
+.circuit-tyre-art { display: block; width: 100%; max-width: 160px; height: auto; justify-self: center; margin-bottom: 8px; }
+.circuit-compound strong { font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; line-height: 1.2; }
+.circuit-compound > span { color: var(--design-muted); font-size: .875rem; overflow-wrap: anywhere; }
+.circuit-compound--hard { color: var(--design-ink); }
+.circuit-compound--medium { color: var(--design-rating-outline); }
+.circuit-compound--soft { color: var(--design-accent); }
+.circuit-compound--intermediate { color: var(--design-scale-high); }
+.circuit-compound--wet { color: var(--design-wet); }
+.circuit-compounds--rain { grid-template-columns: repeat(2,minmax(0,1fr)); margin-bottom: 20px; }
+.circuit-compounds--rain strong { font-size: 1rem; overflow-wrap: anywhere; }
+.circuit-ratings { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; }
+.circuit-ratings > div { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.circuit-ratings dt { grid-row: 2; padding-top: 4px; padding-bottom: 12px; font-size: .9375rem; color: var(--design-ink); overflow-wrap: anywhere; }
+.circuit-ratings dd { display: contents; }
+.circuit-ratings strong { grid-row: 1; font-family: 'Space Grotesk', sans-serif; font-size: 1.5rem; line-height: 1.2; }
+.circuit-ratings strong small { font-size: 1rem; color: var(--design-muted); }
+.circuit-ratings [data-level="low"] { --scale-colour: var(--design-scale-low); }
+.circuit-ratings [data-level="medium"] { --scale-colour: var(--design-scale-medium); }
+.circuit-ratings [data-level="high"] { --scale-colour: var(--design-scale-high); }
+.circuit-ratings meter { grid-row: 3; display: block; appearance: none; width: 100%; height: 6px; border: 0; border-radius: 6px; background: var(--design-line); color: var(--scale-colour); }
+.circuit-ratings meter::-webkit-meter-bar { background: var(--design-line); border: 0; border-radius: 6px; }
+.circuit-ratings meter::-webkit-meter-optimum-value { background: var(--scale-colour); border-radius: 6px; }
+.circuit-ratings meter::-moz-meter-bar { background: var(--scale-colour); border-radius: 6px; }
+.weekend-page .circuit-source-note, .weekend-page .circuit-history-note { margin-top: 16px; color: var(--design-muted); font-size: .75rem; line-height: 1.6; }
+.circuit-records { margin-top: 28px; }
+.circuit-record-row { display: grid; grid-template-columns: 7rem minmax(0,1fr); align-items: center; gap: 24px; padding-block: 24px; border-top: 1px solid var(--design-line); }
+.circuit-win-count { display: grid; justify-items: center; align-content: center; gap: 2px; padding: 16px 8px; border: 1px solid var(--design-line); border-radius: 24px; }
+.circuit-win-count strong { font-family: 'Space Grotesk', sans-serif; font-size: 2.5rem; line-height: 1.1; font-weight: 650; font-variant-numeric: tabular-nums; }
+.circuit-win-count span { font-size: .875rem; }
+.circuit-record-person { display: grid; justify-items: start; gap: 4px; min-width: 0; }
+.circuit-record-person > span { margin-top: 8px; color: var(--design-muted); font-size: .8125rem; }
+.circuit-record-person > strong { font-size: 1.375rem; font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
+.circuit-detail-row { display: flex; align-items: flex-start; gap: 24px; padding-block: 24px; border-top: 1px solid var(--design-line); }
+.circuit-info-symbol { flex-shrink: 0; }
+.circuit-detail-row > dl { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; flex: 1; min-width: 0; }
+.circuit-detail-row dt { color: var(--design-muted); font-size: .8125rem; }
+.circuit-detail-row dt small { display: block; }
+.circuit-detail-row dd { margin-top: 6px; font-size: 1.375rem; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.circuit-detail-row dd small { display: block; margin-top: 4px; color: var(--design-muted); font-size: .8125rem; font-weight: 400; }
+.circuit-detail-row dd.circuit-detail-text { font-size: 1rem; font-weight: 500; }
+.circuit-tyre-details, .circuit-extra-facts, .circuit-sources { padding-block: 20px; border-top: 1px solid var(--design-line); }
+#root .design-shell .circuit-dialog .circuit-tyre-details > summary { color: var(--design-ink); font-size: 1.375rem; font-weight: 650; }
+.circuit-tyre-details > summary, .circuit-sources > summary { min-height: 44px; padding-block: 8px; cursor: pointer; }
+.circuit-tyre-details > summary:hover, .circuit-sources > summary:hover { color: var(--design-accent); }
+.circuit-tyre-details > div { padding-top: 16px; }
+.circuit-tyre-details p { max-width: 65ch; font-size: .9375rem; line-height: 1.6; }
+#root .design-shell .circuit-dialog .circuit-tyre-details p:not(.circuit-source-note) { color: var(--design-ink); }
+.circuit-pressure { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin-top: 20px !important; }
+.circuit-pressure dt { color: var(--design-muted); font-size: .8125rem; }
+.circuit-pressure dd { margin-top: 4px; font-size: 1.25rem; font-weight: 600; }
+.circuit-extra-facts { display: grid; gap: 20px; }
+.circuit-extra-facts .weekend-stats > div { padding-top: 12px; border-top: 1px solid var(--design-line); }
+.circuit-sources ul { display: grid; gap: 4px; padding-left: 20px; }
+.circuit-sources a { display: inline-flex; align-items: center; min-height: 44px; padding-block: 8px; font-size: .8125rem; overflow-wrap: anywhere; }
+.circuit-sources a:hover { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 699px) {
+  .circuit-record-row { grid-template-columns: 6rem minmax(0,1fr); gap: 20px; }
+  .circuit-detail-row { gap: 16px; }
+  .circuit-detail-row > dl { gap: 16px; }
+  .circuit-compound { padding: 12px; }
+  .circuit-ratings { column-gap: 20px; }
+}
+@container weekend (max-width: 18rem) {
+  .circuit-compounds--rain { grid-template-columns: minmax(0,1fr); }
+  .circuit-record-row, .circuit-ratings, .circuit-pressure { grid-template-columns: minmax(0,1fr); }
+  .circuit-win-count { justify-self: start; min-width: 6rem; }
+  .circuit-detail-row { flex-wrap: wrap; }
+  .circuit-detail-row > dl { grid-template-columns: minmax(0,1fr); flex-basis: 100%; }
+  .circuit-compounds { gap: 8px; }
+  .circuit-compound { padding: 8px; }
+}
+@media (forced-colors: active) { .circuit-ratings meter { forced-color-adjust: auto; } }

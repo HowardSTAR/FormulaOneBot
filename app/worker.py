@@ -29,6 +29,7 @@ async def run():
     from app.services.prediction_recovery import refresh_missing
     from app.services.recap_news import refresh_recent_news
     from app.services.recap_chronicle import refresh_recent_race_control
+    from app.services.pirelli_motorsport import INTERVAL as PIRELLI_INTERVAL, refresh_profiles
     from app.services.reminder_status import refresh_reminder_messages
     from app.services.telegram_outbox import drain, prune_payloads
     from app.services.weekly_race_notifications import check_and_notify_weekly_race
@@ -83,6 +84,7 @@ async def run():
             async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as http:
                 boosty = BoostyService(db)
                 jobs = [
+                    ('pirelli_motorsport', PIRELLI_INTERVAL, refresh_profiles, (), {}, True),
                     ('recap_news', 900, refresh_recent_news, (), {}, True),
                     ('recap_race_control', 900, refresh_recent_race_control, (), {}, True),
                     ('prediction_analytics_settlement', 600, settle_forecasts, (), {}, False),

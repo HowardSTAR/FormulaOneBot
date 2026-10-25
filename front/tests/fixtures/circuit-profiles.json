@@ -1,0 +1,205 @@
+{
+  "austin": {
+    "season": 2026,
+    "round": 19,
+    "eventName": "United States Grand Prix",
+    "name": "Circuit of the Americas",
+    "ratings": [
+      {
+        "label": "Тяга на выходе",
+        "value": 4
+      },
+      {
+        "label": "Нагрузка на шины",
+        "value": 4
+      },
+      {
+        "label": "Сцепление асфальта",
+        "value": 3
+      },
+      {
+        "label": "Торможение",
+        "value": 3
+      },
+      {
+        "label": "Абразивность асфальта",
+        "value": 3
+      },
+      {
+        "label": "Боковая нагрузка",
+        "value": 4
+      },
+      {
+        "label": "Эволюция трассы",
+        "value": 4
+      }
+    ],
+    "compounds": [
+      "C2",
+      "C3",
+      "C4"
+    ],
+    "sources": [
+      {
+        "title": "Pirelli · выбор составов",
+        "href": "https://press.pirelli.com/the-compound-selection-for-austin-mexico-city-and-so-paulo/"
+      },
+      {
+        "title": "Pirelli · профиль трассы",
+        "href": "https://press.pirelli.com/in-the-land-of-the-cowboys/"
+      },
+      {
+        "title": "Jolpica · история гонок",
+        "href": "https://api.jolpi.ca/ergast/f1/circuits/americas/results/1.json?limit=100"
+      }
+    ],
+    "published": "2026-10-09T09:57:29+02:00",
+    "compoundSource": "https://press.pirelli.com/the-compound-selection-for-austin-mexico-city-and-so-paulo/",
+    "pitLoss": "21,5 с",
+    "pressures": {
+      "front": "26,5 psi",
+      "rear": "25,5 psi"
+    },
+    "ratingSource": "https://press.pirelli.com/in-the-land-of-the-cowboys/",
+    "ratingPublished": "2026-10-20",
+    "team": {
+      "name": "Mercedes / Red Bull",
+      "wins": 5
+    },
+    "driver": {
+      "name": "Lewis Hamilton",
+      "wins": 5
+    },
+    "firstRace": 2012,
+    "historyThrough": 2025,
+    "lapRecord": {
+      "time": "1:36.169",
+      "driver": "Charles Leclerc",
+      "year": 2019
+    },
+    "historySource": "https://api.jolpi.ca/ergast/f1/circuits/americas/results/1.json?limit=100",
+    "circuitId": "americas",
+    "recordsUpdated": "2026-10-25T09:49:48.042071+00:00",
+    "stale": false
+  },
+  "mexico": {
+    "season": 2026,
+    "round": 20,
+    "eventName": "Mexico City Grand Prix",
+    "name": "Autódromo Hermanos Rodríguez",
+    "ratings": [],
+    "compounds": [
+      "C3",
+      "C4",
+      "C5"
+    ],
+    "sources": [
+      {
+        "title": "Pirelli · выбор составов",
+        "href": "https://press.pirelli.com/the-compound-selection-for-austin-mexico-city-and-so-paulo/"
+      },
+      {
+        "title": "Jolpica · история гонок",
+        "href": "https://api.jolpi.ca/ergast/f1/circuits/rodriguez/results/1.json?limit=100"
+      }
+    ],
+    "published": "2026-10-09T09:57:29+02:00",
+    "compoundSource": "https://press.pirelli.com/the-compound-selection-for-austin-mexico-city-and-so-paulo/",
+    "team": {
+      "name": "Red Bull",
+      "wins": 5
+    },
+    "driver": {
+      "name": "Max Verstappen",
+      "wins": 5
+    },
+    "firstRace": 1963,
+    "historyThrough": 2025,
+    "lapRecord": {
+      "time": "1:17.774",
+      "driver": "Valtteri Bottas",
+      "year": 2021
+    },
+    "historySource": "https://api.jolpi.ca/ergast/f1/circuits/rodriguez/results/1.json?limit=100",
+    "circuitId": "rodriguez",
+    "recordsUpdated": "2026-10-25T09:49:48.042071+00:00",
+    "stale": false
+  },
+  "singapore": {
+    "season": 2026,
+    "round": 17,
+    "eventName": "Singapore Grand Prix",
+    "name": "Marina Bay Street Circuit",
+    "ratings": [
+      {
+        "label": "Тяга на выходе",
+        "value": 4
+      },
+      {
+        "label": "Нагрузка на шины",
+        "value": 2
+      },
+      {
+        "label": "Сцепление асфальта",
+        "value": 3
+      },
+      {
+        "label": "Торможение",
+        "value": 5
+      },
+      {
+        "label": "Абразивность асфальта",
+        "value": 3
+      },
+      {
+        "label": "Боковая нагрузка",
+        "value": 2
+      },
+      {
+        "label": "Эволюция трассы",
+        "value": 5
+      }
+    ],
+    "compounds": [
+      "C3",
+      "C4",
+      "C5"
+    ],
+    "sources": [
+      {
+        "title": "Pirelli · выбор составов",
+        "href": "https://press.pirelli.com/spotlight-on-singapore/"
+      },
+      {
+        "title": "Jolpica · история гонок",
+        "href": "https://api.jolpi.ca/ergast/f1/circuits/marina_bay/results/1.json?limit=100"
+      },
+      {
+        "title": "Pirelli · профиль трассы",
+        "href": "https://press.pirelli.com/spotlight-on-singapore/"
+      }
+    ],
+    "published": "2026-10-06T11:10:19+02:00",
+    "compoundSource": "https://press.pirelli.com/spotlight-on-singapore/",
+    "team": {
+      "name": "Mercedes",
+      "wins": 5
+    },
+    "driver": {
+      "name": "Sebastian Vettel",
+      "wins": 5
+    },
+    "firstRace": 2008,
+    "historyThrough": 2025,
+    "lapRecord": {
+      "time": "1:33.808",
+      "driver": "Lewis Hamilton",
+      "year": 2025
+    },
+    "historySource": "https://api.jolpi.ca/ergast/f1/circuits/marina_bay/results/1.json?limit=100",
+    "circuitId": "marina_bay",
+    "recordsUpdated": "2026-10-25T09:49:48.042071+00:00",
+    "stale": false,
+    "ratingPublished": "2026-10-06"
+  }
+}

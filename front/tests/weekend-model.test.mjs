@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadTs } from './support/modules.mjs';
-const { stageSelection, sessionStart, sortedWeekend, availableResults, sessionResultsPath } = await loadTs(new URL('../src/pages/next-race/weekend-model.ts', import.meta.url));
+const { stageSelection, sessionStart, sortedWeekend, availableResults, sessionResultsPath, weekendSession, weekendSessionLink, matchesWeekendResult } = await loadTs(new URL('../src/pages/next-race/weekend-model.ts', import.meta.url));
 
 test('weekend links preserve valid archives and reject partial or malformed selections', () => {
   assert.deepEqual(stageSelection(null, null), { kind: 'next' });
@@ -24,4 +24,23 @@ test('results distinguish sprint qualifying from sprint and group practices with
   assert.equal(sessionResultsPath('Пресс-конференция'), null);
   const sessions = ['Практика 1', 'Практика 2', 'Квалификация', 'Гонка'].map(name => ({ name, utc_iso: '2026-10-20T12:00:00+03:00' }));
   assert.equal(availableResults(sessions, Date.parse('2026-10-22T12:00:00Z')).length, 3);
+});
+
+test('weekend drill-down preserves the stage and the exact practice session', () => {
+  for (const name of ['Практика 2', 'Practice 2', 'FP2']) assert.deepEqual(weekendSession(name), { id: 'fp2', path: '/practice-results', practice: 2 });
+  assert.equal(weekendSession('Свободные заезды'), null);
+  assert.equal(weekendSession('Пресс-конференция'), null);
+  assert.equal(weekendSession('Спринт-квалификация').id, 'sprint-quali');
+  assert.equal(weekendSession('Квалификация').id, 'quali');
+  assert.equal(weekendSessionLink(1997, 4, 'Практика 3'), '/next-race?season=1997&round=4&session=fp3');
+  assert.equal(weekendSessionLink(1997, 4), '/next-race?season=1997&round=4');
+});
+
+test('a fallback stage or practice is never shown under the requested result title', () => {
+  assert.equal(matchesWeekendResult({ season: 2026, round: 19, session: 2 }, 2026, 19, 2), true);
+  assert.equal(matchesWeekendResult({ season: 2026, round: 18, session: 2 }, 2026, 19, 2), false);
+  assert.equal(matchesWeekendResult({ season: 2025, round: 19, session: 2 }, 2026, 19, 2), false);
+  assert.equal(matchesWeekendResult({ season: 2026, round: 19, session: 1 }, 2026, 19, 2), false);
+  assert.equal(matchesWeekendResult({}, 2026, 19), false);
+  assert.equal(matchesWeekendResult({ season: 2026, round: 19 }, 2026, 19), true);
 });

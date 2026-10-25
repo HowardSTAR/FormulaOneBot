@@ -6,8 +6,18 @@ from typing import Literal
 from app.services.driver_guides import get_driver_guide
 from app.services.race_recap import get_race_recap_with_news as get_race_recap
 from app.services.standings_history import get_standings_history
+from app.services.pirelli_motorsport import get_profile
 
 router = APIRouter(prefix="/api", tags=["F1 insights"])
+
+
+@router.get('/circuit-profile')
+async def circuit_profile(response: Response, season: int = Query(ge=1950, le=2100), round: int = Query(ge=1, le=30)):
+    response.headers['Cache-Control'] = 'public, max-age=300'
+    try:
+        return await get_profile(season, round)
+    except RuntimeError as exc:
+        raise HTTPException(503, 'Профиль трассы временно недоступен') from exc
 
 
 @router.get("/standings-history")

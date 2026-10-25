@@ -1,0 +1,57 @@
+/* A native dialog keeps focus/inert/Escape semantics; motion is tied to open/close. */
+#root .design-shell dialog.circuit-dialog--sheet {
+  inset: auto 0 0;
+  margin: 0 auto;
+  width: min(960px, calc(100% - 32px));
+  height: min(94dvh, 1100px);
+  max-height: calc(100dvh - 12px - var(--app-safe-top, 0px));
+  padding: 0;
+  border: 1px solid var(--design-line);
+  border-bottom: 0;
+  border-radius: 28px 28px 0 0;
+  background: var(--design-bg);
+  color: var(--design-ink);
+  box-shadow: 0 -12px 48px rgb(0 0 0 / 18%);
+  transform: translateY(0);
+  opacity: 1;
+}
+#root .design-shell dialog.circuit-dialog--sheet > header {
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 16px;
+  padding: 16px 24px;
+  background: var(--design-surface);
+  border-bottom: 1px solid var(--design-line);
+}
+#root .design-shell dialog.circuit-dialog--sheet > header > strong {
+  display: flex; flex: 1; min-width: 0; align-items: baseline; flex-wrap: wrap; gap: 4px 12px;
+  font-size: 1rem; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere;
+}
+.circuit-dialog--sheet header small { color: var(--design-muted); font-family: inherit; font-size: .8125rem; font-weight: 400; line-height: 1.4; letter-spacing: normal; }
+#root .design-shell dialog.circuit-dialog--sheet button.circuit-sheet-close {
+  display: grid; place-items: center; flex: 0 0 44px;
+  width: 44px; height: 44px; min-height: 44px; padding: 0;
+  border: 1px solid var(--design-card-edge); border-radius: 50%;
+  background: var(--design-glass-sheen), var(--design-glass-fill);
+  color: var(--design-ink);
+}
+#root .design-shell dialog.circuit-dialog--sheet button.circuit-sheet-close:hover { background: var(--design-tint); border-color: var(--design-control); }
+#root .design-shell dialog.circuit-dialog--sheet button.circuit-sheet-close:active { background: var(--design-line); }
+.circuit-dialog--sheet > .circuit-zoom-scroll {
+  padding: 16px 28px calc(28px + var(--app-safe-bottom, 0px));
+  scrollbar-color: var(--design-control) var(--design-bg);
+}
+.circuit-dialog--sheet::backdrop { animation: circuit-backdrop-in 180ms ease-out; }
+@keyframes circuit-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 699px) {
+  #root .design-shell dialog.circuit-dialog--sheet { width: 100%; border-radius: 24px 24px 0 0; }
+  #root .design-shell dialog.circuit-dialog--sheet > header { padding: 12px max(16px, var(--app-safe-right, 0px)) 12px max(16px, var(--app-safe-left, 0px)); gap: 12px; }
+  .circuit-dialog--sheet > .circuit-zoom-scroll { padding: 12px max(20px, var(--app-safe-right, 0px)) calc(24px + var(--app-safe-bottom, 0px)) max(20px, var(--app-safe-left, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) { .circuit-dialog--sheet::backdrop { animation: none; } }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  #root .design-shell dialog.circuit-dialog--sheet button.circuit-sheet-close { background: var(--design-surface); border-color: var(--design-control); }
+  #root .design-shell dialog.circuit-dialog--sheet { border-color: var(--design-control); box-shadow: none; }
+}
+@media (forced-colors: active) {
+  #root .design-shell dialog.circuit-dialog--sheet { background: Canvas; color: CanvasText; border-color: CanvasText; }
+  #root .design-shell dialog.circuit-dialog--sheet button.circuit-sheet-close { color: ButtonText; background: ButtonFace; border-color: ButtonText; }
+}

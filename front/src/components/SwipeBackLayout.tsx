@@ -91,8 +91,10 @@ export function SwipeBackLayout() {
 
   const mobile = useMediaQuery('(max-width: 899px)');
   const overview = routeKey === 'home' || routeKey === 'menu';
+  const weekend = routeKey === 'next-race';
+  const homeFrame = overview || weekend;
   return (
-    <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`app-shell design-shell${overview ? ' glass-home' : ''}`}>
+    <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`app-shell design-shell${homeFrame ? ' glass-home' : ''}`}>
       <EngagementEntry />
       <NotificationEntry />
       <RouteContext />
@@ -101,16 +103,16 @@ export function SwipeBackLayout() {
       <InstallHint />
       <FirstVisitGuide />
       <div className="app-content">
-        {overview ? <div className="home-header-row"><div className="home-header-reminder">{!mobile && <VisitReminder includeHome />}</div><HomeToolbar /></div> : <div className="account-shortcut-bar"><ThemeToggle /><NotificationShortcut enabled={!mobile} /><AccountShortcut /></div>}
+        {homeFrame ? <div className="home-header-row"><div className="home-header-reminder">{!mobile && <VisitReminder includeHome={overview} />}</div><HomeToolbar /></div> : <div className="account-shortcut-bar"><ThemeToggle /><NotificationShortcut enabled={!mobile} /><AccountShortcut /></div>}
         <section className={`app-page-main route-${routeKey}`} id="page-content" tabIndex={-1}>
-          {!mobile && !overview && <VisitReminder />}
+          {!mobile && !homeFrame && <VisitReminder />}
           <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
             <PageMotion key={location.pathname} pathname={location.pathname} previousPathRef={previousPathRef} />
             <Outlet />
           </Suspense>
           <DataReceipt />
         </section>
-        {!overview && <LegalFooter />}
+        {!homeFrame && <LegalFooter />}
         <HomeDock />
       </div>
     </div>

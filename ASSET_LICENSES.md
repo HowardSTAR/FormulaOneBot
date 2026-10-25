@@ -33,6 +33,10 @@ Status: intentionally not audited or modified in this change at the user's reque
 
 Status: pending. Screenshots may reproduce underlying photographs, logos, circuit graphics or protected interface elements and therefore require a derivative-material review.
 
+## Tyre illustrations
+
+- `front/src/pages/next-race/TyreIllustration.tsx` — original code-native vector artwork created for TurboTears on 2026-10-25 at the user's request. Three slick roles plus Intermediate and Full Wet; no third-party photograph, logo, lettering or tyre render is included. The geometry and shading are authored in the component and distributed under the repository's source-code terms. No separate third-party attribution, media, territory, term or commercial-use restriction is added by this asset. Acquisition/proof: component source and `docs/weekend-design.md`. The role colours and distinction between slick/intermediate/wet are factual reference information from Pirelli's official 2026 range announcement: https://press.pirelli.com/it/pirelli-svela-le-gomme-2026-di-f1-nuovo-design-e-mescole/ . These are schematic illustrations, not official Pirelli product imagery.
+
 ## Admission rule
 
 For every new visual or font asset, record before release:

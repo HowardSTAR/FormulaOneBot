@@ -27,6 +27,29 @@ export function sessionResultsPath(name: string): string | null {
   return null;
 }
 
+export function weekendSession(name: string): { id: string; path: string; practice?: number } | null {
+  const path = sessionResultsPath(name);
+  if (!path) return null;
+  if (path === '/practice-results') {
+    const number = Number(name.match(/([123])\s*$/)?.[1]);
+    return number ? { id: `fp${number}`, path, practice: number } : null;
+  }
+  return { id: path.slice(1).replace('-results', ''), path };
+}
+
+export function weekendSessionLink(season: number, round: number, name?: string) {
+  const params = new URLSearchParams({ season: String(season), round: String(round) });
+  const session = name && weekendSession(name);
+  if (session) params.set('session', session.id);
+  return `/next-race?${params}`;
+}
+
+// Providers can return a previous practice when the requested one is unavailable.
+// An embedded stage result must never label those rows as the selected stage.
+export function matchesWeekendResult(response: { season?: number; round?: number | null; session?: number }, season: number, round: number, practice?: number) {
+  return response.season === season && response.round === round && (practice === undefined || response.session === practice);
+}
+
 export function availableResults(sessions: SessionItem[], now: number) {
   const seen = new Set<string>();
   return sortedWeekend(sessions).flatMap(session => {

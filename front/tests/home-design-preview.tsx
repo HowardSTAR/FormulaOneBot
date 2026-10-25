@@ -2,6 +2,8 @@
 // No requests are sent to a backend, and no accounts or records are modified.
 import circuitSvg from '../public/static/circuit/United States Grand Prix.svg?raw';
 import singaporeSvg from '../public/static/circuit/Singapore Grand Prix.svg?raw';
+import mexicoSvg from '../public/static/circuit/Mexico City Grand Prix.svg?raw';
+import circuitProfiles from './fixtures/circuit-profiles.json';
 import { createRoot } from 'react-dom/client';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { HeroDataProvider } from '../src/context/HeroDataContext';
@@ -9,6 +11,11 @@ import { initializeTheme, setTheme, storedTheme } from '../src/helpers/theme';
 import { ScrollToTop } from '../src/components/ScrollToTop';
 const query = new URLSearchParams(location.search);
 const scenario = query.get('state');
+const venue = query.get('venue') === 'singapore' ? 'singapore' : query.get('venue') === 'mexico' ? 'mexico' : 'austin';
+const fixtureProfile = circuitProfiles[venue];
+const fixtureLocation = { austin: 'Остин', mexico: 'Мехико', singapore: 'Сингапур' }[venue];
+const fixtureCountry = { austin: 'США', mexico: 'Мексика', singapore: 'Сингапур' }[venue];
+let profileFailures = scenario === 'profile-error' ? 1 : 0;
 const member = ['member', 'linked'].includes(query.get('auth') || '');
 const linked = query.get('auth') === 'linked';
 const demoVotes: Record<number, number> = {};
@@ -23,6 +30,10 @@ const sessions = [
   { name: 'Квалификация', utc_iso: '2026-10-24T21:00:00Z' },
   { name: 'Гонка', utc_iso: '2026-10-25T20:00:00Z' },
 ];
+if (query.get('format') === 'standard') {
+  sessions[1].name = 'Практика 2';
+  sessions[2].name = 'Практика 3';
+}
 if (scenario === 'past') sessions.forEach(session => { session.utc_iso = session.utc_iso.replace('-10-23', '-10-16').replace('-10-24', '-10-17').replace('-10-25', '-10-18'); });
 if (scenario === 'untimed') sessions[0].utc_iso = '';
 if (scenario === 'race-untimed') sessions[4].utc_iso = '';
@@ -38,7 +49,7 @@ const previewStats = { grand_prix_races: 0, grand_prix_points: 0, grand_prix_win
 const previewCareer = { available: false, grand_prix_entered: 0, career_points: 0, highest_race_finish: { position: '—', count: 0 }, podiums: 0, highest_grid: { position: '—', count: 0 }, pole_positions: 0, world_championships: 0, dnfs: 0 };
 window.fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input), location.origin);
-  if (url.pathname.startsWith('/static/circuit/')) return new Response(decodeURIComponent(url.pathname).includes('Singapore') ? singaporeSvg : circuitSvg, { headers: { 'Content-Type': 'image/svg+xml' } });
+  if (url.pathname.startsWith('/static/circuit/')) return new Response(decodeURIComponent(url.pathname).includes('Singapore') ? singaporeSvg : decodeURIComponent(url.pathname).includes('Mexico') ? mexicoSvg : circuitSvg, { headers: { 'Content-Type': 'image/svg+xml' } });
   if (!url.pathname.startsWith('/api/')) return realFetch(input, init);
   const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
   if ((init?.method || (input instanceof Request ? input.method : 'GET')) !== 'GET') {
@@ -54,12 +65,26 @@ window.fetch = async (input, init) => {
   }
   if (scenario === 'error' && ['/api/next-race', '/api/drivers', '/api/constructors'].includes(url.pathname)) return json({ detail: 'Демонстрация ошибки' }, 503);
   if (scenario === 'schedule-error' && url.pathname === '/api/weekend-schedule') return json({ detail: 'Демонстрация ошибки расписания' }, 503);
+  if (['/api/practice-results', '/api/quali-results', '/api/sprint-quali-results', '/api/sprint-results', '/api/race-results'].includes(url.pathname)) {
+    if (scenario === 'results-error') return json({ detail: 'Демонстрация ошибки результатов' }, 503);
+    return json({ season: Number(url.searchParams.get('season') || 2026), round: scenario === 'results-mismatch' ? 18 : Number(url.searchParams.get('round') || 19),
+      session: Number(url.searchParams.get('session') || 1), available_sessions: [1, 2, 3], is_sprint_weekend: false,
+      results: scenario === 'results-empty' ? [] : drivers.map((driver, index) => ({ position: index + 1, driver: driver.code, code: driver.code, name: driver.name, team: driver.constructorName,
+        best: `1:36.${String(52 + index * 84).padStart(3, '0')}`, gap: index ? `+0.${String(index * 84).padStart(3, '0')}` : null, laps: 26 - index, is_favorite_driver: member && index === 0 })) });
+  }
   if (scenario === 'personal-error' && ['/api/predictions/current', '/api/web-notifications/unread-count', '/api/predictions/personal-season'].includes(url.pathname)) return json({ detail: 'Демонстрация ошибки личного раздела' }, 503);
   switch (url.pathname) {
     case '/api/auth/me': return member ? json({ id: 1, email: null, telegram_id: linked ? 1 : null, role: 'user', email_verified: true, display_name: 'Болельщик' }) : json({}, 401);
     case '/api/favorites': return scenario === 'favorites-error' ? json({}, 503) : json(scenario === 'favorites-empty' ? { drivers: [], teams: [] } : scenario === 'favorites-missing' ? { drivers: ['OLD'], teams: ['Old Team'] } : { drivers: ['PIA', 'NOR'], teams: ['McLaren'] });
-    case '/api/next-race': return json({ status: scenario === 'finished' ? 'season_finished' : 'ok', is_cancelled: scenario === 'cancelled', event_name: 'United States Grand Prix', location: 'Остин', country: 'США', season: 2026, round: 19, race_start_utc: sessions[4].utc_iso, next_session_iso: sessions[0].utc_iso, next_session_name: sessions[0].name });
-    case '/api/race-details': return json({ event_name: 'United States Grand Prix', location: 'Остин', country: 'США', season: Number(url.searchParams.get('season')), round: Number(url.searchParams.get('round')), sessions: scenario === 'empty' ? [] : sessions });
+    case '/api/next-race': return json({ status: scenario === 'finished' ? 'season_finished' : 'ok', is_cancelled: scenario === 'cancelled', event_name: fixtureProfile.eventName, location: fixtureLocation, country: fixtureCountry, season: 2026, round: fixtureProfile.round, race_start_utc: sessions[4].utc_iso, next_session_iso: sessions[0].utc_iso, next_session_name: sessions[0].name });
+    case '/api/race-details': return json({ event_name: fixtureProfile.eventName, location: fixtureLocation, country: fixtureCountry, season: Number(url.searchParams.get('season')), round: Number(url.searchParams.get('round')), sessions: scenario === 'empty' ? [] : sessions });
+    case '/api/circuit-profile': {
+      if (profileFailures-- > 0) return json({ detail: 'Профиль временно недоступен' }, 503);
+      const season = Number(url.searchParams.get('season'));
+      const round = Number(url.searchParams.get('round'));
+      const profile = scenario === 'profile-unavailable' || season !== fixtureProfile.season || round !== fixtureProfile.round ? null : { ...fixtureProfile, stale: scenario === 'profile-stale' };
+      return json({ status: profile ? profile.stale ? 'stale' : 'ok' : 'unavailable', season, round, profile });
+    }
     case '/api/weekend-schedule': return json({ sessions: scenario === 'empty' ? [] : sessions });
     case '/api/drivers': return json({ drivers: scenario === 'empty' ? [] : drivers });
     case '/api/constructors': return json({ constructors: scenario === 'empty' ? [] : constructors });
@@ -97,7 +122,9 @@ await import('../src/App');
 const { router } = await import('../src/router');
 const initialQuery = new URLSearchParams();
 for (const key of ['standing', 'view', 'spotlight']) if (query.has(key)) initialQuery.set(key, query.get(key)!);
-const initialPath = query.get('page') === 'menu' ? '/menu' : query.get('page') === 'weekend' ? `/next-race${query.has('season') || query.has('round') ? `?season=${query.get('season') || ''}&round=${query.get('round') || ''}` : ''}` : `/${initialQuery.size ? `?${initialQuery}` : ''}`;
+const weekendQuery = new URLSearchParams();
+for (const key of ['season', 'round', 'session']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
+const initialPath = query.get('page') === 'menu' ? '/menu' : query.get('page') === 'weekend' ? `/next-race${weekendQuery.size ? `?${weekendQuery}` : ''}` : `/${initialQuery.size ? `?${initialQuery}` : ''}`;
 createRoot(document.getElementById('root')!).render(<HeroDataProvider><div className="root"><RouterProvider router={createMemoryRouter(router.routes, { initialEntries: [initialPath] })} /></div><ScrollToTop /></HeroDataProvider>);
 const note = document.createElement('aside');
 note.textContent = 'Демо · данные вымышлены · оценки до перезагрузки';

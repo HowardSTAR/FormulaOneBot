@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AnimatedTrackMap } from '../../components/AnimatedTrackMap';
 import { DetailedTrackMap } from '../../components/DetailedTrackMap';
 import { CalendarDownload } from '../../components/CalendarDownload';
-import { GlossaryText } from '../../components/GlossaryText';
 import { getCircuitInsightsRu } from '../../assets/circuitInsightsRu';
 import { apiRequest } from '../../helpers/api';
 import { getDisplayTimezone, formatTimezoneLabel } from '../../helpers/timezone';
 import { useVisibleClock } from '../../helpers/useVisibleClock';
 import type { NextRaceResponse, SessionItem } from '../../context/HeroDataContext';
-import { availableResults, sessionStart, sortedWeekend, stageSelection, type StageSelection } from './weekend-model';
+import { sessionStart, sortedWeekend, stageSelection, weekendSession, weekendSessionLink, type StageSelection } from './weekend-model';
+import { WeekendCircuitInfo, WeekendCircuitStats } from './WeekendCircuitInfo';
+import { WeekendSessionResults } from './WeekendSessionResults';
+import { useCircuitProfile } from './useCircuitProfile';
 import './weekend.css';
 
 type Race = NextRaceResponse & { sessions?: SessionItem[]; event_format?: string };
@@ -24,17 +26,25 @@ function WeekendStatus({ title, message, retry, loading = false }: { title: stri
 }
 
 function WeekendHeading({ season }: { season?: number }) {
-  return <header className="weekend-heading"><div><p className="weekend-eyebrow">Всё для гоночных выходных{season ? ` · ${season}` : ''}</p><h1>Уик-энд</h1></div><Link to="/season" className="weekend-secondary">Календарь <span aria-hidden="true">↗</span></Link></header>;
+  return <header className="weekend-heading"><h1 tabIndex={-1}>Уик-энд{season && <span className="weekend-season">{season}</span>}</h1><Link to="/season" className="weekend-secondary">Календарь <span aria-hidden="true">↗</span></Link></header>;
 }
 
 function WeekendContent({ selection }: { selection: Exclude<StageSelection, { kind: 'invalid' }> }) {
+  const [params] = useSearchParams();
   const season = selection.kind === 'selected' ? selection.season : null;
   const round = selection.kind === 'selected' ? selection.round : null;
   const [state, setState] = useState<State>({ status: 'loading' });
   const [revision, setRevision] = useState(0);
+  const selectedSession = params.get('session');
+  const previousSession = useRef(selectedSession);
   const timezone = getDisplayTimezone();
   const now = useVisibleClock(30000);
   const retry = () => { setState({ status: 'loading' }); setRevision(value => value + 1); };
+
+  useEffect(() => {
+    if (previousSession.current && !selectedSession) document.querySelector<HTMLElement>('.weekend-heading h1')?.focus();
+    previousSession.current = selectedSession;
+  }, [selectedSession]);
 
   useEffect(() => {
     let active = true;
@@ -65,6 +75,8 @@ function WeekendContent({ selection }: { selection: Exclude<StageSelection, { ki
     return () => { active = false; };
   }, [season, round, revision]);
 
+  const profileState = useCircuitProfile(state.status === 'ready' ? state.race.season : undefined, state.status === 'ready' ? state.race.round : undefined, state.status === 'ready' ? state.race.event_name : undefined);
+
   if (state.status === 'loading') return <main className="weekend-page"><WeekendHeading season={season ?? undefined} /><WeekendStatus title="Загружаем уик-энд…" message="Расписание, старт гонки и схема трассы появятся здесь." loading /></main>;
   if (state.status === 'error') return <main className="weekend-page"><WeekendHeading /><WeekendStatus title="Не удалось загрузить этап" message={state.message} retry={retry} /></main>;
   const { race, sessions, scheduleFailed } = state;
@@ -75,24 +87,31 @@ function WeekendContent({ selection }: { selection: Exclude<StageSelection, { ki
   const start = raceSession?.utc_iso || race.race_start_utc;
   const raceStart = start && sessionStart({ name: 'Гонка', utc_iso: start }) !== null ? start : null;
   const publishedDate = /^\d{4}-\d{2}-\d{2}$/.test(race.date || '') && Number.isFinite(Date.parse(race.date!)) ? race.date : null;
-  const results = race.is_cancelled ? [] : availableResults(sessions, now);
-  const query = `?mode=archive&season=${race.season}&round=${race.round}`;
   const insights = getCircuitInsightsRu({ season: race.season, eventName: race.event_name || '', country: race.country || '', location: race.location || '', eventFormat: race.event_format, sessionsCount: sessions.length });
+  const circuitProfile = profileState.profile;
+
+  if (selectedSession && !race.is_cancelled && race.season && race.round) return <WeekendSessionResults
+    key={`${race.season}:${race.round}:${selectedSession}`} selected={selectedSession} now={now}
+    season={race.season} round={race.round} eventName={race.event_name || 'Этап'} sessions={sessions} />;
+  const dated = sessions.flatMap(session => { const start = sessionStart(session); return start === null ? [] : [start]; });
+  const weekendDates = dated.length ? new Intl.DateTimeFormat('ru-RU', { timeZone: timezone, day: 'numeric', month: 'long' }).formatRange(new Date(Math.min(...dated)), new Date(Math.max(...dated))) : null;
 
   return <main className="weekend-page">
     <WeekendHeading season={race.season} />
-    <section className="weekend-hero weekend-panel" aria-labelledby="weekend-race-title">
+    <section className="weekend-hero" aria-labelledby="weekend-race-title">
       <div className="weekend-hero-copy">
-        <p className="weekend-eyebrow">{race.is_cancelled ? 'Этап отменён' : race.round ? `Этап ${String(race.round).padStart(2, '0')}` : 'Гоночный уик-энд'}</p>
         <h2 id="weekend-race-title">{race.event_name || 'Название уточняется'}</h2>
-        <p className="weekend-location">{[race.location, race.country].filter(Boolean).join(' · ') || 'Место уточняется'}</p>
-        <div className="weekend-race-start"><span>{race.is_cancelled ? 'Статус' : 'Старт гонки'}</span>
-          {race.is_cancelled ? <strong>Отменён организатором</strong> : raceStart ? <time dateTime={raceStart}><strong>{new Date(raceStart).toLocaleDateString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'long' })}</strong><span>{new Date(raceStart).toLocaleTimeString('ru-RU', { timeZone: timezone, hour: '2-digit', minute: '2-digit' })} · {formatTimezoneLabel(timezone)}</span></time> : publishedDate ? <time dateTime={publishedDate}><strong>{new Date(publishedDate).toLocaleDateString('ru-RU', { timeZone: 'UTC', day: 'numeric', month: 'long' })}</strong><span>Время уточняется</span></time> : <strong>Время уточняется</strong>}
-        </div>
+        <p className="weekend-location"><span>{[race.location, race.country].filter(Boolean).join(' · ') || 'Место уточняется'}</span>{race.round && <span>Этап {race.round}</span>}</p>
+        {weekendDates && <p className="weekend-dates">{weekendDates}</p>}
+      </div>
+      <div className="weekend-circuit-summary">
+        <WeekendCircuitStats insights={insights} limit={3} />
+      </div>
+      <div className="weekend-race-start"><span>{race.is_cancelled ? 'Статус' : 'Старт гонки'}</span>
+        {race.is_cancelled ? <strong>Отменён организатором</strong> : raceStart ? <time dateTime={raceStart}><span className="weekend-start-date">{new Date(raceStart).toLocaleDateString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'long' })}</span><strong className="weekend-start-time">{new Date(raceStart).toLocaleTimeString('ru-RU', { timeZone: timezone, hour: '2-digit', minute: '2-digit' })}</strong><span className="weekend-timezone">{formatTimezoneLabel(timezone)}</span></time> : publishedDate ? <time dateTime={publishedDate}><strong>{new Date(publishedDate).toLocaleDateString('ru-RU', { timeZone: 'UTC', day: 'numeric', month: 'long' })}</strong><span className="weekend-timezone">Время уточняется</span></time> : <strong>Время уточняется</strong>}
       </div>
       <div className="weekend-track">
-        <div className="weekend-track-heading"><span>Схема трассы</span><span>{race.location}</span></div>
-        {race.event_name ? <DetailedTrackMap key={`${race.event_name}:${race.season}`} eventName={race.event_name} location={race.location} season={race.season ?? 0} preview={<AnimatedTrackMap eventName={race.event_name} location={race.location} season={race.season} className="weekend-track-map" svgClassName="weekend-track-svg" loadingClassName="weekend-track-loading" />} /> : <p>Схема появится после публикации этапа.</p>}
+        {race.event_name ? <DetailedTrackMap key={`${race.event_name}:${race.season}`} eventName={race.event_name} location={race.location} season={race.season ?? 0} triggerLabel="Статистика трассы" dialogTitle={circuitProfile?.name} preview={<AnimatedTrackMap fitRoute animate={false} eventName={race.event_name} location={race.location} season={race.season} className="weekend-track-map" svgClassName="weekend-track-svg" loadingClassName="weekend-track-loading" />}><WeekendCircuitInfo insights={insights} profile={circuitProfile} season={race.season ?? 0} loading={profileState.loading} error={profileState.error} retry={profileState.retry} /></DetailedTrackMap> : <p>Схема появится после публикации этапа.</p>}
       </div>
     </section>
 
@@ -104,23 +123,19 @@ function WeekendContent({ selection }: { selection: Exclude<StageSelection, { ki
         {sessions.map((session, index) => {
           const timestamp = sessionStart(session);
           const date = timestamp !== null ? new Date(timestamp) : null;
+          const target = weekendSession(session.name);
+          const resultLink = !race.is_cancelled && date && timestamp! <= now && target && race.season && race.round
+            ? weekendSessionLink(race.season, race.round, session.name) : null;
+          const content = <>
+            <span className="weekend-session-day">{date ? <><strong>{date.toLocaleDateString('ru-RU', { timeZone: timezone, day: 'numeric' })}</strong><span>{date.toLocaleDateString('ru-RU', { timeZone: timezone, weekday: 'short', month: 'short' })}</span></> : 'Дата уточняется'}</span>
+            <span className="weekend-session-name">{session.name}<span className="weekend-session-start">{date ? <time dateTime={session.utc_iso}>{date.toLocaleTimeString('ru-RU', { timeZone: timezone, hour: '2-digit', minute: '2-digit' })}</time> : 'Время уточняется'}</span>{session === next && <small>Следующая сессия</small>}</span>
+            {resultLink && <span className="weekend-session-result">Результаты <span aria-hidden="true">›</span></span>}
+          </>;
           return <li key={`${session.name}:${session.utc_iso || index}`} className={session === next ? 'is-next' : undefined}>
-            <span className="weekend-session-day">{date ? <><strong>{date.toLocaleDateString('ru-RU', { timeZone: timezone, weekday: 'short' })}</strong><span>{date.toLocaleDateString('ru-RU', { timeZone: timezone, day: 'numeric', month: 'short' }).replace(/\.$/, '')}</span></> : 'Дата уточняется'}</span>
-            <span className="weekend-session-name">{session.name}{session === next && <small>Следующая сессия</small>}</span>
-            {date ? <time dateTime={session.utc_iso}>{date.toLocaleTimeString('ru-RU', { timeZone: timezone, hour: '2-digit', minute: '2-digit' })}</time> : <span className="weekend-time-pending">Время уточняется</span>}
+            {resultLink ? <Link to={resultLink} className="weekend-session-row" aria-label={`${session.name}: результаты`}>{content}</Link> : <div className="weekend-session-row">{content}</div>}
           </li>;
         })}
       </ol>}
-    </section>
-
-    {!race.is_cancelled && <section className="weekend-results weekend-panel" aria-labelledby="weekend-results-title"><header className="weekend-section-head"><h2 id="weekend-results-title">Результаты этапа</h2><span>Классификация сессий</span></header>
-      {results.length && race.season && race.round ? <nav aria-label="Результаты сессий">{results.map(result => <Link className="weekend-secondary" key={result.path} to={`${result.path}${query}`}>{result.title} <span aria-hidden="true">↗</span></Link>)}</nav> : <p className="weekend-empty">Результаты появятся после проведения сессий.</p>}
-      {results.length > 0 && <p className="weekend-results-note">Источник может опубликовать результаты с задержкой после финиша.</p>}
-    </section>}
-
-    <section className="weekend-insights" aria-labelledby="weekend-insights-title"><h2 id="weekend-insights-title">Знакомство с трассой</h2>
-      <dl className="weekend-stats">{insights.stats.map(stat => <div className="weekend-panel" key={stat.label}><dt>{stat.label}</dt><dd>{stat.value}</dd>{stat.hint && <p>{stat.hint}</p>}</div>)}</dl>
-      {insights.facts.length > 0 && <div className="weekend-facts weekend-panel">{insights.facts.map(fact => <details key={fact.title}><summary>{fact.title}</summary><p><GlossaryText>{fact.text}</GlossaryText></p></details>)}</div>}
     </section>
   </main>;
 }

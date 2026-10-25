@@ -17,6 +17,10 @@
   --design-supporter-edge: #edc975;
   --design-supporter-ink: #ffe2a0;
   --design-rating-outline: #805300;
+  --design-scale-low: #c42e31;
+  --design-scale-medium: #946300;
+  --design-scale-high: #198047;
+  --design-wet: #245bc2;
   --design-profile-neon: #8ce5c7;
   --design-profile-aurora: radial-gradient(ellipse at top right, #207464, #172139 65%);
   --design-media-bg: #0c1016;
@@ -44,6 +48,10 @@
   --design-tint: #382522;
   --design-focus: #98bdff;
   --design-rating-outline: #f5ce73;
+  --design-scale-low: #ff837b;
+  --design-scale-medium: #f5ce73;
+  --design-scale-high: #5bce8e;
+  --design-wet: #80b7ff;
   --design-glass-fill: rgb(32 33 37 / 90%);
   --design-glass-edge: rgb(255 255 255 / 17%);
   --design-glass-shadow: 0 8px 32px rgb(0 0 0 / 24%), inset 0 1px 0 rgb(255 255 255 / 9%);
