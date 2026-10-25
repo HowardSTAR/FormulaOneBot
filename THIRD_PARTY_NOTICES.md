@@ -20,6 +20,10 @@ Python and JavaScript dependency trees include additional transitive packages. B
 
 Redis 7.4 container licensing is governed by the license terms published for that Redis version. It is not covered by this repository's MIT License.
 
+## Flag artwork
+
+- Country flag SVGs — flag-icons v7.3.2, copyright (c) 2013 Panayiotis Lipiridis, MIT License — <https://github.com/lipis/flag-icons/tree/v7.3.2>. Locally bundled in `front/public/flags/`, with the original license in that folder.
+
 ## Data and platforms
 
 - OpenF1 is an independent project intended for education, personal learning, research and non-commercial fan engagement. Its availability does not grant a Formula 1 license: <https://openf1.org/>
