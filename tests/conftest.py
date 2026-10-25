@@ -169,6 +169,7 @@ async def app_with_overrides(db_session):
         get_current_user_id,
         get_optional_user_id,
         get_prediction_user_id,
+        get_optional_voter_id,
         web_app,
     )
     from app.db import get_or_create_user
@@ -186,6 +187,7 @@ async def app_with_overrides(db_session):
         return prediction_user_id
 
     web_app.dependency_overrides[get_prediction_user_id] = fake_get_prediction_user_id
+    web_app.dependency_overrides[get_optional_voter_id] = fake_get_prediction_user_id
 
     try:
         yield web_app

@@ -32,7 +32,7 @@ from app.db import (
     get_favorite_drivers, get_favorite_teams,
     get_favorites_for_user_id,
     get_user_settings, update_user_setting, get_or_create_user,
-    save_race_vote, save_driver_vote, get_user_votes, get_race_vote_stats, get_driver_vote_stats,
+    save_race_vote_for_user_id, save_driver_vote_for_user_id, get_votes_for_user_id, get_race_vote_stats, get_driver_vote_stats,
     get_driver_vote_round_winners,
     get_reaction_profile, upsert_reaction_profile,
     save_reaction_score, get_reaction_leaderboard,
@@ -43,6 +43,7 @@ from app.api.auth_api import (
     get_optional_hybrid_telegram_id as get_optional_user_id,
     require_hybrid_telegram_id as get_current_user_id,
     require_hybrid_user_id as get_prediction_user_id,
+    get_optional_hybrid_user_id as get_optional_voter_id,
     router as auth_router,
 )
 from app.api.admin_api import router as admin_router
@@ -755,12 +756,12 @@ class ReflexGridScoreRequest(BaseModel):
 @web_app.get("/api/votes/me")
 async def api_votes_me(
     season: int = Query(...),
-    user_id: Optional[int] = Depends(get_optional_user_id),
+    user_id: Optional[int] = Depends(get_optional_voter_id),
 ):
-    """Голоса пользователя за сезон для Telegram и связанной веб-сессии."""
+    """Голоса общего аккаунта, включая веб-сессию без привязки Telegram."""
     if user_id is None:
         return {"race_votes": {}, "driver_votes": {}}
-    race_votes, driver_votes = await get_user_votes(user_id, season)
+    race_votes, driver_votes = await get_votes_for_user_id(user_id, season)
     return {"race_votes": race_votes, "driver_votes": driver_votes}
 
 
@@ -914,19 +915,19 @@ async def api_reflex_grid_leaderboard_score(
 @web_app.post("/api/votes/race")
 async def api_votes_race(
     body: RaceVoteRequest,
-    user_id: int = Depends(get_current_user_id),
+    user_id: int = Depends(get_prediction_user_id),
 ):
     """Сохранить оценку гонки (1–5)."""
     if not 1 <= body.rating <= 5:
         raise HTTPException(400, "rating must be 1–5")
-    await save_race_vote(user_id, body.season, body.round, body.rating)
+    await save_race_vote_for_user_id(user_id, body.season, body.round, body.rating)
     return {"status": "ok"}
 
 
 @web_app.post("/api/votes/driver")
 async def api_votes_driver(
     body: DriverVoteRequest,
-    user_id: int = Depends(get_current_user_id),
+    user_id: int = Depends(get_prediction_user_id),
 ):
     """Сохранить голос за пилота дня. Голосование закрывается через 3 дня после гонки."""
     schedule = await get_season_schedule_short_async(body.season)
@@ -937,7 +938,7 @@ async def api_votes_driver(
         raise HTTPException(503, "Не удалось проверить срок голосования. Попробуйте позже.")
     if datetime.now(timezone.utc) >= deadline:
         raise HTTPException(400, "Голосование за пилота дня закрыто (00:00 МСК, третий день после гонки)")
-    await save_driver_vote(user_id, body.season, body.round, body.driver_code)
+    await save_driver_vote_for_user_id(user_id, body.season, body.round, body.driver_code)
     return {"status": "ok"}
 
 

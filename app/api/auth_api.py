@@ -299,6 +299,21 @@ async def require_hybrid_user_id(
     return int(session.user["id"])
 
 
+async def get_optional_hybrid_user_id(
+    request: Request,
+    x_telegram_init_data: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
+    cookie_token: Annotated[str | None, Cookie(alias=COOKIE_NAME)] = None,
+) -> int | None:
+    """Optional canonical identity for public reads; writes use the required dependency."""
+    if not x_telegram_init_data and not authorization and not cookie_token:
+        return None
+    try:
+        return await require_hybrid_user_id(request, x_telegram_init_data, authorization, None, cookie_token)
+    except HTTPException:
+        return None
+
+
 async def get_optional_hybrid_telegram_id(
     request: Request,
     x_telegram_init_data: Annotated[str | None, Header()] = None,

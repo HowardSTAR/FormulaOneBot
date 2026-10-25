@@ -396,8 +396,13 @@ async def set_last_notified_voting_invite_round(season: int, r: int) -> None:
 
 async def save_race_vote(telegram_id: int, season: int, round_num: int, rating: int) -> None:
     """Сохраняет оценку гонки (1–5)."""
-    if not db.conn: await db.connect()
     user_id = await get_or_create_user(telegram_id)
+    await save_race_vote_for_user_id(user_id, season, round_num, rating)
+
+
+async def save_race_vote_for_user_id(user_id: int, season: int, round_num: int, rating: int) -> None:
+    """Save a race rating for the canonical website/Telegram account."""
+    if not db.conn: await db.connect()
     await db.conn.execute(
         "INSERT OR REPLACE INTO race_votes (user_id, season, round, rating) VALUES (?, ?, ?, ?)",
         (user_id, season, round_num, rating),
@@ -407,8 +412,12 @@ async def save_race_vote(telegram_id: int, season: int, round_num: int, rating: 
 
 async def save_driver_vote(telegram_id: int, season: int, round_num: int, driver_code: str) -> None:
     """Сохраняет голос за пилота дня."""
-    if not db.conn: await db.connect()
     user_id = await get_or_create_user(telegram_id)
+    await save_driver_vote_for_user_id(user_id, season, round_num, driver_code)
+
+
+async def save_driver_vote_for_user_id(user_id: int, season: int, round_num: int, driver_code: str) -> None:
+    if not db.conn: await db.connect()
     await db.conn.execute(
         "INSERT OR REPLACE INTO driver_votes (user_id, season, round, driver_code) VALUES (?, ?, ?, ?)",
         (user_id, season, round_num, driver_code.upper()),
@@ -418,8 +427,12 @@ async def save_driver_vote(telegram_id: int, season: int, round_num: int, driver
 
 async def get_user_votes(telegram_id: int, season: int) -> Tuple[dict, dict]:
     """Возвращает (race_votes: {round: rating}, driver_votes: {round: driver_code})."""
-    if not db.conn: await db.connect()
     user_id = await get_or_create_user(telegram_id)
+    return await get_votes_for_user_id(user_id, season)
+
+
+async def get_votes_for_user_id(user_id: int, season: int) -> Tuple[dict, dict]:
+    if not db.conn: await db.connect()
     race_votes = {}
     async with db.conn.execute(
         "SELECT round, rating FROM race_votes WHERE user_id = ? AND season = ?",

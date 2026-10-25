@@ -17,6 +17,39 @@ from app.services.auth_service import AuthService
 
 
 @pytest.mark.asyncio
+async def test_email_account_rates_race_without_telegram_and_keeps_votes_private(db_session, monkeypatch):
+    """Real website login can rate without Telegram; CSRF and account isolation remain enforced."""
+    mailer = MockMailer()
+    auth = AuthService(db_session, mailer, pepper="test-pepper-with-enough-entropy")
+    monkeypatch.setattr(auth_api, "get_auth_service", lambda: auth)
+    monkeypatch.setenv("AUTH_COOKIE_SECURE", "false")
+    transport = httpx.ASGITransport(app=web_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        password = "Race-Rating-2026-Secure"
+        registered = await client.post("/api/auth/register", json={"email": "rating@example.com", "password": password, "display_name": "Race Fan"})
+        assert registered.status_code == 202
+        verified = await client.post("/api/auth/verify-email", json={"email": "rating@example.com", "code": str(mailer.messages[-1]["code"])})
+        assert verified.status_code == 200
+        assert (await client.post("/api/auth/logout", headers={"X-CSRF-Token": verified.json()["csrf_token"]})).status_code == 204
+        logged_in = await client.post("/api/auth/login", json={"email": "rating@example.com", "password": password})
+        assert logged_in.status_code == 200
+        assert logged_in.json()["user"]["telegram_id"] is None
+        headers = {"X-CSRF-Token": logged_in.json()["csrf_token"]}
+        vote = {"season": 2026, "round": 18, "rating": 4}
+        assert (await client.post("/api/votes/race", json=vote)).status_code == 403
+        assert (await client.post("/api/votes/race", json=vote, headers=headers)).status_code == 200
+        loaded = await client.get("/api/votes/me", params={"season": 2026})
+        assert loaded.json() == {"race_votes": {"18": 4}, "driver_votes": {}}
+        assert (await client.post("/api/votes/race", json={**vote, "rating": 5}, headers=headers)).status_code == 200
+        assert (await client.get("/api/votes/me", params={"season": 2026})).json()["race_votes"] == {"18": 5}
+        assert (await client.post("/api/auth/logout", headers=headers)).status_code == 204
+        assert (await client.post("/api/votes/race", json=vote)).status_code == 401
+        assert (await client.get("/api/votes/me", params={"season": 2026})).json()["race_votes"] == {}
+        assert (await client.post("/api/auth/register", json={"email": "other-rating@example.com", "password": password, "display_name": "Other Fan"})).status_code == 202
+        assert (await client.get("/api/votes/me", params={"season": 2026})).json()["race_votes"] == {}
+
+
+@pytest.mark.asyncio
 async def test_email_session_csrf_and_link_endpoint(temp_db_path, monkeypatch):
     database = Database(temp_db_path)
     await database.connect()
