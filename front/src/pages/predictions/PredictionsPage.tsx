@@ -3,11 +3,16 @@ import { GlossaryText } from "../../components/GlossaryText";
 import { DriverPicker, type PickerDriver } from "../../components/DriverPicker";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { BackButton } from "../../components/BackButton";
+import { GlassSwitch } from "../index/GlassSwitch";
+import { HomeIcon } from "../index/HomeIcon";
+import "../index/home-sections.css";
+import "../index/home-controls.css";
 import SupporterBadge from '../../components/SupporterBadge';
 import { apiRequest } from "../../helpers/api";
 import { getWebsiteUser, hasTelegramAuth, useAuthState } from "../../helpers/auth";
 import "./predictions.css";
+import "./prediction-slots.css";
+import "../index/home-team-colors.css";
 import { PersonalReview } from "./PersonalReview";
 import { trackPrediction } from '../../helpers/analytics';
 import { SeasonProgress } from './SeasonProgress';
@@ -120,7 +125,7 @@ export default function PredictionsPage() {
 }
 
 function PredictionsContent({ guest }: { guest: boolean }) {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab');
   const tab = !guest && ['leaderboard', 'history', 'leagues'].includes(requestedTab || '') ? requestedTab : 'form';
   const requestedYear = Number(searchParams.get('season'));
@@ -129,9 +134,6 @@ function PredictionsContent({ guest }: { guest: boolean }) {
     const value = Number(searchParams.get('round'));
     return Number.isInteger(value) && value >= 1 && value <= 40 ? value : 0;
   });
-  const setTab = (value: "form" | "leaderboard" | "history" | "leagues") => {
-    setSearchParams((params) => { params.set("tab", value); return params; }, { replace: true });
-  };
   const [current, setCurrent] = useState<CurrentResponse | null>(null);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -277,26 +279,41 @@ function PredictionsContent({ guest }: { guest: boolean }) {
   const driverFields = current?.has_sprint
     ? [...SPRINT_DRIVER_FIELDS, ...BASE_DRIVER_FIELDS]
     : BASE_DRIVER_FIELDS;
+  const groups = [
+    ...(current?.has_sprint ? [{ id: 'sprint', title: 'Спринт', fields: SPRINT_DRIVER_FIELDS }] : []),
+    { id: 'finish', title: 'Финишная пятёрка', fields: BASE_DRIVER_FIELDS.filter(({ key }) => ['winner_driver', 'second_driver', 'third_driver', 'fourth_driver', 'fifth_driver'].includes(key)) },
+    { id: 'events', title: 'Другие события', fields: BASE_DRIVER_FIELDS.filter(({ key }) => ['pole_driver', 'fastest_lap_driver', 'first_retirement_driver'].includes(key)) },
+  ];
   const formComplete = driverFields.every(({ key }) => Boolean(form[key])) && titleAnswersComplete(current?.championship, form.championship || {});
   const visibleRounds = [...rounds].sort((a,b) => b.round-a.round).slice(0, showAllStages ? rounds.length : 3);
   const editable = canEditPrediction(current);
+  const sectionItems = ([
+    { id: 'form', label: 'Мой прогноз', icon: 'predictions' },
+    { id: 'leaderboard', label: 'Турнирная таблица', icon: 'results' },
+    { id: 'history', label: 'Мой сезон', icon: 'history' },
+    { id: 'leagues', label: 'Лиги друзей', icon: 'social' },
+  ] as const).filter(item => !guest || item.id === 'form').map(item => {
+    const params = new URLSearchParams(searchParams);
+    params.set('tab', item.id);
+    return { ...item, to: `?${params}${window.location.hash}` };
+  });
+  const filledFields = driverFields.filter(({ key }) => Boolean(form[key])).length;
   const beforeOpening = Date.parse(current?.opens_at_utc || '') > Date.now();
 
   return (
-    <main className="predictions-page">
-      <BackButton>← <span>Назад</span></BackButton>
+    <main className="predictions-page" aria-labelledby="predictions-title">
       <header className="predictions-hero">
         <div>
-          <span className="predictions-kicker">F1 Forecast</span>
-          <h2>Прогнозы</h2>
+          <h1 id="predictions-title">Прогнозы</h1>
           <p><GlossaryText>Прогноз закрывается перед первой квалификацией. Чем точнее позиция — тем больше баллов.</GlossaryText></p>
-        </div>
         {current?.status === "ok" && (
           <div className={`predictions-deadline ${current.is_open ? "is-open" : "is-closed"}`}>
-            <span>{current.is_open ? "Приём открыт до" : beforeOpening ? "Приём откроется" : "Приём закрыт"}</span>
-            <strong>{deadlineText(beforeOpening ? current.opens_at_utc : current.deadline_utc)}</strong>
+            <HomeIcon name="clock" /><div><span>{current.is_open ? "Приём открыт до" : beforeOpening ? "Приём откроется" : "Приём закрыт"}</span>
+            <strong>{deadlineText(beforeOpening ? current.opens_at_utc : current.deadline_utc)}</strong></div>
           </div>
         )}
+        </div>
+        <div className="predictions-podium home-podium-preview" aria-hidden="true"><span>2</span><span>1</span><span>3</span></div>
       </header>
 
       {current?.status === 'ok' && !current.is_open && !beforeOpening && <aside className="predictions-message">
@@ -312,88 +329,50 @@ function PredictionsContent({ guest }: { guest: boolean }) {
         {window.location.hash.startsWith('#invite=') && <p>Вас пригласили в приватную лигу. <Link to={`/account?returnTo=leagues${window.location.hash}`}>Войдите, чтобы принять приглашение</Link>. Автоматически вступать в лигу вы не будете.</p>}
       </aside>}
 
-      {showTelegramReminder && (
-        <aside className="predictions-telegram-reminder">
-          <div>
-            <strong>Telegram не привязан</strong>
-            <span>Прогнозы доступны полностью. Привяжите Telegram только если хотите получать уведомления о результатах.</span>
-          </div>
-          <Link className="ui-action-link" to="/account">Привязать Telegram</Link>
-        </aside>
-      )}
-
-      <div className={`predictions-tabs${guest ? ' predictions-tabs-single' : ''}`} role="tablist">
-        <button className={tab === "form" ? "active" : ""} onClick={() => setTab("form")}>Мой прогноз</button>
-        {!guest && <button className={tab === "leaderboard" ? "active" : ""} onClick={() => setTab("leaderboard")}>Турнирная таблица</button>}
-        {!guest && <button className={tab === 'history' ? 'active' : ''} onClick={() => setTab('history')}>Мой сезон</button>}
-        {!guest && <button className={tab === 'leagues' ? 'active' : ''} onClick={() => setTab('leagues')}>Лиги друзей</button>}
-      </div>
+      {!guest && <GlassSwitch className="predictions-tabs" label="Разделы прогнозов" selected={tab || 'form'} items={sectionItems} replace />}
 
       {tab === 'history' && <SeasonProgress />}
       {tab === 'leagues' && current && (current.profile.completed ? <LeaguePanel /> : <section className="prediction-name-card">
         <h3>Как вас называть в лиге?</h3>
         <p>Участники увидят это имя и ваши очки, но не ответы прогнозов. Приглашение сохранено; вступление вы подтвердите следующим шагом.</p>
-        <div className="prediction-name-row"><input aria-label="Имя участника лиги" value={displayName} onChange={event => setDisplayName(event.target.value)} maxLength={40} placeholder="Например, Alex Racing" /><button disabled={saving || displayName.trim().length < 2} onClick={() => void saveName()}>{saving ? 'Сохраняем…' : 'Сохранить имя и продолжить'}</button></div>
+        <div className="prediction-name-row"><input aria-label="Имя участника лиги" name="leagueDisplayName" autoComplete="nickname" value={displayName} onChange={event => setDisplayName(event.target.value)} maxLength={40} placeholder="Например, Alex Racing" /><button disabled={saving || displayName.trim().length < 2} onClick={() => void saveName()}>{saving ? 'Сохраняем…' : 'Сохранить имя и продолжить'}</button></div>
       </section>)}
 
-      <details className="prediction-rules">
-        <summary>
-          <span>Как начисляются баллы</span>
-          <strong>MAX 37 · СПРИНТ 43</strong>
-        </summary>
-        <div className="prediction-rules-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Категория</th>
-                <th>Точное попадание</th>
-                <th>Ошибка на 1 место</th>
-                <th>Ошибка на 2 места</th>
-                <th>Ошибка на 3 места</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(current?.scoring_rules || []).map((rule) => (
-                <tr key={rule.key}>
-                  <th><GlossaryText>{rule.label}</GlossaryText></th>
-                  <td>{pointsLabel(rule.exact)}</td>
-                  {rule.offsets.map((points, index) => (
-                    <td key={index} className={points ? "" : "is-zero"}>{pointsLabel(points)}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
+      {error && <div className="predictions-message is-error" role="alert"><p>{error}</p>{!current && <button type="button" onClick={() => void load()}>Повторить загрузку</button>}</div>}
+      {notice && <div className="predictions-message is-success" role="status">{notice}</div>}
+      {loading && <div className="predictions-loading" role="status">Загрузка данных этапа…</div>}
 
-      {error && <div className="predictions-message is-error">{error}</div>}
-      {notice && <div className="predictions-message is-success">{notice}</div>}
-      {loading && <div className="predictions-loading">Загрузка данных этапа…</div>}
+      {!loading && current && current.status !== 'ok' && tab === 'form' && <section className="predictions-empty">
+        <HomeIcon name="calendar" /><h2>Ждём следующий этап</h2>
+        <p>Когда появится новый этап для прогнозов, здесь откроется форма.</p>
+        <Link className="ui-action-link" to="/season">Календарь сезона<HomeIcon name="chevronRight" /></Link>
+      </section>}
 
-      {!loading && current && tab === "form" && (
+      {!loading && current?.status === 'ok' && tab === "form" && (
         <section className="prediction-form-shell">
           <div className="prediction-round-title">
-            <span>Этап {current.round ?? "—"} · {current.season}</span>
-            <h3>{current.event_name || "Следующий Гран-при"}</h3>
+            <div><span>Этап {current.round ?? "—"} · {current.season}</span><h2>{current.event_name || "Следующий Гран-при"}</h2></div>
+            {current.profile.completed && <span className="prediction-completion">{current.prediction && !editable ? 'Ваш прогноз' : `Выбрано ${filledFields} из ${driverFields.length} пилотов`}</span>}
           </div>
 
           {!current.profile.completed && <ChampionshipForecast context={current.championship} answers={{}} conditionsOnly
             open={searchParams.get('championship') === '1'} onChange={() => {}} />}
           {!current.profile.completed ? (
             <div className="prediction-name-card">
-              <span className="prediction-step">Шаг 01</span>
               <h3>Имя участника</h3>
               <p>Оно будет отображаться в общей турнирной таблице.</p>
               <div className="prediction-name-row">
                 <input
+                  aria-label="Имя участника"
+                  name="predictionDisplayName"
+                  autoComplete="nickname"
                   value={displayName}
                   onChange={(event) => setDisplayName(event.target.value)}
                   maxLength={40}
                   placeholder="Например, Alex Racing"
                 />
                 <button disabled={saving || displayName.trim().length < 2} onClick={() => void saveName()}>
-                  Продолжить
+                  {saving ? "Сохраняем…" : "Сохранить имя"}
                 </button>
               </div>
             </div>
@@ -406,30 +385,24 @@ function PredictionsContent({ guest }: { guest: boolean }) {
               </div>
 
               <div className="prediction-grid">
-                {driverFields.map(({ key, label, marker }) => (
-                  <div key={key} className="prediction-field">
-                    <span className="prediction-field-marker">{marker}</span>
-                    <span className="prediction-field-copy">{label}</span>
-                    <DriverPicker label={label} season={current.season}
-                      value={String(form[key] ?? "")}
-                      disabled={!editable}
-                      onChange={(code) => editPrediction({ [key]: code })}
-                      drivers={current.drivers.map((driver) => {
-                        const isPlacement = ["winner_driver", "second_driver", "third_driver", "fourth_driver", "fifth_driver"].includes(key);
-                        const disabled = isPlacement && selectedTopFive.has(driver.code) && form[key] !== driver.code;
-                        return { ...driver, disabled };
-                      })} />
+                {groups.map(group => <section className={`prediction-choice-group prediction-choice-group--${group.id}`} key={group.id} aria-labelledby={`prediction-group-${group.id}`}>
+                  <h3 id={`prediction-group-${group.id}`}>{group.title}</h3>
+                  <div className="prediction-choice-list">
+                    {group.fields.map(({ key, label, marker }) => <DriverPicker key={key} label={label} marker={marker} variant="slot" season={current.season}
+                      value={String(form[key] ?? '')} disabled={!editable}
+                      onChange={code => editPrediction({ [key]: code })}
+                      drivers={current.drivers.map(driver => ({ ...driver,
+                        disabled: group.id === 'finish' && selectedTopFive.has(driver.code) && form[key] !== driver.code,
+                      }))} />)}
                   </div>
-                ))}
-
-                <fieldset className="prediction-field prediction-safety-car" disabled={!editable}>
-                  <span className="prediction-field-marker">SC</span>
-                  <legend><GlossaryText>Машина безопасности</GlossaryText></legend>
-                  <div>
-                    <button type="button" className={form.safety_car ? "active" : ""} onClick={() => editPrediction({ safety_car: true })}>Да</button>
-                    <button type="button" className={!form.safety_car ? "active" : ""} onClick={() => editPrediction({ safety_car: false })}>Нет</button>
-                  </div>
-                </fieldset>
+                  {group.id === 'events' && <fieldset className="prediction-safety-car" disabled={!editable}>
+                    <legend><GlossaryText>Машина безопасности</GlossaryText></legend>
+                    <div>
+                      <button type="button" className={form.safety_car ? 'active' : ''} aria-pressed={form.safety_car} onClick={() => editPrediction({ safety_car: true })}>Да</button>
+                      <button type="button" className={!form.safety_car ? 'active' : ''} aria-pressed={!form.safety_car} onClick={() => editPrediction({ safety_car: false })}>Нет</button>
+                    </div>
+                  </fieldset>}
+                </section>)}
               </div>
 
               <ChampionshipForecast context={current.championship} answers={form.championship || {}} disabled={!editable} conditionsOnly={!editable}
@@ -459,12 +432,12 @@ function PredictionsContent({ guest }: { guest: boolean }) {
           <div className="prediction-leaderboard-title">
             <div>
               <span>Зачёт сезона · {leaderboardSeason ?? current?.season}</span>
-              <h3>Турнирная таблица</h3>
+              <h2>Турнирная таблица</h2>
             </div>
             <button onClick={() => setShowAllStages(v => !v)}>{showAllStages ? "Последние 3 этапа" : "Показать все этапы"}</button>
           </div>
           <p className="prediction-leaderboard-hint">Нажмите на очки в своей строке, чтобы открыть личный разбор прогноза. Другие участники его не видят.</p>
-          <div className="prediction-leaderboard-scroll">
+          <div className="prediction-leaderboard-scroll" role="region" aria-label="Турнирная таблица прогнозов" tabIndex={0}>
             <table>
               <thead>
                 <tr>
@@ -488,9 +461,9 @@ function PredictionsContent({ guest }: { guest: boolean }) {
                     entry.history.map((item) => [`${item.season}-${item.round}`, item.points]),
                   );
                   return (
-                    <tr key={entry.user_id}>
+                    <tr key={entry.user_id} className={entry.user_id === currentUserId ? "is-current-user" : undefined}>
                       <td className="is-place"><strong>{String(entry.place).padStart(2, "0")}</strong></td>
-                      <th className="is-name"><Link to={`/profile/${entry.user_id}`} style={{ color: ({red:'#ff786e',blue:'#8ebcff',gold:'#f5ce73',mint:'#8ce5c7'} as Record<string,string>)[entry.style?.color || ''] || 'inherit' }}>{entry.display_name}{entry.supporter && <SupporterBadge tierName={entry.tier_name} />}</Link></th>
+                      <th className="is-name"><Link to={`/profile/${entry.user_id}`} style={{ color: ({red:'var(--design-accent)',blue:'var(--design-wet)',gold:'var(--design-rating-outline)',mint:'var(--design-scale-high)'} as Record<string,string>)[entry.style?.color || ''] || 'inherit' }}>{entry.display_name}{entry.supporter && <SupporterBadge tierName={entry.tier_name} />}</Link></th>
                       <td>{entry.wins}</td>
                       <td>{entry.best_points}</td>
                       <td>{entry.average_points.toFixed(1)}</td>
@@ -515,6 +488,47 @@ function PredictionsContent({ guest }: { guest: boolean }) {
           {!entries.length && <div className="predictions-loading">Турнирная таблица пока пуста.</div>}
         </section>
       )}
+      {showTelegramReminder && (
+        <aside className="predictions-telegram-reminder">
+          <div>
+            <strong>Telegram не привязан</strong>
+            <span>Прогнозы доступны полностью. Привяжите Telegram только если хотите получать уведомления о результатах.</span>
+          </div>
+          <Link className="ui-action-link" to="/account">Привязать Telegram</Link>
+        </aside>
+      )}
+
+      {Boolean(current?.scoring_rules?.length) && <details className="prediction-rules">
+        <summary>
+          <span>Как начисляются баллы</span>
+          <strong>До 37 баллов · со спринтом 43</strong>
+        </summary>
+        <div className="prediction-rules-scroll" role="region" aria-label="Правила начисления баллов" tabIndex={0}>
+          <table>
+            <thead>
+              <tr>
+                <th>Категория</th>
+                <th>Точное попадание</th>
+                <th>Ошибка на 1 место</th>
+                <th>Ошибка на 2 места</th>
+                <th>Ошибка на 3 места</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(current?.scoring_rules || []).map((rule) => (
+                <tr key={rule.key}>
+                  <th><GlossaryText>{rule.label}</GlossaryText></th>
+                  <td>{pointsLabel(rule.exact)}</td>
+                  {rule.offsets.map((points, index) => (
+                    <td key={index} className={points ? "" : "is-zero"}>{pointsLabel(points)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>}
+
       {reviewRound && <PersonalReview key={`${reviewRound.season}-${reviewRound.round}`} season={reviewRound.season} round={reviewRound.round} onClose={() => setReviewRound(null)} />}
     </main>
   );

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { HomeIcon } from '../index/HomeIcon';
 import { SelectField } from '../../components/CustomSelect';
 import type { Candidate, ChampionshipContext, TitleAnswer, TitleAnswers } from './championship';
 import './championship.css';
@@ -38,7 +39,7 @@ export function ChampionshipForecast({ context, answers, onChange, disabled = fa
 }) {
   if (!context || context.status !== 'ok' || ![...context.drivers, ...context.constructors].length) return null;
   return <section className="championship-forecast" aria-label="Прогноз на чемпионство">
-    <div className="title-heading"><span>🏆</span><div><small>МАТЕМАТИКА ТИТУЛА</small><h3>Титул может решиться здесь</h3></div></div>
+    <div className="title-heading"><HomeIcon name="results" /><div><h3>Титул может решиться здесь</h3></div></div>
     <p className="title-scope">{context.scope || 'К концу этапа'} · могут оформить титул на этом этапе</p>
     {(['drivers', 'constructors'] as const).map(kind => {
       const candidates = context[kind];

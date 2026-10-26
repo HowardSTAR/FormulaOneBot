@@ -1,0 +1,46 @@
+/* A forecast reads as a finishing order, with secondary race events alongside it. */
+.prediction-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); align-items: start; gap: 28px 40px; padding: 16px 24px 28px; }
+.prediction-choice-group { min-width: 0; }
+#root .prediction-choice-group > h3 { margin-bottom: 14px; font-size: 1rem; font-weight: 600; }
+.prediction-choice-list { display: grid; gap: 8px; }
+.prediction-choice-group--sprint { grid-column: 1 / -1; }
+.prediction-choice-group--sprint .prediction-choice-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.predictions-page .driver-picker--slot { grid-column: auto; }
+#root .predictions-page .driver-picker--slot .driver-picker-trigger { position: relative; isolation: isolate; display: flex; align-items: center; gap: 12px; min-height: 82px; padding: 10px 14px; border: 1px solid transparent; border-radius: 12px; color: var(--design-ink); background: var(--design-bg); text-align: left; transition: background-color 160ms ease, border-color 160ms ease; }
+#root .predictions-page .driver-picker--slot .driver-picker-trigger::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit; background: linear-gradient(100deg, transparent 5%, color-mix(in srgb,var(--home-team-accent,var(--design-accent)) 10%,transparent), transparent 95%); opacity: 0; }
+#root .predictions-page .driver-picker--slot .driver-picker-trigger[data-filled]::before { opacity: 1; }
+#root .predictions-page .driver-picker--slot .driver-picker-trigger:hover:not(:disabled) { background: var(--design-tint); border-color: var(--design-control); }
+#root .predictions-page .driver-picker--slot .driver-picker-trigger[aria-expanded='true'] { border-color: var(--design-accent); background: var(--design-tint); }
+.prediction-slot-marker { flex: 0 0 36px; text-align: center; color: var(--design-muted); font-family: 'Space Grotesk',sans-serif; font-size: 1.0625rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.prediction-choice-group--finish .prediction-slot-marker { font-size: 2rem; font-weight: 500; }
+.prediction-choice-group--finish .driver-picker--slot:first-child .prediction-slot-marker { color: var(--design-accent); }
+.prediction-slot-copy { display: grid; flex: 1; min-width: 0; gap: 2px; }
+.prediction-slot-copy strong { color: var(--design-ink); font-size: .9375rem; font-weight: 550; line-height: 1.35; overflow-wrap: anywhere; }
+.prediction-slot-copy > :is(small,span) { color: var(--design-muted); font-size: .75rem; line-height: 1.4; overflow-wrap: anywhere; }
+.prediction-slot-action { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; color: var(--design-accent); background: var(--design-surface); }
+#root .predictions-page .driver-picker--slot .driver-picker-avatar { position: relative; width: 56px; height: 62px; flex: 0 0 56px; align-self: end; margin-block: 0 -10px; border-radius: 0; background: transparent; color: var(--design-muted); mask-image: linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent),linear-gradient(#000 72%,transparent); mask-composite: intersect; }
+.predictions-page .driver-picker--slot .driver-picker-avatar img { position: absolute; inset: 0 auto auto 50%; width: auto; max-width: none; height: 260%; object-fit: contain; transform: translateX(-50%); }
+.prediction-safety-car { min-width: 0; margin: 24px 0 0; padding: 0; border: 0; }
+.prediction-safety-car legend { padding: 0; margin-bottom: 12px; font-size: .875rem; font-weight: 550; }
+.prediction-safety-car > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 260px; }
+.prediction-safety-car button { min-height: 44px; padding: 8px 16px; border: 1px solid var(--design-control); border-radius: 22px; background: transparent; color: var(--design-ink); font: inherit; font-size: .875rem; cursor: pointer; }
+.prediction-safety-car button:hover:not(:disabled) { background: var(--design-tint); }
+.prediction-safety-car button.active { border-color: var(--design-accent); color: var(--design-accent); background: var(--design-tint); box-shadow: inset 0 0 0 1px var(--design-accent); font-weight: 600; }
+@container (max-width: 46rem) {
+  .prediction-grid { grid-template-columns: minmax(0,1fr); gap: 28px; padding: 20px; }
+  .prediction-choice-group--sprint .prediction-choice-list { grid-template-columns: minmax(0,1fr); gap: 8px; }
+}
+@container (max-width: 24rem) {
+  .prediction-grid { padding-inline: 16px; }
+  #root .predictions-page .driver-picker--slot .driver-picker-trigger { padding-inline: 10px; gap: 8px; }
+  .prediction-slot-marker { flex-basis: 30px; }
+  #root .predictions-page .driver-picker--slot .driver-picker-avatar { width: 48px; flex-basis: 48px; }
+  .prediction-slot-action { flex-basis: 28px; width: 28px; height: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #root .predictions-page .driver-picker--slot .driver-picker-trigger { transition: none; }
+}
+@media (prefers-contrast: more), (forced-colors: active) {
+  #root .predictions-page .driver-picker--slot .driver-picker-trigger { border: 1px solid var(--design-control); }
+  #root .predictions-page .driver-picker--slot .driver-picker-trigger::before { display: none; }
+}

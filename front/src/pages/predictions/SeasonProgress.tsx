@@ -29,7 +29,7 @@ export function SeasonProgress() {
     return () => {active = false;};
   }, [retry]);
   return <section className="season-progress" aria-label="Моя история прогнозов">
-    <header className="season-progress-heading"><div><span className="season-progress-kicker">История прогнозов</span><h3>Мой сезон {data?.season}</h3></div>{data && <span className="season-progress-count">Рассчитано этапов: {data.history.length}</span>}</header>
+    <header className="season-progress-heading"><div><h3>Мой сезон {data?.season}</h3></div>{data && <span className="season-progress-count">Рассчитано этапов: {data.history.length}</span>}</header>
     {error && <div className="season-progress-error" role="alert"><p>{error}</p><button onClick={() => setRetry(v => v + 1)}>Повторить</button></div>}
     {!data && !error && <p role="status">Загружаем историю…</p>}
     {data && <>

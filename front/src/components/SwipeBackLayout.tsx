@@ -94,7 +94,7 @@ export function SwipeBackLayout() {
   const weekend = routeKey === 'next-race';
   const calendar = routeKey === 'season';
   const results = ['practice-results', 'sprint-quali-results', 'sprint-results', 'quali-results', 'race-results'].includes(routeKey);
-  const homeFrame = overview || weekend || calendar || results;
+  const homeFrame = overview || weekend || calendar || results || routeKey === 'predictions';
   return (
     <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`app-shell design-shell${homeFrame ? ' glass-home' : ''}`}>
       <EngagementEntry />

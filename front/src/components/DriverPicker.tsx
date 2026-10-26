@@ -1,19 +1,21 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { apiAssetUrl } from "../helpers/api";
+import { homeTeamIdentity } from "../pages/index/team-identity";
 import "./driver-picker.css";
 
-export type PickerDriver = { code: string; name: string; constructorName?: string; disabled?: boolean };
+export type PickerDriver = { code: string; name: string; constructorName?: string; imageUrl?: string; disabled?: boolean };
 
 function Portrait({ driver, season }: { driver: PickerDriver; season: number }) {
   const [failed, setFailed] = useState(false);
   return <span className="driver-picker-avatar">{failed ? driver.code : <img
-    src={apiAssetUrl("/api/pilot-portrait", { code: driver.code, name: driver.name, season, strict: true, v: 3 })}
-    alt="" loading="lazy" onError={() => setFailed(true)} />}</span>;
+    src={driver.imageUrl || apiAssetUrl("/api/pilot-portrait", { code: driver.code, name: driver.name, season, strict: true, v: 3 })}
+    alt="" width="46" height="48" loading="lazy" onError={() => setFailed(true)} />}</span>;
 }
 
-export function DriverPicker({ drivers, value, season, label, disabled, onChange }: {
+export function DriverPicker({ drivers, value, season, label, disabled, onChange, variant = 'field', marker }: {
   drivers: PickerDriver[]; value: string; season: number; label: string; disabled?: boolean; onChange: (code: string) => void;
+  variant?: 'field' | 'slot'; marker?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -45,11 +47,22 @@ export function DriverPicker({ drivers, value, season, label, disabled, onChange
     return () => { document.body.style.overflow = previous; window.removeEventListener("resize", update); triggerElement.focus(); };
   }, [open]);
   const close = () => setOpen(false);
-  return <div className="driver-picker">
+  return <div className={`driver-picker${variant === 'slot' ? ' driver-picker--slot' : ''}`}>
     <button type="button" ref={trigger} className="driver-picker-trigger" aria-label={`${label}: ${selected?.name || value || "Выберите пилота"}`}
+      data-team={variant === 'slot' && selected?.constructorName ? homeTeamIdentity('', selected.constructorName) : undefined}
+      data-filled={variant === 'slot' && Boolean(value) || undefined}
       aria-haspopup="dialog" aria-expanded={open} disabled={disabled} onClick={() => { setSearch(""); setOpen(true); }}>
-      {selected && <Portrait key={`${season}:${selected.code}`} driver={selected} season={season} />}
-      <span>{selected?.name || value || "Выберите пилота"}</span><span aria-hidden="true">⌄</span>
+      {variant === 'slot' ? <>
+        <span className="prediction-slot-marker" aria-hidden="true">{marker}</span>
+        {selected && <Portrait key={`${season}:${selected.code}`} driver={selected} season={season} />}
+        <span className="prediction-slot-copy">
+          {value ? <><small>{label}</small><strong>{selected?.name || value}</strong>{selected?.constructorName && <span>{selected.constructorName}</span>}</> : <strong>{label}</strong>}
+        </span>
+        <span className="prediction-slot-action" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round"><path d={value ? 'm9 5 7 7-7 7' : 'M12 5v14M5 12h14'} /></svg></span>
+      </> : <>
+        {selected && <Portrait key={`${season}:${selected.code}`} driver={selected} season={season} />}
+        <span>{selected?.name || value || "Выберите пилота"}</span><span aria-hidden="true">⌄</span>
+      </>}
     </button>
     {open && createPortal(<div className="driver-picker-overlay" onClick={event => { if (event.target === event.currentTarget) close(); }}>
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={title} tabIndex={-1} className="driver-picker-panel" style={position}
