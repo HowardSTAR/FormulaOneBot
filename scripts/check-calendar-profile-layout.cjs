@@ -64,7 +64,7 @@ const details = { ...driver, givenName: 'Max', familyName: 'Verstappen', permane
 
       // Navigate through the app, then check that back restores the exact previous URL.
       const previousUrl = page.url();
-      await page.locator('[role="button"]').filter({ hasText: 'Max Verstappen' }).filter({ visible: true }).first().click();
+      await page.locator('.drivers-entry').filter({ hasText: 'Max Verstappen' }).click();
       await page.waitForURL('**/driver-details?**');
       await page.locator('.driver-profile-navigation').waitFor();
       await page.getByRole('button', { name: 'Назад', exact: true }).click();

@@ -1,50 +1,47 @@
-import { homeTeamIdentity } from '../index/team-identity';
-import { formatRaceDate } from '../../helpers/presentation';
-import { teamLogoUrl, carImageUrl } from '../../helpers/f1Assets';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { YearSelect } from '../../components/YearSelect';
 import { PageFeedback } from '../../components/PageFeedback';
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { BackButton } from "../../components/BackButton";
-import { YearSelect } from "../../components/YearSelect";
-import { apiRequest } from "../../helpers/api";
+import { apiRequest } from '../../helpers/api';
+import { teamLogoBounds as logoBounds } from '../../helpers/teamLogoBounds';
+import { teamLogoUrl, carImageUrl } from '../../helpers/f1Assets';
+import { homeTeamIdentity } from '../index/team-identity';
+import { spotlightTeamMedia } from '../index/spotlight-team-media';
+import '../index/home-team-colors.css';
+import '../../assets/entrant-highlight.css';
+import './constructors.css';
 
 const currentRealYear = new Date().getFullYear();
-
-type Constructor = {
-  position: number;
-  name: string;
-  points: number;
-  is_favorite?: boolean;
-  constructorId?: string;
-};
-
-type ConstructorsResponse = { round?: number | null; constructors?: Constructor[] };
-type DriverStanding = { name: string; points: number };
-type DriversResponse = { drivers?: DriverStanding[] };
-type NextRaceInfo = {
-  status?: string;
-  event_name?: string;
-  date?: string;
-  race_start_utc?: string;
-  round?: number;
-  location?: string;
-};
-
 const minConstructorYear = 1958;
+const numberFormat = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
+type Constructor = { position: number; name: string; points: number; is_favorite?: boolean; constructorId?: string };
+type ConstructorsResponse = { round?: number | null; constructors?: Constructor[] };
+function teamLink(team: Constructor, season: number) {
+  return `/constructor-details?${new URLSearchParams({ constructorId: team.constructorId || team.name, season: String(season) })}`;
+}
+
+function TeamImage({ sources, className, fallback, width = 640, height = 180, bounds }: { sources: string[]; className: string; fallback?: string; width?: number; height?: number; bounds?: readonly [number, number, number, number] }) {
+  const [index, setIndex] = useState(0);
+  if (index >= sources.length) return fallback ? <span className="constructors-monogram" aria-hidden="true">{fallback}</span> : null;
+  const image = <img src={sources[index]} className={className} alt="" width={width} height={height} decoding="async" onError={() => setIndex(value => value + 1)} />;
+  if (index !== 0 || !bounds) return image;
+  const [left, top, right, bottom] = bounds;
+  const markWidth = right - left, markHeight = bottom - top;
+  const round = Math.abs(markWidth / markHeight - 1) < .1;
+  const scale = Math.min((round ? 28 : 34) / markWidth, (round ? 28 : 30) / markHeight);
+  return <span className="constructors-logo-art" style={{ width: `${markWidth * scale / 16}rem`, height: `${markHeight * scale / 16}rem` }}>
+    <span style={{ position: 'absolute', width: `${width / markWidth * 100}%`, height: `${height / markHeight * 100}%`, left: `${-left / markWidth * 100}%`, top: `${-top / markHeight * 100}%` }}>{image}</span>
+  </span>;
+}
 
 function ConstructorsPage() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const yearFromUrl = parseInt(searchParams.get("year") || "", 10);
-  const [year, setYear] = useState(
-    yearFromUrl && yearFromUrl >= minConstructorYear && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
-  );
+  const requestedYear = Number(searchParams.get('year'));
+  const year = Number.isInteger(requestedYear) && requestedYear >= minConstructorYear && requestedYear <= currentRealYear ? requestedYear : currentRealYear;
   const [teams, setTeams] = useState<Constructor[]>([]);
+  const [loadedYear, setLoadedYear] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [emptyMessage, setEmptyMessage] = useState<{ icon: string; title: string; desc?: string } | null>(null);
-  const [topDrivers, setTopDrivers] = useState<DriverStanding[]>([]);
-  const [nextRace, setNextRace] = useState<NextRaceInfo | null>(null);
   const standingsRequest = useRef(0);
   const cancelStandingsRequest = useCallback(() => { standingsRequest.current++; }, []);
 
@@ -52,30 +49,19 @@ function ConstructorsPage() {
     const request = ++standingsRequest.current;
     setLoading(true);
     setError(null);
-    setEmptyMessage(null);
     try {
-      const data = await apiRequest<ConstructorsResponse>("/api/constructors", { season });
+      const data = await apiRequest<ConstructorsResponse>('/api/constructors', { season });
       if (request !== standingsRequest.current) return;
-      if (!data.constructors || data.constructors.length === 0) {
-        if (season === currentRealYear) {
-          setEmptyMessage({
-            icon: "🏎️",
-            title: "Сезон еще не начался",
-            desc: "Ни одна команда еще не заработала очки.",
-          });
-        } else {
-          setEmptyMessage({ icon: "", title: "Нет данных" });
-        }
-        setTeams([]);
-      } else {
-        setTeams(data.constructors);
-      }
+      setTeams(data.constructors || []);
     } catch (e) {
       if (request !== standingsRequest.current) return;
-      console.error(e);
-      setError(e instanceof Error ? e.message : "Ошибка загрузки");
+      setTeams([]);
+      setError(e instanceof Error ? e.message : 'Не удалось загрузить зачёт');
     } finally {
-      if (request === standingsRequest.current) setLoading(false);
+      if (request === standingsRequest.current) {
+        setLoadedYear(season);
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -84,337 +70,80 @@ function ConstructorsPage() {
     return cancelStandingsRequest;
   }, [year, loadTeams, cancelStandingsRequest]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadDesktopAside() {
-      try {
-        const [driversRes, nextRaceRes] = await Promise.allSettled([
-          apiRequest<DriversResponse>("/api/drivers", { season: year }),
-          apiRequest<NextRaceInfo>("/api/next-race", { season: year }),
-        ]);
-        if (cancelled) return;
-        setTopDrivers(driversRes.status === "fulfilled" ? (driversRes.value.drivers || []).slice(0, 3) : []);
-        setNextRace(nextRaceRes.status === "fulfilled" ? nextRaceRes.value : null);
-      } catch {
-        if (!cancelled) {
-          setTopDrivers([]);
-          setNextRace(null);
-        }
-      }
-    }
-    loadDesktopAside();
-    return () => {
-      cancelled = true;
-    };
-  }, [year]);
-
-  const updateYear = useCallback((y: number) => {
-    setYear(y);
-    setSearchParams(y === currentRealYear ? {} : { year: String(y) }, { replace: true });
-  }, [setSearchParams]);
-
-  const handleYearChange = (y: number) => {
-    if (y > currentRealYear) {
-      setEmptyMessage({
-        icon: "🛠️",
-        title: "Машина времени сломалась",
-        desc: `Инженеры еще не спроектировали болиды ${y} года.`,
-      });
-      setTeams([]);
-      setLoading(false);
-      return;
-    }
-    if (y < minConstructorYear) {
-      setEmptyMessage({
-        icon: "📜",
-        title: "Исторический факт",
-        desc: "Кубок Конструкторов разыгрывается только с 1958 года.",
-      });
-      setTeams([]);
-      setLoading(false);
-      return;
-    }
-    updateYear(y);
+  const updateYear = (value: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === currentRealYear) next.delete('year'); else next.set('year', String(value));
+    setSearchParams(next, { replace: true });
   };
+  const isLoading = loading || loadedYear !== year;
+  const hasData = !isLoading && !error && teams.length > 0;
+  const leader = hasData ? teams[0] : null;
+  const second = hasData ? teams[1] : null;
+  const gap = leader && second ? Math.max(0, leader.points - second.points) : null;
+  const leaderMedia = leader ? spotlightTeamMedia(leader.constructorId || '', leader.name, year) : null;
 
-  const leaderTeam = teams[0] || null;
-  const leaderAdvantage = Math.max(0, (teams[0]?.points ?? 0) - (teams[1]?.points ?? 0));
-  const closestBattle = teams.length > 1
-    ? teams.slice(1).reduce(
-        (closest, team, index) => {
-          const previous = teams[index];
-          const gap = Math.max(0, previous.points - team.points);
-          return gap < closest.gap ? { first: previous, second: team, gap } : closest;
-        },
-        { first: teams[0], second: teams[1], gap: Math.max(0, teams[0].points - teams[1].points) }
-      )
-    : null;
-  const leaderCarBg = leaderTeam?.name
-    ? {
-        backgroundImage: `linear-gradient(90deg, rgba(18, 19, 20, 0.72) 0%, rgba(18, 19, 20, 0.86) 68%), url("${carImageUrl(
-          leaderTeam.name,
-          year
-        )}")`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }
-    : undefined;
-  const raceDate = nextRace?.race_start_utc || nextRace?.date ? new Date(nextRace.race_start_utc || nextRace.date!) : null;
-  const daysLeft = raceDate
-    ? Math.max(
-        0,
-        Math.ceil((raceDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-      )
-    : null;
-
-  return (
-    <>
-      <BackButton className="btn-back constructors-back-button">← <span>Главное меню</span></BackButton>
-      <div className="page-head-row">
-        <h2 className="page-head-title">Кубок конструкторов</h2>
-        <div className="page-head-controls mobile-year-control">
-          <YearSelect
-            value={year}
-            onChange={handleYearChange}
-            minYear={minConstructorYear}
-            maxYear={currentRealYear}
-            placeholder="Введи год"
-            showCurrentYearBtn={false}
-          />
+  return <div className="constructors-page">
+    <header className={`constructors-heading${leader ? ' constructors-heading--with-leader' : ''}`}>
+      <div className="constructors-heading-copy">
+        <h1>Команды</h1>
+        <p>Кубок конструкторов Формулы-1. Два пилота — один результат.</p>
+        <div className="constructors-tools">
+          <YearSelect value={year} onChange={updateYear} minYear={minConstructorYear} maxYear={currentRealYear}
+            showCurrentYearBtn={year !== currentRealYear} ariaLabel="Сезон Кубка конструкторов" />
+          <Link className="constructors-history" to="/history?kind=constructors" aria-label="Сравнить команды по сезонам" title="Сравнить команды по сезонам">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 4v16h16M7 14l4-5 4 3 5-6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <span>Сравнить команды по сезонам</span>
+          </Link>
         </div>
       </div>
-
-      <Link className="standings-history-link" to="/history?kind=constructors">История Кубка с 1958 года · сравнить сезоны →</Link>
-      <div className="desktop-standings-layout">
-        <div className="desktop-standings-board constructors-desktop-shell">
-          <div className="desktop-standings-toolbar constructors-desktop-toolbar">
-            <div className="constructors-desktop-subtitle">{year} FIA Formula One World Championship</div>
-          </div>
-
-          {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка команд...</div></div>}
-          {error && <PageFeedback message={error} retry={() => void loadTeams(year)} />}
-          {!loading && !error && emptyMessage && (
-            <div className="empty-state">
-              {emptyMessage.icon && <span className="empty-icon">{emptyMessage.icon}</span>}
-              <div className="empty-title">{emptyMessage.title}</div>
-              {emptyMessage.desc && <div className="empty-desc">{emptyMessage.desc}</div>}
-            </div>
-          )}
-          {!loading && !error && !emptyMessage && teams.length > 0 && (
-            <>
-              <section className="constructors-hero-grid">
-                <article className="constructors-leader-card" style={leaderCarBg}>
-                  <div className="constructors-leader-identity">
-                    {leaderTeam && (
-                      <img
-                        src={teamLogoUrl(leaderTeam.constructorId || "", leaderTeam.name, year)}
-                        alt=""
-                        onError={(e) => (e.currentTarget.style.display = "none")}
-                      />
-                    )}
-                    <div>
-                      <div className="constructors-leader-kicker">Лидер чемпионата</div>
-                      <div className="constructors-leader-main">
-                        <span>{leaderTeam?.name || "—"}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="constructors-leader-score">
-                    <span>Очки</span>
-                    <strong>{leaderTeam?.points ?? 0}</strong>
-                  </div>
-                  <div className="constructors-leader-tags">
-                    <span>1 место</span>
-                    <span>+{leaderAdvantage} к ближайшему сопернику</span>
-                  </div>
-                </article>
-                <article className="constructors-next-race-card">
-                  <div className="constructors-next-topline">
-                    <div className="constructors-next-kicker">Следующий этап</div>
-                    <span>{nextRace?.round ? `R${String(nextRace.round).padStart(2, "0")}` : "Ожидается"}</span>
-                  </div>
-                  <h3>{nextRace?.event_name || "Данные скоро"}</h3>
-                  <p>{nextRace?.location || "Место уточняется"} · {formatRaceDate(nextRace?.date)}</p>
-                  <div className="constructors-next-footer">
-                    <div className="constructors-next-days">
-                      <span>{String(daysLeft ?? 0).padStart(2, "0")}</span>
-                      <b>дней</b>
-                    </div>
-                    <button type="button" className="constructors-race-briefing" onClick={() => navigate(`/next-race?season=${year}`)}>
-                      Открыть этап →
-                    </button>
-                  </div>
-                </article>
-              </section>
-
-              <section className="desktop-standings-table constructors-table">
-                <div className="desktop-standings-table-head">
-                  <span>Поз</span>
-                  <span>Команда</span>
-                  <span>Отставание</span>
-                  <span>Очки</span>
-                </div>
-                {teams.map((team) => {
-                  const toTeam = `/constructor-details?constructorId=${encodeURIComponent(team.constructorId || team.name)}&season=${year}`;
-                  const pointsGap = Math.max(0, (leaderTeam?.points ?? 0) - team.points);
-                  return (
-                    <div
-                      key={`desktop-${team.name}`}
-                      role="button"
-                      tabIndex={0}
-                      data-team={homeTeamIdentity(team.constructorId || '', team.name)}
-                      className={`desktop-standings-row entrant-highlight pos-${team.position}`}
-                      onClick={() => navigate(toTeam)}
-                      onKeyDown={(e) => e.key === "Enter" && navigate(toTeam)}
-                    >
-                      <span className="desktop-standings-pos">{String(team.position).padStart(2, "0")}</span>
-                      <div className="desktop-standings-driver constructors-row-team">
-                        {(team.constructorId || team.name) && (
-                          <img
-                            src={teamLogoUrl(team.constructorId || "", team.name, year)}
-                            alt=""
-                            className="desktop-standings-team-logo"
-                            onError={(e) => (e.currentTarget.style.display = "none")}
-                          />
-                        )}
-                        <div className="constructors-row-copy">
-                          <span className="desktop-standings-name">
-                            {team.name}
-                            {team.is_favorite && <i>★</i>}
-                          </span>
-                        </div>
-                      </div>
-                      <span className={`constructors-row-gap ${team.position === 1 ? "leader" : ""}`}>
-                        {team.position === 1 ? "Лидер" : `−${pointsGap}`}
-                      </span>
-                      <span className="desktop-standings-points">
-                        <strong>{team.points}</strong>
-                        <small>PTS</small>
-                      </span>
-                    </div>
-                  );
-                })}
-              </section>
-
-              <section className="constructors-season-stats" aria-label="Статистика командного зачёта">
-                <article>
-                  <span>Команд в зачёте</span>
-                  <strong>{teams.length}</strong>
-                </article>
-                <article>
-                  <span>Преимущество лидера</span>
-                  <strong>+{leaderAdvantage}</strong>
-                  <small>очков</small>
-                </article>
-                <article>
-                  <span>Самая плотная борьба</span>
-                  <strong>{closestBattle ? `${closestBattle.gap} очк.` : "—"}</strong>
-                  <small>
-                    {closestBattle ? `${closestBattle.first.name} / ${closestBattle.second.name}` : "Недостаточно данных"}
-                  </small>
-                </article>
-              </section>
-            </>
-          )}
+      {leader && <Link className="constructors-leader entrant-highlight" to={teamLink(leader, year)} data-team={homeTeamIdentity(leader.constructorId || '', leader.name)}>
+        <div className="constructors-leader-copy">
+          <h2>{leader.name}</h2>
+          <p>Лидер зачёта {year}</p>
+          <strong>{numberFormat.format(leader.points)} <span>очк.</span></strong>
+          {second && gap !== null && <small>{gap === 0 ? `Поровну очков с ${second.name}` : `+${numberFormat.format(gap)} очк. к ${second.name}`}</small>}
         </div>
-        <aside className="desktop-standings-sidebar constructors-desktop-sidebar-legacy">
-          <div className="desktop-side-card">
-            <div className="desktop-side-title">Год</div>
-            <YearSelect
-              value={year}
-              onChange={handleYearChange}
-              minYear={minConstructorYear}
-              maxYear={currentRealYear}
-              placeholder="Введи год"
-            />
-          </div>
-          <div
-            className="desktop-side-card clickable"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate(`/next-race?season=${year}`)}
-            onKeyDown={(e) => e.key === "Enter" && navigate(`/next-race?season=${year}`)}
-          >
-            <div className="desktop-side-title">Предстоящая гонка</div>
-            <div className="desktop-side-value">
-              {nextRace?.status === "ok" && nextRace?.event_name
-                ? `R${String(nextRace.round || "").padStart(2, "0")} · ${nextRace.event_name}`
-                : "Данные скоро"}
-            </div>
-            <div className="desktop-side-muted">{formatRaceDate(nextRace?.date)}</div>
-          </div>
-          <div
-            className="desktop-side-card clickable"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate(`/drivers?year=${year}`)}
-            onKeyDown={(e) => e.key === "Enter" && navigate(`/drivers?year=${year}`)}
-          >
-            <div className="desktop-side-title">Топ пилотов</div>
-            {topDrivers.map((d, idx) => (
-              <div key={d.name} className={`desktop-side-list-row pos-${idx + 1}`}>
-                <span>{d.name}</span>
-                <b>{d.points}</b>
-              </div>
-            ))}
-          </div>
-        </aside>
+        <div className="constructors-leader-car" aria-hidden="true">
+          <TeamImage key={`${year}:${leader.name}`} className="constructors-car-image" sources={[...(leaderMedia?.car || []), carImageUrl(leader.name, year)]} />
+        </div>
+      </Link>}
+    </header>
+    <section className="constructors-classification" aria-labelledby="constructors-standings-title" aria-busy={isLoading}>
+      <div className="constructors-list-heading">
+        <h2 id="constructors-standings-title">Кубок конструкторов <span>{year}</span></h2>
+        <Link className="constructors-driver-link" to={`/drivers?year=${year}`}>Зачёт пилотов
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m9 5 7 7-7 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </Link>
       </div>
-
-      <div className="standings-cards-grid">
-        {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка команд...</div></div>}
-        {error && <PageFeedback message={error} retry={() => void loadTeams(year)} />}
-        {!loading && !error && emptyMessage && (
-          <div className="empty-state">
-            {emptyMessage.icon && <span className="empty-icon">{emptyMessage.icon}</span>}
-            <div className="empty-title">{emptyMessage.title}</div>
-            {emptyMessage.desc && <div className="empty-desc">{emptyMessage.desc}</div>}
-          </div>
-        )}
-        {!loading && !error && !emptyMessage && teams.length > 0 &&
-          teams.map((team) => {
-            const posClass =
-              team.position === 1 ? "pos-1" : team.position === 2 ? "pos-2" : team.position === 3 ? "pos-3" : "";
-            const isChampion = team.position === 1 && year < currentRealYear;
-            const toTeam = `/constructor-details?constructorId=${encodeURIComponent(team.constructorId || team.name)}&season=${year}`;
-            return (
-              <div
-                key={team.name}
-                role="button"
-                tabIndex={0}
-                data-team={homeTeamIdentity(team.constructorId || '', team.name)}
-                className={isChampion ? "entrant-highlight team-card champion-card team-card-clickable" : "entrant-highlight team-card team-card-clickable"}
-                onClick={() => navigate(toTeam)}
-                onKeyDown={(e) => e.key === "Enter" && navigate(toTeam)}
-              >
-                {isChampion && <div className="champion-badge">Чемпион среди конструкторов</div>}
-                <div className={`pos-box ${posClass}`}>{team.position}</div>
-                {(team.constructorId || team.name) && (
-                  <img
-                    src={teamLogoUrl(team.constructorId || "", team.name, year)}
-                    alt=""
-                    className="constructor-logo"
-                    onError={(e) => (e.currentTarget.style.display = "none")}
-                  />
-                )}
-                <div className="team-info">
-                  <div className="team-name-main" style={isChampion ? { color: "#ffd700" } : undefined}>
-                    {team.name} {team.is_favorite && <span style={{ fontSize: 14, marginLeft: 4 }}>⭐️</span>}
-                  </div>
+      {isLoading && <div className="constructors-state" role="status"><div className="spinner" aria-hidden="true" /><p>Загрузка команд…</p></div>}
+      {!isLoading && error && <PageFeedback message={error} retry={() => void loadTeams(year)} />}
+      {!isLoading && !error && teams.length === 0 && <div className="constructors-state" role="status">
+        <h3>{year === currentRealYear ? 'Сезон ещё не начался' : 'Нет данных за этот сезон'}</h3>
+        <p>{year === currentRealYear ? 'После первой гонки здесь появятся команды и очки.' : `Информация за ${year} год отсутствует. Выберите другой сезон.`}</p>
+      </div>}
+      {hasData && <>
+        <div className="constructors-columns" aria-hidden="true"><span>Место</span><span>Команда</span><span>От лидера</span><span>Очки</span></div>
+        <ol className="constructors-list" aria-label={`Кубок конструкторов ${year}`}>
+          {teams.map(team => {
+            const media = spotlightTeamMedia(team.constructorId || '', team.name, year);
+            const pointsGap = Math.max(0, (leader?.points ?? 0) - team.points);
+            return <li key={team.constructorId || team.name}>
+              <Link className="constructors-entry entrant-highlight" to={teamLink(team, year)} data-team={homeTeamIdentity(team.constructorId || '', team.name)}>
+                <span className="constructors-position"><span className="constructors-sr">Место </span>{team.position}</span>
+                <div className="constructors-identity">
+                  <span className="constructors-logo" aria-hidden="true"><TeamImage key={`${year}:${team.name}`} sources={[...media.logo, teamLogoUrl(team.constructorId || '', team.name, year)]} className="constructors-logo-image" fallback={team.name.slice(0, 3)} width={480} height={480} bounds={year === 2026 && media.logo.length ? logoBounds[homeTeamIdentity(team.constructorId || '', team.name)] : undefined} /></span>
+                  <span className="constructors-name">{team.name}{team.is_favorite && <svg className="constructors-favorite" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Избранная команда"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z" /></svg>}</span>
                 </div>
-                <div
-                  className="team-points"
-                  style={isChampion ? { background: "#ffd700", color: "#000" } : undefined}
-                >
-                  {team.points}
+                <div className="constructors-score">
+                  <span className="constructors-points"><strong>{numberFormat.format(team.points)}</strong><span className="constructors-sr"> очков за сезон</span></span>
+                  <span className="constructors-gap">{team === leader ? 'Лидер' : <><span className="constructors-sr">От лидера: </span>−{numberFormat.format(pointsGap)}<span className="constructors-gap-label" aria-hidden="true"> от лидера</span></>}</span>
                 </div>
-              </div>
-            );
+              </Link>
+            </li>;
           })}
-      </div>
-    </>
-  );
+        </ol>
+      </>}
+    </section>
+  </div>;
 }
-
 export default ConstructorsPage;

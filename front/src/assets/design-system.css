@@ -88,7 +88,7 @@ html:has(.design-shell) { scroll-padding-bottom: calc(20px + var(--app-safe-bott
 .theme-toggle:active { border-color: var(--design-accent); }
 .theme-toggle:focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
 /* Preserve contrast inside older content while its individual routes are migrated. */
-.design-shell .app-page-main:not(:has(.home-screen, .weekend-page, .menu-page, .season-page, .predictions-page)) { padding: 20px; border-radius: 16px; background: #15171e; color: #f5f5f7; }
+.design-shell .app-page-main:not(:has(.home-screen, .weekend-page, .menu-page, .season-page, .drivers-page, .constructors-page, .predictions-page)) { padding: 20px; border-radius: 16px; background: #15171e; color: #f5f5f7; }
 body:has(.design-shell) .root { max-width: none; margin: 0; padding: 0; }
 .app-shell.design-shell .app-content::before,
 .app-shell.design-shell .app-content::after { display: none; }

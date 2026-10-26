@@ -1,0 +1,114 @@
+/* Avoid clipping the content layer beside the floating navigation. */
+.app-shell.design-shell:has(.constructors-page) .app-content { overflow: visible; }
+/* The championship shares the home's quiet surfaces and team-colour lighting. */
+.constructors-page { --constructors-muted: color-mix(in srgb, var(--design-muted) 75%, var(--design-ink)); container-type: inline-size; display: grid; gap: 32px; color: var(--design-ink); font-size: 1rem; line-height: 1.5; }
+.constructors-page *, .constructors-page *::before, .constructors-page *::after { box-sizing: border-box; }
+#root .constructors-page :is(h1,h2,h3,p,ol) { margin: 0; }
+#root .constructors-page :is(h1,h2,h3) { color: var(--design-ink); font-family: inherit; font-style: normal; letter-spacing: -.025em; line-height: 1.2; text-transform: none; text-wrap: balance; overflow-wrap: anywhere; }
+.constructors-page :is(a,button) { touch-action: manipulation; -webkit-tap-highlight-color: var(--design-tint); }
+#root .constructors-page a { color: inherit; text-decoration: none; }
+.constructors-page ::selection { background: var(--design-tint); color: var(--design-ink); }
+.constructors-page :is(a,button):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 4px; }
+.constructors-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.constructors-heading { display: grid; align-items: center; gap: 24px; }
+.constructors-heading-copy { min-width: 0; }
+#root .constructors-heading h1 { font-size: 2.5rem; font-weight: 700; }
+#root .constructors-heading-copy > p { color: var(--constructors-muted); font-size: .9375rem; margin-top: 10px; max-width: 34ch; }
+.constructors-tools { display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr); align-items: start; gap: 12px; margin-top: 24px; }
+#root .constructors-page .year-select-wrapper { width: 6rem; max-width: 100%; margin: 0; }
+#root .constructors-page .year-select-container { display: flex; flex-wrap: wrap; gap: 8px; width: auto; margin: 0; padding: 0; background: transparent; border: 0; box-shadow: none; }
+#root .constructors-page .custom-select-wrapper { width: auto; min-width: 96px; max-width: 100%; }
+#root .constructors-page :is(.custom-select-trigger,.current-year-btn) { min-height: 44px; margin: 0; padding: 10px 16px; border: 1px solid var(--design-control); border-radius: 24px; background: var(--design-surface); color: var(--design-ink); font: inherit; font-size: .875rem; letter-spacing: normal; text-transform: none; box-shadow: none; }
+#root .constructors-page :is(.custom-select-trigger,.current-year-btn):hover { background: var(--design-tint); border-color: var(--design-accent); }
+#root .constructors-page .custom-select-listbox { background: var(--design-surface); color: var(--design-ink); border-color: var(--design-control); font-family: inherit; }
+#root .constructors-page .custom-select-option { min-height: 44px; color: var(--design-ink); font-family: inherit; }
+#root .constructors-page .custom-select-option:is(:hover,.focused,[aria-selected="true"]) { background: var(--design-tint); color: var(--design-accent); }
+.constructors-history, .constructors-driver-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 12px; border-radius: 24px; font-size: .875rem; font-weight: 550; }
+.constructors-history svg, .constructors-driver-link svg { flex-shrink: 0; }
+.constructors-history { justify-content: flex-start; gap: 8px; max-width: 100%; padding: 10px 14px; font-size: .8125rem; line-height: 1.35; text-align: left; }
+.constructors-history > span { min-width: 0; overflow-wrap: anywhere; }
+#root .constructors-page :is(.constructors-history, .custom-select-trigger, .current-year-btn) { border: 1px solid var(--design-card-edge); border-radius: 24px; background: var(--design-glass-sheen), var(--design-surface); box-shadow: var(--design-glass-shadow); }
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #root .constructors-page :is(.constructors-history, .custom-select-trigger, .current-year-btn) { background: var(--design-glass-sheen), var(--design-glass-fill); -webkit-backdrop-filter: blur(24px) saturate(1.25); backdrop-filter: blur(24px) saturate(1.25); }
+}
+#root .constructors-page :is(.constructors-history,.constructors-driver-link):hover { background: var(--design-tint); color: var(--design-accent); }
+.constructors-classification { min-width: 0; }
+.constructors-list-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; margin-bottom: 16px; }
+#root .constructors-list-heading h2 { font-size: 1.25rem; font-weight: 650; }
+.constructors-list-heading h2 span { color: var(--constructors-muted); font-weight: 450; margin-left: 8px; font-variant-numeric: tabular-nums; }
+.constructors-state { display: grid; gap: 12px; justify-items: center; padding: 48px 16px; text-align: center; }
+#root .constructors-state h3 { font-size: 1.125rem; font-weight: 600; }
+#root .constructors-state p { color: var(--constructors-muted); max-width: 38ch; }
+#root .constructors-page .ui-feedback { margin: 0; padding: 32px 20px; background: var(--design-surface); border: 1px solid var(--design-line); color: var(--design-ink); border-radius: 16px; }
+#root .constructors-page .ui-feedback :is(h2,p) { color: var(--design-ink); }
+#root .constructors-page .ui-feedback h2 { font-size: 1.25rem; }
+#root .constructors-page .ui-feedback button { min-height: 44px; padding: 10px 20px; border: 1px solid var(--design-control); border-radius: 24px; background: var(--design-surface); color: var(--design-ink); font: inherit; cursor: pointer; }
+#root .constructors-page .ui-feedback button:hover { background: var(--design-tint); }
+
+.constructors-leader { display: grid; grid-template-columns: minmax(0,1fr); align-items: center; min-width: 0; padding: 20px; border-radius: 16px; }
+.constructors-leader::before { background: color-mix(in srgb, var(--home-team-accent, var(--design-accent)) var(--entrant-highlight-strength), transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent), linear-gradient(transparent, #000 18%, #000 82%, transparent); mask-composite: intersect; }
+.constructors-leader-copy { min-width: 0; }
+#root .constructors-leader h2 { font-size: 1.5rem; font-weight: 650; }
+#root .constructors-leader p { margin-top: 4px; color: var(--constructors-muted); font-size: .8125rem; }
+.constructors-leader strong { display: block; margin-top: 12px; font: 600 1.75rem/1.2 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; }
+.constructors-leader strong span { font-size: .875rem; font-weight: 500; }
+.constructors-leader small { display: block; margin-top: 4px; color: var(--constructors-muted); font-size: .8125rem; overflow-wrap: anywhere; }
+.constructors-leader-car { min-width: 0; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent), linear-gradient(transparent, #000 12%, #000 82%, transparent); mask-composite: intersect; }
+.constructors-car-image { display: block; width: 100%; height: auto; aspect-ratio: 640 / 180; object-fit: contain; }
+.constructors-columns, .constructors-entry { display: grid; grid-template-columns: 3rem minmax(0,1fr) 7rem 5rem; align-items: center; gap: 16px; padding: 8px 16px; }
+.constructors-columns { margin-bottom: 4px; color: var(--constructors-muted); font-size: .8125rem; }
+.constructors-columns > :nth-last-child(-n+2) { text-align: right; }
+.constructors-list { padding: 0; list-style: none; }
+.constructors-list > li + li { border-top: 1px solid var(--design-line); }
+.constructors-entry { min-height: 88px; border-radius: 12px; }
+.constructors-position { text-align: center; font: 500 1.125rem/1.5 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; }
+.constructors-identity { display: flex; align-items: center; gap: 18px; min-width: 0; }
+.constructors-logo { display: flex; align-items: center; justify-content: center; width: 3rem; height: 3rem; flex: 0 0 3rem; }
+.constructors-logo-art { position: relative; flex: none; }
+.constructors-logo-art .constructors-logo-image { width: 100%; height: 100%; max-width: none; max-height: none; }
+.constructors-logo-image { display: block; width: auto; height: auto; max-width: 100%; max-height: 100%; object-fit: contain; filter: invert(1); }
+:root[data-theme="dark"] .constructors-logo-image { filter: none; }
+.constructors-monogram { color: var(--constructors-muted); font-size: .75rem; font-weight: 600; }
+.constructors-name { font-size: 1rem; font-weight: 650; overflow-wrap: anywhere; }
+.constructors-favorite { margin-left: 6px; color: var(--design-rating-outline); vertical-align: -2px; }
+.constructors-gap { text-align: right; font-size: .875rem; color: var(--constructors-muted); font-variant-numeric: tabular-nums; }
+.constructors-gap-label { display: none; }
+.constructors-score { display: contents; }
+.constructors-gap { grid-column: 3; grid-row: 1; }
+.constructors-points { grid-column: 4; grid-row: 1; text-align: right; font-family: 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; }
+.constructors-points strong { font-size: 1.375rem; font-weight: 600; }
+@container (min-width: 48rem) {
+  .constructors-heading--with-leader { grid-template-columns: minmax(0,.9fr) minmax(0,1.1fr); gap: 40px; }
+}
+@container (max-width: 42rem) {
+  .constructors-page { gap: 24px; }
+  #root .constructors-heading h1 { font-size: 2rem; }
+  .constructors-tools { margin-top: 16px; gap: 8px; }
+  .constructors-history { padding-inline: 8px; }
+  .constructors-leader { padding: 16px; }
+  #root .constructors-leader h2 { font-size: 1.25rem; }
+  .constructors-columns { display: none; }
+  .constructors-entry { grid-template-columns: 1.5rem minmax(0,1fr) auto; gap: 8px; min-height: 72px; padding: 10px 4px; }
+  .constructors-position { font-size: 1rem; }
+  .constructors-identity { gap: 10px; }
+  .constructors-logo { width: 2.75rem; height: 2.5rem; flex-basis: 2.75rem; }
+  .constructors-name { font-size: .9375rem; }
+  .constructors-score { grid-column: 3; grid-row: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; max-width: 7rem; }
+  .constructors-points strong { font-size: 1.25rem; }
+  .constructors-gap { font-size: .75rem; line-height: 1.35; text-align: right; }
+  .constructors-gap-label { display: inline; }
+}
+/* Keep the tools adjacent when enlarged text leaves room only for an icon.
+   Standings may reflow here so names and scores remain readable at 200%. */
+@container (max-width: 14rem) {
+  .constructors-history { justify-self: start; justify-content: center; min-width: 44px; padding: 10px; }
+  .constructors-history > span { display: none; }
+  .constructors-entry { grid-template-columns: 1.5rem minmax(0,1fr); }
+  .constructors-identity { grid-column: 2; flex-wrap: wrap; }
+  .constructors-score { grid-column: 2; grid-row: auto; max-width: none; flex-direction: row; flex-wrap: wrap; justify-content: space-between; align-items: baseline; }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  #root .constructors-page :is(.constructors-history, .custom-select-trigger, .current-year-btn) { background: var(--design-surface); border-color: var(--design-control); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) { .constructors-page *, .constructors-page *::before { animation: none !important; transition: none !important; } }
+@media (forced-colors: active) { .constructors-list > li + li { border-color: CanvasText; } .constructors-page :is(a,button):focus-visible { outline-color: Highlight; } }

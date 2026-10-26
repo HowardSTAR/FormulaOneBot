@@ -1,25 +1,16 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { DriverPortrait } from '../../components/DriverPortrait';
-import { homeTeamIdentity } from '../index/team-identity';
-import { formatRaceDate } from '../../helpers/presentation';
-import { teamLogoUrl } from '../../helpers/f1Assets';
+import { YearSelect } from '../../components/YearSelect';
 import { PageFeedback } from '../../components/PageFeedback';
-import { useState, useEffect, useCallback, useRef } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { BackButton } from "../../components/BackButton";
-import { YearSelect } from "../../components/YearSelect";
-import { apiRequest } from "../../helpers/api";
+import { apiRequest } from '../../helpers/api';
+import { homeTeamIdentity } from '../index/team-identity';
+import '../index/home-team-colors.css';
+import '../../assets/entrant-highlight.css';
+import './drivers.css';
 
 const currentRealYear = new Date().getFullYear();
-
-function teamLabel(constructorId?: string, constructorName?: string): string {
-  const id = (constructorId || "").toLowerCase();
-  if (id === "mercedes") return "MERCEDES-AMG PETRONAS";
-  if (id === "ferrari") return "SCUDERIA FERRARI";
-  if (id === "mclaren") return "MCLAREN F1 TEAM";
-  if (id === "red_bull" || id === "redbull") return "ORACLE RED BULL RACING";
-  if (id === "aston_martin") return "ASTON MARTIN ARAMCO";
-  return (constructorName || "НЕИЗВЕСТНАЯ КОМАНДА").toUpperCase();
-}
+const numberFormat = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
 
 type Driver = {
   position: number;
@@ -33,33 +24,25 @@ type Driver = {
   driverId?: string;
   imageUrl?: string;
 };
-
 type DriversResponse = { round?: number | null; drivers?: Driver[] };
-type ConstructorStanding = { position: number; name: string; points: number };
-type ConstructorsResponse = { constructors?: ConstructorStanding[] };
-type RaceResult = { code?: string; points?: number };
-type RaceResultsResponse = { results?: RaceResult[] };
-type NextRaceInfo = {
-  status?: string;
-  event_name?: string;
-  date?: string;
-  round?: number;
-};
+type RaceResultsResponse = { results?: { code?: string; points?: number }[] };
+
+function driverLink(driver: Driver, year: number) {
+  const params = new URLSearchParams({ code: driver.code, season: String(year) });
+  if (driver.driverId) params.set('driverId', driver.driverId);
+  return `/driver-details?${params}`;
+}
 
 function DriversPage() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const yearFromUrl = parseInt(searchParams.get("year") || "", 10);
-  const [year, setYear] = useState(
-    yearFromUrl && yearFromUrl >= 1950 && yearFromUrl <= currentRealYear ? yearFromUrl : currentRealYear
-  );
+  const requestedYear = Number(searchParams.get('year'));
+  const year = Number.isInteger(requestedYear) && requestedYear >= 1950 && requestedYear <= currentRealYear
+    ? requestedYear : currentRealYear;
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [loadedYear, setLoadedYear] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [emptyMessage, setEmptyMessage] = useState<{ icon: string; title: string; desc: string } | null>(null);
-  const [topConstructors, setTopConstructors] = useState<ConstructorStanding[]>([]);
-  const [nextRace, setNextRace] = useState<NextRaceInfo | null>(null);
-  const [lastRacePointsByCode, setLastRacePointsByCode] = useState<Record<string, number>>({});
+  const [racePoints, setRacePoints] = useState<{ year: number; byCode: Record<string, number> } | null>(null);
   const standingsRequest = useRef(0);
   const cancelStandingsRequest = useCallback(() => { standingsRequest.current++; }, []);
 
@@ -67,30 +50,19 @@ function DriversPage() {
     const request = ++standingsRequest.current;
     setLoading(true);
     setError(null);
-    setEmptyMessage(null);
     try {
-      const data = await apiRequest<DriversResponse>("/api/drivers", { season });
+      const data = await apiRequest<DriversResponse>('/api/drivers', { season });
       if (request !== standingsRequest.current) return;
-      if (!data.drivers || data.drivers.length === 0) {
-        if (season === currentRealYear) {
-          setEmptyMessage({
-            icon: "🏎️",
-            title: "Сезон еще не начался",
-            desc: "Первая гонка еще впереди. Таблица очков пуста.",
-          });
-        } else {
-          setEmptyMessage({ icon: "", title: "Нет данных", desc: `Информация за ${season} год отсутствует.` });
-        }
-        setDrivers([]);
-      } else {
-        setDrivers(data.drivers);
-      }
+      setDrivers(data.drivers || []);
     } catch (e) {
       if (request !== standingsRequest.current) return;
-      console.error(e);
-      setError(e instanceof Error ? e.message : "Ошибка загрузки");
+      setDrivers([]);
+      setError(e instanceof Error ? e.message : 'Не удалось загрузить зачёт');
     } finally {
-      if (request === standingsRequest.current) setLoading(false);
+      if (request === standingsRequest.current) {
+        setLoadedYear(season);
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -101,314 +73,103 @@ function DriversPage() {
 
   useEffect(() => {
     let cancelled = false;
-    async function loadDesktopAside() {
-      try {
-        const [constructorsRes, nextRaceRes] = await Promise.allSettled([
-          apiRequest<ConstructorsResponse>("/api/constructors", { season: year }),
-          apiRequest<NextRaceInfo>("/api/next-race", { season: year }),
-        ]);
-        if (cancelled) return;
-        setTopConstructors(
-          constructorsRes.status === "fulfilled" ? (constructorsRes.value.constructors || []).slice(0, 3) : []
-        );
-        setNextRace(nextRaceRes.status === "fulfilled" ? nextRaceRes.value : null);
-      } catch {
-        if (!cancelled) {
-          setTopConstructors([]);
-          setNextRace(null);
-        }
-      }
-    }
-    loadDesktopAside();
-    return () => {
-      cancelled = true;
-    };
-  }, [year]);
-
-  useEffect(() => {
-    let cancelled = false;
     async function loadLastRacePoints() {
       try {
-        const res = await apiRequest<RaceResultsResponse>("/api/race-results", { season: year });
+        const response = await apiRequest<RaceResultsResponse>('/api/race-results', { season: year });
         if (cancelled) return;
-        const pointsMap: Record<string, number> = {};
-        for (const row of res.results || []) {
-          const code = String(row.code || "").toUpperCase();
-          if (!code) continue;
-          pointsMap[code] = Number(row.points || 0);
+        const byCode: Record<string, number> = {};
+        for (const row of response.results || []) {
+          const code = (row.code || '').toUpperCase();
+          if (code && row.points != null && Number.isFinite(Number(row.points))) byCode[code] = Number(row.points);
         }
-        setLastRacePointsByCode(pointsMap);
+        setRacePoints({ year, byCode });
       } catch {
-        if (!cancelled) setLastRacePointsByCode({});
+        if (!cancelled) setRacePoints(null);
       }
     }
-    loadLastRacePoints();
-    return () => {
-      cancelled = true;
-    };
+    void loadLastRacePoints();
+    return () => { cancelled = true; };
   }, [year]);
 
-  const updateYear = useCallback((y: number) => {
-    setYear(y);
-    setSearchParams(y === currentRealYear ? {} : { year: String(y) }, { replace: true });
-  }, [setSearchParams]);
-
-  const handleYearChange = (y: number) => {
-    if (y > currentRealYear) {
-      setEmptyMessage({
-        icon: "🔮",
-        title: "Будущее туманно",
-        desc: `Мы пока не знаем, кто станет чемпионом в ${y} году.`,
-      });
-      setDrivers([]);
-      setLoading(false);
-      return;
-    }
-    if (y < 1950) {
-      setEmptyMessage({
-        icon: "🦖",
-        title: "Слишком рано",
-        desc: "Первый сезон Формулы-1 прошел в 1950 году.",
-      });
-      setDrivers([]);
-      setLoading(false);
-      return;
-    }
-    updateYear(y);
+  const updateYear = (value: number) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === currentRealYear) next.delete('year'); else next.set('year', String(value));
+    setSearchParams(next, { replace: true });
   };
-
-  const leader = drivers[0] || null;
-  const second = drivers[1] || null;
-  const gapToLeader = leader && second ? Math.max(0, leader.points - second.points) : 0;
-  const teamAccent = (team?: string) => {
-    const v = (team || "").toLowerCase();
-    if (v.includes("mercedes")) return "#00d2be";
-    if (v.includes("ferrari")) return "#e10600";
-    if (v.includes("mclaren")) return "#ff8700";
-    if (v.includes("red bull")) return "#1d4ed8";
-    return "#af8781";
-  };
+  const isLoading = loading || loadedYear !== year;
+  const hasData = !isLoading && !error && drivers.length > 0;
+  const leader = hasData ? drivers[0] : null;
+  const second = hasData ? drivers[1] : null;
+  const gap = leader && second ? Math.max(0, leader.points - second.points) : null;
+  const lastRacePoints = racePoints?.year === year ? racePoints.byCode : {};
 
   return (
-    <>
-      <BackButton>← <span>Главное меню</span></BackButton>
-      <div className="page-head-row">
-        <h2 className="page-head-title">Личный зачет</h2>
-        <div className="page-head-controls mobile-year-control">
-          <YearSelect
-            value={year}
-            onChange={handleYearChange}
-            minYear={1950}
-            maxYear={currentRealYear}
-            placeholder="Введи год"
-          />
-        </div>
-      </div>
-
-      <Link className="standings-history-link" to="/history?kind=drivers">История с 1950 года · сравнить сезоны →</Link>
-      <div className="desktop-standings-layout">
-        <div className="desktop-standings-board drivers-desktop-shell">
-          <div className="desktop-standings-toolbar drivers-desktop-toolbar">
-            <div>
-              <div className="drivers-desktop-kicker">Зачёт чемпионата · {year}</div>
-              <h2 className="desktop-standings-heading">Личный зачет пилотов</h2>
-            </div>
-            <div className="drivers-desktop-controls">
-              <YearSelect
-                value={year}
-                onChange={handleYearChange}
-                minYear={1950}
-                maxYear={currentRealYear}
-                placeholder="Введи год"
-              />
-            </div>
+    <div className="drivers-page">
+      <header className={`drivers-heading${leader ? ' drivers-heading--with-leader' : ''}`}>
+        <div className="drivers-heading-copy">
+          <h1>Пилоты</h1>
+          <p>Личный зачёт Формулы-1. От первой гонки до титула.</p>
+          <div className="drivers-tools">
+            <YearSelect value={year} onChange={updateYear} minYear={1950} maxYear={currentRealYear}
+              showCurrentYearBtn={year !== currentRealYear} ariaLabel="Сезон личного зачёта" />
+            <Link className="drivers-history" to="/history?kind=drivers">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M3 11a9 9 0 1 1 2.7 7.4M3 4v7h7m2-4v5l3 2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              История сезонов
+            </Link>
           </div>
-          {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка пилотов...</div></div>}
-          {error && <PageFeedback message={error} retry={() => void loadDrivers(year)} />}
-          {!loading && !error && emptyMessage && (
-            <div className="empty-state">
-              {emptyMessage.icon && <span className="empty-icon">{emptyMessage.icon}</span>}
-              <div className="empty-title">{emptyMessage.title}</div>
-              <div className="empty-desc">{emptyMessage.desc}</div>
-            </div>
-          )}
-          {!loading && !error && !emptyMessage && drivers.length > 0 && (
-            <>
-            <div className="desktop-standings-table drivers-standings-table">
-              <div className="desktop-standings-table-head">
-                <span>Поз</span>
-                <span>Пилот</span>
-                <span>Команда</span>
-                <span>Очки</span>
-              </div>
-              <div className="drivers-standings-scroll">
-                {drivers.map((driver) => {
-                  const toDriver = `/driver-details?code=${encodeURIComponent(driver.code)}&season=${year}${driver.driverId ? `&driverId=${encodeURIComponent(driver.driverId)}` : ""}`;
-                  return (
-                    <div
-                      key={`desktop-${driver.code}`}
-                      role="button"
-                      tabIndex={0}
-                      data-team={homeTeamIdentity(driver.constructorId || '', driver.constructorName || '')}
-                      className={`desktop-standings-row entrant-highlight pos-${driver.position}`}
-                      onClick={() => navigate(toDriver)}
-                      onKeyDown={(e) => e.key === "Enter" && navigate(toDriver)}
-                    >
-                      <span className="desktop-standings-pos">{driver.position}</span>
-                      <div className="desktop-standings-driver drivers-row-driver">
-                        <DriverPortrait key={`${year}:${driver.code}`} code={driver.code} name={driver.name} season={year} src={driver.imageUrl} />
-                        <div>
-                          <span className="desktop-standings-name">
-                            {driver.name}
-                            {driver.is_favorite && <b className="drivers-row-favorite">★</b>}
-                          </span>
-                          <span className="desktop-standings-meta">
-                            <i>{driver.code || "DRV"}</i>
-                            <u>{driver.number ? `#${driver.number}` : "—"}</u>
-                          </span>
-                        </div>
-                      </div>
-                      <div className="drivers-row-team">
-                        <i style={{ background: teamAccent(driver.constructorName) }} />
-                        <span>{teamLabel(driver.constructorId, driver.constructorName)}</span>
-                      </div>
-                      <span className="desktop-standings-points">
-                        <strong>{driver.points}</strong>
-                        <small>
-                          {Object.prototype.hasOwnProperty.call(lastRacePointsByCode, (driver.code || "").toUpperCase())
-                            ? `Последняя гонка: +${lastRacePointsByCode[(driver.code || "").toUpperCase()]}`
-                            : "Последняя гонка: нет данных"}
-                        </small>
-                      </span>
+        </div>
+        {leader && <Link className="drivers-leader entrant-highlight" to={driverLink(leader, year)}
+          data-team={homeTeamIdentity(leader.constructorId || '', leader.constructorName || '')}>
+          <div className="drivers-leader-copy">
+            <h2>{leader.name}</h2>
+            <p>{year < currentRealYear ? `Чемпион мира ${year}` : `Лидер сезона ${year}`}</p>
+            <strong>{numberFormat.format(leader.points)} <span>очк.</span></strong>
+            {second && gap !== null && <small>{gap === 0 ? `Поровну очков с ${second.code || second.name}` : `+${numberFormat.format(gap)} очк. к ${second.code || second.name}`}</small>}
+          </div>
+          <DriverPortrait key={`leader:${year}:${leader.code}`} code={leader.code} name={leader.name} season={year} src={leader.imageUrl} />
+        </Link>}
+      </header>
+
+      <section className="drivers-classification" aria-labelledby="drivers-standings-title" aria-busy={isLoading}>
+        <div className="drivers-list-heading">
+          <h2 id="drivers-standings-title">Личный зачёт <span>{year}</span></h2>
+          <Link className="drivers-team-link" to={`/constructors?year=${year}`}>Зачёт команд
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m9 5 7 7-7 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </Link>
+        </div>
+        {isLoading && <div className="drivers-state" role="status"><div className="spinner" aria-hidden="true" /><p>Загрузка пилотов…</p></div>}
+        {!isLoading && error && <PageFeedback message={error} retry={() => void loadDrivers(year)} />}
+        {!isLoading && !error && drivers.length === 0 && <div className="drivers-state" role="status">
+          <h3>{year === currentRealYear ? 'Сезон ещё не начался' : 'Нет данных за этот сезон'}</h3>
+          <p>{year === currentRealYear ? 'После первой гонки здесь появятся пилоты и очки.' : `Информация за ${year} год отсутствует. Выберите другой сезон.`}</p>
+        </div>}
+        {hasData && <>
+          <div className="drivers-columns" aria-hidden="true"><span>Место</span><span>Пилот / команда</span><span>Последняя гонка</span><span>Очки</span></div>
+          <ol className="drivers-list" aria-label={`Личный зачёт пилотов ${year}`}>
+            {drivers.map(driver => {
+              const earned = lastRacePoints[(driver.code || '').toUpperCase()];
+              return <li key={driver.driverId || driver.code || driver.name}>
+                <Link className="drivers-entry entrant-highlight" to={driverLink(driver, year)}
+                  data-team={homeTeamIdentity(driver.constructorId || '', driver.constructorName || '')}>
+                  <span className="drivers-position"><span className="drivers-sr">Место </span>{driver.position}</span>
+                  <div className="drivers-identity">
+                    <DriverPortrait key={`${year}:${driver.code}`} code={driver.code} name={driver.name} season={year} src={driver.imageUrl} />
+                    <div className="drivers-name-team">
+                      <span className="drivers-name">{driver.name}{driver.is_favorite && <svg className="drivers-favorite" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Избранный пилот"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z" /></svg>}</span>
+                      <span className="drivers-team">{driver.constructorName || 'Команда не указана'}</span>
+                      <span className="drivers-number-code">{driver.number && <span>#{driver.number}</span>}{driver.code && <span>{driver.code}</span>}</span>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="drivers-insights-grid">
-              <article className="drivers-insight-card">
-                <h4>Отставание от лидера</h4>
-                <p>{gapToLeader} ОЧК. <span>({second?.code || "—"} vs {leader?.code || "—"})</span></p>
-              </article>
-              <article className="drivers-insight-card active">
-                <h4>Как менялось место</h4>
-                <p><Link className="ui-action-link" to="/history?kind=drivers">Сравнить сезоны →</Link></p>
-                <small>Смотрите динамику мест; очки разных эпох начислялись по разным правилам.</small>
-              </article>
-            </div>
-            </>
-          )}
-        </div>
-        <aside className="desktop-standings-sidebar drivers-desktop-sidebar-legacy">
-          <div className="desktop-side-card">
-            <div className="desktop-side-title">Год</div>
-            <YearSelect
-              value={year}
-              onChange={handleYearChange}
-              minYear={1950}
-              maxYear={currentRealYear}
-              placeholder="Введи год"
-            />
-          </div>
-          <div
-            className="desktop-side-card clickable"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate(`/next-race?season=${year}`)}
-            onKeyDown={(e) => e.key === "Enter" && navigate(`/next-race?season=${year}`)}
-          >
-            <div className="desktop-side-title">Предстоящая гонка</div>
-            <div className="desktop-side-value">
-              {nextRace?.status === "ok" && nextRace?.event_name
-                ? `R${String(nextRace.round || "").padStart(2, "0")} · ${nextRace.event_name}`
-                : "Данные скоро"}
-            </div>
-            <div className="desktop-side-muted">{formatRaceDate(nextRace?.date)}</div>
-          </div>
-          <div
-            className="desktop-side-card clickable"
-            role="button"
-            tabIndex={0}
-            onClick={() => navigate(`/constructors?year=${year}`)}
-            onKeyDown={(e) => e.key === "Enter" && navigate(`/constructors?year=${year}`)}
-          >
-            <div className="desktop-side-title">Топ конструкторов</div>
-            {topConstructors.map((t, idx) => (
-              <div key={t.name} className={`desktop-side-list-row pos-${idx + 1}`}>
-                <span>{t.name}</span>
-                <b>{t.points}</b>
-              </div>
-            ))}
-          </div>
-        </aside>
-      </div>
-
-      <div className="standings-cards-grid">
-        {loading && <div className="loading full-width"><div className="spinner" /><div>Загрузка пилотов...</div></div>}
-        {error && <PageFeedback message={error} retry={() => void loadDrivers(year)} />}
-        {!loading && !error && emptyMessage && (
-          <div className="empty-state">
-            {emptyMessage.icon && <span className="empty-icon">{emptyMessage.icon}</span>}
-            <div className="empty-title">{emptyMessage.title}</div>
-            <div className="empty-desc">{emptyMessage.desc}</div>
-          </div>
-        )}
-        {!loading && !error && !emptyMessage && drivers.length > 0 &&
-          drivers.map((driver) => {
-            const posClass =
-              driver.position === 1 ? "pos-1" : driver.position === 2 ? "pos-2" : driver.position === 3 ? "pos-3" : "";
-            const isChampion = driver.position === 1 && year < currentRealYear;
-            const toDriver = `/driver-details?code=${encodeURIComponent(driver.code)}&season=${year}${driver.driverId ? `&driverId=${encodeURIComponent(driver.driverId)}` : ""}`;
-            return (
-              <div
-                key={driver.code}
-                role="button"
-                tabIndex={0}
-                data-team={homeTeamIdentity(driver.constructorId || '', driver.constructorName || '')}
-                className={isChampion ? "entrant-highlight driver-card champion-card driver-card-clickable" : "entrant-highlight driver-card driver-card-clickable"}
-                onClick={() => navigate(toDriver)}
-                onKeyDown={(e) => e.key === "Enter" && navigate(toDriver)}
-              >
-                {isChampion && <div className="champion-badge">Чемпион мира</div>}
-                <div className={`pos-box ${posClass}`}>{driver.position}</div>
-                <DriverPortrait key={`${year}:${driver.code}`} code={driver.code} name={driver.name} season={year} src={driver.imageUrl} />
-                <div className="driver-info">
-                  <div className="driver-name" style={isChampion ? { color: "#ffd700" } : undefined}>
-                    {driver.name} {driver.is_favorite && <span style={{ fontSize: 14, marginLeft: 4 }}>⭐️</span>}
                   </div>
-                  <div
-                    className="team-name driver-code-row"
-                    style={isChampion ? { color: "rgba(255,255,255,0.7)" } : undefined}
-                  >
-                    {driver.number && (
-                      <span className="driver-number">#{driver.number}</span>
-                    )}
-                    {(driver.constructorId || driver.constructorName) && (
-                      <img
-                        src={teamLogoUrl(
-                          driver.constructorId || "",
-                          driver.constructorName || "",
-                          year
-                        )}
-                        alt=""
-                        className="driver-team-logo"
-                        onError={(e) => (e.currentTarget.style.display = "none")}
-                      />
-                    )}
-                    <span>{driver.code}</span>
-                  </div>
-                </div>
-                <div
-                  className="driver-points"
-                  style={isChampion ? { background: "#ffd700", color: "#000" } : undefined}
-                >
-                  {driver.points}
-                </div>
-              </div>
-            );
-          })}
-      </div>
-    </>
+                  <span className="drivers-race-points"><span className="drivers-sr">Последняя гонка: </span>{earned == null ? '—' : `+${numberFormat.format(earned)}`}<span className="drivers-race-label" aria-hidden="true">{earned == null ? 'Нет данных' : 'за гонку'}</span></span>
+                  <span className="drivers-season-points"><strong>{numberFormat.format(driver.points)}</strong><span className="drivers-sr"> очков за сезон</span></span>
+                </Link>
+              </li>;
+            })}
+          </ol>
+          <p className="drivers-footnote">Очки разных эпох начислялись по разным правилам. В истории сезонов можно сравнить итоговые места.</p>
+        </>}
+      </section>
+    </div>
   );
 }
 

@@ -1,0 +1,108 @@
+/* Avoid clipping the content layer beside the floating navigation. */
+.app-shell.design-shell:has(.drivers-page) .app-content { overflow: visible; }
+/* The championship shares the home's quiet surfaces and team-colour lighting. */
+.drivers-page { --drivers-muted: color-mix(in srgb, var(--design-muted) 75%, var(--design-ink)); container-type: inline-size; display: grid; gap: 32px; color: var(--design-ink); font-size: 1rem; line-height: 1.5; }
+.drivers-page *, .drivers-page *::before, .drivers-page *::after { box-sizing: border-box; }
+#root .drivers-page :is(h1,h2,h3,p,ol) { margin: 0; }
+#root .drivers-page :is(h1,h2,h3) { color: var(--design-ink); font-family: inherit; font-style: normal; letter-spacing: -.025em; line-height: 1.2; text-transform: none; text-wrap: balance; overflow-wrap: anywhere; }
+.drivers-page :is(a,button) { touch-action: manipulation; -webkit-tap-highlight-color: var(--design-tint); }
+#root .drivers-page a { color: inherit; text-decoration: none; }
+.drivers-page .entrant-portrait > span { color: var(--drivers-muted); }
+.drivers-page ::selection { background: var(--design-tint); color: var(--design-ink); }
+.drivers-page :is(a,button):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 4px; }
+.drivers-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.drivers-heading { display: grid; align-items: center; gap: 24px; }
+.drivers-heading-copy { min-width: 0; }
+#root .drivers-heading h1 { font-size: 2.5rem; font-weight: 700; }
+#root .drivers-heading-copy > p { color: var(--drivers-muted); font-size: .9375rem; margin-top: 10px; max-width: 34ch; }
+.drivers-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 24px; }
+#root .drivers-page .year-select-wrapper { width: auto; margin: 0; }
+#root .drivers-page .year-select-container { display: flex; flex-wrap: wrap; gap: 8px; width: auto; margin: 0; padding: 0; background: transparent; border: 0; box-shadow: none; }
+#root .drivers-page .custom-select-wrapper { width: auto; min-width: 120px; max-width: 100%; }
+#root .drivers-page :is(.custom-select-trigger,.current-year-btn) { min-height: 44px; margin: 0; padding: 10px 16px; border: 1px solid var(--design-control); border-radius: 24px; background: var(--design-surface); color: var(--design-ink); font: inherit; font-size: .875rem; letter-spacing: normal; text-transform: none; box-shadow: none; }
+#root .drivers-page :is(.custom-select-trigger,.current-year-btn):hover { background: var(--design-tint); border-color: var(--design-accent); }
+#root .drivers-page .custom-select-listbox { background: var(--design-surface); color: var(--design-ink); border-color: var(--design-control); font-family: inherit; }
+#root .drivers-page .custom-select-option { min-height: 44px; color: var(--design-ink); font-family: inherit; }
+#root .drivers-page .custom-select-option:is(:hover,.focused,[aria-selected="true"]) { background: var(--design-tint); color: var(--design-accent); }
+.drivers-history, .drivers-team-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 12px; border-radius: 24px; font-size: .875rem; font-weight: 550; }
+.drivers-history svg, .drivers-team-link svg { flex-shrink: 0; }
+#root .drivers-page :is(.drivers-history,.drivers-team-link):hover { background: var(--design-tint); color: var(--design-accent); }
+.drivers-leader { display: grid; grid-template-columns: minmax(0,1fr) minmax(120px,.8fr); align-items: center; gap: 12px; min-width: 0; padding: 8px 16px; border-radius: 16px; }
+.drivers-leader-copy { min-width: 0; padding-block: 12px; }
+#root .drivers-leader h2 { font-size: 1.5rem; font-weight: 650; }
+#root .drivers-leader p { color: var(--drivers-muted); font-size: .8125rem; margin-top: 4px; }
+.drivers-leader strong { display: block; margin-top: 12px; font-family: 'Space Grotesk', sans-serif; font-size: 1.75rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.drivers-leader strong span { font-family: inherit; font-size: .875rem; font-weight: 500; }
+.drivers-leader small { display: block; margin-top: 4px; color: var(--drivers-muted); font-size: .8125rem; overflow-wrap: anywhere; }
+.drivers-leader .entrant-portrait { width: 100%; height: 190px; align-self: end; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent), linear-gradient(#000 58%, transparent); mask-composite: intersect; }
+.drivers-page .entrant-portrait img { inset: 0 auto auto 50%; width: auto; max-width: none; height: 240%; object-fit: contain; transform: translateX(-50%); mask-image: none; }
+.drivers-classification { min-width: 0; }
+.drivers-list-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; margin-bottom: 16px; }
+#root .drivers-list-heading h2 { font-size: 1.25rem; font-weight: 650; }
+.drivers-list-heading h2 span { color: var(--drivers-muted); font-weight: 450; margin-left: 8px; font-variant-numeric: tabular-nums; }
+.drivers-columns, .drivers-entry { display: grid; grid-template-columns: 3rem minmax(0,1fr) 8rem 5rem; gap: 16px; align-items: center; padding: 8px 16px; }
+.drivers-columns { color: var(--drivers-muted); font-size: .8125rem; margin-bottom: 4px; }
+.drivers-columns > :nth-last-child(-n+2) { text-align: right; }
+.drivers-list { padding: 0; list-style: none; }
+.drivers-list > li + li { border-top: 1px solid var(--design-line); }
+.drivers-entry { min-height: 96px; border-radius: 12px; }
+.drivers-position { font-family: 'Space Grotesk', sans-serif; font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.drivers-identity { display: flex; flex-wrap: wrap; align-items: center; gap: 18px; min-width: 0; }
+.drivers-identity .entrant-portrait { width: 4.25rem; height: 5rem; flex-basis: 4.25rem; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent), linear-gradient(#000 64%, transparent); mask-composite: intersect; }
+.drivers-name-team { display: grid; grid-template-columns: minmax(0,max-content) minmax(0,1fr); gap: 4px 16px; flex: 1 1 9rem; min-width: 0; }
+.drivers-name { grid-column: 1 / -1; font-size: 1rem; font-weight: 650; overflow-wrap: anywhere; }
+.drivers-favorite { margin-left: 6px; color: var(--design-rating-outline); vertical-align: -2px; }
+.drivers-team { color: var(--drivers-muted); font-size: .8125rem; overflow-wrap: anywhere; }
+.drivers-number-code { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--drivers-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.drivers-race-points { text-align: right; font-size: .9375rem; font-variant-numeric: tabular-nums; }
+.drivers-race-label { display: none; }
+.drivers-season-points { text-align: right; font-family: 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; }
+.drivers-season-points strong { font-size: 1.375rem; font-weight: 600; }
+#root .drivers-footnote { margin-top: 20px; color: var(--drivers-muted); font-size: .8125rem; max-width: 70ch; }
+.drivers-state { display: grid; gap: 12px; justify-items: center; padding: 48px 16px; text-align: center; }
+#root .drivers-state h3 { font-size: 1.125rem; font-weight: 600; }
+#root .drivers-state p { color: var(--drivers-muted); max-width: 38ch; }
+#root .drivers-page .ui-feedback { margin: 0; padding: 32px 20px; background: var(--design-surface); border: 1px solid var(--design-line); color: var(--design-ink); border-radius: 16px; }
+#root .drivers-page .ui-feedback :is(h2,p) { color: var(--design-ink); }
+#root .drivers-page .ui-feedback h2 { font-size: 1.25rem; }
+#root .drivers-page .ui-feedback button { min-height: 44px; padding: 10px 20px; border: 1px solid var(--design-control); border-radius: 24px; background: var(--design-surface); color: var(--design-ink); font: inherit; cursor: pointer; }
+#root .drivers-page .ui-feedback button:hover { background: var(--design-tint); }
+@media (min-width: 700px) and (max-width: 899px), (min-width: 1100px) {
+  .drivers-heading--with-leader { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 40px; }
+}
+@media (max-width: 699px) {
+  .drivers-page { gap: 24px; }
+}
+@container (max-width: 42rem) {
+  #root .drivers-heading h1 { font-size: 2rem; }
+  .drivers-tools { margin-top: 16px; gap: 8px; }
+  .drivers-history { padding-inline: 8px; }
+  .drivers-leader { padding-inline: 12px; grid-template-columns: minmax(0,1fr) 120px; }
+  .drivers-leader .entrant-portrait { height: 170px; }
+  #root .drivers-leader h2 { font-size: 1.25rem; }
+  .drivers-columns { display: none; }
+  .drivers-entry { grid-template-columns: 1.5rem minmax(0,1fr) auto; gap: 8px; padding: 10px 4px; }
+  .drivers-position { font-size: 1rem; }
+  .drivers-identity { gap: 8px; }
+  .drivers-identity .entrant-portrait { width: 3.25rem; height: 4.5rem; flex-basis: 3.25rem; }
+  .drivers-name-team { display: flex; flex-direction: column; gap: 2px; }
+  .drivers-name { font-size: .9375rem; }
+  .drivers-team { font-size: .75rem; }
+  .drivers-number-code { font-size: .75rem; }
+  .drivers-season-points { grid-column: 3; grid-row: 1; align-self: start; padding-top: 8px; }
+  .drivers-season-points strong { font-size: 1.25rem; }
+  .drivers-race-points { grid-column: 3; grid-row: 1; align-self: end; padding-bottom: 8px; font-size: .75rem; color: var(--drivers-muted); }
+  .drivers-race-label { display: block; font-size: .75rem; }
+}
+@container (max-width: 22rem) {
+  .drivers-leader { grid-template-columns: minmax(0,1fr) 100px; gap: 4px; padding-inline: 8px; }
+  .drivers-name-team { flex-basis: 7rem; }
+}
+@media (prefers-contrast: more) {
+  .drivers-list > li + li { border-color: var(--design-ink); }
+  .drivers-page :is(.drivers-team,.drivers-number-code,.drivers-race-points) { color: var(--design-ink); }
+}
+@media (forced-colors: active) {
+  .drivers-leader { border: 1px solid CanvasText; }
+  .drivers-entry:hover { outline: 1px solid Highlight; }
+}
