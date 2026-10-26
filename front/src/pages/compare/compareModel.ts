@@ -1,4 +1,5 @@
 export type DriverOption = {
+  imageUrl?: string;
   code: string;
   name: string;
   constructorId?: string;
@@ -128,4 +129,20 @@ export function assignDriverColors(drivers: DriverOption[]): Record<string, stri
 export function rgbaFromHex(hex: string, alpha: number): string {
   const [red, green, blue] = hexToRgb(hex);
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+/** Keep series distinguishable against the chart's semantic page background. */
+export function chartSeriesColor(hex: string, dark: boolean): string {
+  const luminance = (rgb: number[]) => rgb.map(value => {
+    const channel = value / 255;
+    return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+  }).reduce((sum, channel, index) => sum + channel * [.2126, .7152, .0722][index], 0);
+  const background = luminance(dark ? [20, 21, 24] : [245, 245, 247]);
+  let rgb = hexToRgb(hex);
+  for (let step = 0; step < 30; step++) {
+    const value = luminance(rgb);
+    if ((Math.max(value, background) + .05) / (Math.min(value, background) + .05) >= 3.1) break;
+    rgb = rgb.map(channel => Math.round(dark ? channel + (255 - channel) * .08 : channel * .92)) as [number, number, number];
+  }
+  return `#${rgb.map(channel => channel.toString(16).padStart(2, '0')).join('')}`;
 }

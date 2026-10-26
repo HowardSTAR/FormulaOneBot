@@ -4,16 +4,27 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
 } from "react";
 import { Chart, type ChartConfiguration, registerables } from "chart.js";
-import { BackButton } from "../../components/BackButton";
+import { CompareParticipantPicker } from "./CompareParticipantPicker";
+import { TeamLogo } from "../../components/TeamLogo";
+import { HomeIcon } from "../index/HomeIcon";
+import "../index/glass-switch.css";
+import { DriverPortrait } from "../../components/DriverPortrait";
+import { getTheme, subscribeTheme } from "../../helpers/theme";
+import { homeTeamIdentity } from "../index/team-identity";
+import "../index/home-team-colors.css";
+import "../../assets/entrant-highlight.css";
+import "./compare.css";
 import { YearSelect } from "../../components/YearSelect";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
 import { hapticSelection } from "../../helpers/telegram";
 import {
   assignDriverColors,
+  chartSeriesColor,
   rgbaFromHex,
   type ColoredCompareSeries,
   type CompareSeries,
@@ -33,17 +44,13 @@ type MultiCompareResponse = {
   labels?: string[];
   series?: CompareSeries[];
 };
-type PickerPosition = { top: number; left: number; width: number };
-
-function teamShortCode(name: string): string {
-  const meaningful = name
-    .split(/\s+/)
-    .filter((part) => !["f1", "team", "racing"].includes(part.toLocaleLowerCase("en")));
-  const initials = meaningful.map((part) => part[0]).join("");
-  return (initials.length >= 2 ? initials : name.slice(0, 3)).toUpperCase().slice(0, 3);
-}
 
 function ComparePage() {
+  const theme = useSyncExternalStore(subscribeTheme, getTheme);
+  const [retry, setRetry] = useState(0);
+  const [driverError, setDriverError] = useState<string | null>(null);
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const seasonRef = useRef(currentRealYear);
   const [tab, setTab] = useState<CompareTab>("drivers");
   const [year, setYear] = useState(currentRealYear);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
@@ -57,18 +64,18 @@ function ComparePage() {
   const [teamResults, setTeamResults] = useState<MultiCompareResponse | null>(null);
   const [compareError, setCompareError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerSearch, setPickerSearch] = useState("");
-  const [pickerPosition, setPickerPosition] = useState<PickerPosition | null>(null);
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
-  const pickerRef = useRef<HTMLDivElement>(null);
+  const selectionRef = useRef<HTMLElement>(null);
   const pickerButtonRef = useRef<HTMLButtonElement>(null);
   const requestSequenceRef = useRef(0);
 
   const loadDriversList = useCallback(async (season: number) => {
     setLoadingDrivers(true);
+    setDriverError(null);
     try {
       const data = await apiRequest<DriversResponse>("/api/drivers", { season });
+      if (season !== seasonRef.current) return;
       const list = (data.drivers || []).filter((driver) => Boolean(driver.code));
       setDrivers(list);
       setSelectedDriverCodes((current) => {
@@ -79,18 +86,21 @@ function ComparePage() {
           : list.slice(0, Math.min(2, list.length)).map((driver) => driver.code);
       });
     } catch {
+      if (season !== seasonRef.current) return;
       setDrivers([]);
       setSelectedDriverCodes([]);
-      setCompareError("Не удалось загрузить пилотов выбранного сезона.");
+      setDriverError("Не удалось загрузить пилотов выбранного сезона.");
     } finally {
-      setLoadingDrivers(false);
+      if (season === seasonRef.current) setLoadingDrivers(false);
     }
   }, []);
 
   const loadTeamsList = useCallback(async (season: number) => {
     setLoadingTeams(true);
+    setTeamError(null);
     try {
       const data = await apiRequest<ConstructorsResponse>("/api/constructors", { season });
+      if (season !== seasonRef.current) return;
       const list = data.constructors || [];
       setTeams(list);
       setSelectedTeams((current) => {
@@ -101,11 +111,12 @@ function ComparePage() {
           : list.slice(0, Math.min(2, list.length)).map((team) => team.name);
       });
     } catch {
+      if (season !== seasonRef.current) return;
       setTeams([]);
       setSelectedTeams([]);
-      setCompareError("Не удалось загрузить команды выбранного сезона.");
+      setTeamError("Не удалось загрузить команд выбранного сезона.");
     } finally {
-      setLoadingTeams(false);
+      if (season === seasonRef.current) setLoadingTeams(false);
     }
   }, []);
 
@@ -113,23 +124,6 @@ function ComparePage() {
     void loadDriversList(year);
     void loadTeamsList(year);
   }, [year, loadDriversList, loadTeamsList]);
-
-  useEffect(() => {
-    const closePicker = (event: PointerEvent) => {
-      if (pickerRef.current && !pickerRef.current.contains(event.target as Node)) {
-        setPickerOpen(false);
-      }
-    };
-    const closePickerOnViewportChange = () => setPickerOpen(false);
-    document.addEventListener("pointerdown", closePicker);
-    window.addEventListener("resize", closePickerOnViewportChange);
-    window.addEventListener("scroll", closePickerOnViewportChange, true);
-    return () => {
-      document.removeEventListener("pointerdown", closePicker);
-      window.removeEventListener("resize", closePickerOnViewportChange);
-      window.removeEventListener("scroll", closePickerOnViewportChange, true);
-    };
-  }, []);
 
   useEffect(() => {
     if (tab !== "drivers" || loadingDrivers) return;
@@ -169,7 +163,7 @@ function ComparePage() {
     return () => {
       if (requestSequenceRef.current === requestId) requestSequenceRef.current += 1;
     };
-  }, [tab, year, loadingDrivers, selectedDriverCodes]);
+  }, [tab, year, loadingDrivers, selectedDriverCodes, retry]);
 
   useEffect(() => {
     if (tab !== "teams" || loadingTeams) {
@@ -211,7 +205,7 @@ function ComparePage() {
     return () => {
       if (requestSequenceRef.current === requestId) requestSequenceRef.current += 1;
     };
-  }, [tab, year, loadingTeams, selectedTeams]);
+  }, [tab, year, loadingTeams, selectedTeams, retry]);
 
   const selectedDrivers = useMemo(
     () =>
@@ -225,18 +219,6 @@ function ComparePage() {
     () => assignDriverColors(selectedDrivers),
     [selectedDrivers]
   );
-
-  const availableDrivers = useMemo(() => {
-    const selected = new Set(selectedDriverCodes);
-    const query = pickerSearch.trim().toLocaleLowerCase("ru");
-    return drivers.filter((driver) => {
-      if (selected.has(driver.code)) return false;
-      if (!query) return true;
-      return `${driver.name} ${driver.code} ${driver.constructorName || ""}`
-        .toLocaleLowerCase("ru")
-        .includes(query);
-    });
-  }, [drivers, pickerSearch, selectedDriverCodes]);
 
   const selectedTeamOptions = useMemo(
     () =>
@@ -258,15 +240,6 @@ function ComparePage() {
     [selectedTeamOptions]
   );
 
-  const availableTeams = useMemo(() => {
-    const selected = new Set(selectedTeams);
-    const query = pickerSearch.trim().toLocaleLowerCase("ru");
-    return teams.filter((team) => {
-      if (selected.has(team.name)) return false;
-      return !query || team.name.toLocaleLowerCase("ru").includes(query);
-    });
-  }, [teams, pickerSearch, selectedTeams]);
-
   const visibleSeries = useMemo<ColoredCompareSeries[]>(() => {
     if (tab === "drivers") {
       const responseSeries = driverResults?.series || [];
@@ -274,7 +247,7 @@ function ComparePage() {
         const driver = drivers.find((item) => item.code === series.code);
         return {
           ...series,
-          color: driverColors[series.code] || "#E10600",
+          color: chartSeriesColor(driverColors[series.code] || "#E10600", theme === "dark"),
           name: driver?.name || series.code,
           teamName: driver?.constructorName || "Команда не указана",
         };
@@ -283,11 +256,11 @@ function ComparePage() {
 
     return (teamResults?.series || []).map((series) => ({
       ...series,
-      color: teamColors[series.code] || "#E10600",
+      color: chartSeriesColor(teamColors[series.code] || "#E10600", theme === "dark"),
       name: series.code,
       teamName: series.code,
     }));
-  }, [tab, driverResults, drivers, driverColors, teamResults, teamColors]);
+  }, [tab, driverResults, drivers, driverColors, teamResults, teamColors, theme]);
 
   const labels = useMemo(
     () => (tab === "drivers" ? driverResults?.labels || [] : teamResults?.labels || []),
@@ -310,6 +283,12 @@ function ComparePage() {
     if (!context) return;
 
     chartInstanceRef.current?.destroy();
+    const tokens = getComputedStyle(document.documentElement);
+    const ink = tokens.getPropertyValue("--design-ink").trim();
+    const muted = tokens.getPropertyValue("--design-muted").trim();
+    const surface = tokens.getPropertyValue("--design-surface").trim();
+    const grid = tokens.getPropertyValue("--design-line").trim();
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const participantsCount = visibleSeries.length;
     const lineWidth = participantsCount <= 4 ? 2.7 : participantsCount <= 10 ? 1.9 : 1.25;
     const pointRadius = participantsCount <= 5 ? 2.6 : participantsCount <= 10 ? 1.5 : 0;
@@ -325,7 +304,7 @@ function ComparePage() {
           borderDash: index === 0 ? [] : index === 1 ? [8,4] : [2,4],
           backgroundColor: rgbaFromHex(series.color, 0.16),
           pointBackgroundColor: series.color,
-          pointBorderColor: "#111216",
+          pointBorderColor: surface,
           pointBorderWidth: participantsCount <= 8 ? 1.5 : 0,
           pointRadius,
           pointHoverRadius: 4.5,
@@ -339,17 +318,17 @@ function ComparePage() {
         responsive: true,
         maintainAspectRatio: false,
         normalized: true,
-        animation: { duration: participantsCount > 10 ? 0 : 260 },
+        animation: { duration: reduceMotion || participantsCount > 10 ? 0 : 260 },
         interaction: { mode: "index", intersect: false },
         layout: { padding: { top: 8, right: 8, bottom: 4, left: 2 } },
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: "rgba(13, 14, 17, 0.96)",
-            borderColor: "rgba(255,255,255,0.12)",
+            backgroundColor: surface,
+            borderColor: grid,
             borderWidth: 1,
-            titleColor: "#ffffff",
-            bodyColor: "#e7e3e1",
+            titleColor: ink,
+            bodyColor: ink,
             padding: 12,
             boxPadding: 5,
             usePointStyle: true,
@@ -372,24 +351,24 @@ function ComparePage() {
           y: {
             beginAtZero: true,
             grace: 1,
-            grid: { color: "rgba(255,255,255,0.075)" },
+            grid: { color: grid },
             ticks: {
-              color: "rgba(227,226,227,0.62)",
+              color: muted,
               padding: 8,
               precision: 0,
             },
-            border: { color: "rgba(255,255,255,0.06)" },
+            border: { color: grid },
           },
           x: {
-            grid: { color: "rgba(255,255,255,0.06)" },
+            grid: { color: grid },
             ticks: {
-              color: "rgba(227,226,227,0.62)",
+              color: muted,
               autoSkip: true,
               maxTicksLimit: 12,
               maxRotation: 0,
               minRotation: 0,
             },
-            border: { color: "rgba(255,255,255,0.06)" },
+            border: { color: grid },
           },
         },
       },
@@ -400,11 +379,14 @@ function ComparePage() {
       chartInstanceRef.current?.destroy();
       chartInstanceRef.current = null;
     };
-  }, [labels, visibleSeries]);
+  }, [labels, visibleSeries, theme]);
 
   const handleYearChange = (nextYear: number) => {
-    if (nextYear < 1950 || nextYear > currentRealYear + 1) return;
+    if (nextYear === year || nextYear < 1950 || nextYear > currentRealYear + 1) return;
     requestSequenceRef.current += 1;
+    seasonRef.current = nextYear;
+    setLoadingDrivers(true);
+    setLoadingTeams(true);
     setYear(nextYear);
     setSelectedDriverCodes([]);
     setSelectedTeams([]);
@@ -415,6 +397,7 @@ function ComparePage() {
   };
 
   const switchTab = (nextTab: CompareTab) => {
+    if (nextTab === tab) return;
     hapticSelection();
     requestSequenceRef.current += 1;
     setTab(nextTab);
@@ -422,63 +405,25 @@ function ComparePage() {
     setPickerOpen(false);
   };
 
-  const togglePicker = () => {
-    hapticSelection();
-    if (pickerOpen) {
-      setPickerOpen(false);
-      return;
-    }
-    const anchor = pickerButtonRef.current?.getBoundingClientRect();
-    const viewportPadding = 12;
-    const width = Math.min(390, window.innerWidth - viewportPadding * 2);
-    const desiredLeft = anchor?.left ?? viewportPadding;
-    const left = Math.max(
-      viewportPadding,
-      Math.min(desiredLeft, window.innerWidth - width - viewportPadding)
-    );
-    const estimatedHeight = Math.min(500, window.innerHeight * 0.66);
-    const belowTop = (anchor?.bottom ?? viewportPadding) + 8;
-    const top =
-      belowTop + estimatedHeight <= window.innerHeight - viewportPadding
-        ? belowTop
-        : Math.max(viewportPadding, (anchor?.top ?? viewportPadding) - estimatedHeight - 8);
-    setPickerPosition({ top, left, width });
-    setPickerOpen(true);
+  const closePicker = () => {
+    setPickerOpen(false);
+    requestAnimationFrame(() => {
+      const trigger = pickerButtonRef.current;
+      if (trigger && !trigger.disabled) trigger.focus();
+      else selectionRef.current?.focus();
+    });
   };
 
-  const addDriver = (code: string) => {
+  const addParticipants = (codes: string[]) => {
     hapticSelection();
-    setSelectedDriverCodes((current) =>
-      current.includes(code) ? current : [...current, code]
-    );
-    setPickerSearch("");
-    setPickerOpen(false);
-  };
-
-  const addAllDrivers = () => {
-    hapticSelection();
-    setSelectedDriverCodes(drivers.map((driver) => driver.code));
-    setPickerSearch("");
-    setPickerOpen(false);
+    if (tab === "drivers") setSelectedDriverCodes(current => [...new Set([...current, ...codes])]);
+    else setSelectedTeams(current => [...new Set([...current, ...codes])]);
+    closePicker();
   };
 
   const removeDriver = (code: string) => {
     hapticSelection();
     setSelectedDriverCodes((current) => current.filter((item) => item !== code));
-  };
-
-  const addTeam = (name: string) => {
-    hapticSelection();
-    setSelectedTeams((current) => (current.includes(name) ? current : [...current, name]));
-    setPickerSearch("");
-    setPickerOpen(false);
-  };
-
-  const addAllTeams = () => {
-    hapticSelection();
-    setSelectedTeams(teams.map((team) => team.name));
-    setPickerSearch("");
-    setPickerOpen(false);
   };
 
   const removeTeam = (name: string) => {
@@ -498,7 +443,6 @@ function ComparePage() {
     }
     setComparing(false);
     setCompareError(null);
-    setPickerSearch("");
     setPickerOpen(false);
   };
 
@@ -512,413 +456,85 @@ function ComparePage() {
   const isLoadingOptions = tab === "drivers" ? loadingDrivers : loadingTeams;
   const selectedCount = tab === "drivers" ? selectedDriverCodes.length : selectedTeams.length;
 
+  const optionsError = tab === "drivers" ? driverError : teamError;
+  const error = optionsError || compareError;
+  const participants = tab === "drivers"
+    ? selectedDrivers.map(driver => ({ code: driver.code, name: driver.name, team: driver.constructorName || "Команда не указана", color: driverColors[driver.code], src: driver.imageUrl }))
+    : selectedTeamOptions.map(team => ({ code: team.name, name: team.name, team: `Сезон ${year}`, color: teamColors[team.name], src: undefined }));
+  const availableCount = tab === "drivers" ? drivers.length - selectedCount : teams.length - selectedCount;
+
   return (
-    <>
-      <BackButton className="btn-back compare-back-button">← Главное меню</BackButton>
-      <Link className="standings-history-link" to="/history">Сравнить места по нескольким сезонам →</Link>
-      <div className="page-head-row page-head-row-compare">
-        <h2 className="page-head-title">
-          {tab === "drivers" ? "Сравнение пилотов" : "Сравнение команд"}
-        </h2>
-        <div className="page-head-controls">
-          <YearSelect
-            value={year}
-            onChange={handleYearChange}
-            minYear={1950}
-            maxYear={currentRealYear + 1}
-            placeholder="Введи год"
-            showCurrentYearBtn={false}
-          />
+    <div className="comparison-page">
+      <header className="comparison-heading">
+        <div>
+          <h1>{tab === "drivers" ? "Сравнение пилотов" : "Сравнение команд"}</h1>
+          <p>Сопоставьте результаты за сезон: гонки, квалификации и очки.</p>
         </div>
-      </div>
+        <div className="comparison-tools">
+          <YearSelect value={year} onChange={handleYearChange} minYear={1950} maxYear={currentRealYear + 1} showCurrentYearBtn={false} />
+          <Link to="/history" className="comparison-history">История сезонов<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M8 5h11v11M19 5 5 19" /></svg></Link>
+        </div>
+      </header>
 
-      <div className="compare-layout compare-layout-redesign">
-        <section className="compare-controls-panel compare-controls-panel-redesign">
-          <div className="compare-controls-topline">
-            <div className="compare-controls-header">
-              <div className="compare-controls-kicker">Состав сравнения</div>
-              <div className="compare-controls-caption">
-                {tab === "drivers"
-                  ? `Выбрано: ${selectedDriverCodes.length} из ${drivers.length || "—"}`
-                  : `Выбрано: ${selectedTeams.length} из ${teams.length || "—"}`}
-              </div>
-            </div>
-
-            <div className="segmented-tabs compare-redesign-tabs">
-              <div
-                className="segmented-slider"
-                style={{ transform: tab === "drivers" ? "translateX(0)" : "translateX(100%)" }}
-                aria-hidden
-              />
-              <button
-                type="button"
-                className={`segmented-tab ${tab === "drivers" ? "active" : ""}`}
-                onClick={() => switchTab("drivers")}
-              >
-                Пилоты
-              </button>
-              <button
-                type="button"
-                className={`segmented-tab ${tab === "teams" ? "active" : ""}`}
-                onClick={() => switchTab("teams")}
-              >
-                Команды
-              </button>
-            </div>
+      <section ref={selectionRef} tabIndex={-1} className="comparison-controls" aria-labelledby="comparison-selection-title">
+        <div className="comparison-section-top">
+          <div className="comparison-selection-heading"><h2 id="comparison-selection-title">Участники</h2><span>{isLoadingOptions ? "Загрузка…" : `${selectedCount} из ${tab === "drivers" ? drivers.length : teams.length}`}</span></div>
+          <div className="comparison-switch" role="group" aria-label="Кого сравнить" style={{ "--section-position": tab === "drivers" ? 0 : 1, "--section-count": 2 } as CSSProperties}>
+            <span className="home-section-light" aria-hidden="true" />
+            <span className="home-section-lens" aria-hidden="true" />
+            <button type="button" aria-pressed={tab === "drivers"} onClick={() => switchTab("drivers")}><HomeIcon name="drivers" /><span>Пилоты</span></button>
+            <button type="button" aria-pressed={tab === "teams"} onClick={() => switchTab("teams")}><HomeIcon name="teams" /><span>Команды</span></button>
           </div>
+        </div>
+        <div className="comparison-participants" aria-busy={isLoadingOptions}>
+          {isLoadingOptions && [0,1].map(index => <div className="comparison-skeleton comparison-participant" key={index} />)}
+          {!isLoadingOptions && participants.map(person => <article className="comparison-participant entrant-highlight" key={person.code} data-team={homeTeamIdentity("", tab === "drivers" ? person.team : person.name)}>
+            {tab === "drivers" ? <DriverPortrait key={`${year}-${person.code}`} code={person.code} name={person.name} season={year} src={person.src} /> : <TeamLogo key={`${year}:${person.name}`} name={person.name} season={year} />}
+            <div className="comparison-person-copy"><span className="comparison-code"><i style={{ background: person.color }} aria-hidden="true" />{tab === "drivers" ? person.code : "Команда"}</span><h3>{person.name}</h3><p>{person.team}</p></div>
+            <button type="button" className="comparison-remove" onClick={() => tab === "drivers" ? removeDriver(person.code) : removeTeam(person.code)} aria-label={`Удалить ${person.name} из сравнения`}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>
+          </article>)}
+        </div>
+        <div className="comparison-selection-actions">
+          {!isLoadingOptions && <button ref={pickerButtonRef} type="button" className="comparison-add" disabled={availableCount === 0} aria-haspopup="dialog" aria-expanded={pickerOpen} onClick={() => { hapticSelection(); setPickerOpen(true); }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>{tab === "drivers" ? "Добавить пилотов" : "Добавить команды"}</button>}
+          {pickerOpen && <CompareParticipantPicker
+            season={year} teamMode={tab === "teams"}
+            options={tab === "drivers"
+              ? drivers.filter(driver => !selectedDriverCodes.includes(driver.code)).map(driver => ({ ...driver, team: driver.constructorName }))
+              : teams.filter(team => !selectedTeams.includes(team.name)).map(team => ({ code: team.name, name: team.name }))}
+            onAdd={addParticipants} onClose={closePicker}
+          />}
+          {!isLoadingOptions && selectedCount > 0 && <button type="button" className="comparison-clear" onClick={clearParticipants}>Удалить всех</button>}
+          <span className="comparison-auto-status" role="status">{comparing ? "Обновляем сравнение…" : "Сравнение обновляется автоматически"}</span>
+        </div>
+      </section>
 
-          <div
-            className="compare-driver-selector"
-            aria-busy={tab === "drivers" ? loadingDrivers : loadingTeams}
-          >
-            <div
-              className="compare-driver-chips"
-              aria-label={tab === "drivers" ? "Выбранные пилоты" : "Выбранные команды"}
-            >
-              {isLoadingOptions &&
-                Array.from({ length: 2 }, (_, index) => (
-                  <span className="compare-chip-skeleton" key={index} />
-                ))}
-
-              {!isLoadingOptions &&
-                tab === "drivers" &&
-                selectedDrivers.map((driver) => (
-                  <div
-                    className="compare-driver-chip"
-                    key={driver.code}
-                    style={{ "--pilot-color": driverColors[driver.code] } as CSSProperties}
-                  >
-                    <span className="compare-driver-chip-code">{driver.code}</span>
-                    <span className="compare-driver-chip-copy">
-                      <strong>{driver.name}</strong>
-                      <small>{driver.constructorName || "Команда не указана"}</small>
-                    </span>
-                    <button
-                      type="button"
-                      className="compare-driver-remove"
-                      onClick={() => removeDriver(driver.code)}
-                      aria-label={`Удалить ${driver.name} из сравнения`}
-                      title={`Удалить ${driver.name}`}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-
-              {!isLoadingOptions &&
-                tab === "teams" &&
-                selectedTeamOptions.map((team) => (
-                  <div
-                    className="compare-driver-chip compare-team-chip"
-                    key={team.name}
-                    style={{ "--pilot-color": teamColors[team.name] } as CSSProperties}
-                  >
-                    <span className="compare-driver-chip-code">{teamShortCode(team.name)}</span>
-                    <span className="compare-driver-chip-copy">
-                      <strong>{team.name}</strong>
-                      <small>{team.is_favorite ? "Избранная команда" : `Сезон ${year}`}</small>
-                    </span>
-                    <button
-                      type="button"
-                      className="compare-driver-remove"
-                      onClick={() => removeTeam(team.name)}
-                      aria-label={`Удалить ${team.name} из сравнения`}
-                      title={`Удалить ${team.name}`}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-
-              {!isLoadingOptions &&
-                (tab === "drivers" ? availableDrivers.length > 0 : availableTeams.length > 0) && (
-                  <div className="compare-add-driver-wrap" ref={pickerRef}>
-                    <button
-                      ref={pickerButtonRef}
-                      type="button"
-                      className="compare-add-driver"
-                      onClick={togglePicker}
-                      aria-expanded={pickerOpen}
-                      aria-haspopup="listbox"
-                    >
-                      <span aria-hidden>+</span>
-                      {tab === "drivers" ? "Добавить пилота" : "Добавить команду"}
-                    </button>
-
-                    {pickerOpen && pickerPosition && (
-                      <div className="compare-driver-picker" style={pickerPosition}>
-                        <label className="compare-driver-search">
-                          <span>{tab === "drivers" ? "Поиск пилота" : "Поиск команды"}</span>
-                          <input
-                            autoFocus
-                            value={pickerSearch}
-                            onChange={(event) => setPickerSearch(event.target.value)}
-                            placeholder={
-                              tab === "drivers" ? "Имя, код или команда" : "Название команды"
-                            }
-                          />
-                        </label>
-                        <div className="compare-driver-options" role="listbox">
-                          {tab === "drivers" &&
-                            availableDrivers.length > 1 &&
-                            !pickerSearch && (
-                              <button
-                                type="button"
-                                className="compare-driver-option compare-driver-option-all"
-                                onClick={addAllDrivers}
-                              >
-                                <span className="compare-option-plus">+</span>
-                                <span>
-                                  <strong>Добавить всех</strong>
-                                  <small>{availableDrivers.length} доступных пилотов</small>
-                                </span>
-                              </button>
-                            )}
-                          {tab === "teams" && availableTeams.length > 1 && !pickerSearch && (
-                            <button
-                              type="button"
-                              className="compare-driver-option compare-driver-option-all"
-                              onClick={addAllTeams}
-                            >
-                              <span className="compare-option-plus">+</span>
-                              <span>
-                                <strong>Добавить все команды</strong>
-                                <small>{availableTeams.length} доступных команд</small>
-                              </span>
-                            </button>
-                          )}
-                          {tab === "drivers" &&
-                            availableDrivers.map((driver) => (
-                              <button
-                                type="button"
-                                className="compare-driver-option"
-                                key={driver.code}
-                                onClick={() => addDriver(driver.code)}
-                                role="option"
-                                aria-selected={false}
-                              >
-                                <span className="compare-driver-option-code">{driver.code}</span>
-                                <span>
-                                  <strong>{driver.name}</strong>
-                                  <small>{driver.constructorName || "Команда не указана"}</small>
-                                </span>
-                              </button>
-                            ))}
-                          {tab === "teams" &&
-                            availableTeams.map((team) => (
-                              <button
-                                type="button"
-                                className="compare-driver-option"
-                                key={team.name}
-                                onClick={() => addTeam(team.name)}
-                                role="option"
-                                aria-selected={false}
-                              >
-                                <span className="compare-driver-option-code">
-                                  {teamShortCode(team.name)}
-                                </span>
-                                <span>
-                                  <strong>{team.name}</strong>
-                                  <small>{team.is_favorite ? "Избранная команда" : `Сезон ${year}`}</small>
-                                </span>
-                              </button>
-                            ))}
-                          {(tab === "drivers"
-                            ? availableDrivers.length === 0
-                            : availableTeams.length === 0) && (
-                            <div className="compare-driver-no-options">
-                              {tab === "drivers"
-                                ? "Пилоты по запросу не найдены"
-                                : "Команды по запросу не найдены"}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-              {!isLoadingOptions && selectedCount > 0 && (
-                <button
-                  type="button"
-                  className="compare-clear-all"
-                  onClick={clearParticipants}
-                >
-                  Удалить всех
-                </button>
-              )}
-            </div>
-            {!isLoadingOptions &&
-              selectedCount > 0 &&
-              selectedCount === (tab === "drivers" ? drivers.length : teams.length) && (
-                <div className="compare-selection-complete">
-                  {tab === "drivers"
-                    ? "Все пилоты сезона добавлены"
-                    : "Все команды сезона добавлены"}
-                </div>
-              )}
+      {error && <div className="comparison-error" role="alert"><p>{error}</p><button type="button" onClick={() => { if (optionsError) { if (tab === "drivers") void loadDriversList(year); else void loadTeamsList(year); } else setRetry(value => value + 1); }}>Повторить</button></div>}
+      <section className="comparison-results" aria-label="Результаты сравнения" aria-busy={comparing}>
+        {(isLoadingOptions || comparing) && !hasResults && <div className="comparison-loading" role="status"><div className="comparison-skeleton" /><p>Загружаем результаты…</p></div>}
+        {hasResults && !isLoadingOptions && <>
+          <div className="comparison-summary">
+            <div><h2>{pointsLead === 0 && runnerUp ? "Равенство по очкам" : "Лидер сравнения"}</h2><p className="comparison-leader">{pointsLead === 0 && runnerUp ? `${leader.name} и ${runnerUp.name}` : leader?.name}</p><p>{runnerUp ? `Разрыв между первыми двумя: ${pointsLead.toFixed(pointsLead % 1 ? 1 : 0)} очк.` : "Индивидуальная аналитика сезона"}</p></div>
+            <dl className="comparison-facts"><div><dt>Гонок в выборке</dt><dd>{labels.length}</dd></div><div><dt>Средний разрыв</dt><dd>{averageGap.toFixed(1)} <span>очк. / гонку</span></dd></div></dl>
           </div>
-
-          <div className={`compare-auto-status ${comparing ? "is-loading" : ""}`}>
-            <span className="compare-auto-status-dot" />
-            {comparing
-              ? "Обновляем аналитику…"
-              : "Данные пересчитываются автоматически при изменении состава"}
-          </div>
-          {compareError && <div className="page-error page-error-soft">{compareError}</div>}
-        </section>
-
-        <section className="compare-results-panel compare-results-panel-redesign">
-          {comparing && !hasResults && (
-            <div className="compare-results-skeleton" aria-label="Загрузка сравнения">
-              <div className="compare-skeleton-line wide" />
-              <div className="compare-skeleton-cards">
-                <span />
-                <span />
-                <span />
-              </div>
-              <div className="compare-skeleton-chart" />
+          <section className="comparison-ranking" aria-labelledby="comparison-table-title">
+            <h2 id="comparison-table-title">Сводная таблица</h2>
+            <p id="comparison-metrics-note" className="comparison-note">Лидерство в гонке и квалификации — лучший результат среди выбранных участников, включая ничьи. Очки чемпионата включают спринты и корректировки; среднее — только основные гонки.</p>
+            <div className="comparison-table-scroll" role="region" aria-label="Сводная таблица участников" tabIndex={0}>
+              <table aria-describedby="comparison-metrics-note"><thead><tr><th scope="col">{tab === "drivers" ? "Пилот" : "Команда"}</th><th scope="col">Лидерство<br />в гонках</th><th scope="col">Лидерство<br />в квалификациях</th><th scope="col">Средние очки<br />за гонку</th><th scope="col">Очки<br />чемпионата</th></tr></thead>
+                <tbody>{rankedSeries.map((series, index) => <tr key={series.code}><th scope="row"><div className="comparison-table-identity"><span className="comparison-rank">{index + 1}</span><i style={{ background: series.color }} aria-hidden="true" /><span>{series.name}<small>{tab === "drivers" ? series.code : series.teamName}</small></span></div></th><td>{series.race_wins}</td><td>{series.quali_samples ? `${series.quali_wins} из ${series.quali_samples}` : "—"}</td><td>{series.average_points.toFixed(1)}</td><td><strong>{series.total_points.toFixed(series.total_points % 1 ? 1 : 0)}</strong></td></tr>)}</tbody>
+              </table>
             </div>
-          )}
-
-          {!comparing && hasResults && (
-            <div className="compare-result-shell">
-              <div className="compare-multi-summary">
-                <div>
-                  <span>Лидер сравнения</span>
-                  <strong style={{ color: leader?.color }}>{leader?.name || "—"}</strong>
-                  <small>
-                    {runnerUp
-                      ? `Преимущество ${pointsLead.toFixed(pointsLead % 1 ? 1 : 0)} очк.`
-                      : "Индивидуальная аналитика сезона"}
-                  </small>
-                </div>
-                <div className="compare-summary-count">
-                  <strong>{visibleSeries.length}</strong>
-                  <span>
-                    {tab === "drivers"
-                      ? visibleSeries.length === 1
-                        ? "пилот"
-                        : "пилотов"
-                      : visibleSeries.length === 1
-                        ? "команда"
-                        : "команд"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="compare-ranking-panel">
-                <div className="compare-section-head">
-                  <div>
-                    <h3>Сводная таблица</h3>
-                    <p>Очки чемпионата — официальный зачёт, включая спринты и корректировки. График и среднее — только основные гонки ({labels.length}), без спринтов.</p>
-                  </div>
-                </div>
-                <div className="compare-ranking-scroll">
-                  <table className="compare-ranking-table">
-                    <thead>
-                      <tr>
-                        <th>{tab === "drivers" ? "Пилот" : "Команда"}</th>
-                        <th>Этапов с лучшим результатом гонки среди выбранных</th>
-                        <th>Этапов с лучшей квалификацией среди выбранных</th>
-                        <th>Средние очки за гонку</th>
-                        <th>Очки чемпионата</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rankedSeries.map((series, index) => (
-                        <tr key={series.code}>
-                          <td>
-                            <span className="compare-rank">{String(index + 1).padStart(2, "0")}</span>
-                            <span
-                              className="compare-series-marker"
-                              style={{ backgroundColor: series.color }}
-                            />
-                            <span className="compare-table-driver">
-                              <strong>{series.name}</strong>
-                              <small>{series.code}</small>
-                            </span>
-                          </td>
-                          <td>{series.race_wins}</td>
-                          <td>{series.quali_samples ? `${series.quali_wins} из ${series.quali_samples}` : '—'}</td>
-                          <td>{series.average_points.toFixed(1)}</td>
-                          <td>
-                            <strong style={{ color: series.color }}>
-                              {series.total_points.toFixed(series.total_points % 1 ? 1 : 0)}
-                            </strong>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="chart-container compare-chart-container">
-                <div className="compare-chart-head">
-                  <div>
-                    <h3>Очки в основных гонках</h3>
-                    <p>Без спринтов. При равенстве очков лидерство засчитывается каждому; это не число побед в Гран-при.</p>
-                  </div>
-                </div>
-                <div className="compare-chart-canvas-wrap">
-                  <canvas ref={chartRef} role="img" aria-label="Очки выбранных участников по Гран-при. Точные значения доступны в таблице ниже." />
-                </div>
-                <details><summary>Точные очки по этапам</summary><div className="ui-table-scroll"><table>
-                  <caption>Очки в основных гонках сезона {year}, без спринтов</caption>
-                  <thead><tr><th scope="col">Этап</th>{visibleSeries.map(series => <th scope="col" key={series.code}>{series.name}</th>)}</tr></thead>
-                  <tbody>{labels.map((label, index) => <tr key={`${index}-${label}`}><th scope="row">{label}</th>{visibleSeries.map(series => <td key={series.code}>{series.history[index] ?? '—'}</td>)}</tr>)}</tbody>
-                </table></div></details>
-                <div className="compare-chart-legend" aria-label="Легенда графика">
-                  {visibleSeries.map((series) => (
-                    <div className="compare-legend-item" key={series.code}>
-                      <span style={{ backgroundColor: series.color }} />
-                      <strong>{series.code}</strong>
-                      <small>{series.name}</small>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="compare-facts-grid">
-                <article>
-                  <span>Этапов в выборке</span>
-                  <strong>{labels.length}</strong>
-                  <small>завершённых гонок</small>
-                </article>
-                <article>
-                  <span>Средний разрыв</span>
-                  <strong>{averageGap.toFixed(1)}</strong>
-                  <small>очка за этап между лидерами</small>
-                </article>
-                <article>
-                  <span>Состав</span>
-                  <strong>{visibleSeries.length}</strong>
-                  <small>активных серий на графике</small>
-                </article>
-              </div>
-            </div>
-          )}
-
-          {!comparing && !hasResults && !compareError && (
-            <div className="empty-state compare-empty-state">
-              <svg className="empty-icon" viewBox="0 0 48 48" aria-hidden>
-                <path d="M7 38V10M7 38h34M12 31l8-8 7 5 12-15" />
-                <circle cx="20" cy="23" r="2.5" />
-                <circle cx="27" cy="28" r="2.5" />
-                <circle cx="39" cy="13" r="2.5" />
-              </svg>
-              <div className="empty-title">
-                {isLoadingOptions ? "Загружаем участников" : "Добавьте участника"}
-              </div>
-              <div className="empty-desc">
-                Аналитика и график появятся автоматически после выбора.
-              </div>
-            </div>
-          )}
-        </section>
-      </div>
-    </>
+          </section>
+          <section className="comparison-chart" aria-labelledby="comparison-chart-title">
+            <h2 id="comparison-chart-title">Очки по этапам</h2><p className="comparison-note">Основные гонки сезона {year}, без спринтов.</p>
+            <div className="comparison-chart-canvas"><canvas ref={chartRef} role="img" aria-label="Очки участников по Гран-при. Точные значения доступны в раскрывающейся таблице ниже." /></div>
+            <div className="comparison-legend" aria-label="Легенда графика">{visibleSeries.map((series,index) => <span key={series.code}><svg width="24" height="12" viewBox="0 0 24 12" aria-hidden="true"><path d="M0 6h24" stroke={series.color} strokeWidth="3" strokeDasharray={index === 0 ? undefined : index === 1 ? "8 4" : "2 4"} /></svg><strong>{series.name}</strong></span>)}</div>
+            <details className="comparison-exact"><summary>Точные очки по этапам</summary><div className="comparison-table-scroll" role="region" aria-label="Очки по этапам" tabIndex={0}><table><caption>Основные гонки сезона {year}, без спринтов</caption><thead><tr><th scope="col">Этап</th>{visibleSeries.map(series => <th scope="col" key={series.code}>{series.name}</th>)}</tr></thead><tbody>{labels.map((label, index) => <tr key={`${index}-${label}`}><th scope="row">{label}</th>{visibleSeries.map(series => <td key={series.code}>{series.history[index] ?? "—"}</td>)}</tr>)}</tbody></table></div></details>
+          </section>
+        </>}
+        {!isLoadingOptions && !comparing && !hasResults && !error && <div className="comparison-empty"><svg width="64" height="64" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M7 10v28h34M12 31l8-8 7 5 12-15M12 21l8 5 7-9 12 6" /></svg><h2>{selectedCount ? "Пока нет результатов" : (tab === "drivers" ? drivers.length : teams.length) ? "Добавьте участника" : "В этом сезоне пока нет участников"}</h2><p>{selectedCount ? "Сравнение появится после публикации результатов гонок." : (tab === "drivers" ? drivers.length : teams.length) ? "Выберите пилотов или команды выше — сравнение появится автоматически." : "Выберите другой сезон."}</p></div>}
+      </section>
+    </div>
   );
 }
 
