@@ -1,5 +1,5 @@
 /* Batch selection follows the site's native dialog / mobile sheet pattern. */
-.comparison-choice { width: min(720px, calc(100vw - 48px)); max-width: none; max-height: min(800px, calc(100dvh - 48px)); margin: auto; padding: 0; border: 0; border-radius: 24px; background: var(--design-bg); color: var(--design-ink); box-shadow: 0 24px 80px rgb(0 0 0 / 32%); font: inherit; overflow: hidden; }
+.comparison-choice { --comparison-muted: color-mix(in srgb, var(--design-muted) 75%, var(--design-ink)); width: min(720px, calc(100vw - 48px)); max-width: none; max-height: min(800px, calc(100dvh - 48px)); margin: auto; padding: 0; border: 0; border-radius: 24px; background: var(--design-bg); color: var(--design-ink); box-shadow: 0 24px 80px rgb(0 0 0 / 32%); font: inherit; overflow: hidden; }
 .comparison-choice[open] { display: flex; flex-direction: column; }
 .comparison-choice::backdrop { background: rgb(5 8 12 / 65%); backdrop-filter: blur(7px); }
 .comparison-choice-header { display: flex; flex: none; justify-content: space-between; align-items: start; gap: 16px; padding: 24px 24px 16px; }
@@ -64,3 +64,6 @@
   .comparison-choice-check { background: Canvas; color: CanvasText; border-color: CanvasText; }
   .comparison-choice-option[data-selected] .comparison-choice-check { background: Highlight; color: HighlightText; border-color: Highlight; }
 }
+
+.comparison-choice-option:has(input:disabled) { opacity: .5; cursor: default; }
+.comparison-choice-option:has(input:disabled) .comparison-choice-check { box-shadow: none; }
