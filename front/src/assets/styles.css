@@ -1220,169 +1220,6 @@ p {
     font-weight: 700;
     margin-bottom: 20px;
 }
-.compare-layout {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-}
-.compare-controls-panel {
-    background: var(--surface-color);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 14px;
-}
-.compare-controls-panel .segmented-tabs {
-    margin-bottom: 14px;
-}
-.compare-controls-panel .btn-compare {
-    margin-bottom: 12px;
-}
-.compare-results-panel {
-    min-width: 0;
-}
-.compare-empty-state {
-    margin-top: 0;
-}
-
-.compare-layout-redesign {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 14px;
-}
-
-.compare-controls-panel-redesign {
-    padding: 14px;
-}
-
-.compare-redesign-tabs {
-    margin-bottom: 10px;
-    max-width: 320px;
-}
-
-.compare-redesign-selectors {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    gap: 10px;
-    margin-bottom: 10px;
-}
-
-.compare-redesign-selectors .btn-compare {
-    grid-column: 1 / -1;
-    margin-bottom: 0;
-}
-
-.compare-results-panel-redesign {
-    min-width: 0;
-}
-
-.compare-stats-grid {
-    grid-template-columns: 1fr;
-    margin-bottom: 14px;
-}
-
-.compare-chart-container {
-    padding: 14px;
-    margin-bottom: 14px;
-}
-
-.compare-chart-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 12px;
-}
-
-.compare-chart-head h3 {
-    margin: 0;
-    font-size: 18px;
-    text-transform: uppercase;
-    letter-spacing: -0.01em;
-}
-
-.compare-chart-head p {
-    margin: 4px 0 0;
-    font-size: 12px;
-    color: var(--text-secondary);
-}
-
-.compare-chart-canvas-wrap {
-    height: 260px;
-    margin: 0;
-}
-
-.compare-insights-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-}
-
-.compare-insight-card,
-.compare-verdict-card {
-    background: var(--surface-color);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 14px;
-}
-
-.compare-insight-tag {
-    display: inline-flex;
-    min-width: 30px;
-    justify-content: center;
-    padding: 2px 8px;
-    border-radius: 6px;
-    background: rgba(225, 6, 0, 0.22);
-    color: var(--primary);
-    font-size: 11px;
-    font-weight: 700;
-    margin-bottom: 10px;
-}
-
-.compare-insight-card h4,
-.compare-verdict-card h4 {
-    margin: 0 0 8px;
-    font-size: 22px;
-    text-transform: uppercase;
-    letter-spacing: -0.02em;
-}
-
-.compare-insight-card p,
-.compare-verdict-card p {
-    margin: 0;
-    color: var(--text-secondary);
-    line-height: 1.45;
-}
-
-.compare-verdict-card {
-    text-align: center;
-}
-
-.compare-verdict-icon {
-    font-size: 28px;
-    color: var(--primary);
-    margin-bottom: 8px;
-}
-
-.compare-verdict-score {
-    margin-top: 12px;
-    border-radius: 8px;
-    background: rgba(0, 0, 0, 0.18);
-    border: 1px solid var(--border-color);
-    padding: 10px;
-}
-
-.compare-verdict-score span {
-    display: block;
-    font-size: 10px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-}
-
-.compare-verdict-score b {
-    display: block;
-    margin-top: 3px;
-    font-size: 24px;
-}
 
 /* Favorites tabs - segmented control with slider */
 .segmented-tabs {
@@ -2747,29 +2584,6 @@ input:checked + .slider:before {
   .standings-cards-grid .page-error {
     grid-column: 1 / -1;
   }
-
-  .compare-layout {
-    grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
-    gap: 20px;
-    align-items: start;
-  }
-
-  .compare-controls-panel {
-    position: sticky;
-    top: 16px;
-  }
-
-  .compare-controls-panel .selectors {
-    margin-bottom: 14px;
-  }
-
-  .compare-results-panel .stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .compare-results-panel .chart-container {
-    height: 320px;
-  }
 }
 
 @media (min-width: 900px) {
@@ -2996,21 +2810,6 @@ input:checked + .slider:before {
     font-size: 15px;
   }
 
-  .compare-layout {
-    grid-template-columns: minmax(340px, 420px) minmax(0, 1fr);
-    gap: 24px;
-  }
-
-  .compare-controls-panel {
-    border-radius: 14px;
-    padding: 16px;
-  }
-
-  .compare-results-panel .chart-container {
-    height: 360px;
-    padding: 16px;
-  }
-
   .stats-grid {
     gap: 14px;
   }
@@ -3038,19 +2837,6 @@ input:checked + .slider:before {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 14px;
   }
-
-  .compare-layout {
-    grid-template-columns: minmax(360px, 460px) minmax(0, 1fr);
-    gap: 28px;
-  }
-
-  .compare-results-panel .chart-container {
-    height: 420px;
-  }
-
-  .compare-results-panel .stats-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (min-width: 900px) {
@@ -3077,7 +2863,6 @@ input:checked + .slider:before {
 .team-card,
 .schedule-card,
 .setting-card,
-.compare-controls-panel,
 .stat-card,
 .chart-container,
 .index-panel,
@@ -3090,7 +2875,6 @@ input:checked + .slider:before {
 .driver-card:hover,
 .team-card:hover,
 .setting-card:hover,
-.compare-controls-panel:hover,
 .index-panel:hover,
 .index-standings-card:hover {
     background: var(--surface-container-highest);
@@ -3335,116 +3119,6 @@ input:checked + .slider:before {
     font-size: 12px;
     border-color: rgba(94, 63, 58, 0.24);
     background: rgba(41, 42, 43, 0.68);
-  }
-
-  .app-page-main.route-drivers .desktop-standings-layout,
-  .app-page-main.route-constructors .desktop-standings-layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 280px;
-    gap: 16px;
-  }
-
-  .app-page-main.route-drivers .standings-cards-grid,
-  .app-page-main.route-constructors .standings-cards-grid {
-    display: none;
-  }
-
-  .app-page-main.route-drivers .desktop-standings-board,
-  .app-page-main.route-constructors .desktop-standings-board {
-    background: var(--surface-container-low);
-    border-radius: 14px;
-    border: 1px solid rgba(94, 63, 58, 0.25);
-    padding: 16px;
-  }
-
-  .app-page-main.route-drivers .desktop-standings-heading,
-  .app-page-main.route-constructors .desktop-standings-heading {
-    font-family: "Space Grotesk", "Inter", sans-serif;
-    font-size: clamp(34px, 3vw, 54px);
-    line-height: 0.92;
-    font-style: italic;
-    text-transform: uppercase;
-    letter-spacing: -0.03em;
-    margin-bottom: 14px;
-  }
-
-  .app-page-main.route-drivers .desktop-standings-row,
-  .app-page-main.route-constructors .desktop-standings-row {
-    border-radius: 12px;
-    grid-template-columns: 44px minmax(0, 1fr) 48px 72px;
-    padding: 12px 14px;
-    border: 1px solid rgba(94, 63, 58, 0.22);
-    background: rgba(31, 32, 33, 0.85);
-  }
-
-  .app-page-main.route-drivers .desktop-standings-row:hover,
-  .app-page-main.route-constructors .desktop-standings-row:hover {
-    background: var(--surface-container-highest);
-  }
-
-  .app-page-main.route-drivers .desktop-standings-pos,
-  .app-page-main.route-constructors .desktop-standings-pos {
-    font-size: 30px;
-    font-family: "Space Grotesk", "Inter", sans-serif;
-    font-style: italic;
-    font-weight: 800;
-  }
-
-  .app-page-main.route-drivers .desktop-standings-name,
-  .app-page-main.route-constructors .desktop-standings-name {
-    font-size: 24px;
-    font-family: "Space Grotesk", "Inter", sans-serif;
-    letter-spacing: -0.02em;
-  }
-
-  .app-page-main.route-drivers .desktop-standings-points,
-  .app-page-main.route-constructors .desktop-standings-points {
-    font-size: 28px;
-    border-radius: 10px;
-    background: var(--surface-container-highest);
-  }
-
-  .app-page-main.route-drivers .desktop-side-card,
-  .app-page-main.route-constructors .desktop-side-card {
-    border-radius: 12px;
-    border: 1px solid rgba(94, 63, 58, 0.22);
-    background: rgba(31, 32, 33, 0.82);
-  }
-
-  .app-page-main.route-compare .compare-controls-panel {
-    border: 1px solid rgba(94, 63, 58, 0.24);
-    border-radius: 14px;
-    background: var(--surface-container-low);
-    padding: 16px;
-  }
-
-  .app-page-main.route-compare .driver-select .custom-select-trigger {
-    height: 58px;
-    border-radius: 10px;
-    font-family: "Space Grotesk", "Inter", sans-serif;
-    font-size: 17px;
-    font-weight: 700;
-  }
-
-  .app-page-main.route-compare .btn-compare {
-    border-radius: 10px;
-    font-family: "Space Grotesk", "Inter", sans-serif;
-    font-size: 12px;
-    letter-spacing: 0.09em;
-    text-transform: uppercase;
-    background: linear-gradient(45deg, #e10600, #c00500);
-  }
-
-  .app-page-main.route-compare .stat-card {
-    border: 1px solid rgba(94, 63, 58, 0.24);
-    border-radius: 12px;
-    overflow: hidden;
-  }
-
-  .app-page-main.route-compare .stat-title {
-    margin: -12px -12px 10px;
-    padding: 8px 12px;
-    background: rgba(52, 53, 54, 0.6);
   }
 
   .app-page-main.route-driver-details .driver-card-header,

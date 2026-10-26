@@ -20,6 +20,9 @@ const member = ['member', 'linked'].includes(query.get('auth') || '');
 const linked = query.get('auth') === 'linked';
 const demoVotes: Record<number, number> = {};
 let previewRead = false;
+let constructorFailures = scenario === 'constructors-error' ? 1 : 0;
+let driverFailures = scenario === 'drivers-error' ? 1 : 0;
+let compareFailures = scenario === 'compare-error' ? 1 : 0;
 let calendarFailures = scenario === 'calendar-error' ? 1 : 0;
 let resultFailures = scenario === 'results-error' ? 1 : 0;
 let podiumFailures = scenario === 'podium-error' ? 1 : 0;
@@ -69,7 +72,7 @@ const drivers = previewField.map(([code,number,driverId,name,constructorName], i
   imageUrl: portraitAssets[`../../app/assets/2026/pilots/${code}.webp`],
   points: [287,272,255,214,196][index] ?? Math.max(0,160 - index * 7),
 }));
-const constructors = [{ position: 1, name: 'McLaren', points: 559 }, { position: 2, name: 'Mercedes', points: 382 }, { position: 3, name: 'Ferrari', points: 361 }, { position: 4, name: 'Red Bull Racing', points: 329 }, { position: 5, name: 'Williams', points: 94 }];
+const constructors = [{ position: 1, name: 'McLaren', points: 559 }, { position: 2, name: 'Mercedes', points: 382 }, { position: 3, name: 'Ferrari', points: 361 }, { position: 4, name: 'Red Bull Racing', points: 329 }, { position: 5, name: 'Williams', points: 94 }, { position: 6, name: 'Aston Martin', points: 72 }, { position: 7, name: 'Alpine', points: 50 }, { position: 8, name: 'Haas', points: 38 }, { position: 9, name: 'Racing Bulls', points: 26 }, { position: 10, name: 'Audi', points: 12 }, { position: 11, name: 'Cadillac', points: 0 }];
 const previewStats = { grand_prix_races: 0, grand_prix_points: 0, grand_prix_wins: 0, grand_prix_podiums: 0, grand_prix_poles: 0, grand_prix_top10s: 0, fastest_laps: 0, dnfs: 0, sprint_races: 0, sprint_points: 0, sprint_wins: 0, sprint_podiums: 0, sprint_poles: 0, sprint_top10s: 0 };
 const previewCareer = { available: false, grand_prix_entered: 0, career_points: 0, highest_race_finish: { position: '—', count: 0 }, podiums: 0, highest_grid: { position: '—', count: 0 }, pole_positions: 0, world_championships: 0, dnfs: 0 };
 const predictionsFixture = predictionPreview(query, drivers);
@@ -111,6 +114,22 @@ window.fetch = async (input, init) => {
   }
   if (scenario === 'personal-error' && ['/api/predictions/current', '/api/web-notifications/unread-count', '/api/predictions/personal-season'].includes(url.pathname)) return json({ detail: 'Демонстрация ошибки личного раздела' }, 503);
   switch (url.pathname) {
+    case '/api/compare/multi':
+    case '/api/compare/teams/multi': {
+      if (compareFailures-- > 0) return json({ detail: 'Сравнение временно недоступно. Попробуйте снова.' }, 503);
+      if (scenario === 'compare-loading') return new Promise<Response>(() => {});
+      if (scenario === 'compare-empty') return json({ labels: [], series: [] });
+      const teamMode = url.pathname.includes('/teams/');
+      const selected = (url.searchParams.get(teamMode ? 'teams' : 'drivers') || '').split(',').filter(Boolean);
+      const labels = ['Австралия', 'Китай', 'Япония', 'Бахрейн', 'Саудовская Аравия', 'Майами', 'Эмилия-Романья', 'Монако', 'Испания', 'Канада', 'Австрия', 'Великобритания'];
+      // Deterministic fictional values for layout and interaction checks only.
+      const series = selected.map(code => {
+        const index = teamMode ? constructors.findIndex(row => row.name === code) : drivers.findIndex(row => row.code === code);
+        const history = labels.map((_, round) => Math.max(0, 25 - ((index * 5 + round * 7) % 26)));
+        return { code, history, race_wins: Math.max(0, 7 - index), quali_wins: Math.max(0, 8 - index), quali_samples: labels.length, total_points: history.reduce((sum, value) => sum + value, 0) + 20 - index, average_points: history.reduce((sum, value) => sum + value, 0) / labels.length };
+      });
+      return json({ labels, series });
+    }
     case '/api/race-recap': return json({ status: 'waiting', items: [], note: 'Демонстрационный обзор: ожидаем подтверждённые данные.' });
     case '/api/auth/me': return member ? json({ id: 1, email: null, telegram_id: linked ? 1 : null, role: 'user', email_verified: true, display_name: 'Болельщик' }) : json({}, 401);
     case '/api/favorites': return scenario === 'favorites-error' ? json({}, 503) : json(scenario === 'favorites-empty' ? { drivers: [], teams: [] } : scenario === 'favorites-missing' ? { drivers: ['OLD'], teams: ['Old Team'] } : { drivers: ['PIA', 'NOR'], teams: ['McLaren'] });
@@ -130,8 +149,17 @@ window.fetch = async (input, init) => {
       return json({ status: profile ? profile.stale ? 'stale' : 'ok' : 'unavailable', season, round, profile });
     }
     case '/api/weekend-schedule': return json({ sessions: scenario === 'empty' ? [] : sessions });
-    case '/api/drivers': return json({ drivers: scenario === 'empty' ? [] : drivers });
-    case '/api/constructors': return json({ constructors: scenario === 'empty' ? [] : constructors });
+    case '/api/drivers': {
+      if (driverFailures-- > 0) return json({ detail: 'Зачёт временно недоступен. Попробуйте снова.' }, 503);
+      if (scenario === 'drivers-loading') return new Promise<Response>((_, reject) => { init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))); });
+      const season = Number(url.searchParams.get('season') || 2026);
+      return json({ drivers: ['empty', 'drivers-empty'].includes(scenario || '') ? [] : drivers.map(driver => ({ ...driver, is_favorite: member && driver.code === 'NOR', imageUrl: season === 2026 ? driver.imageUrl : undefined })) });
+    }
+    case '/api/constructors': {
+      if (constructorFailures-- > 0) return json({ detail: 'Зачёт команд временно недоступен. Попробуйте снова.' }, 503);
+      if (scenario === 'constructors-loading') return new Promise<Response>((_, reject) => { init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))); });
+      return json({ constructors: ['empty', 'constructors-empty'].includes(scenario || '') ? [] : constructors.map(team => ({ ...team, is_favorite: member && team.name === 'McLaren' })) });
+    }
     case '/api/driver-details': {
       const row = drivers.find(driver => driver.code === url.searchParams.get('code') || driver.driverId === url.searchParams.get('driverId'));
       if (!row) return json({ detail: 'Нет пилота в демо' }, 404);
@@ -142,7 +170,7 @@ window.fetch = async (input, init) => {
       const normalize = (value: string) => value.toLowerCase().replace(/[^a-z]/g, '');
       const row = constructors.find(team => normalize(team.name) === normalize(url.searchParams.get('constructorId') || ''));
       if (!row) return json({ detail: 'Нет команды в демо' }, 404);
-      return json({ constructorId: normalize(row.name), name: row.name, nationality: '', url: '', bio: 'Демонстрационная карточка для проверки переходов.', drivers: [], principal: null, season: 2026, season_stats: { ...previewStats, position: row.position, points: row.points }, career_stats: previewCareer });
+      return json({ constructorId: normalize(row.name), name: row.name, nationality: '', url: '', bio: 'Демонстрационная карточка для проверки переходов.', drivers: [], principal: null, season: Number(url.searchParams.get('season') || 2026), season_stats: { ...previewStats, position: row.position, points: row.points }, career_stats: previewCareer });
     }
     case '/api/predictions/preview':
     case '/api/predictions/current': return json({ status: 'ok', is_open: true, season: 2026, round: 19, event_name: 'United States Grand Prix', deadline_utc: sessions[4].utc_iso, prediction: null });
@@ -174,9 +202,10 @@ const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session', 'tab', 'championship']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
 const calendarQuery = new URLSearchParams();
 for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
-const resultRoutes = ['predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
+const resultRoutes = ['compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
 const resultQuery = new URLSearchParams(weekendQuery);
 if (query.has('mode')) resultQuery.set('mode', query.get('mode')!);
+if (query.has('year')) resultQuery.set('year', query.get('year')!);
 const initialPath = resultRoutes.includes(query.get('page') || '') ? `/${query.get('page')}?${resultQuery}` : query.get('page') === 'menu' ? '/menu' : query.get('page') === 'calendar' ? `/season${calendarQuery.size ? `?${calendarQuery}` : ''}` : query.get('page') === 'weekend' ? `/next-race${weekendQuery.size ? `?${weekendQuery}` : ''}` : `/${initialQuery.size ? `?${initialQuery}` : ''}`;
 createRoot(document.getElementById('root')!).render(<HeroDataProvider><div className="root"><RouterProvider router={createMemoryRouter(router.routes, { initialEntries: [initialPath] })} /></div><ScrollToTop /></HeroDataProvider>);
 const note = document.createElement('aside');
