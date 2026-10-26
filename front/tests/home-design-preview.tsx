@@ -2,6 +2,7 @@
 // No requests are sent to a backend, and no accounts or records are modified.
 import circuitProfiles from './fixtures/circuit-profiles.json';
 import { predictionPreview } from './fixtures/predictions';
+import { historyPreview } from './fixtures/history';
 import { calendarPreviewRaces, calendarPreviewStage } from './fixtures/calendar';
 const calendarCircuits = import.meta.glob<string>('../public/static/circuit/*.svg', { query: '?raw', import: 'default' });
 import { createRoot } from 'react-dom/client';
@@ -72,10 +73,12 @@ const drivers = previewField.map(([code,number,driverId,name,constructorName], i
   imageUrl: portraitAssets[`../../app/assets/2026/pilots/${code}.webp`],
   points: [287,272,255,214,196][index] ?? Math.max(0,160 - index * 7),
 }));
-const constructors = [{ position: 1, name: 'McLaren', points: 559 }, { position: 2, name: 'Mercedes', points: 382 }, { position: 3, name: 'Ferrari', points: 361 }, { position: 4, name: 'Red Bull Racing', points: 329 }, { position: 5, name: 'Williams', points: 94 }, { position: 6, name: 'Aston Martin', points: 72 }, { position: 7, name: 'Alpine', points: 50 }, { position: 8, name: 'Haas', points: 38 }, { position: 9, name: 'Racing Bulls', points: 26 }, { position: 10, name: 'Audi', points: 12 }, { position: 11, name: 'Cadillac', points: 0 }];
+const constructorIds = ['mclaren', 'mercedes', 'ferrari', 'red_bull', 'williams', 'aston_martin', 'alpine', 'haas', 'rb', 'audi', 'cadillac'];
+const constructors = [{ position: 1, name: 'McLaren', points: 559 }, { position: 2, name: 'Mercedes', points: 382 }, { position: 3, name: 'Ferrari', points: 361 }, { position: 4, name: 'Red Bull Racing', points: 329 }, { position: 5, name: 'Williams', points: 94 }, { position: 6, name: 'Aston Martin', points: 72 }, { position: 7, name: 'Alpine', points: 50 }, { position: 8, name: 'Haas', points: 38 }, { position: 9, name: 'Racing Bulls', points: 26 }, { position: 10, name: 'Audi', points: 12 }, { position: 11, name: 'Cadillac', points: 0 }].map((team, index) => ({ ...team, constructorId: constructorIds[index] }));
 const previewStats = { grand_prix_races: 0, grand_prix_points: 0, grand_prix_wins: 0, grand_prix_podiums: 0, grand_prix_poles: 0, grand_prix_top10s: 0, fastest_laps: 0, dnfs: 0, sprint_races: 0, sprint_points: 0, sprint_wins: 0, sprint_podiums: 0, sprint_poles: 0, sprint_top10s: 0 };
 const previewCareer = { available: false, grand_prix_entered: 0, career_points: 0, highest_race_finish: { position: '—', count: 0 }, podiums: 0, highest_grid: { position: '—', count: 0 }, pole_positions: 0, world_championships: 0, dnfs: 0 };
 const predictionsFixture = predictionPreview(query, drivers);
+const historyFixture = historyPreview(query, drivers, constructors);
 window.fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input), location.origin);
   if (url.pathname.startsWith('/static/circuit/')) {
@@ -85,6 +88,10 @@ window.fetch = async (input, init) => {
   if (!url.pathname.startsWith('/api/')) return realFetch(input, init);
   if (query.get('page') === 'predictions') {
     const response = await predictionsFixture(url, init);
+    if (response) return response;
+  }
+  if (query.get('page') === 'history') {
+    const response = historyFixture(url);
     if (response) return response;
   }
   const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
@@ -202,8 +209,9 @@ const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session', 'tab', 'championship']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
 const calendarQuery = new URLSearchParams();
 for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
-const resultRoutes = ['compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
+const resultRoutes = ['history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
 const resultQuery = new URLSearchParams(weekendQuery);
+for (const key of ['kind', 'ids', 'from', 'to', 'roster']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
 if (query.has('mode')) resultQuery.set('mode', query.get('mode')!);
 if (query.has('year')) resultQuery.set('year', query.get('year')!);
 const initialPath = resultRoutes.includes(query.get('page') || '') ? `/${query.get('page')}?${resultQuery}` : query.get('page') === 'menu' ? '/menu' : query.get('page') === 'calendar' ? `/season${calendarQuery.size ? `?${calendarQuery}` : ''}` : query.get('page') === 'weekend' ? `/next-race${weekendQuery.size ? `?${weekendQuery}` : ''}` : `/${initialQuery.size ? `?${initialQuery}` : ''}`;
