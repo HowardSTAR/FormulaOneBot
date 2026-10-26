@@ -33,7 +33,7 @@ async function noOverflow(page, review) {
 }
 
 (async () => {
-  const browser = await chromium.launch({channel: 'msedge', headless: true});
+  const browser = await chromium.launch({channel: process.env.BROWSER_CHANNEL || 'msedge', headless: true});
   try {
     for (const width of [320, 390, 768, 1440]) {
       const context = await browser.newContext({viewport: {width, height: 960}, reducedMotion: 'reduce'});
