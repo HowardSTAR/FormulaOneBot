@@ -5,7 +5,9 @@ import { trackScreen, trackAction } from '../../helpers/analytics';
 import { ShareComposer } from '../../components/ShareButton';
 import { pendingInvitation, rememberInvitation, sharingEvent, validShareToken, type ShareOptions } from '../../helpers/sharing';
 import { useAuthState } from '../../helpers/auth';
-import { useLocation } from 'react-router-dom';
+import { ThemeToggle } from "../../components/ThemeToggle";
+import { homeSectionPath } from '../../helpers/homeSections';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { suspendTelegramVerticalSwipes } from '../../helpers/telegram';
 
 function isPhoneDevice() {
@@ -21,6 +23,7 @@ function RaceGamePage() {
   useEffect(() => suspendTelegramVerticalSwipes(), []);
   useEffect(() => { document.title = 'Emerald Loop · F1Hub — проект TurboTears'; }, []);
   const location = useLocation();
+  const navigate = useNavigate();
   const auth = useAuthState();
   const frame = useRef<HTMLIFrameElement>(null);
   const [share, setShare] = useState<ShareOptions | null>(null);
@@ -38,6 +41,11 @@ function RaceGamePage() {
   }, [challenge, auth.signedIn]);
   useEffect(() => {
     const receive = (event: MessageEvent) => {
+      if (event.origin === window.location.origin && event.source === frame.current?.contentWindow && event.data?.type === 'f1hub-exit-race') {
+        if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+        navigate(homeSectionPath('games'));
+        return;
+      }
       if (event.origin === window.location.origin && event.source === frame.current?.contentWindow && event.data?.type === 'f1hub-trophy-check') {
         window.dispatchEvent(new Event('turbotears:trophy-check'));
         return;
@@ -51,7 +59,7 @@ function RaceGamePage() {
     };
     window.addEventListener('message', receive);
     return () => window.removeEventListener('message', receive);
-  }, []);
+  }, [navigate]);
   useEffect(() => {
     const timer = window.setTimeout(() => trackScreen('/race-game'),500);
     return () => window.clearTimeout(timer);
@@ -95,22 +103,21 @@ function RaceGamePage() {
       {!gameStarted ? (
         <section
           className="race-game-orientation-prompt"
-          role="dialog"
-          aria-modal="true"
           aria-labelledby="race-game-orientation-title"
         >
           <div className="race-game-orientation-card">
             <div className="race-game-orientation-icon" aria-hidden="true">
               <span className="race-game-orientation-phone" />
-              <span className="race-game-orientation-arrow">↻</span>
+              <svg className="race-game-orientation-arrow" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M20 10a8 8 0 1 0-2 8M20 4v6h-6" /></svg>
             </div>
-            <p className="race-game-orientation-kicker">EMERALD LOOP</p>
-            <h1 id="race-game-orientation-title">Поверните устройство</h1>
+            <div className="race-game-orientation-tools"><Link to="/">На главную</Link><ThemeToggle /></div>
+            <h1 id="race-game-orientation-title">Emerald Loop</h1>
+            <h2>Поверните устройство</h2>
             <p>
               Для лучшего игрового опыта поверните устройство горизонтально
             </p>
-            <button type="button" data-analytics-action="game_start" onClick={() => setGameStarted(true)} autoFocus>
-              Играть сейчас →
+            <button type="button" data-analytics-action="game_start" onClick={() => setGameStarted(true)}>
+              Играть сейчас
             </button>
           </div>
         </section>

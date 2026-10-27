@@ -2,7 +2,7 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#07100d" />
     <meta name="description" content="Emerald Loop — пиксельная браузерная гонка на вымышленном болиде с открытыми колёсами." />
     <title>Emerald Loop — браузерная гонка</title>
@@ -22,6 +22,7 @@
           <div><small>СКОРОСТЬ</small><strong><span id="speed-value">0</span> <em>км/ч</em></strong></div>
         </div>
         <div class="hud-actions">
+          <a href="/?view=games" target="_top" id="exit-game-button" class="icon-button" aria-label="Выйти из игры" title="Выйти из игры"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 4H4v16h6m4-13 5 5-5 5M9 12h10"/></svg></a>
           <button id="ghost-hud-toggle" class="ghost-hud-toggle" type="button" aria-pressed="true" title="Показать повтор лучшего заезда">Призрак вкл.</button>
           <button id="menu-button" class="icon-button" type="button" aria-label="Открыть меню" title="Меню">☰</button>
           <button id="reset-button" class="icon-button" type="button" aria-label="Вернуть болид на трассу" title="Вернуть на трассу (R)">↺</button>
@@ -31,10 +32,10 @@
 
       <div class="countdown" id="countdown" aria-live="polite"></div>
 
-      <section class="modal is-visible" id="race-modal" aria-live="polite">
+      <section class="modal is-visible" id="race-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="modal-card">
           <div class="race-intro">
-            <p class="eyebrow">ЗАЕЗД НА ТРАССЕ</p>
+            <div class="race-intro-tools"><a href="/" target="_top">На главную</a><button id="game-theme-toggle" data-game-theme type="button" aria-label="Переключить тему"></button></div>
             <h1 id="modal-title">Emerald Loop</h1>
             <p id="modal-copy">Проедьте три круга как можно быстрее.</p>
             <div class="track-summary">
@@ -45,7 +46,7 @@
               </div>
             </div>
           </div>
-          <p class="touch-guide">Руль — джойстик слева.<br>Газ и тормоз — справа.<br>↺ — возврат без рекорда, Ⅱ — пауза.</p>
+          <p class="touch-guide">Направление — джойстик слева.<br>Газ и тормоз — справа.<br>↺ — возврат без рекорда, Ⅱ — пауза.</p>
           <div class="control-guide keyboard-guide">
             <div><span>↑</span><b>Газ</b><small>W / ↑ / пробел</small></div>
             <div><span>← →</span><b>Поворот</b><small>A D / стрелки</small></div>
@@ -56,7 +57,7 @@
             <span>Результат<strong id="result-time">—</strong></span>
             <span>Лучшее<strong id="best-time">—</strong></span>
           </div>
-          <button id="start-button" class="primary-button" type="button">НАЧАТЬ ЗАЕЗД</button>
+          <button id="start-button" class="primary-button" type="button">Начать заезд</button>
           <small class="race-share-note">Нажимая «Начать заезд», вы соглашаетесь на создание публичной карточки с игровым именем и лучшим заездом, когда делитесь результатом. Ссылка действует 30 дней.</small>
           <section id="challenge-panel" class="challenge-panel" hidden aria-label="Вызов друга"><strong id="challenge-title"></strong><p id="challenge-copy"></p><ol id="challenge-ranking"></ol></section>
           <button id="share-race-button" class="restart-button" type="button" hidden>Поделиться заездом</button>
@@ -76,6 +77,7 @@
               <p class="eyebrow" id="menu-track-name">EMERALD LOOP</p>
               <h2 id="game-menu-title">Меню заезда</h2>
             </div>
+            <button class="game-menu-theme" data-game-theme type="button" aria-label="Переключить тему"></button>
             <button id="menu-close-button" class="menu-close-button" type="button" aria-label="Закрыть меню">×</button>
           </div>
 
@@ -116,7 +118,7 @@
 
       <section class="touch-controls" aria-label="Сенсорное управление">
         <div class="steering-controls">
-          <div id="touch-joystick" class="touch-joystick" aria-label="Джойстик руля: тяните влево или вправо"><span id="joystick-knob"></span></div>
+          <div id="touch-joystick" class="touch-joystick" aria-label="Направление движения: ведите джойстик в нужную сторону"><span id="joystick-knob"></span></div>
         </div>
         <div class="pedal-controls">
           <button id="touch-throttle" class="touch-button throttle" type="button" aria-label="Газ">ГАЗ</button>

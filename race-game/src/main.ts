@@ -1,12 +1,19 @@
 import Phaser from 'phaser'
+import '../../front/src/assets/design-system.css'
 import './style.css'
+import { installMenuAccessibility } from './menuAccessibility'
+import { initializeGameTheme } from './gameTheme'
 import { createTelemetrySample, interpolateGhost, type GhostSample } from './ghostTelemetry'
 import { finishCrossing, type TrackPoint } from './finishLine'
 import { simulationSteps } from './raceClock'
 import { advanceWithCollisions, type Collider } from './collisions'
 import { tracks, trackColliders, type Track } from './tracks'
 import { drawTrack } from './trackRenderer'
+import { joystickDirection, aimJoystickHeading, type JoystickDirection } from './joystickDirection'
 import { trackPicker } from './trackPicker'
+installMenuAccessibility()
+initializeGameTheme()
+
 const WORLD_WIDTH = 1536
 const WORLD_HEIGHT = 1024
 
@@ -35,7 +42,7 @@ function activateTrack(track: Track): void {
 activateTrack(selectedTrack)
 const TELEMETRY_SAMPLE_INTERVAL_MS = 100
 const MAX_TELEMETRY_SAMPLES = 6000
-let joystickSteer = 0
+let joystickTarget: JoystickDirection | null = null
 
 type RaceState = 'ready' | 'countdown' | 'racing' | 'paused' | 'finished'
 
@@ -737,7 +744,7 @@ class RaceScene extends Phaser.Scene {
     ui.speed.textContent = '0'
     ui.modalTitle.textContent = selectedTrack.name
     ui.modalCopy.textContent = entryNotice || 'Проедьте три круга как можно быстрее.'
-    ui.start.textContent = 'НАЧАТЬ ЗАЕЗД'
+    ui.start.textContent = 'Начать заезд'
     ui.restart.hidden = true
     ui.resultRow.hidden = true
     ui.shareRace.hidden = true
@@ -754,7 +761,7 @@ class RaceScene extends Phaser.Scene {
     const brakePressed = this.keys.down.isDown || this.keys.s.isDown || touchState.brake
     const leftPressed = this.keys.left.isDown || this.keys.a.isDown || touchState.left
     const rightPressed = this.keys.right.isDown || this.keys.d.isDown || touchState.right
-    const steer = Phaser.Math.Clamp(Number(rightPressed) - Number(leftPressed) + joystickSteer, -1, 1)
+    const steer = Phaser.Math.Clamp(Number(rightPressed) - Number(leftPressed), -1, 1)
 
     const nearest = nearestTrackPoint(this.car.x, this.car.y)
     this.setSurfaceState(nearest.distance <= selectedTrack.roadHalfWidth)
@@ -778,7 +785,8 @@ class RaceScene extends Phaser.Scene {
     forwardSpeed = this.velocity.dot(forward)
     const steeringStrength = Phaser.Math.Clamp(Math.abs(forwardSpeed) / 155, 0.16, 1)
     const direction = forwardSpeed < -2 ? -1 : 1
-    this.heading += steer * 2.15 * steeringStrength * direction * delta
+    if (joystickTarget) this.heading = aimJoystickHeading(this.heading, joystickTarget, delta)
+    else this.heading += steer * 2.15 * steeringStrength * direction * delta
 
     forward = new Phaser.Math.Vector2(Math.cos(this.heading), Math.sin(this.heading))
     const side = new Phaser.Math.Vector2(-forward.y, forward.x)
@@ -976,7 +984,7 @@ const joystickKnob = $('#joystick-knob')
 let steeringPointer: number | null = null
 function resetJoystick(): void {
   steeringPointer = null
-  joystickSteer = 0
+  joystickTarget = null
   joystickKnob.style.transform = 'translate(0px, 0px)'
 }
 const moveJoystick = (event: PointerEvent): void => {
@@ -988,7 +996,7 @@ const moveJoystick = (event: PointerEvent): void => {
   const dy = event.clientY - rect.top - rect.height / 2
   const scale = Math.min(1, radius / Math.max(1, Math.hypot(dx, dy)))
   const x = dx * scale
-  joystickSteer = Math.abs(x / radius) < 0.08 ? 0 : x / radius
+  joystickTarget = joystickDirection(dx, dy, radius)
   joystickKnob.style.transform = `translate(${x}px, ${dy * scale}px)`
 }
 joystick.addEventListener('pointerdown', (event) => {
@@ -1006,6 +1014,13 @@ for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) {
 window.addEventListener('blur', resetJoystick)
 bindHoldButton('#touch-throttle', 'throttle')
 bindHoldButton('#touch-brake', 'brake')
+
+document.querySelector<HTMLAnchorElement>('#exit-game-button')!.addEventListener('click', event => {
+  if (window.parent === window) return
+  event.preventDefault()
+  resetJoystick()
+  window.parent.postMessage({ type: 'f1hub-exit-race' }, window.location.origin)
+})
 
 ui.start.addEventListener('click', () => {
   const root = window.parent.document.documentElement
