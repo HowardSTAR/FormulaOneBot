@@ -4,6 +4,7 @@ import circuitProfiles from './fixtures/circuit-profiles.json';
 import { predictionPreview } from './fixtures/predictions';
 import { historyPreview } from './fixtures/history';
 import { profilePreview } from './fixtures/profile';
+import { accountPreview } from './fixtures/account';
 import { calendarPreviewRaces, calendarPreviewStage } from './fixtures/calendar';
 const calendarCircuits = import.meta.glob<string>('../public/static/circuit/*.svg', { query: '?raw', import: 'default' });
 import { createRoot } from 'react-dom/client';
@@ -81,6 +82,7 @@ const previewCareer = { available: false, grand_prix_entered: 0, career_points: 
 const predictionsFixture = predictionPreview(query, drivers);
 const historyFixture = historyPreview(query, drivers, constructors);
 const accountProfileFixture = profilePreview(query);
+const accountFixture = accountPreview(query);
 // Native image loads bypass the fetch fixture. Keep their substitute local too.
 if (query.get('page') === 'profile') {
   const avatarImage = new URL('./fixtures/profile-avatar.png', import.meta.url).href;
@@ -100,6 +102,10 @@ window.fetch = async (input, init) => {
     return asset ? new Response(await asset(), { headers: { 'Content-Type': 'image/svg+xml' } }) : new Response('', { status: 404 });
   }
   if (!url.pathname.startsWith('/api/')) return realFetch(input, init);
+  if (query.get('page') === 'account') {
+    const response = await accountFixture(url, init);
+    if (response) return response;
+  }
   if (query.get('page') === 'profile') {
     const response = await accountProfileFixture(url, init);
     if (response) return response;
@@ -227,7 +233,7 @@ const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session', 'tab', 'championship']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
 const calendarQuery = new URLSearchParams();
 for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
-const resultRoutes = ['profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
+const resultRoutes = ['account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
 const resultQuery = new URLSearchParams(weekendQuery);
 for (const key of ['kind', 'ids', 'from', 'to', 'roster']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
 if (query.has('mode')) resultQuery.set('mode', query.get('mode')!);
