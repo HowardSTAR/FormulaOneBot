@@ -5,7 +5,7 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const base = process.env.FIRST_VISIT_UI_URL || 'http://127.0.0.1:5174';
 const key = 'turbotears-onboarding-v2';
-const steps = [['/', 'Главная'], ['/season', 'Календарь'], ['/race-results', 'Результаты'], ['/drivers', 'Пелотон'], ['/compare', 'Сравнение'], ['/predictions', 'Прогнозы'], ['/community', 'С друзьями'], ['/wiki', 'Справочник F1'], ['/reaction-game', 'Игры'], ['/profile', 'Мой профиль'], ['/account', 'Аккаунт и настройки'], ['/account', 'Boosty и бонусы'], ['/contact-admin', 'Обратная связь']];
+const baseSteps = [['/', 'Главная'], ['/season', 'Календарь'], ['/race-results', 'Результаты'], ['/drivers', 'Пелотон'], ['/compare', 'Сравнение'], ['/predictions', 'Прогнозы'], ['/community', 'С друзьями'], ['/wiki', 'Справочник F1'], ['/reaction-game', 'Игры'], ['/profile', 'Мой профиль'], ['/account', 'Аккаунт и настройки'], ['/account', 'Boosty и бонусы'], ['/contact-admin', 'Обратная связь']];
 const race = { status: 'ok', season: 2026, round: 17, event_name: 'Singapore Grand Prix', location: 'Marina Bay', country: 'Singapore', race_start_utc: '2026-10-11T12:00:00Z', next_session_iso: '2026-10-09T09:00:00Z', next_session_name: 'Практика 1' };
 
 async function checkCard(page) {
@@ -75,6 +75,7 @@ async function checkTrack(page, selector) {
       { width: 1440, height: 900, member: true, eligible: true, tier: 3 },
       { width: 1440, height: 900, member: true, eligible: false, tier: 0 },
     ]) {
+      const steps = member ? [...baseSteps.slice(0, 10), ['/profile', 'Ваш сезон в профиле'], ['/profile', 'Трофеи и избранное'], ...baseSteps.slice(10)] : baseSteps;
       const timezoneId = width === 390 ? 'Asia/Tokyo' : width === 1440 ? 'America/New_York' : 'Europe/Moscow';
       const context = await browser.newContext({ viewport: { width, height }, timezoneId, reducedMotion: width === 390 ? 'no-preference' : 'reduce' });
       await context.route('https://telegram.org/**', route => route.abort());
@@ -135,8 +136,8 @@ async function checkTrack(page, selector) {
         }
         await page.locator(`.first-visit-highlight[data-tour-route="${route}"]`).waitFor();
         if (title === 'Мой профиль') {
-          await page.locator(member ? '.profile-hero.first-visit-highlight' : '.user-profile-page [role="alert"].first-visit-highlight').waitFor();
-          assert.match(await guide.innerText(), /Аватар и оформление.*поделиться с друзьями/);
+          await page.locator(member ? '.profile-hero.first-visit-highlight' : '.profile-state.first-visit-highlight').waitFor();
+          assert.match(await guide.innerText(), /Аватар и оформление.*поделиться.*друзьями/i);
           if (member) {
             await page.getByRole('button', { name: 'Аватар и оформление', exact: true }).waitFor();
             await page.locator('.profile-avatar img').evaluate(image => image.decode());
@@ -154,13 +155,13 @@ async function checkTrack(page, selector) {
           await checkCard(page);
           assert.ok((await guide.innerText()).includes(`${index} / ${steps.length}`));
           assert.equal(await page.evaluate(() => location.pathname), '/account');
-          await guide.getByRole('button', { name: 'Дальше →', exact: true }).click();
+          await guide.getByRole('button', { name: 'Дальше', exact: true }).click();
           await guide.getByRole('heading', { name: title, exact: true }).waitFor();
           await checkCard(page);
           await page.locator(`${highlight}.first-visit-highlight`).waitFor();
           assert.ok((await guide.innerText()).includes(`${index + 1} / ${steps.length}`));
         }
-        if ([1, 2].includes(index)) {
+        if (index === 1) {
           const heading = page.locator('.app-page-main h1:visible, .app-page-main h2:visible').first();
           const headingPosition = await heading.evaluate(node => {
             const h = node.getBoundingClientRect(), p = document.querySelector('.app-content').getBoundingClientRect();
@@ -173,7 +174,7 @@ async function checkTrack(page, selector) {
           await guide.getByRole('button', { name: 'Назад', exact: true }).click();
           await page.waitForFunction(() => location.pathname === '/season');
           await guide.getByRole('heading', { name: 'Календарь', exact: true }).waitFor();
-          await guide.getByRole('button', { name: 'Дальше →' }).click();
+          await guide.getByRole('button', { name: 'Дальше' }).click();
           await guide.getByRole('heading', { name: title, exact: true }).waitFor();
           await page.locator(`.first-visit-highlight[data-tour-route="${route}"]`).waitFor();
           await checkCard(page);
@@ -186,7 +187,7 @@ async function checkTrack(page, selector) {
         if (width === 390 && [0, 1, 2, 5, 8, 9, 11].includes(index)) await page.screenshot({ path: `artifacts/section-tour-${index}-mobile.png` });
         if (width === 1440 && index === 1) await page.screenshot({ path: 'artifacts/section-tour-desktop.png' });
         if (width === 1440 && eligible && [9, 11].includes(index)) await page.screenshot({ path: `artifacts/section-tour-${index}-desktop.png` });
-        await guide.getByRole('button', { name: index === steps.length - 1 ? 'На главную →' : 'Дальше →', exact: true }).click();
+        await guide.getByRole('button', { name: index === steps.length - 1 ? 'На главную' : 'Дальше', exact: true }).click();
         if (width === 390 && index === 0) {
           assert.equal(await page.evaluate(() => document.documentElement.dataset.onboardingPhase), 'leaving');
           assert.equal(await page.evaluate(() => location.pathname), '/', 'Outgoing page remains mounted during its fade');

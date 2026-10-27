@@ -95,7 +95,7 @@ export function SwipeBackLayout() {
   const calendar = routeKey === 'season';
   const results = ['practice-results', 'sprint-quali-results', 'sprint-results', 'quali-results', 'race-results'].includes(routeKey);
   const profile = /^profile(?:-\d+)?$/.test(routeKey);
-  const homeFrame = overview || weekend || calendar || results || profile || routeKey === 'account' || routeKey === 'settings' || routeKey === 'drivers' || routeKey === 'constructors' || routeKey === 'predictions' || routeKey === 'compare' || routeKey === 'history';
+  const homeFrame = routeKey === 'contact-admin' || overview || weekend || calendar || results || profile || routeKey === 'account' || routeKey === 'settings' || routeKey === 'drivers' || routeKey === 'constructors' || routeKey === 'predictions' || routeKey === 'compare' || routeKey === 'history';
   return (
     <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`app-shell design-shell${homeFrame ? ' glass-home' : ''}`}>
       <EngagementEntry />

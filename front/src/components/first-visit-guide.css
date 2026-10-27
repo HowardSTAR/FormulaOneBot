@@ -1,24 +1,37 @@
-.first-visit-guide { position: fixed; z-index: 200; bottom: calc(12px + var(--app-safe-bottom)); left: calc(12px + var(--app-safe-left)); right: calc(12px + var(--app-safe-right)); box-sizing: border-box; padding: 14px 16px; border: 1px solid #a34e49; border-radius: 18px; background: #191d25; color: #f9fafc; box-shadow: 0 4px 20px #0004; max-height: calc(45dvh - var(--app-safe-bottom)); overflow-y: auto; animation: first-visit-arrive 300ms ease both; }
-.first-visit-guide:focus { outline: none; }
-.first-visit-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #ffa298; font-size: 11px; font-weight: 800; letter-spacing: .06em; }
-.first-visit-guide button { min-height: 44px; font: inherit; font-weight: 700; cursor: pointer; }
-.first-visit-guide .first-visit-close { width: 44px; flex-shrink: 0; margin: -8px -6px -8px 0; border: 0; border-radius: 12px; background: transparent; color: #dce1eb; font-size: 25px; }
-.first-visit-progress { display: flex; gap: 4px; margin: 10px 0; }
-.first-visit-progress i { flex: 1; height: 3px; border-radius: 2px; background: #46505f; transition: background-color 240ms ease; }
-.first-visit-progress i.is-done { background: #ff6157; }
-.first-visit-copy { animation: first-visit-copy 300ms ease both; }
+.first-visit-guide { position: fixed; z-index: 200; bottom: calc(12px + var(--app-safe-bottom)); left: calc(12px + var(--app-safe-left)); right: calc(12px + var(--app-safe-right)); box-sizing: border-box; padding: 16px; border-radius: 16px; background: var(--design-surface); color: var(--design-ink); box-shadow: 0 6px 24px rgb(0 0 0 / 18%); max-height: calc(45dvh - var(--app-safe-bottom)); overflow-y: auto; overscroll-behavior: contain; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; animation: first-visit-arrive 240ms ease both; }
+.first-visit-guide:focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
+.first-visit-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--design-muted); font-size: .8125rem; font-weight: 600; }
+.first-visit-top > span:first-child { min-width: 0; }
+.first-visit-count { margin-left: auto; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.first-visit-guide button { min-height: 44px; font: inherit; font-weight: 600; cursor: pointer; }
+.first-visit-guide .first-visit-close { display: grid; place-items: center; width: 44px; flex-shrink: 0; margin: -8px -6px -8px 0; padding: 0; border: 0; border-radius: 12px; background: transparent; color: var(--design-ink); }
+.first-visit-guide .first-visit-close:hover { background: var(--design-tint); }
+.first-visit-progress { display: flex; gap: 4px; margin: 12px 0; }
+.first-visit-progress i { flex: 1; height: 3px; border-radius: 2px; background: var(--design-line); transition: background-color 180ms ease; }
+.first-visit-progress i.is-done { background: var(--design-accent); }
+.first-visit-copy { animation: first-visit-copy 240ms ease both; }
 .first-visit-guide[data-phase="leaving"] .first-visit-copy { animation: first-visit-depart 180ms ease both; }
-.first-visit-guide h2 { margin: 0 0 6px; font-size: 20px; line-height: 1.2; color: #fff; font-weight: 800; font-style: normal; }
-.first-visit-guide p { margin: 0; font-size: 14px; line-height: 1.45; color: #d9e0ed; }
-.first-visit-timezone { display: block; margin-top: 6px; font-size: 12px; line-height: 1.4; color: #bcc8da; }
-.first-visit-actions { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
-.first-visit-guide .first-visit-primary { flex: 1; padding: 10px 14px; border: 1px solid #ff6157; border-radius: 12px; background: #d91a12; color: #fff; }
+.first-visit-guide h2 { margin: 0 0 8px; font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 1.25rem; line-height: 1.25; color: var(--design-ink); font-weight: 650; font-style: normal; text-transform: none; letter-spacing: -.02em; text-wrap: balance; }
+.first-visit-guide p { margin: 0; font-size: .875rem; line-height: 1.5; color: var(--design-muted); text-wrap: pretty; }
+.first-visit-timezone { display: block; margin-top: 8px; font-size: .75rem; line-height: 1.5; color: var(--design-muted); }
+.first-visit-actions { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.first-visit-guide .first-visit-primary { display: flex; align-items: center; justify-content: center; gap: 8px; flex: 1; padding: 10px 14px; border: 0; border-radius: 12px; background: var(--design-event-bg); color: var(--design-event-ink); }
+.first-visit-guide .first-visit-primary:hover { background: color-mix(in srgb, var(--design-event-bg) 85%, #000); }
 .first-visit-guide button:disabled { opacity: .6; cursor: wait; }
-.first-visit-guide .first-visit-secondary { flex: 0 0 56px; min-width: 56px; padding: 10px; border: 1px solid #46505f; border-radius: 12px; background: #232833; color: #d9e0ed; font-size: 18px; }
-.first-visit-note { display: block; margin-top: 8px; font-size: 11px; line-height: 1.35; color: #b1bdcf; }
-.first-visit-guide button:focus-visible { outline: 2px solid #ffaaa2; outline-offset: 2px; }
-/* Highlight the actual control without covering or darkening the page. */
-.first-visit-highlight { outline: 2px solid #ff675d !important; outline-offset: 5px; border-radius: 12px; transition: outline-color 280ms ease; }
+.first-visit-guide .first-visit-secondary { display: grid; place-items: center; flex: 0 0 56px; min-width: 56px; padding: 10px; border: 1px solid var(--design-control); border-radius: 12px; background: var(--design-surface); color: var(--design-ink); }
+.first-visit-guide .first-visit-secondary:hover { background: var(--design-tint); }
+.first-visit-back-icon { display: flex; transform: rotate(180deg); }
+.first-visit-note { display: block; margin-top: 10px; font-size: .75rem; line-height: 1.5; color: var(--design-muted); }
+.first-visit-guide button:focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
+/* A separate frame stays visible even when a table's ancestors clip outlines.
+   It follows the visible part of the target and never intercepts input. */
+.first-visit-highlight { outline: 2px solid var(--design-accent) !important; outline-offset: 3px; border-radius: 12px; }
+html[data-onboarding-active="true"] .first-visit-highlight:not(:focus-visible) { outline: none !important; }
+html[data-onboarding-active] .first-visit-highlight:focus-visible { outline: 3px solid var(--design-focus) !important; }
+.first-visit-target-frame { position: fixed; z-index: 190; box-sizing: border-box; border: 3px solid var(--design-accent); border-radius: 12px; pointer-events: none; }
+.first-visit-target-frame[hidden], html[data-onboarding-phase="leaving"] .first-visit-target-frame, html[data-onboarding-phase="loading"] .first-visit-target-frame { display: none; }
+.first-visit-position { display: grid; place-items: center; min-height: 32px; text-align: center; border: 2px solid var(--design-accent) !important; border-radius: 8px; background: var(--design-tint) !important; color: var(--design-accent) !important; }
+.first-visit-guide ::selection { color: var(--design-bg); background: var(--design-accent); }
 .first-visit-desktop-copy { display: none; }
 @media (min-width: 768px) {
   .first-visit-mobile-copy { display: none; }
@@ -37,22 +50,23 @@ html[data-onboarding-phase="ready"] .app-page-main { opacity: 1; transform: tran
 html[data-onboarding-active] .app-content { min-height: 0 !important; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; box-sizing: border-box; }
 @media (max-width: 1199px) {
   .first-visit-note { display: none; }
+  html[data-onboarding-active="true"] .session-result-metrics { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12ch), 1fr)); }
   html[data-onboarding-active] .app-header { display: none !important; }
   html[data-onboarding-active] #root .root { max-width: none !important; margin: 0 !important; padding-top: calc(12px + var(--app-safe-top)) !important; padding-bottom: 0 !important; }
   /* Use the guide's fixed viewport coordinates too: mobile browser chrome can
      make 100dvh differ from the viewport used to anchor a fixed bottom panel. */
-  html[data-onboarding-active] #root .app-content { position: fixed; top: calc(12px + var(--app-safe-top)); bottom: calc(var(--onboarding-panel-height, 210px) + var(--app-safe-bottom) + 24px); left: calc(12px + var(--app-safe-left)); right: calc(12px + var(--app-safe-right)); margin: 0 !important; padding: 12px !important; height: auto; border: 1px solid #3d4655; border-radius: 16px; }
+  html[data-onboarding-active] #root .app-content { position: fixed; top: calc(12px + var(--app-safe-top)); bottom: calc(var(--onboarding-panel-height, 210px) + var(--app-safe-bottom) + 24px); left: calc(12px + var(--app-safe-left)); right: calc(12px + var(--app-safe-right)); margin: 0 !important; padding: 12px !important; height: auto; border: 1px solid var(--design-control); border-radius: 16px; }
 }
 @media (min-width: 768px) and (max-width: 1199px) {
   html[data-onboarding-active] #root .root { padding-left: calc(12px + var(--app-safe-left)) !important; padding-right: calc(12px + var(--app-safe-right)) !important; }
 }
 @media (min-width: 1200px) {
   .first-visit-guide { top: 24px; bottom: auto; left: auto; right: 20px; width: 320px; padding: 22px; max-height: calc(100dvh - 48px); }
-  .first-visit-guide h2 { margin: 16px 0 10px; font-size: 26px; }
-  .first-visit-guide p { font-size: 15px; line-height: 1.6; }
+  .first-visit-guide h2 { margin: 16px 0 10px; font-size: 1.5rem; }
+  .first-visit-guide p { font-size: .9375rem; line-height: 1.6; }
   .first-visit-progress { margin: 14px 0; }
   .first-visit-actions { margin-top: 22px; }
-  .first-visit-note { font-size: 12px; margin-top: 14px; }
+  .first-visit-note { font-size: .75rem; margin-top: 14px; }
   html[data-onboarding-active] #root .app-content { margin-right: 360px !important; height: calc(100dvh - 24px); }
 }
 @media (max-height: 500px) and (max-width: 1199px) {
@@ -75,3 +89,9 @@ html[data-onboarding-active] .app-content { min-height: 0 !important; overflow-y
   .first-visit-guide, .first-visit-copy, .first-visit-guide[data-phase="leaving"] .first-visit-copy { animation: none; }
   .first-visit-progress i, .first-visit-highlight, html[data-onboarding-active] .app-page-main, html[data-onboarding-active] .app-content { transition: none; }
 }
+
+@media (prefers-contrast: more) {
+  .first-visit-guide { border: 1px solid var(--design-control); }
+  .first-visit-target-frame { border-width: 4px; }
+}
+@media (prefers-reduced-transparency: reduce) { .first-visit-guide { background: var(--design-surface); } }

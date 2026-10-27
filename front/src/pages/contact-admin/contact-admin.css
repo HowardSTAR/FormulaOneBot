@@ -1,32 +1,53 @@
-.contact-admin-page { width: min(100%, 1120px); margin: 0 auto; padding: 10px 0 50px; }
-.contact-admin-layout { display: grid; margin-top: 28px; grid-template-columns: .9fr 1.1fr; overflow: hidden; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; background: #11141a; }
-.contact-admin-intro { position: relative; min-height: 610px; padding: 48px; overflow: hidden; background: radial-gradient(circle at 20% 80%, rgba(225,6,0,.28), transparent 45%), linear-gradient(145deg, #201314, #0b0d12 65%); }
-.contact-admin-intro::after { content: ""; position: absolute; right: -120px; bottom: -120px; width: 360px; height: 360px; border: 60px solid rgba(255,255,255,.025); border-radius: 50%; }
-.contact-admin-intro > span { color: #ff453e; font-size: 11px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
-.contact-admin-intro h2 { margin: 16px 0; color: #fff; font-size: clamp(46px, 5vw, 72px); font-style: italic; line-height: .92; letter-spacing: -.055em; text-transform: uppercase; }
-.contact-admin-intro p { max-width: 350px; color: rgba(255,255,255,.52); line-height: 1.6; }
-.contact-admin-route { position: absolute; left: 48px; right: 48px; bottom: 45px; display: flex; align-items: center; color: rgba(255,255,255,.35); }
-.contact-admin-route i { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid rgba(255,255,255,.13); border-radius: 50%; font-size: 10px; font-style: normal; }
-.contact-admin-route b { height: 1px; flex: 1; background: linear-gradient(90deg, rgba(225,6,0,.6), rgba(255,255,255,.1)); }
-.contact-admin-form { display: grid; padding: 46px; align-content: center; gap: 17px; }
-.contact-admin-form label { display: grid; gap: 8px; }
-.contact-admin-form label > span { color: rgba(255,255,255,.58); font-size: 11px; font-weight: 900; letter-spacing: .11em; text-transform: uppercase; }
-.contact-admin-form input,
-.contact-admin-form textarea { width: 100%; padding: 15px 16px; border: 1px solid rgba(255,255,255,.12); border-radius: 11px; outline: none; color: #fff; background: #181c23; font: inherit; resize: vertical; }
-.contact-admin-form input:focus,
-.contact-admin-form textarea:focus { border-color: rgba(255,56,49,.65); box-shadow: 0 0 0 3px rgba(225,6,0,.08); }
-.contact-admin-counter { margin-top: -12px; color: rgba(255,255,255,.3); font-size: 10px; text-align: right; }
-.contact-admin-form > button { min-height: 58px; border: 0; border-radius: 11px; color: #fff; background: linear-gradient(180deg, #f52f28, #bd0000); font-weight: 900; cursor: pointer; }
-.contact-admin-form > button:disabled { cursor: not-allowed; opacity: .4; }
-.contact-admin-status { padding: 12px 14px; border-radius: 9px; font-size: 13px; }
-.contact-admin-status.is-error { color: #ff817b; background: rgba(225,6,0,.11); }
-.contact-admin-status.is-success { color: #6ce497; background: rgba(45,196,101,.1); }
-
-@media (max-width: 899px) {
-  .contact-admin-page { padding: 76px 14px 40px; }
-  .contact-admin-layout { grid-template-columns: 1fr; }
-  .contact-admin-intro { min-height: 330px; padding: 30px 24px; }
-  .contact-admin-intro h2 { font-size: 46px; }
-  .contact-admin-route { left: 24px; right: 24px; bottom: 25px; }
-  .contact-admin-form { padding: 24px 18px; }
+.contact-admin-page { width: min(100%, 1120px); margin-inline: auto; padding-bottom: 32px; color: var(--design-ink); }
+.contact-admin-layout { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: start; gap: 48px; }
+.contact-admin-intro { min-width: 0; padding-top: 8px; }
+.contact-admin-intro h1 { margin: 0; color: var(--design-ink); font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 2.5rem; font-weight: 650; line-height: 1.1; letter-spacing: -.035em; text-wrap: balance; }
+.contact-admin-intro p { max-width: 52ch; margin: 12px 0 0; color: var(--design-muted); font-size: .9375rem; line-height: 1.6; text-wrap: pretty; }
+.contact-admin-intro .contact-admin-lead { margin-top: 20px; color: var(--design-ink); font-size: 1.25rem; font-weight: 600; }
+.contact-admin-art { position: relative; width: min(100%, 380px); height: 230px; margin: 16px auto 0; pointer-events: none; mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent), linear-gradient(180deg, transparent, #000 6%, #000 92%, transparent); mask-composite: intersect; }
+.contact-admin-hints { padding-top: 20px; border-top: 1px solid var(--design-line); }
+.contact-admin-hints h2 { margin: 0; color: var(--design-ink); font: inherit; font-size: 1rem; font-weight: 650; text-transform: none; font-style: normal; letter-spacing: normal; }
+.contact-admin-hints p { margin-top: 8px; font-size: .875rem; }
+.contact-admin-form { display: grid; gap: 20px; min-width: 0; padding: 28px; border-radius: 16px; background: var(--design-surface); }
+.contact-admin-field-row { display: grid; gap: 20px; }
+.contact-admin-field { display: grid; align-content: start; min-width: 0; gap: 8px; }
+.contact-admin-form label { color: var(--design-ink); font-size: .9375rem; font-weight: 600; }
+.contact-admin-form :is(input, textarea) { width: 100%; min-height: 48px; box-sizing: border-box; padding: 12px 14px; border: 1px solid var(--design-control); border-radius: 12px; color: var(--design-ink); background: var(--design-bg); font: inherit; font-size: 1rem; line-height: 1.5; caret-color: var(--design-accent); }
+.contact-admin-form textarea { min-height: 176px; resize: vertical; }
+.contact-admin-form :is(input, textarea)::placeholder { color: var(--design-muted); opacity: 1; }
+.contact-admin-form :is(input, textarea):hover { border-color: var(--design-muted); }
+.contact-admin-form :is(input, textarea):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
+.contact-admin-form [aria-invalid="true"] { border-color: var(--design-accent); }
+.contact-admin-form small { color: var(--design-muted); font-size: .8125rem; line-height: 1.5; }
+.contact-admin-form .contact-admin-field-error { color: var(--design-accent); }
+.contact-admin-message-meta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-top: -12px; }
+.contact-admin-counter { flex-shrink: 0; color: var(--design-muted); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.contact-admin-form > button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 12px 16px; border: 0; border-radius: 12px; background: var(--design-event-bg); color: var(--design-event-ink); font: inherit; font-size: .9375rem; font-weight: 650; cursor: pointer; transition: background-color 180ms ease; }
+.contact-admin-form > button:hover { background: color-mix(in srgb, var(--design-event-bg) 85%, #000); }
+.contact-admin-form > button:disabled { opacity: .65; cursor: wait; }
+.contact-admin-form :is(input, textarea):disabled { opacity: .7; }
+.contact-admin-form :is(button, .contact-admin-status):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
+.contact-admin-status { padding: 16px; border-radius: 12px; background: var(--design-tint); color: var(--design-ink); font-size: .875rem; line-height: 1.5; scroll-margin-block: 24px; }
+.contact-admin-status strong { color: var(--design-accent); }
+.contact-admin-status p { margin: 6px 0 0; }
+.contact-admin-status.is-success { background: color-mix(in srgb, var(--design-scale-high) 10%, var(--design-surface)); }
+.contact-admin-status.is-success strong { color: var(--design-scale-high); }
+.contact-admin-page ::selection { background: var(--design-accent); color: var(--design-bg); }
+@media (max-width: 1199px) {
+  .contact-admin-layout { gap: 28px; }
+  .contact-admin-form { padding: 24px; }
 }
+@media (max-width: 759px) {
+  .contact-admin-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .contact-admin-intro { position: relative; }
+  .contact-admin-intro h1 { font-size: 2rem; }
+  .contact-admin-intro .contact-admin-lead { margin-top: 16px; }
+  .contact-admin-art { height: 140px; max-width: 260px; margin-block: 0; }
+  .contact-admin-hints { padding-top: 12px; }
+  .contact-admin-form { padding: 20px; }
+}
+@media (max-width: 359px) {
+  .contact-admin-form { padding: 16px; }
+}
+@media (prefers-reduced-motion: reduce) { .contact-admin-form > button { transition: none; } }
+@media (prefers-contrast: more) { .contact-admin-form { border: 1px solid var(--design-control); } }

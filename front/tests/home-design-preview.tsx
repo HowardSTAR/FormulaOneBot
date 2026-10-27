@@ -30,6 +30,7 @@ let compareFailures = scenario === 'compare-error' ? 1 : 0;
 let calendarFailures = scenario === 'calendar-error' ? 1 : 0;
 let resultFailures = scenario === 'results-error' ? 1 : 0;
 let podiumFailures = scenario === 'podium-error' ? 1 : 0;
+let contactFailures = scenario === 'contact-error' ? 1 : 0;
 let voteFailures = scenario === 'rating-error' ? 1 : 0;
 if (query.get('scale') === '2') document.documentElement.style.fontSize = '200%';
 const realFetch = window.fetch.bind(window);
@@ -86,7 +87,7 @@ const accountProfileFixture = profilePreview(query);
 const accountFixture = accountPreview(query);
 const settingsFixture = settingsPreview(query);
 // Native image loads bypass the fetch fixture. Keep their substitute local too.
-if (query.get('page') === 'profile') {
+if (query.get('page') === 'profile' || query.get('tour') === '1') {
   const avatarImage = new URL('./fixtures/profile-avatar.png', import.meta.url).href;
   new MutationObserver(() => {
     document.querySelectorAll<HTMLImageElement>('img[src*="/api/profiles/avatar/v1.png"]').forEach(img => { img.src = avatarImage; });
@@ -98,25 +99,30 @@ if (query.get('page') === 'profile') {
   }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
 }
 window.fetch = async (input, init) => {
+  const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
   const url = new URL(input instanceof Request ? input.url : String(input), location.origin);
   if (url.pathname.startsWith('/static/circuit/')) {
     const asset = calendarCircuits[`../public${decodeURIComponent(url.pathname)}`];
     return asset ? new Response(await asset(), { headers: { 'Content-Type': 'image/svg+xml' } }) : new Response('', { status: 404 });
   }
   if (!url.pathname.startsWith('/api/')) return realFetch(input, init);
+  if (url.pathname === '/api/contact-admin') {
+    if (scenario === 'contact-sending') await new Promise(resolve => setTimeout(resolve, 1500));
+    return contactFailures-- > 0 ? json({ detail: 'Сервис временно недоступен.' }, 503) : json({ status: 'sent', id: 1 });
+  }
   if (query.get('page') === 'settings') {
     const response = await settingsFixture(url, init);
     if (response) return response;
   }
-  if (['account', 'settings'].includes(query.get('page') || '')) {
+  if (query.get('tour') === '1' || ['account', 'settings'].includes(query.get('page') || '')) {
     const response = await accountFixture(url, init);
     if (response) return response;
   }
-  if (query.get('page') === 'profile') {
+  if (query.get('page') === 'profile' || query.get('tour') === '1') {
     const response = await accountProfileFixture(url, init);
     if (response) return response;
   }
-  if (query.get('page') === 'predictions') {
+  if (query.get('page') === 'predictions' || query.get('tour') === '1') {
     const response = await predictionsFixture(url, init);
     if (response) return response;
   }
@@ -124,7 +130,6 @@ window.fetch = async (input, init) => {
     const response = historyFixture(url);
     if (response) return response;
   }
-  const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
   if ((init?.method || (input instanceof Request ? input.method : 'GET')) !== 'GET') {
     if (query.get('demoVotes') !== '0' && url.pathname === '/api/votes/race' && init?.method === 'POST') {
       const body = JSON.parse(String(init.body));
@@ -214,7 +219,8 @@ window.fetch = async (input, init) => {
     case '/api/web-notifications/unread-count': return json({ unread: previewRead ? 0 : Number(query.get('unread') ?? 2) });
     case '/api/web-notifications': return json({ items: [{ id: 2, title: 'Открыты прогнозы', body: 'Выберите свою тройку на ближайшую гонку.', url: '/predictions', created_at: 1792742400, read_at: previewRead ? 1792828800 : null }, { id: 1, title: 'Как вам последний этап?', body: 'Оцените гонку и выберите пилота дня.', url: '/voting?season=2026&round=18', created_at: 1791806400, read_at: previewRead ? 1792828800 : null }], unread: previewRead ? 0 : 2, next_before: null, push: { enabled: false, public_key: '' } });
     case '/api/engagement/weekly/me': return json({ user_id: member ? 1 : null, weekly: null });
-    case '/api/engagement/weekly': return json({});
+    case '/api/engagement/weekly': return json({ track_id: 'emerald-loop', name: 'Демонстрационная трасса недели', start: '2026-10-26T00:00:00Z', end: '2026-11-02T00:00:00Z', entries: [] });
+    case '/api/engagement/mine': return json({ referrals: { arrived: 0, activated: 0, returned: 0 }, badges: [], shares: [] });
     case '/api/season': {
       if (!url.searchParams.has('completed_only') && calendarFailures-- > 0) return json({ detail: 'Календарь временно недоступен' }, 503);
       if (scenario === 'calendar-loading' && !url.searchParams.has('completed_only')) return new Promise<Response>((_, reject) => { init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))); });
@@ -225,7 +231,8 @@ window.fetch = async (input, init) => {
     default: return json({});
   }
 };
-localStorage.setItem('turbotears-onboarding-v2', JSON.stringify({ status: 'skipped' }));
+if (query.get('tour') === '1') localStorage.removeItem('turbotears-onboarding-v2');
+else localStorage.setItem('turbotears-onboarding-v2', JSON.stringify({ status: 'skipped' }));
 initializeTheme();
 // An existing explicit user choice wins even if a preview link suggests a theme.
 const suggestedTheme = query.get('theme');
@@ -239,7 +246,7 @@ const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session', 'tab', 'championship']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
 const calendarQuery = new URLSearchParams();
 for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
-const resultRoutes = ['settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
+const resultRoutes = ['contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
 const resultQuery = new URLSearchParams(weekendQuery);
 for (const key of ['kind', 'ids', 'from', 'to', 'roster']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
 if (query.has('mode')) resultQuery.set('mode', query.get('mode')!);
