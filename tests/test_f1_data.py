@@ -221,7 +221,7 @@ async def test_get_driver_details_uses_wiki_thumbnail_when_openf1_unavailable():
     with patch("app.f1_data._try_bases", new_callable=AsyncMock) as try_bases_mock, \
             patch("app.f1_data._fetch_driver_season_results", new_callable=AsyncMock) as season_results_mock, \
             patch("app.f1_data._fetch_driver_career_results", new_callable=AsyncMock) as career_results_mock, \
-            patch("app.f1_data._fetch_wiki_bio", new_callable=AsyncMock) as wiki_bio_mock, \
+            patch("app.f1_data._fetch_entrant_biography", new_callable=AsyncMock) as wiki_bio_mock, \
             patch("app.f1_data._fetch_driver_headshot", new_callable=AsyncMock) as openf1_headshot_mock, \
             patch("app.f1_data._fetch_wiki_thumbnail", new_callable=AsyncMock) as wiki_thumb_mock, \
             patch("app.f1_data.get_driver_standings_async", new_callable=AsyncMock) as standings_mock, \
@@ -241,7 +241,7 @@ async def test_get_driver_details_uses_wiki_thumbnail_when_openf1_unavailable():
         }
         season_results_mock.return_value = []
         career_results_mock.return_value = []
-        wiki_bio_mock.return_value = "bio"
+        wiki_bio_mock.return_value = {"text": "bio"}
         openf1_headshot_mock.return_value = ""
         wiki_thumb_mock.return_value = "https://upload.wikimedia.org/max.png"
         standings_mock.return_value = pd.DataFrame()

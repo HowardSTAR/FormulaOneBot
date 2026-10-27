@@ -13,7 +13,7 @@ import threading
 from collections import OrderedDict
 from datetime import date as _date, timezone, timedelta, datetime
 from typing import Optional, Any
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 import aiohttp
 import certifi
@@ -2317,6 +2317,76 @@ def _shorten_wiki_bio(text: str, max_chars: int = 900, max_sentences: int = 4) -
     return f"{clipped}…"
 
 
+def _format_wiki_biography(text: str, max_chars: int = 6000) -> str:
+    """Keep a longer introduction with real paragraph boundaries for entrant pages."""
+    paragraphs: list[str] = []
+    remaining = max_chars
+    for paragraph in re.split(r"\n+", text or ""):
+        if remaining < 100:
+            break
+        clean = _shorten_wiki_bio(paragraph, max_chars=remaining, max_sentences=80)
+        if not clean:
+            continue
+        paragraphs.append(clean)
+        remaining -= len(clean) + 2
+    return "\n\n".join(paragraphs)
+
+
+def _wiki_image_info(info: dict) -> dict | None:
+    """Expose a Commons image only together with its reusable licence and credit."""
+    metadata = info.get("extmetadata", {})
+    def plain(key: str) -> str:
+        value = str((metadata.get(key) or {}).get("value") or "")
+        try:
+            return re.sub(r"\s+", " ", lxml_html.fromstring(f"<div>{value}</div>").text_content()).strip()
+        except Exception:
+            return ""
+    license_name = plain("LicenseShortName")
+    artist = plain("Artist")
+    license_url = plain("LicenseUrl")
+    if license_url.startswith("//"):
+        license_url = f"https:{license_url}"
+    url = info.get("thumburl") or info.get("url") or ""
+    source_url = info.get("descriptionurl") or ""
+    reusable = license_name.lower().startswith(("cc by", "cc0", "public domain", "pd"))
+    if not reusable or not artist or urlsplit(url).scheme != "https" or urlsplit(url).hostname not in {"upload.wikimedia.org", "thumb.wikimedia.org"}:
+        return None
+    if license_name.lower().startswith(("public domain", "pd")) and not license_url:
+        license_url = "https://commons.wikimedia.org/wiki/Commons:Public_domain"
+    if urlsplit(source_url).scheme != "https" or urlsplit(source_url).hostname != "commons.wikimedia.org" or urlsplit(license_url).scheme != "https":
+        return None
+    return {"url": url, "source_url": source_url, "author": artist[:400],
+            "license": license_name, "license_url": license_url,
+            "caption": plain("ImageDescription")[:600],
+            "width": info.get("thumbwidth") or info.get("width") or 1200,
+            "height": info.get("thumbheight") or info.get("height") or 800}
+
+
+async def _fetch_biography_image(session: aiohttp.ClientSession, filenames: list[str]) -> dict | None:
+    candidates = list(dict.fromkeys(re.sub(r"^(?:File|Image|Файл|Изображение):", "", name, flags=re.I) for name in filenames if isinstance(name, str) and re.search(r"\.(?:jpe?g|png|webp)$", name, re.I)))[:6]
+    if not candidates:
+        return None
+    try:
+        async with session.get("https://commons.wikimedia.org/w/api.php", params={
+            "action": "query", "format": "json", "formatversion": 2,
+            "titles": "|".join(f"File:{name.removeprefix('File:')}" for name in candidates), "prop": "imageinfo",
+            "iiprop": "url|size|extmetadata", "iiurlwidth": 1200,
+        }, timeout=aiohttp.ClientTimeout(total=5)) as response:
+            if response.status != 200:
+                return None
+            pages = (await response.json()).get("query", {}).get("pages", [])
+            by_title = {page.get("title", "").replace("_", " ").casefold(): page for page in pages}
+            for name in candidates:
+                page = by_title.get(f"File:{name.removeprefix('File:')}".replace("_", " ").casefold(), {})
+                images = page.get("imageinfo", [])
+                image = _wiki_image_info(images[0]) if images else None
+                if image:
+                    return image
+            return None
+    except Exception:
+        return None
+
+
 async def _fetch_wiki_page_profile(
     session: aiohttp.ClientSession,
     title: str,
@@ -2325,7 +2395,7 @@ async def _fetch_wiki_page_profile(
 ) -> dict:
     if not title:
         return {}
-    props = ["extracts", "pageimages"]
+    props = ["extracts", "pageimages", "images"]
     if include_russian_link:
         props.append("langlinks")
     params = {
@@ -2336,6 +2406,8 @@ async def _fetch_wiki_page_profile(
         "exintro": 1,
         "explaintext": 1,
         "pithumbsize": 800,
+        "piprop": "thumbnail|name",
+        "imlimit": 20,
         "redirects": 1,
         "titles": title,
     }
@@ -2376,13 +2448,22 @@ async def _fetch_wiki_profile(session: aiohttp.ClientSession, wiki_url: str) -> 
     thumbnail = preferred.get("thumbnail", {}) or english.get("thumbnail", {})
     return {
         "bio": _shorten_wiki_bio(preferred.get("extract", "")),
+        "biography": _format_wiki_biography(preferred.get("extract", "")),
+        "image_titles": [preferred.get("pageimage", ""), *[image.get("title", "") for image in (preferred.get("images") or [])], english.get("pageimage", ""), *[image.get("title", "") for image in (english.get("images") or [])]],
         "photo_url": thumbnail.get("source", "") if isinstance(thumbnail, dict) else "",
         "source_url": (
             f"https://ru.wikipedia.org/wiki/{russian_title.replace(' ', '_')}"
-            if russian_title
+            if russian.get("extract")
             else wiki_url
         ),
     }
+
+
+async def _fetch_entrant_biography(session: aiohttp.ClientSession, wiki_url: str) -> dict:
+    profile = await _fetch_wiki_profile(session, wiki_url)
+    return {"text": profile.get("biography") or profile.get("bio", ""),
+            "source_url": profile.get("source_url") or wiki_url,
+            "image": await _fetch_biography_image(session, profile.get("image_titles", []))}
 
 
 async def _fetch_wiki_bio(session: aiohttp.ClientSession, wiki_url: str) -> str:
@@ -2513,7 +2594,7 @@ async def _fetch_driver_headshot(session: aiohttp.ClientSession, code_match: str
     return ""
 
 
-@cache_result(ttl=3600, key_prefix="driver_details_v9")
+@cache_result(ttl=3600, key_prefix="driver_details_v10")
 async def get_driver_details_async(driver_id: str, season: int, code: str | None = None):
     """
     Получает профиль пилота, статистику сезона и карьеры из Ergast/Jolpica API.
@@ -2545,13 +2626,13 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
         (
             season_results,
             career_results,
-            bio,
+            biography,
             headshot_url,
             standings_df,
         ) = await asyncio.gather(
             _fetch_driver_season_results(session, did, season),
             _fetch_driver_career_results(session, did),
-            _fetch_wiki_bio(session, wiki_url),
+            _fetch_entrant_biography(session, wiki_url),
             _fetch_driver_headshot(session, code_match, season),
             get_driver_standings_async(season),
         )
@@ -2603,7 +2684,9 @@ async def get_driver_details_async(driver_id: str, season: int, code: str | None
         "dateOfBirth": driver_info.get("dateOfBirth", ""),
         "nationality": driver_info.get("nationality", ""),
         "url": wiki_url,
-        "bio": bio,
+        "bio": biography.get("text", ""),
+        "biography_image": biography.get("image"),
+        "biography_source_url": biography.get("source_url") or wiki_url,
         "headshot_url": headshot_url,
         "season": season,
         "season_stats": {
@@ -3117,8 +3200,22 @@ async def _fill_drivers_headshots(session: aiohttp.ClientSession, season_drivers
     return current_codes
 
 
+def _constructor_season_metrics(results: list[dict]) -> dict:
+    unclassified_codes = {"R", "D", "W", "F", "N", "E", "EX"}
+    statuses = [str(row.get("positionText") or "") for row in results]
+    statuses_known = all(status.isdigit() or status in unclassified_codes for status in statuses)
+    classified = [row for row in results if str(row.get("positionText") or "").isdigit()]
+    return {
+        "grand_prix_entries": len(results),
+        "grand_prix_points_finishes": sum(1 for row in results if row.get("points", 0) > 0),
+        "grand_prix_unclassified": sum(status in unclassified_codes for status in statuses) if statuses_known else None,
+        "highest_race_finish": _highest_finish(classified) if statuses_known else {"position": "-", "count": 0},
+        "highest_grid": _highest_grid(results),
+    }
+
+
 # --- КАРТОЧКА КОНСТРУКТОРА --- #
-@cache_result(ttl=3600, key_prefix="constructor_details_v18")
+@cache_result(ttl=3600, key_prefix="constructor_details_v20")
 async def get_constructor_details_async(constructor_id: str, season: int):
     """Профиль команды: название, лого, статистика сезона и карьеры, биография."""
     cid = constructor_id.strip().lower().replace(" ", "_")
@@ -3142,14 +3239,14 @@ async def get_constructor_details_async(constructor_id: str, season: int):
             (season_results, season_race_count),
             career_results,
             season_drivers,
-            bio,
+            biography,
             principal,
             standings_df,
         ) = await asyncio.gather(
             _fetch_constructor_season_results(session, cid, season),
             _fetch_constructor_career_results(session, cid),
             _fetch_constructor_drivers(session, cid, season, constructor_info),
-            _fetch_wiki_bio(session, wiki_url),
+            _fetch_entrant_biography(session, wiki_url),
             _fetch_team_principal(session, wiki_url, constructor_info.get("name", "")),
             get_constructor_standings_async(season),
         )
@@ -3192,11 +3289,14 @@ async def get_constructor_details_async(constructor_id: str, season: int):
         "name": constructor_info.get("name", ""),
         "nationality": constructor_info.get("nationality", ""),
         "url": wiki_url,
-        "bio": bio,
+        "bio": biography.get("text", ""),
+        "biography_image": biography.get("image"),
+        "biography_source_url": biography.get("source_url") or wiki_url,
         "drivers": season_drivers,
         "principal": principal,
         "season": season,
         "season_stats": {
+            **_constructor_season_metrics(season_results),
             "position": season_pos,
             "points": standings_points if standings_points is not None else sum(r["points"] for r in season_results),
             "points_source": "standings" if standings_points is not None else "grand_prix",

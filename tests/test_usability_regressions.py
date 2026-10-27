@@ -18,7 +18,7 @@ async def test_constructor_profile_uses_standings_points_not_gp_only(points, exp
          patch.object(f1_data, '_fetch_constructor_season_results', AsyncMock(return_value=(rows, 1))), \
          patch.object(f1_data, '_fetch_constructor_career_results', AsyncMock(return_value=rows)), \
          patch.object(f1_data, '_fetch_constructor_drivers', AsyncMock(return_value=[])), \
-         patch.object(f1_data, '_fetch_wiki_bio', AsyncMock(return_value='')), \
+         patch.object(f1_data, '_fetch_entrant_biography', AsyncMock(return_value={'text': ''})), \
          patch.object(f1_data, '_fetch_team_principal', AsyncMock(return_value=None)), \
          patch.object(f1_data, '_fill_drivers_headshots', AsyncMock(return_value=[])), \
          patch.object(f1_data, 'get_constructor_standings_async', AsyncMock(return_value=standings)), \
@@ -30,6 +30,10 @@ async def test_constructor_profile_uses_standings_points_not_gp_only(points, exp
     assert result['season_stats']['standings_round'] == 15
     assert result['career_stats']['grand_prix_entered'] == 2  # Car entries, legacy API preserved.
     assert result['career_stats']['grand_prix_events'] == 1
+    assert result['season_stats']['grand_prix_entries'] == 2
+    assert result['season_stats']['grand_prix_points_finishes'] == 2
+    assert result['season_stats']['grand_prix_unclassified'] is None
+    assert result['season_stats']['highest_grid'] == {'position': 2, 'count': 1}
 
 
 @pytest.mark.asyncio
