@@ -11,7 +11,7 @@ module.exports = async function assertProfileLayout(page) {
     const blocks = [...content.children].map(el=>({name:el.className,...rect(el)}));
     const columns = [...content.querySelector('.profile-columns').children].map(rect);
     const surfaces = [...content.querySelectorAll('.profile-hero,.profile-panel')].map(el=>({name:el.className,padding:parseFloat(getComputedStyle(el).paddingLeft)}));
-    const controls = [...document.querySelectorAll('.profile-sharing button,.profile-avatar-edit,.profile-season select,.profile-panel-action,.profile-favorites-heading a,.supporter-league>.profile-primary')].map(el=>({label:el.textContent,...rect(el)}));
+    const controls = [...document.querySelectorAll('.profile-sharing button,.profile-avatar-edit,.profile-season-picker [role=combobox],.profile-panel-action,.profile-favorites-heading a,.supporter-league>.profile-primary')].map(el=>({label:el.textContent,...rect(el)}));
     const statsFit = [...content.querySelectorAll('.profile-stats>div')].every(el=>el.scrollWidth<=el.clientWidth);
     return {blocks,columns,surfaces,controls,statsFit,overflow:document.documentElement.scrollWidth>innerWidth};
   });

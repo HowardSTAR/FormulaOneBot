@@ -70,11 +70,11 @@ const prediction = {round:2,event_name:'Гран-при Японии',points:30,
       await personalNav.getByRole('link',{name:'Аккаунт',exact:true}).click();
       await page.locator('.account-hero h1').waitFor();
       await page.getByRole('heading',{name:'Подписка Boosty'}).waitFor();
-      assert.ok(await personalNav.evaluate(el=>el.classList.contains('personal-hub-switch-account')));
+      assert.equal(await personalNav.getByRole('link',{name:'Аккаунт',exact:true}).getAttribute('aria-current'),'page');
       await page.waitForFunction(()=>{
         const nav=document.querySelector('.personal-hub-switch');
-        const slider=nav.querySelector('.personal-hub-slider').getBoundingClientRect();
-        const active=nav.querySelector('a.active').getBoundingClientRect();
+        const slider=nav.querySelector('.home-section-lens').getBoundingClientRect();
+        const active=nav.querySelector('a[aria-current=page]').getBoundingClientRect();
         return Math.abs(slider.left-active.left)<1 && Math.abs(slider.width-active.width)<1;
       });
       if(width>820) assert.ok(await page.locator('.account-grid').evaluate(el=>{

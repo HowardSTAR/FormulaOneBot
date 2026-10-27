@@ -3,6 +3,7 @@
 import circuitProfiles from './fixtures/circuit-profiles.json';
 import { predictionPreview } from './fixtures/predictions';
 import { historyPreview } from './fixtures/history';
+import { profilePreview } from './fixtures/profile';
 import { calendarPreviewRaces, calendarPreviewStage } from './fixtures/calendar';
 const calendarCircuits = import.meta.glob<string>('../public/static/circuit/*.svg', { query: '?raw', import: 'default' });
 import { createRoot } from 'react-dom/client';
@@ -79,6 +80,19 @@ const previewStats = { grand_prix_races: 0, grand_prix_points: 0, grand_prix_win
 const previewCareer = { available: false, grand_prix_entered: 0, career_points: 0, highest_race_finish: { position: '—', count: 0 }, podiums: 0, highest_grid: { position: '—', count: 0 }, pole_positions: 0, world_championships: 0, dnfs: 0 };
 const predictionsFixture = predictionPreview(query, drivers);
 const historyFixture = historyPreview(query, drivers, constructors);
+const accountProfileFixture = profilePreview(query);
+// Native image loads bypass the fetch fixture. Keep their substitute local too.
+if (query.get('page') === 'profile') {
+  const avatarImage = new URL('./fixtures/profile-avatar.png', import.meta.url).href;
+  new MutationObserver(() => {
+    document.querySelectorAll<HTMLImageElement>('img[src*="/api/profiles/avatar/v1.png"]').forEach(img => { img.src = avatarImage; });
+    document.querySelectorAll<HTMLImageElement>('img[src*="/assets/2026/pilots/"]').forEach(img => {
+      const code = img.src.split('/').pop()?.split('.')[0];
+      const source = drivers.find(driver => driver.code === code)?.imageUrl;
+      if (source && img.src !== new URL(source, location.href).href) img.src = source;
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+}
 window.fetch = async (input, init) => {
   const url = new URL(input instanceof Request ? input.url : String(input), location.origin);
   if (url.pathname.startsWith('/static/circuit/')) {
@@ -86,6 +100,10 @@ window.fetch = async (input, init) => {
     return asset ? new Response(await asset(), { headers: { 'Content-Type': 'image/svg+xml' } }) : new Response('', { status: 404 });
   }
   if (!url.pathname.startsWith('/api/')) return realFetch(input, init);
+  if (query.get('page') === 'profile') {
+    const response = await accountProfileFixture(url, init);
+    if (response) return response;
+  }
   if (query.get('page') === 'predictions') {
     const response = await predictionsFixture(url, init);
     if (response) return response;
@@ -209,13 +227,14 @@ const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session', 'tab', 'championship']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
 const calendarQuery = new URLSearchParams();
 for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
-const resultRoutes = ['history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
+const resultRoutes = ['profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
 const resultQuery = new URLSearchParams(weekendQuery);
 for (const key of ['kind', 'ids', 'from', 'to', 'roster']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
 if (query.has('mode')) resultQuery.set('mode', query.get('mode')!);
 if (query.has('year')) resultQuery.set('year', query.get('year')!);
+const profileRoute = query.get('page') === 'profile' && query.get('owner') === '0' ? `/profile/1?${resultQuery}` : null;
 const initialPath = resultRoutes.includes(query.get('page') || '') ? `/${query.get('page')}?${resultQuery}` : query.get('page') === 'menu' ? '/menu' : query.get('page') === 'calendar' ? `/season${calendarQuery.size ? `?${calendarQuery}` : ''}` : query.get('page') === 'weekend' ? `/next-race${weekendQuery.size ? `?${weekendQuery}` : ''}` : `/${initialQuery.size ? `?${initialQuery}` : ''}`;
-createRoot(document.getElementById('root')!).render(<HeroDataProvider><div className="root"><RouterProvider router={createMemoryRouter(router.routes, { initialEntries: [initialPath] })} /></div><ScrollToTop /></HeroDataProvider>);
+createRoot(document.getElementById('root')!).render(<HeroDataProvider><div className="root"><RouterProvider router={createMemoryRouter(router.routes, { initialEntries: [profileRoute || initialPath] })} /></div><ScrollToTop /></HeroDataProvider>);
 const note = document.createElement('aside');
 note.textContent = 'Демо · данные вымышлены · оценки до перезагрузки';
 note.style.cssText = 'padding:6px 16px;text-align:center;font:12px/1.5 system-ui;background:#faeeec;color:#78221d;position:relative;z-index:101';

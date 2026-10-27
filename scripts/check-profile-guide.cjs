@@ -68,7 +68,8 @@ const titles=['Твой образ','Сезон в цифрах','Твои пр�
           await page.screenshot({path:`.tmp/profile-guide-ui/trophies-${width}x${height}.png`});
         }
         if(stepTitles[step]==='Сезон в цифрах'){
-          await page.getByRole('combobox',{name:'Сезон профиля'}).selectOption('2025');
+          await page.getByRole('combobox',{name:'Сезон профиля'}).click();
+          await page.getByRole('option',{name:'2025',exact:true}).click();
           await page.getByRole('heading',{name:'Прогнозы · 2025',exact:true}).waitFor();
           await guide.getByRole('heading',{name:stepTitles[step],exact:true}).waitFor();
           assert.equal(await page.locator('.profile-season.first-visit-highlight').count(),1,'season switch retains the current step and highlight');
