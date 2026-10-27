@@ -1,11 +1,19 @@
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BackButton } from "../../components/BackButton";
+import { GameLeaderboardPrompt } from "../../components/GameLeaderboardPrompt";
+import { GlassSwitch } from "../index/GlassSwitch";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { useAuthState } from "../../helpers/auth";
+import { ApiError } from "../../helpers/api";
+import { moveGameGlass, leaveGameGlass } from "../../helpers/gameGlassPointer";
+import { GameExit } from "../../components/GameExit";
+import { homeSectionPath } from "../../helpers/homeSections";
 import { hapticImpact, hapticSelection } from "../../helpers/telegram";
 import { apiRequest } from "../../helpers/api";
+import { useGameLight } from "../../hooks/useGameLight";
 import { usePageScrollLock } from "../../hooks/usePageScrollLock";
 import "../games.css";
 
-type ReactionTab = "game" | "leaderboard";
 type GameMode = "timed" | "endless";
 type Difficulty = "easy" | "medium" | "hard";
 type GameStatus = "idle" | "running" | "finished";
@@ -64,7 +72,17 @@ function pickNextTile(total: number, current: number | null): number {
 }
 
 function ReflexGridGamePage() {
-  const [activeTab, setActiveTab] = useState<ReactionTab>("game");
+  const resultDialog = useRef<HTMLDialogElement>(null);
+  const playSurface = useRef<HTMLDivElement>(null);
+  const auth = useAuthState();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "leaderboard" ? "leaderboard" : "game";
+  const tabItems = ["game", "leaderboard"].map(id => {
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", id);
+    return { id, label: id === "game" ? "Игра" : "Лидеры", to: `${location.pathname}?${params}` };
+  });
   const [showGameOptions, setShowGameOptions] = useState(false);
   const [mode, setMode] = useState<GameMode>("timed");
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
@@ -102,6 +120,7 @@ function ReflexGridGamePage() {
     [difficulty]
   );
   const totalTiles = boardSize * boardSize;
+  useGameLight(playSurface, ".reflex-tile.active", `${activeTab}:${boardSize}:${activeTile}`);
 
   const clearGameLoop = useCallback(() => {
     if (rafIdRef.current != null) {
@@ -131,6 +150,17 @@ function ReflexGridGamePage() {
     scoreRef.current = score;
   }, [score]);
 
+  useEffect(() => {
+    if (status !== "finished") return;
+    const previousFocus = document.activeElement;
+    const element = resultDialog.current;
+    element?.showModal();
+    return () => {
+      element?.close();
+      if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+    };
+  }, [status]);
+
   const fetchLeaderboard = useCallback(async () => {
     try {
       setLeaderboardLoading(true);
@@ -154,7 +184,10 @@ function ReflexGridGamePage() {
     const load = async () => {
       try {
         const [profileData, leaderboardData] = await Promise.all([
-          apiRequest<LeaderboardProfile>("/api/reaction-leaderboard/profile"),
+          apiRequest<LeaderboardProfile>("/api/reaction-leaderboard/profile").catch(error => {
+            if (error instanceof ApiError && error.status === 401) return { display_name: "", participate: false, prompt_seen: true };
+            throw error;
+          }),
           apiRequest<ReflexLeaderboardResponse>("/api/reflex-grid-leaderboard", { mode, difficulty }, "GET"),
         ]);
         if (cancelled) return;
@@ -252,6 +285,7 @@ function ReflexGridGamePage() {
   );
 
   const startLoop = useCallback(() => {
+    playSurface.current?.scrollIntoView({ block: "start", behavior: "instant" });
     const tick = () => {
       if (startedAtRef.current == null) return;
       const now = performance.now();
@@ -311,13 +345,6 @@ function ReflexGridGamePage() {
   const settingsChanged =
     settingsName.trim() !== (profile.display_name || "").trim() || settingsParticipate !== profile.participate;
 
-  const currentMetricText =
-    mode === "timed"
-      ? `Попаданий: ${score}`
-      : status === "running"
-        ? `Цель: ${Math.min(score, ENDLESS_TARGET)}/${ENDLESS_TARGET}`
-        : `Последний результат: ${score}/${ENDLESS_TARGET}`;
-
   const timerText = mode === "timed" ? formatRemaining(remainingMs) : `${formatSecondsMs(elapsedMs)}с`;
 
   const helperText =
@@ -336,53 +363,17 @@ function ReflexGridGamePage() {
   }, [leaderboard.me, mode]);
 
   return (
-    <div className="game-page reflex-game-page">
-      {showOnboarding && (
-        <div className="reaction-modal-overlay">
-          <div className="reaction-modal-card">
-            <h3 className="reaction-modal-title">Таблица лидеров</h3>
-            <p className="reaction-modal-text">Использовать это имя и участие для всех игр?</p>
-            <input
-              className="reaction-input"
-              placeholder="Твое имя в таблице"
-              value={settingsName}
-              onChange={(e) => setSettingsName(e.target.value)}
-              maxLength={32}
-            />
-            <div className="reaction-toggle-row">
-              <button
-                type="button"
-                className={`reaction-toggle-btn ${settingsParticipate ? "active" : ""}`}
-                onClick={() => setSettingsParticipate(true)}
-              >
-                Да
-              </button>
-              <button
-                type="button"
-                className={`reaction-toggle-btn ${!settingsParticipate ? "active" : ""}`}
-                onClick={() => setSettingsParticipate(false)}
-              >
-                Нет
-              </button>
-            </div>
-            <button
-              type="button"
-              className="reaction-settings-save"
-              disabled={isSavingSettings}
-              onClick={() => {
-                void saveLeaderboardSettings({ fromOnboarding: true });
-              }}
-            >
-              {isSavingSettings ? "Сохраняем..." : "Продолжить"}
-            </button>
-          </div>
-        </div>
-      )}
+    <div className="game-page reflex-game-page" onPointerMove={moveGameGlass} onPointerDown={moveGameGlass} onPointerLeave={leaveGameGlass} onPointerUp={leaveGameGlass} onPointerCancel={leaveGameGlass}>
+      {showOnboarding && <GameLeaderboardPrompt
+        name={settingsName} participate={settingsParticipate} saving={isSavingSettings} error={settingsError}
+        onNameChange={setSettingsName} onParticipateChange={setSettingsParticipate}
+        onContinue={() => { if (!isSavingSettings) void saveLeaderboardSettings({ fromOnboarding: true }); }}
+        onDismiss={() => { setShowOnboarding(false); setSettingsError(""); setSettingsName(profile.display_name); setSettingsParticipate(profile.participate); }}
+      />}
 
-      {status === "finished" && (
-        <div className="reaction-modal-overlay">
-          <div className="reaction-modal-card reflex-finish-modal">
-            <h3 className="reaction-modal-title">Результат попытки</h3>
+      {status === "finished" && createPortal(
+        <dialog ref={resultDialog} className="reaction-modal-card reflex-finish-modal" aria-labelledby="reflex-result-title" onCancel={event => { event.preventDefault(); resetBoard(); }}>
+            <h2 id="reflex-result-title" className="reaction-modal-title">Результат попытки</h2>
             <div className="reflex-finish-score">{score}</div>
             <div className="reflex-finish-label">попаданий</div>
             <p className="reaction-modal-text" style={{ marginTop: 10 }}>
@@ -393,42 +384,24 @@ function ReflexGridGamePage() {
             <button type="button" className="reaction-settings-save" onClick={resetBoard}>
               Сыграть снова
             </button>
-          </div>
-        </div>
+            <Link className="game-result-exit" to={homeSectionPath("games")}>Выйти из игры</Link>
+        </dialog>, document.body
       )}
 
-      <BackButton>← <span>На главную</span></BackButton>
-      <h2 style={{ marginTop: 10, marginBottom: 10 }}>Reflex Grid</h2>
+      <GameExit playing={status === "running"} />
+      <h1>Reflex Grid</h1>
       <p className="reaction-subtitle">
         Режимы: 10 секунд на максимум или 10 попаданий на время. Сложность меняет размер поля.
       </p>
 
-      <div className="segmented-tabs reaction-segmented">
-        <div
-          className="segmented-slider"
-          style={{ transform: activeTab === "game" ? "translateX(0)" : "translateX(100%)" }}
-          aria-hidden
-        />
-        <button type="button" className={`segmented-tab ${activeTab === "game" ? "active" : ""}`} onClick={() => setActiveTab("game")}>
-          Игра
-        </button>
-        <button
-          type="button"
-          className={`segmented-tab ${activeTab === "leaderboard" ? "active" : ""}`}
-          onClick={() => {
-            hapticSelection();
-            setActiveTab("leaderboard");
-          }}
-        >
-          Лидеры
-        </button>
-      </div>
+      <GlassSwitch items={tabItems} selected={activeTab} label="Игра и таблица лидеров" className="game-view-switch" replace />
 
       <section className="reaction-slide">
         <div className="reaction-settings-card">
           <button
             type="button"
             className="reflex-options-toggle"
+            aria-expanded={showGameOptions}
             onClick={() => setShowGameOptions((prev) => !prev)}
           >
             <span>
@@ -445,6 +418,7 @@ function ReflexGridGamePage() {
                   <button
                     key={option.id}
                     type="button"
+                    aria-pressed={mode === option.id}
                     className={`reflex-filter-btn ${mode === option.id ? "active" : ""}`}
                     onClick={() => {
                       hapticSelection();
@@ -461,6 +435,7 @@ function ReflexGridGamePage() {
                   <button
                     key={option.id}
                     type="button"
+                    aria-pressed={difficulty === option.id}
                     className={`reflex-filter-btn ${difficulty === option.id ? "active" : ""}`}
                     onClick={() => {
                       hapticSelection();
@@ -478,10 +453,11 @@ function ReflexGridGamePage() {
 
       {activeTab === "game" && (
         <>
+          <div ref={playSurface} className="reflex-play-surface game-play-surface" data-state={status}>
           <div className="reaction-timer-card reflex-timer-card" data-state={status}>
-            <div className="reaction-main-time">{mode === "timed" ? timerText : `${formatSecondsMs(elapsedMs)}`}</div>
-            <div className="reaction-time-unit">{status === 'idle' ? 'Попытка ещё не началась' : mode === "timed" ? 'Осталось секунд' : 'Прошло секунд'}</div>
-            <div className="reaction-result" style={{ marginTop: 8 }}>{currentMetricText}</div>
+            <div className="reaction-main-time">{mode === "timed" ? timerText : formatSecondsMs(elapsedMs)}</div>
+            <div className="reaction-time-unit">{status === "idle" ? "Попытка ещё не началась" : mode === "timed" ? "Осталось секунд" : "Прошло секунд"}</div>
+            <div className="reaction-result">{mode === "timed" ? `Попаданий: ${score}` : `Попаданий: ${score} / ${ENDLESS_TARGET}`}</div>
           </div>
 
           <p className="reaction-helper" role="status">{helperText}</p>
@@ -505,11 +481,12 @@ function ReflexGridGamePage() {
           <button type="button" className="reaction-settings-edit reflex-reset-button" onClick={resetBoard}>
             {status === 'running' ? 'Сбросить попытку' : 'Подготовить новое поле'}
           </button>
+          </div>
 
           <section className="reaction-slide">
             <div className="reaction-settings-card">
               <div className="reaction-settings-title">Общий профиль лидерборда</div>
-              {!isEditingSettings ? (
+              {!auth.signedIn ? <p className="reaction-settings-caption"><Link to="/account">Войдите</Link>, чтобы настроить имя и участие в рейтинге.</p> : !isEditingSettings ? (
                 <>
                   <p className="reaction-settings-caption">
                     Сейчас: {profile.participate ? "участвуешь" : "не участвуешь"} {profile.display_name ? `• ${profile.display_name}` : ""}
@@ -532,6 +509,7 @@ function ReflexGridGamePage() {
                 <>
                   <input
                     className="reaction-input"
+                    aria-label="Имя в таблице" name="display_name" autoComplete="nickname"
                     placeholder="Имя в таблице"
                     value={settingsName}
                     onChange={(e) => setSettingsName(e.target.value)}
@@ -540,6 +518,7 @@ function ReflexGridGamePage() {
                   <div className="reaction-toggle-row">
                     <button
                       type="button"
+                      aria-pressed={settingsParticipate}
                       className={`reaction-toggle-btn ${settingsParticipate ? "active" : ""}`}
                       onClick={() => setSettingsParticipate(true)}
                     >
@@ -547,6 +526,7 @@ function ReflexGridGamePage() {
                     </button>
                     <button
                       type="button"
+                      aria-pressed={!settingsParticipate}
                       className={`reaction-toggle-btn ${!settingsParticipate ? "active" : ""}`}
                       onClick={() => setSettingsParticipate(false)}
                     >
@@ -585,15 +565,15 @@ function ReflexGridGamePage() {
                             void saveLeaderboardSettings();
                           }}
                         >
-                          {isSavingSettings ? "Сохраняем..." : "Подтвердить"}
+                          {isSavingSettings ? "Сохраняем…" : "Подтвердить"}
                         </button>
                       </div>
                     </div>
                   )}
                 </>
               )}
-              {settingsSaved && <div className="reaction-settings-status">Настройки сохранены</div>}
-              {settingsError && <div className="reaction-settings-error">{settingsError}</div>}
+              {settingsSaved && <div role="status" className="reaction-settings-status">Настройки сохранены</div>}
+              {settingsError && <div role="alert" className="reaction-settings-error">{settingsError}</div>}
             </div>
           </section>
         </>
@@ -607,9 +587,9 @@ function ReflexGridGamePage() {
               <div className="reaction-my-place">{myPlaceText}</div>
             </div>
             {leaderboardLoading ? (
-              <div className="reaction-leaderboard-empty">Загрузка...</div>
+              <div className="reaction-leaderboard-empty">Загрузка…</div>
             ) : leaderboardError ? (
-              <div className="reaction-leaderboard-empty">{leaderboardError}</div>
+              <div role="alert" className="reaction-leaderboard-empty">{leaderboardError}<button type="button" className="reaction-settings-edit" onClick={() => void fetchLeaderboard()}>Повторить загрузку</button></div>
             ) : leaderboard.entries.length === 0 ? (
               <div className="reaction-leaderboard-empty">Пока нет результатов для этой комбинации режима и сложности.</div>
             ) : (

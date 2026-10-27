@@ -1,55 +1,41 @@
 .game-page {
-  --game-panel: rgba(22, 24, 32, 0.94);
-  --game-panel-soft: rgba(16, 18, 25, 0.86);
-  --game-line: rgba(255, 255, 255, 0.12);
+  --game-panel: var(--design-surface);
+  --game-panel-soft: var(--design-bg);
+  --game-line: var(--design-line);
+  --game-red-fill: rgb(183 7 0 / 86%);
+  --game-glass-fill: color-mix(in srgb, var(--design-surface) 30%, transparent);
+  --game-glass-edge: color-mix(in srgb, var(--design-ink) 24%, transparent);
+  --game-glass-sheen: linear-gradient(135deg, rgb(255 255 255 / 46%), rgb(255 255 255 / 3%) 32%, rgb(255 255 255 / 9%) 66%, rgb(255 255 255 / 25%));
+  --game-glass-shadow: 0 12px 28px rgb(0 0 0 / 16%), inset 1px 1px 1px rgb(255 255 255 / 70%), inset -1px -1px 1px rgb(255 255 255 / 20%), inset 0 -8px 16px rgb(255 255 255 / 5%);
+  --text-secondary: var(--design-muted);
   width: min(100%, 680px);
   margin: 0 auto;
-  padding: 0 0 72px;
+  padding: 0 0 32px;
+  color: var(--design-ink);
 }
 
-.game-page > h2 {
-  margin: 12px 0 6px !important;
+#root .game-page > h1 {
+  margin: 16px 0 12px;
+  color: var(--design-ink);
   font-family: "Space Grotesk", "Inter", sans-serif;
-  font-size: clamp(28px, 7vw, 44px);
-  font-style: italic;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  text-transform: uppercase;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 650;
+  letter-spacing: -.035em;
+  line-height: 1.1;
+  text-wrap: balance;
+  text-transform: none;
+  font-style: normal;
 }
 
 .game-page .reaction-subtitle {
   margin: 0 0 18px;
   color: var(--text-secondary);
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: .9375rem;
+  line-height: 1.55;
 }
 
-.reaction-segmented {
-  min-height: 60px;
-  margin-bottom: 22px;
-  padding: 5px;
-  border-radius: 17px;
-  border-color: rgba(255, 255, 255, 0.13);
-  background: rgba(20, 22, 30, 0.9);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-.reaction-segmented .segmented-slider {
-  top: 5px;
-  left: 5px;
-  width: calc(50% - 5px);
-  height: calc(100% - 10px);
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ff241d 0%, #e10600 60%, #b90000 100%);
-  box-shadow: 0 8px 26px rgba(225, 6, 0, 0.25);
-}
-
-.reaction-segmented .segmented-tab {
-  padding: 13px 10px;
-  font-size: 16px;
-  font-weight: 800;
-}
+.app-shell .game-page .game-view-switch a { text-decoration: none; }
+.game-view-switch { width: min(100%, 360px); margin: 0 0 24px; }
 
 .reaction-board {
   display: grid;
@@ -68,15 +54,12 @@
   height: clamp(220px, 62vw, 280px);
   padding: clamp(10px, 2.8vw, 16px) clamp(7px, 1.8vw, 11px);
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.23);
+  border: 1px solid var(--game-glass-edge);
   border-radius: clamp(18px, 5vw, 27px);
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.12), transparent 32%),
-    linear-gradient(180deg, #262832 0%, #151720 52%, #090b10 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    inset 0 -18px 30px rgba(0, 0, 0, 0.42),
-    0 12px 26px rgba(0, 0, 0, 0.28);
+  background: radial-gradient(ellipse at var(--glass-x, 24%) var(--glass-y, 12%), rgb(255 255 255 / 28%), transparent 58%), var(--game-glass-sheen), var(--game-glass-fill);
+  box-shadow: var(--game-glass-shadow);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .reaction-light::after {
@@ -125,15 +108,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  border: 1px solid var(--game-line);
+  border: 1px solid var(--design-card-edge);
   border-radius: 24px;
-  background:
-    radial-gradient(circle at 50% -40%, rgba(225, 6, 0, 0.12), transparent 55%),
-    linear-gradient(180deg, rgba(28, 30, 39, 0.96), rgba(14, 16, 23, 0.96));
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 18px 35px rgba(0, 0, 0, 0.2);
+  background: var(--design-glass-sheen), color-mix(in srgb, var(--design-surface) 55%, transparent);
+  box-shadow: var(--game-glass-shadow);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .reaction-main-time {
@@ -141,9 +121,9 @@
   font-size: clamp(62px, 18vw, 100px);
   font-variant-numeric: tabular-nums;
   font-weight: 800;
-  letter-spacing: -0.065em;
+  letter-spacing: -.04em;
   line-height: 0.92;
-  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.38);
+
 }
 
 .reaction-time-unit {
@@ -158,14 +138,14 @@
 .reaction-result,
 .reaction-best {
   margin-top: 8px;
-  color: rgba(255, 255, 255, 0.82);
+  color: var(--design-ink);
   font-size: 13px;
   font-weight: 700;
   text-align: center;
 }
 
 .reaction-best {
-  color: #ffd86b;
+  color: var(--design-scale-medium);
 }
 
 .reaction-button {
@@ -174,43 +154,38 @@
   width: clamp(210px, 62vw, 272px);
   aspect-ratio: 1;
   margin: 4px auto 18px;
-  border: 1px solid rgba(255, 170, 165, 0.55);
+  padding: 24px;
+  border: 1px solid rgb(255 255 255 / 48%);
   border-radius: 50%;
   color: #fff;
   cursor: pointer;
   background:
-    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.1) 17%, transparent 31%),
-    radial-gradient(circle at 50% 62%, #ff2a21 0%, #ed0b04 45%, #ba0000 75%, #710000 100%);
-  box-shadow:
-    inset 0 -24px 34px rgba(89, 0, 0, 0.45),
-    inset 0 2px 3px rgba(255, 255, 255, 0.44),
-    0 14px 28px rgba(0, 0, 0, 0.38),
-    0 0 42px rgba(225, 6, 0, 0.38);
-  font-family: "Space Grotesk", "Inter", sans-serif;
-  font-size: clamp(27px, 7vw, 36px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
+    radial-gradient(ellipse at 50% 55%, rgb(120 0 0 / 56%), transparent 48%),
+    radial-gradient(ellipse at var(--glass-x, 28%) var(--glass-y, 18%), rgb(255 255 255 / 66%), transparent 38%),
+    linear-gradient(155deg, rgb(255 255 255 / 20%), transparent 40%, rgb(80 0 0 / 18%) 90%),
+    var(--game-red-fill);
+  box-shadow: inset 0 2px 2px rgb(255 255 255 / 60%), inset 0 -14px 26px rgb(65 0 0 / 24%), 0 14px 30px rgb(114 15 8 / 24%);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  font: 800 clamp(27px, 7vw, 36px)/1.2 "Space Grotesk", "Inter", sans-serif;
+  letter-spacing: -.02em;
   text-transform: uppercase;
-  transition: transform 0.12s ease, filter 0.12s ease, box-shadow 0.12s ease;
+  overflow-wrap: anywhere;
+  transition: transform 120ms ease, box-shadow 120ms ease;
 }
 
 .reaction-button::after {
   content: "";
   position: absolute;
   inset: 8%;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgb(255 255 255 / 16%);
   border-radius: inherit;
   pointer-events: none;
 }
 
 .reaction-button:active {
-  transform: scale(0.965);
-  filter: brightness(0.9);
-  box-shadow:
-    inset 0 -12px 24px rgba(89, 0, 0, 0.55),
-    inset 0 2px 3px rgba(255, 255, 255, 0.26),
-    0 8px 18px rgba(0, 0, 0, 0.42),
-    0 0 24px rgba(225, 6, 0, 0.3);
+  transform: scale(.97);
+  box-shadow: inset 0 2px 2px rgb(255 255 255 / 40%), inset 0 -8px 20px rgb(65 0 0 / 32%), 0 6px 18px rgb(114 15 8 / 20%);
 }
 
 .reaction-button.is-stop {
@@ -235,20 +210,17 @@
 
 .reaction-settings-card,
 .reaction-leaderboard-card {
-  border: 1px solid var(--game-line);
-  border-radius: 22px;
-  background: linear-gradient(155deg, rgba(27, 29, 38, 0.96), rgba(16, 18, 25, 0.94));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
-  padding: 20px;
+  padding: 20px 0;
+  border-top: 1px solid var(--game-line);
 }
 
 .reaction-settings-title,
 .reaction-leaderboard-title {
   font-family: "Space Grotesk", "Inter", sans-serif;
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 1.25rem;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: -.02em;
 }
 
 .reaction-settings-caption,
@@ -256,27 +228,29 @@
 .reaction-my-place,
 .reaction-leaderboard-empty {
   color: var(--text-secondary);
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: .9375rem;
+  line-height: 1.55;
 }
 
 .reaction-settings-edit,
 .reaction-settings-save,
 .reaction-settings-cancel {
-  min-height: 46px;
-  padding: 11px 17px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 13px;
-  color: #fff;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid var(--design-control);
+  border-radius: 12px;
+  color: var(--design-ink);
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.055);
+  background: var(--design-glass-fill);
   font: inherit;
-  font-weight: 750;
+  font-size: .9375rem;
+  font-weight: 600;
 }
 
 .reaction-settings-save {
-  border-color: rgba(225, 6, 0, 0.52);
-  background: linear-gradient(135deg, #e10600, #a90000);
+  border-color: transparent;
+  color: var(--design-event-ink);
+  background: var(--design-event-bg);
 }
 
 .reaction-settings-save:disabled {
@@ -295,56 +269,58 @@
 
 .reaction-toggle-btn {
   min-height: 48px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 13px;
-  color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.04);
+  padding: 10px;
+  border: 1px solid var(--design-control);
+  border-radius: 12px;
+  color: var(--design-ink);
+  background: var(--design-glass-fill);
   font: inherit;
-  font-weight: 750;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .reaction-toggle-btn.active {
-  border-color: rgba(225, 6, 0, 0.7);
-  color: #fff;
-  background: rgba(225, 6, 0, 0.22);
+  border-color: var(--design-accent);
+  color: var(--design-accent);
+  background: var(--design-tint);
 }
 
 .reaction-input {
+  box-sizing: border-box;
   width: 100%;
   min-height: 48px;
   margin-top: 10px;
   padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 13px;
-  outline: none;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--design-control);
+  border-radius: 12px;
+  color: var(--design-ink);
+  background: var(--design-surface);
+  caret-color: var(--design-accent);
   font: inherit;
 }
 
 .reaction-input:focus {
-  border-color: rgba(225, 6, 0, 0.68);
-  box-shadow: 0 0 0 3px rgba(225, 6, 0, 0.12);
+  outline: 3px solid var(--design-focus);
+  outline-offset: 3px;
 }
 
 .reaction-confirm-box {
   margin-top: 14px;
-  padding: 14px;
-  border: 1px solid rgba(225, 6, 0, 0.25);
-  border-radius: 14px;
-  background: rgba(225, 6, 0, 0.07);
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--design-tint);
 }
 
 .reaction-confirm-text,
 .reaction-settings-status,
 .reaction-settings-error {
-  font-size: 13px;
-  line-height: 1.4;
+  margin-top: 10px;
+  color: var(--design-accent);
 }
 
 .reaction-settings-status {
   margin-top: 10px;
-  color: #77e095;
+  color: var(--design-scale-high);
 }
 
 .reaction-settings-error {
@@ -352,32 +328,28 @@
   color: #ff847d;
 }
 
-.reaction-modal-overlay {
-  position: fixed;
-  z-index: 120;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(3, 4, 7, 0.82);
-  backdrop-filter: blur(12px);
-}
+.reaction-modal-card::backdrop { background: rgb(0 0 0 / 60%); backdrop-filter: blur(8px); }
 
 .reaction-modal-card {
-  width: min(100%, 430px);
+  --text-secondary: var(--design-muted);
+  box-sizing: border-box;
+  width: min(calc(100% - 32px), 430px);
+  border: 0;
+  max-height: calc(100dvh - 40px);
+  overflow: auto;
   padding: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 24px;
-  background: linear-gradient(155deg, #21232d, #101219);
-  box-shadow: 0 26px 80px rgba(0, 0, 0, 0.6);
+  border-radius: 16px;
+  background: var(--design-surface);
+  color: var(--design-ink);
+  box-shadow: 0 24px 80px rgb(0 0 0 / 25%);
 }
 
 .reaction-modal-title {
   margin: 0;
-  font-family: "Space Grotesk", "Inter", sans-serif;
-  font-size: 24px;
-  font-weight: 800;
-  text-transform: uppercase;
+  font: 600 1.5rem/1.2 "Space Grotesk", "Inter", sans-serif;
+  letter-spacing: -.03em;
+  text-transform: none;
+  font-style: normal;
 }
 
 .reaction-leaderboard-header {
@@ -405,14 +377,12 @@
   align-items: center;
   min-height: 58px;
   padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.075);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.035);
+  border-bottom: 1px solid var(--design-line);
 }
 
 .reaction-row.is-me {
-  border-color: rgba(225, 6, 0, 0.48);
-  background: rgba(225, 6, 0, 0.1);
+  background: var(--design-tint);
+  border-radius: 12px;
 }
 
 .reaction-row-place,
@@ -430,7 +400,7 @@
 
 .reaction-world-champion {
   margin-top: 2px;
-  color: #ffd45e;
+  color: var(--design-scale-medium);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -449,7 +419,7 @@
   justify-content: space-between;
   padding: 0;
   border: 0;
-  color: #fff;
+  color: var(--design-ink);
   cursor: pointer;
   background: transparent;
   font: inherit;
@@ -482,22 +452,22 @@
 }
 
 .reflex-filter-btn {
-  min-height: 50px;
+  min-height: 48px;
   padding: 10px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 13px;
-  color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid var(--design-control);
+  border-radius: 12px;
+  color: var(--design-ink);
+  background: var(--design-glass-fill);
   font: inherit;
-  font-size: 13px;
-  font-weight: 750;
+  font-size: .875rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .reflex-filter-btn.active {
-  border-color: rgba(225, 6, 0, 0.72);
-  color: #fff;
-  background: linear-gradient(135deg, rgba(225, 6, 0, 0.25), rgba(130, 0, 0, 0.28));
-  box-shadow: inset 0 0 0 1px rgba(225, 6, 0, 0.16);
+  border-color: var(--design-accent);
+  color: var(--design-accent);
+  background: var(--design-tint);
 }
 
 .reflex-timer-card {
@@ -525,42 +495,39 @@
 }
 
 .reflex-tile {
+  --reflex-tile-radius: clamp(12px, 4vw, 22px);
   position: relative;
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
   aspect-ratio: 1;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: clamp(12px, 4vw, 22px);
+  border: 1px solid var(--design-control);
+  border-radius: var(--reflex-tile-radius);
   cursor: pointer;
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.09), transparent 35%),
-    linear-gradient(180deg, #20232c 0%, #101219 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    inset 0 -12px 22px rgba(0, 0, 0, 0.35),
-    0 8px 17px rgba(0, 0, 0, 0.2);
-  transition: transform 0.11s ease, border-color 0.11s ease, box-shadow 0.11s ease, background 0.11s ease;
+  background: radial-gradient(ellipse at var(--glass-x, 24%) var(--glass-y, 12%), rgb(255 255 255 / 28%), transparent 58%), var(--game-glass-sheen), var(--game-glass-fill);
+  background-repeat: no-repeat;
+  background-origin: border-box;
+  background-clip: border-box;
+  box-shadow: var(--game-glass-shadow);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  transition: border-color 110ms ease, box-shadow 110ms ease;
 }
 
 .reflex-grid[data-size="5"] .reflex-tile {
-  border-radius: 11px;
+  --reflex-tile-radius: 11px;
 }
 
 .reflex-tile.active {
   z-index: 2;
-  border-color: rgba(255, 242, 153, 0.98);
-  background:
-    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.82), transparent 28%),
-    linear-gradient(145deg, #fff079 0%, #ffd62d 55%, #efa900 100%);
-  box-shadow:
-    inset 0 1px 1px rgba(255, 255, 255, 0.8),
-    0 0 16px rgba(255, 221, 65, 0.82),
-    0 0 34px rgba(255, 193, 7, 0.48);
-  animation: reflexTileAppear 0.18s ease-out;
-}
-
-.reflex-tile:active {
-  transform: scale(0.94);
+  border-color: #fff1a0;
+  background: radial-gradient(ellipse at 28% 18%, rgb(255 255 255 / 80%), transparent 38%), linear-gradient(145deg, rgb(255 240 121 / 92%), rgb(255 201 20 / 90%) 60%, rgb(239 169 0 / 94%));
+  box-shadow: inset 0 2px 1px rgb(255 255 255 / 75%), inset 0 -8px 20px rgb(172 116 0 / 12%), 0 8px 22px rgb(217 169 0 / 28%);
+  background-repeat: no-repeat;
+  background-origin: border-box;
+  background-clip: border-box;
 }
 
 .reflex-reset-button {
@@ -579,7 +546,7 @@
   font-family: "Space Grotesk", "Inter", sans-serif;
   font-size: 76px;
   font-weight: 800;
-  letter-spacing: -0.05em;
+  letter-spacing: -.04em;
   line-height: 1;
 }
 
@@ -602,22 +569,18 @@
   }
 }
 
-@keyframes reflexTileAppear {
-  from { transform: scale(0.84); filter: brightness(1.35); }
-  to { transform: scale(1); filter: brightness(1); }
-}
 
 @media (max-width: 520px) {
   .game-page {
     width: 100%;
   }
 
-  .game-page > h2 {
-    font-size: 29px;
+  #root .game-page > h1 {
+    font-size: 2rem;
   }
 
   .game-page .reaction-subtitle {
-    font-size: 13px;
+    font-size: .875rem;
   }
 
   .reaction-board {
@@ -627,13 +590,12 @@
 
   .reaction-timer-card {
     min-height: 150px;
-    border-radius: 20px;
+    border-radius: 16px;
   }
 
   .reaction-settings-card,
   .reaction-leaderboard-card {
-    padding: 17px;
-    border-radius: 19px;
+    padding: 20px 0;
   }
 
   .reflex-filter-grid {
@@ -651,11 +613,7 @@
     width: min(100%, 1240px);
   }
 
-  .reaction-game-page .reaction-segmented {
-    width: min(100%, 520px);
-    margin-right: auto;
-    margin-left: auto;
-  }
+
 
   .reaction-mobile-scene {
     display: none;
@@ -672,6 +630,7 @@
     border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 28px;
     background:
+      radial-gradient(circle var(--game-light-radius, 0px) at var(--game-light-x, 50%) var(--game-light-y, 50%), color-mix(in srgb, var(--game-light-color) 36%, transparent), transparent 80%),
       radial-gradient(circle at 50% 42%, rgba(162, 170, 182, 0.11), transparent 31%),
       linear-gradient(180deg, rgba(25, 28, 34, 0.98), rgba(10, 12, 16, 0.99));
     box-shadow:
@@ -851,7 +810,7 @@
 
   .reaction-desktop-result span {
     margin-top: 4px;
-    color: #ffd86b;
+    color: var(--design-scale-medium);
     font-size: 12px;
     font-weight: 700;
   }
@@ -973,3 +932,62 @@
     animation: none;
   }
 }
+
+.game-page :is(button, a):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
+.game-page :is(button, a) { touch-action: manipulation; }
+.game-page :is(.reaction-settings-edit, .reaction-settings-cancel, .reaction-toggle-btn, .reflex-filter-btn):hover { background: var(--design-tint); border-color: var(--design-accent); }
+.game-page .reaction-settings-save:hover { background: color-mix(in srgb, var(--design-event-bg) 85%, #000); }
+.game-page .reaction-input::placeholder { color: var(--design-muted); opacity: 1; }
+.game-page .reaction-leaderboard-empty > button { display: block; margin-top: 12px; }
+.game-page .reaction-settings-caption a { color: var(--design-accent); text-underline-offset: 3px; }
+.game-page ::selection { background: var(--design-accent); color: var(--design-bg); }
+.game-page .reflex-options-toggle { min-height: 44px; }
+
+.game-page .reaction-main-time { font-size: clamp(3rem, 15vw, 6rem); }
+@media (max-width: 520px) {
+  .reaction-leaderboard-header { flex-direction: column; }
+  .reaction-my-place { max-width: 100%; text-align: left; }
+  .reaction-row { grid-template-columns: 2rem minmax(0, 1fr) auto; gap: 8px; padding-inline: 4px; font-size: .875rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .game-page *, .game-page *::before, .game-page *::after { animation: none !important; transition: none !important; }
+}
+
+/* Keep the established game silhouettes; glass belongs to the interactive layer. */
+.game-play-surface { position: relative; isolation: isolate; scroll-margin-top: 76px; }
+.game-exit-row { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+.game-exit-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 10px 14px; border: 1px solid var(--design-control); border-radius: 14px; background: var(--design-glass-sheen), var(--design-glass-fill); color: var(--design-ink); box-shadow: var(--design-glass-shadow); -webkit-backdrop-filter: blur(24px) saturate(1.3); backdrop-filter: blur(24px) saturate(1.3); font-size: .875rem; font-weight: 600; text-decoration: none; }
+.game-exit-link:hover { color: var(--design-accent); background-color: var(--design-tint); text-decoration: none; }
+.game-exit-row.is-playing { position: fixed; top: max(12px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); z-index: 140; margin: 0; }
+.game-exit-row.is-playing .game-exit-link { background-color: var(--design-surface); }
+.reflex-play-surface { margin-top: 18px; }
+.game-result-exit { display: flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 12px; color: var(--design-accent); font-size: .9375rem; }
+.game-result-exit:focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
+.game-page :is(.reaction-settings-edit, .reflex-filter-btn, .reaction-toggle-btn) { background-image: var(--design-glass-sheen); box-shadow: inset 0 1px 0 var(--design-glass-edge); -webkit-backdrop-filter: blur(22px) saturate(1.3); backdrop-filter: blur(22px) saturate(1.3); }
+.game-page .reaction-button:hover { box-shadow: inset 0 2px 2px rgb(255 255 255 / 70%), inset 0 -14px 26px rgb(65 0 0 / 24%), 0 16px 32px rgb(114 15 8 / 30%); }
+@media (min-width: 900px) { .game-page .reaction-desktop-start { background: var(--design-glass-primary-sheen), rgb(205 13 5 / 90%); -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px); } }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .game-page :is(.reaction-light, .reflex-tile, .reaction-timer-card, .reaction-settings-edit, .reflex-filter-btn, .reaction-toggle-btn), .game-exit-link { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--design-surface); border-color: var(--design-control); box-shadow: none; }
+  .game-page .reflex-tile.active { background: #ffd42b; border: 3px solid var(--design-ink); }
+  .game-page .reaction-button { -webkit-backdrop-filter: none; backdrop-filter: none; background: #b91c16; box-shadow: none; }
+  .game-page .reaction-button::after { display: none; }
+}
+
+/* Live surfaces sample an already-soft light field without per-control blur.
+   This avoids WebKit repaint seams while keeping transparent glass and reflections. */
+/* The emitter's measured position controls the light seen through every glass surface. */
+.game-play-surface { --game-light-color: #ff553d; }
+.reflex-play-surface { --game-light-color: #ffcd2f; }
+.game-play-surface::before { content: ''; position: absolute; z-index: -1; pointer-events: none; inset: 0; border-radius: 30px; opacity: var(--game-light-opacity, 0); background: radial-gradient(circle var(--game-light-radius, 0px) at var(--game-light-x, 50%) var(--game-light-y, 50%), color-mix(in srgb, var(--game-light-color) 36%, transparent), color-mix(in srgb, var(--game-light-color) 18%, transparent) 32%, color-mix(in srgb, var(--game-light-color) 5%, transparent) 60%, transparent 80%); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent), linear-gradient(180deg, transparent, #000 8%, #000 92%, transparent); mask-composite: intersect; }
+.game-page .reflex-tile::after { content: ''; position: absolute; inset: 4px; border-radius: max(0px, calc(var(--reflex-tile-radius) - 4px)); border: 1px solid rgb(255 255 255 / 17%); pointer-events: none; }
+.game-page .reflex-tile:active::after { border-color: rgb(255 255 255 / 80%); }
+.game-page .reflex-tile[data-glass-hover] { box-shadow: 0 14px 30px rgb(0 0 0 / 18%), inset 1px 1px 1px rgb(255 255 255 / 90%), inset -1px -1px 1px rgb(255 255 255 / 36%); }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .game-play-surface::before, .game-page .reflex-tile::after { display: none; } }
+
+:root[data-theme="dark"] .game-page { --game-red-fill: rgb(240 30 12 / 56%); }
+
+@media (min-width: 900px) {
+  .game-page .reaction-desktop-result { background: var(--design-glass-primary-sheen), rgb(8 10 14 / 48%); border-color: rgb(255 255 255 / 32%); box-shadow: inset 0 1px 0 rgb(255 255 255 / 40%); -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5); }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .game-page .reaction-desktop-stage { background: var(--design-media-bg); } }

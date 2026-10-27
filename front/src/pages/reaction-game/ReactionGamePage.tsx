@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BackButton } from "../../components/BackButton";
-import { hapticImpact, hapticSelection } from "../../helpers/telegram";
+import { GameLeaderboardPrompt } from "../../components/GameLeaderboardPrompt";
+import { GlassSwitch } from "../index/GlassSwitch";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { useAuthState } from "../../helpers/auth";
+import { ApiError } from "../../helpers/api";
+import { moveGameGlass, leaveGameGlass } from "../../helpers/gameGlassPointer";
+import { GameExit } from "../../components/GameExit";
+import { useGameLight } from "../../hooks/useGameLight";
+import { usePageScrollLock } from "../../hooks/usePageScrollLock";
+import { hapticImpact } from "../../helpers/telegram";
 import { apiRequest } from "../../helpers/api";
-import { ReactionDesktopScene, type ReactionDesktopStatus } from "./ReactionDesktopScene";
+import { ReactionDesktopScene } from "./ReactionDesktopScene";
 import "../games.css";
 
-type GameStatus = ReactionDesktopStatus;
-type ReactionTab = "game" | "leaderboard";
+type GameStatus = "idle" | "starting" | "armed" | "running" | "finished" | "false-start";
 
 type LeaderboardProfile = {
   display_name: string;
@@ -52,7 +59,15 @@ function formatSecondsMs(ms: number): string {
 
 function ReactionGamePage() {
   const [status, setStatus] = useState<GameStatus>("idle");
-  const [activeTab, setActiveTab] = useState<ReactionTab>("game");
+  const auth = useAuthState();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "leaderboard" ? "leaderboard" : "game";
+  const tabItems = ["game", "leaderboard"].map(id => {
+    const params = new URLSearchParams(searchParams);
+    params.set("tab", id);
+    return { id, label: id === "game" ? "Игра" : "Лидеры", to: `${location.pathname}?${params}` };
+  });
   const [activeLights, setActiveLights] = useState(0);
   const [sequenceLightCount, setSequenceLightCount] = useState(() =>
     typeof window !== "undefined" && window.matchMedia("(min-width: 900px)").matches
@@ -85,17 +100,9 @@ function ReactionGamePage() {
   const timeoutIdsRef = useRef<number[]>([]);
   const scrollLocked = status === "starting" || status === "armed" || status === "running";
 
-  useEffect(() => {
-    if (!scrollLocked) return;
-    const bodyOverflow = document.body.style.overflow;
-    const htmlOverflow = document.documentElement.style.overflow;
-    document.body.style.overflow = "hidden";
-    document.documentElement.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = bodyOverflow;
-      document.documentElement.style.overflow = htmlOverflow;
-    };
-  }, [scrollLocked]);
+  usePageScrollLock(scrollLocked);
+  const playSurface = useRef<HTMLDivElement>(null);
+  useGameLight(playSurface, ".reaction-button, .reaction-desktop-start", activeTab);
 
   const clearAllTimers = useCallback(() => {
     timeoutIdsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
@@ -127,7 +134,10 @@ function ReactionGamePage() {
     const load = async () => {
       try {
         const [profileData, leaderboardData] = await Promise.all([
-          apiRequest<LeaderboardProfile>("/api/reaction-leaderboard/profile"),
+          apiRequest<LeaderboardProfile>("/api/reaction-leaderboard/profile").catch(error => {
+            if (error instanceof ApiError && error.status === 401) return { display_name: "", participate: false, prompt_seen: true };
+            throw error;
+          }),
           apiRequest<LeaderboardResponse>("/api/reaction-leaderboard"),
         ]);
         if (cancelled) return;
@@ -257,6 +267,7 @@ function ReactionGamePage() {
   }, [startRunTimer]);
 
   const startGame = useCallback(() => {
+    playSurface.current?.scrollIntoView({ block: "start", behavior: "instant" });
     clearAllTimers();
     scheduleLightSequence();
   }, [clearAllTimers, scheduleLightSequence]);
@@ -306,10 +317,10 @@ function ReactionGamePage() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.code !== "Space") return;
-      event.preventDefault();
       if (event.repeat || activeTab !== "game" || showOnboarding) return;
       const target = event.target as HTMLElement | null;
-      if (target?.isContentEditable || target?.matches("input, textarea, select")) return;
+      if (target?.isContentEditable || target?.closest("input, textarea, select, button, a, dialog")) return;
+      event.preventDefault();
       handleMainAction();
     };
 
@@ -328,14 +339,14 @@ function ReactionGamePage() {
 
   const buttonLabel =
     status === "running"
-      ? "СТОП"
+      ? "Стоп"
       : status === "starting" || status === "armed"
-        ? "ЖДИ"
+        ? "Жди"
         : status === "idle"
-          ? "СТАРТ"
+          ? "Старт"
           : status === "false-start"
-            ? "ПОПРОБОВАТЬ СНОВА"
-            : "СЫГРАТЬ ЕЩЕ РАЗ";
+            ? "Новая попытка"
+            : "Сыграть ещё раз";
 
   const myPlaceText = useMemo(() => {
     if (!leaderboard.me) return "Пока нет результата в таблице";
@@ -345,82 +356,22 @@ function ReactionGamePage() {
     settingsName.trim() !== (profile.display_name || "").trim() || settingsParticipate !== profile.participate;
 
   return (
-    <div className="game-page reaction-game-page">
-      {showOnboarding && (
-        <div className="reaction-modal-overlay">
-          <div className="reaction-modal-card">
-            <h3 className="reaction-modal-title">Таблица лидеров</h3>
-            <p className="reaction-modal-text">Хочешь участвовать в рейтинге реакции?</p>
-            <input
-              className="reaction-input"
-              placeholder="Твое имя в таблице"
-              value={settingsName}
-              onChange={(e) => setSettingsName(e.target.value)}
-              maxLength={32}
-            />
-            <div className="reaction-toggle-row">
-              <button
-                type="button"
-                className={`reaction-toggle-btn ${settingsParticipate ? "active" : ""}`}
-                onClick={() => setSettingsParticipate(true)}
-              >
-                Да
-              </button>
-              <button
-                type="button"
-                className={`reaction-toggle-btn ${!settingsParticipate ? "active" : ""}`}
-                onClick={() => setSettingsParticipate(false)}
-              >
-                Нет
-              </button>
-            </div>
-            <button
-              type="button"
-              className="reaction-settings-save"
-              disabled={isSavingSettings}
-              onClick={() => {
-                void saveLeaderboardSettings({ fromOnboarding: true });
-              }}
-            >
-              {isSavingSettings ? "Сохраняем..." : "Продолжить"}
-            </button>
-          </div>
-        </div>
-      )}
+    <div className="game-page reaction-game-page" onPointerMove={moveGameGlass} onPointerDown={moveGameGlass} onPointerLeave={leaveGameGlass} onPointerUp={leaveGameGlass} onPointerCancel={leaveGameGlass}>
+      {showOnboarding && <GameLeaderboardPrompt
+        name={settingsName} participate={settingsParticipate} saving={isSavingSettings} error={settingsError}
+        onNameChange={setSettingsName} onParticipateChange={setSettingsParticipate}
+        onContinue={() => { if (!isSavingSettings) void saveLeaderboardSettings({ fromOnboarding: true }); }}
+        onDismiss={() => { setShowOnboarding(false); setSettingsError(""); setSettingsName(profile.display_name); setSettingsParticipate(profile.participate); }}
+      />}
 
-      <BackButton>← <span>На главную</span></BackButton>
-      <h2 style={{ marginTop: 10, marginBottom: 10 }}>Тест реакции</h2>
+      <GameExit playing={scrollLocked} />
+      <h1>Тест реакции</h1>
       <p className="reaction-subtitle">Стартовые огни загораются по очереди и гаснут в случайный момент.</p>
-      <div className="segmented-tabs reaction-segmented">
-        <div
-          className="segmented-slider"
-          style={{ transform: activeTab === "game" ? "translateX(0)" : "translateX(100%)" }}
-          aria-hidden
-        />
-        <button
-          type="button"
-          className={`segmented-tab ${activeTab === "game" ? "active" : ""}`}
-          onClick={() => {
-            hapticSelection();
-            setActiveTab("game");
-          }}
-        >
-          Игра
-        </button>
-        <button
-          type="button"
-          className={`segmented-tab ${activeTab === "leaderboard" ? "active" : ""}`}
-          onClick={() => {
-            hapticSelection();
-            setActiveTab("leaderboard");
-          }}
-        >
-          Лидеры
-        </button>
-      </div>
+      <GlassSwitch items={tabItems} selected={activeTab} label="Игра и таблица лидеров" className="game-view-switch" replace />
 
       {activeTab === "game" && (
         <>
+          <div ref={playSurface} className="game-play-surface reaction-play-surface" data-state={status}>
           <div className="reaction-mobile-scene">
           <div className="reaction-board" aria-label="Стартовые огни Formula 1">
             {Array.from({ length: MOBILE_LIGHT_COUNT }).map((_, lightIndex) => {
@@ -454,9 +405,8 @@ function ReactionGamePage() {
           >
             {buttonLabel}
           </button>
-          <p className="reaction-helper">{helperText}</p>
+          <p className="reaction-helper" role="status">{helperText}</p>
           </div>
-
           <ReactionDesktopScene
             status={status}
             activeLights={activeLights}
@@ -466,11 +416,12 @@ function ReactionGamePage() {
             bestTimeMs={bestTimeMs}
             onAction={handleMainAction}
           />
+          </div>
 
           <section className="reaction-slide">
             <div className="reaction-settings-card">
               <div className="reaction-settings-title">Участие в лидерборде</div>
-              {!isEditingSettings ? (
+              {!auth.signedIn ? <p className="reaction-settings-caption"><Link to="/account">Войдите</Link>, чтобы настроить имя и участие в рейтинге.</p> : !isEditingSettings ? (
                 <>
                   <p className="reaction-settings-caption">
                     Сейчас: {profile.participate ? "участвуешь" : "не участвуешь"} {profile.display_name ? `• ${profile.display_name}` : ""}
@@ -496,6 +447,7 @@ function ReactionGamePage() {
                   </p>
                   <input
                     className="reaction-input"
+                    aria-label="Имя в таблице" name="display_name" autoComplete="nickname"
                     placeholder="Имя в таблице"
                     value={settingsName}
                     onChange={(e) => setSettingsName(e.target.value)}
@@ -504,6 +456,7 @@ function ReactionGamePage() {
                   <div className="reaction-toggle-row">
                     <button
                       type="button"
+                      aria-pressed={settingsParticipate}
                       className={`reaction-toggle-btn ${settingsParticipate ? "active" : ""}`}
                       onClick={() => setSettingsParticipate(true)}
                     >
@@ -511,6 +464,7 @@ function ReactionGamePage() {
                     </button>
                     <button
                       type="button"
+                      aria-pressed={!settingsParticipate}
                       className={`reaction-toggle-btn ${!settingsParticipate ? "active" : ""}`}
                       onClick={() => setSettingsParticipate(false)}
                     >
@@ -558,15 +512,15 @@ function ReactionGamePage() {
                             void saveLeaderboardSettings();
                           }}
                         >
-                          {isSavingSettings ? "Сохраняем..." : "Подтвердить"}
+                          {isSavingSettings ? "Сохраняем…" : "Подтвердить"}
                         </button>
                       </div>
                     </div>
                   )}
                 </>
               )}
-              {settingsSaved && <div className="reaction-settings-status">Настройки сохранены</div>}
-              {settingsError && <div className="reaction-settings-error">{settingsError}</div>}
+              {settingsSaved && <div role="status" className="reaction-settings-status">Настройки сохранены</div>}
+              {settingsError && <div role="alert" className="reaction-settings-error">{settingsError}</div>}
             </div>
           </section>
         </>
@@ -581,9 +535,9 @@ function ReactionGamePage() {
               </div>
 
               {leaderboardLoading ? (
-                <div className="reaction-leaderboard-empty">Загрузка...</div>
+                <div className="reaction-leaderboard-empty">Загрузка…</div>
               ) : leaderboardError ? (
-                <div className="reaction-leaderboard-empty">{leaderboardError}</div>
+                <div role="alert" className="reaction-leaderboard-empty">{leaderboardError}<button type="button" className="reaction-settings-edit" onClick={() => void fetchLeaderboard()}>Повторить загрузку</button></div>
               ) : leaderboard.entries.length === 0 ? (
                 <div className="reaction-leaderboard-empty">Пока нет результатов. Стань первым!</div>
               ) : (
