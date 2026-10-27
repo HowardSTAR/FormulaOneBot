@@ -5,6 +5,7 @@ import { predictionPreview } from './fixtures/predictions';
 import { historyPreview } from './fixtures/history';
 import { profilePreview } from './fixtures/profile';
 import { accountPreview } from './fixtures/account';
+import { gamesPreview } from './fixtures/games';
 import { settingsPreview } from './fixtures/settings';
 import { calendarPreviewRaces, calendarPreviewStage } from './fixtures/calendar';
 const calendarCircuits = import.meta.glob<string>('../public/static/circuit/*.svg', { query: '?raw', import: 'default' });
@@ -86,6 +87,7 @@ const historyFixture = historyPreview(query, drivers, constructors);
 const accountProfileFixture = profilePreview(query);
 const accountFixture = accountPreview(query);
 const settingsFixture = settingsPreview(query);
+const gamesFixture = gamesPreview(query);
 // Native image loads bypass the fetch fixture. Keep their substitute local too.
 if (query.get('page') === 'profile' || query.get('tour') === '1') {
   const avatarImage = new URL('./fixtures/profile-avatar.png', import.meta.url).href;
@@ -106,6 +108,10 @@ window.fetch = async (input, init) => {
     return asset ? new Response(await asset(), { headers: { 'Content-Type': 'image/svg+xml' } }) : new Response('', { status: 404 });
   }
   if (!url.pathname.startsWith('/api/')) return realFetch(input, init);
+  if (['reaction-game', 'reflex-grid-game', 'race-game'].includes(query.get('page') || '')) {
+    const response = await gamesFixture(url, init);
+    if (response) return response;
+  }
   if (url.pathname === '/api/contact-admin') {
     if (scenario === 'contact-sending') await new Promise(resolve => setTimeout(resolve, 1500));
     return contactFailures-- > 0 ? json({ detail: 'Сервис временно недоступен.' }, 503) : json({ status: 'sent', id: 1 });
@@ -246,9 +252,10 @@ const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session', 'tab', 'championship']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
 const calendarQuery = new URLSearchParams();
 for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
-const resultRoutes = ['contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
+const resultRoutes = ['reaction-game', 'reflex-grid-game', 'race-game','contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
 const resultQuery = new URLSearchParams(weekendQuery);
 for (const key of ['kind', 'ids', 'from', 'to', 'roster']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
+if (query.has('tab')) resultQuery.set('tab', query.get('tab')!);
 if (query.has('mode')) resultQuery.set('mode', query.get('mode')!);
 if (query.has('year')) resultQuery.set('year', query.get('year')!);
 const profileRoute = query.get('page') === 'profile' && query.get('owner') === '0' ? `/profile/1?${resultQuery}` : null;
