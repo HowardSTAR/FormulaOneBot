@@ -1,0 +1,40 @@
+body:has(.route-recovery--standalone) { margin: 0; min-height: 100dvh; padding: 0; background: var(--design-bg); color: var(--design-ink); }
+body:has(.route-recovery--standalone) .root { max-width: none; margin: 0; padding: 0; }
+.route-recovery { color: var(--design-ink); font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+.route-recovery--standalone { min-height: 100dvh; padding: calc(24px + var(--app-safe-top, 0px)) calc(32px + var(--app-safe-right, 0px)) calc(32px + var(--app-safe-bottom, 0px)) calc(32px + var(--app-safe-left, 0px)); }
+.route-recovery-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; max-width: 1120px; margin-inline: auto; }
+.route-recovery-brand { color: var(--design-ink); font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 1.5rem; font-weight: 750; letter-spacing: -.04em; line-height: 1.25; text-decoration: none; }
+.route-recovery-brand > span:first-child { color: var(--design-accent); }
+.route-recovery-brand:hover { color: var(--design-accent); text-decoration: none; }
+.route-recovery-header .theme-toggle { width: 44px; min-width: 44px; padding: 0; border-radius: 50%; border-color: var(--design-glass-edge); background: var(--design-glass-fill); box-shadow: var(--design-glass-shadow); backdrop-filter: blur(16px); }
+.route-recovery-header .theme-toggle:hover { background: var(--design-tint); }
+.route-recovery-content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 40px; width: min(100%, 1120px); margin: 0 auto; padding-block: 64px; }
+.route-recovery-copy { position: relative; min-width: 0; }
+.route-recovery .route-recovery-copy h1 { max-width: 16ch; margin: 0; color: var(--design-ink); font-family: 'Space Grotesk', 'Inter', sans-serif; font-size: 3rem; line-height: 1.1; letter-spacing: -.035em; font-weight: 650; font-style: normal; text-transform: none; text-wrap: balance; overflow-wrap: anywhere; }
+.route-recovery-copy p { max-width: 44ch; margin: 24px 0 0; color: var(--design-muted); font-size: 1rem; line-height: 1.65; text-wrap: pretty; }
+.route-recovery-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 20px; margin-top: 28px; }
+.route-recovery-actions :is(a, button) { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; max-width: 100%; padding: 12px 16px; border: 0; border-radius: 12px; font: inherit; font-size: .9375rem; font-weight: 650; line-height: 1.5; text-align: center; text-decoration: none; cursor: pointer; transition: background-color 180ms ease, color 180ms ease; }
+.route-recovery-actions svg { flex: none; }
+.route-recovery-actions .route-recovery-primary { background: var(--design-event-bg); color: var(--design-event-ink); }
+.route-recovery-actions .route-recovery-primary:hover { background: color-mix(in srgb, var(--design-event-bg) 85%, #000); color: var(--design-event-ink); text-decoration: none; }
+.route-recovery-actions .route-recovery-secondary { background: transparent; color: var(--design-ink); }
+.route-recovery-actions .route-recovery-secondary:hover { background: var(--design-tint); color: var(--design-accent); text-decoration: none; }
+.route-recovery :is(a, button):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 5px; }
+.route-recovery-art { width: 100%; max-width: 560px; aspect-ratio: 3 / 2; justify-self: center; pointer-events: none; mask-image: linear-gradient(90deg, transparent, #000 3%, #000 97%, transparent), linear-gradient(180deg, transparent, #000 3%, #000 94%, transparent); mask-composite: intersect; }
+.route-recovery-art img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.route-recovery ::selection { color: var(--design-bg); background: var(--design-accent); }
+@media (max-width: 759px) {
+  .route-recovery--standalone { padding-inline: calc(24px + var(--app-safe-left, 0px)) calc(24px + var(--app-safe-right, 0px)); }
+  .route-recovery-content { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-block: 40px 16px; }
+  .route-recovery .route-recovery-copy h1 { font-size: 2.25rem; }
+  .route-recovery-copy p { margin-top: 20px; }
+  .route-recovery-actions { gap: 8px; margin-top: 24px; }
+  .route-recovery-art { max-width: 360px; justify-self: center; }
+}
+@media (max-width: 359px) {
+  .route-recovery--standalone { padding-inline: calc(16px + var(--app-safe-left, 0px)) calc(16px + var(--app-safe-right, 0px)); }
+  .route-recovery-actions { align-items: stretch; flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) { .route-recovery-actions :is(a, button) { transition: none; } }
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) { .route-recovery-header .theme-toggle { background: var(--design-surface); border: 1px solid var(--design-control); backdrop-filter: none; box-shadow: none; } }
+@media (forced-colors: active) { .route-recovery-art { display: none; } }

@@ -30,7 +30,6 @@
 .admin-audit-card .control-filters label { display: grid; gap: 8px; flex: 1 1 240px; }
 .admin-audit-card .control-filters input, .admin-audit-card .control-filters select { min-height: 44px; padding: 10px; color: #fff; background: #1b1e25; border: 1px solid #555b68; border-radius: 10px; }
 .voting-accordion-badge { white-space: normal; text-align: right; font-size: .8rem; }
-.ui-not-found { max-width: 720px; margin: 48px auto; padding: 24px; }
 .ui-results-year { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 16px 0; }
 .ui-results-year .year-select-wrapper { max-width: 260px; }
 @media (max-width: 767px) {
