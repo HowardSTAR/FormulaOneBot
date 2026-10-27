@@ -34,3 +34,13 @@ Redis 7.4 container licensing is governed by the license terms published for tha
 
 No item in this notice grants rights to third-party trade marks or data beyond the relevant right holder's terms.
 
+## Entrant biographies and photographs
+
+Driver and constructor biographies use Wikipedia extracts. The page links to the source article and the [CC BY-SA 4.0 text license](https://creativecommons.org/licenses/by-sa/4.0/). Extracts are shortened and cleaned for presentation.
+
+Optional photographs are resolved from Wikimedia Commons. Each displayed photograph carries its source page, author and license links supplied by Commons metadata. Non-free images and images without the required attribution are omitted. Photographs are shown proportionally with softened edges; they are not bundled into the application.
+
+The isolated design preview uses these photographs:
+
+- [2024 British GP qualifying — Norris](https://commons.wikimedia.org/wiki/File:2024_British_GP_qualifying_-_Norris.jpg), by 5225C, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- [McLaren MCL38](https://commons.wikimedia.org/wiki/File:McLaren_MCL38.jpg), by Liauzh, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).

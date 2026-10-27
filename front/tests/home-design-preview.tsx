@@ -1,6 +1,7 @@
 // Vite-only visual fixture. Uses the real app with deterministic, fictional data.
 // No requests are sent to a backend, and no accounts or records are modified.
 import circuitProfiles from './fixtures/circuit-profiles.json';
+import { entrantBiographyPreview } from './fixtures/entrant-biographies';
 import { predictionPreview } from './fixtures/predictions';
 import { historyPreview } from './fixtures/history';
 import { profilePreview } from './fixtures/profile';
@@ -26,6 +27,7 @@ const linked = query.get('auth') === 'linked';
 const demoVotes: Record<number, number> = {};
 let previewRead = false;
 let constructorFailures = scenario === 'constructors-error' ? 1 : 0;
+let entrantFailures = scenario === 'entrant-error' ? 1 : 0;
 let driverFailures = scenario === 'drivers-error' ? 1 : 0;
 let compareFailures = scenario === 'compare-error' ? 1 : 0;
 let calendarFailures = scenario === 'calendar-error' ? 1 : 0;
@@ -88,6 +90,15 @@ const accountProfileFixture = profilePreview(query);
 const accountFixture = accountPreview(query);
 const settingsFixture = settingsPreview(query);
 const gamesFixture = gamesPreview(query);
+if (['driver-details', 'constructor-details'].includes(query.get('page') || '')) {
+  new MutationObserver(() => {
+    document.querySelectorAll<HTMLImageElement>('img[src*="/assets/country/"]').forEach(img => {
+      const code = img.src.split('/').pop();
+      img.src = `/flags/${code}`;
+      img.style.visibility = '';
+    });
+  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+}
 // Native image loads bypass the fetch fixture. Keep their substitute local too.
 if (query.get('page') === 'profile' || query.get('tour') === '1') {
   const avatarImage = new URL('./fixtures/profile-avatar.png', import.meta.url).href;
@@ -209,16 +220,20 @@ window.fetch = async (input, init) => {
       return json({ constructors: ['empty', 'constructors-empty'].includes(scenario || '') ? [] : constructors.map(team => ({ ...team, is_favorite: member && team.name === 'McLaren' })) });
     }
     case '/api/driver-details': {
+      if (entrantFailures-- > 0) return json({ detail: 'Карточка временно недоступна' }, 503);
+      if (scenario === 'entrant-loading') return new Promise<Response>(() => {});
       const row = drivers.find(driver => driver.code === url.searchParams.get('code') || driver.driverId === url.searchParams.get('driverId'));
       if (!row) return json({ detail: 'Нет пилота в демо' }, 404);
       const [givenName, ...familyName] = row.name.split(' ');
-      return json({ driverId: row.driverId || row.code.toLowerCase(), code: row.code, givenName, familyName: familyName.join(' '), permanentNumber: row.number, dateOfBirth: '', nationality: '', url: '', bio: 'Демонстрационная карточка для проверки переходов.', headshot_url: row.imageUrl || '', season: 2026, season_stats: { ...previewStats, position: row.position, points: row.points }, career_stats: previewCareer });
+      return json({ driverId: row.driverId || row.code.toLowerCase(), code: row.code, givenName, familyName: familyName.join(' '), permanentNumber: row.number, dateOfBirth: '1999-11-13', nationality: 'British', url: 'https://en.wikipedia.org/wiki/Lando_Norris', ...entrantBiographyPreview('driver', row.code, scenario), headshot_url: row.imageUrl || '', season: Number(url.searchParams.get('season') || 2026), season_stats: scenario === 'entrant-zero' ? { ...previewStats, position: 0, points: 0 } : { ...previewStats, grand_prix_races: 18, grand_prix_points: 260, grand_prix_podiums: 10, grand_prix_poles: 4, grand_prix_top10s: 15, grand_prix_wins: 5, sprint_races: 4, sprint_points: 27, sprint_top10s: 3, position: row.position, points: row.points }, career_stats: scenario === 'entrant-empty' ? previewCareer : { ...previewCareer, available: true, grand_prix_entered: 120, career_points: 1112.5, podiums: 35, highest_race_finish: { position: 1, count: 9 }, highest_grid: { position: 1, count: 12 }, pole_positions: 12 } });
     }
     case '/api/constructor-details': {
+      if (entrantFailures-- > 0) return json({ detail: 'Карточка временно недоступна' }, 503);
+      if (scenario === 'entrant-loading') return new Promise<Response>(() => {});
       const normalize = (value: string) => value.toLowerCase().replace(/[^a-z]/g, '');
-      const row = constructors.find(team => normalize(team.name) === normalize(url.searchParams.get('constructorId') || ''));
+      const row = constructors.find(team => [normalize(team.name), normalize(team.constructorId)].includes(normalize(url.searchParams.get('constructorId') || '')));
       if (!row) return json({ detail: 'Нет команды в демо' }, 404);
-      return json({ constructorId: normalize(row.name), name: row.name, nationality: '', url: '', bio: 'Демонстрационная карточка для проверки переходов.', drivers: [], principal: null, season: Number(url.searchParams.get('season') || 2026), season_stats: { ...previewStats, position: row.position, points: row.points }, career_stats: previewCareer });
+      return json({ constructorId: normalize(row.name), name: row.name, nationality: 'British', url: 'https://en.wikipedia.org/wiki/McLaren', ...entrantBiographyPreview('team', row.constructorId, scenario), drivers: scenario === 'entrant-empty' ? [] : drivers.filter(driver => driver.constructorName === row.name).map(driver => { const [givenName, ...familyName] = driver.name.split(' '); return { driverId: driver.driverId, code: driver.code, givenName, familyName: familyName.join(' '), permanentNumber: driver.number, nationality: 'British', headshot_url: driver.imageUrl }; }), principal: scenario === 'entrant-empty' ? null : { id: 'demo-principal', name: 'Руководитель команды', role: 'Руководитель', photo_url: new URL('./fixtures/profile-avatar.png', import.meta.url).href }, season: Number(url.searchParams.get('season') || 2026), season_stats: { ...previewStats, grand_prix_races: 18, grand_prix_entries: 36, grand_prix_points_finishes: 30, grand_prix_unclassified: 3, highest_race_finish: { position: 1, count: 8 }, highest_grid: { position: 1, count: 7 }, grand_prix_wins: 8, grand_prix_podiums: 22, grand_prix_poles: 7, grand_prix_points: 502, position: row.position, points: row.points }, career_stats: scenario === 'entrant-empty' ? previewCareer : { ...previewCareer, available: true, grand_prix_entered: 1860, grand_prix_events: 930, career_points: 10200, podiums: 500, pole_positions: 140, world_championships: 8, highest_race_finish: { position: 1, count: 190 } } });
     }
     case '/api/predictions/preview':
     case '/api/predictions/current': return json({ status: 'ok', is_open: true, season: 2026, round: 19, event_name: 'United States Grand Prix', deadline_utc: sessions[4].utc_iso, prediction: null });
@@ -252,9 +267,9 @@ const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session', 'tab', 'championship']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
 const calendarQuery = new URLSearchParams();
 for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
-const resultRoutes = ['reaction-game', 'reflex-grid-game', 'race-game','contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
+const resultRoutes = ['driver-details', 'constructor-details', 'reaction-game', 'reflex-grid-game', 'race-game','contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
 const resultQuery = new URLSearchParams(weekendQuery);
-for (const key of ['kind', 'ids', 'from', 'to', 'roster']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
+for (const key of ['kind', 'ids', 'from', 'to', 'roster', 'code', 'driverId', 'constructorId']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
 if (query.has('tab')) resultQuery.set('tab', query.get('tab')!);
 if (query.has('mode')) resultQuery.set('mode', query.get('mode')!);
 if (query.has('year')) resultQuery.set('year', query.get('year')!);
