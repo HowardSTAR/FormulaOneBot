@@ -63,7 +63,7 @@ export default function EmailVerification({ email, emailSent = true, registered 
     finally { setBusy(false); }
   };
   return <section className="profile-panel profile-email-verification" aria-labelledby="profile-email-title">
-    <span className="profile-eyebrow">{registered ? 'ДОБРО ПОЖАЛОВАТЬ В TURBOTEARS' : 'ЗАВЕРШИТЬ РЕГИСТРАЦИЮ'}</span>
+
     <h2 id="profile-email-title">{registered ? 'Профиль готов — подтвердите email' : 'Подтвердите email'}</h2>
     <p>Введите шестизначный код из письма на <strong>{email}</strong>. Код действует 10 минут. Можно сделать это сейчас или вернуться позже.</p>
     <form onSubmit={verify}>

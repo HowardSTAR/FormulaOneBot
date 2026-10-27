@@ -110,7 +110,7 @@ export default function AvatarEditor({ value, options, style, styleOptions, tier
   }
   return <dialog ref={dialog} className="avatar-editor" aria-labelledby="avatar-editor-title"
     onCancel={event => { event.preventDefault(); if (!locked) close(); }}>
-    <header><div><p>ТВОЙ ОБРАЗ НА СТАРТЕ</p><h2 id="avatar-editor-title">Аватар и оформление</h2></div>
+    <header><div><h2 id="avatar-editor-title">Аватар и оформление</h2></div>
       <button type="button" aria-label="Закрыть настройки аватара и оформления" disabled={locked} onClick={close}>×</button></header>
     <div className="avatar-editor-layout"><div className="avatar-editor-preview">
       {portraitsReady ? <AvatarPortrait avatar={draft} alt="Предпросмотр выбранного гонщика" />

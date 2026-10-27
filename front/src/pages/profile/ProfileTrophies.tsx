@@ -10,6 +10,7 @@ function Medal({ family, level }: { family: string; level: number }) {
 export default function ProfileTrophies({ userId, owner, onBadge }: { userId: number; owner: boolean; onBadge: (badge: TrophyAward | null) => void }) {
   const [data, setData] = useState<TrophyCollection | null>(null);
   const [error, setError] = useState(''), [notice, setNotice] = useState('');
+  const [attempt, setAttempt] = useState(0);
   const [active, setActive] = useState('oracle'), [levels, setLevels] = useState<Record<string,number>>({});
   const [mode, setMode] = useState<'collection' | 'badge'>('collection');
   const [draft, setDraft] = useState<string | null>(null), [busy, setBusy] = useState(false);
@@ -22,10 +23,10 @@ export default function ProfileTrophies({ userId, owner, onBadge }: { userId: nu
     };
     const update = (event: Event) => { if (owner) apply((event as CustomEvent<TrophyCollection>).detail); };
     void apiRequest<TrophyCollection>(`/api/profiles/${owner ? 'me' : userId}/trophies`).then(apply)
-      .catch(() => { if (valid) setError('Не удалось загрузить трофеи. Обновите страницу, чтобы повторить.'); });
+      .catch(() => { if (valid) setError('Не удалось загрузить трофеи. Попробуйте ещё раз.'); });
     window.addEventListener(TROPHY_UPDATED, update);
     return () => { valid = false; window.removeEventListener(TROPHY_UPDATED, update); };
-  }, [userId, owner, onBadge]);
+  }, [userId, owner, onBadge, attempt]);
   const families = data?.families || [];
   const selected = families.find(family => family.id === active) || families[0];
   function levelFor(family: TrophyFamily) {
@@ -66,9 +67,14 @@ export default function ProfileTrophies({ userId, owner, onBadge }: { userId: nu
   }
   const selectedRow = Math.floor(families.indexOf(selected) / 3);
   return <section className="profile-trophies profile-panel" id="profile-trophies" aria-labelledby="profile-trophies-title">
-    <header className="trophy-heading"><div><p>КОЛЛЕКЦИЯ TURBOTEARS</p><h2 id="profile-trophies-title">Трофеи</h2><span>{owner ? `${data?.earned.length ?? '—'} получено · ${data?.families.length ?? '—'} категорий` : `${data?.earned.length ?? '—'} получено`}</span></div>
+    <div className="profile-section-backdrop profile-trophies-backdrop" aria-hidden="true">
+      <img src={trophyImage('rhythm', 1)} alt="" width="256" height="256" loading="lazy" />
+      <img src={trophyImage('oracle', 2)} alt="" width="256" height="256" loading="lazy" />
+      <img src={trophyImage('podium', 0)} alt="" width="256" height="256" loading="lazy" />
+    </div>
+    <header className="trophy-heading"><div><h2 id="profile-trophies-title">Трофеи</h2><span>{owner ? `${data?.earned.length ?? '—'} получено · ${data?.families.length ?? '—'} категорий` : `${data?.earned.length ?? '—'} получено`}</span></div>
       {owner && <nav aria-label="Коллекция и бейдж"><button type="button" aria-pressed={mode === 'collection'} onClick={() => setMode('collection')}>Коллекция</button><button type="button" aria-pressed={mode === 'badge'} onClick={() => { setDraft(data?.badge?.id || null); setMode('badge'); }}>Бейдж профиля</button></nav>}</header>
-    {error && <p role="alert">{error}</p>}
+    {error && <div><p role="alert">{error}</p><button type="button" className="profile-panel-action" onClick={() => { setError(''); setAttempt(value => value + 1); }}>Повторить загрузку</button></div>}
     {!data && !error && <p role="status">Загружаем трофеи…</p>}
     {data && mode === 'collection' && <>
       <p className="trophy-hint">Выберите трофей, чтобы {owner ? 'посмотреть условия и сменить уровень' : 'посмотреть полученные уровни'}.</p>

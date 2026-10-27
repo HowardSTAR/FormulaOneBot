@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiRequest } from '../../helpers/api';
+import { DriverPortrait } from '../../components/DriverPortrait';
+import { TeamLogo } from '../../components/TeamLogo';
+import { HomeIcon } from '../index/HomeIcon';
 
 export type ProfileFavoritesData = { drivers: string[]; teams: string[] };
 
@@ -27,11 +30,16 @@ export function ProfileFavorites({ favorites, owner }: { favorites: ProfileFavor
     return () => { active = false; };
   }, [season, hasTeams]);
   return <section className="profile-panel profile-favorites" aria-labelledby="profile-favorites-title">
+    <div className="profile-section-backdrop profile-favorites-backdrop" aria-hidden="true">
+      <HomeIcon name="favorite" />
+      {favorites.teams[0] && <TeamLogo name={favorites.teams[0]} id={teams[favorites.teams[0]]} season={season} />}
+      <div className="profile-favorites-portraits">{favorites.drivers.slice(0, 2).map(code => <DriverPortrait key={code} code={code} name={drivers[code] || code} season={season} />)}</div>
+    </div>
     <div className="profile-favorites-heading"><h2 id="profile-favorites-title">Избранное</h2>{owner && <Link to="/favorites">Изменить избранное →</Link>}</div>
     <p className="profile-muted">{owner ? 'За кем ты следишь в мире гонок.' : 'За кем следит участник в мире гонок.'}</p>
     {!favorites.drivers.length && !favorites.teams.length ? <p className="profile-muted">{owner ? 'Добавь любимых пилотов и команды — они появятся здесь.' : 'Участник пока не выбрал любимых пилотов и команды.'}</p> : <div className="profile-following">
-      <div><h3>Пилоты</h3>{favorites.drivers.length ? <ul>{favorites.drivers.map(code => <li key={code}><Link to={`/driver-details?code=${encodeURIComponent(code)}&season=${season}`}><span className="profile-following-code">{code}</span><span>{drivers[code] || code}</span></Link></li>)}</ul> : <p className="profile-muted">Пилоты не выбраны.</p>}</div>
-      <div><h3>Команды</h3>{favorites.teams.length ? <ul>{favorites.teams.map(team => <li key={team}><Link to={teams[team] ? `/constructor-details?constructorId=${encodeURIComponent(teams[team])}&season=${season}` : '/constructors'}><span className="profile-following-star" aria-hidden="true">★</span><span>{team}</span></Link></li>)}</ul> : <p className="profile-muted">Команды не выбраны.</p>}</div>
+      <div><h3>Пилоты</h3>{favorites.drivers.length ? <ul>{favorites.drivers.map(code => <li key={code}><Link to={`/driver-details?code=${encodeURIComponent(code)}&season=${season}`}><DriverPortrait code={code} name={drivers[code] || code} season={season} /><span>{drivers[code] || code}</span></Link></li>)}</ul> : <p className="profile-muted">Пилоты не выбраны.</p>}</div>
+      <div><h3>Команды</h3>{favorites.teams.length ? <ul>{favorites.teams.map(team => <li key={team}><Link to={teams[team] ? `/constructor-details?constructorId=${encodeURIComponent(teams[team])}&season=${season}` : '/constructors'}><TeamLogo name={team} id={teams[team]} season={season} /><span>{team}</span></Link></li>)}</ul> : <p className="profile-muted">Команды не выбраны.</p>}</div>
     </div>}
   </section>;
 }

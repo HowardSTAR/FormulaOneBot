@@ -73,7 +73,8 @@ export default function SupporterLeague({ season, supporter }: { season: number;
     if (supporter && defaultOpen) document.getElementById('supporter-league')?.scrollIntoView({block: 'start'});
   }, [season, supporter, defaultOpen]);
   return <section id="supporter-league" className="profile-panel supporter-league" data-profile-guide="club">
-    <div className="supporter-league-heading"><div><p className="supporter-league-eyebrow">ЛИГА ПОДПИСЧИКОВ · {season}</p><h2>Клуб TurboTears</h2></div><SupporterBadge large /></div>
+    <div className="profile-section-backdrop profile-club-backdrop" aria-hidden="true"><SupporterBadge /></div>
+    <div className="supporter-league-heading"><div><h2>Клуб TurboTears</h2></div><SupporterBadge large /></div>
     <p className="profile-muted">Твой круг соперников. Общий зачёт прогнозов за сезон для уровней «На старт», «Свой стиль» и «Полный газ».</p>
     {supporter ? <MemberLeague key={`${season}:${defaultOpen}`} season={season} defaultOpen={defaultOpen} /> : <div className="supporter-league-join"><p>Подписка открывает клубный зачёт и золотой значок рядом с именем.</p><a href="https://boosty.to/turbotears" target="_blank" rel="noopener noreferrer">Присоединиться на Boosty →</a></div>}
   </section>;
