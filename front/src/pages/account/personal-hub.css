@@ -1,16 +1,23 @@
-.personal-hub-header{max-width:1120px;margin:24px auto 0;padding:0 24px;display:flex;align-items:center;gap:20px}
-.personal-hub-switch{position:relative;isolation:isolate;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:320px;max-width:100%;padding:5px;background:#181c25;border:1px solid #ffffff16;border-radius:14px}
-.personal-hub-slider{position:absolute;z-index:-1;top:5px;bottom:5px;left:5px;width:calc((100% - 10px)/2);border-radius:10px;background:#e8493e;box-shadow:0 4px 16px #e8493e25;transition:transform .25s ease}
-.personal-hub-switch-account .personal-hub-slider{transform:translateX(100%)}
-.personal-hub-switch a{padding:12px 16px;min-width:0;text-align:center;border-radius:10px;text-decoration:none;color:#b8bdca;font-weight:750;background:transparent;box-shadow:none;transition:color .2s}
-.personal-hub-switch a.active{color:white;background:transparent;box-shadow:none}
-.personal-hub-settings{margin-left:auto;padding:10px 14px;border:1px solid #ffffff20;border-radius:10px;color:#c7cbd4;text-decoration:none;font-size:13px;font-weight:700}
-.personal-hub-settings.active{border-color:#ff8a7d;color:#ffad9f}
-.personal-hub-header a:focus-visible{outline:2px solid #ff9084;outline-offset:3px}
-.personal-hub .account-page{margin-top:0;max-width:1120px;padding-left:24px;padding-right:24px}
-.personal-hub .user-profile-page{padding-top:24px}
-.profile-sharing{display:flex;justify-content:flex-end;gap:12px;margin-bottom:16px}.profile-sharing .share-button{margin:0}
-.personal-hub .personal-page{margin-top:24px}
-@media(max-width:700px){.personal-hub-header{margin-top:18px;padding:0 14px;gap:10px;flex-wrap:wrap}.personal-hub-switch{flex:1;width:auto;min-width:180px}.personal-hub-switch a{padding:11px 8px;font-size:13px}.personal-hub-settings{padding:10px;font-size:12px}.personal-hub .account-page{padding-left:14px;padding-right:14px}.profile-sharing .share-button{width:100%}}
-@media(max-width:420px){.personal-hub-settings{margin-left:auto}.personal-hub-header{gap:8px}}
-@media(prefers-reduced-motion:reduce){.personal-hub-slider,.personal-hub-switch a{transition:none}}
+.personal-hub { container: personal / inline-size; }
+.personal-hub-header { max-width: 1120px; margin: 24px auto 0; padding: 0 24px; display: flex; align-items: center; gap: 16px; }
+.personal-hub .personal-hub-switch { width: 320px; max-width: 100%; flex: 0 1 320px; }
+.personal-hub .home-glass-switch a { text-decoration: none; overflow-wrap: anywhere; }
+.personal-hub-settings { display: inline-flex; align-items: center; justify-content: center; margin-left: auto; min-height: 44px; padding: 10px 16px; border: 1px solid var(--home-control-edge); border-radius: 24px; color: var(--design-ink); background: var(--home-control-sheen),var(--home-control-fill); box-shadow: var(--home-control-shadow); -webkit-backdrop-filter: var(--home-control-blur); backdrop-filter: var(--home-control-blur); font-size: .8125rem; font-weight: 550; text-decoration: none; }
+.personal-hub-settings.active { color: var(--design-accent); }
+.personal-hub-header a:focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
+.personal-hub-settings:hover { color: var(--design-accent); border-color: var(--design-control); }
+.personal-hub .account-page { margin-top: 0; max-width: 1120px; padding-left: 24px; padding-right: 24px; }
+.personal-hub .user-profile-page { padding-top: 24px; }
+.personal-hub .personal-page { margin-top: 24px; }
+.personal-hub-profile .personal-hub-header { margin: 0 auto; padding: 0; }
+@media (max-width:700px) {
+  .personal-hub-header { margin-top: 18px; padding: 0 14px; gap: 8px; flex-wrap: wrap; }
+  .personal-hub .personal-hub-switch { flex: 1; width: auto; min-width: 160px; }
+  .personal-hub .account-page { padding-inline: 14px; }
+  .personal-hub .user-profile-page { padding-top: 20px; }
+}
+@container personal (max-width:18rem) {
+  .personal-hub-header { display: grid; grid-template-columns: minmax(0,1fr); }
+  .personal-hub .personal-hub-switch { width: 100%; min-width: 0; }
+  .personal-hub-settings { justify-self: start; margin: 0; }
+}

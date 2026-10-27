@@ -129,7 +129,7 @@ function CardShareComposer({options, onClose}: {options: ShareOptions; onClose: 
   </dialog>;
 }
 
-export function ShareButton({options, children = 'Поделиться результатом'}: {options: ShareOptions; children?: React.ReactNode}) {
+export function ShareButton({options, children = 'Поделиться результатом', label}: {options: ShareOptions; children?: React.ReactNode; label?: string}) {
   const [open, setOpen] = useState(false);
-  return <><button type="button" className="share-button" onClick={() => setOpen(true)}>{children}</button>{open && <ShareComposer options={options} onClose={() => setOpen(false)} />}</>;
+  return <><button type="button" className="share-button" aria-label={label} title={label} onClick={() => setOpen(true)}>{children}</button>{open && <ShareComposer options={options} onClose={() => setOpen(false)} />}</>;
 }
