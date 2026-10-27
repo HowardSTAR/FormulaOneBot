@@ -496,15 +496,6 @@
     color: rgba(227, 226, 227, 0.52) !important;
   }
 
-  .app-page-main.route-settings .btn-save {
-    background: linear-gradient(45deg, #e10600, #c00500) !important;
-    border-radius: 10px !important;
-    font-family: "Space Grotesk", sans-serif !important;
-    font-size: 12px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.08em !important;
-  }
-
   .app-page-main.route-race-results #race-content,
   .app-page-main.route-quali-results #quali-content,
   .app-page-main.route-sprint-results #sprint-content,
@@ -2414,26 +2405,6 @@
   .app-page-main.route-favorites .select-item.selected {
     border-color: rgba(225, 6, 0, 0.8) !important;
     background: rgba(225, 6, 0, 0.12) !important;
-  }
-
-  .app-page-main.route-settings .setting-card {
-    border-radius: 12px !important;
-    border: 1px solid rgba(94, 63, 58, 0.24) !important;
-    background: #1b1c1d !important;
-  }
-
-  .app-page-main.route-settings .setting-label {
-    text-transform: uppercase !important;
-    letter-spacing: 0.12em !important;
-    font-size: 10px !important;
-    color: rgba(227, 226, 227, 0.54) !important;
-    font-family: "Space Grotesk", sans-serif !important;
-  }
-
-  .app-page-main.route-settings .btn-save {
-    min-width: 220px !important;
-    min-height: 44px !important;
-    align-self: flex-start !important;
   }
 
   .app-page-main.route-quali-results .standings-time,

@@ -34,6 +34,5 @@ html[data-telegram-mobile="true"] #root .root {
   #root .btn-back .back-button-icon { display: block; flex-shrink: 0; }
   #root .btn-back .back-button-label { display: none; }
   button.scroll-to-top.scroll-to-top { bottom: calc(var(--app-safe-bottom) + 12px); }
-  #root .settings-page .settings-save-bar { bottom: calc(var(--app-safe-bottom) + 12px); }
   .install-hint.install-hint { bottom: calc(var(--app-safe-bottom) + 12px); max-height: calc(100dvh - var(--app-safe-bottom) - var(--app-safe-top) - 36px); }
 }

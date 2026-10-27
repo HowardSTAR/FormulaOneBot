@@ -4,21 +4,25 @@ import { apiRequest } from "../../helpers/api";
 import { CustomSelect } from "../../components/CustomSelect";
 import { hapticSelection, hapticImpact } from "../../helpers/telegram";
 import { visibleInterval } from "../../helpers/visibleInterval";
-import "../../assets/personal-pages.css";
+import { HomeIcon, type HomeIconName } from '../index/HomeIcon';
+import { useAuthState } from '../../helpers/auth';
+import { SettingsDayClock } from './SettingsDayClock';
+import './settings.css';
 import { Link, useBlocker } from 'react-router-dom';
 import { FIXED_TIMEZONE_OPTIONS, timezoneName } from '../../helpers/presentation';
 import { NOTIFY_OPTIONS, selectedIntervals, toggleInterval } from '../../helpers/reminderIntervals';
 
 type SettingsResponse = { timezone?: string; notify_before?: number; notify_before_minutes?: number[]; notifications_enabled?: boolean; reminder_sessions?: number; results_spoiler?: boolean };
 const SESSION_OPTIONS = [
-  { bit: 1, label: "Свободные заезды", detail: "FP1, FP2 и FP3" },
-  { bit: 2, label: "Квалификация", detail: "Борьба за стартовую решётку" },
-  { bit: 4, label: "Гонка", detail: "Главная гонка уик-энда" },
-  { bit: 8, label: "Спринт-квалификация", detail: "Стартовая решётка спринта" },
-  { bit: 16, label: "Спринт", detail: "Короткая гонка" },
-];
+  { bit: 1, icon: 'drivers', label: "Свободные заезды", detail: "FP1, FP2 и FP3" },
+  { bit: 2, icon: 'quali', label: "Квалификация", detail: "Борьба за стартовую решётку" },
+  { bit: 8, icon: 'sprintQuali', label: "Спринт-квалификация", detail: "Стартовая решётка спринта" },
+  { bit: 16, icon: 'sprint', label: "Спринт", detail: "Короткая гонка" },
+  { bit: 4, icon: 'race', label: "Гонка", detail: "Главная гонка уик-энда" },
+] satisfies { bit: number; icon: HomeIconName; label: string; detail: string }[];
 
 function SettingsPage({ embedded = false }: { embedded?: boolean }) {
+  const auth = useAuthState();
   const [timezone, setTimezone] = useState("Etc/GMT-3");
   const [notifyBefore, setNotifyBefore] = useState(60);
   const [notifyBeforeMinutes, setNotifyBeforeMinutes] = useState<number[]>([60]);
@@ -64,6 +68,12 @@ function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   }, []);
 
   useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  useEffect(() => {
     let cancelled = false;
     setLoaded(false); setError('');
     apiRequest<SettingsResponse>("/api/account/settings")
@@ -86,8 +96,10 @@ function SettingsPage({ embedded = false }: { embedded?: boolean }) {
   }, [attempt]);
 
   const saveSettings = async () => {
+    if (saving || !loaded || !dirty) return;
     setSaving(true);
     setError("");
+    setToast(false);
     try {
       await apiRequest(
         "/api/account/settings",
@@ -96,7 +108,6 @@ function SettingsPage({ embedded = false }: { embedded?: boolean }) {
       );
       setToast(true);
       setSaved(draft);
-      setTimeout(() => setToast(false), 3000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось сохранить настройки");
     } finally {
@@ -109,112 +120,103 @@ function SettingsPage({ embedded = false }: { embedded?: boolean }) {
     : [...FIXED_TIMEZONE_OPTIONS, { value: timezone, label: timezoneName(timezone) }], [timezone]);
   const timezoneLabel = timezoneOptions.find((item) => item.value === timezone)?.label || timezone;
   const notifyLabel = notifyBeforeMinutes.map(minutes => NOTIFY_OPTIONS.find(item => item.value === minutes)?.label || `${minutes} минут`).join(', ');
-  let localHour: number | null = null;
-  try { localHour = Number(new Intl.DateTimeFormat('en', {timeZone: timezone, hour: 'numeric', hourCycle: 'h23'}).format(new Date(clockTick))); } catch { /* Unknown timezone must not crash settings. */ }
-  const quietNow = !notificationsEnabled || localHour === null || localHour >= 21 || localHour < 10;
+  let localMinutes: number | null = null;
+  try {
+    const parts = new Intl.DateTimeFormat('en', { timeZone: timezone, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date(clockTick));
+    localMinutes = Number(parts.find(part => part.type === 'hour')?.value) * 60 + Number(parts.find(part => part.type === 'minute')?.value);
+  } catch { /* Unknown timezone must not crash settings. */ }
+  const quietNow = !notificationsEnabled || localMinutes === null || localMinutes >= 21 * 60 || localMinutes < 10 * 60;
 
   return (
-    <div className="personal-page settings-page">
+    <div className="settings-page">
       {!embedded && <BackButton />}
-      <header className="personal-page-header">
+      <header className="settings-header">
         <div>
-          <span className="personal-page-kicker">Персонализация</span>
           <h1>Настройки</h1>
-          <p>Управляйте уведомлениями о событиях гоночного уик-энда.</p>
-        </div>
-        <div className={`personal-status-badge ${notificationsEnabled ? "is-on" : ""}`}>
-          <i aria-hidden />{!loaded ? 'Загружаем настройки…' : `${dirty ? 'Предпросмотр: ' : ''}${quietNow ? 'сейчас без звука' : 'сейчас со звуком'}`}
+          <p>Время, напоминания и сообщения о гоночном уик-энде.</p>
         </div>
       </header>
 
-      <div className="settings-desktop-layout">
-        <section className="personal-surface settings-form-panel">
-          <div className="settings-section-heading">
-            <span>01</span><div><h2>Время и напоминания</h2><p>Расписание на сайте и в Mini App использует время устройства. Выбранный пояс задаёт тихие часы и время сообщений в старых клиентах Telegram.</p></div>
-          </div>
-          <div className="settings-fields-grid">
-            <div className="setting-card">
-              <div className="setting-label">Часовой пояс</div>
-              <CustomSelect ariaLabel="Часовой пояс" options={timezoneOptions} value={timezone} onChange={(v) => setTimezone(String(v))} disabled={!loaded || saving} />
-              <div className="timezone-preview">{timePreview}</div>
+      {!loaded && error ? <section className="settings-load-error" role="alert">
+        <h2>Настройки не загрузились</h2>
+        <p>{error}</p>
+        <button type="button" className="settings-retry" onClick={() => setAttempt(value => value + 1)}>Повторить загрузку</button>
+      </section> : <form className="settings-layout" onSubmit={event => { event.preventDefault(); hapticImpact('medium'); void saveSettings(); }}>
+        <div className="settings-fields" aria-busy={!loaded}>
+          {!loaded && <p className="settings-loading" role="status">Загружаем ваши настройки…</p>}
+          <section className="settings-panel" aria-labelledby="settings-time-heading">
+            <h2 id="settings-time-heading">Время и напоминания</h2>
+            <div className="settings-timezone">
+              <label htmlFor="settings-timezone">Часовой пояс</label>
+              <span className="settings-time-preview"><HomeIcon name="clock" />{loaded ? timePreview : 'Загружаем время…'}</span>
+              <CustomSelect id="settings-timezone" ariaLabel="Часовой пояс" options={timezoneOptions} value={timezone} onChange={(v) => setTimezone(String(v))} disabled={!loaded || saving} />
+              <p>Задаёт тихие часы и время сообщений в старых клиентах Telegram. Расписание на сайте и в Mini App использует время устройства.</p>
             </div>
-            <fieldset className="setting-card reminder-intervals" disabled={!loaded || saving} aria-describedby="reminder-intervals-hint">
-              <legend className="setting-label">Уведомлять заранее</legend>
-              <p id="reminder-intervals-hint" className="setting-card-note">Можно выбрать несколько интервалов — по одному напоминанию в каждый выбранный момент.</p>
-              <div className="reminder-interval-grid">
+            <fieldset className="settings-intervals" disabled={!loaded || saving} aria-describedby="settings-intervals-hint">
+              <legend>Уведомлять заранее</legend>
+              <p id="settings-intervals-hint">Выберите один или несколько интервалов.</p>
+              <div className="settings-interval-grid">
                 {NOTIFY_OPTIONS.map(({value, label}) => (
-                  <label key={value} className={`reminder-interval ${notifyBeforeMinutes.includes(value) ? 'is-selected' : ''}`}>
-                    <input type="checkbox" checked={notifyBeforeMinutes.includes(value)} onChange={() => { hapticSelection(); setNotifyBeforeMinutes(current => toggleInterval(current, value)); }} />
+                  <label key={value} className="settings-interval">
+                    <input name="notify_before_minutes" value={value} type="checkbox" checked={notifyBeforeMinutes.includes(value)} onChange={() => { hapticSelection(); setNotifyBeforeMinutes(current => toggleInterval(current, value)); }} />
                     <span>{label}</span>
                   </label>
                 ))}
               </div>
-              {notifyBeforeMinutes.length === 0 && <p className="setting-card-note" role="status">Напоминания о старте выключены. Результаты и другие сообщения остаются без изменений.</p>}
+              {loaded && notifyBeforeMinutes.length === 0 && <p role="status">Напоминания о старте выключены. Результаты и другие сообщения остаются без изменений.</p>}
             </fieldset>
-          </div>
+            <fieldset className="settings-sessions" disabled={!loaded || saving} aria-describedby="settings-sessions-hint">
+              <legend>О каких сессиях напоминать</legend>
+              <p id="settings-sessions-hint">Выбор действует в боте и на сайте. Результаты сессий приходят независимо от напоминаний.</p>
+              <div className="settings-session-grid">
+              {SESSION_OPTIONS.map(({ bit, icon, label, detail }) => (
+                <label key={bit} className={`settings-session${bit === 4 ? ' settings-session-race' : ''}`}>
+                  <HomeIcon name={icon} />
+                  <span><strong>{label}</strong><small>{detail}</small></span>
+                  <input name="reminder_sessions" value={bit} type="checkbox" checked={Boolean(reminderSessions & bit)} onChange={() => { hapticSelection(); setReminderSessions((current) => current ^ bit); }} />
+                </label>
+              ))}
+              </div>
+              {loaded && reminderSessions === 0 && <p role="status">Напоминания о начале сессий отключены. Остальные уведомления остаются без изменений.</p>}
+            </fieldset>
+          </section>
 
-          <div className="settings-section-heading settings-notifications-heading">
-            <span>02</span><div><h2>Уведомления</h2><p>Получайте напоминания и не пропускайте старт сессии.</p></div>
-          </div>
-          <div className="setting-card notification-setting-card">
-            <div>
-              <strong>Звук сообщений в Telegram: {notificationsEnabled ? "включён" : "без звука"}</strong>
-              <p>Сообщения приходят в обоих режимах. Выключенный переключатель отключает только звук. С 21:00 до 10:00 по вашему времени всегда действует тихий режим.</p>
-            </div>
-            <label className="switch" aria-label="Включить звук сообщений в Telegram">
-              <input type="checkbox" disabled={!loaded || saving} checked={notificationsEnabled} onChange={(e) => { hapticSelection(); setNotificationsEnabled(e.target.checked); }} />
-              <span className="slider round" />
+          <section className="settings-panel" aria-labelledby="settings-messages-heading">
+            <h2 id="settings-messages-heading">Сообщения в Telegram</h2>
+            <label className="settings-toggle-row">
+              <span><strong id="settings-sound-label">Звук сообщений</strong><small id="settings-sound-hint">Сообщения приходят в обоих режимах. С 21:00 до 10:00 по выбранному поясу звук всегда выключен.</small></span>
+              <input name="notifications_enabled" aria-labelledby="settings-sound-label" aria-describedby="settings-sound-hint" className="settings-switch" type="checkbox" role="switch" disabled={!loaded || saving} checked={notificationsEnabled} onChange={(e) => { hapticSelection(); setNotificationsEnabled(e.target.checked); }} />
             </label>
-          </div>
-          <div className="setting-card notification-setting-card">
-            <div>
-              <strong>Скрывать фото результатов в Telegram</strong>
-              <p>Если включить, картинки с классификацией придут как спойлер. По умолчанию результаты видны сразу.</p>
-            </div>
-            <label className="switch" aria-label="Скрывать фото результатов в Telegram">
-              <input type="checkbox" disabled={!loaded || saving} checked={resultsSpoiler} onChange={(e) => { hapticSelection(); setResultsSpoiler(e.target.checked); }} />
-              <span className="slider round" />
+            <label className="settings-toggle-row">
+              <span><strong id="settings-spoiler-label">Фото результатов под спойлером</strong><small id="settings-spoiler-hint">Классификация будет скрыта, пока вы не откроете картинку в Telegram.</small></span>
+              <input name="results_spoiler" aria-labelledby="settings-spoiler-label" aria-describedby="settings-spoiler-hint" className="settings-switch" type="checkbox" role="switch" disabled={!loaded || saving} checked={resultsSpoiler} onChange={(e) => { hapticSelection(); setResultsSpoiler(e.target.checked); }} />
             </label>
+          </section>
+          <div className="settings-save">
+            <div className="settings-save-feedback">
+              {error ? <p className="settings-error" role="alert">{error}</p> : <p role="status">{saving ? 'Сохраняем настройки…' : !loaded ? 'Загрузка настроек…' : dirty ? 'Есть несохранённые изменения' : toast ? 'Настройки сохранены' : 'Все изменения сохранены'}</p>}
+            </div>
+            <button type="submit" className="settings-save-button" data-analytics-action="settings_save" disabled={saving || !loaded || !dirty}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+              {saving ? 'Сохранение…' : 'Сохранить настройки'}
+            </button>
           </div>
-          <fieldset className="session-reminder-options" disabled={!loaded || saving}>
-            <legend>О каких сессиях напоминать</legend>
-            <p>По умолчанию выбраны все. Выбор действует в боте и на сайте; результаты сессий не меняются. Push включается отдельно в разделе «Уведомления».</p>
-            {SESSION_OPTIONS.map(({ bit, label, detail }) => (
-              <label key={bit} className={`session-reminder-option ${reminderSessions & bit ? "is-selected" : ""}`}>
-                <input type="checkbox" checked={Boolean(reminderSessions & bit)} onChange={() => { hapticSelection(); setReminderSessions((current) => current ^ bit); }} />
-                <span><strong>{label}</strong><small>{detail}</small></span>
-              </label>
-            ))}
-            {reminderSessions === 0 && <p role="status">Напоминания о начале сессий отключены. Остальные уведомления остаются без изменений.</p>}
-          </fieldset>
-        </section>
-
-        <aside className="personal-surface settings-summary-panel">
-          <span className="personal-control-label">{!loaded ? 'Загружаем конфигурацию…' : dirty ? 'Предпросмотр · ещё не сохранено' : 'Сохранённая конфигурация'}</span>
-          <h2>Ваш гоночный день</h2>
-          <dl>
-            <div><dt>Время для тихих часов</dt><dd>{timePreview.replace("Сейчас: ", "")}</dd></div>
-            <div><dt>Пояс уведомлений</dt><dd>{timezoneLabel}</dd></div>
-            <div><dt>Напоминания</dt><dd>{notifyBeforeMinutes.length && reminderSessions ? `За ${notifyLabel}` : 'Отключены'}</dd></div>
-            <div><dt>Звук Telegram</dt><dd>{notificationsEnabled ? "Включён" : "Отключён"}</dd></div>
-          </dl>
-          <p>Выбрано категорий сессий: {SESSION_OPTIONS.filter(({ bit }) => reminderSessions & bit).length} из 5. Настройки синхронизируются с ботом для связанного аккаунта.</p>
-          <Link className="ui-action-link" to="/notifications">Настроить push на этом устройстве →</Link>
-        </aside>
-      </div>
-
-      <div className="settings-save-bar">
-        <div>{error ? <span className="personal-error" role="alert">{error}{!loaded && <button onClick={() => setAttempt(value => value + 1)}>Повторить</button>}</span> : <span role="status">{!loaded ? 'Загрузка настроек…' : dirty ? 'Есть несохранённые изменения' : 'Настройки сохранены'}</span>}</div>
-        <button type="button" className="btn-save" data-analytics-action="settings_save" disabled={saving || !loaded || !dirty} onClick={() => { hapticImpact("medium"); void saveSettings(); }}>
-          {saving ? "Сохранение…" : "Сохранить настройки"}
-        </button>
-      </div>
-
-      {toast && (
-        <div className="toast-msg show" role="status">
-          Настройки сохранены ✅
         </div>
-      )}
+
+        <aside className="settings-summary" aria-labelledby="settings-summary-heading">
+          <h2 id="settings-summary-heading">Ваш гоночный день</h2>
+          <SettingsDayClock time={timePreview.replace('Сейчас: ', '')} minutes={localMinutes} loaded={loaded} sound={notificationsEnabled} quiet={quietNow} draft={dirty} />
+          <p className="settings-summary-state"><span aria-hidden="true" />{!loaded ? 'Загружаем настройки…' : dirty ? 'Предпросмотр изменений' : 'Сохранённые настройки'}</p>
+          <dl>
+            <div><dt>Часовой пояс</dt><dd>{loaded ? timezoneLabel : '—'}</dd></div>
+            <div><dt>Напоминания</dt><dd>{!loaded ? '—' : notifyBeforeMinutes.length && reminderSessions ? `За ${notifyLabel}` : 'Отключены'}</dd></div>
+            <div><dt>Сессии</dt><dd>{loaded ? `${SESSION_OPTIONS.filter(({ bit }) => reminderSessions & bit).length} из 5` : '—'}</dd></div>
+            <div><dt>Фото результатов</dt><dd>{!loaded ? '—' : resultsSpoiler ? 'Под спойлером' : 'Видны сразу'}</dd></div>
+          </dl>
+          <p className="settings-sync-note">{auth.personalized ? 'Настройки синхронизируются с вашим ботом Telegram.' : <>Для сообщений в боте <Link to="/account">подключите Telegram в аккаунте</Link>.</>}</p>
+          <Link className="settings-push-link" to="/notifications"><HomeIcon name="notifications" /><span><strong>Push на этом устройстве</strong><small>Настраиваются отдельно</small></span><HomeIcon name="chevronRight" /></Link>
+        </aside>
+      </form>}
     </div>
   );
 }

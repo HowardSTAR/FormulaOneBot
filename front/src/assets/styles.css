@@ -3186,20 +3186,6 @@ input:checked + .slider:before {
     background: rgba(41, 42, 43, 0.84);
   }
 
-  .app-page-main.route-settings .setting-card {
-    border-radius: 12px;
-    border: 1px solid rgba(94, 63, 58, 0.25);
-    background: var(--surface-container-low);
-  }
-
-  .app-page-main.route-settings .btn-save {
-    font-family: "Space Grotesk", "Inter", sans-serif;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 12px;
-    border-radius: 10px;
-  }
-
   .app-page-main.route-favorites .grid-select {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;

@@ -15,7 +15,7 @@ export default function PersonalHub() {
   const account = pathname === '/account';
   const settings = pathname === '/settings';
   const favorites = pathname === '/favorites';
-  return <div className={`personal-hub${account ? ' personal-hub-account' : !settings && !favorites ? ' personal-hub-profile' : ''}`}>
+  return <div className={`personal-hub${account ? ' personal-hub-account' : settings ? ' personal-hub-settings-page' : !favorites ? ' personal-hub-profile' : ''}`}>
     <header className="personal-hub-header"><BackButton fallback="/" /><GlassSwitch
       className="personal-hub-switch" label="Личный раздел" selected={account || settings ? 'account' : 'profile'}
       items={[{ id: 'profile', label: 'Профиль', to: '/profile' }, { id: 'account', label: 'Аккаунт', to: '/account' }]} />

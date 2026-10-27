@@ -33,11 +33,9 @@
 .ui-not-found { max-width: 720px; margin: 48px auto; padding: 24px; }
 .ui-results-year { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 16px 0; }
 .ui-results-year .year-select-wrapper { max-width: 260px; }
-.settings-page .settings-save-bar { position: sticky; bottom: 12px; z-index: 20; background: #161920; box-shadow: 0 -6px 24px #0006; }
 @media (max-width: 767px) {
   .wiki-page .wiki-alphabet summary { min-height: 44px; cursor: pointer; }
   .reflex-grid { max-width: min(100%, 46dvh); margin-inline: auto; }
-  .settings-page .settings-save-bar { bottom: calc(76px + env(safe-area-inset-bottom)); }
   .standings-history-link { display: block; clear: both; }
   .ui-section-links a { min-height: 44px; }
 }

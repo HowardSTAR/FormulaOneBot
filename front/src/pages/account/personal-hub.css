@@ -9,10 +9,11 @@
 .personal-hub .account-page { margin-top: 0; max-width: 1120px; padding-left: 24px; padding-right: 24px; }
 .personal-hub .user-profile-page { padding-top: 24px; }
 .personal-hub .personal-page { margin-top: 24px; }
-.personal-hub-profile .personal-hub-header,.personal-hub-account .personal-hub-header { margin: 0 auto; padding: 0; }
+.personal-hub-profile .personal-hub-header,.personal-hub-account .personal-hub-header,.personal-hub-settings-page .personal-hub-header { margin: 0 auto; padding: 0; }
 @media (max-width:700px) {
   .personal-hub-header { margin-top: 18px; padding: 0 14px; gap: 8px; flex-wrap: wrap; }
   .personal-hub .personal-hub-switch { flex: 1; width: auto; min-width: 160px; }
+  .personal-hub-settings-page .personal-hub-switch { min-width: min(100%, 11rem); }
   .personal-hub .account-page { padding-inline: 14px; }
   .personal-hub .user-profile-page { padding-top: 20px; }
 }
@@ -24,8 +25,8 @@
 
 .personal-hub.personal-hub-account .account-page { padding: 24px 0 40px; }
 @media (max-width: 700px) {
-  #root .personal-hub-account .personal-hub-switch a { padding-inline: 2px; }
+  #root :is(.personal-hub-account, .personal-hub-settings-page) .personal-hub-switch a { padding-inline: 2px; }
 }
 
 /* Account has its own content container; keep glass navigation outside it. */
-.personal-hub-account { container-type: normal; }
+.personal-hub-account, .personal-hub-settings-page { container-type: normal; }
