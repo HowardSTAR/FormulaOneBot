@@ -5,21 +5,22 @@ import { spotlightTeamMedia } from '../pages/index/spotlight-team-media';
 import { teamLogoBounds } from '../helpers/teamLogoBounds';
 import './team-logo.css';
 
-export function TeamLogo({ name, season, id = '' }: { name: string; season: number; id?: string }) {
+export function TeamLogo({ name, season, id = '', size }: { name: string; season: number; id?: string; size?: number }) {
   const [index, setIndex] = useState(0);
   const media = spotlightTeamMedia(id, name, season);
   const sources = [...media.logo, teamLogoUrl(id, name, season)];
   const bounds = index === 0 && media.logo.length ? teamLogoBounds[homeTeamIdentity(id, name)] : undefined;
   const initials = name.split(/\s+/).map(word => word[0]).join('').slice(0, 3);
+  const frameStyle = size ? { width: '100%', height: '100%', maxWidth: size, maxHeight: size } : undefined;
   const image = index < sources.length ? <img src={sources[index]} alt="" width={480} height={480} loading="lazy" decoding="async" onError={() => setIndex(value => value + 1)} /> : null;
-  if (!image) return <span className="team-logo" aria-hidden="true"><span className="team-logo-fallback">{initials}</span></span>;
-  if (!bounds) return <span className="team-logo" aria-hidden="true">{image}</span>;
+  if (!image) return <span className="team-logo" style={frameStyle} aria-hidden="true"><span className="team-logo-fallback">{initials}</span></span>;
+  if (!bounds) return <span className="team-logo" style={frameStyle} aria-hidden="true">{image}</span>;
   const [left, top, right, bottom] = bounds;
   const width = right - left, height = bottom - top;
   const round = Math.abs(width / height - 1) < .1;
-  const scale = Math.min((round ? 28 : 34) / width, (round ? 28 : 30) / height);
-  return <span className="team-logo" aria-hidden="true">
-    <span className="team-logo-art" style={{ width: `${width * scale / 16}rem`, height: `${height * scale / 16}rem` }}>
+  const scale = Math.min((round ? 28 : 34) / width, (round ? 28 : 30) / height) * (size ? size / 48 : 1);
+  return <span className="team-logo" style={frameStyle} aria-hidden="true">
+    <span className="team-logo-art" style={size ? { width: `min(100%, ${width * scale}px)`, aspectRatio: `${width} / ${height}` } : { width: `${width * scale / 16}rem`, height: `${height * scale / 16}rem` }}>
       <span style={{ position: 'absolute', width: `${480 / width * 100}%`, height: `${480 / height * 100}%`, left: `${-left / width * 100}%`, top: `${-top / height * 100}%` }}>{image}</span>
     </span>
   </span>;

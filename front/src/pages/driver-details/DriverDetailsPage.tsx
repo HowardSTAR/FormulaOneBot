@@ -1,12 +1,13 @@
-import { pilotPortraitUrl } from '../../helpers/f1Assets';
-import { GlossaryText } from "../../components/GlossaryText";
+import { EntrantBiography, type BiographyImage } from '../../components/EntrantBiography';
+import { entrantValue } from '../../helpers/entrantPresentation';
+import { DriverPortrait } from '../../components/DriverPortrait';
+import { EntrantLoading, EntrantNavigation, EntrantSections, EntrantMetric, EntrantRecord, EntrantPanels, EntrantStat as StatRow } from '../../components/EntrantDetails';
+import { homeTeamIdentity } from '../index/team-identity';
 import { DriverGuide } from "../../components/DriverGuide";
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { PageFeedback } from "../../components/PageFeedback";
-import { cleanBiography } from "../../helpers/presentation";
 import { getFlagUrlForNationality, nationalityLabel } from "../../constants/flags";
 
 type SeasonStats = {
@@ -50,6 +51,8 @@ type DriverDetailsResponse = {
   nationality: string;
   url: string;
   bio: string;
+  biography_source_url?: string;
+  biography_image?: BiographyImage | null;
   headshot_url: string;
   season: number;
   season_stats: SeasonStats;
@@ -59,17 +62,9 @@ type DriversListItem = {
   code?: string;
   driverId?: string;
   constructorName?: string;
+  constructorId?: string;
 };
 type DriversListResponse = { drivers?: DriversListItem[] };
-
-function StatRow({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="driver-stat-row">
-      <span className="driver-stat-label">{label}</span>
-      <span className="driver-stat-value">{value}</span>
-    </div>
-  );
-}
 
 function DriverDetailsPage() {
   const [searchParams] = useSearchParams();
@@ -83,8 +78,8 @@ function DriverDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"stats" | "bio">("stats");
-  const [teamName, setTeamName] = useState<string>("Команда Формулы-1");
+  const tab = searchParams.get("tab") === "bio" ? "bio" : "stats";
+  const [team, setTeam] = useState<DriversListItem | null>(null);
 
   useEffect(() => {
     const id = code || driverId;
@@ -112,7 +107,7 @@ function DriverDetailsPage() {
               (res.driverId && d.driverId && d.driverId === res.driverId) ||
               (code && d.code === code)
           );
-          if (match?.constructorName) setTeamName(match.constructorName);
+          setTeam(match || null);
         }
       } catch (e) {
         if (!cancelled) {
@@ -127,25 +122,12 @@ function DriverDetailsPage() {
     return () => { cancelled = true; };
   }, [code, driverId, season, attempt]);
 
+  const navigation = <EntrantNavigation to={standingsPath} label={`Зачёт пилотов · ${season}`} />;
   if (error || (!code && !driverId)) {
-    return (
-      <>
-        <BackButton fallback={standingsPath} />
-        <PageFeedback message={error || "Не указан пилот"} retry={() => setAttempt(v => v + 1)} parent={{to: "/drivers", label: "Личный зачёт"}} />
-      </>
-    );
+    return <div className="entrant-details">{navigation}<PageFeedback message={error || "Не указан пилот"} retry={code || driverId ? () => setAttempt(v => v + 1) : undefined} parent={{ to: standingsPath, label: "Личный зачёт" }} /></div>;
   }
-
   if (loading || !data) {
-    return (
-      <>
-        <BackButton fallback={standingsPath} />
-        <div className="loading full-width">
-          <div className="spinner" />
-          <div>Загрузка карточки пилота...</div>
-        </div>
-      </>
-    );
+    return <div className="entrant-details">{navigation}<EntrantLoading label="Загрузка карточки пилота" /></div>;
   }
 
   const fullName = `${data.givenName} ${data.familyName}`;
@@ -153,211 +135,78 @@ function DriverDetailsPage() {
   const ss = data.season_stats;
   const cs = data.career_stats;
   const careerValue = (value: string | number) => cs.available === false ? "Нет данных" : value;
-  const firstName = data.givenName.toUpperCase();
-  const lastName = data.familyName.toUpperCase();
-  const teamLabel =
-    teamName === "Команда Формулы-1" && data.code === "ANT"
-      ? "Mercedes-AMG Petronas F1 Team"
-      : teamName;
+  const teamPath = team?.constructorName ? `/constructor-details?${new URLSearchParams({ constructorId: team.constructorId || team.constructorName, season: String(season) })}` : null;
 
-  const formatHigh = (h: { position: number | string; count: number }) =>
-    h.position === "-" ? "-" : `${h.position}${h.count > 1 ? ` (x${h.count})` : ""}`;
-
-  return (
-    <>
-      <nav className="ui-section-links driver-profile-navigation" aria-label="Навигация профиля пилота">
-        <BackButton fallback={standingsPath} />
-        <Link to={standingsPath}>Зачёт пилотов · {season}</Link>
-      </nav>
-      <div className="driver-details-mobile">
-
-        <div className="driver-card-header">
-          <div className="driver-portrait-wrap">
-            <img
-              src={pilotPortraitUrl(data.code, fullName, season)}
-              alt={fullName}
-              className="driver-portrait"
-              onError={(e) => {
-                if (e.currentTarget.src !== window.location.origin + "/api/pilot-portrait") {
-                  e.currentTarget.src = "/api/pilot-portrait";
-                }
-              }}
-            />
-          </div>
-          <div className="driver-card-info">
-            <h2 className="driver-card-name">{fullName}</h2>
-            <div className="driver-card-meta">
-              {data.permanentNumber && <span className="driver-number-badge">Номер {data.permanentNumber}</span>}
-              <span className="driver-code-badge">{data.code}</span>
-            </div>
-            {data.nationality && (
-              <div className="driver-nationality">
-                {nationalityFlagUrl && (
-                  <img
-                    src={nationalityFlagUrl}
-                    alt={data.nationality}
-                    className="country-flag-svg"
-                  />
-                )}
-                <span>{nationalityLabel(data.nationality)}</span>
-              </div>
-            )}
-          </div>
+  return <article className="entrant-details entrant-details--driver" data-team={homeTeamIdentity(team?.constructorId || '', team?.constructorName || '')}>
+    {navigation}
+    <header className="entrant-hero">
+      <div className="entrant-hero-copy">
+        <h1><span>{data.givenName}</span><strong>{data.familyName}</strong></h1>
+        {teamPath && <Link className="entrant-team-link" to={teamPath}>{team?.constructorName}<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m9 5 7 7-7 7" /></svg></Link>}
+        <div className="entrant-identity">
+          {data.permanentNumber && <span>№ {data.permanentNumber}</span>}
+          {data.code && <span translate="no">{data.code}</span>}
+          {data.nationality && <span>{nationalityFlagUrl && <img src={nationalityFlagUrl} width="22" height="15" alt="" onError={event => { event.currentTarget.style.visibility = 'hidden'; }} />}{nationalityLabel(data.nationality)}</span>}
         </div>
-
-        <DriverGuide key={data.driverId} driverId={data.driverId} />
-        <div className="driver-tabs">
-          <button
-            type="button"
-            className={`driver-tab ${tab === "stats" ? "active" : ""}`}
-            onClick={() => setTab("stats")}
-          >
-            Статистика
-          </button>
-          <button
-            type="button"
-            className={`driver-tab ${tab === "bio" ? "active" : ""}`}
-            onClick={() => setTab("bio")}
-          >
-            Биография
-          </button>
-        </div>
-
-        {tab === "stats" && (
-          <div className="driver-stats-grid">
-            <div className="driver-stats-block">
-              <h3 className="driver-stats-title">{data.season} СЕЗОН</h3>
-              <StatRow label="Позиция в сезоне" value={ss.position || "-"} />
-              <StatRow label="Очки сезона" value={ss.points} />
-              <StatRow label="Гран-при (гонок)" value={ss.grand_prix_races} />
-              <StatRow label="Очки в ГП" value={ss.grand_prix_points} />
-              <StatRow label="Победы" value={ss.grand_prix_wins} />
-              <StatRow label="Подиумы" value={ss.grand_prix_podiums} />
-              <StatRow label="Поулы" value={ss.grand_prix_poles} />
-              <StatRow label="Топ-10" value={ss.grand_prix_top10s} />
-              <StatRow label="Быстрые круги" value={ss.fastest_laps} />
-              <StatRow label="Сходы" value={ss.dnfs} />
-              {ss.sprint_races > 0 && (
-                <>
-                  <StatRow label="Спринты" value={ss.sprint_races} />
-                  <StatRow label="Очки в спринтах" value={ss.sprint_points} />
-                  <StatRow label="Победы в спринтах" value={ss.sprint_wins} />
-                  <StatRow label="Подиумы в спринтах" value={ss.sprint_podiums} />
-                  <StatRow label="Поулы в спринтах" value={ss.sprint_poles} />
-                  <StatRow label="Топ-10 в спринтах" value={ss.sprint_top10s} />
-                </>
-              )}
-            </div>
-            <div className="driver-stats-block">
-              <h3 className="driver-stats-title">КАРЬЕРА</h3>
-              <StatRow label="Гран-при (всего)" value={careerValue(cs.grand_prix_entered)} />
-              <StatRow label="Карьерные очки в ГП" value={careerValue(cs.career_points)} />
-              <StatRow label="Лучший финиш" value={careerValue(formatHigh(cs.highest_race_finish))} />
-              <StatRow label="Подиумы" value={careerValue(cs.podiums)} />
-              <StatRow label="Лучшая позиция на старте" value={careerValue(formatHigh(cs.highest_grid))} />
-              <StatRow label="Поулы" value={careerValue(cs.pole_positions)} />
-              <StatRow label="Чемпионства" value={careerValue(cs.world_championships)} />
-              <StatRow label="Сходы" value={careerValue(cs.dnfs)} />
-            </div>
-          </div>
-        )}
-
-        {tab === "bio" && (
-          <div className="driver-bio-block">
-            {data.bio ? (
-              <p className="driver-bio-text"><GlossaryText>{cleanBiography(data.bio)}</GlossaryText></p>
-            ) : (
-              <p className="driver-bio-empty">Биография пока недоступна.</p>
-            )}
-            {data.url && (
-              <a
-                href={data.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="driver-bio-link"
-              >
-                Открыть в Wikipedia →
-              </a>
-            )}
-          </div>
-        )}
+        <p className="entrant-season-label">Сезон {data.season}</p>
       </div>
-
-      <section className="driver-profile-desktop">
-        <header className="driver-profile-desktop-hero">
-          <div className="driver-profile-desktop-photo">
-            <img src={pilotPortraitUrl(data.code, fullName, season)} alt={fullName} />
-          </div>
-          <div className="driver-profile-desktop-overlay" />
-          <div className="driver-profile-desktop-content">
-            <div className="driver-profile-desktop-number"><small className="driver-number-label">Номер болида</small>{data.permanentNumber || "--"}</div>
-            <h1>
-              <span>{firstName}</span>
-              <em>{lastName}</em>
-            </h1>
-            <div className="driver-profile-desktop-team">
-              <b>{data.code}</b>
-              <span>{teamLabel}</span>
-            </div>
-          </div>
-          <aside className="driver-profile-desktop-rank">
-            <div><span>Позиция</span><strong>{ss.position ? `P${ss.position}` : '—'}</strong></div>
-            <div><span>Очки</span><strong>{ss.points}</strong></div>
-            <div><span>Победы</span><strong>{ss.grand_prix_wins}</strong></div>
-          </aside>
-        </header>
-
-        <DriverGuide key={data.driverId} driverId={data.driverId} />
-        <div className="driver-profile-desktop-grid">
-          <section className="driver-profile-desktop-main">
-            <h3 className="driver-profile-title">Аналитика выступлений</h3>
-            <div className="driver-profile-season-cards">
-
-              <article><span>Подиумы</span><strong>{ss.grand_prix_podiums}</strong><small>Гран-при</small></article>
-              <article><span>Поулы</span><strong>{ss.grand_prix_poles}</strong><small>Квалификации</small></article>
-              <article><span>Участий в ГП</span><strong>{ss.grand_prix_races}</strong><small>Сезон {season}</small></article>
-            </div>
-            <div className="driver-profile-career-grid">
-              <article className="driver-profile-career-card">
-                <h4>Итоги карьеры</h4>
-                <div><span>Гран-при (всего)</span><b>{careerValue(cs.grand_prix_entered)}</b></div>
-                <div><span>Очки в Гран-при</span><b>{careerValue(cs.career_points)}</b></div>
-                <div><span>Лучший финиш</span><b>{careerValue(formatHigh(cs.highest_race_finish))}</b></div>
-              </article>
-              <article className="driver-profile-accolades-card">
-                <h4>Достижения</h4>
-                <p>Лучшая стартовая позиция: {careerValue(formatHigh(cs.highest_grid))}</p>
-                <small>Поулы: {careerValue(cs.pole_positions)} · Титулы: {careerValue(cs.world_championships)}</small>
-              </article>
-            </div>
-          </section>
-        </div>
-
-        <section className="driver-profile-desktop-bio driver-profile-desktop-bio-bottom">
-          <h3 className="driver-profile-title">Биография</h3>
-          <div className="driver-profile-bio-card">
-            <p><GlossaryText>{cleanBiography(data.bio || "Биография пока недоступна.")}</GlossaryText></p>
-            <div className="driver-profile-bio-meta">
-              <div>
-                <span>Гражданство</span>
-                <b>{nationalityLabel(data.nationality)}</b>
-              </div>
-              <div>
-                <span>Дата рождения</span>
-                <b>{data.dateOfBirth ? new Date(data.dateOfBirth + "T12:00:00").toLocaleDateString("ru-RU") : "—"}</b>
-              </div>
-            </div>
-            {data.url && (
-              <a href={data.url} target="_blank" rel="noopener noreferrer" className="driver-bio-link">
-                Открыть источник →
-              </a>
-            )}
-          </div>
-        </section>
+      {data.permanentNumber && <span className="entrant-racing-number" aria-hidden="true">{data.permanentNumber}</span>}
+      <div className="entrant-hero-media" aria-hidden="true">
+        <DriverPortrait key={`${data.driverId}-${season}`} code={data.code} name={fullName} season={season} src={data.headshot_url} />
+      </div>
+    </header>
+    <dl className="entrant-season-summary" aria-label={`Сезон ${data.season}`}>
+      <StatRow label="Место в зачёте" value={ss.position || '—'} />
+      <StatRow label="Очки сезона" value={ss.points} />
+      <StatRow label="Победы в Гран-при" value={ss.grand_prix_wins} />
+    </dl>
+    <EntrantSections />
+    <EntrantPanels key={`${data.driverId}-${season}`}>{tab === 'stats' ? <div className="entrant-statistics">
+      <section className="entrant-stat-section" aria-labelledby="entrant-season-title">
+        <div className="entrant-stat-heading"><h2 id="entrant-season-title">Сезон {data.season}</h2><span>{entrantValue(ss.grand_prix_races)} Гран-при</span></div>
+        <dl className="entrant-highlights">
+          <EntrantMetric label="Победы" icon="win" value={ss.grand_prix_wins} total={ss.grand_prix_races} />
+          <EntrantMetric label="Подиумы" icon="podium" tone="gold" value={ss.grand_prix_podiums} total={ss.grand_prix_races} />
+          <EntrantMetric label="Топ-10" icon="finish" tone="blue" value={ss.grand_prix_top10s} total={ss.grand_prix_races} />
+        </dl>
+        <dl>
+          <StatRow label="Очки в Гран-при" value={ss.grand_prix_points} />
+          <StatRow label="Поулы" value={ss.grand_prix_poles} />
+          <StatRow label="Быстрые круги" value={ss.fastest_laps} />
+          <StatRow label="Сходы" value={ss.dnfs} />
+        </dl>
+        {ss.sprint_races > 0 && <details className="entrant-sprints"><summary>Спринты <span>{entrantValue(ss.sprint_points)} очк.</span></summary><dl>
+          <StatRow label="Спринты" value={ss.sprint_races} />
+          <StatRow label="Очки в спринтах" value={ss.sprint_points} />
+          <StatRow label="Победы" value={ss.sprint_wins} />
+          <StatRow label="Подиумы" value={ss.sprint_podiums} />
+          <StatRow label="Поулы" value={ss.sprint_poles} />
+          <StatRow label="Финиши в топ-10" value={ss.sprint_top10s} />
+        </dl></details>}
       </section>
-
-    </>
-  );
+      <section className="entrant-stat-section" aria-labelledby="entrant-career-title">
+        <div className="entrant-stat-heading"><h2 id="entrant-career-title">Карьера</h2></div>
+        <dl className="entrant-highlights">
+          <EntrantMetric label="Титулы" icon="title" tone="gold" value={careerValue(cs.world_championships)} />
+          <EntrantMetric label="Подиумы" icon="podium" value={careerValue(cs.podiums)} />
+          <EntrantMetric label="Поулы" icon="grid" tone="blue" value={careerValue(cs.pole_positions)} />
+        </dl>
+        <dl className="entrant-records">
+          <EntrantRecord label="Лучший финиш" record={cs.highest_race_finish} available={cs.available !== false} />
+          <EntrantRecord label="Лучшая позиция на старте" record={cs.highest_grid} available={cs.available !== false} />
+        </dl>
+        <dl>
+          <StatRow label="Гран-при за карьеру" value={careerValue(cs.grand_prix_entered)} />
+          <StatRow label="Очки в Гран-при" value={careerValue(cs.career_points)} />
+          <StatRow label="Сходы" value={careerValue(cs.dnfs)} />
+        </dl>
+      </section>
+    </div> : <EntrantBiography key={`${data.driverId}-${season}-${data.biography_image?.url || ''}`} title="Биография" text={data.bio} source={data.biography_source_url || data.url} image={data.biography_image} facts={<>
+      <StatRow label="Гражданство" value={nationalityLabel(data.nationality)} />
+      <StatRow label="Дата рождения" value={data.dateOfBirth ? new Date(data.dateOfBirth + 'T12:00:00').toLocaleDateString('ru-RU') : '—'} />
+    </>} />}</EntrantPanels>
+    <DriverGuide key={data.driverId} driverId={data.driverId} />
+  </article>;
 }
 
 export default DriverDetailsPage;

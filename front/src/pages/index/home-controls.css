@@ -1,5 +1,5 @@
 /* One material recipe for home actions. Opaque fill is the no-blur fallback. */
-.home-screen, .home-dock, .season-page, .weekend-session-page, .predictions-page, .user-profile-page, .game-page, .personal-hub {
+.home-screen, .home-dock, .season-page, .weekend-session-page, .predictions-page, .user-profile-page, .game-page, .personal-hub, .entrant-details {
   --home-control-fill: var(--design-surface);
   --home-control-blur: none;
   --home-control-sheen: var(--design-glass-sheen);
@@ -7,7 +7,7 @@
   --home-control-edge: var(--design-card-edge);
 }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .home-screen, .home-dock, .season-page, .weekend-session-page, .predictions-page, .user-profile-page, .game-page, .personal-hub { --home-control-fill: var(--design-glass-fill); --home-control-blur: blur(24px) saturate(1.25); }
+  .home-screen, .home-dock, .season-page, .weekend-session-page, .predictions-page, .user-profile-page, .game-page, .personal-hub, .entrant-details { --home-control-fill: var(--design-glass-fill); --home-control-blur: blur(24px) saturate(1.25); }
 }
 .app-shell .home-screen :is(.home-glass-button, .home-full-standing, .home-text-action, .personal-home-error :where(button), .home-spotlight-controls > :where(button)) {
   min-height: 44px;
@@ -48,7 +48,7 @@ body:has(.glass-home) .scroll-to-top { background: var(--design-glass-sheen), va
   .app-shell .home-screen .home-favorite-card .home-glass-button { padding-inline: 12px; font-size: .75rem; }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
-  .home-screen, .home-dock, .season-page, .weekend-session-page, .predictions-page, .user-profile-page, .game-page, .personal-hub { --home-control-fill: var(--design-surface); --home-control-blur: none; --home-control-sheen: linear-gradient(transparent, transparent); --home-control-shadow: none; --home-control-edge: var(--design-control); --design-glass-primary-sheen: linear-gradient(transparent, transparent); }
+  .home-screen, .home-dock, .season-page, .weekend-session-page, .predictions-page, .user-profile-page, .game-page, .personal-hub, .entrant-details { --home-control-fill: var(--design-surface); --home-control-blur: none; --home-control-sheen: linear-gradient(transparent, transparent); --home-control-shadow: none; --home-control-edge: var(--design-control); --design-glass-primary-sheen: linear-gradient(transparent, transparent); }
   .glass-home .home-toolbar :is(.theme-toggle, .account-shortcut, .menu-shortcut) { background: var(--design-surface); box-shadow: none; }
   body:has(.glass-home) .scroll-to-top { background: var(--design-surface); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
 }

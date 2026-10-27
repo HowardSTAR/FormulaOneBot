@@ -1,0 +1,175 @@
+/* Entrant profiles continue the standings' quiet content and team identity. */
+.app-shell.design-shell:has(.entrant-details) .app-content { overflow: visible; }
+.entrant-details { --entrant-muted: color-mix(in srgb, var(--design-muted) 75%, var(--design-ink)); --entrant-chart-team: color-mix(in srgb, var(--home-team-accent) 55%, var(--design-ink)); container-type: inline-size; display: grid; gap: 24px; min-width: 0; color: var(--design-ink); font-size: 1rem; line-height: 1.5; }
+.entrant-details *, .entrant-details *::before, .entrant-details *::after { box-sizing: border-box; }
+#root .entrant-details :is(h1,h2,h3,p,dl,dd) { margin: 0; }
+#root .entrant-details p { color: inherit; }
+#root .entrant-details :is(h1,h2,h3) { color: var(--design-ink); font-family: inherit; font-style: normal; letter-spacing: -.025em; line-height: 1.2; text-transform: none; text-wrap: balance; overflow-wrap: anywhere; }
+#root .entrant-details h2 { font-size: 1.375rem; font-weight: 650; }
+#root .entrant-details a { color: inherit; text-decoration: none; }
+.entrant-details :is(a,button,summary) { touch-action: manipulation; -webkit-tap-highlight-color: var(--design-tint); }
+.entrant-details :is(a,button,summary):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 4px; }
+.entrant-details ::selection { color: var(--design-ink); background: var(--design-tint); }
+.entrant-navigation { display: flex; align-items: center; gap: 8px; }
+#root .entrant-navigation :is(a,button) { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; padding: 8px 12px; color: var(--entrant-muted); background: transparent; border: 0; border-radius: 24px; font: inherit; font-size: .875rem; cursor: pointer; }
+#root .entrant-navigation .entrant-back { flex: 0 0 44px; width: 44px; }
+.entrant-back .back-button-arrow { font-size: 1.5rem; }
+#root .entrant-navigation :is(a,button):hover { color: var(--design-ink); background: var(--design-tint); }
+.entrant-hero { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); align-items: center; min-width: 0; gap: 24px; }
+.entrant-hero::before { content: ''; z-index: -1; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 70% 55%, color-mix(in srgb, var(--home-team-accent) 17%, transparent), transparent 67%); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent), linear-gradient(transparent, #000 18%, #000 78%, transparent); mask-composite: intersect; }
+.entrant-hero-copy { position: relative; z-index: 3; min-width: 0; padding-block: 24px; }
+#root .entrant-hero h1 { font-size: 3rem; font-weight: 650; }
+.entrant-hero h1 :is(span,strong) { display: block; }
+.entrant-hero h1 span { font-size: .65em; font-weight: 500; margin-bottom: 4px; }
+.entrant-hero h1 strong { font-weight: 700; }
+#root .entrant-team-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; margin-top: 12px; font-size: 1rem; font-weight: 550; border-radius: 8px; }
+.entrant-team-link svg { flex: none; }
+#root .entrant-team-link:hover { color: var(--design-accent); }
+.entrant-identity { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; color: var(--entrant-muted); font-size: .875rem; }
+.entrant-identity > span { display: inline-flex; gap: 8px; align-items: center; }
+.entrant-identity img { object-fit: contain; border-radius: 2px; }
+#root .entrant-details .entrant-season-label { margin-top: 16px; color: var(--entrant-muted); font-size: .875rem; }
+.entrant-hero-media { position: relative; z-index: 1; display: grid; align-items: end; min-width: 0; height: 320px; }
+.entrant-hero-media .entrant-portrait { width: 100%; height: 100%; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent), linear-gradient(#000 64%, transparent); mask-composite: intersect; }
+.entrant-details .entrant-portrait img { inset: 0 auto auto 50%; width: auto; height: 240%; max-width: none; object-fit: contain; transform: translateX(-50%); mask-image: none; }
+.entrant-racing-number { position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%,-50%); color: color-mix(in srgb, var(--home-team-accent) 18%, transparent); -webkit-text-stroke: 1.5px var(--entrant-chart-team); font: 700 10rem/.95 'Space Grotesk', sans-serif; letter-spacing: -.04em; text-align: center; pointer-events: none; }
+.entrant-details--team .entrant-hero { grid-template-columns: minmax(0,.9fr) minmax(9rem,.6fr) minmax(0,1.5fr); }
+.entrant-details--team .entrant-hero-copy { align-self: start; padding-top: 12px; }
+.entrant-details--team .entrant-hero-media { height: 260px; align-items: center; }
+.entrant-team-emblem { display: grid; place-items: center; min-width: 0; height: 200px; }
+.entrant-team-car { display: block; width: 100%; height: auto; object-fit: contain; mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.entrant-season-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; padding-block: 20px; border-block: 1px solid var(--design-line); }
+.entrant-season-summary .entrant-stat { flex-direction: column; align-items: flex-start; padding: 0; border: 0; gap: 8px; }
+.entrant-season-summary .entrant-stat dt { font-size: .8125rem; }
+.entrant-season-summary .entrant-stat dd { font: 600 2rem/1.1 'Space Grotesk', sans-serif; }
+#root .entrant-details .entrant-sections { justify-self: start; width: min(100%,26rem); margin: 0; }
+.entrant-section-control { min-width: 0; }
+.entrant-panels { min-width: 0; overflow-anchor: none; }
+.entrant-statistics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 24px; align-items: stretch; }
+.entrant-stat-section { position: relative; isolation: isolate; overflow: hidden; min-width: 0; padding: 24px; border: 0; border-radius: 16px; background: var(--design-surface); box-shadow: none; }
+.entrant-stat-section::before { content: ''; z-index: -1; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 0 0, color-mix(in srgb, var(--home-team-accent) 10%, transparent), transparent 68%); }
+.entrant-stat-section:nth-child(2)::before { background: radial-gradient(ellipse at 100% 0, color-mix(in srgb, var(--design-profile-gold) 10%, transparent), transparent 68%); }
+.entrant-stat-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 16px; margin-bottom: 24px; }
+.entrant-stat-heading > span { color: var(--entrant-muted); font-size: .8125rem; font-variant-numeric: tabular-nums; }
+.entrant-highlights { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; padding-bottom: 24px; border-bottom: 1px solid var(--design-line); }
+.entrant-metric { --entrant-metric-color: var(--entrant-chart-team); min-width: 0; }
+.entrant-metric[data-tone="gold"] { --entrant-metric-color: var(--design-rating-outline); }
+.entrant-metric[data-tone="blue"] { --entrant-metric-color: var(--design-wet); }
+.entrant-metric dt { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; color: var(--entrant-muted); font-size: .8125rem; overflow-wrap: anywhere; }
+.entrant-metric dt svg { color: var(--entrant-metric-color); flex: none; }
+#root .entrant-metric > dd { margin-top: 8px; color: var(--design-ink); font: 600 2rem/1.15 'Space Grotesk',sans-serif; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+#root .entrant-metric[data-missing] > dd { font-family: inherit; font-size: .875rem; line-height: 1.5; }
+#root .entrant-metric > .entrant-metric-share { display: grid; gap: 8px; margin-top: 12px; color: var(--entrant-muted); font-family: inherit; font-size: .75rem; font-weight: 450; line-height: 1.4; }
+.entrant-metric-track { display: block; overflow: hidden; height: 5px; border-radius: 4px; background: var(--design-line); }
+.entrant-metric-track > span { display: block; width: var(--entrant-share); height: 100%; border-radius: inherit; background: var(--entrant-metric-color); }
+.entrant-records { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,10rem),1fr)); gap: 20px; padding-block: 20px; border-bottom: 1px solid var(--design-line); }
+.entrant-record { min-width: 0; }
+.entrant-record dt { color: var(--entrant-muted); font-size: .8125rem; }
+.entrant-record dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; padding-top: 8px; color: var(--design-ink); }
+.entrant-record dd strong { font: 600 1.75rem/1.2 'Space Grotesk',sans-serif; font-variant-numeric: tabular-nums; }
+.entrant-record dd span { color: var(--entrant-muted); font-size: .8125rem; }
+#root .entrant-stat-section > h2 { margin-bottom: 16px; }
+.entrant-stat { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding-block: 12px; border-bottom: 1px solid var(--design-line); font-size: .9375rem; }
+.entrant-stat:last-child { border-bottom: 0; }
+.entrant-stat dt { color: var(--entrant-muted); overflow-wrap: anywhere; }
+.entrant-stat dd { flex: 0 0 auto; max-width: 50%; text-align: right; overflow-wrap: anywhere; color: var(--design-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.entrant-sprints { margin-top: 16px; border-top: 1px solid var(--design-line); }
+.entrant-details summary { min-height: 44px; padding-block: 12px; cursor: pointer; color: var(--design-ink); font-size: .9375rem; font-weight: 550; }
+.entrant-sprints summary span { float: right; margin-left: 12px; color: var(--entrant-muted); font-weight: 450; font-variant-numeric: tabular-nums; }
+#root .entrant-details .entrant-data-note { max-width: 65ch; margin-top: 12px; color: var(--entrant-muted); font-size: .8125rem; }
+.entrant-biography { width: 100%; min-width: 0; }
+.entrant-biography-flow { display: flow-root; margin-top: 24px; }
+.entrant-biography-intro { min-width: 0; }
+#root .entrant-details .entrant-biography p { color: var(--design-ink); font-size: 1rem; line-height: 1.8; overflow-wrap: anywhere; text-wrap: pretty; }
+#root .entrant-details .entrant-biography .entrant-biography-lead { font-size: 1.125rem; line-height: 1.8; max-width: 72ch; }
+.entrant-biography-lead::first-letter { float: left; padding: 4px 10px 0 0; font: 600 3.75rem/.95 'Space Grotesk',sans-serif; color: var(--entrant-chart-team); }
+.entrant-bio-facts { display: flex; flex-wrap: wrap; gap: 16px 32px; margin-bottom: 24px !important; }
+.entrant-bio-facts .entrant-stat { display: grid; gap: 4px; padding: 0; border: 0; }
+.entrant-bio-facts .entrant-stat dt { font-size: .8125rem; }
+.entrant-bio-facts .entrant-stat dd { max-width: none; text-align: left; font-size: .9375rem; }
+.entrant-biography-photo { float: right; width: 44%; min-width: 0; margin: 0 0 24px 40px; }
+.entrant-biography-photo img { display: block; width: 100%; height: auto; border-radius: 4px; mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent), linear-gradient(transparent, #000 4%, #000 94%, transparent); mask-composite: intersect; }
+.entrant-biography-photo figcaption { display: grid; gap: 8px; padding: 12px 12px 0; color: var(--entrant-muted); font-size: .75rem; line-height: 1.6; overflow-wrap: anywhere; }
+.entrant-photo-caption { font-size: .8125rem; }
+#root .entrant-details .entrant-biography-photo a { color: var(--entrant-muted); text-decoration: underline; text-underline-offset: 3px; }
+.entrant-biography-body { margin-top: 20px; }
+#root .entrant-details .entrant-biography-body p { margin-bottom: 20px; }
+.entrant-biography-source { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--design-line); }
+#root .entrant-details .entrant-biography-source > a:last-child { display: inline-flex; align-items: center; min-height: 44px; color: var(--entrant-muted); font-size: .75rem; }
+.entrant-biography-source .entrant-source { gap: 8px; }
+.entrant-biography :is(a,button):hover { text-decoration: underline; text-underline-offset: 4px; }
+#root .entrant-details .entrant-source, #root .entrant-details .driver-guide a { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: var(--design-accent); font-size: .875rem; font-weight: 550; }
+#root .entrant-details :is(.entrant-source,.driver-guide a):hover { text-decoration: underline; text-underline-offset: 4px; }
+.entrant-roster { border-top: 1px solid var(--design-line); padding-top: 24px; }
+#root .entrant-roster h2 span { margin-left: 8px; color: var(--entrant-muted); font-size: 1rem; font-weight: 450; }
+.entrant-roster-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,18rem),1fr)); gap: 12px 24px; margin-top: 16px; }
+#root .entrant-roster-entry { display: flex; align-items: center; gap: 16px; min-width: 0; min-height: 124px; padding: 12px; position: relative; isolation: isolate; border-radius: 12px; }
+.entrant-roster-entry::before { content: ''; position: absolute; z-index: -1; inset: 0; border-radius: inherit; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--home-team-accent) 10%, transparent), transparent); mask-image: linear-gradient(transparent, #000 16%, #000 84%, transparent); }
+.entrant-roster-entry:hover::before { background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--home-team-accent) 18%, transparent), transparent); }
+.entrant-roster-entry > div { flex: 1; min-width: 0; }
+.entrant-roster-entry .entrant-portrait, .entrant-principal-photo { width: 5rem; height: 6.25rem; flex: 0 0 5rem; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent), linear-gradient(#000 65%, transparent); mask-composite: intersect; }
+.entrant-roster-name { display: block; font-size: 1rem; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+.entrant-roster-name strong { display: block; font-weight: 650; }
+.entrant-roster-role { display: block; margin-top: 6px; font-size: .8125rem; color: var(--entrant-muted); overflow-wrap: anywhere; }
+.entrant-roster-number { align-self: flex-start; margin-top: 8px; color: var(--entrant-muted); font: 500 .875rem/1.4 'Space Grotesk',sans-serif; white-space: nowrap; }
+.entrant-principal-photo { display: grid; place-items: center; overflow: hidden; color: var(--entrant-muted); }
+.entrant-principal-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
+.entrant-details .driver-guide { display: grid; gap: 16px; margin: 0; padding-top: 20px; border-top: 1px solid var(--design-line); background: transparent; }
+.entrant-details .driver-guide details { padding: 0; border: 0; background: transparent; }
+#root .entrant-details .driver-guide :is(h3,p) { max-width: 72ch; line-height: 1.65; }
+#root .entrant-details .driver-guide h3 { margin-block: 20px 8px; font-size: 1.125rem; }
+#root .entrant-details .driver-guide .history-note { color: var(--entrant-muted); font-size: .875rem; }
+#root .entrant-details .driver-guide a.driver-history-link { display: inline-flex; gap: 12px; width: fit-content; max-width: 100%; min-height: 56px; padding: 12px 18px; border: 1px solid var(--home-control-edge); border-radius: 28px; background: var(--home-control-sheen),var(--home-control-fill); box-shadow: var(--home-control-shadow); -webkit-backdrop-filter: var(--home-control-blur); backdrop-filter: var(--home-control-blur); color: var(--design-ink); text-decoration: none; font-size: .9375rem; }
+.driver-history-link svg { flex: none; }
+.driver-history-link > span { min-width: 0; overflow-wrap: anywhere; }
+#root .entrant-details .driver-guide a.driver-history-link:hover { color: var(--design-accent); border-color: var(--design-control); text-decoration: none; }
+.entrant-loading { display: grid; justify-items: center; gap: 16px; padding: 64px 16px; color: var(--entrant-muted); }
+#root .entrant-details .ui-feedback { background: var(--design-surface); border: 1px solid var(--design-line); border-radius: 16px; margin: 0; padding: 32px 24px; color: var(--design-ink); }
+#root .entrant-details .ui-feedback p { margin-block: 12px; color: var(--entrant-muted); }
+#root .entrant-details .ui-feedback button { min-height: 44px; padding: 10px 20px; border: 1px solid var(--design-control); border-radius: 24px; background: var(--design-surface); color: var(--design-ink); font: inherit; cursor: pointer; }
+#root .entrant-details .ui-feedback button:hover { background: var(--design-tint); }
+#root .entrant-details .ui-feedback a { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 16px; border: 0; border-radius: 24px; background: var(--design-tint); color: var(--design-accent); font-size: .875rem; }
+#root .entrant-details .ui-feedback a:hover { background: var(--design-surface); text-decoration: underline; text-underline-offset: 4px; }
+@container (max-width: 42rem) {
+  .entrant-hero { gap: 8px; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); }
+  #root .entrant-hero h1 { font-size: 2rem; }
+  .entrant-hero-copy { padding-block: 12px; }
+  .entrant-hero-media { height: 260px; }
+  .entrant-racing-number { font-size: 6rem; }
+  .entrant-identity { font-size: .8125rem; gap: 8px 12px; }
+  #root .entrant-team-link { font-size: .875rem; }
+  .entrant-statistics { grid-template-columns: minmax(0,1fr); gap: 32px; }
+  .entrant-stat-section { padding: 20px; }
+  .entrant-details--team .entrant-hero { grid-template-columns: minmax(0,1fr) minmax(0,.6fr); gap: 0 16px; }
+  .entrant-team-emblem { height: 120px; }
+  .entrant-details--team .entrant-hero-media { grid-column: 1 / -1; height: auto; min-height: 130px; padding-block: 16px; }
+  .entrant-biography-flow { display: flex; flex-direction: column; gap: 24px; }
+  .entrant-biography-intro { order: 0; }
+  .entrant-biography-photo { float: none; order: 1; width: 100%; margin: 0; }
+  .entrant-biography-body { order: 2; margin: 0; }
+  .entrant-season-summary { gap: 12px; }
+  .entrant-season-summary .entrant-stat dd { font-size: 1.625rem; }
+}
+@container (max-width: 22rem) {
+  .entrant-details--driver .entrant-hero { grid-template-columns: minmax(0,1fr); gap: 0; }
+  .entrant-details--driver .entrant-hero-media { height: 240px; }
+  .entrant-racing-number { position: relative; left: auto; top: auto; transform: none; justify-self: center; font-size: 5rem; padding-block: 8px; }
+  .entrant-season-summary { grid-template-columns: minmax(0,1fr); gap: 16px; }
+  .entrant-season-summary .entrant-stat { flex-direction: row; align-items: baseline; }
+  #root .entrant-roster-entry { display: grid; grid-template-columns: minmax(0,3rem) minmax(0,1fr); gap: 8px 12px; }
+  .entrant-roster-entry :is(.entrant-portrait,.entrant-principal-photo) { grid-column: 1; grid-row: 1 / span 2; width: 100%; height: 6rem; }
+  .entrant-roster-entry > div { grid-column: 2; }
+  .entrant-roster-number { grid-column: 2; margin: 0; }
+  .entrant-details--team .entrant-hero { grid-template-columns: minmax(0,1fr); }
+  .entrant-team-emblem { height: 110px; }
+  .entrant-highlights { grid-template-columns: minmax(0,1fr); gap: 20px; }
+  .entrant-metric { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px 16px; align-items: center; }
+  .entrant-metric dt { flex-direction: row; align-items: center; }
+  #root .entrant-metric > dd { margin: 0; }
+  #root .entrant-metric > .entrant-metric-share { grid-column: 1 / -1; grid-template-columns: minmax(0,1fr) auto; align-items: center; margin: 0; }
+}
+@media (prefers-contrast: more), (forced-colors: active) {
+  .entrant-hero::before, .entrant-roster-entry::before, .entrant-stat-section::before { display: none; }
+  .entrant-racing-number { color: var(--design-ink); -webkit-text-stroke: 0; }
+  .entrant-details { --entrant-muted: var(--design-ink); }
+}

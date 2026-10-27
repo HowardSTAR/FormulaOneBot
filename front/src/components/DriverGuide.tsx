@@ -21,6 +21,6 @@ export function DriverGuide({ driverId }: { driverId: string }) {
       <a className="ui-action-link" href={guide.source} target="_blank" rel="noreferrer">Официальная биография Formula 1 →</a>
       <p className="history-note">Справка проверена: {guide.checked_at}</p>
     </details>}
-    <p><Link className="ui-action-link" to={`/history?kind=drivers&ids=${encodeURIComponent(driverId)}`}>Как менялось место по сезонам →</Link></p>
+    <p><Link className="ui-action-link driver-history-link" to={`/history?kind=drivers&ids=${encodeURIComponent(driverId)}`}><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4v16h16M7 15l4-5 4 3 5-7" /><path d="M16 6h4v4" /></svg><span>Как менялось место по сезонам</span><svg className="driver-history-chevron" aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="m9 5 7 7-7 7" /></svg></Link></p>
   </section>;
 }
