@@ -1,5 +1,5 @@
 import { SelectField } from '../../components/CustomSelect';
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
@@ -14,6 +14,9 @@ import { defaultAvatar } from '../profile/avatar';
 import { PasswordField } from '../../components/PasswordField';
 import { useLoginCooldown } from './useLoginCooldown';
 import { apiErrorMessage } from '../../helpers/errorMessages';
+import SupporterBadge from '../../components/SupporterBadge';
+import { HomeIcon } from '../index/HomeIcon';
+import '../index/home-controls.css';
 
 type User = {
   id: number;
@@ -35,12 +38,14 @@ type LinkStatus = { status: "pending" | "approved" | "expired" | "cancelled" | "
 type ApiErrorPayload = { detail?: { message?: string; code?: string; retry_after?: number; scope?: string } | string };
 
 class AuthRequestError extends Error {
+  readonly status?: number;
   readonly retryAfter?: number;
   readonly scope?: string;
-  constructor(message: string, retryAfter?: number, scope?: string) {
+  constructor(message: string, retryAfter?: number, scope?: string, status?: number) {
     super(message);
     this.retryAfter = retryAfter;
     this.scope = scope;
+    this.status = status;
   }
 }
 
@@ -71,7 +76,7 @@ async function authFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
     const detail = payload?.detail;
     throw new AuthRequestError(apiErrorMessage(payload, response.status),
       typeof detail === 'object' ? detail?.retry_after : undefined,
-      typeof detail === 'object' ? detail?.scope : undefined);
+      typeof detail === 'object' ? detail?.scope : undefined, response.status);
   }
   if (response.status === 204) return undefined as T;
   try { return await response.json() as T; }
@@ -82,9 +87,12 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
   const navigate = useNavigate();
   const [returnParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
+  const [accountLoading, setAccountLoading] = useState(true);
+  const [accountError, setAccountError] = useState('');
   const [boosty, setBoosty] = useState<BoostyStatus | null>(null);
   const [boostyBusy, setBoostyBusy] = useState(false);
   const [boostyError, setBoostyError] = useState("");
+  const [boostyAttempt, setBoostyAttempt] = useState(0);
   useEffect(() => {
     if (!user) return;
     let active = true;
@@ -98,7 +106,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
     refresh();
     const stop = visibleInterval(refresh, 60000);
     return () => { active = false; stop(); };
-  }, [user]);
+  }, [user, boostyAttempt]);
 
   const checkBoosty = async () => {
     setBoostyBusy(true); setBoostyError("");
@@ -134,12 +142,32 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deletePanelOpen, setDeletePanelOpen] = useState(false);
-
+  const deleteForm = useRef<HTMLFormElement>(null);
+  const deleteTrigger = useRef<HTMLButtonElement>(null);
+  const deletionWasOpen = useRef(false);
   useEffect(() => {
-    authFetch<User>("/api/auth/me")
-      .then(setUser)
-      .catch(() => setUser(null));
+    if (deletePanelOpen) deleteForm.current?.querySelector('input')?.focus();
+    else if (deletionWasOpen.current) deleteTrigger.current?.focus();
+    deletionWasOpen.current = deletePanelOpen;
+  }, [deletePanelOpen]);
+
+  const loadAccount = useCallback(async (signal: AbortSignal) => {
+    setAccountLoading(true); setAccountError('');
+    try {
+      const account = await authFetch<User>("/api/auth/me", { signal });
+      if (!signal.aborted) setUser(account);
+    } catch (reason) {
+      if (signal.aborted) return;
+      if (reason instanceof AuthRequestError && reason.status === 401) setUser(null);
+      else setAccountError(reason instanceof Error ? reason.message : 'Не удалось загрузить аккаунт. Попробуйте ещё раз.');
+    } finally { if (!signal.aborted) setAccountLoading(false); }
   }, []);
+  const [accountAttempt, setAccountAttempt] = useState(0);
+  useEffect(() => {
+    const controller = new AbortController();
+    void loadAccount(controller.signal);
+    return () => controller.abort();
+  }, [loadAccount, accountAttempt]);
 
   useEffect(() => {
     if (!linkSession) return;
@@ -274,11 +302,17 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
   };
 
   const logout = async () => {
-    await authFetch("/api/auth/logout", { method: "POST" });
-    sessionStorage.removeItem("turbotears_csrf");
-    setUser(null); setLinkSession(null); setMode("login");
-    setBoosty(null); setBoostyError("");
-    notifyAuthChanged();
+    if (busy) return;
+    setBusy(true); setError(''); setMessage('');
+    try {
+      await authFetch("/api/auth/logout", { method: "POST" });
+      sessionStorage.removeItem("turbotears_csrf");
+      setUser(null); setLinkSession(null); setMode("login");
+      setBoosty(null); setBoostyError("");
+      notifyAuthChanged();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Не удалось выйти. Попробуйте ещё раз.');
+    } finally { setBusy(false); }
   };
 
   const deleteAccount = async (event: FormEvent) => {
@@ -304,25 +338,27 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
   };
 
   return (
-    <main className="account-page">
+    <main className="account-page" aria-busy={accountLoading}>
       {!embedded && <BackButton>← <span>Главное меню</span></BackButton>}
       <header className="account-hero">
-        <span>ЛИЧНЫЙ РАЗДЕЛ TURBOTEARS</span>
-        <h1>{user?.telegram_id ? "АККАУНТ" : "АККАУНТ И TELEGRAM"}</h1>
-        <p>{user?.telegram_id
-          ? "Управляйте входом, привязкой Telegram и подпиской."
-          : "Email используется для безопасного входа. Telegram подключается отдельно через бота."}</p>
+        <h1>Аккаунт</h1>
+        <p>{user ? "Вход, Telegram и безопасность вашего TurboTears." : "Войдите, чтобы сохранять прогнозы и свой прогресс. Telegram можно подключить позже."}</p>
       </header>
+      {message && <div className="account-notice success" role="status">{message}</div>}
+      {error && !registrationOpen && <div className="account-notice error" role="alert">{error}</div>}
       {safeReturnPath(returnParams.get('returnPath')) && <p className="ui-warning">{returnParams.get('requireTelegram') === '1' ? 'Для этого раздела войдите и подключите Telegram. Затем мы вернём вас обратно.' : 'Войдите в аккаунт — затем мы вернём вас в выбранный раздел.'}</p>}
 
-      {!user ? (
-        <section className="account-card account-auth-card">
-          <div className="account-tabs">
-            <button disabled={busy} className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(''); setMessage(''); setPasswordError(''); }}>Вход</button>
-            <button disabled={busy} className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(''); setMessage(''); setPasswordError(''); }}>Регистрация</button>
+      {accountLoading ? <div className="account-state" role="status">Загружаем аккаунт…</div> : accountError ? (
+        <section className="account-state"><h2>Аккаунт недоступен</h2><p role="alert">{accountError}</p><button className="account-secondary" onClick={() => setAccountAttempt(value => value + 1)}>Повторить загрузку</button></section>
+      ) : !user ? (
+        <section className="account-card account-auth-card" aria-label={mode === 'forgot' ? 'Восстановление пароля' : 'Вход и регистрация'}>
+          <div className="account-tabs" role="group" aria-label="Вход или регистрация">
+            <button disabled={busy} aria-pressed={mode === "login"} className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(''); setMessage(''); setPasswordError(''); }}>Вход</button>
+            <button disabled={busy} aria-pressed={mode === "register"} className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(''); setMessage(''); setPasswordError(''); }}>Регистрация</button>
           </div>
+          {mode === 'forgot' && <div className="account-form-intro"><h2>Восстановить пароль</h2><p>Отправим ссылку для сброса на ваш email.</p></div>}
           <form onSubmit={submitAuth}>
-            <label>Email<input type="email" autoComplete="email" disabled={busy} required value={email} onChange={e => setEmail(e.target.value)} /></label>
+            <label>Email<input name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false} disabled={busy} required value={email} onChange={e => setEmail(e.target.value)} /></label>
             {mode !== "forgot" && (
               <PasswordField racer key={mode} name="password" label="Пароль" autoComplete={mode === 'register' ? 'new-password' : 'current-password'} disabled={busy} minLength={mode === "register" ? 15 : undefined} maxLength={128} required value={password}
                 aria-invalid={mode === 'register' && Boolean(passwordError)}
@@ -355,43 +391,41 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
         <div className="account-grid">
           <div className="account-overview">
           <section className="account-card account-profile-card">
-            <span className="account-kicker">ТЕКУЩИЙ ПРОФИЛЬ</span>
-            <h2>{user.email || "Аккаунт Telegram"}</h2>
-            {!embedded && <p><Link to="/profile">Мой профиль · рекорды и прогнозы →</Link></p>}
-            {boosty?.premium_active && <span className="account-boosty-badge">{boosty.premium_override === true ? 'Премиум · включён вручную' : `Поддерживает TurboTears · ${boosty.level_name || 'Boosty'}`}</span>}
+            <h2>Данные для входа</h2>
+            <p className="account-identity">{user.email || (user.telegram_id ? "Аккаунт Telegram" : "Аккаунт сайта")}</p>
+            {boosty?.premium_active && <span className="account-boosty-badge"><SupporterBadge tierName={boosty.level_name || undefined} />{boosty.premium_override === true ? 'Премиум включён вручную' : `Поддерживает TurboTears · ${boosty.level_name || 'Boosty'}`}</span>}
             <dl><div><dt>Email</dt><dd>{!user.email ? "Не подключён" : user.email_verified ? "Подтверждён" : "Не подтверждён"}</dd></div><div><dt>Telegram</dt><dd>{user.telegram_id ? `ID ${user.telegram_id}` : "Не подключён"}</dd></div></dl>
             {user.email && !user.email_verified && <p><Link to="/profile">Ввести код из письма в профиле →</Link></p>}
-            <button className="account-secondary" onClick={logout}>Выйти</button>
+            <button className="account-secondary" disabled={busy} onClick={logout}>Выйти из аккаунта</button>
           </section>
           {user.telegram_id ? (
             <section className="account-card account-personal-card">
-              <span className="account-kicker">ПЕРСОНАЛИЗАЦИЯ</span>
               <h2>Ваш TurboTears</h2>
               <p>Сохраняйте любимых пилотов и команды, настраивайте часовой пояс и уведомления о событиях.</p>
               <nav className="account-quick-links" aria-label="Персональные разделы">
-                <Link to="/favorites"><strong>Избранное</strong><span>Пилоты и команды</span><b aria-hidden>→</b></Link>
-                <Link to="/settings"><strong>Настройки</strong><span>Время и уведомления</span><b aria-hidden>→</b></Link>
+                <Link to="/favorites"><HomeIcon name="favorite" /><span><strong>Избранное</strong><small>Пилоты и команды</small></span><HomeIcon name="chevronRight" /></Link>
+                <Link to="/settings"><HomeIcon name="settings" /><span><strong>Настройки</strong><small>Время и уведомления</small></span><HomeIcon name="chevronRight" /></Link>
               </nav>
             </section>
           ) : (
             <section className="account-card account-link-card">
-              <span className="account-kicker">СВЯЗАТЬ АККАУНТЫ</span>
               <h2>Подключить Telegram</h2>
+              <p>Свяжите профиль с ботом для избранного и уведомлений.</p>
               {!linkSession ? (
                 <button className="account-primary" onClick={createLink} disabled={busy}>Создать ссылку и QR</button>
               ) : (
                 <div className="account-link-session">
-                  <img src={linkSession.qr_url} alt="QR-код для привязки Telegram" />
+                  <img src={linkSession.qr_url} width="132" height="132" alt="QR-код для привязки Telegram" />
                   <div><a className="account-primary" href={linkSession.deep_link} target="_blank" rel="noreferrer">Открыть Telegram</a><small>Ссылка действует 5 минут</small></div>
                 </div>
               )}
               <div className="account-divider"><span>или код из бота</span></div>
               <form className="account-code-form" onSubmit={linkByCode}>
-                <input aria-label="Шестизначный код" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} placeholder="000000" value={manualCode} onChange={e => setManualCode(e.target.value.replace(/\D/g, ""))} />
-                <SelectField value={strategy} onChange={e => setStrategy(e as typeof strategy)} aria-label="Основной профиль">
+                <label>Код из бота<input name="telegram-code" autoComplete="one-time-code" spellCheck={false} inputMode="numeric" pattern="[0-9]{6}" maxLength={6} placeholder="000000" value={manualCode} onChange={e => setManualCode(e.target.value.replace(/\D/g, ""))} /></label>
+                <label>Основной профиль<SelectField disabled={busy} value={strategy} onChange={e => setStrategy(e as typeof strategy)} aria-label="Основной профиль">
                   <option value="keep_web">Сохранить профиль сайта</option>
                   <option value="keep_telegram">Сохранить профиль Telegram</option>
-                </SelectField>
+                </SelectField></label>
                 <button className="account-secondary" disabled={manualCode.length !== 6 || busy}>Привязать</button>
               </form>
               <p className="account-hint">Отправьте команду <code>/link</code> боту и введите полученный код здесь.</p>
@@ -401,7 +435,7 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
           <div className="account-details">
           {(boosty?.eligible || boostyError) && (
             <section className="account-card account-boosty-card">
-              <span className="account-kicker">ПОДДЕРЖКА ПРОЕКТА</span>
+              <div className="account-supporter-art" aria-hidden="true"><SupporterBadge large /></div>
               <h2>Подписка Boosty</h2>
               <p>Для проверки используйте одинаковый подтверждённый email на сайте и в Boosty.</p>
               <p role="status">{!boosty ? "Статус недоступен" : !boosty.configured
@@ -412,22 +446,21 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
               {boosty?.check_failed && <p role="alert">{boostyCheckFailureLabel(boosty)}</p>}
               <div className="account-boosty-actions">
                 <a className="account-secondary" href={boosty?.blog_url || "https://boosty.to/turbotears"} target="_blank" rel="noopener noreferrer">Открыть Boosty</a>
-                <button className="account-primary" disabled={!boosty?.configured || boosty?.can_check === false || boostyBusy} onClick={() => void checkBoosty()}>{boostyBusy ? "Проверяем…" : "Проверить подписку"}</button>
+                <button className="account-primary" disabled={!boosty?.configured || boosty?.can_check === false || boostyBusy} onClick={() => void checkBoosty()}><span aria-hidden="true"><SupporterBadge /></span>{boostyBusy ? "Проверяем…" : "Проверить подписку"}</button>
               </div>
-              {boostyError && <p role="alert" className="account-notice error">{boostyError}</p>}
+              {boostyError && <div className="account-notice error"><p role="alert">{boostyError}</p><button className="account-secondary" onClick={() => { setBoostyError(''); setBoostyAttempt(value => value + 1); }}>Повторить загрузку статуса</button></div>}
             </section>
           )}
           {user.email && (
             <section className="account-card account-security-card">
               <div className="account-security-copy">
-                <span className="account-kicker">БЕЗОПАСНОСТЬ</span>
                 <h2>Сменить пароль</h2>
                 <p>После сохранения другие активные сеансы будут завершены.</p>
               </div>
               <form onSubmit={changePassword}>
-                <PasswordField label="Текущий пароль" autoComplete="current-password" disabled={busy} required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
-                <PasswordField racer label="Новый пароль" autoComplete="new-password" disabled={busy} minLength={15} maxLength={128} required value={newPassword} onChange={e => setNewPassword(e.target.value)} />
-                <PasswordField label="Повторите новый пароль" autoComplete="new-password" disabled={busy} minLength={15} maxLength={128} required value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)} />
+                <PasswordField name="current-password" label="Текущий пароль" autoComplete="current-password" disabled={busy} required value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} />
+                <PasswordField name="new-password" racer label="Новый пароль" autoComplete="new-password" disabled={busy} minLength={15} maxLength={128} required value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                <PasswordField name="password-confirmation" label="Повторите новый пароль" autoComplete="new-password" disabled={busy} minLength={15} maxLength={128} required value={passwordConfirmation} onChange={e => setPasswordConfirmation(e.target.value)} />
                 <p className="account-hint">От 15 до 128 символов. Выберите уникальную длинную фразу.</p>
                 <button className="account-primary" disabled={busy || newPassword !== passwordConfirmation}>Изменить пароль</button>
               </form>
@@ -436,7 +469,6 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
           </div>
           <section className="account-card account-danger-card">
             <div className="account-security-copy">
-              <span className="account-kicker">УДАЛЕНИЕ ДАННЫХ</span>
               <h2>Удалить аккаунт</h2>
               <p>
                 Будут удалены профиль, Telegram-привязка, email, сессии, избранное,
@@ -445,17 +477,17 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
               <Link className="ui-action-link" to="/account/delete">Подробнее о процедуре</Link>
             </div>
             {!deletePanelOpen ? (
-              <button className="account-danger-button" type="button" onClick={() => setDeletePanelOpen(true)}>
+              <button ref={deleteTrigger} className="account-danger-button" type="button" aria-expanded={deletePanelOpen} onClick={() => setDeletePanelOpen(true)}>
                 Перейти к удалению
               </button>
             ) : (
-              <form onSubmit={deleteAccount}>
+              <form ref={deleteForm} onSubmit={deleteAccount}>
                 {user.email && (
                   <PasswordField label="Текущий пароль" autoComplete="current-password" disabled={busy} required value={deletePassword} onChange={e => setDeletePassword(e.target.value)} />
                 )}
                 <label>
                   Для подтверждения введите DELETE
-                  <input required value={deleteConfirmation} onChange={e => setDeleteConfirmation(e.target.value.toUpperCase())} />
+                  <input name="delete-confirmation" autoComplete="off" spellCheck={false} required value={deleteConfirmation} onChange={e => setDeleteConfirmation(e.target.value.toUpperCase())} />
                 </label>
                 <div className="account-danger-actions">
                   <button className="account-secondary" type="button" onClick={() => { setDeletePanelOpen(false); setDeletePassword(""); setDeleteConfirmation(""); }}>
@@ -470,8 +502,6 @@ export default function AccountPage({ embedded = false }: { embedded?: boolean }
           </section>
         </div>
       )}
-      {message && <div className="account-notice success">{message}</div>}
-      {error && !registrationOpen && <div className="account-notice error">{error}</div>}
       {registrationOpen && <RegistrationWizard value={registration} onChange={setRegistration} busy={busy} error={error}
         onComplete={() => void createProfile()} onClose={() => { setRegistrationOpen(false); setError(''); }} />}
     </main>
