@@ -1,8 +1,9 @@
-import { SelectField } from '../../components/CustomSelect';
+import { CustomSelect } from '../../components/CustomSelect';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../../helpers/api";
 import { BackButton } from "../../components/BackButton";
+import { HomeIcon } from "../index/HomeIcon";
 import "./notifications.css";
 import { notificationBody, NOTIFICATIONS_CHANGED_EVENT } from '../../helpers/notificationPresentation';
 import { reminderBody, reminderClock, type ReminderTiming } from '../../helpers/reminderClock';
@@ -32,7 +33,12 @@ const supported = () => window.isSecureContext && "serviceWorker" in navigator &
 export default function NotificationsPage() {
   const [data, setData] = useState<Inbox | null>(null);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [moreBusy, setMoreBusy] = useState(false);
+  const [readBusy, setReadBusy] = useState(false);
+  const [pushError, setPushError] = useState("");
+  const [readError, setReadError] = useState("");
+  const [moreError, setMoreError] = useState("");
   const [category, setCategory] = useState('all');
   const [now, setNow] = useState(() => Date.now());
   const hasReminders = !!data?.items.some(item => item.reminder);
@@ -73,8 +79,8 @@ export default function NotificationsPage() {
     };
   }, [refresh]);
   const togglePush = async () => {
-    if (!supported()) return;
-    setBusy(true); setError("");
+    if (!supported() || pushBusy) return;
+    setPushBusy(true); setPushError("");
     try {
       if (subscribed) {
         const reg = await navigator.serviceWorker.getRegistration("/");
@@ -101,68 +107,117 @@ export default function NotificationsPage() {
       try { await apiRequest("/api/web-notifications/subscription", { endpoint:sub.endpoint,p256dh:keys.p256dh,auth:keys.auth }, "POST"); }
       catch (e) { await sub.unsubscribe(); throw e; }
       setSubscribed(true);
-    } catch (e) { setError(e instanceof Error ? e.message : "Не удалось изменить подписку"); }
-    finally { setBusy(false); }
+    } catch (e) { setPushError(e instanceof Error ? e.message : "Не удалось изменить подписку"); }
+    finally { setPushBusy(false); }
   };
   const markRead = async () => {
-    if (!data?.items.length) return;
+    if (!data?.items.length || readBusy) return;
+    setReadBusy(true); setReadError("");
     try { await apiRequest("/api/web-notifications/read", { through_id:data.items[0].id }, "POST"); window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT)); await refresh(); }
-    catch { setError("Не удалось отметить уведомления прочитанными"); }
+    catch { setReadError("Не удалось отметить уведомления прочитанными. Попробуйте ещё раз."); }
+    finally { setReadBusy(false); }
   };
   const more = async () => {
-    if (!data?.next_before) return;
+    if (!data?.next_before || moreBusy) return;
     const sequence = ++requestSequence.current;
-    setBusy(true);
+    setMoreBusy(true); setMoreError("");
     try { const page = await apiRequest<Inbox>("/api/web-notifications", { before:data.next_before, category }); if (sequence === requestSequence.current) setData({ ...page, items:[...data.items,...page.items] }); }
-    catch { if (sequence === requestSequence.current) setError("Не удалось загрузить историю"); }
-    finally { setBusy(false); }
+    catch { if (sequence === requestSequence.current) setMoreError("Не удалось загрузить историю. Попробуйте ещё раз."); }
+    finally { setMoreBusy(false); }
   };
   const visibleItems = groupNotifications(data?.items || []);
+  const pushAvailable = supported();
+  const pushStatus = !pushAvailable ? 'Недоступны в этом браузере'
+    : permission === 'denied' ? 'Заблокированы браузером'
+    : subscribed ? 'Включены на этом устройстве'
+    : !data ? error ? 'Не удалось проверить доступность' : 'Проверяем доступность…'
+    : !data.push.enabled ? 'Пока недоступны' : 'Выключены';
   return <div className="notifications-page">
-    <BackButton /><header><small>TURBOTEARS · ЛИЧНОЕ</small><h1>Уведомления</h1>
-      <p>Результаты, прогнозы, голосования и новости сессий. Избранные пилоты и команды выделяются в итогах.</p></header>
-    <section className="notifications-controls">
-      <strong>Push на этом устройстве</strong>
-      <p>Только новые события, даже когда сайт закрыт. История сохраняется отдельно. На iPhone сначала добавьте сайт на экран «Домой».</p>
-      <button disabled={busy || !supported() || (!subscribed && !data?.push.enabled)} onClick={togglePush}>{subscribed ? "Отключить push" : "Включить push"}</button>
-      {!supported() ? <p>В этом режиме браузера push недоступен. История уведомлений продолжает работать.</p>
-        : data && !data.push.enabled && <p>Push ещё не настроен на сервере.</p>}
-      {permission === "denied" && <div className="notifications-help" role="status">
-        <strong>Уведомления заблокированы браузером</strong>
-        <p>На компьютере нажмите значок настроек слева от адреса f1hub.ru → «Разрешения для этого сайта» → «Уведомления» → «Разрешить». Затем обновите страницу.</p>
-      </div>}
-      {ios && !standalone && <div className="notifications-help">
-        <strong>Сначала установите приложение на iPhone</strong>
-        <p>Откройте f1hub.ru именно в Safari → «Поделиться» → «На экран Домой» → «Добавить». Затем откройте TurboTears с новой иконки и вернитесь сюда.</p>
-      </div>}
-      {(ios || /Android/i.test(navigator.userAgent)) && !standalone && <details className="notifications-install-guide">
-        <summary>Как установить TurboTears на телефон</summary>
-        <p>{ios ? "Safari → Поделиться → На экран Домой → Добавить." : "Chrome → меню ⋮ → Установить приложение или Добавить на главный экран."}</p>
-      </details>}
-    </section>
-    <label>Тип уведомлений <SelectField value={category} onChange={event => {setData(null); setCategory(event);}}><option value="all">Все</option><option value="results">Результаты</option><option value="predictions">Прогнозы</option><option value="voting">Голосования</option><option value="reminders">Напоминания</option><option value="admin">Системные</option></SelectField></label>
-    {error && <div role="alert"><p>{error}</p><button onClick={() => void refresh()}>Повторить</button></div>}
-    {!data ? !error && <p role="status">Загружаем уведомления…</p> : <>
-      <div className="notifications-toolbar"><span>Непрочитанных сообщений: {data.unread}</span><button disabled={!data.unread} onClick={markRead}>Отметить прочитанными до этой даты</button></div>
-      {!data.items.length && <p className="notifications-empty">Здесь появятся новые события. Прошедшие уведомления не рассылаются повторно.</p>}
-      {visibleItems.length < data.items.length && <p className="ui-data-context">Повторные сообщения объединены в одну карточку.</p>}
-      {visibleItems.map(item => {
-        const clock = item.reminder ? reminderClock(item.reminder, now) : null;
-        const presentation = notificationBody(item.body, item.url);
-        return <article key={item.id} className={item.read_at ? "" : "is-unread"}>
-        {item.priority && <span className={`notification-priority priority-${item.priority}`}>{priorityNames[item.priority]} приоритет</span>}
-        <time dateTime={new Date(item.created_at*1000).toISOString()}>{new Date(item.created_at*1000).toLocaleString("ru-RU")}</time><h2>{clock ? 'Сессия уик-энда' : item.title}</h2>
-        {item.copies > 1 && <p className="ui-data-context">Объединено сообщений: {item.copies}</p>}
-        {clock && <div className={`notification-clock phase-${clock.phase}`} aria-label="Статус сессии"><strong>{clock.label}</strong>{clock.estimated && <small>По расписанию</small>}</div>}
-        <Link className="ui-action-link" to={item.url}>{item.historical_snapshot ? 'Актуальный результат' : clock ? 'Расписание сессий' : 'Открыть'} →</Link>
-        {(clock ? reminderBody(presentation.body) : presentation.body).length > 320
-          ? <><p>{(clock ? reminderBody(presentation.body) : presentation.body).split('\n').filter(Boolean).slice(0,3).join('\n')}</p>
-            <details><summary>Показать сообщение целиком</summary><p>{clock ? reminderBody(presentation.body) : presentation.body}</p></details></>
-          : <p>{clock ? reminderBody(presentation.body) : presentation.body}</p>}
-        {presentation.uncertainPoints && <p className="ui-warning">Очки в этом архивном сообщении не подтверждены. Проверьте актуальную классификацию по кнопке выше.</p>}
-        {(item.historical_snapshot ?? /-results|^\/predictions|^\/voting/.test(item.url)) && <p className="ui-data-context">Итог на момент отправки. После уточнения данных или пересчёта значения могли измениться.</p>}
-      </article>})}
-      {data.next_before && <button disabled={busy} onClick={more}>Показать ещё</button>}
-    </>}
+    <BackButton />
+    <header className="notifications-header">
+      <h1>Уведомления</h1>
+      <p>Результаты, прогнозы и события гоночного уик-энда.</p>
+    </header>
+    <div className="notifications-layout">
+      <section className="notifications-inbox" aria-labelledby="notifications-inbox-heading">
+        <div className="notifications-inbox-heading">
+          <h2 id="notifications-inbox-heading">История событий</h2>
+          {data && <span className="notifications-unread-count" role="status">{data.unread ? `Непрочитанных: ${data.unread}` : 'Всё прочитано'}</span>}
+        </div>
+        <div className="notifications-toolbar">
+          <div className="notifications-filter">
+            <label htmlFor="notifications-category">Тип уведомлений</label>
+            <CustomSelect id="notifications-category" ariaLabel="Тип уведомлений" value={category} onChange={value => { setData(null); setError(''); setReadError(''); setMoreError(''); setCategory(String(value)); }} options={[
+              { value: 'all', label: 'Все' }, { value: 'results', label: 'Результаты' },
+              { value: 'predictions', label: 'Прогнозы' }, { value: 'voting', label: 'Голосования' },
+              { value: 'reminders', label: 'Напоминания' }, { value: 'admin', label: 'Системные' },
+            ]} />
+          </div>
+          {data && <button type="button" className="notifications-read" disabled={!data.unread || readBusy || !data.items.length} onClick={markRead}
+            title={data.items.length ? `Отметить все уведомления до ${new Date(data.items[0].created_at * 1000).toLocaleString('ru-RU')} включительно` : undefined}>
+            {readBusy ? 'Отмечаем…' : 'Отметить прочитанными'}
+          </button>}
+        </div>
+        {error && <div className="notifications-feedback" role="alert"><p>{error}</p><button type="button" className="notifications-button" onClick={() => void refresh()}>Повторить загрузку</button></div>}
+        {readError && <p className="notifications-feedback" role="alert">{readError}</p>}
+        {!data ? !error && <div className="notifications-loading" role="status"><HomeIcon name="history" /><p>Загружаем уведомления…</p></div> : <>
+          {!data.items.length && <div className="notifications-empty">
+            <HomeIcon name="notifications" />
+            <h3>{category === 'all' ? 'Новых событий пока нет' : 'В этой категории пока нет событий'}</h3>
+            <p>{category === 'all' ? 'Здесь появятся уведомления о гонках, прогнозах и голосованиях. Прошедшие события повторно не рассылаются.' : 'Выберите другой тип уведомлений или вернитесь позже.'}</p>
+          </div>}
+          {visibleItems.length < data.items.length && <p className="notifications-note notifications-group-note">Повторные сообщения объединены.</p>}
+          <ul className="notifications-list">
+            {visibleItems.map(item => {
+              const clock = item.reminder ? reminderClock(item.reminder, now) : null;
+              const presentation = notificationBody(item.body, item.url);
+              const body = clock ? reminderBody(presentation.body) : presentation.body;
+              const long = body.length > 320;
+              const preview = long ? body.slice(0, 320).trimEnd() + '…' : body;
+              return <li key={item.id}><article className={`notification-item${item.read_at ? '' : ' is-unread'}`}>
+                <Link className="notification-destination" to={item.url}>
+                  <div className="notification-meta">
+                    <time dateTime={new Date(item.created_at * 1000).toISOString()}>{new Date(item.created_at * 1000).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', year: 'numeric' })}</time>
+                    {!item.read_at && <span className="notification-new">Не прочитано</span>}
+                  </div>
+                  {item.priority && <span className={`notification-priority priority-${item.priority}`}>{priorityNames[item.priority]} приоритет</span>}
+                  <h3>{clock ? 'Сессия уик-энда' : item.title}</h3>
+                  {clock && <div className={`notification-clock phase-${clock.phase}`} aria-label="Статус сессии"><HomeIcon name="clock" /><strong>{clock.label}</strong>{clock.estimated && <small>По расписанию</small>}</div>}
+                  <p className="notification-body">{preview}</p>
+                  <span className="notification-open">{item.historical_snapshot ? 'Актуальный результат' : clock ? 'Расписание сессий' : 'Открыть'}<HomeIcon name="chevronRight" /></span>
+                </Link>
+                {long && <details className="notification-full"><summary>Показать сообщение целиком</summary><p className="notification-body">{body}</p></details>}
+                {item.copies > 1 && <p className="notifications-note">Объединено сообщений: {item.copies}</p>}
+                {presentation.uncertainPoints && <p className="notifications-warning">Очки в этом архивном сообщении не подтверждены. Проверьте актуальную классификацию по ссылке выше.</p>}
+                {(item.historical_snapshot ?? /-results|^\/predictions|^\/voting/.test(item.url)) && <p className="notifications-note">Итог на момент отправки. После уточнения данных или пересчёта значения могли измениться.</p>}
+              </article></li>;
+            })}
+          </ul>
+          {moreError && <p className="notifications-feedback" role="alert">{moreError}</p>}
+          {data.next_before && <button type="button" className="notifications-button notifications-more" disabled={moreBusy} onClick={more}>{moreBusy ? 'Загружаем историю…' : 'Показать ещё'}</button>}
+        </>}
+      </section>
+      <aside className="notifications-controls" aria-labelledby="notifications-push-heading">
+        <div className="notifications-push-heading"><HomeIcon name="notifications" /><h2 id="notifications-push-heading">Push на устройстве</h2></div>
+        <p className={`notifications-push-status${subscribed ? ' is-enabled' : ''}`} role="status">{pushStatus}</p>
+        <p>Новые события, даже когда сайт закрыт. История уведомлений сохраняется отдельно.</p>
+        <button type="button" className={`notifications-button${subscribed ? '' : ' notifications-primary'}`} disabled={pushBusy || !pushAvailable || (!subscribed && !data?.push.enabled)} onClick={togglePush}>{pushBusy ? 'Сохраняем…' : subscribed ? 'Отключить push' : 'Включить push'}</button>
+        {!pushAvailable ? <p className="notifications-note">В этом режиме браузера push недоступен. История уведомлений продолжает работать.</p>
+          : data && !data.push.enabled && <p className="notifications-note">Push ещё не настроен на сервере.</p>}
+        {pushError && <p className="notifications-feedback" role="alert">{pushError}</p>}
+        {permission === 'denied' && <div className="notifications-help">
+          <h3>Разрешите уведомления в браузере</h3>
+          <p>На компьютере нажмите значок настроек слева от адреса f1hub.ru → «Разрешения для этого сайта» → «Уведомления» → «Разрешить». Затем обновите страницу.</p>
+        </div>}
+        {ios && !standalone && <div className="notifications-help">
+          <h3>На iPhone нужно приложение</h3>
+          <p>Откройте f1hub.ru в Safari → «Поделиться» → «На экран Домой» → «Добавить». Затем откройте TurboTears с новой иконки и вернитесь сюда.</p>
+        </div>}
+        {!ios && /Android/i.test(navigator.userAgent) && !standalone && <details className="notifications-install-guide">
+          <summary>Как установить TurboTears</summary>
+          <p>Chrome → меню ⋮ → Установить приложение или Добавить на главный экран.</p>
+        </details>}
+      </aside>
+    </div>
   </div>;
 }

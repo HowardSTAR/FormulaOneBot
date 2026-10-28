@@ -31,12 +31,6 @@ body .glossary-hint .ui-action-link {
 }
 #root .ui-data-receipt { margin: 28px 0 8px; color: #a8acb7; font-size: 12px; line-height: 1.5; text-align: end; }
 #root .driver-guide { margin-bottom: 16px; }
-#root .notification-clock { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; padding: 12px 14px; border-radius: 10px; background: #252831; border: 1px solid #ffffff26; }
-#root .notification-clock strong { font-size: 18px; font-variant-numeric: tabular-nums; }
-#root .notification-clock small { color: #c3c7d1; font-size: 12px; }
-#root .notification-clock.phase-live { border-color: #ff6259; color: #ffb7b0; }
-#root .notifications-page > label { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
-#root .notifications-page article { padding: 20px; }
 #root .driver-profile-navigation { align-items: center; margin: 0 0 16px; gap: 8px; }
 #root .driver-profile-navigation .btn-back { min-height: 44px; box-sizing: border-box; margin: 0; }
 #root .driver-profile-navigation a { font-size: 13px; padding: 10px 12px; }
