@@ -77,6 +77,17 @@
 .constructors-gap { grid-column: 3; grid-row: 1; }
 .constructors-points { grid-column: 4; grid-row: 1; text-align: right; font-family: 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; }
 .constructors-points strong { font-size: 1.375rem; font-weight: 600; }
+.constructors-comparison, .constructors-columns-comparison { display: none; }
+.constructors-comparison { grid-column: 3; grid-row: 1; align-items: center; min-width: 0; }
+.constructors-points-track { display: block; width: 100%; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--constructors-muted) 18%, var(--design-bg)); }
+.constructors-points-fill { display: block; height: 100%; border-radius: inherit; background: color-mix(in srgb, var(--home-team-accent) 55%, var(--design-ink)); }
+@container (min-width: 54rem) {
+  .constructors-columns, .constructors-entry { grid-template-columns: 3rem minmax(12rem,1fr) minmax(12rem,1.4fr) 7rem 5rem; }
+  .constructors-comparison { display: flex; }
+  .constructors-columns-comparison { display: block; }
+  .constructors-gap { grid-column: 4; }
+  .constructors-points { grid-column: 5; }
+}
 @container (min-width: 48rem) {
   .constructors-heading--with-leader { grid-template-columns: minmax(0,.9fr) minmax(0,1.1fr); gap: 40px; }
 }
@@ -111,4 +122,6 @@
   #root .constructors-page :is(.constructors-history, .custom-select-trigger, .current-year-btn) { background: var(--design-surface); border-color: var(--design-control); box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 @media (prefers-reduced-motion: reduce) { .constructors-page *, .constructors-page *::before { animation: none !important; transition: none !important; } }
+@media (prefers-contrast: more) { .constructors-points-fill { background: var(--design-ink); } }
+@media (forced-colors: active) { .constructors-points-track { outline: 1px solid CanvasText; } .constructors-points-fill { background: CanvasText; } }
 @media (forced-colors: active) { .constructors-list > li + li { border-color: CanvasText; } .constructors-page :is(a,button):focus-visible { outline-color: Highlight; } }

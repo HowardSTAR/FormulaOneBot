@@ -227,7 +227,7 @@ window.fetch = async (input, init) => {
     case '/api/constructors': {
       if (constructorFailures-- > 0) return json({ detail: 'Зачёт команд временно недоступен. Попробуйте снова.' }, 503);
       if (scenario === 'constructors-loading') return new Promise<Response>((_, reject) => { init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))); });
-      return json({ constructors: ['empty', 'constructors-empty'].includes(scenario || '') ? [] : constructors.map(team => ({ ...team, is_favorite: member && team.name === 'McLaren' })) });
+      return json({ constructors: ['empty', 'constructors-empty'].includes(scenario || '') ? [] : constructors.map((team, index) => ({ ...team, points: scenario === 'constructors-zero' ? 0 : scenario === 'constructors-missing' && index === 1 ? null : scenario === 'constructors-tied' && index === 1 ? constructors[0].points : team.points, is_favorite: member && team.name === 'McLaren' })) });
     }
     case '/api/driver-details': {
       if (entrantFailures-- > 0) return json({ detail: 'Карточка временно недоступна' }, 503);

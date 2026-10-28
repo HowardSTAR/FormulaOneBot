@@ -14,8 +14,18 @@ import './constructors.css';
 const currentRealYear = new Date().getFullYear();
 const minConstructorYear = 1958;
 const numberFormat = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 });
-type Constructor = { position: number; name: string; points: number; is_favorite?: boolean; constructorId?: string };
+type Constructor = { position: number; name: string; points: number | null; is_favorite?: boolean; constructorId?: string };
 type ConstructorsResponse = { round?: number | null; constructors?: Constructor[] };
+function hasPoints(points: number | null): points is number {
+  return typeof points === 'number' && Number.isFinite(points);
+}
+function formatPoints(points: number | null) {
+  return hasPoints(points) ? numberFormat.format(points) : '—';
+}
+function gapToLeader(team: Constructor, leader: Constructor | null) {
+  return leader && hasPoints(team.points) && hasPoints(leader.points)
+    ? Math.max(0, leader.points - team.points) : null;
+}
 function teamLink(team: Constructor, season: number) {
   return `/constructor-details?${new URLSearchParams({ constructorId: team.constructorId || team.name, season: String(season) })}`;
 }
@@ -79,7 +89,7 @@ function ConstructorsPage() {
   const hasData = !isLoading && !error && teams.length > 0;
   const leader = hasData ? teams[0] : null;
   const second = hasData ? teams[1] : null;
-  const gap = leader && second ? Math.max(0, leader.points - second.points) : null;
+  const gap = second ? gapToLeader(second, leader) : null;
   const leaderMedia = leader ? spotlightTeamMedia(leader.constructorId || '', leader.name, year) : null;
 
   return <div className="constructors-page">
@@ -100,7 +110,7 @@ function ConstructorsPage() {
         <div className="constructors-leader-copy">
           <h2>{leader.name}</h2>
           <p>Лидер зачёта {year}</p>
-          <strong>{numberFormat.format(leader.points)} <span>очк.</span></strong>
+          <strong>{formatPoints(leader.points)} <span>очк.</span></strong>
           {second && gap !== null && <small>{gap === 0 ? `Поровну очков с ${second.name}` : `+${numberFormat.format(gap)} очк. к ${second.name}`}</small>}
         </div>
         <div className="constructors-leader-car" aria-hidden="true">
@@ -122,11 +132,13 @@ function ConstructorsPage() {
         <p>{year === currentRealYear ? 'После первой гонки здесь появятся команды и очки.' : `Информация за ${year} год отсутствует. Выберите другой сезон.`}</p>
       </div>}
       {hasData && <>
-        <div className="constructors-columns" aria-hidden="true"><span>Место</span><span>Команда</span><span>От лидера</span><span>Очки</span></div>
+        <div className="constructors-columns" aria-hidden="true"><span>Место</span><span>Команда</span><span className="constructors-columns-comparison">Соотношение очков</span><span>От лидера</span><span>Очки</span></div>
         <ol className="constructors-list" aria-label={`Кубок конструкторов ${year}`}>
           {teams.map(team => {
             const media = spotlightTeamMedia(team.constructorId || '', team.name, year);
-            const pointsGap = Math.max(0, (leader?.points ?? 0) - team.points);
+            const pointsGap = gapToLeader(team, leader);
+            const share = leader && hasPoints(leader.points) && leader.points > 0 && hasPoints(team.points)
+              ? Math.max(0, Math.min(100, team.points / leader.points * 100)) : null;
             return <li key={team.constructorId || team.name}>
               <Link className="constructors-entry entrant-highlight" to={teamLink(team, year)} data-team={homeTeamIdentity(team.constructorId || '', team.name)}>
                 <span className="constructors-position"><span className="constructors-sr">Место </span>{team.position}</span>
@@ -134,9 +146,12 @@ function ConstructorsPage() {
                   <span className="constructors-logo" aria-hidden="true"><TeamImage key={`${year}:${team.name}`} sources={[...media.logo, teamLogoUrl(team.constructorId || '', team.name, year)]} className="constructors-logo-image" fallback={team.name.slice(0, 3)} width={480} height={480} bounds={year === 2026 && media.logo.length ? logoBounds[homeTeamIdentity(team.constructorId || '', team.name)] : undefined} /></span>
                   <span className="constructors-name">{team.name}{team.is_favorite && <svg className="constructors-favorite" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Избранная команда"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z" /></svg>}</span>
                 </div>
+                <span className="constructors-comparison" aria-hidden="true">
+                  <span className="constructors-points-track">{share !== null && <span className="constructors-points-fill" style={{ width: `${share}%` }} />}</span>
+                </span>
                 <div className="constructors-score">
-                  <span className="constructors-points"><strong>{numberFormat.format(team.points)}</strong><span className="constructors-sr"> очков за сезон</span></span>
-                  <span className="constructors-gap">{team === leader ? 'Лидер' : <><span className="constructors-sr">От лидера: </span>−{numberFormat.format(pointsGap)}<span className="constructors-gap-label" aria-hidden="true"> от лидера</span></>}</span>
+                  <span className="constructors-points"><strong>{formatPoints(team.points)}</strong><span className="constructors-sr"> очков за сезон</span></span>
+                  <span className="constructors-gap">{team === leader ? 'Лидер' : <><span className="constructors-sr">От лидера: </span>{pointsGap === null ? '—' : pointsGap === 0 ? '0' : `−${numberFormat.format(pointsGap)}`}<span className="constructors-gap-label" aria-hidden="true"> от лидера</span></>}</span>
                 </div>
               </Link>
             </li>;
