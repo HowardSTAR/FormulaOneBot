@@ -1,0 +1,16 @@
+/* Preserve the invitation route while the community hub uses its own tokens. */
+.invitation-page { max-width:1120px; margin:0 auto; color:#edf0f5; box-sizing:border-box; padding:0 0 24px; }
+.invitation-page h1 { font-size:clamp(28px,5vw,46px); margin:10px 0; }
+.invitation-page a:not(.invitation-primary) { color:#76d9cb; text-underline-offset:3px; }
+.invitation-page a:hover { filter:brightness(1.15); }
+.invitation-card { display:flex; flex-direction:column; gap:12px; min-width:0; box-sizing:border-box; background:#141b25; border:1px solid #343f50; border-radius:16px; padding:22px; margin:18px 0; }
+.invitation-card :is(h2,h3,p,ol) { margin:0; }
+.invitation-card h2 { font-size:24px; line-height:1.25; text-transform:none; font-style:normal; }
+.invitation-card p { line-height:1.55; }
+.invitation-card small,.invitation-note { color:#aeb9c8; line-height:1.5; }
+.invitation-card > small { display:block; }
+.invitation-primary { display:inline-block; background:#c72f28; border:1px solid #e94f44; color:#fff; padding:12px 18px; border-radius:10px; text-decoration:none; font:inherit; cursor:pointer; min-height:44px; }
+.share-landing { max-width:850px; margin:20px auto; }
+.share-landing img { display:block; width:100%; border-radius:12px; margin:18px 0; }
+.invitation-page :focus-visible { outline:2px solid #64d8c3; outline-offset:3px; }
+@media(max-width:680px) { .invitation-card { padding:18px; } }

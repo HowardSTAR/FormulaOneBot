@@ -98,7 +98,8 @@ export function SwipeBackLayout() {
   const games = ['reaction-game', 'reflex-grid-game'].includes(routeKey);
   const entrant = ['driver-details', 'constructor-details'].includes(routeKey);
   const notifications = routeKey === 'notifications';
-  const homeFrame = notifications || entrant || games || routeKey === 'contact-admin' || overview || weekend || calendar || results || profile || routeKey === 'account' || routeKey === 'settings' || routeKey === 'drivers' || routeKey === 'constructors' || routeKey === 'predictions' || routeKey === 'compare' || routeKey === 'history';
+  const community = routeKey === 'community';
+  const homeFrame = community || notifications || entrant || games || routeKey === 'contact-admin' || overview || weekend || calendar || results || profile || routeKey === 'account' || routeKey === 'settings' || routeKey === 'drivers' || routeKey === 'constructors' || routeKey === 'predictions' || routeKey === 'compare' || routeKey === 'history';
   return (
     <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`app-shell design-shell${homeFrame ? ' glass-home' : ''}`}>
       <EngagementEntry />
@@ -118,7 +119,7 @@ export function SwipeBackLayout() {
           </Suspense>
           <DataReceipt />
         </section>
-        {(!homeFrame || notifications) && <LegalFooter />}
+        {(!homeFrame || notifications || community) && <LegalFooter />}
         <HomeDock />
       </div>
     </div>

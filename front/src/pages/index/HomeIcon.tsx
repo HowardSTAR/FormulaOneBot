@@ -1,6 +1,9 @@
 import SupporterBadge from '../../components/SupporterBadge';
 
 const paths = {
+  check: 'm5 12 4 4L19 6',
+  play: 'm8 5 11 7-11 7V5Z',
+  pause: 'M8 5v14M16 5v14',
   menu: 'M4 6h16M4 12h16M4 18h16',
   clock: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 6v6l4 2',
   chevronRight: 'm9 5 7 7-7 7',
