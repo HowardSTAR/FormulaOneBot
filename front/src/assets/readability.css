@@ -1,9 +1,4 @@
 /* Readable supporting information and large visible controls across public pages. */
-.app-shell .app-header-link{font-size:14px!important;color:#cbd3df!important;min-height:46px!important;letter-spacing:.025em!important}
-.app-shell .app-header-submenu-link{font-size:14px!important;min-height:44px!important;color:#c5cedc!important;letter-spacing:0!important;text-transform:none!important}
-.app-shell .app-header-menu.is-open .app-header-submenu{max-height:340px}
-.app-shell .app-header-link.active,.app-shell .app-header-submenu-link.active{color:#fff!important;background:#44232a!important;border-color:#f27d79!important}
-.app-shell .app-header-link-arrow{color:#bdc9dc;opacity:1}.app-shell .app-header-section-label{color:#b7c1d2;font-size:12px}
 .app-shell :is(.ui-data-context,.archive-note,.standings-code,.index-card-desc,.driver-bio-empty,.history-note,.circuit-source,.circuit-data-pending){color:#bcc7d8;font-size:14px;line-height:1.6}
 .app-shell :is(.ui-action-link,.btn-back,.ui-section-links a){min-height:44px;display:inline-flex;align-items:center;gap:8px;font-size:15px}
 .app-shell :is(input:not([type=checkbox]):not([type=radio]),select,textarea){border-color:#69758a;font-size:16px}

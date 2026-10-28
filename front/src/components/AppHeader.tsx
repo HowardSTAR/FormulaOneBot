@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuthState } from '../helpers/auth';
 import { homeSectionPath } from '../helpers/homeSections';
 import { navigationFor, navigationActive, type NavigationGroup, type NavigationItem } from '../helpers/navigation';
-import './SidebarIcons.css';
 import { startOnboarding } from '../helpers/onboarding';
 import { AccountShortcut } from './AccountShortcut';
 import { HomeIcon, type HomeIconName } from '../pages/index/HomeIcon';
@@ -31,7 +30,7 @@ function SidebarAccordion({ group, pathname, search }: { group: NavigationGroup;
   const id = `app-header-${group.id}-menu`;
   return <div className={`app-header-menu${expanded ? ' is-open' : ''}${active ? ' active' : ''}`}>
     <button type="button" className={`app-header-link app-header-menu-trigger${active ? ' active' : ''}`} aria-expanded={expanded} aria-controls={id} onClick={() => setChoice({ pathname, open: !expanded })}>
-      <span className="app-header-link-icon"><NavigationIcon name={group.icon} /></span><span className="app-header-link-label">{group.label}</span><span className="app-header-link-arrow" aria-hidden>›</span>
+      <span className="app-header-link-icon"><NavigationIcon name={group.icon} /></span><span className="app-header-link-label">{group.label}</span><span className="app-header-link-arrow" aria-hidden><HomeIcon name="chevronRight" /></span>
     </button>
     <div id={id} className="app-header-submenu" aria-hidden={!expanded}>
       {expanded && group.actions?.map(action => <button key={action.id} type="button" className="app-header-submenu-link" onClick={startOnboarding}>
@@ -57,10 +56,10 @@ export function AppHeader() {
         <h2 id={`app-header-section-${section.id}`} className="app-header-section-label">{section.label}</h2>
         {section.items.map(entry => 'to' in entry ? <SidebarLink key={entry.to} item={entry} pathname={pathname} search={search} /> : <SidebarAccordion key={entry.id} group={entry} pathname={pathname} search={search} />)}
       </section>)}
+      {nav.management && <section className="app-header-section" aria-label={nav.management.label}><SidebarAccordion group={nav.management} pathname={pathname} search={search} /></section>}
     </nav>
     <div className="app-header-bottom">
-      {nav.management && <nav className="app-header-nav app-header-nav-secondary" aria-label="Управление"><SidebarAccordion group={nav.management} pathname={pathname} search={search} /></nav>}
-      {auth.loaded && !auth.signedIn && <div className="app-header-guest"><div><i aria-hidden />Гостевой режим</div><p>Календарь, результаты и статистика доступны без входа.</p></div>}
+      {auth.loaded && !auth.signedIn && <div className="app-header-guest"><HomeIcon name="account" /><span>Гостевой режим</span></div>}
       <div className="app-header-status"><small>Неофициальные данные автоспорта</small></div>
     </div>
   </header>;

@@ -7,6 +7,7 @@ import "./assets/ui-polish.css"
 import "./assets/readability.css"
 import "./assets/mobile-safe-area.css"
 import "./assets/design-system.css"
+import "./components/SidebarIcons.css"
 import "./pages/index/home-team-colors.css"
 import "./assets/entrant-highlight.css"
 import { lazy, Suspense, useEffect } from 'react';

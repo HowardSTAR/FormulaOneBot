@@ -11,7 +11,6 @@ html:has(.glass-home) { scroll-padding-top: 0; }
   margin-bottom: 28px; min-height: 64px; border-radius: 24px;
   color: var(--design-ink); font-size: .875rem;
 }
-.app-shell.design-shell.glass-home .app-header,
 .glass-home .home-toolbar {
   background: var(--design-surface) !important;
   border: 1px solid var(--design-line) !important;
@@ -23,12 +22,7 @@ html:has(.glass-home) { scroll-padding-top: 0; }
 .glass-home .home-toolbar .theme-toggle { background: transparent; border-color: transparent; border-radius: 14px; }
 .glass-home .home-toolbar .theme-toggle:hover { background: var(--design-surface); }
 .glass-home .home-toolbar .account-shortcut { border: 0; padding: 10px 12px; background: var(--design-surface); border-radius: 14px; box-shadow: none; }
-.app-shell.design-shell.glass-home .app-header-link,
-.app-shell.design-shell.glass-home .app-header-submenu-link,
-.app-shell.design-shell.glass-home :is(.app-header-brand-caption, .app-header-section-label, .app-header-status small) { color: var(--design-glass-muted) !important; }
-.app-shell.design-shell.glass-home .app-header-link.active { color: var(--design-accent) !important; }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .app-shell.design-shell.glass-home .app-header,
   .glass-home .home-toolbar {
     background: var(--design-glass-fill) !important;
     border-color: var(--design-glass-edge) !important;
@@ -37,8 +31,6 @@ html:has(.glass-home) { scroll-padding-top: 0; }
   }
 }
 @media (min-width: 900px) {
-  .app-shell.design-shell.glass-home .app-header { left: 16px; top: 16px; bottom: 16px; height: calc(100dvh - 32px); width: 216px !important; border-radius: 26px; padding-top: 24px !important; }
-  .app-shell.design-shell.glass-home .app-content { margin-left: 232px !important; }
   .app-shell.design-shell.glass-home .home-toolbar { width: fit-content; margin-left: auto; margin-right: 0; }
   .home-toolbar-brand { display: none; }
 }
@@ -59,7 +51,6 @@ html:has(.glass-home) { scroll-padding-top: 0; }
   .glass-home .home-toolbar .theme-toggle span { display: none; }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
-  .app-shell.design-shell.glass-home .app-header,
   .glass-home .home-toolbar {
     background: var(--design-surface) !important;
     border-color: var(--design-control) !important;
@@ -67,7 +58,6 @@ html:has(.glass-home) { scroll-padding-top: 0; }
   }
 }
 @media (forced-colors: active) {
-  .app-shell.design-shell.glass-home .app-header,
   .glass-home .home-toolbar { background: Canvas !important; border-color: CanvasText !important; }
 }
 

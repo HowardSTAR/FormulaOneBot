@@ -1,44 +1,225 @@
+/* One sidebar surface for every desktop route. Mobile keeps its existing header
+   and dock. The opaque base also works without backdrop-filter support. */
+.app-shell.design-shell .app-header {
+  background: var(--design-bg);
+  color: var(--design-ink);
+}
+.app-shell.design-shell .app-header-brand {
+  color: var(--design-ink);
+  font-family: inherit;
+  font-style: normal;
+  letter-spacing: -.07em;
+  text-transform: none;
+}
+.app-shell.design-shell .app-header-brand-accent { color: var(--design-accent); }
+
 @media (min-width: 900px) {
-  .app-header .app-header-section { display: grid; gap: 4px; }
-  .app-header .app-header-section + .app-header-section {
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid rgba(255, 255, 255, 0.07);
+  .app-shell.design-shell { --design-sidebar-width: clamp(248px, 15.5rem, 40vw); }
+  .app-shell.design-shell .app-content {
+    margin-left: calc(var(--design-sidebar-width) + 16px) !important;
   }
-  .app-header .app-header-section-label {
-    margin: 0 9px 4px;
-    color: #b7c1d2;
-    font: 700 11px/1.5 Inter, system-ui, sans-serif;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+  .app-shell.design-shell .app-header {
+    position: fixed;
+    inset: 16px auto 16px 16px;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+    width: var(--design-sidebar-width);
+    height: calc(100dvh - 32px);
+    margin: 0;
+    padding: 24px 12px 16px;
+    overflow: hidden;
+    border: 1px solid var(--design-glass-edge);
+    border-radius: 26px;
+    background: var(--design-surface);
+    box-shadow: var(--design-glass-shadow);
   }
-  .app-header .app-header-link-label { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
-  .app-header .app-header-link-arrow { flex: 0 0 12px; }
-  .app-header button.app-header-submenu-link {
+  .app-shell.design-shell .app-header-brand-wrap {
+    display: grid;
+    flex: none;
+    gap: 6px;
+    padding: 0 12px;
+  }
+  .app-shell.design-shell .app-header-brand {
+    display: inline-flex;
+    align-items: baseline;
+    width: fit-content;
+    min-height: 32px;
+    margin: 0;
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-size: 1.75rem;
+    font-weight: 750;
+    line-height: 1.15;
+    letter-spacing: -.04em;
+    text-decoration: none;
+  }
+  .app-shell.design-shell .app-header-brand-caption {
+    color: var(--design-muted);
+    font-family: inherit;
+    font-size: .6875rem;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: .02em;
+    text-transform: none;
+  }
+  .app-shell.design-shell .app-header-nav {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 18px;
+    min-height: 0;
+    margin: 0;
+    padding: 4px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-width: thin;
+    scrollbar-color: var(--design-line) transparent;
+  }
+  .app-shell.design-shell .app-header-nav::-webkit-scrollbar { display: block; width: 4px; }
+  .app-shell.design-shell .app-header-nav::-webkit-scrollbar-thumb { border-radius: 4px; background: var(--design-line); }
+  .app-shell.design-shell .app-header-nav::-webkit-scrollbar-thumb:hover { background: var(--design-control); }
+  .app-shell.design-shell .app-header-section { display: grid; flex: none; gap: 2px; }
+  .app-shell.design-shell .app-header-section-label {
+    margin: 0 12px 6px;
+    color: var(--design-muted);
+    font-family: inherit;
+    font-size: .6875rem;
+    font-weight: 600;
+    font-style: normal;
+    line-height: 1.4;
+    letter-spacing: 0;
+    text-transform: none;
+    text-wrap: balance;
+  }
+  .app-shell.design-shell :is(.app-header-link, .app-header-submenu-link) {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
     width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 9px 12px;
     border: 0;
+    border-radius: 12px;
     background: transparent;
+    color: var(--design-glass-muted);
+    font-family: inherit;
+    font-size: .875rem;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0;
     text-align: left;
+    text-decoration: none;
+    text-transform: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
     cursor: pointer;
+    touch-action: manipulation;
+    scroll-margin-block: 8px;
+    transition: background-color 160ms ease, color 160ms ease;
   }
-  .app-header .app-header-link-icon {
-    width: 32px !important;
-    height: 32px;
-    flex: 0 0 32px;
+  .app-shell.design-shell :is(.app-header-link, .app-header-submenu-link):hover {
+    background: color-mix(in srgb, var(--design-ink) 5%, transparent);
+    color: var(--design-ink);
+    text-decoration: none;
   }
-  .app-header .index-menu-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 10px;
+  .app-shell.design-shell :is(.app-header-link, .app-header-submenu-link)[aria-current="page"] {
+    background: var(--design-tint);
+    color: var(--design-accent);
+    font-weight: 650;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--design-accent) 16%, transparent);
   }
-  .app-header .index-menu-icon svg { width: 24px; height: 24px; stroke: none; }
-  .app-header .app-header-submenu-link > .app-header-submenu-icon {
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
-    border-radius: 9px;
-    background: transparent;
+  .app-shell.design-shell .app-header-menu-trigger.active { color: var(--design-accent); }
+  .app-shell.design-shell :is(.app-header-link, .app-header-submenu-link)[aria-current="page"]:hover {
+    background: color-mix(in srgb, var(--design-accent) 8%, var(--design-tint));
   }
-  .app-header .app-header-submenu-icon .index-menu-icon { width: 28px; height: 28px; }
-  .app-header .app-header-submenu-icon svg { width: 21px; height: 21px; }
+  .app-shell.design-shell :is(.app-header-link-icon, .app-header-submenu-icon) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 1.375rem;
+    width: 1.375rem;
+    height: 1.375rem;
+    color: inherit;
+  }
+  .app-shell.design-shell .app-header-link-label { min-width: 0; }
+  .app-shell.design-shell .app-header-link-arrow {
+    display: inline-flex;
+    flex: 0 0 .875rem;
+    margin-left: auto;
+    color: var(--design-muted);
+    transition: transform 180ms ease;
+  }
+  .app-shell.design-shell .app-header-link-arrow svg { width: .875rem; height: .875rem; }
+  .app-shell.design-shell .app-header-menu.is-open .app-header-link-arrow { transform: rotate(90deg); }
+  .app-shell.design-shell .app-header-menu { display: grid; gap: 2px; }
+  .app-shell.design-shell .app-header-submenu {
+    display: none;
+    gap: 2px;
+    margin: 0 0 4px 1.375rem;
+    padding-left: 8px;
+    border-left: 1px solid var(--design-line);
+  }
+  .app-shell.design-shell .app-header-menu.is-open .app-header-submenu { display: grid; }
+  .app-shell.design-shell .app-header-submenu-link { padding-inline: 10px; font-size: .8125rem; }
+  .app-shell.design-shell .app-header-submenu-icon { flex-basis: 1.125rem; width: 1.125rem; height: 1.125rem; }
+  .app-shell.design-shell .app-header-submenu-icon svg { width: 1.125rem; height: 1.125rem; }
+  .app-shell.design-shell .app-header-bottom {
+    display: grid;
+    flex: none;
+    gap: 8px;
+    padding: 12px 12px 0;
+    border-top: 1px solid var(--design-line);
+  }
+  .app-shell.design-shell .app-header-guest {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--design-muted);
+    font-size: .75rem;
+    line-height: 1.4;
+  }
+  .app-shell.design-shell .app-header-guest svg { width: 16px; height: 16px; flex: none; }
+  .app-shell.design-shell .app-header-status small {
+    display: block;
+    color: var(--design-muted);
+    font-size: .6875rem;
+    line-height: 1.5;
+  }
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .app-shell.design-shell .app-header {
+      background: var(--design-glass-fill);
+      -webkit-backdrop-filter: blur(24px) saturate(1.3);
+      backdrop-filter: blur(24px) saturate(1.3);
+    }
+  }
+}
+@media (min-width: 900px) and (max-height: 600px) {
+  /* One scroll flow keeps every route reachable in short or zoomed windows. */
+  .app-shell.design-shell .app-header { overflow-y: auto; gap: 12px; }
+  .app-shell.design-shell .app-header-nav { flex: none; overflow: visible; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-shell.design-shell .app-header :is(a, button, .app-header-link-arrow) { transition: none; }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  .app-shell.design-shell .app-header {
+    background: var(--design-surface);
+    border-color: var(--design-control);
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (forced-colors: active) {
+  .app-shell.design-shell :is(.app-header-link, .app-header-submenu-link)[aria-current="page"] {
+    outline: 1px solid Highlight;
+    outline-offset: -2px;
+    color: LinkText;
+  }
 }

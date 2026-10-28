@@ -95,46 +95,7 @@ body:has(.design-shell) .root { max-width: none; margin: 0; padding: 0; }
 .app-shell.design-shell .app-content { padding: 36px clamp(20px, 3vw, 56px) 24px !important; }
 .app-shell.design-shell .app-content > * { max-width: 1440px; margin-inline: auto; }
 .app-shell.design-shell .route-home { min-height: 0; padding: 0; }
-.app-shell.design-shell .app-header {
-  background: var(--design-bg) !important;
-  color: var(--design-ink);
-  border-color: var(--design-line) !important;
-  box-shadow: none !important;
-}
-.app-shell.design-shell .app-header-brand { color: var(--design-ink); font-style: normal; letter-spacing: -.07em; font-family: inherit; }
-.app-shell.design-shell :is(.app-header-brand, .app-header-link, .app-header-submenu-link, .app-header-link-label) { text-transform: none !important; font-family: inherit !important; }
-.app-shell.design-shell .app-header-link { font-weight: 500 !important; }
-.app-shell.design-shell .app-header-link-icon { color: inherit !important; width: 24px !important; height: 24px; flex-basis: 24px; }
-.app-shell.design-shell .app-header-link::before { display: none; }
-.app-shell.design-shell .app-header-link:hover { transform: none; }
-.app-shell.design-shell .app-header > .app-header-nav { scrollbar-color: var(--design-line) transparent; }
-.app-shell.design-shell .app-header .app-header-section + .app-header-section { margin-top: 8px; padding-top: 8px; border-color: var(--design-line); }
-.app-shell.design-shell .app-header-brand-accent { color: var(--design-accent); }
-.app-shell.design-shell .app-header-brand-wrap { border-color: var(--design-line); }
-.app-shell.design-shell :is(.app-header-brand-caption, .app-header-section-label, .app-header-status small, .app-header-guest p) { color: var(--design-muted) !important; }
-.app-shell.design-shell .app-header-link {
-  color: var(--design-muted) !important;
-  font-size: .875rem !important;
-  font-weight: 500;
-  letter-spacing: 0 !important;
-  border-color: transparent !important;
-  border-radius: 9px;
-  min-height: 44px !important;
-}
-.app-shell.design-shell .app-header-link.active,
-.app-shell.design-shell .app-header-link:hover { color: var(--design-ink) !important; background: var(--design-surface) !important; }
-.app-shell.design-shell .app-header-link.active { color: var(--design-accent) !important; font-weight: 650; }
-.app-shell.design-shell .app-header-submenu { border-color: var(--design-line) !important; background: transparent !important; transition: none; }
-.app-shell.design-shell .app-header-menu.is-open .app-header-submenu { max-height: none; overflow: visible; }
-.app-shell.design-shell .app-header-submenu-link { color: var(--design-muted) !important; background: transparent !important; min-height: 44px; font-size: .8125rem !important; min-width: 0; overflow-wrap: anywhere; }
-.app-shell.design-shell .app-header-submenu-link.active { color: var(--design-accent) !important; background: var(--design-tint) !important; font-weight: 650; }
-.app-shell.design-shell .app-header-submenu-link:hover { color: var(--design-ink) !important; background: var(--design-surface) !important; }
-.app-shell.design-shell .app-header-guest { background: var(--design-surface); border-color: var(--design-line); color: var(--design-ink); }
-.app-shell.design-shell .app-header-guest div { color: var(--design-ink); }
-.app-shell.design-shell .app-header-guest i { background: var(--design-muted); box-shadow: none; }
 .app-shell.design-shell .account-shortcut { color: var(--design-ink); min-height: 44px; transition: none; }
-.app-shell.design-shell :is(.app-header-link, .app-header-submenu-link) { transition: none; }
-.app-shell.design-shell .app-header-link-arrow { color: var(--design-muted); }
 .app-shell.design-shell :is(a, button, summary):focus-visible {
   outline: 3px solid var(--design-focus) !important;
   outline-offset: 3px;
@@ -150,13 +111,6 @@ body:has(.design-shell) .root { max-width: none; margin: 0; padding: 0; }
 .app-shell.design-shell .visit-reminder :is(a, button) { min-height: 44px; }
 .design-skip { position: fixed; top: -100px; left: 16px; z-index: 1000; padding: 12px 16px; background: var(--design-surface); color: var(--design-ink); border-radius: 8px; }
 .design-skip:focus { top: 12px; }
-@media (min-width: 900px) {
-  .app-shell.design-shell .app-header { width: 216px !important; padding: 28px 12px 16px !important; overflow-y: auto; }
-  .app-shell.design-shell .app-header-section { padding-bottom: 10px; }
-  .app-shell.design-shell .app-header-section-label { font-size: .6875rem; letter-spacing: .04em; }
-  .app-shell.design-shell .app-header-brand { font-size: 25px; }
-  .app-shell.design-shell .app-header-brand-caption { font-size: .6875rem; }
-}
 @media (max-width: 899px) {
   .app-shell.design-shell .account-shortcut-bar { display: none; }
   .app-shell.design-shell .app-header { flex-wrap: wrap; gap: 8px; }
