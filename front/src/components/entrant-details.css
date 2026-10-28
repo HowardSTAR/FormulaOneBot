@@ -15,8 +15,9 @@
 #root .entrant-navigation .entrant-back { flex: 0 0 44px; width: 44px; }
 .entrant-back .back-button-arrow { font-size: 1.5rem; }
 #root .entrant-navigation :is(a,button):hover { color: var(--design-ink); background: var(--design-tint); }
-.entrant-hero { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); align-items: center; min-width: 0; gap: 24px; }
+.entrant-hero { --entrant-muted: color-mix(in srgb, var(--design-muted) 60%, var(--design-ink)); --race-flag-opacity: .1; --race-flag-opacity-dark: .16; position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); align-items: center; min-width: 0; gap: 24px; }
 .entrant-hero::before { content: ''; z-index: -1; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 70% 55%, color-mix(in srgb, var(--home-team-accent) 17%, transparent), transparent 67%); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent), linear-gradient(transparent, #000 18%, #000 78%, transparent); mask-composite: intersect; }
+.entrant-flag-backdrop img { object-position: center 28%; }
 .entrant-hero-copy { position: relative; z-index: 3; min-width: 0; padding-block: 24px; }
 #root .entrant-hero h1 { font-size: 3rem; font-weight: 650; }
 .entrant-hero h1 :is(span,strong) { display: block; }
@@ -24,7 +25,7 @@
 .entrant-hero h1 strong { font-weight: 700; }
 #root .entrant-team-link { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; max-width: 100%; margin-top: 12px; font-size: 1rem; font-weight: 550; border-radius: 8px; }
 .entrant-team-link svg { flex: none; }
-#root .entrant-team-link:hover { color: var(--design-accent); }
+#root .entrant-team-link:hover { color: var(--design-accent); background: var(--design-surface); }
 .entrant-identity { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 12px; color: var(--entrant-muted); font-size: .875rem; }
 .entrant-identity > span { display: inline-flex; gap: 8px; align-items: center; }
 .entrant-identity img { object-fit: contain; border-radius: 2px; }
@@ -37,6 +38,14 @@
 .entrant-details--team .entrant-hero-copy { align-self: start; padding-top: 12px; }
 .entrant-details--team .entrant-hero-media { height: 260px; align-items: center; }
 .entrant-team-emblem { display: grid; place-items: center; min-width: 0; height: 200px; }
+.entrant-hero-lineup { display: grid; gap: 4px; margin-top: 20px; }
+#root .entrant-hero-lineup > a { display: grid; grid-template-columns: 2.5rem 2ch minmax(0,1fr) auto; align-items: center; gap: 8px; min-height: 52px; padding: 4px; border-radius: 8px; font-size: .8125rem; }
+#root .entrant-hero-lineup > a:hover { color: var(--design-accent); background: var(--design-tint); }
+.entrant-hero-lineup .entrant-portrait { width: 2.5rem; height: 3rem; mask-image: linear-gradient(#000 68%, transparent); }
+.entrant-hero-lineup .entrant-portrait img { inset: 0 auto auto 50%; height: 240%; }
+.entrant-lineup-number { color: var(--entrant-muted); font-family: 'Space Grotesk',sans-serif; font-variant-numeric: tabular-nums; }
+.entrant-lineup-name { overflow-wrap: anywhere; }
+.entrant-lineup-name strong { font-weight: 650; }
 .entrant-team-car { display: block; width: 100%; height: auto; object-fit: contain; mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
 .entrant-season-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; padding-block: 20px; border-block: 1px solid var(--design-line); }
 .entrant-season-summary .entrant-stat { flex-direction: column; align-items: flex-start; padding: 0; border: 0; gap: 8px; }
@@ -131,6 +140,7 @@
 #root .entrant-details .ui-feedback a { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 16px; border: 0; border-radius: 24px; background: var(--design-tint); color: var(--design-accent); font-size: .875rem; }
 #root .entrant-details .ui-feedback a:hover { background: var(--design-surface); text-decoration: underline; text-underline-offset: 4px; }
 @container (max-width: 42rem) {
+  .entrant-flag-backdrop img { object-position: center; }
   .entrant-hero { gap: 8px; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); }
   #root .entrant-hero h1 { font-size: 2rem; }
   .entrant-hero-copy { padding-block: 12px; }

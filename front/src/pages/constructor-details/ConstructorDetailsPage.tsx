@@ -2,6 +2,7 @@ import { EntrantBiography, type BiographyImage } from '../../components/EntrantB
 import { carImageUrl } from '../../helpers/f1Assets';
 import { DriverPortrait } from '../../components/DriverPortrait';
 import { TeamLogo } from '../../components/TeamLogo';
+import { NationalityFlagBackdrop } from '../../components/NationalityFlagBackdrop';
 import { EntrantLoading, EntrantNavigation, EntrantSections, EntrantMetric, EntrantRecord, EntrantPanels, EntrantStat as StatRow } from '../../components/EntrantDetails';
 import { homeTeamIdentity } from '../index/team-identity';
 import { spotlightTeamMedia } from '../index/spotlight-team-media';
@@ -144,9 +145,18 @@ function ConstructorDetailsPage() {
   return <article className="entrant-details entrant-details--team" data-team={homeTeamIdentity(data.constructorId, data.name)}>
     {navigation}
     <header className="entrant-hero">
+      <NationalityFlagBackdrop nationality={data.nationality} />
       <div className="entrant-hero-copy">
         <h1>{data.name}</h1>
         <div className="entrant-identity"><span>Сезон {data.season}</span>{data.nationality && <span>{nationalityLabel(data.nationality)}</span>}</div>
+        {drivers.length > 0 && <nav className="entrant-hero-lineup" aria-label={`Пилоты команды в сезоне ${data.season}`}>
+          {drivers.map(driver => <Link key={driver.driverId || driver.code} to={`/driver-details?${new URLSearchParams({ ...(driver.code ? { code: driver.code } : { driverId: driver.driverId }), season: String(season) })}`}>
+            <DriverPortrait key={`${driver.driverId}-${season}`} code={driver.code} name={`${driver.givenName} ${driver.familyName}`} season={season} src={driver.headshot_url} />
+            <span className="entrant-lineup-number">{driver.permanentNumber || '—'}</span>
+            <span className="entrant-lineup-name">{driver.givenName} <strong>{driver.familyName}</strong></span>
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m9 5 7 7-7 7" /></svg>
+          </Link>)}
+        </nav>}
       </div>
       <div className="entrant-team-emblem" aria-hidden="true"><TeamLogo key={`${data.constructorId}-${season}`} id={data.constructorId} name={data.name} season={season} size={220} /></div>
       <div className="entrant-hero-media" aria-hidden="true"><TeamCar key={`${data.constructorId}-${season}`} id={data.constructorId} name={data.name} season={season} /></div>

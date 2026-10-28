@@ -1,6 +1,7 @@
 import { EntrantBiography, type BiographyImage } from '../../components/EntrantBiography';
 import { entrantValue } from '../../helpers/entrantPresentation';
 import { DriverPortrait } from '../../components/DriverPortrait';
+import { NationalityFlagBackdrop } from '../../components/NationalityFlagBackdrop';
 import { EntrantLoading, EntrantNavigation, EntrantSections, EntrantMetric, EntrantRecord, EntrantPanels, EntrantStat as StatRow } from '../../components/EntrantDetails';
 import { homeTeamIdentity } from '../index/team-identity';
 import { DriverGuide } from "../../components/DriverGuide";
@@ -140,6 +141,7 @@ function DriverDetailsPage() {
   return <article className="entrant-details entrant-details--driver" data-team={homeTeamIdentity(team?.constructorId || '', team?.constructorName || '')}>
     {navigation}
     <header className="entrant-hero">
+      <NationalityFlagBackdrop nationality={data.nationality} />
       <div className="entrant-hero-copy">
         <h1><span>{data.givenName}</span><strong>{data.familyName}</strong></h1>
         {teamPath && <Link className="entrant-team-link" to={teamPath}>{team?.constructorName}<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m9 5 7 7-7 7" /></svg></Link>}
