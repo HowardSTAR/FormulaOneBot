@@ -47,7 +47,10 @@ test('Desktop groups season history with comparison and keeps help actions toget
   const groups = nav.sections.flatMap(section => section.items).filter(entry => 'items' in entry);
   assert.deepEqual(groups.find(group => group.id === 'comparison').items.map(link => link.to), ['/compare', '/history']);
   assert.ok(!groups.find(group => group.id === 'peloton').items.some(link => link.to === '/history'));
-  assert.ok(groups.find(group => group.id === 'social').items.some(link => link.to === '/voting'));
+  const social = nav.sections.find(section => section.id === 'community').items;
+  assert.deepEqual(social.map(link => [link.to, link.label]), [['/community', 'Сообщество'], ['/voting', 'Голосование']]);
+  assert.ok(!groups.some(group => group.id === 'social'));
+  assert.equal(navigationActive(social[0], '/community'), true);
   const help = groups.find(group => group.id === 'help');
   assert.deepEqual(help.actions.map(action => action.id), ['onboarding']);
   assert.deepEqual(help.items.map(link => link.to), ['/contact-admin']);

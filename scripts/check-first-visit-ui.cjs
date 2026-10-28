@@ -5,7 +5,7 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const base = process.env.FIRST_VISIT_UI_URL || 'http://127.0.0.1:5174';
 const key = 'turbotears-onboarding-v2';
-const baseSteps = [['/', 'Главная'], ['/season', 'Календарь'], ['/race-results', 'Результаты'], ['/drivers', 'Пелотон'], ['/compare', 'Сравнение'], ['/predictions', 'Прогнозы'], ['/community', 'С друзьями'], ['/wiki', 'Справочник F1'], ['/reaction-game', 'Игры'], ['/profile', 'Мой профиль'], ['/account', 'Аккаунт и настройки'], ['/account', 'Boosty и бонусы'], ['/contact-admin', 'Обратная связь']];
+const baseSteps = [['/', 'Главная'], ['/season', 'Календарь'], ['/race-results', 'Результаты'], ['/drivers', 'Пелотон'], ['/compare', 'Сравнение'], ['/predictions', 'Прогнозы'], ['/community', 'Сообщество'], ['/wiki', 'Справочник F1'], ['/reaction-game', 'Игры'], ['/profile', 'Мой профиль'], ['/account', 'Аккаунт и настройки'], ['/account', 'Boosty и бонусы'], ['/contact-admin', 'Обратная связь']];
 const race = { status: 'ok', season: 2026, round: 17, event_name: 'Singapore Grand Prix', location: 'Marina Bay', country: 'Singapore', race_start_utc: '2026-10-11T12:00:00Z', next_session_iso: '2026-10-09T09:00:00Z', next_session_name: 'Практика 1' };
 
 async function checkCard(page) {
@@ -67,7 +67,7 @@ async function checkTrack(page, selector) {
   assert.match(style.glow, /drop-shadow/);
 }
 (async () => {
-  const browser = await chromium.launch({ channel: 'msedge', headless: true });
+  const browser = await chromium.launch({ channel: process.env.PLAYWRIGHT_CHANNEL || 'chrome', headless: true });
   try {
     for (const { width, height, member, eligible, tier } of [
       { width: 320, height: 640, member: false, eligible: false, tier: 0 },
@@ -107,7 +107,7 @@ async function checkTrack(page, selector) {
         if (path === '/api/weekend-schedule') return route.fulfill({ json: { sessions: [{ name: 'Практика 1', utc_iso: '2026-10-09T09:00:00Z' }, { name: 'Гонка', utc_iso: '2026-10-11T12:00:00Z' }] } });
         if (path === '/api/season') return route.fulfill({ json: { races: [{ ...race, date: '2026-10-11' }] } });
         if (['/api/predictions/preview', '/api/predictions/current'].includes(path)) return route.fulfill({ json: { status: 'ok', season: 2026, round: 17, event_name: race.event_name, is_open: false, profile: { display_name: '', completed: false }, prediction: null, drivers: [], scoring_rules: [] } });
-        if (path === '/api/engagement/weekly') return route.fulfill({ json: { track_id: 'emerald-loop', name: 'Трасса недели', start: '2026-10-05T00:00:00Z', end: '2026-10-12T00:00:00Z', entries: [] } });
+        if (path === '/api/engagement/weekly') return route.fulfill({ json: { track_id: 'emerald-loop-v2', name: 'Трасса недели', start: '2026-10-05T00:00:00Z', end: '2026-10-12T00:00:00Z', entries: [] } });
         if (path === '/api/engagement/mine') return route.fulfill({ json: { badges: [], shares: [], referrals: { arrived: 0, activated: 0, returned: 0 } } });
         if (path === '/api/engagement/weekly/me') return route.fulfill({ json: { user_id: 777, weekly: null } });
         if (path === '/api/reaction-leaderboard/profile') return route.fulfill({ json: { prompt_seen: true, participate: false, display_name: '' } });

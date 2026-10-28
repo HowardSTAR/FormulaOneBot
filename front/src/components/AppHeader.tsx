@@ -52,8 +52,8 @@ export function AppHeader() {
     <div className="app-header-brand-wrap"><Link to="/" className="app-header-brand" aria-label="TurboTears — главная"><span className="app-header-brand-accent">Turbo</span><span>Tears</span></Link><span className="app-header-brand-caption">Race intelligence</span></div>
     <div className="app-header-actions"><ThemeToggle /><NotificationShortcut enabled={mobile && pathname !== '/' && pathname !== '/menu'} /><AccountShortcut /><MenuShortcut /></div>
     <nav className="app-header-nav" aria-label="Главное меню">
-      {nav.sections.map(section => <section key={section.id} className="app-header-section" aria-labelledby={`app-header-section-${section.id}`}>
-        <h2 id={`app-header-section-${section.id}`} className="app-header-section-label">{section.label}</h2>
+      {nav.sections.map(section => <section key={section.id} className="app-header-section" aria-labelledby={section.id === 'community' ? undefined : `app-header-section-${section.id}`} aria-label={section.id === 'community' ? section.label : undefined}>
+        {section.id !== 'community' && <h2 id={`app-header-section-${section.id}`} className="app-header-section-label">{section.label}</h2>}
         {section.items.map(entry => 'to' in entry ? <SidebarLink key={entry.to} item={entry} pathname={pathname} search={search} /> : <SidebarAccordion key={entry.id} group={entry} pathname={pathname} search={search} />)}
       </section>)}
       {nav.management && <section className="app-header-section" aria-label={nav.management.label}><SidebarAccordion group={nav.management} pathname={pathname} search={search} /></section>}

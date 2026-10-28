@@ -11,7 +11,7 @@ const home = item('/', 'Обзор', 'home');
 const weekend = item('/next-race', 'Уик-энд', 'weekend');
 const calendar = item('/season', 'Календарь', 'calendar', ['/season', '/race-details', '/practice-results', '/sprint-quali-results', '/sprint-results', '/quali-results', '/race-results']);
 const predictions = item('/predictions', 'Прогнозы', 'predictions');
-const community = item('/community', 'С друзьями', 'social');
+const community = item('/community', 'Сообщество', 'social');
 const wiki = item('/wiki', 'Wiki Formula 1™', 'wiki');
 const profile = item('/profile', 'Мой профиль', 'account', ['/profile', '/account', '/favorites', '/settings']);
 const notifications = item('/notifications', 'Уведомления', 'notifications', undefined, 'personalized');
@@ -42,7 +42,7 @@ const desktopSections: NavigationSection[] = [
   { id: 'racing', label: 'Гонки', items: [{ ...calendar, activePaths: [...calendar.activePaths, weekend.to] }, peloton] },
   { id: 'statistics', label: 'Прогнозы и статистика', items: [predictions, comparison] },
   { id: 'community', label: 'Сообщество', items: [
-    { id: 'social', label: 'С друзьями', icon: 'social', items: [{ ...community, label: 'Сообщество' }, voting] },
+    community, voting,
   ] },
   { id: 'personal', label: 'Личное и справка', items: [
     { id: 'personal', label: 'Мой профиль', icon: 'account', items: [

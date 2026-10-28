@@ -123,7 +123,7 @@ function CardShareComposer({options, onClose}: {options: ShareOptions; onClose: 
       {card.provisional && <p className="share-warning">Предварительный результат. Карточка отражает данные на момент создания.</p>}
       <div className="share-actions"><button className="share-primary" disabled={busy || !imageReady} onClick={() => void send()}>{busy ? 'Открываем отправку…' : !imageReady ? 'Готовим изображение…' : 'Отправить в Telegram'}</button><button onClick={() => void copy()}>Копировать ссылку</button><a href={card.image_url} download="f1hub-card.jpg">Скачать карточку</a></div>
       <label className="share-link-label">Ссылка для друзей<input ref={link} type="url" readOnly value={card.web_url} onFocus={e => e.target.select()} /></label>
-      <small className="share-footnote">Ссылка действует 30 дней. Карточки можно отозвать в разделе «С друзьями».</small>
+      <small className="share-footnote">Ссылка действует 30 дней. Карточки можно отозвать в разделе «Сообщество».</small>
     </>}
     {status && <p className="share-feedback" role="status">{status}</p>}{error && <div className="share-error" role="alert"><p>{error}</p>{!card && <button type="button" onClick={() => {request.current = null; setError(''); setAttempt(v => v + 1);}}>Повторить создание</button>}</div>}
   </dialog>;
