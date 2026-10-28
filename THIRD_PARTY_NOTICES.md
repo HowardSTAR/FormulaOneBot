@@ -22,7 +22,7 @@ Redis 7.4 container licensing is governed by the license terms published for tha
 
 ## Flag artwork
 
-- Country flag SVGs — flag-icons v7.3.2, copyright (c) 2013 Panayiotis Lipiridis, MIT License — <https://github.com/lipis/flag-icons/tree/v7.3.2>. Locally bundled in `front/public/flags/`, with the original license in that folder.
+- Country flag SVGs — flag-icons v7.3.2, copyright (c) 2013 Panayiotis Lipiridis, MIT License — <https://github.com/lipis/flag-icons/tree/v7.3.2>. Locally bundled in `front/public/flags/`, with the original license in that folder. Used for venue and entrant-nationality backgrounds; the set includes all country codes in the entrant nationality map.
 
 ## Data and platforms
 
@@ -44,3 +44,5 @@ The isolated design preview uses these photographs:
 
 - [2024 British GP qualifying — Norris](https://commons.wikimedia.org/wiki/File:2024_British_GP_qualifying_-_Norris.jpg), by 5225C, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
 - [McLaren MCL38](https://commons.wikimedia.org/wiki/File:McLaren_MCL38.jpg), by Liauzh, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+
+The entrant design preview includes short Russian adaptations of the Wikipedia articles [Lando Norris](https://en.wikipedia.org/wiki/Lando_Norris), [Oscar Piastri](https://en.wikipedia.org/wiki/Oscar_Piastri), and [McLaren](https://en.wikipedia.org/wiki/McLaren), under CC BY-SA 4.0. These snapshots describe historical facts through 2024; preview statistics remain illustrative and are labelled separately.
