@@ -1,5 +1,6 @@
 // Vite-only visual fixture. Uses the real app with deterministic, fictional data.
 // No requests are sent to a backend, and no accounts or records are modified.
+import gameTracks from '../../app/race_tracks.json';
 import circuitProfiles from './fixtures/circuit-profiles.json';
 import { entrantBiographyPreview } from './fixtures/entrant-biographies';
 import { predictionPreview } from './fixtures/predictions';
@@ -18,6 +19,7 @@ import { initializeTheme, setTheme, storedTheme } from '../src/helpers/theme';
 import { ScrollToTop } from '../src/components/ScrollToTop';
 const query = new URLSearchParams(location.search);
 const scenario = query.get('state');
+const communityTrack = gameTracks.find(track => track.id === query.get('track')) ?? gameTracks[0];
 const venue = query.get('venue') === 'singapore' ? 'singapore' : query.get('venue') === 'mexico' ? 'mexico' : 'austin';
 const fixtureProfile = circuitProfiles[venue];
 const fixtureLocation = { austin: 'Остин', mexico: 'Мехико', singapore: 'Сингапур' }[venue];
@@ -250,7 +252,8 @@ window.fetch = async (input, init) => {
     case '/api/web-notifications/unread-count': return json({ unread: previewRead ? 0 : Number(query.get('unread') ?? 2) });
     case '/api/web-notifications': return json({ items: [{ id: 2, title: 'Открыты прогнозы', body: 'Выберите свою тройку на ближайшую гонку.', url: '/predictions', created_at: 1792742400, read_at: previewRead ? 1792828800 : null }, { id: 1, title: 'Как вам последний этап?', body: 'Оцените гонку и выберите пилота дня.', url: '/voting?season=2026&round=18', created_at: 1791806400, read_at: previewRead ? 1792828800 : null }], unread: previewRead ? 0 : 2, next_before: null, push: { enabled: false, public_key: '' } });
     case '/api/engagement/weekly/me': return json({ user_id: member ? 1 : null, weekly: null });
-    case '/api/engagement/weekly': return json({ track_id: 'emerald-loop', name: 'Демонстрационная трасса недели', start: '2026-10-26T00:00:00Z', end: '2026-11-02T00:00:00Z', entries: [] });
+    case '/api/engagement/weekly': return json({ track_id: communityTrack.id, name: communityTrack.name, start: '2026-10-26T00:00:00Z', end: '2026-11-02T00:00:00Z', entries: [] });
+    case '/api/predictions/leagues': return json({ leagues: [] });
     case '/api/engagement/mine': return json({ referrals: { arrived: 0, activated: 0, returned: 0 }, badges: [], shares: [] });
     case '/api/season': {
       if (!url.searchParams.has('completed_only') && calendarFailures-- > 0) return json({ detail: 'Календарь временно недоступен' }, 503);
@@ -277,7 +280,7 @@ const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session', 'tab', 'championship']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
 const calendarQuery = new URLSearchParams();
 for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
-const resultRoutes = ['notifications', 'driver-details', 'constructor-details', 'reaction-game', 'reflex-grid-game', 'race-game','contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
+const resultRoutes = ['community', 'notifications', 'driver-details', 'constructor-details', 'reaction-game', 'reflex-grid-game', 'race-game','contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
 const resultQuery = new URLSearchParams(weekendQuery);
 for (const key of ['kind', 'ids', 'from', 'to', 'roster', 'code', 'driverId', 'constructorId']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
 if (query.has('tab')) resultQuery.set('tab', query.get('tab')!);
