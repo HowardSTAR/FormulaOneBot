@@ -16,7 +16,7 @@ type Driver = {
   position: number;
   name: string;
   code: string;
-  points: number;
+  points: number | null;
   is_favorite?: boolean;
   number?: string;
   constructorId?: string;
@@ -31,6 +31,19 @@ function driverLink(driver: Driver, year: number) {
   const params = new URLSearchParams({ code: driver.code, season: String(year) });
   if (driver.driverId) params.set('driverId', driver.driverId);
   return `/driver-details?${params}`;
+}
+
+function hasPoints(points: number | null): points is number {
+  return points !== null && Number.isFinite(points);
+}
+
+function formatPoints(points: number | null) {
+  return hasPoints(points) ? numberFormat.format(points) : '—';
+}
+
+function gapToLeader(driver: Driver, leader: Driver | null) {
+  return leader && hasPoints(driver.points) && hasPoints(leader.points)
+    ? Math.max(0, leader.points - driver.points) : null;
 }
 
 function DriversPage() {
@@ -100,7 +113,7 @@ function DriversPage() {
   const hasData = !isLoading && !error && drivers.length > 0;
   const leader = hasData ? drivers[0] : null;
   const second = hasData ? drivers[1] : null;
-  const gap = leader && second ? Math.max(0, leader.points - second.points) : null;
+  const contenders = hasData ? drivers.slice(0, 3) : [];
   const lastRacePoints = racePoints?.year === year ? racePoints.byCode : {};
 
   return (
@@ -118,16 +131,33 @@ function DriversPage() {
             </Link>
           </div>
         </div>
-        {leader && <Link className="drivers-leader entrant-highlight" to={driverLink(leader, year)}
-          data-team={homeTeamIdentity(leader.constructorId || '', leader.constructorName || '')}>
-          <div className="drivers-leader-copy">
-            <h2>{leader.name}</h2>
-            <p>{year < currentRealYear ? `Чемпион мира ${year}` : `Лидер сезона ${year}`}</p>
-            <strong>{numberFormat.format(leader.points)} <span>очк.</span></strong>
-            {second && gap !== null && <small>{gap === 0 ? `Поровну очков с ${second.code || second.name}` : `+${numberFormat.format(gap)} очк. к ${second.code || second.name}`}</small>}
-          </div>
-          <DriverPortrait key={`leader:${year}:${leader.code}`} code={leader.code} name={leader.name} season={year} src={leader.imageUrl} />
-        </Link>}
+        {leader && <div className="drivers-contenders" data-count={contenders.length}>
+          {contenders.map((driver, index) => {
+            const isLeader = index === 0;
+            const comparedDriver = isLeader ? second : driver;
+            const gap = comparedDriver ? gapToLeader(comparedDriver, leader) : null;
+            const caption = isLeader
+              ? year < currentRealYear ? `Чемпион мира ${year}` : `Лидер сезона ${year}`
+              : `${driver.position}-е место`;
+            let gapLabel: string | null = null;
+            if (gap !== null) {
+              if (isLeader && second) gapLabel = gap === 0
+                ? `Поровну очков с ${second.code || second.name}` : `+${numberFormat.format(gap)} очк. к ${second.code || second.name}`;
+              else gapLabel = gap === 0 ? 'Наравне с лидером' : `−${numberFormat.format(gap)} очк. от лидера`;
+            }
+            return <Link key={driver.driverId || driver.code || driver.name}
+              className={`drivers-leader entrant-highlight${index > 0 ? ' drivers-leader--secondary' : ''}`}
+              to={driverLink(driver, year)} data-team={homeTeamIdentity(driver.constructorId || '', driver.constructorName || '')}>
+              <div className="drivers-leader-copy">
+                <h2>{driver.name}</h2>
+                <p>{caption}</p>
+                <strong>{formatPoints(driver.points)} <span>очк.</span></strong>
+                {gapLabel && <small>{gapLabel}</small>}
+              </div>
+              <DriverPortrait key={`leader:${year}:${driver.code}`} code={driver.code} name={driver.name} season={year} src={driver.imageUrl} />
+            </Link>;
+          })}
+        </div>}
       </header>
 
       <section className="drivers-classification" aria-labelledby="drivers-standings-title" aria-busy={isLoading}>
@@ -144,10 +174,13 @@ function DriversPage() {
           <p>{year === currentRealYear ? 'После первой гонки здесь появятся пилоты и очки.' : `Информация за ${year} год отсутствует. Выберите другой сезон.`}</p>
         </div>}
         {hasData && <>
-          <div className="drivers-columns" aria-hidden="true"><span>Место</span><span>Пилот / команда</span><span>Последняя гонка</span><span>Очки</span></div>
+          <div className="drivers-columns" aria-hidden="true"><span>Место</span><span>Пилот / команда</span><span className="drivers-columns-comparison"><span>Соотношение очков</span><span>Отставание</span></span><span>Последняя гонка</span><span>Очки</span></div>
           <ol className="drivers-list" aria-label={`Личный зачёт пилотов ${year}`}>
             {drivers.map(driver => {
               const earned = lastRacePoints[(driver.code || '').toUpperCase()];
+              const gap = gapToLeader(driver, leader);
+              const share = leader && hasPoints(leader.points) && leader.points > 0 && hasPoints(driver.points)
+                ? Math.max(0, Math.min(100, driver.points / leader.points * 100)) : null;
               return <li key={driver.driverId || driver.code || driver.name}>
                 <Link className="drivers-entry entrant-highlight" to={driverLink(driver, year)}
                   data-team={homeTeamIdentity(driver.constructorId || '', driver.constructorName || '')}>
@@ -160,8 +193,16 @@ function DriversPage() {
                       <span className="drivers-number-code">{driver.number && <span>#{driver.number}</span>}{driver.code && <span>{driver.code}</span>}</span>
                     </div>
                   </div>
+                  <span className="drivers-comparison">
+                    <span className="drivers-points-track" aria-hidden="true">
+                      {share !== null && <span className="drivers-points-fill" style={{ width: `${share}%` }} />}
+                    </span>
+                    <span className="drivers-gap">{driver === leader ? 'Лидер' : <>
+                      <span className="drivers-sr">Отставание от лидера: </span>{gap === null ? '—' : gap === 0 ? '0' : `−${numberFormat.format(gap)}`}<span className="drivers-sr"> очков</span>
+                    </>}</span>
+                  </span>
                   <span className="drivers-race-points"><span className="drivers-sr">Последняя гонка: </span>{earned == null ? '—' : `+${numberFormat.format(earned)}`}<span className="drivers-race-label" aria-hidden="true">{earned == null ? 'Нет данных' : 'за гонку'}</span></span>
-                  <span className="drivers-season-points"><strong>{numberFormat.format(driver.points)}</strong><span className="drivers-sr"> очков за сезон</span></span>
+                  <span className="drivers-season-points"><strong>{formatPoints(driver.points)}</strong><span className="drivers-sr"> очков за сезон</span></span>
                 </Link>
               </li>;
             })}

@@ -212,7 +212,11 @@ window.fetch = async (input, init) => {
       if (driverFailures-- > 0) return json({ detail: 'Зачёт временно недоступен. Попробуйте снова.' }, 503);
       if (scenario === 'drivers-loading') return new Promise<Response>((_, reject) => { init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))); });
       const season = Number(url.searchParams.get('season') || 2026);
-      return json({ drivers: ['empty', 'drivers-empty'].includes(scenario || '') ? [] : drivers.map(driver => ({ ...driver, is_favorite: member && driver.code === 'NOR', imageUrl: season === 2026 ? driver.imageUrl : undefined })) });
+      const field = scenario === 'drivers-single' ? drivers.slice(0, 1) : drivers;
+      return json({ drivers: ['empty', 'drivers-empty'].includes(scenario || '') ? [] : field.map((driver, index) => ({
+        ...driver, points: scenario === 'drivers-zero' ? 0 : scenario === 'drivers-missing' && index === 1 ? null : driver.points,
+        is_favorite: member && driver.code === 'NOR', imageUrl: season === 2026 ? driver.imageUrl : undefined,
+      })) });
     }
     case '/api/constructors': {
       if (constructorFailures-- > 0) return json({ detail: 'Зачёт команд временно недоступен. Попробуйте снова.' }, 503);

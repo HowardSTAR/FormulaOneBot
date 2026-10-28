@@ -1,7 +1,7 @@
 /* Avoid clipping the content layer beside the floating navigation. */
 .app-shell.design-shell:has(.drivers-page) .app-content { overflow: visible; }
 /* The championship shares the home's quiet surfaces and team-colour lighting. */
-.drivers-page { --drivers-muted: color-mix(in srgb, var(--design-muted) 75%, var(--design-ink)); container-type: inline-size; display: grid; gap: 32px; color: var(--design-ink); font-size: 1rem; line-height: 1.5; }
+.drivers-page { --drivers-muted: color-mix(in srgb, var(--design-muted) 75%, var(--design-ink)); container-type: inline-size; display: grid; width: 100%; max-width: 90rem; margin-inline: auto; gap: 24px; color: var(--design-ink); font-size: 1rem; line-height: 1.5; }
 .drivers-page *, .drivers-page *::before, .drivers-page *::after { box-sizing: border-box; }
 #root .drivers-page :is(h1,h2,h3,p,ol) { margin: 0; }
 #root .drivers-page :is(h1,h2,h3) { color: var(--design-ink); font-family: inherit; font-style: normal; letter-spacing: -.025em; line-height: 1.2; text-transform: none; text-wrap: balance; overflow-wrap: anywhere; }
@@ -15,10 +15,10 @@
 .drivers-heading-copy { min-width: 0; }
 #root .drivers-heading h1 { font-size: 2.5rem; font-weight: 700; }
 #root .drivers-heading-copy > p { color: var(--drivers-muted); font-size: .9375rem; margin-top: 10px; max-width: 34ch; }
-.drivers-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 24px; }
+.drivers-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 24px; }
 #root .drivers-page .year-select-wrapper { width: auto; margin: 0; }
 #root .drivers-page .year-select-container { display: flex; flex-wrap: wrap; gap: 8px; width: auto; margin: 0; padding: 0; background: transparent; border: 0; box-shadow: none; }
-#root .drivers-page .custom-select-wrapper { width: auto; min-width: 120px; max-width: 100%; }
+#root .drivers-page .custom-select-wrapper { width: auto; min-width: 104px; max-width: 100%; }
 #root .drivers-page :is(.custom-select-trigger,.current-year-btn) { min-height: 44px; margin: 0; padding: 10px 16px; border: 1px solid var(--design-control); border-radius: 24px; background: var(--design-surface); color: var(--design-ink); font: inherit; font-size: .875rem; letter-spacing: normal; text-transform: none; box-shadow: none; }
 #root .drivers-page :is(.custom-select-trigger,.current-year-btn):hover { background: var(--design-tint); border-color: var(--design-accent); }
 #root .drivers-page .custom-select-listbox { background: var(--design-surface); color: var(--design-ink); border-color: var(--design-control); font-family: inherit; }
@@ -26,8 +26,11 @@
 #root .drivers-page .custom-select-option:is(:hover,.focused,[aria-selected="true"]) { background: var(--design-tint); color: var(--design-accent); }
 .drivers-history, .drivers-team-link { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 8px 12px; border-radius: 24px; font-size: .875rem; font-weight: 550; }
 .drivers-history svg, .drivers-team-link svg { flex-shrink: 0; }
+.drivers-history { padding-inline: 8px; }
 #root .drivers-page :is(.drivers-history,.drivers-team-link):hover { background: var(--design-tint); color: var(--design-accent); }
 .drivers-leader { display: grid; grid-template-columns: minmax(0,1fr) minmax(120px,.8fr); align-items: center; gap: 12px; min-width: 0; padding: 8px 16px; border-radius: 16px; }
+.drivers-contenders { display: grid; min-width: 0; }
+.drivers-leader--secondary { display: none; }
 .drivers-leader-copy { min-width: 0; padding-block: 12px; }
 #root .drivers-leader h2 { font-size: 1.5rem; font-weight: 650; }
 #root .drivers-leader p { color: var(--drivers-muted); font-size: .8125rem; margin-top: 4px; }
@@ -54,6 +57,14 @@
 .drivers-favorite { margin-left: 6px; color: var(--design-rating-outline); vertical-align: -2px; }
 .drivers-team { color: var(--drivers-muted); font-size: .8125rem; overflow-wrap: anywhere; }
 .drivers-number-code { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--drivers-muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.drivers-comparison, .drivers-columns-comparison { display: none; }
+.drivers-comparison { align-items: center; gap: 16px; min-width: 0; }
+.drivers-columns-comparison { align-items: center; gap: 16px; }
+.drivers-columns-comparison > :first-child { flex: 1; min-width: 0; }
+.drivers-columns-comparison > :last-child { flex: 0 0 5rem; text-align: right; }
+.drivers-points-track { flex: 1; min-width: 0; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--drivers-muted) 18%, var(--design-bg)); }
+.drivers-points-fill { display: block; height: 100%; border-radius: inherit; background: color-mix(in srgb, var(--home-team-accent) 55%, var(--design-ink)); }
+.drivers-gap { flex: 0 0 5rem; text-align: right; color: var(--drivers-muted); font-size: .8125rem; font-variant-numeric: tabular-nums; }
 .drivers-race-points { text-align: right; font-size: .9375rem; font-variant-numeric: tabular-nums; }
 .drivers-race-label { display: none; }
 .drivers-season-points { text-align: right; font-family: 'Space Grotesk', sans-serif; font-variant-numeric: tabular-nums; }
@@ -67,11 +78,29 @@
 #root .drivers-page .ui-feedback h2 { font-size: 1.25rem; }
 #root .drivers-page .ui-feedback button { min-height: 44px; padding: 10px 20px; border: 1px solid var(--design-control); border-radius: 24px; background: var(--design-surface); color: var(--design-ink); font: inherit; cursor: pointer; }
 #root .drivers-page .ui-feedback button:hover { background: var(--design-tint); }
-@media (min-width: 700px) and (max-width: 899px), (min-width: 1100px) {
-  .drivers-heading--with-leader { grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 40px; }
+@container (min-width: 44rem) {
+  .drivers-heading--with-leader { grid-template-columns: minmax(16rem,.85fr) minmax(0,1.15fr); gap: 24px; }
 }
-@media (max-width: 699px) {
-  .drivers-page { gap: 24px; }
+@container (min-width: 54rem) {
+  .drivers-columns, .drivers-entry { grid-template-columns: 3rem minmax(14rem,1.2fr) minmax(10rem,1fr) 8rem 5rem; }
+  .drivers-comparison { display: flex; }
+  .drivers-columns-comparison { display: flex; }
+}
+@container (min-width: 62rem) {
+  .drivers-heading--with-leader { grid-template-columns: 18rem minmax(0,1fr); }
+  .drivers-contenders { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+  .drivers-contenders[data-count="1"] { grid-template-columns: minmax(0,1fr); }
+  .drivers-contenders[data-count="2"] { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .drivers-leader { grid-template-columns: minmax(0,1fr) 5.25rem; padding-inline: 8px; gap: 4px; }
+  .drivers-leader--secondary { display: grid; }
+  #root .drivers-leader h2 { font-size: 1.125rem; }
+  .drivers-leader .entrant-portrait { height: 184px; }
+  .drivers-leader strong { font-size: 1.5rem; }
+}
+@container (min-width: 80rem) {
+  .drivers-heading--with-leader { grid-template-columns: minmax(18rem,.8fr) minmax(0,2.2fr); }
+  .drivers-leader { grid-template-columns: minmax(0,1fr) 7rem; gap: 8px; }
+  #root .drivers-leader h2 { font-size: 1.25rem; }
 }
 @container (max-width: 42rem) {
   #root .drivers-heading h1 { font-size: 2rem; }
@@ -101,8 +130,11 @@
 @media (prefers-contrast: more) {
   .drivers-list > li + li { border-color: var(--design-ink); }
   .drivers-page :is(.drivers-team,.drivers-number-code,.drivers-race-points) { color: var(--design-ink); }
+  .drivers-points-fill { background: var(--design-ink); }
 }
 @media (forced-colors: active) {
   .drivers-leader { border: 1px solid CanvasText; }
   .drivers-entry:hover { outline: 1px solid Highlight; }
+  .drivers-points-track { outline: 1px solid CanvasText; }
+  .drivers-points-fill { background: CanvasText; }
 }
