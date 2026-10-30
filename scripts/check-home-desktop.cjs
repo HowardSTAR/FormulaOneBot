@@ -21,6 +21,20 @@ async function verify(page, wide, count) {
       weekend: r(document.querySelector('.home-weekend')) };
   });
   assert.equal(geometry.overflow, false, JSON.stringify(geometry));
+  // A decorative pseudo-element must never become an extra table column.
+  const standings = await page.locator('.home-standing-table').evaluate(table => {
+    const cells = row => [...row.children].filter(cell => getComputedStyle(cell).display !== 'none').map(cell => {
+      const { x, width } = cell.getBoundingClientRect(); return { x, width };
+    });
+    return { headers: cells(table.tHead.rows[0]), rows: [...table.tBodies[0].rows].map(cells) };
+  });
+  for (const row of standings.rows) {
+    assert.equal(row.length, standings.headers.length);
+    row.forEach((cell, index) => {
+      const header = standings.headers[index];
+      assert.ok(Math.abs(cell.x - header.x) < 1 && Math.abs(cell.width - header.width) < 1, JSON.stringify(standings));
+    });
+  }
   assert.equal(geometry.cards.length, count);
   assert.equal(geometry.interactive, wide ? count : 1);
   assert.equal(geometry.controls, !wide);
