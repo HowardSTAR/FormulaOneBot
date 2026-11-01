@@ -41,3 +41,7 @@ ssl
 *.pem
 *.key
 *.log
+
+# Local verification of the frozen frontend
+legacy/**/node_modules
+legacy/**/dist

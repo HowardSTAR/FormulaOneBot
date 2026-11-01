@@ -97,7 +97,13 @@ from app.utils.portrait_render import render_head_crop_png_bytes
 CURRENT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = CURRENT_DIR.parent.parent
 WEB_DIR_LEGACY = PROJECT_ROOT / "web" / "app"
+# Images contain both shells; the public service defaults to the frozen UI.
+# Local development without a legacy build continues to use front/dist.
 FRONT_DIR = PROJECT_ROOT / "front" / "dist"
+if os.getenv("FRONTEND_VARIANT", "legacy") == "legacy":
+    frozen_front = PROJECT_ROOT / "front" / "legacy-dist"
+    if frozen_front.exists():
+        FRONT_DIR = frozen_front
 # Используем React SPA (front) если собран, иначе web/app
 WEB_DIR = FRONT_DIR if FRONT_DIR.exists() else WEB_DIR_LEGACY
 STATIC_DIR = WEB_DIR / "static"

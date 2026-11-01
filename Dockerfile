@@ -77,6 +77,7 @@ COPY app/ ./app/
 COPY run_web.py .
 
 COPY --from=front-builder /front/dist ./front/dist
+ADD legacy/public-frontend.tar.gz /app/front/legacy-dist/
 
 RUN mkdir -p logs fastf1_cache data
 

@@ -63,3 +63,7 @@ artifacts/boosty/
 artifacts/race-message-preview/
 artifacts/championship-cards/
 artifacts/championship-*.log
+
+# Frozen frontend local builds
+legacy/**/node_modules/
+legacy/**/dist/

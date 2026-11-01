@@ -14,7 +14,8 @@ x-app-common: &app-common
       VITE_DATA_STORAGE_LOCATION: ${DATA_STORAGE_LOCATION:-}
   env_file:
     - .env
-  environment:
+  environment: &app-environment
+    FRONTEND_VARIANT: legacy
     APP_ENV: production
     AUTH_COOKIE_SECURE: "true"
     DATABASE_PATH: /app/data/bot.db
@@ -22,7 +23,7 @@ x-app-common: &app-common
     BACKUP_DIR: /app/data/backups
     BACKUP_KEEP: ${BACKUP_KEEP:-7}
     PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-https://f1hub.ru}
-    WEB_ORIGINS: ${WEB_ORIGINS:-https://f1hub.ru,https://www.f1hub.ru}
+    WEB_ORIGINS: ${WEB_ORIGINS:-https://f1hub.ru,https://www.f1hub.ru,https://new.f1hub.ru}
     REDIS_URL: redis://redis:6379/0
     PYTHONUNBUFFERED: "1"
   volumes:
@@ -82,7 +83,7 @@ services:
       retries: 3
       start_period: 30s
 
-  web:
+  web: &web-service
     <<: *app-common
     command:
       - uvicorn
@@ -112,6 +113,13 @@ services:
       retries: 5
       start_period: 45s
 
+  web-new:
+    <<: *web-service
+    environment:
+      <<: *app-environment
+      FRONTEND_VARIANT: new
+      PUBLIC_WEB_URL: https://new.f1hub.ru
+
   worker:
     <<: *app-common
     command: ["python", "-m", "app.worker"]
@@ -138,6 +146,8 @@ services:
       - ${SSL_DIR:-./ssl}:/etc/nginx/ssl:ro
     depends_on:
       web:
+        condition: service_healthy
+      web-new:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-check-certificate", "--quiet", "--spider", "https://127.0.0.1/health"]

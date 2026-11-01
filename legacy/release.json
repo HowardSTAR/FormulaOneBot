@@ -1,0 +1,8 @@
+{
+  "app_version": "34704c571ac2",
+  "image": "sha256:883d425564752824f19787d607876334a4d379cdfab2aee7f4b22b7f1f518fda",
+  "archive_sha256": "c1a1ee5cae052a7b3574905b1735b7219a1f316f1f827663c5423929809ac69f",
+  "index_sha256": "9e54af93b34d88dc1aeeab294fc7a0a927861c67d8fdba8553de2430b6d191e2",
+  "captured_at": "2026-11-01",
+  "source": "/app/front/dist from the running f1hub.ru web container"
+}

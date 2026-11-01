@@ -175,7 +175,8 @@ async def prepare_telegram(token: str, user_id: int = Depends(require_hybrid_use
 
 @public_router.get('/share/{token}', response_class=HTMLResponse)
 async def share_page(token: str, request: Request):
-    index = Path(__file__).resolve().parents[2] / 'front' / 'dist' / 'index.html'
+    from app.api.miniapp_api import WEB_DIR
+    index = WEB_DIR / 'index.html'
     source = index.read_text(encoding='utf-8') if index.exists() else '<html><head></head><body><div id="root"></div></body></html>'
     try: item = await service.public_share(token, str(request.base_url).rstrip('/'))
     except ValueError:

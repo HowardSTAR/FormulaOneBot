@@ -100,8 +100,8 @@ class DeploymentTests(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertEqual(status, 'rolled_back')
         rollouts = [call for call in calls if call[0] == 'compose' and 'up' in call]
-        self.assertEqual(rollouts[0][-3:], ['bot', 'web', 'worker'])
-        self.assertEqual(rollouts[1][-2:], ['bot', 'web'])
+        self.assertEqual(rollouts[0][-4:], ['bot', 'web', 'web-new', 'worker'])
+        self.assertEqual(rollouts[1][-3:], ['bot', 'web', 'web-new'])
         stops = [call for call in calls if call[0] == 'compose' and 'stop' in call]
         self.assertEqual(stops[-1][-1], 'worker')
 
