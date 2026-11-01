@@ -67,3 +67,24 @@ async def generate(body: GenerateRequest,
             await db.conn.rollback()
             raise
     return {"id": job_id}
+
+
+@router.delete("/{forecast_id}")
+async def delete_forecast(forecast_id: str):
+    """Delete a completed research snapshot; active jobs must finish first."""
+    async with db.write_lock:
+        await db.conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = await (await db.conn.execute(
+                "SELECT status FROM prediction_analytics WHERE id=?", (forecast_id,)
+            )).fetchone()
+            if not row:
+                raise HTTPException(404, "Прогноз не найден")
+            if row["status"] == "pending":
+                raise HTTPException(409, "Дождитесь завершения расчёта перед удалением")
+            await db.conn.execute("DELETE FROM prediction_analytics WHERE id=?", (forecast_id,))
+            await db.conn.commit()
+        except Exception:
+            await db.conn.rollback()
+            raise
+    return {"deleted": forecast_id}

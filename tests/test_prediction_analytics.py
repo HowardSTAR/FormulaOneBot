@@ -132,10 +132,12 @@ async def test_forecast_routes_reject_guest_and_regular_user(app_with_overrides,
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app_with_overrides), base_url="http://test") as client:
         assert (await client.get("/api/admin/prediction-analytics?season=2026")).status_code == 401
         assert (await client.get("/api/admin/prediction-analytics/secret")).status_code == 401
+        assert (await client.delete("/api/admin/prediction-analytics/secret")).status_code == 401
         assert (await client.post("/api/admin/prediction-analytics", json={"season": 2026, "round": 2, "session": "race"})).status_code == 401
         monkeypatch.setattr(admin_api, "require_web_session", AsyncMock(return_value=SimpleNamespace(user={"id": 1, "role": "user"})))
         assert (await client.get("/api/admin/prediction-analytics?season=2026")).status_code == 403
         assert (await client.get("/api/admin/prediction-analytics/secret")).status_code == 403
+        assert (await client.delete("/api/admin/prediction-analytics/secret")).status_code == 403
         assert (await client.post("/api/admin/prediction-analytics", json={"season": 2026, "round": 2, "session": "race"})).status_code == 403
 
 
@@ -201,3 +203,22 @@ async def test_failed_job_is_retried_and_settlement_does_not_discard_it(app_with
     await service.settle_forecasts()
     row = await (await db.conn.execute("SELECT status,error FROM prediction_analytics WHERE id='test'")).fetchone()
     assert row[0] == "pending" and "автоматически" in row[1]
+
+
+@pytest.mark.asyncio
+async def test_delete_forecast_access_and_completed_only(app_with_overrides):
+    from app.api.admin_api import require_admin_session, AdminContext
+    from app.db import db
+    url = '/api/admin/prediction-analytics/delete-test'
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app_with_overrides), base_url='http://test') as client:
+        assert (await client.delete(url)).status_code == 401
+        app_with_overrides.dependency_overrides[require_admin_session] = lambda: AdminContext(id=1, role='admin')
+        await db.conn.execute("INSERT INTO prediction_analytics(id,season,round,session,created_at,created_by,status) VALUES(?,?,?,?,?,?,?)", ('delete-test',2026,1,'race',time.time(),1,'pending'))
+        await db.conn.commit()
+        assert (await client.delete(url)).status_code == 409
+        assert (await client.get(url)).status_code == 200
+        await db.conn.execute("UPDATE prediction_analytics SET status='ready' WHERE id='delete-test'")
+        await db.conn.commit()
+        assert (await client.delete(url)).json() == {'deleted':'delete-test'}
+        assert (await client.get(url)).status_code == 404
+        assert (await client.delete(url)).status_code == 404
