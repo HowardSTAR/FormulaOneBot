@@ -33,25 +33,27 @@ export function SeasonProgress() {
     {error && <div className="season-progress-error" role="alert"><p>{error}</p><button onClick={() => setRetry(v => v + 1)}>Повторить</button></div>}
     {!data && !error && <p role="status">Загружаем историю…</p>}
     {data && <>
+      <div className="season-progress-overview">
       {data.latest ? <article className="season-progress-latest">
-        <header><div><span className="season-progress-kicker">Последний рассчитанный этап</span><h4>{data.latest.event_name}</h4></div><p className="season-progress-score"><strong>{data.latest.points}</strong><span>/ {data.latest.max_points} баллов</span></p></header>
+        <header><div><h4>{data.latest.event_name}</h4><p className="season-progress-round-label">Этап {data.latest.round} · последний результат</p></div><p className="season-progress-score"><strong>{data.latest.points}</strong><span>/ {data.latest.max_points} баллов</span></p></header>
         <p>{data.latest.items.some(i => i.status === 'exact') ? `Точно угадано: ${data.latest.items.filter(i => i.status === 'exact').map(i => i.label).join(' · ')}.` : 'Посмотрите, как начислены баллы по каждой категории.'}</p>
         {data.latest.items.some(i => i.status === 'unavailable') && <p>Часть результатов ещё ожидается. Отсутствие данных не считается ошибкой прогноза.</p>}
         {data.latest.items.some(i => i.status === 'unknown') && <p>Часть исторической разбивки не сохранена. Итоговые баллы доступны в таблице.</p>}
         {data.previous_points !== null && <p className="season-progress-note">Предыдущий этап: {data.previous_points} баллов. Максимум зависит от спринта и подтверждённых данных.</p>}
         <div className="season-progress-actions"><button className="season-progress-primary" onClick={() => setReview(data.latest)}>Разобрать последний этап <span aria-hidden="true">→</span></button><ShareButton options={{kind: 'prediction', season: data.latest.season, round: data.latest.round}} /></div>
       </article> : <p>После расчёта вашего первого этапа здесь появятся результаты.</p>}
-      <dl className="season-progress-metrics"><div><dt>Лучший этап</dt><dd>{data.best_points ?? '—'}<small>баллов</small></dd></div><div><dt>Среднее за этап</dt><dd>{data.average_points ?? '—'}<small>баллов</small></dd></div><div><dt>Место в сезоне</dt><dd>{data.place ?? '—'}<small>в общем зачёте</small></dd></div></dl>
+      <div className="season-progress-summary"><dl className="season-progress-metrics"><div><dt>Лучший этап</dt><dd>{data.best_points ?? '—'}<small>баллов</small></dd></div><div><dt>Среднее за этап</dt><dd>{data.average_points ?? '—'}<small>баллов</small></dd></div><div><dt>Место в сезоне</dt><dd>{data.place ?? '—'}<small>в общем зачёте</small></dd></div></dl>
       {(data.place_change !== null || data.gap_to_higher !== null) && <div className="season-progress-standing">
         {data.place_change !== null && <p>{data.place_change === 0 ? 'Место не изменилось после последнего этапа.' : `Изменение места после последнего этапа: ${data.place_change > 0 ? '+' : ''}${data.place_change}.`}</p>}
         {data.gap_to_higher !== null && <p>До участника выше в зачёте: <strong>{data.gap_to_higher} баллов</strong>.</p>}
         <small>По текущему пересчитанному зачёту.</small>
       </div>}
+      </div></div>
       <details className="season-progress-accuracy"><summary>Точность по категориям</summary>
         <p>Только точные попадания среди подтверждённых результатов; неизвестные исходы исключены.</p>
         <dl>{data.categories.map(c => <div key={c.label}><dt>{c.label}</dt><dd>{c.known > 0 ? `${c.exact} из ${c.known} · ${Math.round(c.exact / c.known * 100)}%` : 'Ещё нет результатов'}</dd></div>)}</dl>
       </details>
-      {data.achievements.length > 0 && <div className="season-progress-achievements"><span className="season-progress-kicker">Достижения</span><ul>{data.achievements.map(achievement => <li key={achievement}><span aria-hidden="true">✦</span>{achievement}</li>)}</ul></div>}
+      {data.achievements.length > 0 && <div className="season-progress-achievements"><h4>Достижения</h4><ul>{data.achievements.map(achievement => <li key={achievement}><span aria-hidden="true">✦</span>{achievement}</li>)}</ul></div>}
       <section className="season-progress-history" aria-labelledby="season-rounds-title"><header><h4 id="season-rounds-title">Мои этапы</h4><span>Нажмите на этап для разбора</span></header>
         <div className="season-progress-rounds">{[...data.history].reverse().map(r => <button key={`${r.season}:${r.round}`} onClick={() => setReview(r)}><span><small>Этап {r.round}</small><span>{r.event_name || `Этап ${r.round}`}</span></span><strong>{r.points}<small> / {r.max_points}</small><span aria-hidden="true">↗</span></strong></button>)}</div>
         {data.history.length === 0 && <p>Рассчитанные этапы появятся здесь после гонки.</p>}
