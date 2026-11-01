@@ -56,7 +56,7 @@ export function profilePreview(query: URLSearchParams) {
       options: { frame: { classic: 0, red: 2, silver: 2, gold: 3, neon: 3 }, color: { white: 0, red: 2, blue: 2, gold: 3, mint: 3 }, background: { carbon: 0, grid: 2, scarlet: 2, aurora: 3, champion: 3 } },
       season, seasons: [2026, 2025], total_points: empty ? 0 : 186, scored_rounds: empty ? 0 : 12, best_prediction: predictions[0] || null, predictions,
       records: empty ? [] : [{ track_id: 'emerald-loop-v2', track_name: 'Emerald Loop', best_time_ms: 98432, attempts: 12 }],
-      favorites: empty ? { drivers: [], teams: [] } : { drivers: ['NOR', 'LEC'], teams: ['McLaren'] },
+      favorites: empty ? { drivers: [], teams: [] } : state === 'production-layout' ? { drivers: ['ALO', 'ANT', 'HAD', 'LEC', 'PIA', 'SAI', 'VER'], teams: ['Aston Martin', 'Audi', 'Ferrari', 'Red Bull Racing', 'McLaren'] } : { drivers: ['NOR', 'LEC'], teams: ['McLaren'] },
     });
   };
 }

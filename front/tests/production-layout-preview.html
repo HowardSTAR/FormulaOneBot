@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TurboTears · проверка исправлений</title>
+  <style>
+    :root{color-scheme:dark;font:16px/1.6 system-ui,sans-serif;background:#121315;color:#f3f3f5}
+    *{box-sizing:border-box}body{max-width:960px;margin:0 auto;padding:40px 20px 64px}h1{font-size:clamp(1.75rem,5vw,2.5rem);line-height:1.2;letter-spacing:-.03em}p{color:#b9bac2;max-width:65ch}ul{list-style:none;margin:32px 0 0;padding:0}li{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:16px 0;border-top:1px solid #3a3d45}li strong{flex:1 1 26rem;font-size:1rem}a{display:inline-flex;align-items:center;min-height:44px;padding:8px 16px;border:1px solid #7c808b;border-radius:24px;color:#ffaaa0;text-decoration:none}a:hover{background:#352421;color:#fff}a:focus-visible{outline:3px solid #ffaaa0;outline-offset:4px}small{display:block;color:#b9bac2}footer{margin-top:32px;color:#b9bac2}
+  </style>
+</head>
+<body>
+  <h1>Проверка исправлений new.f1hub.ru</h1>
+  <p>Локальный предпросмотр с вымышленными данными. Можно выбирать пилотов, раскрывать условия титула и менять аватар. Действия в демо не изменяют аккаунты на сайте.</p>
+  <ul id="screens">
+    <li data-demo="view=season&amp;spotlight=driver-1"><strong>Главная · портреты, логотип и болид</strong></li>
+    <li data-demo="page=calendar&amp;filter=all&amp;round=20"><strong>Календарь · отрисовка трассы</strong></li>
+    <li data-demo="page=weekend&amp;venue=mexico"><strong>Уик-энд · карта и статистика трассы</strong></li>
+    <li data-demo="page=driver-details&amp;code=HAM"><strong>Карточка пилота · портрет по пояс и флаг</strong></li>
+    <li data-demo="page=constructor-details&amp;constructorId=mercedes"><strong>Карточка команды · весь триколор и состав</strong></li>
+    <li data-demo="page=predictions&amp;state=prediction-closed&amp;championship=both&amp;saved=1"><strong>Прогнозы · условия чемпионства</strong></li>
+    <li data-demo="page=predictions&amp;state=prediction-saved&amp;championship=both"><strong>Прогнозы · заполненная форма и выбор пилотов</strong></li>
+    <li data-demo="page=predictions&amp;tab=leaderboard&amp;state=production-layout"><strong>Прогнозы · таблица на 36 участников и 7 этапов</strong></li>
+    <li data-demo="page=predictions&amp;tab=history&amp;state=production-layout"><strong>Мой сезон 2026 · сводка и личный разбор</strong></li>
+    <li data-demo="page=community"><strong>Сообщество · один фон трассы</strong></li>
+    <li data-demo="page=profile&amp;state=production-layout"><strong>Профиль · все избранные и аватар в шапке</strong></li>
+    <li data-demo="page=predictions&amp;auth=guest"><strong>Прогнозы · гостевой режим</strong></li>
+  </ul>
+  <footer>Для проверки узкого экрана измените ширину окна. Масштаб текста 200% доступен через параметр <code>scale=2</code> в ссылке предпросмотра. Тема переключается в шапке самого сайта.</footer>
+  <script type="module">
+    for (const row of document.querySelectorAll('[data-demo]')) {
+      for (const [theme,label] of [['dark','Тёмная'],['light','Светлая']]) {
+        const params=new URLSearchParams({auth:'member',theme,...Object.fromEntries(new URLSearchParams(row.dataset.demo))});
+        const link=document.createElement('a');link.href=`./home-design-preview.html?${params}`;link.textContent=label;link.target='_blank';link.rel='noopener';link.setAttribute('aria-label',`${row.querySelector('strong').textContent} · ${label.toLowerCase()} тема`);row.append(link);
+      }
+    }
+  </script>
+</body>
+</html>

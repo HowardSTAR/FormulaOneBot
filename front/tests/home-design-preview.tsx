@@ -1,5 +1,6 @@
 import { analyticsPreview } from './fixtures/prediction-analytics';
 import { adminPreview } from './fixtures/admin';
+import { previewAvatar } from './fixtures/avatar-preview';
 // Vite-only visual fixture. Uses the real app with deterministic, fictional data.
 // No requests are sent to a backend, and no accounts or records are modified.
 import gameTracks from '../../app/race_tracks.json';
@@ -108,10 +109,14 @@ if (['driver-details', 'constructor-details'].includes(query.get('page') || ''))
   }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
 }
 // Native image loads bypass the fetch fixture. Keep their substitute local too.
-if (query.get('page') === 'profile' || query.get('tour') === '1') {
+{
   const avatarImage = new URL('./fixtures/profile-avatar.png', import.meta.url).href;
   new MutationObserver(() => {
-    document.querySelectorAll<HTMLImageElement>('img[src*="/api/profiles/avatar/v1.png"]').forEach(img => { img.src = avatarImage; });
+    document.querySelectorAll<HTMLImageElement>('img[src*="/api/profiles/avatar/v1.png"]').forEach(img => {
+      const source = img.src;
+      void previewAvatar(source).then(local => { if (img.isConnected && img.src === source) img.src = local; })
+        .catch(() => { if (img.isConnected && img.src === source) img.src = avatarImage; });
+    });
     document.querySelectorAll<HTMLImageElement>('img[src*="/assets/2026/pilots/"]').forEach(img => {
       const code = img.src.split('/').pop()?.split('.')[0];
       const source = drivers.find(driver => driver.code === code)?.imageUrl;
@@ -123,6 +128,7 @@ window.fetch = async (input, init) => {
   const json = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
   const url = new URL(input instanceof Request ? input.url : String(input), location.origin);
   if (url.pathname.startsWith('/static/circuit/')) {
+    if (scenario === 'track-map-error') return new Response('&#x20;', { headers: { 'Content-Type': 'image/svg+xml' } });
     const asset = calendarCircuits[`../public${decodeURIComponent(url.pathname)}`];
     return asset ? new Response(await asset(), { headers: { 'Content-Type': 'image/svg+xml' } }) : new Response('', { status: 404 });
   }
@@ -210,6 +216,7 @@ window.fetch = async (input, init) => {
       return json({ labels, series });
     }
     case '/api/race-recap': return json({ status: 'waiting', items: [], note: 'Демонстрационный обзор: ожидаем подтверждённые данные.' });
+    case '/api/profiles/me': return member ? json({ avatar: { helmet: 'scarlet', suit: 'scarlet', background: 'garage' } }) : json({}, 401);
     case '/api/auth/me': return member ? json({ id: 1, email: null, telegram_id: linked ? 1 : null, role: 'user', email_verified: true, display_name: 'Болельщик' }) : json({}, 401);
     case '/api/favorites': return scenario === 'favorites-error' ? json({}, 503) : json(scenario === 'favorites-empty' ? { drivers: [], teams: [] } : scenario === 'favorites-missing' ? { drivers: ['OLD'], teams: ['Old Team'] } : { drivers: ['PIA', 'NOR'], teams: ['McLaren'] });
     case '/api/next-race': return json({ status: scenario === 'finished' ? 'season_finished' : 'ok', is_cancelled: scenario === 'cancelled', event_name: fixtureProfile.eventName, location: fixtureLocation, country: fixtureCountry, season: 2026, round: fixtureProfile.round, race_start_utc: sessions[4].utc_iso, next_session_iso: sessions[0].utc_iso, next_session_name: sessions[0].name });
