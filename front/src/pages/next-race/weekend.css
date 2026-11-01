@@ -41,8 +41,7 @@
 .weekend-start-time { color: var(--design-accent); font-variant-numeric: tabular-nums; }
 .weekend-track { grid-column: 2; grid-row: 1 / span 3; min-width: 0; align-self: center; }
 .weekend-page .circuit-map-launcher { padding: 8px 0 56px; border-radius: 16px; }
-.weekend-page .circuit-map-launcher:hover { background: var(--design-tint); }
-.weekend-page .circuit-map-launcher:active { background: var(--design-surface); }
+.weekend-page .circuit-map-launcher:is(:hover,:active) { background: transparent; }
 .weekend-track-map { width: 100%; height: 260px; padding: 20px; }
 .weekend-track-svg, .weekend-track-svg svg { display: block; width: 100%; height: 100%; }
 .weekend-track-loading { color: var(--design-muted); font-size: .875rem; }

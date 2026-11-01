@@ -42,6 +42,8 @@ export function AnimatedTrackMap({
       .then(async (response) => {
         if (!response.ok) throw new Error("Track map not found");
         const svg = await response.text();
+        const document = new DOMParser().parseFromString(svg, 'image/svg+xml');
+        if (document.querySelector('parsererror') || document.documentElement.localName !== 'svg' || !document.querySelector('path, polyline')) throw new Error('Invalid track map');
         if (!controller.signal.aborted) setTrackState({ eventName: assetName, svg, error: false });
       })
       .catch(() => {
@@ -61,9 +63,20 @@ export function AnimatedTrackMap({
     const container = trackContainerRef.current;
     if (!trackSvg || !container) return;
 
-    container.innerHTML = trackSvg;
-    const svg = container.querySelector("svg");
-    if (!svg) { onRevealComplete?.(); return; }
+    // Import geometry into a clean SVG: XML whitespace/entities must never
+    // become visible HTML text, and source markup cannot inject page content.
+    const source = new DOMParser().parseFromString(trackSvg, 'image/svg+xml').documentElement;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', source.getAttribute('viewBox') || `0 0 ${source.getAttribute('width') || 121} ${source.getAttribute('height') || 85}`);
+    source.querySelectorAll('path, polyline').forEach(path => {
+      const geometry = document.createElementNS('http://www.w3.org/2000/svg', path.localName);
+      for (const attribute of ['d', 'points', 'transform']) {
+        const value = path.getAttribute(attribute);
+        if (value) geometry.setAttribute(attribute, value);
+      }
+      svg.appendChild(geometry);
+    });
+    container.replaceChildren(svg);
 
     svg.style.width = "100%";
     svg.style.height = "100%";
@@ -118,7 +131,7 @@ export function AnimatedTrackMap({
       outlineGroup.append(border, surface);
     }
 
-    svg.innerHTML = "";
+    svg.replaceChildren();
     svg.appendChild(fillGroup);
     svg.appendChild(outlineGroup);
     if (fitRoute) {

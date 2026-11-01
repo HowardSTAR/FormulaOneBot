@@ -312,7 +312,7 @@ function SeasonPage() {
                 </div>
                 <div className="calendar-track" aria-hidden="true">
                   <AnimatedTrackMap eventName={selectedRace.event_name} location={selectedRace.location} season={year}
-                    className="calendar-track-map" svgClassName="calendar-track-svg" loadingClassName="calendar-track-loading" fitRoute animate={false} />
+                    className="calendar-track-map" svgClassName="calendar-track-svg" loadingClassName="calendar-track-loading" fitRoute />
                 </div>
               </div>
               <div className="calendar-race-start">

@@ -7,7 +7,6 @@ import AvatarPortrait from '../profile/AvatarPortrait';
 import { CommunityTrackPreview } from './CommunityTrackPreview';
 import { useVisibleClock } from '../../helpers/useVisibleClock';
 import type { WeeklyReminder } from '../../helpers/visitReminders';
-import { communityTrackImage } from './communityTracks';
 import './community.css';
 
 type Weekly = { track_id: string; name: string; start: string; end: string; entries: { name: string; time_ms: number }[] };
@@ -75,7 +74,6 @@ export default function CommunityPage() {
     finally { setBusy(''); }
   }
   return <main className="community-page community-hub">
-    {weekly && communityTrackImage(weekly.track_id) && <div className="community-backdrop" aria-hidden="true"><img src={communityTrackImage(weekly.track_id)} alt="" width="1152" height="768" /></div>}
     <header className="community-header"><h1>Сообщество</h1><p>Побейте время на трассе. Соберите друзей в своей лиге.</p></header>
     <section className="community-spotlight" aria-labelledby="community-weekly-heading">
       <div className="community-challenge-copy">
