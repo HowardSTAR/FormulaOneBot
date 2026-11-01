@@ -82,6 +82,7 @@ case "${1:?stage required}" in
       --user "$(id -u):$(id -g)" -e HOME=/tmp \
       -v "$WORKSPACE/deploy/jenkins:/ci:ro" -w /ci "$APP_IMAGE" sh -ec '
         python test_deploy.py
+        python test_runtime_deploy.py
         python test_cleanup.py
         python test_notify.py
       '
@@ -102,6 +103,23 @@ case "${1:?stage required}" in
     exit 1
     ;;
   deploy)
+    # Proxy/docs/CI-only commits do not require replacing healthy app processes.
+    # Unknown versions always fall through to the full verified deployment.
+    current_version=$(docker inspect formulaonebot-web-1 --format '{{index .Config.Labels "version"}}' 2>/dev/null || true)
+    runtime_health=$(docker inspect formulaonebot-web-1 formulaonebot-web-new-1 formulaonebot-bot-1 formulaonebot-worker-1 --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' 2>/dev/null || true)
+    if [[ "$runtime_health" == $'healthy\nhealthy\nhealthy\nhealthy' ]] &&
+       [[ "$current_version" =~ ^[0-9a-f]{12}$ ]] &&
+       git cat-file -e "$current_version^{commit}" 2>/dev/null &&
+       git diff --quiet "$current_version" HEAD -- \
+         Dockerfile .dockerignore requirements.txt app app-assets.zip front race-game legacy \
+         run_web.py entrypoint_web.sh scripts/pack_assets.py \
+         THIRD_PARTY_NOTICES.md ASSET_LICENSES.md docker-compose-build.yml docker-compose.yml; then
+      docker exec formulaonebot-nginx-1 nginx -t
+      docker exec formulaonebot-nginx-1 nginx -s reload
+      echo 'Runtime files are unchanged; keeping healthy application containers.'
+      printf '{"status":"unchanged"}\n' > reports/deployment.json
+      exit 0
+    fi
     docker run --rm --name "f1hub-ci-deploy-$BUILD_NUMBER" --network host \
       --memory=128m --cpus=0.5 -e APP_IMAGE -e BUILD_NUMBER \
       -v /var/run/docker.sock:/var/run/docker.sock \

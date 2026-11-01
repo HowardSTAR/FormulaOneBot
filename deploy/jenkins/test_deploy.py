@@ -72,6 +72,15 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn(['preflight-config', 'services:\n  web:\n    image: sha256:new\n'], calls)
         self.assertLess(calls.index(preflight), next(index for index, call in enumerate(calls) if call[0] == 'tag'))
 
+    def test_proxy_refreshes_after_web_readiness_before_bot_startup(self):
+        code,status,calls=self.scenario('success')
+        self.assertEqual((code,status),(0,'deployed'))
+        web_ready=next(i for i,c in enumerate(calls) if c[0]=='compose' and 'up' in c and c[-2:]==['web','web-new'])
+        proxy_reload=calls.index(['exec','formulaonebot-nginx-1','nginx','-s','reload'])
+        bot_ready=next(i for i,c in enumerate(calls) if c[0]=='compose' and 'up' in c and c[-2:]==['bot','worker'])
+        self.assertLess(web_ready,proxy_reload)
+        self.assertLess(proxy_reload,bot_ready)
+
     def test_invalid_production_config_stops_before_backup_tags_or_restart(self):
         code, status, calls = self.scenario('preflight_failure')
         self.assertNotEqual(code, 0)
@@ -100,7 +109,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertEqual(status, 'rolled_back')
         rollouts = [call for call in calls if call[0] == 'compose' and 'up' in call]
-        self.assertEqual(rollouts[0][-4:], ['bot', 'web', 'web-new', 'worker'])
+        self.assertEqual(rollouts[0][-2:], ['web', 'web-new'])
         self.assertEqual(rollouts[1][-3:], ['bot', 'web', 'web-new'])
         stops = [call for call in calls if call[0] == 'compose' and 'stop' in call]
         self.assertEqual(stops[-1][-1], 'worker')

@@ -76,9 +76,12 @@ changed=1
 # release are additive, allowing the old image to resume if deployment fails.
 compose stop bot worker
 compose run --rm --no-deps --pull never -T migrate
-compose up -d --no-build --no-deps --wait --wait-timeout 120 bot web web-new worker
+# Restore web routing as soon as both web processes are ready; bot startup must
+# not delay the proxy refresh after the web containers receive new addresses.
+compose up -d --no-build --no-deps --wait --wait-timeout 120 web web-new
 docker exec formulaonebot-nginx-1 nginx -t
 docker exec formulaonebot-nginx-1 nginx -s reload
+compose up -d --no-build --no-deps --wait --wait-timeout 120 bot worker
 docker exec formulaonebot-web-1 python -c '
 import json,urllib.request
 for host in ["f1hub.ru","www.f1hub.ru","new.f1hub.ru"]:
