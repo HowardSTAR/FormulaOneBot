@@ -67,6 +67,8 @@ case "${1:?stage required}" in
       -v "$WORKSPACE/tests:/app/tests:ro" -v "$WORKSPACE/pytest.ini:/app/pytest.ini:ro" \
       -v "$WORKSPACE/.coveragerc:/app/.coveragerc:ro" \
       -v "$WORKSPACE/app-assets.zip:/app/app-assets.zip:ro" \
+      -v "$WORKSPACE/legacy:/app/legacy:ro" \
+      -v "$WORKSPACE/docker-compose-build.yml:/app/docker-compose-build.yml:ro" \
       -v "$WORKSPACE/scripts:/app/scripts:ro" \
       -v "$WORKSPACE/reports:/app/reports" -v "$WORKSPACE/.ci-data:/app/data" \
       -v "$WORKSPACE/.ci-logs:/app/logs" \
