@@ -14,15 +14,14 @@ import { useMediaQuery } from '../../helpers/useMediaQuery';
 import './home-spotlight.css';
 import { useCircularSpotlight } from './useCircularSpotlight';
 import { homeTeamIdentity } from './team-identity';
+import { DriverPortrait } from '../../components/DriverPortrait';
+import { TeamLogo } from '../../components/TeamLogo';
 
 const memberKeys = ['race', 'driver-1', 'driver-2', 'team'];
-function MediaImage({ sources, className, fallback }: { sources: string[]; className: string; fallback?: string }) {
+function MediaImage({ sources, className }: { sources: string[]; className: string }) {
   const [index, setIndex] = useState(0);
-  if (index >= sources.length) return fallback ? <span className="home-spotlight-monogram">{fallback}</span> : null;
+  if (index >= sources.length) return null;
   return <img className={className} src={sources[index]} alt="" width="640" height="400" loading="lazy" decoding="async" onError={() => setIndex(value => value + 1)} />;
-}
-function SpotlightImage({ src, fallback }: { src: string; fallback: string }) {
-  return <div className="home-spotlight-art" aria-hidden="true"><MediaImage key={src} sources={[src]} className="home-pilot-portrait" fallback={fallback} /></div>;
 }
 function FavoriteSlide({ slot, season, loaded, failed, favoritesPath, onRetry, favoritesFailed }: { slot: SpotlightSlot; season: number; loaded: boolean; failed: boolean; favoritesPath: string; onRetry: () => void; favoritesFailed: boolean }) {
   const { entry, kind, favorite, unavailable } = slot;
@@ -41,7 +40,7 @@ function FavoriteSlide({ slot, season, loaded, failed, favoritesPath, onRetry, f
   const media = { logo: [...official.logo, teamLogoUrl(entry.constructorId || '', teamName, season)], car: [...official.car, carImageUrl(teamName, season)] };
   const src = entry.imageUrl || apiAssetUrl('/api/pilot-portrait', { code: entry.code, name: entry.name, season, strict: true });
   return <section className={`home-favorite-card${team ? ' home-favorite-card--team' : ''}`} aria-label={entry.name} data-team={homeTeamIdentity(entry.constructorId || '', teamName)}>
-    {team && <span className="home-team-logo" aria-hidden="true"><MediaImage key={media.logo[0]} sources={media.logo} className="home-team-logo-image" fallback={entry.name.slice(0, 3).toUpperCase()} /></span>}
+    {team && <span className="home-team-logo" aria-hidden="true"><TeamLogo name={entry.name} id={entry.constructorId} season={season} size={72} /></span>}
     <div className={team ? 'home-team-car' : 'home-favorite-watermark'} aria-hidden="true"><MediaImage key={media.logo[0]} sources={team ? media.car : media.logo} className="home-team-backdrop-image" /></div>
     <div className="home-favorite-copy">
       <div className="home-favorite-kind"><HomeIcon name={favorite ? 'favorite' : team ? 'teams' : 'drivers'} /><span>{favorite ? team ? 'Избранная команда' : 'Избранный пилот' : team ? 'Лидер среди команд' : 'В лидерах сезона'}</span></div>
@@ -50,7 +49,7 @@ function FavoriteSlide({ slot, season, loaded, failed, favoritesPath, onRetry, f
       <dl className="home-favorite-stats"><div><dt>Очки</dt><dd>{points?.toLocaleString('ru-RU') ?? '—'}</dd></div><div><dt>Место</dt><dd>{position && position > 0 ? position : '—'}</dd></div></dl>
       {favoritesFailed && <div className="home-favorite-error" role="status">Избранное не загрузилось. Показаны лидеры. <button type="button" className="home-glass-button" onClick={onRetry}>Повторить</button></div>}
     </div>
-    {!team && <SpotlightImage key={src} src={src} fallback={entry.number || entry.code || entry.name.slice(0, 3)} />}
+    {!team && <div className="home-spotlight-art" aria-hidden="true"><DriverPortrait code={entry.code} name={entry.name} season={season} src={src} /></div>}
     <Link className="home-favorite-name home-favorite-open" to={details} aria-label={`${team ? 'О команде' : 'О пилоте'}: ${entry.name}`} />
   </section>;
 }

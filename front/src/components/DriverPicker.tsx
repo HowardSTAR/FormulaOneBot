@@ -1,16 +1,13 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { apiAssetUrl } from "../helpers/api";
+import { DriverPortrait } from './DriverPortrait';
 import { homeTeamIdentity } from "../pages/index/team-identity";
 import "./driver-picker.css";
 
 export type PickerDriver = { code: string; name: string; constructorName?: string; imageUrl?: string; disabled?: boolean };
 
 function Portrait({ driver, season }: { driver: PickerDriver; season: number }) {
-  const [failed, setFailed] = useState(false);
-  return <span className="driver-picker-avatar">{failed ? driver.code : <img
-    src={driver.imageUrl || apiAssetUrl("/api/pilot-portrait", { code: driver.code, name: driver.name, season, strict: true, v: 3 })}
-    alt="" width="46" height="48" loading="lazy" onError={() => setFailed(true)} />}</span>;
+  return <DriverPortrait code={driver.code} name={driver.name} season={season} src={driver.imageUrl} className="driver-picker-avatar" />;
 }
 
 export function DriverPicker({ drivers, value, season, label, disabled, onChange, variant = 'field', marker }: {

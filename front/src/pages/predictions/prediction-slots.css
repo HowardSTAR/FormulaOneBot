@@ -19,7 +19,6 @@
 .prediction-slot-copy > :is(small,span) { color: var(--design-muted); font-size: .75rem; line-height: 1.4; overflow-wrap: anywhere; }
 .prediction-slot-action { display: grid; place-items: center; flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; color: var(--design-accent); background: var(--design-surface); }
 #root .predictions-page .driver-picker--slot .driver-picker-avatar { position: relative; width: 56px; height: 62px; flex: 0 0 56px; align-self: end; margin-block: 0 -10px; border-radius: 0; background: transparent; color: var(--design-muted); mask-image: linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent),linear-gradient(#000 72%,transparent); mask-composite: intersect; }
-.predictions-page .driver-picker--slot .driver-picker-avatar img { position: absolute; inset: 0 auto auto 50%; width: auto; max-width: none; height: 260%; object-fit: contain; transform: translateX(-50%); }
 .prediction-safety-car { min-width: 0; margin: 24px 0 0; padding: 0; border: 0; }
 .prediction-safety-car legend { padding: 0; margin-bottom: 12px; font-size: .875rem; font-weight: 550; }
 .prediction-safety-car > div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 260px; }

@@ -1,3 +1,5 @@
 .entrant-portrait { position: relative; overflow: hidden; display: grid; align-items: end; justify-items: center; flex: 0 0 3.5rem; width: 3.5rem; height: 4.5rem; }
-.entrant-portrait img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: center top; mask-image: linear-gradient(to bottom, #000 65%, transparent); }
+.entrant-portrait img { position: absolute; inset: 0 auto auto 50%; display: block; width: auto; max-width: none; height: 200%; transform: translateX(-50%); object-fit: contain; object-position: center top; mask-image: none; }
+.entrant-portrait:has(img) { mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent), linear-gradient(#000 72%, transparent); mask-composite: intersect; }
+.entrant-portrait img[data-full-body="false"] { width: 100%; height: 100%; }
 .entrant-portrait > span { align-self: center; color: var(--design-muted); font-size: .8125rem; font-weight: 600; }

@@ -42,14 +42,13 @@
   .home-screen[data-overview] .home-favorite-stats dt { font-size: .6875rem; }
   .home-screen[data-overview] .home-favorite-stats dd { font-size: 1.5rem; }
   .home-screen[data-overview] .home-favorite-watermark { bottom: 7%; left: 16%; width: 55%; }
-  .home-screen[data-overview] .home-favorite-card--team { display: grid; height: auto; min-height: 176px; padding: 12px 16px; grid-template-columns: minmax(0, 1fr); }
+  .home-screen[data-overview] .home-favorite-card--team { display: grid; height: auto; min-height: 176px; padding: 12px 16px; grid-template-columns: minmax(0, 1fr) 64px; grid-template-rows: auto 80px; }
   .home-screen[data-overview] .home-favorite-card--team .home-favorite-copy { width: 100%; display: flex; flex-direction: column; align-items: flex-start; }
   .home-screen[data-overview] .home-favorite-card--team .home-favorite-team { display: none; }
   .home-screen[data-overview] .home-favorite-card--team .home-favorite-identity { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-  .home-screen[data-overview] .home-favorite-card--team .home-favorite-stats { margin: auto 0 0; padding-top: 3rem; gap: 20px; }
-  .home-screen[data-overview] .home-favorite-card--team > .home-team-logo { inset: 12% 20%; width: auto; height: auto; }
-  .home-screen[data-overview] .home-favorite-card--team .home-team-logo-image { object-fit: contain; transform: scale(1.6); }
-  .home-screen[data-overview] .home-team-car { position: absolute; inset: 0 16%; max-width: 20rem; margin-inline: auto; opacity: 1; transform: none; }
+  .home-screen[data-overview] .home-favorite-card--team .home-favorite-stats { margin: 8px 0 0; gap: 20px; }
+  .home-screen[data-overview] .home-favorite-card--team > .home-team-logo { width: 64px; height: 64px; align-self: center; }
+  .home-screen[data-overview] .home-team-car { position: relative; width: 100%; }
   .home-screen[data-overview] .home-team-car img { object-fit: contain; }
   .home-screen[data-overview] .home-schedule > summary { min-height: 72px; padding: 12px 20px; }
   .home-screen[data-overview] .home-personalize { min-height: 320px; display: block; }
