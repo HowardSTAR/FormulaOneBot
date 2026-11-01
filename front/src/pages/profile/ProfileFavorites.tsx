@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { apiRequest } from '../../helpers/api';
 import { DriverPortrait } from '../../components/DriverPortrait';
@@ -13,6 +13,10 @@ export function ProfileFavorites({ favorites, owner }: { favorites: ProfileFavor
   const [teams, setTeams] = useState<Record<string, string>>({});
   const hasDrivers = favorites.drivers.length > 0;
   const hasTeams = favorites.teams.length > 0;
+  const artwork = Array.from({ length: Math.max(favorites.drivers.length, favorites.teams.length) }).flatMap((_, index) => [
+    ...(favorites.drivers[index] ? [{ kind: 'driver' as const, value: favorites.drivers[index] }] : []),
+    ...(favorites.teams[index] ? [{ kind: 'team' as const, value: favorites.teams[index] }] : []),
+  ]);
   useEffect(() => {
     if (!hasDrivers) return;
     let active = true;
@@ -32,8 +36,11 @@ export function ProfileFavorites({ favorites, owner }: { favorites: ProfileFavor
   return <section className="profile-panel profile-favorites" aria-labelledby="profile-favorites-title">
     <div className="profile-section-backdrop profile-favorites-backdrop" aria-hidden="true">
       <HomeIcon name="favorite" />
-      {favorites.teams[0] && <TeamLogo name={favorites.teams[0]} id={teams[favorites.teams[0]]} season={season} />}
-      <div className="profile-favorites-portraits">{favorites.drivers.slice(0, 2).map(code => <DriverPortrait key={code} code={code} name={drivers[code] || code} season={season} />)}</div>
+      <div className="profile-favorites-collage" style={{ '--favorite-columns': Math.min(4, artwork.length) || 1, '--favorite-mobile-columns': Math.min(3, artwork.length) || 1 } as CSSProperties}>
+        {artwork.map((item, index) => <span key={`${item.kind}:${item.value}`} className={`profile-favorite-art profile-favorites-${item.kind === 'driver' ? 'portraits' : 'teams'}`} style={{ '--favorite-turn': `${[0, -9, 3, 8, -3, -6][index % 6]}deg`, '--favorite-shift': `${[8, -12, 18, -8, -16, 14][index % 6]}px` } as CSSProperties}>
+          {item.kind === 'driver' ? <DriverPortrait code={item.value} name={drivers[item.value] || item.value} season={season} /> : <TeamLogo name={item.value} id={teams[item.value]} season={season} size={150} />}
+        </span>)}
+      </div>
     </div>
     <div className="profile-favorites-heading"><h2 id="profile-favorites-title">Избранное</h2>{owner && <Link to="/favorites">Изменить избранное →</Link>}</div>
     <p className="profile-muted">{owner ? 'За кем ты следишь в мире гонок.' : 'За кем следит участник в мире гонок.'}</p>

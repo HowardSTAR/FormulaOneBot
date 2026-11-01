@@ -17,6 +17,7 @@
   transition: none;
 }
 .account-shortcut svg { display: block; flex-shrink: 0; }
+.account-shortcut .account-shortcut-avatar { display: block; flex: 0 0 28px; width: 28px; height: 28px; object-fit: cover; border-radius: 50%; }
 .account-shortcut:hover { border-color: var(--design-line, #ffffff1a); background: var(--design-tint, #ffffff08); color: var(--design-ink, #fff); }
 .account-shortcut[data-active] { background: var(--design-tint, #e106000d); color: var(--design-accent, #ffb4a8); }
 .account-shortcut:focus-visible { outline: 2px solid var(--design-focus, #ffaaa2); outline-offset: 2px; }

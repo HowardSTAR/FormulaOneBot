@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../../helpers/api';
-import { avatarUrl, type Avatar, type AvatarOptions } from './avatar';
+import { avatarUrl, notifyAvatarChanged, type Avatar, type AvatarOptions } from './avatar';
 import AvatarImage from './AvatarImage';
 import AvatarPortrait from './AvatarPortrait';
 import { avatarSpritesReady, prepareAvatarSprites } from './avatarSprites';
@@ -94,6 +94,7 @@ export default function AvatarEditor({ value, options, style, styleOptions, tier
         await apiRequest('/api/profiles/me/avatar', draft, 'PATCH');
         setSavedAvatar(draft);
         onAvatarSave(draft);
+        notifyAvatarChanged(draft);
         avatarSaved = true;
       }
       if (JSON.stringify(styleDraft) !== JSON.stringify(savedStyle)) {

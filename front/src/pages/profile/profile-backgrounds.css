@@ -21,14 +21,12 @@
 .profile-trophies-backdrop img { position: absolute; width: clamp(140px,19vw,260px); height: auto; right: 7%; bottom: 5%; transform: rotate(14deg); }
 .profile-trophies-backdrop img:first-child { width: clamp(100px,13vw,180px); right: 22%; bottom: 15%; transform: rotate(-20deg); }
 .profile-trophies-backdrop img:last-child { width: clamp(90px,12vw,160px); right: -2%; bottom: 18%; transform: rotate(28deg); }
-.profile-favorites-backdrop { opacity: .16; }
-.profile-favorites-backdrop > svg { position: absolute; width: 190px; height: 190px; right: 31%; bottom: -20px; color: var(--design-rating-outline); transform: rotate(-14deg); stroke-width: 1; }
-.profile-favorites-backdrop > .team-logo { position: absolute; right: 12%; top: -20%; width: 240px; height: 240px; opacity: .55; transform: rotate(-12deg); }
-.profile-favorites-backdrop > .team-logo .team-logo-art { transform: scale(5); }
-.profile-favorites-portraits { position: absolute; right: 3%; bottom: -12%; display: flex; align-items: flex-end; gap: 0; }
-.profile-favorites-portraits .entrant-portrait { width: 160px; height: 220px; flex-basis: 160px; }
-.profile-favorites-portraits .entrant-portrait:first-child { margin-right: -36px; transform: translateY(25px); }
-.profile-favorites-portraits .entrant-portrait img { mask-image: linear-gradient(90deg,transparent,#000 18%,#000 80%,transparent),linear-gradient(#000 50%,transparent); mask-composite: intersect; }
+.profile-favorites-backdrop { opacity: .13; mask-image: linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent),linear-gradient(transparent,#000 14%,#000 86%,transparent); }
+.profile-favorites-backdrop > svg { position: absolute; width: 220px; height: 220px; left: 42%; top: 30%; color: var(--design-rating-outline); opacity: .3; transform: rotate(-14deg); stroke-width: 1; }
+.profile-favorites-collage { position: absolute; inset: 0 -2%; display: grid; grid-template-columns: repeat(var(--favorite-columns),minmax(0,1fr)); grid-auto-rows: minmax(0,1fr); align-items: center; justify-items: center; gap: 8px 0; }
+.profile-favorite-art { display: grid; place-items: center; min-width: 0; width: 100%; height: 100%; transform: translateY(var(--favorite-shift)); }
+.profile-favorites-portraits .entrant-portrait { width: min(100%,200px); height: min(100%,240px); min-height: 100px; transform: rotate(calc(var(--favorite-turn) / 3)); }
+.profile-favorites-teams > .team-logo { width: min(80%,150px); height: min(100%,150px); transform: rotate(var(--favorite-turn)); opacity: .8; }
 .profile-favorites-backdrop :is(.entrant-portrait > span,.team-logo-fallback) { display: none; }
 .profile-club-backdrop { opacity: .2; }
 .profile-club-backdrop .supporter-badge { position: absolute; width: 240px; height: 240px; right: 4%; top: -22px; margin: 0; transform: rotate(-14deg); }
@@ -37,11 +35,11 @@
   .profile-trophies-backdrop img { width: 180px; right: 2%; bottom: 1%; }
   .profile-trophies-backdrop img:first-child { width: 130px; right: 34%; bottom: 5%; }
   .profile-trophies-backdrop img:last-child { width: 110px; right: -3%; bottom: 9%; }
-  .profile-favorites-backdrop { opacity: .12; }
-  .profile-favorites-backdrop > svg { width: 150px; height: 150px; right: 28%; bottom: 7%; }
-  .profile-favorites-backdrop > .team-logo { right: -22%; top: 12%; }
-  .profile-favorites-portraits { right: -12%; bottom: 3%; }
-  .profile-favorites-portraits .entrant-portrait { width: 120px; height: 175px; flex-basis: 120px; }
+  .profile-favorites-backdrop { opacity: .11; }
+  .profile-favorites-backdrop > svg { width: 150px; height: 150px; left: 24%; top: 42%; }
+  .profile-favorites-collage { inset: 2% -4%; grid-template-columns: repeat(var(--favorite-mobile-columns),minmax(0,1fr)); }
+  .profile-favorites-portraits .entrant-portrait { height: min(100%,180px); }
+  .profile-favorites-teams > .team-logo { width: min(86%,110px); height: min(100%,110px); }
   .profile-club-backdrop { opacity: .16; }
   .profile-club-backdrop .supporter-badge { width: 200px; height: 200px; right: -8%; top: 0; }
 }
