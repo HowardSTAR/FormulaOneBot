@@ -59,6 +59,27 @@ artifacts/.coverage*
 # Local work sessions, downloaded QA dependencies and generated previews.
 .tmp/
 .vite/
+# Dependencies and generated builds are restored by npm, never versioned.
+**/node_modules/
+race-game/dist/
+front/public/race-game/
+.idea/
+.ruff_cache/
+
+# Images are restored from app-assets.zip before development or building.
+app/profile_avatar_assets/*.png
+art/password-racer/*.webp
+front/src/assets/**/*.png
+front/src/assets/**/*.webp
+front/public/**/*.png
+front/public/**/*.webp
+front/public/**/*.svg
+race-game/public/assets/*.png
+
+# Reproducible QA output.
+artifacts/**/*.log
+artifacts/**/*.xml
+artifacts/championship/
 artifacts/boosty/
 artifacts/race-message-preview/
 artifacts/championship-cards/

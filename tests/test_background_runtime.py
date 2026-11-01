@@ -15,6 +15,26 @@ from app.utils.process_lock import ProcessLock
 from scripts import backup_pull
 
 
+@pytest.mark.parametrize('platform', ['nt', 'posix'])
+async def test_backup_ssh_and_scp_never_open_an_interactive_console(monkeypatch, tmp_path, platform):
+    from types import SimpleNamespace
+    calls = []
+    def capture(command, **options):
+        calls.append((command, options))
+        return SimpleNamespace(stdout='[]')
+    monkeypatch.setattr(backup_pull, 'os', SimpleNamespace(name=platform))
+    monkeypatch.setattr(backup_pull.subprocess, 'CREATE_NO_WINDOW', 0x08000000, raising=False)
+    monkeypatch.setattr(backup_pull.subprocess, 'run', capture)
+    remote = backup_pull.SSH('user@example.test', '/backups')
+    assert remote.command('print("ok")') == '[]'
+    remote.download('backup.db.gz', tmp_path/'backup.db.gz')
+    assert [command[0] for command, _ in calls] == ['ssh', 'scp']
+    for command, options in calls:
+        assert 'BatchMode=yes' in command
+        assert options['stdin'] == backup_pull.subprocess.DEVNULL
+        assert options['creationflags'] == (0x08000000 if platform == 'nt' else 0)
+
+
 async def forecast_row(database, key='recover'):
     await database.conn.execute("INSERT INTO prediction_analytics(id,season,round,session,created_at,created_by) VALUES(?,2026,1,'race',?,1)", (key,time.time()))
     await database.conn.commit()

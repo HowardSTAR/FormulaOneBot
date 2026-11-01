@@ -13,7 +13,8 @@
 ## Локальный запуск
 
 ```bash
-npm install
+python ../scripts/pack_assets.py --extract
+npm ci
 npm run dev
 ```
 

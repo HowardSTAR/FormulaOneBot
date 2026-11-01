@@ -2,6 +2,7 @@
 import asyncio
 import base64
 import json
+import logging
 import os
 import time
 from contextlib import contextmanager
@@ -9,8 +10,10 @@ from contextvars import ContextVar
 from io import BytesIO
 
 from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InputMediaPhoto
+from aiogram.exceptions import TelegramBadRequest
 
 _capture = ContextVar('notification_capture', default=None)
+logger = logging.getLogger(__name__)
 
 
 def encode(value):
@@ -80,6 +83,31 @@ async def queued_photo(bot, chat_id, photo, *, delivery_key, expires=None, body=
     return True
 
 
+async def queued_illustrated_message(bot, chat_id, text, *, photos, delivery_key, expires=None, **kwargs):
+    """Keep artwork and full text in one durable delivery, with text last.
+
+    Albums have no inline keyboard and photo captions allow only 1024 chars.
+    The final text retains the button and the editable reminder receipt.
+    """
+    if not photos:
+        return await queued_message(bot, chat_id, text, delivery_key=delivery_key, expires=expires, **kwargs)
+    media_options = {key: value for key, value in kwargs.items()
+                     if key in {'disable_notification', 'message_thread_id', 'protect_content'}}
+    # Only the final text should produce the reminder's notification sound.
+    media_options['disable_notification'] = True
+    media_options['_optional_media'] = True
+    if len(photos) == 1:
+        method, media = 'send_photo', {'photo': photos[0]}
+    else:
+        method, media = 'send_media_group', {'media': [{'type': 'photo', 'media': photo} for photo in photos]}
+    actions = [
+        {'method': method, 'kwargs': encode({**media, **media_options})},
+        {'method': 'send_message', 'kwargs': encode({'text': text, **kwargs})},
+    ]
+    await queue_actions(f'{delivery_key}:{chat_id}', actions, [(chat_id, 'Europe/Moscow')], expires or time.time()+86400)
+    return True
+
+
 async def queued_rich_message(bot, chat_id, card, fallback_text, *, delivery_key, expires=None, **kwargs):
     # Rich blocks are a discriminated union: their default `type` values must
     # survive persistence. The generic legacy encoder omits model defaults.
@@ -108,6 +136,7 @@ async def dispatch(bot, row):
     step = progress[0] if progress else 0
     action = payload['actions'][step]
     kwargs = decode(action['kwargs'])
+    optional_media = kwargs.pop('_optional_media', False)
     if action['method'] == 'edit_message_text':
         from app.services.reminder_status import dispatch_reminder_edit
         return await dispatch_reminder_edit(bot, row, kwargs)
@@ -121,7 +150,6 @@ async def dispatch(bot, row):
     await _apply_sound_preference(row['telegram_id'],kwargs)
     if action['method'] == 'send_rich_message':
         from aiogram.types import InputRichMessage
-        from aiogram.exceptions import TelegramBadRequest
         from app.utils.telegram_presentation import feature_rejected, rich_enabled, fallback_actions
         fallback = kwargs.pop('_fallback_text')
         card = InputRichMessage.model_validate(kwargs.pop('rich_message'))
@@ -140,9 +168,18 @@ async def dispatch(bot, row):
                 await conn.commit()
             return 'retry', None, None, 0
     else:
-        result = await getattr(bot,action['method'])(chat_id=row['telegram_id'], **kwargs)
+        try:
+            result = await getattr(bot,action['method'])(chat_id=row['telegram_id'], **kwargs)
+        except TelegramBadRequest as exc:
+            if not optional_media or action['method'] not in {'send_photo', 'send_media_group'}:
+                raise
+            # A definite media rejection must not discard the reminder text.
+            from app.services.error_alerts import redact
+            logger.warning('Optional reminder artwork rejected for %s; continuing with text: %s',
+                           row['event_key'], redact(str(exc.message))[:300])
+            result = None
     message = result[0] if isinstance(result,list) else result
-    message_id = message.message_id if isinstance(message.message_id,int) else None
+    message_id = message.message_id if message is not None and isinstance(message.message_id,int) else None
     async with connection() as conn:
         await conn.execute('INSERT INTO delivery_progress VALUES(?,?,?) ON CONFLICT(event_key,recipient) DO UPDATE SET step=excluded.step', (row['event_key'],row['telegram_id'],step+1))
         await conn.commit()
