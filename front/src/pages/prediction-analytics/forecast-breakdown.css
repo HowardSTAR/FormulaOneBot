@@ -1,0 +1,98 @@
+/* Forecast data uses one table DOM, reflowing within the report column. */
+.pa-driver-tools{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:8px 0 16px}
+.pa-driver-tools>label{display:grid;gap:7px;min-width:0;flex:1 1 150px;color:var(--design-muted);font-size:.75rem}
+.pa-driver-tools>.pa-driver-search{flex:2 1 200px}
+#root .pa-driver-search input{box-sizing:border-box;width:100%;min-width:0;min-height:44px;padding:10px 12px;background:var(--design-surface);border:1px solid var(--design-control);border-radius:10px;font:inherit;font-size:.875rem;color:var(--design-ink);caret-color:var(--design-accent)}
+.pa-driver-search input::placeholder{color:var(--design-muted);opacity:1}
+#root .pa-driver-tools .pa-driver-direction{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;font-size:.75rem;padding:10px 12px;border-color:var(--design-line)}
+.pa-driver-direction svg{flex:none}
+.pa-driver-context{display:flex;align-items:start;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;font-size:.75rem;color:var(--design-muted)}
+.pa-driver-context p{margin:0;max-width:55ch;font-size:inherit}
+.pa-driver-context>span{flex:none}
+#root .pa-page .pa-driver-table{min-width:0;table-layout:fixed;width:100%;font-size:.8125rem;margin-bottom:20px}
+#root .pa-driver-table th,#root .pa-driver-table td{min-width:0;padding:14px 6px;border-bottom:1px solid var(--design-line);vertical-align:top;text-transform:none;font-size:inherit}
+#root .pa-driver-table thead th{font-size:.6875rem;font-weight:500;color:var(--design-muted);padding-block:8px}
+#root .pa-driver-table thead th:first-child{width:28%;padding-left:0}
+#root .pa-driver-table thead button{display:inline-flex;align-items:center;justify-content:start;gap:4px;border:0;border-radius:6px;padding:6px 0;background:transparent;font:inherit;color:inherit;text-align:left;min-height:44px;max-width:100%}
+#root .pa-driver-table thead button:hover{color:var(--design-accent);background:var(--design-tint)}
+#root .pa-driver-table thead [aria-sort=ascending],#root .pa-driver-table thead [aria-sort=descending]{color:var(--design-accent)}
+#root .pa-driver-table .pa-driver-identity{color:var(--design-ink);text-align:left;font-weight:400;padding-left:0}
+.pa-driver-identity summary{display:flex;align-items:start;gap:8px;list-style:none;min-height:44px}
+.pa-driver-identity summary::-webkit-details-marker{display:none}
+.pa-driver-identity summary>span:last-child{min-width:0;flex:1}
+.pa-driver-identity summary strong{font-size:.8125rem;line-height:1.4;display:block}
+#root .pa-driver-identity small{display:block;color:var(--design-muted);font-size:.6875rem;line-height:1.5;margin-top:4px}
+.pa-driver-code{font-family:'Space Grotesk',sans-serif;font-size:.6875rem;font-weight:600;line-height:1.4;color:var(--design-accent);background:var(--design-tint);padding:5px 4px;border-radius:5px;flex:none}
+
+
+.pa-driver-reasons{padding-top:12px;line-height:1.6;font-size:.75rem;color:var(--design-muted)}
+.pa-driver-reasons>span{font-weight:600;color:var(--design-ink)}
+#root .pa-driver-reasons ul{padding-left:16px;margin:8px 0 0;max-width:none}
+.pa-driver-reasons li{font-size:inherit;margin-bottom:6px}
+.pa-driver-table td strong{font-weight:550;font-size:.8125rem;line-height:1.5}
+.pa-driver-chance{color:var(--design-accent)}
+.pa-driver-bar{display:block;height:4px;border-radius:3px;background:var(--design-line);margin-top:8px;overflow:hidden}
+.pa-driver-bar i{display:block;height:100%;border-radius:inherit;background:var(--design-control)}
+.pa-driver-chance .pa-driver-bar i{background:var(--design-accent)}
+#root .pa-driver-table .pa-driver-position small{font-size:.6875rem;line-height:1.5;margin-top:4px;color:var(--design-muted)}
+.pa-driver-cell-label{display:none}
+.pa-driver-empty{padding:24px 16px;background:var(--design-bg);border-radius:12px;color:var(--design-muted);font-size:.875rem}
+.pa-scenario-overview{margin:8px 0 20px}
+.pa-scenario-distribution{display:flex;gap:4px;height:12px;overflow:hidden;border-radius:5px;background:var(--design-line)}
+.pa-scenario-distribution>span{background:var(--scenario-color);flex-shrink:1}
+.pa-scenario-overview figcaption{font-size:.75rem;line-height:1.7;color:var(--design-muted);max-width:65ch;margin-top:12px}
+.pa-scenario-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:16px 0 24px}
+.pa-scenario-card{min-width:0;border:1px solid var(--design-line);border-radius:12px;overflow:hidden}
+.pa-scenario-card>header{padding:16px;background:color-mix(in srgb,var(--scenario-color) 8%,var(--design-surface));border-bottom:1px solid var(--design-line)}
+#root .pa-scenario-card h3{display:flex;gap:8px;align-items:baseline;font-size:.875rem;line-height:1.5;margin:0;color:var(--design-ink);font-weight:600;letter-spacing:normal}
+.pa-scenario-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--scenario-color);flex:none}
+.pa-scenario-card header>strong{display:block;font-family:'Space Grotesk',sans-serif;color:var(--scenario-color);font-size:1.75rem;line-height:1.2;letter-spacing:-.03em;margin-top:12px}
+#root .pa-page .pa-scenario-why{font-size:.75rem;line-height:1.7;color:var(--design-muted);margin:0;padding:16px 16px 8px}
+#root .pa-page .pa-scenario-card h4{font-size:.6875rem;line-height:1.6;font-weight:500;color:var(--design-muted);margin:8px 16px;text-transform:none;letter-spacing:normal}
+.pa-scenario-card ol{list-style:none;padding:0 16px 12px;margin:0}
+.pa-scenario-card li{display:flex;align-items:baseline;gap:10px;min-width:0;padding:10px 0;border-top:1px solid var(--design-line)}
+.pa-scenario-place{font-family:'Space Grotesk',sans-serif;font-size:.75rem;color:var(--design-muted);flex:0 0 22px}
+.pa-scenario-card li>div{min-width:0}
+.pa-scenario-card li strong{font-size:.8125rem;font-weight:550;line-height:1.5;color:var(--design-ink);display:block}
+.pa-scenario-card li small{display:block;font-size:.6875rem;color:var(--design-muted);line-height:1.5;margin-top:3px}
+@container(max-width:40rem){
+  #root .pa-page .pa-driver-table{table-layout:auto;display:block}
+  .pa-driver-table thead{display:none}
+  .pa-driver-table tbody{display:grid;gap:12px}
+  #root .pa-driver-table tbody tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 12px;padding:16px;background:var(--design-bg);border-radius:12px;border:0}
+  #root .pa-driver-table th,#root .pa-driver-table td{padding:0;border:0;min-width:0}
+  #root .pa-driver-table .pa-driver-identity{grid-column:1/-1}
+  .pa-driver-identity summary{align-items:center;gap:12px}
+  .pa-driver-identity summary strong{font-size:.9375rem}
+  #root .pa-driver-identity small{font-size:.75rem}
+  .pa-driver-code{font-size:.75rem;padding:8px 6px}
+  #root .pa-driver-table .pa-driver-cell-label{display:block;font-size:.6875rem;color:var(--design-muted);margin-bottom:5px;line-height:1.5}
+  .pa-driver-table td strong{font-size:1rem}
+  #root .pa-driver-table .pa-driver-position{grid-column:span 2}
+  .pa-driver-reasons{font-size:.8125rem}
+  .pa-scenario-grid{grid-template-columns:1fr;gap:16px}
+  .pa-scenario-card>header{display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .pa-scenario-card header>strong{margin:0;font-size:1.75rem;flex:none}
+  .pa-scenario-card li strong{font-size:.875rem}
+}
+@container(max-width:22rem){
+  .pa-driver-tools>label,.pa-driver-tools>.pa-driver-search{flex-basis:100%}
+  #root .pa-driver-tools .pa-driver-direction{width:100%}
+  #root .pa-driver-table tbody tr{gap:16px 8px;padding:14px 12px}
+  .pa-scenario-card>header{flex-wrap:wrap}
+}
+@media(prefers-contrast:more){.pa-scenario-card{border-color:var(--design-control)}.pa-driver-bar{outline:1px solid var(--design-control)}}
+
+.pa-driver-expand{color:var(--design-muted);flex:none;margin-top:2px}
+.pa-driver-identity details[open]>summary .pa-driver-expand{transform:rotate(90deg)}
+#root .pa-page .pa-driver-context p,#root .pa-page .pa-driver-empty{color:var(--design-muted)}
+#root .pa-driver-identity small,#root .pa-driver-table .pa-driver-position small,.pa-scenario-card li small,#root .pa-page .pa-scenario-card h4{font-size:.75rem}
+
+@container(max-width:22rem){
+  #root .pa-driver-table tbody tr{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #root .pa-driver-table .pa-driver-position{grid-column:auto}
+  #root .pa-driver-table .pa-driver-cell-label{font-size:.75rem}
+  .pa-driver-table td strong{font-size:.875rem}
+}
+.pa-scenario-place{flex-basis:2em;white-space:nowrap}
+@container(max-width:22rem){#root .pa-driver-table .pa-driver-position{grid-column:1/-1}}

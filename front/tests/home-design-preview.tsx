@@ -1,3 +1,4 @@
+import { analyticsPreview } from './fixtures/prediction-analytics';
 import { adminPreview } from './fixtures/admin';
 // Vite-only visual fixture. Uses the real app with deterministic, fictional data.
 // No requests are sent to a backend, and no accounts or records are modified.
@@ -40,6 +41,7 @@ let podiumFailures = scenario === 'podium-error' ? 1 : 0;
 let contactFailures = scenario === 'contact-error' ? 1 : 0;
 let voteFailures = scenario === 'rating-error' ? 1 : 0;
 if (query.get('scale') === '2') document.documentElement.style.fontSize = '200%';
+const analyticsFixture = analyticsPreview(query);
 const realFetch = window.fetch.bind(window);
 const sessions = [
   { name: 'Практика 1', utc_iso: '2026-10-23T17:30:00Z' },
@@ -125,6 +127,10 @@ window.fetch = async (input, init) => {
     return asset ? new Response(await asset(), { headers: { 'Content-Type': 'image/svg+xml' } }) : new Response('', { status: 404 });
   }
   if (!url.pathname.startsWith('/api/')) return realFetch(input, init);
+  if (query.get('page') === 'prediction-analytics') {
+    const response = await analyticsFixture(url, init);
+    if (response) return response;
+  }
   if (query.get('page') === 'admin') {
     const response = await adminFixture(url, init);
     if (response) return response;
@@ -286,7 +292,7 @@ const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session', 'tab', 'championship']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
 const calendarQuery = new URLSearchParams();
 for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
-const resultRoutes = ['admin', 'community', 'notifications', 'driver-details', 'constructor-details', 'reaction-game', 'reflex-grid-game', 'race-game','contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
+const resultRoutes = ['prediction-analytics', 'admin', 'community', 'notifications', 'driver-details', 'constructor-details', 'reaction-game', 'reflex-grid-game', 'race-game','contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
 const resultQuery = new URLSearchParams(weekendQuery);
 for (const key of ['kind', 'ids', 'from', 'to', 'roster', 'code', 'driverId', 'constructorId']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
 if (query.has('section')) resultQuery.set('section', query.get('section')!);
