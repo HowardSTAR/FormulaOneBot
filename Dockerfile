@@ -15,6 +15,7 @@ COPY --from=asset-builder /unpacked/race-game/public ./public
 COPY app/race_tracks.json /app/race_tracks.json
 # The game shares the persisted theme with the website.
 COPY front/src/helpers/theme.ts /front/src/helpers/theme.ts
+COPY front/src/assets/design-system.css /front/src/assets/design-system.css
 RUN npm run build
 
 FROM node:20-alpine AS front-builder
