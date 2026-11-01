@@ -227,8 +227,9 @@ test('peer cards stretch by row across public and administrative sections withou
   assert.equal(cssValue(rows[0],'align-items'),'stretch');
   assert.equal(cssValue(rows[1],'align-self'),'stretch');
   assert.equal(cssValue(rows[1],'box-sizing'),'border-box');
+  // Community uses independent columns; stretching its unrelated panels is intentionally excluded.
   for (const group of ['next-race-desktop-stats','driver-stats-grid',
-    'compare-facts-grid','prediction-grid','settings-fields-grid','account-grid','community-grid','wiki-grid',
+    'compare-facts-grid','prediction-grid','settings-fields-grid','account-grid','wiki-grid',
     'pa-scenarios','admin-metric-grid','at-columns','control-metrics']) {
     for (const rule of rows) assert.ok(rule.selector.includes(`.${group}`),group);
   }
