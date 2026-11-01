@@ -1,7 +1,8 @@
+import { useMediaQuery } from '../../helpers/useMediaQuery';
 import { SelectField } from '../../components/CustomSelect';
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { apiRequest } from "../../helpers/api";
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import "./admin.css";
 import { AnalyticsDashboard } from "./AnalyticsDashboard";
 import { AdminNotifications, AdminToolDirectory } from "./AdminTools";
@@ -79,6 +80,7 @@ function formatDate(value: string | null): string {
 }
 
 export default function AdminPage() {
+  const compact = useMediaQuery('(max-width: 600px)');
   const [params, setParams] = useSearchParams();
   const tab = sections.find(section => section.id === params.get('section'))?.id || 'control';
   useEffect(() => { window.scrollTo(0,0); }, [tab]);
@@ -99,7 +101,13 @@ export default function AdminPage() {
   const filteredAudit = audit.filter(item => (auditAction === 'all' || item.action === auditAction) && `${item.target_user_id ?? ''} ${item.actor_email ?? ''} ${item.actor_telegram_id ?? ''} ${describeAuditChange(item.action, item.details)}`.toLowerCase().includes(auditSearch.toLowerCase().trim()));
   const [gameRecords, setGameRecords] = useState<GameRecordStats | null>(null);
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
+  const emailDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { if (editingUser) emailDialog.current?.showModal(); }, [editingUser]);
   const [emailDraft, setEmailDraft] = useState("");
+  const [emailError, setEmailError] = useState("");
+  useEffect(() => {
+    if (emailError) emailDialog.current?.querySelector<HTMLInputElement>('#admin-email')?.focus();
+  }, [emailError]);
   const [busy, setBusy] = useState(false);
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -195,18 +203,25 @@ export default function AdminPage() {
     );
   };
 
-  const submitEmail = () => {
-    if (!editingUser) return;
-    void runAction(
-      () => apiRequest(`/api/admin/users/${editingUser.id}/email`, { email: emailDraft }, "PATCH"),
-      "Email пользователя обновлён",
-    ).finally(() => setEditingUser(null));
+  const submitEmail = async () => {
+    if (!editingUser || busy) return;
+    setBusy(true);
+    setEmailError('');
+    try {
+      await apiRequest(`/api/admin/users/${editingUser.id}/email`, { email: emailDraft.trim() }, 'PATCH');
+    } catch (reason) {
+      setEmailError(reason instanceof Error ? reason.message : 'Не удалось сохранить email. Повторите попытку.');
+      setBusy(false);
+      return;
+    }
+    setEditingUser(null);
+    setMessage('Email пользователя обновлён');
+    setError('');
+    try { await loadUsers(); }
+    catch { setError('Email сохранён, но список пользователей не обновился. Повторите загрузку страницы.'); }
+    finally { setBusy(false); }
   };
 
-  const identityLabel = useMemo(
-    () => identity?.email || (identity?.telegram_id ? `TG ${identity.telegram_id}` : "Администратор"),
-    [identity],
-  );
   const toggleUserSort = (field: UserSortField) => {
     setPage(1);
     if (sortBy === field) {
@@ -225,23 +240,19 @@ export default function AdminPage() {
   return (
     <div className="admin-page">
       <header className="admin-hero">
-        <div>
-          <span className="admin-eyebrow">Управление проектом</span>
-          <h1>Админ-панель</h1>
-        </div>
+        <h1>Админ-панель</h1>
         <div className="admin-identity">
           <span>{identity?.role === 'superadmin' ? 'Супер-администратор' : identity ? 'Администратор' : 'Проверяем доступ…'}</span>
-          <strong>{identityLabel}</strong>
         </div>
       </header>
 
       <div className="admin-workspace">
       <label className="admin-mobile-section">Раздел админ-панели<SelectField value={tab} disabled={busy || recoveryBusy} onChange={event => setTab(event)}>{sections.map(section => <option key={section.id} value={section.id}>{section.label}</option>)}</SelectField></label>
       <nav className="admin-section-nav" aria-label="Разделы администрирования">
-        {sections.map(section => <button type="button" key={section.id} disabled={recoveryBusy || busy} onClick={() => setTab(section.id)} className={tab === section.id ? 'active' : undefined} aria-current={tab === section.id ? 'page' : undefined}><strong>{section.label}</strong><small>{section.hint}</small></button>)}
+        {sections.map(section => <Link key={section.id} to={`?section=${section.id}`} aria-disabled={recoveryBusy || busy || undefined} onClick={event => { if (recoveryBusy || busy) event.preventDefault(); else { setError(''); setMessage(''); } }} className={tab === section.id ? 'admin-section-link active' : 'admin-section-link'} aria-current={tab === section.id ? 'page' : undefined}><strong>{section.label}</strong><small>{section.hint}</small></Link>)}
       </nav>
       <div className="admin-workspace-content">
-      <header className="admin-section-heading"><span>Админ-панель / {activeSection.label}</span><h2>{activeSection.label}</h2><p>{activeSection.description}</p></header>
+      <header className="admin-section-heading"><h2>{activeSection.label}</h2><p>{activeSection.description}</p></header>
       {recoveryBusy && <p role="status">Проверка или пересчёт выполняется. Дождитесь завершения; проверку сезона можно остановить после текущего этапа.</p>}
 
       {(message || error) && (
@@ -263,6 +274,7 @@ export default function AdminPage() {
           <header className="admin-users-tools">
             <form onSubmit={(event) => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }}>
               <input
+                type="search" name="user-search" autoComplete="off"
                 value={searchInput}
                 onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Email, Telegram ID, имя…"
@@ -270,15 +282,21 @@ export default function AdminPage() {
               />
               <button type="submit">Найти</button>
             </form>
-            <SelectField value={roleFilter} onChange={(event) => { setPage(1); setRoleFilter(event as typeof roleFilter); }}>
+            <SelectField aria-label="Роль пользователя" value={roleFilter} onChange={(event) => { setPage(1); setRoleFilter(event as typeof roleFilter); }}>
               <option value="all">Все роли</option>
               <option value="user">Участники</option>
               <option value="admin">Администраторы</option>
               <option value="superadmin">Супер-администраторы</option>
             </SelectField>
-            <span>{userPage ? `Найдено: ${userPage.total}` : 'Загружаем пользователей…'}</span>
+            <span role="status">{userPage ? `Найдено: ${userPage.total}` : 'Загружаем пользователей…'}</span>
           </header>
-          <div className="admin-table-wrap">
+          {userPage?.items.length === 0 && <p className="admin-empty">Пользователи не найдены. Измените поиск или роль.</p>}
+          <label className="admin-user-sort">Сортировка<SelectField value={`${sortBy}:${sortOrder}`} onChange={value => { const [field, order] = value.split(':'); setSortBy(field as UserSortField); setSortOrder(order as SortOrder); setPage(1); }}>
+            <option value="last_activity:desc">Сначала активные</option><option value="last_activity:asc">Сначала давно не заходившие</option>
+            <option value="created_at:desc">Сначала новые</option><option value="created_at:asc">Сначала ранние регистрации</option>
+            <option value="role:asc">Роль по возрастанию</option><option value="role:desc">Роль по убыванию</option>
+          </SelectField></label>
+          <div className="admin-table-wrap" role="region" aria-label="Таблица пользователей" tabIndex={0}>
             <table>
               <thead>
                 <tr>
@@ -286,17 +304,17 @@ export default function AdminPage() {
                   <th>Пользователь</th>
                   <th>Telegram</th>
                   <th aria-sort={sortBy === "created_at" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>
-                    <button type="button" className="admin-sort-button" onClick={() => toggleUserSort("created_at")}>
+                    <button type="button" tabIndex={compact ? -1 : 0} className="admin-sort-button" onClick={() => toggleUserSort("created_at")}>
                       Регистрация {sortIndicator("created_at")}
                     </button>
                   </th>
                   <th aria-sort={sortBy === "last_activity" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>
-                    <button type="button" className="admin-sort-button" onClick={() => toggleUserSort("last_activity")}>
+                    <button type="button" tabIndex={compact ? -1 : 0} className="admin-sort-button" onClick={() => toggleUserSort("last_activity")}>
                       Активность {sortIndicator("last_activity")}
                     </button>
                   </th>
                   <th aria-sort={sortBy === "role" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>
-                    <button type="button" className="admin-sort-button" onClick={() => toggleUserSort("role")}>
+                    <button type="button" tabIndex={compact ? -1 : 0} className="admin-sort-button" onClick={() => toggleUserSort("role")}>
                       Роль {sortIndicator("role")}
                     </button>
                   </th>
@@ -321,7 +339,7 @@ export default function AdminPage() {
                     <td data-label="Роль"><span className={`admin-role role-${user.role}`}>{user.role==='superadmin'?'Супер-администратор':user.role==='admin'?'Администратор':'Участник'}</span></td>
                     <td data-label="Действия">
                       <details className="admin-user-actions"><summary>Действия · {user.display_name || 'участник'}</summary><div className="admin-actions">
-                        <button disabled={busy || user.protected} onClick={() => { setEditingUser(user); setEmailDraft(user.email || ""); }}>Email</button>
+                        <button disabled={busy || user.protected} onClick={() => { setEmailError(''); setEditingUser(user); setEmailDraft(user.email || ""); }}>Email</button>
                         <button disabled={busy || user.protected || !user.telegram_id} onClick={() => unlinkTelegram(user)}>Отвязать TG</button>
                         <button disabled={busy || user.protected || !user.email} onClick={() => sendReset(user)}>Сброс пароля</button>
                         <button
@@ -355,7 +373,6 @@ export default function AdminPage() {
         <section className="admin-games-card">
           <header className="admin-games-header">
             <div>
-              <span className="admin-eyebrow">Таблицы лидеров</span>
               <h2>Игровые результаты</h2>
               <p>Удаляются только результаты. Имена, настройки участия и аккаунты игроков сохраняются.</p>
             </div>
@@ -425,18 +442,20 @@ export default function AdminPage() {
 
       </div></div>
       {editingUser && (
-        <div className="admin-modal-backdrop" role="presentation" onMouseDown={() => setEditingUser(null)}>
-          <div className="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-email-title" onMouseDown={(event) => event.stopPropagation()}>
-            <span>Пользователь #{editingUser.id}</span>
+        <dialog ref={emailDialog} className="admin-modal" aria-labelledby="admin-email-title" onCancel={event => { if (busy) event.preventDefault(); else setEditingUser(null); }}>
+          <form onSubmit={event => { event.preventDefault(); void submitEmail(); }} aria-busy={busy}>
+            <p className="admin-modal-user">Пользователь #{editingUser.id}</p>
             <h2 id="admin-email-title">Изменить email</h2>
-            <input type="email" value={emailDraft} onChange={(event) => setEmailDraft(event.target.value)} autoFocus />
+            <label htmlFor="admin-email">Email</label>
+            <input id="admin-email" name="email" autoComplete="off" spellCheck={false} type="email" required disabled={busy} aria-invalid={!!emailError} aria-describedby={emailError ? "admin-email-error" : undefined} value={emailDraft} onChange={(event) => setEmailDraft(event.target.value)} autoFocus />
+            {emailError && <p id="admin-email-error" className="admin-email-error" role="alert">{emailError}</p>}
             <p>Изменение выполняется как доверенное действие администратора и попадёт в audit log.</p>
             <div>
-              <button onClick={() => setEditingUser(null)}>Отмена</button>
-              <button disabled={busy || !emailDraft.trim()} onClick={submitEmail}>Сохранить</button>
+              <button type="button" disabled={busy} onClick={() => setEditingUser(null)}>Отмена</button>
+              <button type="submit" disabled={busy || !emailDraft.trim()}>{busy ? 'Сохраняем…' : 'Сохранить'}</button>
             </div>
-          </div>
-        </div>
+          </form>
+        </dialog>
       )}
     </div>
   );

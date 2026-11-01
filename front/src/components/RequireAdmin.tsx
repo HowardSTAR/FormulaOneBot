@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest, ApiError } from "../helpers/api";
 import { PageFeedback } from './PageFeedback';
+import './admin-access.css';
 
 export function RequireAdmin({ children }: { children: ReactNode }) {
   const [result, setResult] = useState<{ attempt: number; status: "allowed" | "denied" | "error" } | null>(null);
