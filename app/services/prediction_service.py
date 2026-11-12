@@ -602,8 +602,8 @@ async def score_prediction_round(
         await db.connect()
 
     result_values = [answers.get(field) for field in PREDICTION_FIELDS]
-    async with db.write_lock:
-        await db.conn.execute(
+    async with db.transaction() as conn:
+        await conn.execute(
             """
             INSERT INTO prediction_round_results(
                 season, round, event_name, sprint_pole_driver, sprint_winner_driver,
@@ -634,11 +634,11 @@ async def score_prediction_round(
             saved_facts['championship'] = answers['_championship']
         if answers.get("_race_positions"):
             saved_facts["race_positions"] = dict(answers["_race_positions"])
-        await db.conn.execute(
+        await conn.execute(
             "UPDATE prediction_round_results SET race_facts_json=? WHERE season=? AND round=?",
             (json.dumps(saved_facts or None, ensure_ascii=False), int(season), int(round_num)),
         )
-        async with db.conn.execute(
+        async with conn.execute(
             "SELECT user_id, " + ", ".join(PREDICTION_FIELDS) +
             " FROM race_predictions WHERE season = ? AND round = ?",
             (int(season), int(round_num)),
@@ -646,15 +646,13 @@ async def score_prediction_round(
             predictions = await cursor.fetchall()
         for prediction in predictions:
             points = calculate_prediction_points(prediction, answers)
-            await db.conn.execute(
+            await conn.execute(
                 """
                 UPDATE race_predictions SET points = ?, max_points = ?, breakdown_json = ?, scored_at = CURRENT_TIMESTAMP
                 WHERE user_id = ? AND season = ? AND round = ?
                 """,
                 (points, max_points, json.dumps(prediction_breakdown(prediction, answers), ensure_ascii=False), prediction["user_id"], int(season), int(round_num)),
             )
-
-        await db.conn.commit()
 
     return {"max_points": max_points, "available_fields": available_fields, "scored": len(predictions)}
 
@@ -801,12 +799,11 @@ async def mark_notification_state(season: int, round_num: int, field: str) -> No
         raise ValueError("Некорректное поле состояния уведомления")
     if not db.conn:
         await db.connect()
-    async with db.write_lock:
-        await db.conn.execute(
+    async with db.transaction() as conn:
+        await conn.execute(
             f"""
             INSERT INTO prediction_notification_state(season, round, {field}) VALUES(?, ?, 1)
             ON CONFLICT(season, round) DO UPDATE SET {field}=1
             """,
             (int(season), int(round_num)),
         )
-        await db.conn.commit()

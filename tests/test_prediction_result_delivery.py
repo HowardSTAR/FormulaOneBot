@@ -167,3 +167,48 @@ async def test_enqueue_failure_retries_saved_score_after_restart(prediction_deli
     await n.check_and_notify_predictions(bot, not_before=now)
     bot.send_message.assert_awaited_once()
     n.get_race_results_async.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_restart_suppression_scores_without_either_notification_channel(prediction_delivery):
+    database, now, _, bot = prediction_delivery
+    await n.check_and_notify_predictions(bot, not_before=now, suppress_result_backlog=True)
+    bot.send_message.assert_not_awaited()
+    assert (await get_notification_state(now.year, 17))['results_sent']
+    row = await (await database.conn.execute('SELECT points FROM race_predictions')).fetchone()
+    assert row['points'] is not None
+    assert (await (await database.conn.execute('SELECT COUNT(*) FROM web_notifications')).fetchone())[0] == 0
+    # The skipped result stays skipped on later scheduler ticks.
+    await n.check_and_notify_predictions(bot, not_before=now, suppress_result_backlog=True)
+    bot.send_message.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_state_writer_survives_shared_stale_wal_snapshot(prediction_delivery):
+    import aiosqlite
+    database, now, _, _ = prediction_delivery
+    await database.conn.execute('BEGIN')
+    await (await database.conn.execute('SELECT COUNT(*) FROM prediction_notification_state')).fetchone()
+    async with aiosqlite.connect(database.db_path) as other:
+        await other.execute('UPDATE prediction_notification_state SET closing_sent=0')
+        await other.commit()
+    # Upgrading database.conn here would raise SQLITE_BUSY_SNAPSHOT indefinitely.
+    await mark_notification_state(now.year, 17, 'results_sent')
+    await database.conn.rollback()
+    assert (await get_notification_state(now.year, 17))['results_sent']
+
+
+@pytest.mark.asyncio
+async def test_scoring_survives_shared_stale_wal_snapshot(prediction_delivery):
+    import aiosqlite
+    from app.services.prediction_service import score_prediction_round
+    database, now, _, _ = prediction_delivery
+    await database.conn.execute('BEGIN')
+    await (await database.conn.execute('SELECT COUNT(*) FROM race_predictions')).fetchone()
+    async with aiosqlite.connect(database.db_path) as other:
+        await other.execute("UPDATE race_predictions SET winner_driver='NOR'")
+        await other.commit()
+    await score_prediction_round(now.year, 17, 'Delivery GP', {'winner_driver': 'NOR'})
+    await database.conn.rollback()
+    row = await (await database.conn.execute('SELECT points FROM race_predictions')).fetchone()
+    assert row['points'] > 0

@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 import os
 import asyncio
 import json
@@ -51,6 +52,21 @@ class Database:
             # Publish only a fully configured connection, not a half-open one.
             self.conn = connection
             logger.info("Database connection established (WAL mode enabled).")
+
+    @asynccontextmanager
+    async def transaction(self):
+        """An isolated writer cannot inherit a stale WAL read snapshot from a job."""
+        async with self.write_lock:
+            async with aiosqlite.connect(self.db_path, timeout=30) as conn:
+                conn.row_factory = aiosqlite.Row
+                await conn.execute("PRAGMA foreign_keys = ON")
+                await conn.execute("BEGIN IMMEDIATE")
+                try:
+                    yield conn
+                    await conn.commit()
+                except BaseException:
+                    await conn.rollback()
+                    raise
 
     async def close(self):
         """Закрывает соединение."""

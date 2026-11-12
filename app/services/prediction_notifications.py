@@ -215,7 +215,8 @@ async def _send_prediction_closing(bot: Bot, event: dict, users: list[tuple]) ->
     return True  # Safely enqueued, not a claim that every recipient received it.
 
 
-async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None = None) -> None:
+async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None = None,
+                                      suppress_result_backlog: bool = False) -> None:
     """Invites at FP1 and scores the stage after race results become ready."""
     now = datetime.now(timezone.utc)
     season = now.year
@@ -332,7 +333,7 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
         provisional = not expected.issubset(set(score_info.get("available_fields") or []))
         # Recover recent unsent results after restarts, while suppressing old backlog.
         skipped_result = (not_before is not None and race_at + timedelta(hours=3) < not_before
-                          and not recoverable)
+                          and (suppress_result_backlog or not recoverable))
         sent = 0 if skipped_result else await _send_prediction_results(
             bot, {**event, "season": season}, top, notification_users, provisional=provisional,
         )

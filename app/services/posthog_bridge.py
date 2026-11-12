@@ -67,6 +67,16 @@ async def confirmed_prediction(database, visitor, user_id, season, round_num):
         log.warning('Could not queue prediction analytics; prediction was saved')
 
 async def flush(database, session):
+    from app.db import Database
+    isolated = Database(database.db_path)
+    try:
+        await isolated.connect()
+        await _flush(isolated, session)
+    finally:
+        await isolated.close()
+
+
+async def _flush(database, session):
     now = time.time()
     async with database.write_lock:
         await database.conn.execute('DELETE FROM posthog_outbox WHERE created<?',(now-30*86400,))
