@@ -56,6 +56,30 @@ async def queue(temp_db_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_broadcast_only_drain_leaves_other_notifications_pending(queue):
+    for key in ('reminder:race', 'broadcast:confirmed', 'broadcast-other'):
+        await outbox.enqueue(key, key, None, [(1, 'UTC')], time.time()+1000)
+    bot = SimpleNamespace(send_message=AsyncMock(return_value=SimpleNamespace(message_id=1)))
+    await outbox.drain(bot, event_prefix='broadcast:')
+    assert [call.kwargs['text'] for call in bot.send_message.await_args_list] == ['broadcast:confirmed']
+    assert await outbox.delivery_counts('broadcast:confirmed') == {'sent': 1}
+    assert await outbox.delivery_counts('reminder:race') == {'pending': 1}
+    assert await outbox.delivery_counts('broadcast-other') == {'pending': 1}
+
+
+@pytest.mark.asyncio
+async def test_vps_worker_delivers_only_confirmed_broadcasts(queue):
+    from deploy.vps.jenkins.broadcast_worker import deliver_pending
+    for key in ('reminder:race', 'broadcast:confirmed', 'broadcast-other'):
+        await outbox.enqueue(key, key, None, [(1, 'UTC')], time.time()+1000)
+    bot = SimpleNamespace(send_message=AsyncMock(return_value=SimpleNamespace(message_id=1)))
+    await deliver_pending(bot)
+    assert [call.kwargs['text'] for call in bot.send_message.await_args_list] == ['broadcast:confirmed']
+    assert await outbox.delivery_counts('reminder:race') == {'pending': 1}
+    assert await outbox.delivery_counts('broadcast-other') == {'pending': 1}
+
+
+@pytest.mark.asyncio
 async def test_restart_dedup_audience_and_rate_limit(queue):
     key = 'test:1'
     await outbox.enqueue(key, 'Original', None, [(1,'UTC'),(2,'UTC')], time.time()+1000)

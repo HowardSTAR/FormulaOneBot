@@ -90,7 +90,7 @@ async def prune_payloads():
         await conn.commit()
 
 
-async def drain(bot=None, *, event_key=None, limit=50):
+async def drain(bot=None, *, event_key=None, event_prefix=None, limit=50):
     for _ in range(limit):
         now = time.time()
         async with connection() as conn:
@@ -103,8 +103,11 @@ async def drain(bot=None, *, event_key=None, limit=50):
             await conn.execute("UPDATE telegram_deliveries SET status='cancelled',updated=? WHERE status IN ('pending','retry') AND event_key NOT IN (SELECT event_key FROM delivery_payloads WHERE channel='webpush') AND ((telegram_id>0 AND NOT EXISTS (SELECT 1 FROM users u WHERE u.telegram_id=telegram_deliveries.telegram_id AND u.archived_at IS NULL)) OR (telegram_id<0 AND NOT EXISTS (SELECT 1 FROM group_chats g WHERE g.chat_id=telegram_deliveries.telegram_id)))", (now,))
             row = await (await conn.execute(
                 "SELECT d.*,b.text,b.keyboard,b.expires,p.channel,p.payload FROM telegram_deliveries d JOIN telegram_delivery_batches b USING(event_key) LEFT JOIN delivery_payloads p USING(event_key) "
-                "WHERE d.status IN ('pending','retry') AND d.next_attempt<=? AND (? IS NULL OR d.event_key=?) AND (p.channel='webpush' OR ?) ORDER BY d.next_attempt,d.updated LIMIT 1",
-                (now,event_key,event_key,bool(bot is not None and telegram_ready)))).fetchone()
+                "WHERE d.status IN ('pending','retry') AND d.next_attempt<=? AND (? IS NULL OR d.event_key=?) "
+                "AND (? IS NULL OR substr(d.event_key,1,length(?))=?) "
+                "AND (p.channel='webpush' OR ?) ORDER BY d.next_attempt,d.updated LIMIT 1",
+                (now,event_key,event_key,event_prefix,event_prefix,event_prefix,
+                 bool(bot is not None and telegram_ready)))).fetchone()
             if row:
                 await conn.execute("UPDATE telegram_deliveries SET status='sending',attempts=attempts+1,updated=? WHERE event_key=? AND telegram_id=?", (now,row['event_key'],row['telegram_id']))
             await conn.commit()

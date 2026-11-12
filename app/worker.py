@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-async def run():
+async def run(*, broadcast_only: bool = False):
     import logging
     from datetime import datetime, timezone
 
@@ -105,6 +105,9 @@ async def run():
                     ('posthog', 15, flush, (db, http), {}, True),
                     ('boosty', 15, boosty.poll, (), {}, True),
                 ]
+                if broadcast_only:
+                    jobs = [('telegram_outbox', 5, drain, (bot,),
+                             {'event_prefix': 'broadcast:'}, True)]
                 for name, interval, function, args, kwargs, immediate in jobs:
                     await operations.register_job(name, interval)
                     options = {'next_run_time': started} if immediate else {}
@@ -137,12 +140,14 @@ async def run():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true', help='Probe the persisted worker heartbeat')
+    parser.add_argument('--broadcast-only', action='store_true',
+                        help='Deliver confirmed broadcasts without running scheduled notifications')
     args = parser.parse_args()
     if args.check:
         from app.db import DB_PATH
         from app.services.operations import worker_ready
         raise SystemExit(0 if worker_ready(DB_PATH) else 1)
-    asyncio.run(run())
+    asyncio.run(run(broadcast_only=args.broadcast_only))
 
 
 if __name__ == '__main__':
