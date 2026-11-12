@@ -81,6 +81,8 @@ RUN pip install --no-cache-dir --prefer-binary --no-compile -r requirements.txt
 
 COPY --from=asset-builder /unpacked/app/ ./app/
 COPY app/ ./app/
+# Keep the optional VPS broadcast worker available in the runtime image.
+COPY deploy/vps/jenkins/broadcast_worker.py ./deploy/vps/jenkins/broadcast_worker.py
 COPY run_web.py .
 
 COPY --from=front-builder /front/dist ./front/dist
