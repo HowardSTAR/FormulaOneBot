@@ -1,0 +1,19 @@
+# Merge with docker-compose-build.yml. Paths resolve from the repository root.
+# Notification processes are opt-in during this fresh-database deployment.
+services:
+  bot:
+    profiles: []
+  worker:
+    profiles: []
+    command: ["python", "-m", "app.worker"]
+  nginx:
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--spider", "--header=Host: f1hub.ru", "http://127.0.0.1/health"]
+    depends_on: !override
+      web:
+        condition: service_healthy
+      web-new:
+        condition: service_healthy
+    volumes:
+      - ./deploy/vps/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro

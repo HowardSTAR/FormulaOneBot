@@ -10,8 +10,13 @@ from pathlib import Path
 
 def main(reports=Path('/reports')):
     totals = dict(tests=0, failures=0, errors=0, skipped=0)
+    incomplete = False
     for path in reports.glob('*.xml'):
-        root = ET.parse(path).getroot()
+        try:
+            root = ET.parse(path).getroot()
+        except (ET.ParseError, OSError):
+            incomplete = True
+            continue
         # Node emits testcases directly under testsuites; pytest nests them.
         # Count individual cases so both layouts work without counting totals twice.
         for case in root.iter('testcase'):
@@ -21,7 +26,10 @@ def main(reports=Path('/reports')):
     result = os.environ.get('CI_RESULT', 'UNKNOWN')
     deployment = 'not_started'
     if (reports / 'deployment.json').exists():
-        deployment = json.loads((reports / 'deployment.json').read_text())['status']
+        try:
+            deployment = json.loads((reports / 'deployment.json').read_text())['status']
+        except (ValueError, OSError, KeyError, TypeError):
+            deployment = 'unknown'
     deployment_text = {
         'not_started': 'Приложение не обновлялось.',
         'unchanged': 'Приложение уже использует проверенный образ.',
@@ -30,7 +38,7 @@ def main(reports=Path('/reports')):
         'deployed': 'Приложение обновлено, проверка запуска успешна.',
         'rolled_back': 'Ошибка развёртывания. Предыдущая версия восстановлена.',
         'rollback_failed': 'Ошибка развёртывания и отката. Требуется вмешательство администратора.',
-    }[deployment]
+    }.get(deployment, 'Статус развёртывания не подтверждён; проверь журнал Jenkins.')
     commit = (reports / 'commit.txt').read_text().strip()[:12] if (reports / 'commit.txt').exists() else 'unknown'
     text = (
         f'F1Hub · Jenkins #{os.environ.get("BUILD_NUMBER", "?")} · {result}\n'
@@ -38,6 +46,7 @@ def main(reports=Path('/reports')):
         f'Тестов: {totals["tests"]}; ошибок: {totals["failures"] + totals["errors"]}; '
         f'пропущено: {totals["skipped"]}\n'
         f'Длительность: {os.environ.get("CI_DURATION", "?").replace(" and counting", "")}\n'
+        + ('Часть отчётов о тестах недоступна.\n' if incomplete else '') +
         f'{deployment_text}\n{os.environ.get("BUILD_URL", "https://jenkins.f1hub.ru/")}'
     )
     request = urllib.request.Request(

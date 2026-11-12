@@ -52,6 +52,16 @@ class NotificationTests(unittest.TestCase):
         self.assertIn('delivered', self.output.getvalue())
         self.assertNotIn('private', self.output.getvalue())
 
+    def test_interrupted_reports_still_deliver_failure_notification(self):
+        (self.reports / 'frontend.xml').write_text('<testsuites>')
+        (self.reports / 'deployment.json').write_text('{"status":')
+        self.urlopen.return_value = self.success()
+        notify.main(self.reports)
+        text = json.loads(self.urlopen.call_args.args[0].data)['text']
+        self.assertIn('FAILURE', text)
+        self.assertIn('Часть отчётов о тестах недоступна.', text)
+        self.assertIn('Статус развёртывания не подтверждён', text)
+
     def test_http_error_has_safe_diagnostic_and_nonzero_exit(self):
         self.urlopen.side_effect = urllib.error.HTTPError(
             'https://example.test/secret-test-token', 401, 'secret-test-token', None, None)

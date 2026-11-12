@@ -43,6 +43,9 @@ secrets
 *.db
 *.db-shm
 *.db-wal
+*.db.gz
+*.db.json
+restore-*
 *.sqlite
 *.sqlite3
 data

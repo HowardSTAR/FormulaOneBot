@@ -1,0 +1,74 @@
+pipeline {
+    agent { node { label 'f1hub-vps'; customWorkspace '/srv/jenkins-workspace/F1Hub-main' } }
+    options {
+        disableConcurrentBuilds()
+        skipDefaultCheckout(true)
+        timestamps()
+        timeout(time: 90, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '10'))
+    }
+    parameters { booleanParam(name: 'DEPLOY', defaultValue: false, description: 'Deploy after successful checks on a manual run') }
+    triggers { pollSCM('H/2 * * * *') }
+    environment {
+        APP_IMAGE = "formulaonebot-ci:${BUILD_NUMBER}"
+        CI_SCRIPTS = '/opt/f1hub-ci'
+        F1HUB_APP_DIR = '/opt/f1hub'
+        F1HUB_COMPOSE_OVERLAY = 'deploy/vps/compose.yml'
+        CI_LIVE_TESTS = '0'
+    }
+    stages {
+        stage('Checkout main') {
+            steps {
+                deleteDir()
+                checkout([$class: 'GitSCM', branches: [[name: '*/main']],
+                    userRemoteConfigs: [[url: 'https://github.com/HowardSTAR/FormulaOneBot.git',
+                        refspec: '+refs/heads/main:refs/remotes/origin/main']],
+                    extensions: [[$class: 'CloneOption', shallow: true, depth: 2,
+                        noTags: true, honorRefspec: true, timeout: 10]]])
+                sh 'mkdir -p reports .ci-data; git rev-parse HEAD > reports/commit.txt'
+            }
+        }
+        stage('Build candidate') { steps { sh 'bash "$CI_SCRIPTS/run-ci.sh" build' } }
+        stage('Frontend and game tests') {
+            steps { sh 'bash "$CI_SCRIPTS/run-ci.sh" frontend' }
+            post { always { junit allowEmptyResults: true, testResults: 'reports/frontend.xml,reports/game.xml' } }
+        }
+        stage('Python tests') {
+            steps { sh 'bash "$CI_SCRIPTS/run-ci.sh" python' }
+            post { always { junit allowEmptyResults: true, testResults: 'reports/pytest.xml' } }
+        }
+        stage('Isolated startup check') { steps { sh 'bash "$CI_SCRIPTS/run-ci.sh" smoke' } }
+        stage('Deploy verified image') {
+            when { expression { params.DEPLOY || currentBuild.getBuildCauses('hudson.triggers.SCMTrigger$SCMTriggerCause').size() > 0 } }
+            steps {
+                sh '''
+                    set -eu
+                    current=$(git ls-remote origin refs/heads/main | cut -f1)
+                    if [ "$current" = "$(git rev-parse HEAD)" ]; then
+                        bash "$CI_SCRIPTS/run-ci.sh" deploy
+                    else
+                        printf '{"status":"superseded"}\n' > reports/deployment.json
+                    fi
+                '''
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts allowEmptyArchive: true, artifacts: 'reports/**/*'
+            script {
+                warnError(message: 'Telegram report delivery failed; build result is preserved.', catchInterruptions: false) {
+                    withCredentials([
+                        string(credentialsId: 'ci-telegram-bot-token', variable: 'TELEGRAM_BOT_TOKEN'),
+                        string(credentialsId: 'ci-telegram-admin-id', variable: 'TELEGRAM_CHAT_ID')
+                    ]) {
+                        withEnv(["CI_RESULT=${currentBuild.currentResult}", "CI_DURATION=${currentBuild.durationString}"]) {
+                            sh 'bash "$CI_SCRIPTS/run-ci.sh" notify'
+                        }
+                    }
+                }
+            }
+        }
+        cleanup { sh 'bash "$CI_SCRIPTS/run-ci.sh" cleanup'; deleteDir() }
+    }
+}

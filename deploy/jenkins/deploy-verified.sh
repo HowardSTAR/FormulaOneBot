@@ -1,7 +1,11 @@
 #!/bin/sh
 set -eu
-cd /root/FormulaOneBot
+cd "${F1HUB_APP_DIR:-/root/FormulaOneBot}"
 compose() {
+  if [ -n "${F1HUB_COMPOSE_OVERLAY:-}" ]; then
+    docker compose -f docker-compose-build.yml -f "$F1HUB_COMPOSE_OVERLAY" "$@"
+    return
+  fi
   if [ -f docker-compose.network.yml ]; then
     docker compose -f docker-compose-build.yml -f docker-compose.network.yml "$@"
   else
@@ -24,14 +28,27 @@ fi
 # catch missing secrets, HTTP origins or insecure mail settings on the host.
 printf '%s\n' 'services:' '  web:' "    image: $candidate" | \
   compose -f - run --rm --no-deps --pull never -T --entrypoint python web -c \
-  'from app.security import validate_production_security; validate_production_security(); print("Production security configuration validated.")'
+  'from app.security import validate_production_security
+validate_production_security()
+import os
+from datetime import datetime, timezone, timedelta
+until = os.getenv("PREDICTION_RACE_DAY_EXCEPTION_UNTIL")
+if until and datetime.now(timezone.utc) < datetime.fromisoformat(until.replace("Z", "+00:00")):
+ from app.services.prediction_service import get_prediction_window
+ end = datetime.fromisoformat(until.replace("Z", "+00:00"))
+ spec = os.environ["PREDICTION_RACE_DAY_EXCEPTION"].split(":")
+ event = {"round": int(spec[1]), "race_start_utc": end.isoformat(), "practice1_start_utc": (end-timedelta(days=2)).isoformat(), "quali_start_utc": (end-timedelta(days=1)).isoformat()}
+ assert get_prediction_window(event)[1] == end, "Candidate would remove the active race-day prediction exception"
+print("Production security configuration validated.")'
 
 docker exec formulaonebot-web-1 python -c '
 import os,sqlite3,pathlib
 p=pathlib.Path("/app/data/ci-backups"); p.mkdir(exist_ok=True)
 src=sqlite3.connect(os.environ.get("DATABASE_PATH","/app/data/bot.db"),timeout=30)
 dst=sqlite3.connect(p/"before-last-deploy.db")
-with dst: src.backup(dst)
+with dst:
+ src.backup(dst)
+ assert dst.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
 dst.close(); src.close()
 '
 docker tag "$previous" formulaonebot-rollback:previous

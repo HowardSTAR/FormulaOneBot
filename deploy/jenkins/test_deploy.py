@@ -39,7 +39,7 @@ class DeploymentTests(unittest.TestCase):
     def setUpClass(cls):
         cls.shell = shell_path('sh')
 
-    def scenario(self, mode, network_override=False):
+    def scenario(self, mode, network_override=False, vps_overlay=False):
         with tempfile.TemporaryDirectory(prefix='f1hub-ci-validation-') as tmp:
             root = Path(tmp)
             (root / 'reports').mkdir()
@@ -47,10 +47,10 @@ class DeploymentTests(unittest.TestCase):
                 (root / 'docker-compose.network.yml').write_text('services: {}\n')
             write_fake_cli(root / 'docker', FAKE_DOCKER)
             script = Path(__file__).with_name('deploy-verified.sh').read_text()
-            script = script.replace('cd /root/FormulaOneBot', 'cd "$VALIDATION_DIR"')
             script = script.replace('/reports/deployment.json', '"$VALIDATION_DIR/reports/deployment.json"')
             env = cli_environment(root, VALIDATION_DIR=str(root), VALIDATION_MODE=mode,
-                                  APP_IMAGE='ci:test', BUILD_NUMBER='test')
+                                  APP_IMAGE='ci:test', BUILD_NUMBER='test', F1HUB_APP_DIR=str(root),
+                                  F1HUB_COMPOSE_OVERLAY='deploy/vps/compose.yml' if vps_overlay else '')
             process = subprocess.run([self.shell], input=script, text=True, capture_output=True, env=env, timeout=30)
             self.assertTrue((root / 'calls.jsonl').exists(), process.stderr)
             status_path = root / 'reports/deployment.json'
@@ -71,6 +71,15 @@ class DeploymentTests(unittest.TestCase):
         self.assertIn('validate_production_security()', preflight[-1])
         self.assertIn(['preflight-config', 'services:\n  web:\n    image: sha256:new\n'], calls)
         self.assertLess(calls.index(preflight), next(index for index, call in enumerate(calls) if call[0] == 'tag'))
+
+    def test_vps_overlay_is_preserved_during_deploy_and_rollback(self):
+        code, status, calls = self.scenario('rollout_failure', vps_overlay=True)
+        self.assertNotEqual(code, 0)
+        self.assertEqual(status, 'rolled_back')
+        for call in calls:
+            if call[0] == 'compose':
+                self.assertEqual(call[:5], ['compose', '-f', 'docker-compose-build.yml',
+                                           '-f', 'deploy/vps/compose.yml'])
 
     def test_proxy_refreshes_after_web_readiness_before_bot_startup(self):
         code,status,calls=self.scenario('success')

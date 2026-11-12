@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 cd "$WORKSPACE"
+F1HUB_APP_DIR=${F1HUB_APP_DIR:-/root/FormulaOneBot}
+export F1HUB_APP_DIR
 # Optional, root-managed DNS overrides for routes unavailable from this host.
 # Keep hostnames intact so HTTPS certificate validation still applies.
 network_args=()
@@ -58,6 +60,8 @@ case "${1:?stage required}" in
       '
     ;;
   python)
+    live_args=()
+    if [[ "${CI_LIVE_TESTS:-1}" == 1 ]]; then live_args=(--live); fi
     mkdir -p .ci-logs .ci-fastf1-cache .ci-f1bot-cache
     docker run --rm --name "f1hub-ci-python-$BUILD_NUMBER" --memory=768m --cpus=1 \
       --user "$(id -u):$(id -g)" -e HOME=/tmp -e BOT_TOKEN=123456:TEST \
@@ -74,7 +78,7 @@ case "${1:?stage required}" in
       -v "$WORKSPACE/.ci-logs:/app/logs" \
       -v "$WORKSPACE/.ci-fastf1-cache:/app/fastf1_cache" \
       -v "$WORKSPACE/.ci-f1bot-cache:/app/f1bot_cache" \
-      -w /app "$APP_IMAGE" pytest --live --test-order-seed=20261005 --cov=app --cov-branch \
+      -w /app "$APP_IMAGE" pytest "${live_args[@]}" --test-order-seed=20261005 --cov=app --cov-branch \
         --cov-report=xml:/app/reports/coverage.xml --junitxml=/app/reports/pytest.xml
     # Jenkins has Docker CLI only; use the application's Python for CI tests.
     # No Docker socket is mounted: deployment and cleanup use fake CLI fixtures.
@@ -122,8 +126,9 @@ case "${1:?stage required}" in
     fi
     docker run --rm --name "f1hub-ci-deploy-$BUILD_NUMBER" --network host \
       --memory=128m --cpus=0.5 -e APP_IMAGE -e BUILD_NUMBER \
+      -e F1HUB_APP_DIR -e F1HUB_COMPOSE_OVERLAY \
       -v /var/run/docker.sock:/var/run/docker.sock \
-      -v /root/FormulaOneBot:/root/FormulaOneBot \
+      -v "$F1HUB_APP_DIR:$F1HUB_APP_DIR" \
       -v "$CI_SCRIPTS:/ci:ro" -v "$WORKSPACE/reports:/reports" \
       docker:27-cli sh /ci/deploy-verified.sh
     ;;

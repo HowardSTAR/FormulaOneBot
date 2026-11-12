@@ -1,0 +1,51 @@
+name: f1hub-jenkins
+services:
+  jenkins:
+    image: f1hub-jenkins:lts-jdk21
+    container_name: f1hub-jenkins
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 60s
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      TZ: Europe/Moscow
+      JAVA_OPTS: >-
+        -Djenkins.install.runSetupWizard=false
+        -Djava.awt.headless=true
+        -Xms128m -Xmx512m
+      JENKINS_OPTS: "--httpPort=8080"
+    group_add:
+      - "${DOCKER_GID:?Set Docker group ID in server .env}"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /srv/jenkins-workspace:/srv/jenkins-workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/f1hub-ci:/opt/f1hub-ci:ro
+      - /root/f1hub-ci-bootstrap:/run/f1hub-ci-bootstrap:ro
+      - ./init.groovy:/usr/share/jenkins/ref/init.groovy.d/f1hub-vps.groovy:ro
+    networks:
+      - production
+    cpus: 1.0
+    mem_limit: 1g
+    mem_reservation: 512m
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/login >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+volumes:
+  jenkins_home:
+    name: f1hub_jenkins_home
+networks:
+  production:
+    external: true
+    name: formulaonebot_default
