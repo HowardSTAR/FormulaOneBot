@@ -1,0 +1,14 @@
+.prediction-race-day-notice {
+  margin: 16px 0 24px;
+  padding: 18px;
+  border: 1px solid var(--design-line, currentColor);
+  border-radius: 14px;
+  background: var(--design-surface, transparent);
+  color: var(--design-ink, inherit);
+  line-height: 1.5;
+}
+.prediction-race-day-notice > strong { display: block; font-size: 1.0625rem; }
+.prediction-race-day-notice > p { margin: 8px 0 16px; max-width: 70ch; }
+.prediction-race-day-timer { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.prediction-race-day-timer > span { flex: 1 1 180px; }
+.prediction-race-day-timer > output { font: inherit; font-size: 1.75rem; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }

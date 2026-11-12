@@ -47,6 +47,7 @@ type CurrentResponse = {
   opens_at_utc?: string | null;
   has_sprint: boolean;
   is_open: boolean;
+  race_day_exception?: boolean;
   profile: { display_name: string; completed: boolean };
   drivers: Driver[];
   prediction: Prediction | null;
@@ -270,7 +271,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
     try {
       await apiRequest("/api/predictions/current", { ...form, championship: current?.championship?.status === 'ok' ? form.championship || {} : null }, "POST");
       try { sessionStorage.removeItem(`prediction-draft:${current?.season}:${current?.round}`); } catch { /* optional browser storage */ }
-      setNotice("Прогноз сохранён. Его можно изменить до начала квалификации.");
+      setNotice(current?.race_day_exception ? "Прогноз сохранён. Его можно изменить до старта гонки." : "Прогноз сохранён. Его можно изменить до закрытия приёма.");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Не удалось сохранить прогноз");
@@ -318,7 +319,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
       <header className="predictions-hero">
         <div>
           <h1 id="predictions-title">Прогнозы</h1>
-          <p><GlossaryText>Прогноз закрывается перед первой квалификацией. Чем точнее позиция — тем больше баллов.</GlossaryText></p>
+          <p><GlossaryText>{current?.race_day_exception ? 'Сегодня прогнозы доступны до старта гонки. Чем точнее позиция — тем больше баллов.' : 'Прогноз закрывается перед первой квалификацией. Чем точнее позиция — тем больше баллов.'}</GlossaryText></p>
         {current?.status === "ok" && (
           <div className={`predictions-deadline ${current.is_open ? "is-open" : "is-closed"}`}>
             <HomeIcon name="clock" /><div><span>{current.is_open ? "Приём открыт до" : beforeOpening ? "Приём откроется" : "Приём закрыт"}</span>
@@ -423,7 +424,7 @@ function PredictionsContent({ guest }: { guest: boolean }) {
               {current.championship?.status === 'unavailable' && <p className="predictions-message">Условия титула временно недоступны. Основной прогноз можно сохранить.</p>}
               <div className="prediction-submit-row">
                 <p>{beforeOpening ? 'Приём ещё не открыт. Заполнение и редактирование станут доступны после открытия; прогноз не отправлен автоматически.' : guest ? 'Это только черновик в вашем браузере. Для участия нужно войти и отправить прогноз в период приёма.' : current.is_open
-                  ? `После старта ${current.has_sprint ? "спринт-квалификации" : "квалификации"} сервер заблокирует любые изменения.`
+                  ? current.race_day_exception ? 'После старта гонки сервер заблокирует любые изменения.' : `После старта ${current.has_sprint ? "спринт-квалификации" : "квалификации"} сервер заблокирует любые изменения.`
                   : "Прогноз доступен только для просмотра."}</p>
                 <button data-analytics-action="prediction_submit" disabled={!editable || (!guest && !formComplete) || saving || !current.round} onClick={() => void savePrediction()}>
                   {saving ? "Сохраняем…" : !editable ? beforeOpening ? "Приём ещё не открыт" : "Приём закрыт" : guest ? "Войти и сохранить черновик" : current.prediction ? "Обновить прогноз" : "Отправить прогноз"}

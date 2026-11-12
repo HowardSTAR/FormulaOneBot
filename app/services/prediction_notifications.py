@@ -18,6 +18,7 @@ from app.services.prediction_service import (
     build_actual_answers,
     get_notification_state,
     get_prediction_window,
+    race_day_prediction_exception,
     get_stage_top,
     mark_notification_state,
     parse_utc,
@@ -114,7 +115,9 @@ async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple], *, 
         f"🏁 {html.escape(str(event.get('event_name') or 'Гран-при'))}\n"
         "Укажите поул, первую пятёрку, лучший круг, первый сход и машину безопасности."
         f"{sprint_line}\n\n"
-        "⏳ Приём закроется строго в момент начала первой квалификации уикенда."
+        + ("⏳ Только сегодня: приём прогнозов открыт до старта гонки."
+           if race_day_prediction_exception(event) else
+           "⏳ Приём закроется строго в момент начала первой квалификации уикенда.")
     )
     _, deadline = get_prediction_window(event)
     if deadline:

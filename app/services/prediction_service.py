@@ -1,4 +1,5 @@
 import re
+import os
 import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -129,6 +130,22 @@ def parse_utc(value: str | None) -> datetime | None:
         return None
 
 
+def race_day_prediction_exception(event: dict[str, Any]) -> bool:
+    """A dated, stage-scoped operator exception; it cannot affect later races."""
+    race = parse_utc(event.get('race_start_utc'))
+    if race is None:
+        return False
+    spec = os.getenv('PREDICTION_RACE_DAY_EXCEPTION', '').strip()
+    until_raw = os.getenv('PREDICTION_RACE_DAY_EXCEPTION_UNTIL', '').strip()
+    until = parse_utc(until_raw)
+    return (spec == f"{race.year}:{event.get('round')}:{race.date().isoformat()}"
+            and (not until_raw or bool(until and until.date() == race.date())))
+
+
+class PredictionWindowClosed(ValueError):
+    pass
+
+
 def get_prediction_window(event: dict[str, Any]) -> tuple[datetime | None, datetime | None]:
     """Return the single UTC source of truth for prediction open/cutoff times."""
     has_sprint = bool(event.get("sprint_start_utc") or event.get("sprint_quali_start_utc"))
@@ -139,6 +156,11 @@ def get_prediction_window(event: dict[str, Any]) -> tuple[datetime | None, datet
     deadline = parse_utc(
         event.get("sprint_quali_start_utc") if has_sprint else event.get("quali_start_utc")
     )
+    if race_day_prediction_exception(event):
+        deadline = parse_utc(event.get('race_start_utc'))
+        until = parse_utc(os.getenv('PREDICTION_RACE_DAY_EXCEPTION_UNTIL'))
+        if until and deadline:
+            deadline = min(until, deadline)
     if opens_at and deadline and deadline <= opens_at:
         return None, None
     return opens_at, deadline
@@ -177,6 +199,8 @@ async def get_prediction_context(now_utc: datetime | None = None) -> dict[str, A
         "race_start_utc": event.get("race_start_utc"),
         "has_sprint": has_sprint,
         "is_open": bool(opens_at and deadline and opens_at <= now < deadline),
+        "race_day_exception": race_day_prediction_exception(event),
+        "server_now_utc": now.isoformat(),
     }
 
 
@@ -253,6 +277,7 @@ async def save_user_prediction(
     allowed_driver_codes: set[str] | None = None,
     require_sprint: bool = False,
     championship_context: dict | None = None,
+    deadline_utc: str | None = None,
 ) -> dict[str, Any]:
     profile = await get_prediction_profile(user_id)
     if not profile["completed"]:
@@ -282,6 +307,9 @@ async def save_user_prediction(
 
     values = [normalized[field] for field in PREDICTION_FIELDS]
     async with db.write_lock:
+        cutoff = parse_utc(deadline_utc)
+        if cutoff and datetime.now(timezone.utc) >= cutoff:
+            raise PredictionWindowClosed('Приём прогнозов закрыт: срок приёма истёк')
         await db.conn.execute(
             """
             INSERT INTO race_predictions(
@@ -625,6 +653,7 @@ async def score_prediction_round(
                 """,
                 (points, max_points, json.dumps(prediction_breakdown(prediction, answers), ensure_ascii=False), prediction["user_id"], int(season), int(round_num)),
             )
+
         await db.conn.commit()
 
     return {"max_points": max_points, "available_fields": available_fields, "scored": len(predictions)}

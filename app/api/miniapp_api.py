@@ -366,6 +366,12 @@ async def api_prediction_preview():
     }
 
 
+@web_app.get('/api/predictions/window')
+async def api_prediction_window():
+    """Public deadline/clock only; never include identities or saved selections."""
+    return await get_prediction_context()
+
+
 @web_app.post("/api/predictions/profile")
 async def api_prediction_profile(
     data: PredictionProfileRequest,
@@ -388,7 +394,9 @@ async def api_prediction_save(
     if context.get("status") != "ok":
         raise HTTPException(status_code=503, detail="Расписание этапа временно недоступно")
     if not context.get("is_open"):
-        raise HTTPException(status_code=409, detail="Приём прогнозов закрыт: квалификация уже началась")
+        detail = ("Приём прогнозов закрыт: гонка уже началась" if context.get('race_day_exception')
+                  else "Приём прогнозов закрыт: квалификация уже началась")
+        raise HTTPException(status_code=409, detail=detail)
     drivers = await get_prediction_drivers(context["season"])
     allowed_codes = {item["code"] for item in drivers}
     title_context = None
@@ -404,8 +412,12 @@ async def api_prediction_save(
             allowed_driver_codes=allowed_codes or None,
             require_sprint=bool(context.get("has_sprint")),
             championship_context=title_context,
+            deadline_utc=context.get('deadline_utc'),
         )
     except ValueError as exc:
+        from app.services.prediction_service import PredictionWindowClosed
+        if isinstance(exc, PredictionWindowClosed):
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     # Forward only a confirmed save, never a forecast's selections or an account ID.
     from app.services.posthog_bridge import confirmed_prediction
