@@ -1,0 +1,42 @@
+// !$*UTF8*$!
+{archiveVersion = 1; classes = {}; objectVersion = 56; objects = {
+0000000000000000000001F6 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/Features/Weekend/HomeStandings.swift"; sourceTree = "<group>"; };
+00000000000000000000025A = {isa = PBXBuildFile; fileRef = 0000000000000000000001F6; };
+0000000000000000000001F5 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/Features/Weekend/CircuitProfileSheet.swift"; sourceTree = "<group>"; };
+000000000000000000000259 = {isa = PBXBuildFile; fileRef = 0000000000000000000001F5; };
+0000000000000000000001F4 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/Core/MotorsportData.swift"; sourceTree = "<group>"; };
+000000000000000000000258 = {isa = PBXBuildFile; fileRef = 0000000000000000000001F4; };
+00000000000000000000012F = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/App/AppShell.swift"; sourceTree = "<group>"; };
+000000000000000000000193 = {isa = PBXBuildFile; fileRef = 00000000000000000000012F; };
+00000000000000000000012E = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/Features/Weekend/SessionResultsScreen.swift"; sourceTree = "<group>"; };
+000000000000000000000192 = {isa = PBXBuildFile; fileRef = 00000000000000000000012E; };
+00000000000000000000012D = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/Features/Weekend/TurboTheme.swift"; sourceTree = "<group>"; };
+000000000000000000000191 = {isa = PBXBuildFile; fileRef = 00000000000000000000012D; };
+00000000000000000000012C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/Core/WeekendResults.swift"; sourceTree = "<group>"; };
+000000000000000000000190 = {isa = PBXBuildFile; fileRef = 00000000000000000000012C; };
+000000000000000000000064 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/App/TurboTearsApp.swift"; sourceTree = "<group>"; };
+0000000000000000000000C8 = {isa = PBXBuildFile; fileRef = 000000000000000000000064; };
+000000000000000000000065 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/Core/Weekend.swift"; sourceTree = "<group>"; };
+0000000000000000000000C9 = {isa = PBXBuildFile; fileRef = 000000000000000000000065; };
+000000000000000000000066 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/Core/WeekendAPI.swift"; sourceTree = "<group>"; };
+0000000000000000000000CA = {isa = PBXBuildFile; fileRef = 000000000000000000000066; };
+000000000000000000000067 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/Core/WeekendCache.swift"; sourceTree = "<group>"; };
+0000000000000000000000CB = {isa = PBXBuildFile; fileRef = 000000000000000000000067; };
+000000000000000000000068 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/Core/WeekendStore.swift"; sourceTree = "<group>"; };
+0000000000000000000000CC = {isa = PBXBuildFile; fileRef = 000000000000000000000068; };
+000000000000000000000069 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TurboTears/Features/Weekend/WeekendScreen.swift"; sourceTree = "<group>"; };
+0000000000000000000000CD = {isa = PBXBuildFile; fileRef = 000000000000000000000069; };
+000000000000000000000001 = {isa = PBXProject; attributes = {LastUpgradeCheck = 2700;}; buildConfigurationList = 000000000000000000000008; compatibilityVersion = "Xcode 14.0"; developmentRegion = ru; knownRegions = (ru, en, Base); mainGroup = 000000000000000000000002; productRefGroup = 000000000000000000000003; projectDirPath = ""; projectRoot = ""; targets = (000000000000000000000005); };
+000000000000000000000002 = {isa = PBXGroup; children = (0000000000000000000001F4,0000000000000000000001F5,0000000000000000000001F6,00000000000000000000012C,00000000000000000000012D,00000000000000000000012E,00000000000000000000012F,000000000000000000000064,000000000000000000000065,000000000000000000000066,000000000000000000000067,000000000000000000000068,000000000000000000000069, 000000000000000000000003); sourceTree = "<group>"; };
+000000000000000000000003 = {isa = PBXGroup; children = (000000000000000000000004); name = Products; sourceTree = "<group>"; };
+000000000000000000000004 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = TurboTears.app; sourceTree = BUILT_PRODUCTS_DIR; };
+000000000000000000000005 = {isa = PBXNativeTarget; buildConfigurationList = 000000000000000000000009; buildPhases = (000000000000000000000006, 000000000000000000000007); buildRules = (); dependencies = (); name = TurboTears; productName = TurboTears; productReference = 000000000000000000000004; productType = "com.apple.product-type.application"; };
+000000000000000000000006 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000258,000000000000000000000259,00000000000000000000025A,000000000000000000000190,000000000000000000000191,000000000000000000000192,000000000000000000000193,0000000000000000000000C8,0000000000000000000000C9,0000000000000000000000CA,0000000000000000000000CB,0000000000000000000000CC,0000000000000000000000CD); runOnlyForDeploymentPostprocessing = 0; };
+000000000000000000000007 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+000000000000000000000008 = {isa = XCConfigurationList; buildConfigurations = (00000000000000000000000A, 00000000000000000000000B); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+000000000000000000000009 = {isa = XCConfigurationList; buildConfigurations = (00000000000000000000000C, 00000000000000000000000D); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+00000000000000000000000A = {isa = XCBuildConfiguration; name = Debug; buildSettings = {SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 26.0; CLANG_ENABLE_MODULES = YES; }; };
+00000000000000000000000B = {isa = XCBuildConfiguration; name = Release; buildSettings = {SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 26.0; CLANG_ENABLE_MODULES = YES; }; };
+00000000000000000000000C = {isa = XCBuildConfiguration; name = Debug; buildSettings = { SWIFT_OPTIMIZATION_LEVEL = "-Onone"; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; DEBUG_INFORMATION_FORMAT = dwarf; PRODUCT_BUNDLE_IDENTIFIER = org.turbotears.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = "1,2"; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = TurboTears/Info.plist; INFOPLIST_KEY_CFBundleDisplayName = TurboTears; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; MARKETING_VERSION = 0.1.0; CURRENT_PROJECT_VERSION = 1; CODE_SIGN_STYLE = Automatic; }; };
+00000000000000000000000D = {isa = XCBuildConfiguration; name = Release; buildSettings = { SWIFT_COMPILATION_MODE = wholemodule; PRODUCT_BUNDLE_IDENTIFIER = org.turbotears.ios; PRODUCT_NAME = "$(TARGET_NAME)"; SWIFT_VERSION = 6.0; TARGETED_DEVICE_FAMILY = "1,2"; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_FILE = TurboTears/Info.plist; INFOPLIST_KEY_CFBundleDisplayName = TurboTears; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; MARKETING_VERSION = 0.1.0; CURRENT_PROJECT_VERSION = 1; CODE_SIGN_STYLE = Automatic; }; };
+}; rootObject = 000000000000000000000001; }
