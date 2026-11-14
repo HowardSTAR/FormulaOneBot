@@ -137,3 +137,6 @@
   .drivers-points-track { outline: 1px solid CanvasText; }
   .drivers-points-fill { background: CanvasText; }
 }
+
+
+#root .drivers-title-note { color: var(--drivers-muted); font-size: .875rem; max-width: 75ch; }

@@ -1,3 +1,5 @@
+import { ChampionshipBackdrop } from '../../components/ChampionshipBackdrop';
+import { useChampionshipTitle } from '../../helpers/useChampionshipTitle';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { YearSelect } from '../../components/YearSelect';
@@ -49,6 +51,7 @@ function ConstructorsPage() {
   const requestedYear = Number(searchParams.get('year'));
   const year = Number.isInteger(requestedYear) && requestedYear >= minConstructorYear && requestedYear <= currentRealYear ? requestedYear : currentRealYear;
   const [teams, setTeams] = useState<Constructor[]>([]);
+  const [titleRound, setTitleRound] = useState<number | null>(null);
   const [loadedYear, setLoadedYear] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +66,7 @@ function ConstructorsPage() {
       const data = await apiRequest<ConstructorsResponse>('/api/constructors', { season });
       if (request !== standingsRequest.current) return;
       setTeams(data.constructors || []);
+      setTitleRound(Number.isInteger(data.round) && Number(data.round) > 0 ? Number(data.round) : null);
     } catch (e) {
       if (request !== standingsRequest.current) return;
       setTeams([]);
@@ -85,6 +89,7 @@ function ConstructorsPage() {
     if (value === currentRealYear) next.delete('year'); else next.set('year', String(value));
     setSearchParams(next, { replace: true });
   };
+  const isChampion = useChampionshipTitle(year, loadedYear === year && !loading && !error ? titleRound : null, 'constructors');
   const isLoading = loading || loadedYear !== year;
   const hasData = !isLoading && !error && teams.length > 0;
   const leader = hasData ? teams[0] : null;
@@ -107,9 +112,10 @@ function ConstructorsPage() {
         </div>
       </div>
       {leader && <Link className="constructors-leader entrant-highlight" to={teamLink(leader, year)} data-team={homeTeamIdentity(leader.constructorId || '', leader.name)}>
+        {isChampion(leader.constructorId || '', leader.points) && <ChampionshipBackdrop />}
         <div className="constructors-leader-copy">
           <h2>{leader.name}</h2>
-          <p>Лидер зачёта {year}</p>
+          <p>{isChampion(leader.constructorId || '', leader.points) ? 'Обладатель Кубка конструкторов' : 'Лидер зачёта'} {year}</p>
           <strong>{formatPoints(leader.points)} <span>очк.</span></strong>
           {second && gap !== null && <small>{gap === 0 ? `Поровну очков с ${second.name}` : `+${numberFormat.format(gap)} очк. к ${second.name}`}</small>}
         </div>
@@ -141,6 +147,7 @@ function ConstructorsPage() {
               ? Math.max(0, Math.min(100, team.points / leader.points * 100)) : null;
             return <li key={team.constructorId || team.name}>
               <Link className="constructors-entry entrant-highlight" to={teamLink(team, year)} data-team={homeTeamIdentity(team.constructorId || '', team.name)}>
+                {isChampion(team.constructorId || '', team.points) && <><ChampionshipBackdrop /><span className="constructors-sr">Обладатель Кубка конструкторов {year}. </span></>}
                 <span className="constructors-position"><span className="constructors-sr">Место </span>{team.position}</span>
                 <div className="constructors-identity">
                   <span className="constructors-logo" aria-hidden="true"><TeamImage key={`${year}:${team.name}`} sources={[...media.logo, teamLogoUrl(team.constructorId || '', team.name, year)]} className="constructors-logo-image" fallback={team.name.slice(0, 3)} width={480} height={480} bounds={year === 2026 && media.logo.length ? logoBounds[homeTeamIdentity(team.constructorId || '', team.name)] : undefined} /></span>

@@ -1,0 +1,4 @@
+.championship-backdrop { position: absolute; inset: 0; z-index: -1; display: flex; align-items: center; pointer-events: none; border-radius: inherit; overflow: hidden; color: color-mix(in srgb, var(--design-rating-outline) 18%, transparent); }
+.championship-backdrop svg { display: block; width: 100%; height: auto; flex: 1; filter: blur(2px); }
+.championship-backdrop text { fill: currentColor; font-family: 'Space Grotesk', sans-serif; font-size: 100px; font-weight: 700; }
+@media (forced-colors: active), (prefers-contrast: more) { .championship-backdrop { display: none; } }

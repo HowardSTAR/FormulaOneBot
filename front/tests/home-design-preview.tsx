@@ -240,15 +240,23 @@ window.fetch = async (input, init) => {
       if (scenario === 'drivers-loading') return new Promise<Response>((_, reject) => { init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))); });
       const season = Number(url.searchParams.get('season') || 2026);
       const field = scenario === 'drivers-single' ? drivers.slice(0, 1) : drivers;
-      return json({ drivers: ['empty', 'drivers-empty'].includes(scenario || '') ? [] : field.map((driver, index) => ({
+      return json({ round: 19, drivers: ['empty', 'drivers-empty'].includes(scenario || '') ? [] : field.map((driver, index) => ({
         ...driver, points: scenario === 'drivers-zero' ? 0 : scenario === 'drivers-missing' && index === 1 ? null : driver.points,
         is_favorite: member && driver.code === 'NOR', imageUrl: season === 2026 ? driver.imageUrl : undefined,
       })) });
     }
+    case '/api/championship-title': {
+      const kind = url.searchParams.get('kind');
+      const season = Number(url.searchParams.get('season'));
+      const round = Number(url.searchParams.get('round_number'));
+      return json({ status: scenario === 'title-secured' ? 'secured' : 'open', season, round,
+        id: kind === 'drivers' ? drivers[0].code : constructors[0].constructorId,
+        points: kind === 'drivers' ? drivers[0].points : constructors[0].points });
+    }
     case '/api/constructors': {
       if (constructorFailures-- > 0) return json({ detail: 'Зачёт команд временно недоступен. Попробуйте снова.' }, 503);
       if (scenario === 'constructors-loading') return new Promise<Response>((_, reject) => { init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))); });
-      return json({ constructors: ['empty', 'constructors-empty'].includes(scenario || '') ? [] : constructors.map((team, index) => ({ ...team, points: scenario === 'constructors-zero' ? 0 : scenario === 'constructors-missing' && index === 1 ? null : scenario === 'constructors-tied' && index === 1 ? constructors[0].points : team.points, is_favorite: member && team.name === 'McLaren' })) });
+      return json({ round: 19, constructors: ['empty', 'constructors-empty'].includes(scenario || '') ? [] : constructors.map((team, index) => ({ ...team, points: scenario === 'constructors-zero' ? 0 : scenario === 'constructors-missing' && index === 1 ? null : scenario === 'constructors-tied' && index === 1 ? constructors[0].points : team.points, is_favorite: member && team.name === 'McLaren' })) });
     }
     case '/api/driver-details': {
       if (entrantFailures-- > 0) return json({ detail: 'Карточка временно недоступна' }, 503);

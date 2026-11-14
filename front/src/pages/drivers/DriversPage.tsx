@@ -1,3 +1,5 @@
+import { ChampionshipBackdrop } from '../../components/ChampionshipBackdrop';
+import { useChampionshipTitle } from '../../helpers/useChampionshipTitle';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { DriverPortrait } from '../../components/DriverPortrait';
@@ -52,6 +54,7 @@ function DriversPage() {
   const year = Number.isInteger(requestedYear) && requestedYear >= 1950 && requestedYear <= currentRealYear
     ? requestedYear : currentRealYear;
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [titleRound, setTitleRound] = useState<number | null>(null);
   const [loadedYear, setLoadedYear] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +70,7 @@ function DriversPage() {
       const data = await apiRequest<DriversResponse>('/api/drivers', { season });
       if (request !== standingsRequest.current) return;
       setDrivers(data.drivers || []);
+      setTitleRound(Number.isInteger(data.round) && Number(data.round) > 0 ? Number(data.round) : null);
     } catch (e) {
       if (request !== standingsRequest.current) return;
       setDrivers([]);
@@ -109,9 +113,11 @@ function DriversPage() {
     if (value === currentRealYear) next.delete('year'); else next.set('year', String(value));
     setSearchParams(next, { replace: true });
   };
+  const isChampion = useChampionshipTitle(year, loadedYear === year && !loading && !error ? titleRound : null, 'drivers');
   const isLoading = loading || loadedYear !== year;
   const hasData = !isLoading && !error && drivers.length > 0;
   const leader = hasData ? drivers[0] : null;
+  const championCode = leader && isChampion(leader.code, leader.points) ? leader.code : null;
   const second = hasData ? drivers[1] : null;
   const contenders = hasData ? drivers.slice(0, 3) : [];
   const lastRacePoints = racePoints?.year === year ? racePoints.byCode : {};
@@ -137,7 +143,7 @@ function DriversPage() {
             const comparedDriver = isLeader ? second : driver;
             const gap = comparedDriver ? gapToLeader(comparedDriver, leader) : null;
             const caption = isLeader
-              ? year < currentRealYear ? `Чемпион мира ${year}` : `Лидер сезона ${year}`
+              ? driver.code === championCode ? `Чемпион мира ${year}` : `Лидер сезона ${year}`
               : `${driver.position}-е место`;
             let gapLabel: string | null = null;
             if (gap !== null) {
@@ -146,8 +152,9 @@ function DriversPage() {
               else gapLabel = gap === 0 ? 'Наравне с лидером' : `−${numberFormat.format(gap)} очк. от лидера`;
             }
             return <Link key={driver.driverId || driver.code || driver.name}
-              className={`drivers-leader entrant-highlight${index > 0 ? ' drivers-leader--secondary' : ''}`}
+              className={`drivers-leader entrant-highlight${index > 0 ? ' drivers-leader--secondary' : ''}${driver.code === championCode ? ' drivers-champion' : ''}`}
               to={driverLink(driver, year)} data-team={homeTeamIdentity(driver.constructorId || '', driver.constructorName || '')}>
+              {driver.code === championCode && <ChampionshipBackdrop />}
               <div className="drivers-leader-copy">
                 <h2>{driver.name}</h2>
                 <p>{caption}</p>
@@ -159,6 +166,7 @@ function DriversPage() {
           })}
         </div>}
       </header>
+      {championCode && <p className="drivers-title-note" role="status">Чемпион мира {year}. Титул обеспечен математически; очки сверены с официальным зачётом Formula1.com после этапа {titleRound}: учтены оставшиеся гонки, спринты и правила равенства очков.</p>}
 
       <section className="drivers-classification" aria-labelledby="drivers-standings-title" aria-busy={isLoading}>
         <div className="drivers-list-heading">
@@ -182,8 +190,9 @@ function DriversPage() {
               const share = leader && hasPoints(leader.points) && leader.points > 0 && hasPoints(driver.points)
                 ? Math.max(0, Math.min(100, driver.points / leader.points * 100)) : null;
               return <li key={driver.driverId || driver.code || driver.name}>
-                <Link className="drivers-entry entrant-highlight" to={driverLink(driver, year)}
+                <Link className={`drivers-entry entrant-highlight${driver.code === championCode ? ' drivers-champion' : ''}`} to={driverLink(driver, year)}
                   data-team={homeTeamIdentity(driver.constructorId || '', driver.constructorName || '')}>
+                  {driver.code === championCode && <><ChampionshipBackdrop /><span className="drivers-sr">Чемпион мира {year}. </span></>}
                   <span className="drivers-position"><span className="drivers-sr">Место </span>{driver.position}</span>
                   <div className="drivers-identity">
                     <DriverPortrait key={`${year}:${driver.code}`} code={driver.code} name={driver.name} season={year} src={driver.imageUrl} />
