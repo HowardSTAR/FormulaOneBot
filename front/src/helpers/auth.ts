@@ -81,10 +81,15 @@ export function useAuthState(): AuthState {
           .then(({ role }) => update({ loaded: true, signedIn: true, personalized: true, telegramMiniApp: true, role }))
           .catch(() => update({ loaded: true, signedIn: true, personalized: true, telegramMiniApp: true, role: null }));
       } else {
-        void getWebsiteUser().then(user => update({
+        void getWebsiteUserStrict().then(user => update({
           loaded: true, signedIn: Boolean(user), personalized: Boolean(user?.telegram_id),
           telegramMiniApp: false, role: user?.role ?? null,
-        }));
+        })).catch(() => {
+          // A timeout or server outage must not clear an established identity.
+          if (active && current === generation && identity === identityVersion) {
+            setState(previous => ({ ...previous, loaded: true }));
+          }
+        });
       }
     };
     refresh();

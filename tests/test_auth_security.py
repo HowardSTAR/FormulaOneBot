@@ -260,7 +260,7 @@ def test_unsafe_production_configuration_refuses_startup(production_config, monk
         validate_production_security()
 
 
-@pytest.mark.parametrize("admin,seconds", [(False, 7*86400), (True, 1800)])
+@pytest.mark.parametrize("admin,seconds", [(False, 7*86400), (True, 7*86400)])
 async def test_idle_session_expires(auth, db_session, monkeypatch, admin, seconds):
     from app.services import auth_service
     from tests.support import Clock
@@ -273,6 +273,21 @@ async def test_idle_session_expires(auth, db_session, monkeypatch, admin, second
     clock.advance(seconds=seconds)
     with pytest.raises(InvalidCredentials):
         await auth.authenticate_session(registered["access_token"])
+
+
+@pytest.mark.parametrize("role", ["user", "admin", "superadmin"])
+async def test_session_survives_overnight_and_refreshes_activity(auth, db_session, monkeypatch, role):
+    from app.services import auth_service
+    from tests.support import Clock
+    clock = Clock()
+    monkeypatch.setattr(auth_service, "utc_now", lambda: clock.now)
+    registered = await auth.register("returning@example.test", PASSWORD)
+    await db_session.conn.execute("UPDATE users SET role=?", (role,))
+    await db_session.conn.commit()
+    clock.advance(seconds=86400)
+    assert (await auth.authenticate_session(registered["access_token"]))["role"] == role
+    clock.advance(seconds=6*86400)
+    assert (await auth.authenticate_session(registered["access_token"]))["role"] == role
 
 
 async def test_activity_extends_idle_time_but_not_absolute_expiry(auth, monkeypatch):

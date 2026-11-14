@@ -113,7 +113,6 @@ class AuthService:
     password_reset_ttl = timedelta(minutes=30)
     session_ttl = timedelta(days=30)
     session_idle_ttl = timedelta(days=7)
-    admin_session_idle_ttl = timedelta(minutes=30)
 
     def __init__(self, database: Database, mailer: VerificationMailer, pepper: str | None = None):
         self.database = database
@@ -759,8 +758,7 @@ class AuthService:
         if not row or datetime.fromisoformat(row["expires_at"]) <= utc_now():
             raise InvalidCredentials("Сессия завершена. Войдите снова")
         last_seen = datetime.fromisoformat(row["last_seen_at"]).replace(tzinfo=timezone.utc)
-        idle_ttl = self.admin_session_idle_ttl if row["role"] != "user" else self.session_idle_ttl
-        if utc_now() - last_seen >= idle_ttl:
+        if utc_now() - last_seen >= self.session_idle_ttl:
             raise InvalidCredentials("Сессия завершена из-за отсутствия активности. Войдите снова")
         if utc_now() - last_seen >= timedelta(minutes=5):
             async with self.database.write_lock:
