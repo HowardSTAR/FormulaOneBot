@@ -1,0 +1,38 @@
+/* Isolated proposal: the production components and routing are preserved. */
+.navigation-preview #root .predictions-hero h1 { font-size: 2rem; }
+.navigation-preview #root .predictions-hero p { margin-top: 6px; max-width: 58ch; font-size: .875rem; }
+.navigation-preview .predictions-deadline { margin-top: 12px; gap: 8px; }
+.navigation-preview .predictions-deadline > svg { width: 20px; height: 20px; }
+.navigation-preview .predictions-deadline > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.navigation-preview #root .predictions-deadline strong { font-size: .875rem; }
+.navigation-preview .predictions-section-bar { justify-content: flex-start; margin-bottom: 20px; }
+.navigation-preview .app-shell .predictions-page .predictions-tabs { width: 100%; max-width: 560px; gap: 0; padding: 0; border: 0; border-bottom: 1px solid var(--design-line); border-radius: 0; background: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.navigation-preview .predictions-tabs :is(.home-section-light, .home-section-lens) { display: none; }
+.navigation-preview .app-shell .predictions-page .predictions-tabs a { min-height: 48px; padding: 10px 4px; border-radius: 0; border-bottom: 2px solid transparent; color: var(--design-muted); font-size: .875rem; text-decoration: none; text-align: center; line-height: 1.25; }
+.navigation-preview .predictions-tabs a svg { display: none; }
+.navigation-preview .predictions-tabs a::after { content: attr(aria-label); }
+.navigation-preview .app-shell .predictions-page .predictions-tabs a[aria-current] { color: var(--design-accent); border-bottom-color: currentColor; }
+.navigation-preview .app-shell .predictions-page .predictions-tabs a:hover { color: var(--design-ink); background: var(--design-tint); }
+.navigation-preview .app-shell .home-dock-nav a { text-decoration: none; flex-direction: column; gap: 3px; min-height: 56px; padding: 6px 2px; }
+.navigation-preview .home-dock-nav a::after { content: attr(aria-label); font-size: .625rem; line-height: 1.25; font-weight: 500; }
+.navigation-preview .home-dock-nav a svg { width: 22px; height: 22px; }
+.navigation-preview .home-dock-card { display: none; }
+.navigation-preview .app-shell :is(.predictions-tabs, .home-dock-nav) a:focus-visible { outline: 2px solid var(--design-focus); outline-offset: -3px; }
+@media (max-width: 899px) {
+  .navigation-preview #root .predictions-hero { display: block; padding-bottom: 16px; }
+  .navigation-preview #root .predictions-hero h1 { font-size: 1.75rem; }
+  .navigation-preview .predictions-podium, .navigation-preview .predictions-hero::before { display: none; }
+}
+@media (max-width: 359px) {
+  .navigation-preview .app-shell .predictions-page .predictions-tabs a { font-size: .75rem; }
+  .navigation-preview .home-dock-nav a::after { font-size: .5625rem; }
+}
+
+.navigation-preview .predictions-tabs a:nth-of-type(2)::after { content: "Таблица"; }
+.navigation-preview .predictions-tabs a:nth-of-type(4)::after { content: "Лиги"; }
+/* Keep this utility view focused on the selected section. */
+.navigation-preview #root .predictions-hero { display: block; padding-block: 0 16px; }
+.navigation-preview .predictions-podium, .navigation-preview .predictions-hero::before { display: none; }
+@media (min-width: 360px) and (max-width: 899px) {
+  .navigation-preview .app-shell .predictions-page .predictions-tabs a { font-size: .8125rem; }
+}
