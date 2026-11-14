@@ -1062,6 +1062,14 @@ async def api_drivers(
     return {"season": season, "round": df.attrs.get("round", round_number), "drivers": results}
 
 
+@web_app.get('/api/championship-title')
+async def api_championship_title(season: int, round_number: int, kind: str):
+    if not 2025 <= season <= datetime.now().year or round_number < 1 or kind not in ('drivers', 'constructors'):
+        raise HTTPException(status_code=400, detail='Некорректный сезон или зачёт')
+    from app.services.standings_title import standings_title
+    return await standings_title(season, round_number, kind)
+
+
 @web_app.get("/api/driver-details")
 async def api_driver_details(
     code: Optional[str] = Query(None, description="Driver code (e.g. ALO)"),
