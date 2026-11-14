@@ -123,7 +123,7 @@ export function FirstVisitGuide() {
     if (!active || pathname !== step.route) return;
     const preview = document.querySelector<HTMLElement>('.app-content');
     const scope = document.querySelector<HTMLElement>('.app-page-main');
-    const toolbar = preview?.querySelector<HTMLElement>('.home-header-row, .account-shortcut-bar');
+    const toolbar = preview?.querySelector<HTMLElement>('.home-toolbar');
     let target: HTMLElement | undefined;
     let prepared = false;
     let positionTargets: HTMLElement[] = [];

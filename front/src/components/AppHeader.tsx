@@ -4,12 +4,7 @@ import { useAuthState } from '../helpers/auth';
 import { homeSectionPath } from '../helpers/homeSections';
 import { navigationFor, navigationActive, type NavigationGroup, type NavigationItem } from '../helpers/navigation';
 import { startOnboarding } from '../helpers/onboarding';
-import { AccountShortcut } from './AccountShortcut';
 import { HomeIcon, type HomeIconName } from '../pages/index/HomeIcon';
-import { ThemeToggle } from './ThemeToggle';
-import { useMediaQuery } from '../helpers/useMediaQuery';
-import { NotificationShortcut } from './NotificationShortcut';
-import { MenuShortcut } from './MenuShortcut';
 
 function NavigationIcon({ name }: { name: HomeIconName }) {
   return <HomeIcon name={name} />;
@@ -47,10 +42,8 @@ export function AppHeader() {
   const auth = useAuthState();
   const { pathname, search } = useLocation();
   const nav = navigationFor(auth);
-  const mobile = useMediaQuery('(max-width: 899px)');
   return <header className="app-header">
     <div className="app-header-brand-wrap"><Link to="/" className="app-header-brand" aria-label="TurboTears — главная"><span className="app-header-brand-accent">Turbo</span><span>Tears</span></Link><span className="app-header-brand-caption">Race intelligence</span></div>
-    <div className="app-header-actions"><ThemeToggle /><NotificationShortcut enabled={mobile && pathname !== '/' && pathname !== '/menu'} /><AccountShortcut /><MenuShortcut /></div>
     <nav className="app-header-nav" aria-label="Главное меню">
       {nav.sections.map(section => <section key={section.id} className="app-header-section" aria-labelledby={section.id === 'community' ? undefined : `app-header-section-${section.id}`} aria-label={section.id === 'community' ? section.label : undefined}>
         {section.id !== 'community' && <h2 id={`app-header-section-${section.id}`} className="app-header-section-label">{section.label}</h2>}
@@ -59,6 +52,7 @@ export function AppHeader() {
       {nav.management && <section className="app-header-section" aria-label={nav.management.label}><SidebarAccordion group={nav.management} pathname={pathname} search={search} /></section>}
     </nav>
     <div className="app-header-bottom">
+      <SidebarLink item={{ to: "/menu", label: "Меню", icon: "menu", activePaths: ["/menu"] }} pathname={pathname} search={search} />
       {auth.loaded && !auth.signedIn && <div className="app-header-guest"><HomeIcon name="account" /><span>Гостевой режим</span></div>}
       <div className="app-header-status"><small>Неофициальные данные автоспорта</small></div>
     </div>

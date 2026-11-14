@@ -1,6 +1,6 @@
 /* Liquid Glass is the functional layer. Content cards deliberately stay opaque.
    Solid surfaces are the baseline; blur is a progressive enhancement. */
-.app-shell.design-shell.glass-home { --home-toolbar-space: 6rem; }
+.app-shell.design-shell.glass-home { --home-toolbar-space: 16px; }
 html:has(.glass-home) { scroll-padding-top: 0; }
 .glass-home #page-content { scroll-margin-top: var(--home-toolbar-space); }
 .glass-home #page-content :is(a, button, summary) { scroll-margin-block: var(--home-toolbar-space) 24px; }
@@ -36,7 +36,7 @@ html:has(.glass-home) { scroll-padding-top: 0; }
 }
 @media (max-width: 899px) {
   /* The toolbar replaces the mobile header, rather than stacking two bars. */
-  .app-shell.design-shell.glass-home { --home-toolbar-space: calc(7rem + var(--app-safe-top, 0px)); }
+  .app-shell.design-shell.glass-home { --home-toolbar-space: calc(16px + var(--app-safe-top, 0px)); }
   #root .root:has(.glass-home) { padding: 0; }
   .app-shell.design-shell.glass-home .app-header { display: none !important; }
   .app-shell.design-shell.glass-home .app-content { padding-top: calc(12px + var(--app-safe-top, 0px)) !important; padding-left: calc(16px + var(--app-safe-left, 0px)) !important; padding-right: calc(16px + var(--app-safe-right, 0px)) !important; }
@@ -68,23 +68,15 @@ html:has(.glass-home) { scroll-padding-top: 0; }
 
 /* Icon controls free the toolbar for profile and an always-visible inbox. */
 .glass-home .home-toolbar .theme-toggle { min-width: 44px; width: 44px; padding-inline: 0; }
-@media (min-width: 900px) {
-  .app-shell.design-shell .account-shortcut-bar { position: sticky; top: 16px; z-index: 110; width: fit-content; margin-left: auto; padding: 8px; border-radius: 24px; background: var(--design-surface); border: 1px solid var(--design-line); }
-}
 @media (max-width: 899px) {
   .glass-home .home-toolbar .menu-shortcut { display: none; }
   .home-toolbar-actions { gap: 4px; }
 }
 
-/* Status and account tools share a row instead of stacking above the hero. */
-.glass-home .home-header-row { position: sticky; top: calc(8px + var(--app-safe-top, 0px)); z-index: 110; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; margin-bottom: 16px; }
-.glass-home .home-header-row .home-toolbar { position: static; margin: 0; }
-.glass-home .home-header-reminder .visit-reminder { margin: 0 !important; }
 @media (min-width: 900px) {
   .app-shell.design-shell.glass-home .app-content { padding-top: 16px !important; }
   .app-shell.design-shell.glass-home .app-content > * { max-width: none; }
 }
-@media (max-width: 899px) {
-  .glass-home .home-header-row { display: block; margin-bottom: 16px; }
-  .home-header-reminder { display: none; }
-}
+
+/* Only the menu reserves space for its sticky account controls. */
+.glass-home:has(.menu-page) { --home-toolbar-space: 6rem; }

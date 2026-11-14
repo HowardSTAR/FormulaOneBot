@@ -5,6 +5,7 @@ import { navigationFor, type NavigationItem } from '../../helpers/navigation';
 import { startOnboarding } from '../../helpers/onboarding';
 import { HomeIcon } from '../index/HomeIcon';
 import { LegalFooter } from '../../components/LegalFooter';
+import { HomeToolbar } from '../../components/HomeToolbar';
 import './menu.css';
 
 export default function MenuPage() {
@@ -21,6 +22,7 @@ export default function MenuPage() {
   </li>);
 
   return <main className="menu-page">
+    <HomeToolbar />
     <header className="menu-page-heading">
       <h1 ref={heading} tabIndex={-1}>Меню</h1>
       <button type="button" onClick={() => location.state?.menuFrom ? navigate(-1) : navigate('/')} aria-label="Назад из меню">Назад <span aria-hidden="true">←</span></button>

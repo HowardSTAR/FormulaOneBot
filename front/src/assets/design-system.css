@@ -81,7 +81,6 @@ html:has(.design-shell) { scroll-padding-bottom: calc(20px + var(--app-safe-bott
 .design-shell #page-content :is(a, button, summary) { scroll-margin-block: 16px 24px; }
 .app-shell.design-shell .app-page-main { min-height: 0; }
 .app-shell.design-shell .app-header-actions { display: none; }
-.app-shell.design-shell .account-shortcut-bar { display: flex; gap: 12px; justify-content: flex-end; align-items: center; margin-bottom: 16px; }
 .theme-toggle { display: inline-flex; gap: 8px; align-items: center; justify-content: center; min-height: 44px; padding: 10px 12px; border: 1px solid var(--design-control); border-radius: 11px; background: var(--design-surface); color: var(--design-ink); font-size: .8125rem; font-weight: 500; line-height: 1.4; font-family: inherit; cursor: pointer; }
 .theme-toggle svg { flex-shrink: 0; }
 .theme-toggle:hover { background: var(--design-tint); }
@@ -112,7 +111,6 @@ body:has(.design-shell) .root { max-width: none; margin: 0; padding: 0; }
 .design-skip { position: fixed; top: -100px; left: 16px; z-index: 1000; padding: 12px 16px; background: var(--design-surface); color: var(--design-ink); border-radius: 8px; }
 .design-skip:focus { top: 12px; }
 @media (max-width: 899px) {
-  .app-shell.design-shell .account-shortcut-bar { display: none; }
   .app-shell.design-shell .app-header { flex-wrap: wrap; gap: 8px; }
   .app-shell.design-shell .app-header-actions { display: flex; gap: 8px; align-items: center; margin-left: auto; }
   .app-shell.design-shell .app-header-actions .account-shortcut { min-width: 44px; padding: 8px; }

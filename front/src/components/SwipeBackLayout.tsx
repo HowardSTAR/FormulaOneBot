@@ -12,12 +12,8 @@ import { DataReceipt } from './DataReceipt';
 import { FirstVisitGuide } from './FirstVisitGuide';
 import { PageMotion } from './PageMotion';
 import { VisitReminder } from './VisitReminder';
-import { AccountShortcut } from './AccountShortcut';
-import { ThemeToggle } from './ThemeToggle';
-import { NotificationShortcut } from './NotificationShortcut';
 import { HomeDock } from './HomeDock';
 import { useMediaQuery } from '../helpers/useMediaQuery';
-import { HomeToolbar } from './HomeToolbar';
 import '../assets/home-glass.css';
 
 const EDGE_THRESHOLD = 30;
@@ -107,13 +103,12 @@ export function SwipeBackLayout() {
       <NotificationEntry />
       <RouteContext />
       <a className="design-skip" href="#page-content">Перейти к содержимому</a>
-      <AppHeader />
+      {!mobile && <AppHeader />}
       <InstallHint />
       <FirstVisitGuide />
       <div className="app-content">
-        {homeFrame ? <div className="home-header-row"><div className="home-header-reminder">{!mobile && <VisitReminder includeHome={overview} />}</div><HomeToolbar /></div> : <div className="account-shortcut-bar"><ThemeToggle /><NotificationShortcut enabled={!mobile} /><AccountShortcut /></div>}
         <section className={`app-page-main route-${routeKey}`} id="page-content" tabIndex={-1}>
-          {!mobile && !homeFrame && <VisitReminder />}
+          {!mobile && <VisitReminder includeHome={overview} />}
           <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>
             <PageMotion key={location.pathname} pathname={location.pathname} previousPathRef={previousPathRef} />
             <Outlet />
