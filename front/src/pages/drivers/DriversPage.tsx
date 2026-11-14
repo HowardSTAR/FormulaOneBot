@@ -166,7 +166,6 @@ function DriversPage() {
           })}
         </div>}
       </header>
-      {championCode && <p className="drivers-title-note" role="status">Чемпион мира {year}. Титул обеспечен математически; очки сверены с официальным зачётом Formula1.com после этапа {titleRound}: учтены оставшиеся гонки, спринты и правила равенства очков.</p>}
 
       <section className="drivers-classification" aria-labelledby="drivers-standings-title" aria-busy={isLoading}>
         <div className="drivers-list-heading">
