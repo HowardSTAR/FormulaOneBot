@@ -55,10 +55,15 @@ async def test_registration_opens_profile_and_saves_preferences(registration_aut
         assert 'email' not in public and 'email_verified' not in public
         assert (await client.post('/api/auth/resend-verification')).status_code == 403
         csrf = {'X-CSRF-Token': data['csrf_token']}
-        assert (await client.get('/api/favorites')).json() == own['favorites']
+        favorites = (await client.get('/api/favorites')).json()
+        assert {kind: favorites[kind] for kind in ('drivers', 'teams')} == own['favorites']
+        assert favorites['home'] == {'drivers': ['LEC', 'NOR'], 'teams': ['Ferrari']}
         assert (await client.post('/api/favorites/driver', json={'id': 'NOR'}, headers=csrf)).json()['status'] == 'removed'
         assert (await client.post('/api/favorites/team', json={'id': 'Ferrari'}, headers=csrf)).json()['status'] == 'removed'
-        assert (await client.get('/api/favorites')).json() == {'drivers': ['LEC'], 'teams': ['McLaren']}
+        assert (await client.get('/api/favorites')).json() == {
+            'drivers': ['LEC'], 'teams': ['McLaren'],
+            'home': {'drivers': ['LEC'], 'teams': ['McLaren']},
+        }
         old_code = mailer.messages[-1]['code']
         registration_clock.advance(seconds=60)
         assert (await client.post('/api/auth/resend-verification', headers=csrf)).status_code == 202
