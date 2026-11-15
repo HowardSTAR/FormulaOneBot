@@ -13,6 +13,7 @@ import { FirstVisitGuide } from './FirstVisitGuide';
 import { PageMotion } from './PageMotion';
 import { VisitReminder } from './VisitReminder';
 import { HomeDock } from './HomeDock';
+import { HomeToolbar } from './HomeToolbar';
 import { useMediaQuery } from '../helpers/useMediaQuery';
 import '../assets/home-glass.css';
 
@@ -107,6 +108,7 @@ export function SwipeBackLayout() {
       <InstallHint />
       <FirstVisitGuide />
       <div className="app-content">
+        {(!mobile || routeKey === 'menu') && <HomeToolbar />}
         <section className={`app-page-main route-${routeKey}`} id="page-content" tabIndex={-1}>
           {!mobile && <VisitReminder includeHome={overview} />}
           <Suspense fallback={<div className="route-loading" role="status">Загрузка раздела…</div>}>

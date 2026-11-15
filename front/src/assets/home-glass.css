@@ -5,13 +5,13 @@ html:has(.glass-home) { scroll-padding-top: 0; }
 .glass-home #page-content { scroll-margin-top: var(--home-toolbar-space); }
 .glass-home #page-content :is(a, button, summary) { scroll-margin-block: var(--home-toolbar-space) 24px; }
 .app-shell.design-shell.glass-home .app-content { padding-top: 20px !important; }
-.glass-home .home-toolbar {
+.design-shell .home-toolbar {
   position: sticky; top: calc(16px + var(--app-safe-top, 0px)); z-index: 110;
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px;
   margin-bottom: 28px; min-height: 64px; border-radius: 24px;
   color: var(--design-ink); font-size: .875rem;
 }
-.glass-home .home-toolbar {
+.design-shell .home-toolbar {
   background: var(--design-surface) !important;
   border: 1px solid var(--design-line) !important;
   box-shadow: var(--design-glass-shadow) !important;
@@ -19,11 +19,11 @@ html:has(.glass-home) { scroll-padding-top: 0; }
 .home-toolbar-brand { font-size: 1.125rem; font-weight: 750; letter-spacing: -.06em; color: var(--design-ink); text-decoration: none; }
 .home-toolbar-brand span:first-child { color: var(--design-accent); }
 .home-toolbar-actions { display: flex; align-items: center; gap: 8px; }
-.glass-home .home-toolbar .theme-toggle { background: transparent; border-color: transparent; border-radius: 14px; }
-.glass-home .home-toolbar .theme-toggle:hover { background: var(--design-surface); }
-.glass-home .home-toolbar .account-shortcut { border: 0; padding: 10px 12px; background: var(--design-surface); border-radius: 14px; box-shadow: none; }
+.design-shell .home-toolbar .theme-toggle { background: transparent; border-color: transparent; border-radius: 14px; }
+.design-shell .home-toolbar .theme-toggle:hover { background: var(--design-surface); }
+.design-shell .home-toolbar .account-shortcut { border: 0; padding: 10px 12px; background: var(--design-surface); border-radius: 14px; box-shadow: none; }
 @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass-home .home-toolbar {
+  .design-shell .home-toolbar {
     background: var(--design-glass-fill) !important;
     border-color: var(--design-glass-edge) !important;
     -webkit-backdrop-filter: blur(24px) saturate(1.3);
@@ -31,7 +31,7 @@ html:has(.glass-home) { scroll-padding-top: 0; }
   }
 }
 @media (min-width: 900px) {
-  .app-shell.design-shell.glass-home .home-toolbar { width: fit-content; margin-left: auto; margin-right: 0; }
+  .app-shell.design-shell .home-toolbar { width: fit-content; margin-left: auto; margin-right: 0; }
   .home-toolbar-brand { display: none; }
 }
 @media (max-width: 899px) {
@@ -40,36 +40,36 @@ html:has(.glass-home) { scroll-padding-top: 0; }
   #root .root:has(.glass-home) { padding: 0; }
   .app-shell.design-shell.glass-home .app-header { display: none !important; }
   .app-shell.design-shell.glass-home .app-content { padding-top: calc(12px + var(--app-safe-top, 0px)) !important; padding-left: calc(16px + var(--app-safe-left, 0px)) !important; padding-right: calc(16px + var(--app-safe-right, 0px)) !important; }
-  .glass-home .home-toolbar { gap: 8px; top: calc(8px + var(--app-safe-top, 0px)); margin-bottom: 24px; border-radius: 22px; }
+  .design-shell .home-toolbar { gap: 8px; top: calc(8px + var(--app-safe-top, 0px)); margin-bottom: 24px; border-radius: 22px; }
   .home-toolbar-brand { display: flex; align-items: center; min-width: 0; min-height: 44px; line-height: 1.25; }
   .home-toolbar-actions { flex-shrink: 0; gap: 4px; }
-  .glass-home .home-toolbar .account-shortcut { padding: 10px; min-width: 44px; }
-  .glass-home .home-toolbar .account-shortcut span { display: none; }
+  .design-shell .home-toolbar .account-shortcut { padding: 10px; min-width: 44px; }
+  .design-shell .home-toolbar .account-shortcut span { display: none; }
 }
 @media (max-width: 439px) {
-  .glass-home .home-toolbar .theme-toggle { min-width: 44px; padding-inline: 10px; }
-  .glass-home .home-toolbar .theme-toggle span { display: none; }
+  .design-shell .home-toolbar .theme-toggle { min-width: 44px; padding-inline: 10px; }
+  .design-shell .home-toolbar .theme-toggle span { display: none; }
 }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
-  .glass-home .home-toolbar {
+  .design-shell .home-toolbar {
     background: var(--design-surface) !important;
     border-color: var(--design-control) !important;
     -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none !important;
   }
 }
 @media (forced-colors: active) {
-  .glass-home .home-toolbar { background: Canvas !important; border-color: CanvasText !important; }
+  .design-shell .home-toolbar { background: Canvas !important; border-color: CanvasText !important; }
 }
 
 @media (max-width: 359px) {
-  .glass-home .home-toolbar { padding-inline: 8px; }
+  .design-shell .home-toolbar { padding-inline: 8px; }
   .home-toolbar-brand { font-size: 1rem; }
 }
 
 /* Icon controls free the toolbar for profile and an always-visible inbox. */
-.glass-home .home-toolbar .theme-toggle { min-width: 44px; width: 44px; padding-inline: 0; }
+.design-shell .home-toolbar .theme-toggle { min-width: 44px; width: 44px; padding-inline: 0; }
 @media (max-width: 899px) {
-  .glass-home .home-toolbar .menu-shortcut { display: none; }
+  .design-shell .home-toolbar .menu-shortcut { display: none; }
   .home-toolbar-actions { gap: 4px; }
 }
 
@@ -78,5 +78,5 @@ html:has(.glass-home) { scroll-padding-top: 0; }
   .app-shell.design-shell.glass-home .app-content > * { max-width: none; }
 }
 
-/* Only the menu reserves space for its sticky account controls. */
-.glass-home:has(.menu-page) { --home-toolbar-space: 6rem; }
+/* Reserve scroll clearance only where the account toolbar is rendered. */
+.app-shell.design-shell:has(.home-toolbar) { --home-toolbar-space: 6rem; }
