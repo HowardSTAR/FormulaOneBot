@@ -1294,10 +1294,40 @@ async def api_pilot_portrait(
     raise HTTPException(status_code=404, detail="Default portrait not found")
 
 
+class HomeFavoritesRequest(BaseModel):
+    drivers: List[str] = Field(max_length=2)
+    teams: List[str] = Field(max_length=1)
+
+
 @web_app.get("/api/favorites")
 async def api_favorites(user_id: int = Depends(get_prediction_user_id)):
     drivers, teams = await get_favorites_for_user_id(user_id)
-    return {"drivers": drivers, "teams": teams}
+    async with db.conn.execute("SELECT drivers,teams FROM home_favorites WHERE user_id=?", (user_id,)) as cursor:
+        row = await cursor.fetchone()
+    # Removed favorites cannot remain on home, including removals made in the bot.
+    def selected(kind, available, limit):
+        saved = json.loads(row[kind]) if row else []
+        ordered = [value for value in saved if value in available]
+        return (ordered + [value for value in available if value not in ordered])[:limit]
+    return {"drivers": drivers, "teams": teams,
+            "home": {"drivers": selected("drivers", drivers, 2), "teams": selected("teams", teams, 1)}}
+
+
+@web_app.post("/api/favorites/home")
+async def save_home_favorites(item: HomeFavoritesRequest, user_id: int = Depends(get_prediction_user_id)):
+    async with db.transaction() as conn:
+        for values, table, column in ((item.drivers, 'favorite_drivers', 'driver_code'),
+                                      (item.teams, 'favorite_teams', 'constructor_name')):
+            async with conn.execute(f"SELECT {column} FROM {table} WHERE user_id=?", (user_id,)) as cursor:
+                available = {row[0] for row in await cursor.fetchall()}
+            if len(values) != len(set(values)) or not set(values) <= available:
+                raise HTTPException(status_code=422, detail="Выберите разных участников из избранного")
+            if len(values) != min(len(available), 2 if table == 'favorite_drivers' else 1):
+                raise HTTPException(status_code=422, detail="Выберите двух пилотов и команду, если они есть в избранном")
+        await conn.execute("INSERT INTO home_favorites(user_id,drivers,teams) VALUES(?,?,?) "
+                           "ON CONFLICT(user_id) DO UPDATE SET drivers=excluded.drivers,teams=excluded.teams",
+                           (user_id, json.dumps(item.drivers), json.dumps(item.teams)))
+    return {"drivers": item.drivers, "teams": item.teams}
 
 
 async def _toggle_account_favorite(user_id: int, value: str, *, team: bool = False):

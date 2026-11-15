@@ -4,7 +4,7 @@ import time
 
 from app.utils.process_lock import ProcessLock
 
-LATEST_VERSION = 3
+LATEST_VERSION = 4
 
 
 async def migrate(database):
@@ -30,7 +30,8 @@ async def migrate(database):
             await conn.commit()
         from app.migrations.runtime import upgrade as runtime_upgrade
         from app.migrations.championship import upgrade as championship_upgrade
-        for version, upgrade in ((2, runtime_upgrade), (3, championship_upgrade)):
+        from app.migrations.home_favorites import upgrade as home_favorites_upgrade
+        for version, upgrade in ((2, runtime_upgrade), (3, championship_upgrade), (4, home_favorites_upgrade)):
             if version in applied:
                 continue
             await conn.execute('BEGIN IMMEDIATE')

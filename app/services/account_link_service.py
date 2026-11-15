@@ -500,6 +500,11 @@ class AccountLinkService:
             (target_id, source_id),
         )
         await conn.execute(
+            "INSERT OR IGNORE INTO home_favorites(user_id, drivers, teams) "
+            "SELECT ?, drivers, teams FROM home_favorites WHERE user_id = ?",
+            (target_id, source_id),
+        )
+        await conn.execute(
             "INSERT OR IGNORE INTO race_votes(user_id, season, round, rating, created_at) "
             "SELECT ?, season, round, rating, created_at FROM race_votes WHERE user_id = ?",
             (target_id, source_id),
