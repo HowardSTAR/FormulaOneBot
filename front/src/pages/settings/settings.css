@@ -192,3 +192,6 @@
   .settings-clock-sound { stroke: Highlight; }
   .settings-panel, .settings-summary { border: 1px solid CanvasText; }
 }
+.settings-home { margin-bottom: 24px; }
+.settings-home > p { max-width: 70ch; color: var(--design-muted); line-height: 1.6; }
+.settings-home .settings-push-link { max-width: 36rem; }

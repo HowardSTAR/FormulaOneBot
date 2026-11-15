@@ -19,11 +19,12 @@ export function useSpotlightData(season: number, auth: AuthState) {
     void Promise.allSettled([
       apiRequest<{ drivers?: SpotlightEntry[] }>('/api/drivers', { season }),
       apiRequest<{ constructors?: SpotlightEntry[] }>('/api/constructors', { season }),
-      auth.loaded && auth.signedIn ? apiRequest<HomeFavorites>('/api/favorites') : Promise.resolve({ drivers: [], teams: [] }),
+      auth.loaded && auth.signedIn ? apiRequest<HomeFavorites & { home?: HomeFavorites }>('/api/favorites') : Promise.resolve<HomeFavorites & { home?: HomeFavorites }>({ drivers: [], teams: [] }),
     ]).then(([drivers, teams, favorites]) => {
+      const selection = favorites.status === 'fulfilled' ? favorites.value.home ?? favorites.value : { drivers: [], teams: [] };
       if (active) setData({ key, drivers: drivers.status === 'fulfilled' ? drivers.value.drivers || [] : [],
         teams: teams.status === 'fulfilled' ? teams.value.constructors || [] : [],
-        favorites: favorites.status === 'fulfilled' ? { drivers: favorites.value.drivers || [], teams: favorites.value.teams || [] } : { drivers: [], teams: [] },
+        favorites: { drivers: selection.drivers || [], teams: selection.teams || [] },
         failed: drivers.status === 'rejected' || teams.status === 'rejected', favoritesFailed: favorites.status === 'rejected' });
     });
     return () => { active = false; };

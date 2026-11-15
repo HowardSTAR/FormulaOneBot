@@ -1,3 +1,4 @@
+import { favoritesPreview } from './fixtures/favorites';
 import { analyticsPreview } from './fixtures/prediction-analytics';
 import { adminPreview } from './fixtures/admin';
 import { previewAvatar } from './fixtures/avatar-preview';
@@ -96,6 +97,7 @@ const historyFixture = historyPreview(query, drivers, constructors);
 const accountProfileFixture = profilePreview(query);
 const accountFixture = accountPreview(query);
 const settingsFixture = settingsPreview(query);
+const favoritesFixture = favoritesPreview(query);
 const notificationsFixture = notificationsPreview(query);
 const gamesFixture = gamesPreview(query);
 const adminFixture = adminPreview(query);
@@ -173,7 +175,8 @@ window.fetch = async (input, init) => {
     const response = historyFixture(url);
     if (response) return response;
   }
-  if (['/api/favorites/driver', '/api/favorites/team'].includes(url.pathname) && init?.method === 'POST') return scenario === 'favorites-save-error' ? json({}, 503) : json({ ok: true });
+  const favoritesResponse = favoritesFixture(url, init);
+  if (favoritesResponse) return favoritesResponse;
   if ((init?.method || (input instanceof Request ? input.method : 'GET')) !== 'GET') {
     if (query.get('demoVotes') !== '0' && url.pathname === '/api/votes/race' && init?.method === 'POST') {
       const body = JSON.parse(String(init.body));
@@ -219,7 +222,7 @@ window.fetch = async (input, init) => {
     case '/api/race-recap': return json({ status: 'waiting', items: [], note: 'Демонстрационный обзор: ожидаем подтверждённые данные.' });
     case '/api/profiles/me': return member ? json({ avatar: { helmet: 'scarlet', suit: 'scarlet', background: 'garage' } }) : json({}, 401);
     case '/api/auth/me': return member ? json({ id: 1, email: null, telegram_id: linked ? 1 : null, role: 'user', email_verified: true, display_name: 'Болельщик' }) : json({}, 401);
-    case '/api/favorites': return scenario === 'favorites-error' ? json({}, 503) : json(scenario === 'favorites-empty' ? { drivers: [], teams: [] } : scenario === 'favorites-missing' ? { drivers: ['OLD'], teams: ['Old Team'] } : { drivers: ['PIA', 'NOR'], teams: ['McLaren'] });
+
     case '/api/next-race': return json({ status: scenario === 'finished' ? 'season_finished' : 'ok', is_cancelled: scenario === 'cancelled', event_name: fixtureProfile.eventName, location: fixtureLocation, country: fixtureCountry, season: 2026, round: fixtureProfile.round, race_start_utc: sessions[4].utc_iso, next_session_iso: sessions[0].utc_iso, next_session_name: sessions[0].name });
     case '/api/race-details': {
       const stage = requestedPreviewStage(Number(url.searchParams.get('season')), Number(url.searchParams.get('round')));

@@ -133,10 +133,15 @@ function SettingsPage({ embedded = false }: { embedded?: boolean }) {
       <header className="settings-header">
         <div>
           <h1>Настройки</h1>
-          <p>Время, напоминания и сообщения о гоночном уик-энде.</p>
+          <p>Главная, время и напоминания о гоночном уик-энде.</p>
         </div>
       </header>
 
+      <section className="settings-panel settings-home" aria-labelledby="settings-home-heading">
+        <h2 id="settings-home-heading">Кто на главной</h2>
+        <p>Выберите двух пилотов и одну команду из избранного. Их очки и места появятся на главной — на компьютере и на телефоне.</p>
+        <Link className="settings-push-link" to="/favorites"><HomeIcon name="favorite" /><span><strong>Выбрать пилотов и команду</strong><small>Из избранного для главной</small></span><HomeIcon name="chevronRight" /></Link>
+      </section>
       {!loaded && error ? <section className="settings-load-error" role="alert">
         <h2>Настройки не загрузились</h2>
         <p>{error}</p>

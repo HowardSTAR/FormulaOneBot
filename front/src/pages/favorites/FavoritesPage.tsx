@@ -6,16 +6,20 @@ import { DriverPortrait } from '../../components/DriverPortrait';
 import { TeamLogo } from '../../components/TeamLogo';
 import { HomeIcon } from '../index/HomeIcon';
 import './favorites.css';
+import { HomeFavorites } from './HomeFavorites';
 
 type Driver = { code: string; name: string };
 type Team = { name: string; constructorId?: string };
-type FavoritesData = { drivers: string[]; teams: string[] };
+type FavoritesData = { drivers: string[]; teams: string[]; home?: { drivers: string[]; teams: string[] } };
 
 function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
   const [tab, setTab] = useState<"drivers" | "teams">("drivers");
   const [driversList, setDriversList] = useState<Driver[]>([]);
   const [teamsList, setTeamsList] = useState<Team[]>([]);
   const [userFavorites, setUserFavorites] = useState<FavoritesData>({ drivers: [], teams: [] });
+  const [homeDirty, setHomeDirty] = useState(false);
+  const [home, setHome] = useState<FavoritesData>();
+  const [firstChoice, setFirstChoice] = useState(false);
   const [driversOutdated, setDriversOutdated] = useState(false);
   const [teamsOutdated, setTeamsOutdated] = useState(false);
   const [displayYearDrivers, setDisplayYearDrivers] = useState(0);
@@ -36,6 +40,7 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
     try {
       const favoritesData = await apiRequest<FavoritesData>("/api/favorites");
       setUserFavorites({ drivers: favoritesData.drivers || [], teams: favoritesData.teams || [] });
+      setHome(favoritesData.home);
 
       let driversData = await apiRequest<{ drivers?: Driver[] }>("/api/drivers", { season: currentYear });
       if (!driversData.drivers || driversData.drivers.length === 0) {
@@ -71,6 +76,8 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
   }, [loadAllData]);
 
   const toggleFavorite = async (kind: "drivers" | "teams", value: string) => {
+    if (homeDirty && !window.confirm('Выбор для главной не сохранён. Изменить избранное и сбросить этот выбор?')) return;
+    setHomeDirty(false);
     const key = `${kind}:${value}`;
     if (pendingRef.current.has(key)) return;
     pendingRef.current.add(key);
@@ -80,9 +87,11 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
     const toggle = (prev: FavoritesData): FavoritesData => ({
       ...prev, [kind]: prev[kind].includes(value) ? prev[kind].filter(item => item !== value) : [...prev[kind], value],
     });
+    const first = !userFavorites.drivers.length && !userFavorites.teams.length;
     setUserFavorites(toggle);
     try {
       await apiRequest(`/api/favorites/${kind === "drivers" ? "driver" : "team"}`, { id: value }, "POST");
+      if (first) setFirstChoice(true);
     } catch (e) {
       setUserFavorites(toggle);
       setError(e instanceof Error ? e.message : "Не удалось сохранить выбор. Попробуйте ещё раз.");
@@ -103,8 +112,10 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
       {!embedded && <BackButton />}
       <header className="favorites-header">
         <h1>Избранное</h1>
-        <p>Выберите пилотов и команды, за которыми следите в этом сезоне.</p>
+        <p>Добавьте любимых пилотов и команды. Для главной можно выбрать двух пилотов и одну команду в блоке ниже.</p>
       </header>
+      {!loading && <HomeFavorites key={JSON.stringify([userFavorites, home])} favorites={userFavorites} initial={home} names={Object.fromEntries(driversList.map(driver => [driver.code, driver.name]))} busy={pending.length > 0} onSaved={setHome} onDirty={setHomeDirty} />}
+      {firstChoice && <p className="favorites-message" role="status">Избранное добавлено. На главной показываем двух пилотов и одну команду. Выбрать их можно в блоке «Кто на главной» выше; вернуться сюда — через «Настройки → Кто на главной».</p>}
       <section className="favorites-panel" aria-label="Выбор избранного" aria-busy={loading}>
         <div className="favorites-controls">
           <div className="favorites-categories" role="group" aria-label="Категория">
