@@ -30,3 +30,8 @@
 
 /* Account has its own content container; keep glass navigation outside it. */
 .personal-hub-account, .personal-hub-settings-page { container-type: normal; }
+
+.personal-hub-favorites-page { container-type: normal; }
+.personal-hub-favorites-page .personal-hub-header { margin: 0 auto; padding: 0; }
+.personal-hub-favorites-page .personal-hub-header { flex-wrap: wrap; }
+.personal-hub-favorites-page .personal-hub-switch { min-width: min(100%, 18rem); }

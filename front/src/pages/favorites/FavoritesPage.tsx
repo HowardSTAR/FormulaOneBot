@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { hapticSelection } from "../../helpers/telegram";
-import "../../assets/personal-pages.css";
+import { DriverPortrait } from '../../components/DriverPortrait';
+import { TeamLogo } from '../../components/TeamLogo';
+import { HomeIcon } from '../index/HomeIcon';
+import './favorites.css';
 
 type Driver = { code: string; name: string };
-type Team = { name: string };
+type Team = { name: string; constructorId?: string };
 type FavoritesData = { drivers: string[]; teams: string[] };
 
 function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
@@ -19,6 +22,8 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
   const [displayYearTeams, setDisplayYearTeams] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const pendingRef = useRef(new Set<string>());
+  const [pending, setPending] = useState<string[]>([]);
   const selectedCount = tab === "drivers" ? userFavorites.drivers.length : userFavorites.teams.length;
   const unavailable = tab === "drivers"
     ? userFavorites.drivers.filter(code => !driversList.some(d => d.code === code))
@@ -55,7 +60,6 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
       setTeamsList(teamsData.constructors || []);
     } catch (e) {
       console.error(e);
-      setError(e instanceof Error ? e.message : "Не удалось обновить избранное");
       setError(e instanceof Error ? e.message : "Ошибка загрузки данных");
     } finally {
       setLoading(false);
@@ -66,151 +70,67 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
     loadAllData();
   }, [loadAllData]);
 
-  const toggleDriver = async (code: string) => {
+  const toggleFavorite = async (kind: "drivers" | "teams", value: string) => {
+    const key = `${kind}:${value}`;
+    if (pendingRef.current.has(key)) return;
+    pendingRef.current.add(key);
+    setPending([...pendingRef.current]);
     hapticSelection();
     setError(null);
-    setUserFavorites((prev) => ({
-      ...prev,
-      drivers: prev.drivers.includes(code) ? prev.drivers.filter((c) => c !== code) : [...prev.drivers, code],
-    }));
+    const toggle = (prev: FavoritesData): FavoritesData => ({
+      ...prev, [kind]: prev[kind].includes(value) ? prev[kind].filter(item => item !== value) : [...prev[kind], value],
+    });
+    setUserFavorites(toggle);
     try {
-      await apiRequest("/api/favorites/driver", { id: code }, "POST");
+      await apiRequest(`/api/favorites/${kind === "drivers" ? "driver" : "team"}`, { id: value }, "POST");
     } catch (e) {
-      console.error(e);
-      setError(e instanceof Error ? e.message : "Не удалось обновить избранное");
-      setUserFavorites((prev) => ({
-        ...prev,
-        drivers: prev.drivers.includes(code) ? prev.drivers.filter((c) => c !== code) : [...prev.drivers, code],
-      }));
+      setUserFavorites(toggle);
+      setError(e instanceof Error ? e.message : "Не удалось сохранить выбор. Попробуйте ещё раз.");
+    } finally {
+      pendingRef.current.delete(key);
+      setPending([...pendingRef.current]);
     }
   };
 
-  const toggleTeam = async (name: string) => {
-    hapticSelection();
-    setError(null);
-    setUserFavorites((prev) => ({
-      ...prev,
-      teams: prev.teams.includes(name) ? prev.teams.filter((t) => t !== name) : [...prev.teams, name],
-    }));
-    try {
-      await apiRequest("/api/favorites/team", { id: name }, "POST");
-    } catch (e) {
-      console.error(e);
-      setUserFavorites((prev) => ({
-        ...prev,
-        teams: prev.teams.includes(name) ? prev.teams.filter((t) => t !== name) : [...prev.teams, name],
-      }));
-    }
-  };
+  const season = tab === "drivers" ? displayYearDrivers : displayYearTeams;
+  const outdated = tab === "drivers" ? driversOutdated : teamsOutdated;
+  const entries = tab === "drivers"
+    ? driversList.map(driver => ({ value: driver.code, name: driver.name, code: driver.code, id: undefined }))
+    : teamsList.map(team => ({ value: team.name, name: team.name, code: undefined, id: team.constructorId }));
 
   return (
-    <div className="personal-page favorites-page">
+    <div className="favorites-page">
       {!embedded && <BackButton />}
-      <header className="personal-page-header">
-        <div>
-          <span className="personal-page-kicker">Личный раздел</span>
-          <h1>Избранное</h1>
-          <p>Соберите пилотов и команды, за которыми хотите следить в течение сезона.</p>
-        </div>
-        <div className="personal-page-summary" aria-label={`Выбрано: ${selectedCount}`}>
-          <strong>{selectedCount}</strong><span>выбрано</span>
-        </div>
+      <header className="favorites-header">
+        <h1>Избранное</h1>
+        <p>Выберите пилотов и команды, за которыми следите в этом сезоне.</p>
       </header>
-
-      <section className="personal-surface">
-        <div className="favorites-toolbar">
-          <div>
-            <span className="personal-control-label">Категория</span>
-            <div className="segmented-tabs">
-              <div
-                className="segmented-slider"
-                style={{ transform: tab === "drivers" ? "translateX(0)" : "translateX(100%)" }}
-                aria-hidden
-              />
-              <button type="button" className={`segmented-tab ${tab === "drivers" ? "active" : ""}`} onClick={() => { hapticSelection(); setTab("drivers"); }}>
-                Пилоты
-              </button>
-              <button type="button" className={`segmented-tab ${tab === "teams" ? "active" : ""}`} onClick={() => { hapticSelection(); setTab("teams"); }}>
-                Команды
-              </button>
-            </div>
+      <section className="favorites-panel" aria-label="Выбор избранного" aria-busy={loading}>
+        <div className="favorites-controls">
+          <div className="favorites-categories" role="group" aria-label="Категория">
+            {([['drivers', 'Пилоты'], ['teams', 'Команды']] as const).map(([value, label]) =>
+              <button key={value} type="button" aria-pressed={tab === value} onClick={() => { hapticSelection(); setTab(value); }}>{label}<span>{userFavorites[value].length}</span></button>
+            )}
           </div>
-          <p><i aria-hidden />Изменения сохраняются автоматически</p>
+          <p className="favorites-save-status" role="status">{pending.length ? 'Сохранение…' : 'Изменения сохраняются автоматически'}</p>
         </div>
-
-        {loading && <div className="personal-loading"><div className="spinner" /><div>Загрузка избранного…</div></div>}
-        {error && <div className="personal-error" role="alert">{error}</div>}
-        {!loading && unavailable.length > 0 && <div className="favorites-past">
-          <p>В избранном также есть участники прошлых сезонов ({unavailable.length}). Они включены в счётчик.</p>
-          {unavailable.map(value => <button type="button" key={value} data-analytics-action="favorites_toggle" onClick={() => tab === 'drivers' ? void toggleDriver(value) : void toggleTeam(value)}>{value} · Убрать из избранного ×</button>)}
-        </div>}
-
-      {!loading && tab === "drivers" && (
-        <div className="grid-select">
-          {driversOutdated && (
-            <div className="season-warning">
-              <div className="warning-icon">⚠️</div>
-              <div className="warning-text">
-                <div className="warning-title">Межсезонье</div>
-                Список на новый сезон еще не утвержден.<br />Показываем составы {displayYearDrivers} года.
-              </div>
-            </div>
-          )}
-          {driversList.length === 0 ? (
-            <div style={{ gridColumn: "1 / -1", textAlign: "center" }}>Список пилотов пуст</div>
-          ) : (
-            driversList.map((driver) => (
-              <button
-                type="button"
-                key={driver.code}
-                data-analytics-action="favorites_toggle"
-                className={`select-item ${userFavorites.drivers.includes(driver.code) ? "selected" : ""}`}
-                onClick={() => toggleDriver(driver.code)}
-                aria-pressed={userFavorites.drivers.includes(driver.code)}
-              >
-                <div className="item-text-wrap">
-                  <div className="item-name">{driver.name}</div>
-                  <div className="item-code">{driver.code}</div>
-                </div>
-                <div className="check-icon">⭐</div>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-
-      {!loading && tab === "teams" && (
-        <div className="grid-select">
-          {teamsOutdated && (
-            <div className="season-warning">
-              <div className="warning-icon">⚠️</div>
-              <div className="warning-text">
-                <div className="warning-title">Межсезонье</div>
-                Список на новый сезон еще не утвержден.<br />Показываем составы {displayYearTeams} года.
-              </div>
-            </div>
-          )}
-          {teamsList.length === 0 ? (
-            <div style={{ gridColumn: "1 / -1", textAlign: "center" }}>Список команд пуст</div>
-          ) : (
-            teamsList.map((team) => (
-              <button
-                type="button"
-                key={team.name}
-                data-analytics-action="favorites_toggle"
-                className={`select-item ${userFavorites.teams.includes(team.name) ? "selected" : ""}`}
-                onClick={() => toggleTeam(team.name)}
-                aria-pressed={userFavorites.teams.includes(team.name)}
-              >
-                <div className="item-text-wrap">
-                  <div className="item-name">{team.name}</div>
-                </div>
-                <div className="check-icon">⭐</div>
-              </button>
-            ))
-          )}
-        </div>
-      )}
+        {loading && <p className="favorites-message" role="status">Загрузка избранного…</p>}
+        {error && <div className="favorites-error" role="alert"><p>{error}</p>{!driversList.length && !teamsList.length && <button type="button" onClick={() => void loadAllData()}>Повторить загрузку</button>}</div>}
+        {!loading && <>
+          <div className="favorites-list-heading"><h2>{tab === 'drivers' ? 'Пилоты' : 'Команды'}{season > 0 && <span> · {season}</span>}</h2><p>Выбрано: {selectedCount}</p></div>
+          {outdated && <p className="favorites-message">Список на новый сезон ещё не утверждён. Показываем составы {season} года.</p>}
+          {unavailable.length > 0 && <div className="favorites-archive"><h3>Из прошлых сезонов</h3><p>Эти участники тоже включены в счётчик.</p><div>{unavailable.map(value => <button key={value} type="button" disabled={pending.includes(`${tab}:${value}`)} data-analytics-action="favorites_toggle" onClick={() => void toggleFavorite(tab, value)}>{value}<span>Убрать из избранного</span></button>)}</div></div>}
+          {!entries.length ? <p className="favorites-message">{tab === 'drivers' ? 'Список пилотов пуст' : 'Список команд пуст'}</p> : <div className="favorites-grid">
+            {entries.map(entry => {
+              const selected = userFavorites[tab].includes(entry.value);
+              return <button type="button" key={`${tab}:${entry.value}`} className="favorite-choice" aria-pressed={selected} disabled={pending.includes(`${tab}:${entry.value}`)} data-analytics-action="favorites_toggle" onClick={() => void toggleFavorite(tab, entry.value)}>
+                <span className="favorite-art">{entry.code ? <DriverPortrait code={entry.code} name={entry.name} season={season} /> : <TeamLogo name={entry.name} id={entry.id} season={season} size={64} />}</span>
+                <span className="favorite-name"><strong>{entry.name}</strong>{entry.code && <small>{entry.code}</small>}</span>
+                <span className="favorite-star" aria-hidden="true"><HomeIcon name="favorite" /></span>
+              </button>;
+            })}
+          </div>}
+        </>}
       </section>
     </div>
   );

@@ -96,7 +96,7 @@ export function SwipeBackLayout() {
   const notifications = routeKey === 'notifications';
   const community = routeKey === 'community';
   const admin = routeKey === 'admin';
-  const homeFrame = routeKey === 'prediction-analytics' || admin || community || notifications || entrant || games || routeKey === 'contact-admin' || overview || weekend || calendar || results || profile || routeKey === 'account' || routeKey === 'settings' || routeKey === 'drivers' || routeKey === 'constructors' || routeKey === 'predictions' || routeKey === 'compare' || routeKey === 'history';
+  const homeFrame = routeKey === 'favorites' || routeKey === 'prediction-analytics' || admin || community || notifications || entrant || games || routeKey === 'contact-admin' || overview || weekend || calendar || results || profile || routeKey === 'account' || routeKey === 'settings' || routeKey === 'drivers' || routeKey === 'constructors' || routeKey === 'predictions' || routeKey === 'compare' || routeKey === 'history';
   return (
     <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`app-shell design-shell${homeFrame ? ' glass-home' : ''}`}>
       <EngagementEntry />
@@ -115,7 +115,7 @@ export function SwipeBackLayout() {
           </Suspense>
           <DataReceipt />
         </section>
-        {(!homeFrame || notifications || community) && <LegalFooter />}
+        {(!homeFrame || routeKey === 'favorites' || notifications || community) && <LegalFooter />}
         <HomeDock />
       </div>
     </div>
