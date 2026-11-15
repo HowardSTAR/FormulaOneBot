@@ -173,6 +173,7 @@ window.fetch = async (input, init) => {
     const response = historyFixture(url);
     if (response) return response;
   }
+  if (['/api/favorites/driver', '/api/favorites/team'].includes(url.pathname) && init?.method === 'POST') return scenario === 'favorites-save-error' ? json({}, 503) : json({ ok: true });
   if ((init?.method || (input instanceof Request ? input.method : 'GET')) !== 'GET') {
     if (query.get('demoVotes') !== '0' && url.pathname === '/api/votes/race' && init?.method === 'POST') {
       const body = JSON.parse(String(init.body));
@@ -307,7 +308,7 @@ const weekendQuery = new URLSearchParams();
 for (const key of ['season', 'round', 'session', 'tab', 'championship']) if (query.has(key)) weekendQuery.set(key, query.get(key)!);
 const calendarQuery = new URLSearchParams();
 for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery.set(key, query.get(key)!);
-const resultRoutes = ['prediction-analytics', 'admin', 'community', 'notifications', 'driver-details', 'constructor-details', 'reaction-game', 'reflex-grid-game', 'race-game','contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
+const resultRoutes = ['favorites', 'prediction-analytics', 'admin', 'community', 'notifications', 'driver-details', 'constructor-details', 'reaction-game', 'reflex-grid-game', 'race-game','contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
 const resultQuery = new URLSearchParams(weekendQuery);
 for (const key of ['kind', 'ids', 'from', 'to', 'roster', 'code', 'driverId', 'constructorId']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
 if (query.has('section')) resultQuery.set('section', query.get('section')!);
