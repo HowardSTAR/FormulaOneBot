@@ -3,6 +3,7 @@ import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
 import { hapticSelection } from "../../helpers/telegram";
 import { DriverPortrait } from '../../components/DriverPortrait';
+import { NationalityFlagBackdrop } from '../../components/NationalityFlagBackdrop';
 import { TeamLogo } from '../../components/TeamLogo';
 import { FavoriteStar } from './FavoriteStar';
 import { homeTeamIdentity } from '../index/team-identity';
@@ -18,6 +19,7 @@ type FavoritesData = { drivers: string[]; teams: string[]; home?: { drivers: str
 function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
   const [tab, setTab] = useState<"drivers" | "teams">("drivers");
   const [driversList, setDriversList] = useState<Driver[]>([]);
+  const [teamNationalities, setTeamNationalities] = useState<Record<string, string>>({});
   const [teamsList, setTeamsList] = useState<Team[]>([]);
   const [userFavorites, setUserFavorites] = useState<FavoritesData>({ drivers: [], teams: [] });
   const [homeDirty, setHomeDirty] = useState(false);
@@ -78,6 +80,18 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
     loadAllData();
   }, [loadAllData]);
 
+  useEffect(() => {
+    if (tab !== "teams" || !displayYearTeams || !teamsList.length) return;
+    let active = true;
+    void Promise.allSettled(teamsList.filter(team => team.constructorId).map(async team => {
+      const details = await apiRequest<{ nationality?: string }>('/api/constructor-details', { constructorId: team.constructorId!, season: displayYearTeams });
+      return [team.name, details.nationality || ''] as const;
+    })).then(results => {
+      if (active) setTeamNationalities(Object.fromEntries(results.flatMap(result => result.status === 'fulfilled' ? [result.value] : [])));
+    });
+    return () => { active = false; };
+  }, [tab, teamsList, displayYearTeams]);
+
   const toggleFavorite = async (kind: "drivers" | "teams", value: string) => {
     if (homeDirty && !window.confirm('Выбор для главной не сохранён. Изменить избранное и сбросить этот выбор?')) return;
     setHomeDirty(false);
@@ -137,7 +151,8 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
           {!entries.length ? <p className="favorites-message">{tab === 'drivers' ? 'Список пилотов пуст' : 'Список команд пуст'}</p> : <div className="favorites-grid">
             {entries.map(entry => {
               const selected = userFavorites[tab].includes(entry.value);
-              return <button type="button" key={`${tab}:${entry.value}`} className="favorite-choice" data-team={homeTeamIdentity(entry.id || '', entry.team || '')} aria-pressed={selected} disabled={pending.includes(`${tab}:${entry.value}`)} data-analytics-action="favorites_toggle" onClick={() => void toggleFavorite(tab, entry.value)}>
+              return <button type="button" key={`${tab}:${entry.value}`} className={`favorite-choice${entry.code ? '' : ' favorite-choice-team'}`} data-team={homeTeamIdentity(entry.id || '', entry.team || '')} aria-pressed={selected} disabled={pending.includes(`${tab}:${entry.value}`)} data-analytics-action="favorites_toggle" onClick={() => void toggleFavorite(tab, entry.value)}>
+                {!entry.code && teamNationalities[entry.name] && <NationalityFlagBackdrop nationality={teamNationalities[entry.name]} />}
                 <span className="favorite-art">{entry.code ? <DriverPortrait code={entry.code} name={entry.name} season={season} /> : <TeamLogo name={entry.name} id={entry.id} season={season} size={64} />}</span>
                 <span className="favorite-name">{entry.number && <span className="favorite-number" aria-hidden="true">{entry.number}</span>}<strong>{entry.name}</strong>{entry.code && <small>{entry.code}</small>}</span>
                 <span className="favorite-star" aria-hidden="true"><FavoriteStar selected={selected} /></span>
