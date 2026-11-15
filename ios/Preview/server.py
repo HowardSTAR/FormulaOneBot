@@ -4,9 +4,17 @@ Run: python3 ios/Preview/server.py (port 18765).
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
+import os
 from urllib.parse import urlparse, parse_qs
 
 NOW = datetime.now(timezone.utc)
+VENUES = {
+    "las-vegas": ("Las Vegas Grand Prix", "United States", "Превью · Las Vegas"),
+    "monaco": ("Monaco Grand Prix", "Monaco", "Превью · Monte Carlo"),
+    "japan": ("Japanese Grand Prix", "Japan", "Превью · Suzuka"),
+}
+VENUE = VENUES.get(os.environ.get("TURBOTEARS_PREVIEW_VENUE"),
+                   ("Тестовый этап · превью", "Тестовые данные", "Превью интерфейса"))
 SESSIONS = [
     {"code": code, "source_name": name, "starts_at": (NOW + timedelta(hours=offset)).isoformat()}
     for code, name, offset in [("practice_1", "Practice 1", -24), ("practice_2", "Practice 2", -20),
@@ -22,8 +30,8 @@ class Handler(BaseHTTPRequestHandler):
         round_number = int(query.get("round", [1])[0])
         if url.path == '/api/v1/weekend':
             data = {"status": "ok", "season": season, "schedule_status": "available", "sessions": SESSIONS,
-                    "event": {"id": f"{season}:{round_number}", "round": round_number, "name": "Тестовый этап · превью",
-                              "country": "Тестовые данные", "location": "Превью интерфейса", "date": NOW.date().isoformat(),
+                    "event": {"id": f"{season}:{round_number}", "round": round_number, "name": VENUE[0],
+                              "country": VENUE[1], "location": VENUE[2], "date": NOW.date().isoformat(),
                               "starts_at": SESSIONS[-1]["starts_at"], "is_cancelled": False}}
         elif url.path in ['/api/drivers', '/api/constructors']:
             key = url.path.split('/')[-1]
