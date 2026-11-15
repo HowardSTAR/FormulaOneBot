@@ -36,10 +36,10 @@ async def record_user_activity(
     assert database.conn is not None
     now = utc_iso()
     primary_telegram_id = get_primary_admin_telegram_id()
-    async with database.write_lock:
+    async with database.transaction(timeout=1 if source == "site" else 30) as conn:
         # One sample per five minutes is enough for rolling unique-user metrics
         # and prevents an active client from growing SQLite on every API call.
-        await database.conn.execute(
+        await conn.execute(
             """
             INSERT INTO user_activity_events(user_id, source, occurred_at)
             SELECT ?, ?, ?
@@ -52,7 +52,7 @@ async def record_user_activity(
             (int(user_id), source, now, int(user_id), source, now),
         )
         if source == "bot":
-            await database.conn.execute(
+            await conn.execute(
                 """
                 UPDATE users
                 SET display_name = COALESCE(?, display_name),
@@ -73,7 +73,6 @@ async def record_user_activity(
                     int(user_id),
                 ),
             )
-        await database.conn.commit()
 
 
 async def record_telegram_activity(
@@ -86,17 +85,16 @@ async def record_telegram_activity(
     if not database.conn:
         await database.connect()
     assert database.conn is not None
-    async with database.write_lock:
-        await database.conn.execute(
+    async with database.transaction() as conn:
+        await conn.execute(
             "INSERT OR IGNORE INTO users(telegram_id) VALUES (?)",
             (int(telegram_id),),
         )
-        async with database.conn.execute(
+        async with conn.execute(
             "SELECT id FROM users WHERE telegram_id = ? AND archived_at IS NULL",
             (int(telegram_id),),
         ) as cursor:
             row = await cursor.fetchone()
-        await database.conn.commit()
     if row:
         await record_user_activity(
             database,

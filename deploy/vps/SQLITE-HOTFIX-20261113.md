@@ -31,3 +31,20 @@ All four app services were recreated from the same image to retain the CI
 release consistency invariant. Server source files were updated as well.
 The matching fix is committed in the local main branch. Push these commits
 before the next CI release so its image retains the hotfix.
+
+## Account activity regression
+
+The 2026-11-15 release exposed the same stale shared-WAL-connection failure in
+`record_user_activity`, causing authenticated account/settings requests to return
+HTTP 500 while `/health` still passed. Activity writes now use isolated immediate
+transactions with rollback; optional site metrics wait at most one second for a
+SQLite writer and busy/locked errors cannot abort session authorization. Other
+activity errors remain visible. Telegram profile activity uses the same isolated
+writer. Session validation/refresh uses its own connection so a shared snapshot
+cannot prevent renewal or hide externally revoked sessions.
+
+Regression coverage: `tests/test_activity_sqlite.py` pins a real WAL snapshot,
+advances it with another connection, exercises authenticated account/settings/
+favorites reads, checks deduplication and bot profile updates, verifies external
+session revocation, and tests a real held writer plus CSRF rejection. No new
+schema migration is needed.

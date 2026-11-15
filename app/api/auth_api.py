@@ -6,6 +6,7 @@ import io
 import logging
 import os
 import re
+import sqlite3
 from dataclasses import dataclass
 from datetime import timedelta
 from functools import lru_cache
@@ -237,7 +238,13 @@ async def require_web_session(
         user = await auth_service.authenticate_session(raw_token)
     except AuthError as exc:
         raise _auth_http_error(exc) from exc
-    await record_user_activity(auth_service.database, int(user["id"]), "site")
+    try:
+        await record_user_activity(auth_service.database, int(user["id"]), "site")
+    except sqlite3.OperationalError as exc:
+        # Activity metrics must not turn a valid session into an HTTP 500.
+        if getattr(exc, "sqlite_errorcode", 0) & 0xff not in {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}:
+            raise
+        logger.warning("Site activity skipped because SQLite is busy")
     from_cookie = bearer_token is None
     if from_cookie and request.method.upper() not in {"GET", "HEAD", "OPTIONS"}:
         validate_request_origin(request)

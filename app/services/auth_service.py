@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import aiosqlite
 import hashlib
 import hmac
 import math
@@ -745,35 +746,10 @@ class AuthService:
     async def authenticate_session(self, token: str) -> dict[str, Any]:
         if not re.fullmatch(r"[A-Za-z0-9_-]{64}", token or ""):
             raise InvalidCredentials("Сессия недействительна. Войдите снова")
-        conn = await self._conn()
-        async with conn.execute(
-            """
-            SELECT s.token_hash, s.csrf_hash, s.expires_at, s.last_seen_at, u.* FROM auth_sessions s
-            JOIN users u ON u.id = s.user_id
-            WHERE s.token_hash = ? AND s.revoked_at IS NULL AND u.archived_at IS NULL
-            """,
-            (self._token_hash(token),),
-        ) as cursor:
-            row = await cursor.fetchone()
-        if not row or datetime.fromisoformat(row["expires_at"]) <= utc_now():
-            raise InvalidCredentials("Сессия завершена. Войдите снова")
-        last_seen = datetime.fromisoformat(row["last_seen_at"]).replace(tzinfo=timezone.utc)
-        if utc_now() - last_seen >= self.session_idle_ttl:
-            raise InvalidCredentials("Сессия завершена из-за отсутствия активности. Войдите снова")
-        if utc_now() - last_seen >= timedelta(minutes=5):
-            async with self.database.write_lock:
-                await conn.execute("UPDATE auth_sessions SET last_seen_at=? WHERE token_hash=? AND revoked_at IS NULL",
-                                   (iso(utc_now()), self._token_hash(token)))
-                await conn.commit()
-        if row["role"] != "superadmin" and is_primary_admin(
-            row["email"] if row["email_verified"] else None, row["telegram_id"]
-        ):
-            async with self.database.write_lock:
-                await conn.execute(
-                    "UPDATE users SET role = 'superadmin', updated_at = ? WHERE id = ?",
-                    (iso(utc_now()), int(row["id"])),
-                )
-                await conn.commit()
+        await self._conn()
+        # Session reads and refreshes cannot inherit a stale shared WAL snapshot.
+        async with aiosqlite.connect(self.database.db_path, timeout=30) as conn:
+            conn.row_factory = aiosqlite.Row
             async with conn.execute(
                 """
                 SELECT s.token_hash, s.csrf_hash, s.expires_at, s.last_seen_at, u.* FROM auth_sessions s
@@ -783,12 +759,40 @@ class AuthService:
                 (self._token_hash(token),),
             ) as cursor:
                 row = await cursor.fetchone()
-            if not row:
+            if not row or datetime.fromisoformat(row["expires_at"]) <= utc_now():
                 raise InvalidCredentials("Сессия завершена. Войдите снова")
-        result = self._public_user(row)
-        result["csrf_hash"] = row["csrf_hash"]
-        result["session_token_hash"] = row["token_hash"]
-        return result
+            last_seen = datetime.fromisoformat(row["last_seen_at"]).replace(tzinfo=timezone.utc)
+            if utc_now() - last_seen >= self.session_idle_ttl:
+                raise InvalidCredentials("Сессия завершена из-за отсутствия активности. Войдите снова")
+            if utc_now() - last_seen >= timedelta(minutes=5):
+                async with self.database.write_lock:
+                    await conn.execute("UPDATE auth_sessions SET last_seen_at=? WHERE token_hash=? AND revoked_at IS NULL",
+                                       (iso(utc_now()), self._token_hash(token)))
+                    await conn.commit()
+            if row["role"] != "superadmin" and is_primary_admin(
+                row["email"] if row["email_verified"] else None, row["telegram_id"]
+            ):
+                async with self.database.write_lock:
+                    await conn.execute(
+                        "UPDATE users SET role = 'superadmin', updated_at = ? WHERE id = ?",
+                        (iso(utc_now()), int(row["id"])),
+                    )
+                    await conn.commit()
+                async with conn.execute(
+                    """
+                    SELECT s.token_hash, s.csrf_hash, s.expires_at, s.last_seen_at, u.* FROM auth_sessions s
+                    JOIN users u ON u.id = s.user_id
+                    WHERE s.token_hash = ? AND s.revoked_at IS NULL AND u.archived_at IS NULL
+                    """,
+                    (self._token_hash(token),),
+                ) as cursor:
+                    row = await cursor.fetchone()
+                if not row:
+                    raise InvalidCredentials("Сессия завершена. Войдите снова")
+            result = self._public_user(row)
+            result["csrf_hash"] = row["csrf_hash"]
+            result["session_token_hash"] = row["token_hash"]
+            return result
 
     def verify_csrf(self, csrf_token: str | None, expected_hash: str) -> bool:
         return bool(csrf_token) and hmac.compare_digest(self._token_hash(csrf_token or ""), expected_hash)

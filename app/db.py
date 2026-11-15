@@ -54,10 +54,10 @@ class Database:
             logger.info("Database connection established (WAL mode enabled).")
 
     @asynccontextmanager
-    async def transaction(self):
+    async def transaction(self, *, timeout: float = 30):
         """An isolated writer cannot inherit a stale WAL read snapshot from a job."""
         async with self.write_lock:
-            async with aiosqlite.connect(self.db_path, timeout=30) as conn:
+            async with aiosqlite.connect(self.db_path, timeout=timeout) as conn:
                 conn.row_factory = aiosqlite.Row
                 await conn.execute("PRAGMA foreign_keys = ON")
                 await conn.execute("BEGIN IMMEDIATE")
