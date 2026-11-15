@@ -8,6 +8,7 @@ enum TurboTheme {
     static let muted = adaptive(0x64666e, 0xb0b1ba)
     static let line = adaptive(0xdedfe3, 0x393b42)
     static let accent = adaptive(0xb92b25, 0xff9b92)
+    static let supporter = adaptive(0x805300, 0xedc975)
     static let tint = adaptive(0xfaeeec, 0x382522)
 
     private static func adaptive(_ light: UInt32, _ dark: UInt32) -> Color {

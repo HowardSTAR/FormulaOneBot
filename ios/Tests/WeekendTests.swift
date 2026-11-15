@@ -139,3 +139,22 @@ private final class StubURLProtocol: URLProtocol, @unchecked Sendable {
     #expect(SessionClassification.lapSeconds("0.000") == nil)
     #expect(SessionClassification.lapSeconds("DNF") == nil)
 }
+
+private func artworkCatalog() throws -> RaceArtworkCatalog {
+    let resources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        .appending(path: "TurboTears/Resources")
+    return try RaceArtworkCatalog(countriesData: Data(contentsOf: resources.appending(path: "race-countries.json")))
+}
+
+@Test func artworkMatchesSelectedEventAndCountry() throws {
+    let catalog = try artworkCatalog()
+    #expect(catalog.flag(country: "США", eventName: "Monaco Grand Prix") == "us")
+    #expect(catalog.flag(country: nil, eventName: "Las Vegas Grand Prix") == "us")
+    #expect(catalog.flag(country: "Unknown", eventName: "Las Vegas Grand Prix") == nil)
+    #expect(catalog.flag(country: nil, eventName: "European Grand Prix") == nil)
+    let vegas = catalog.routeName(eventName: "Las Vegas Grand Prix", location: nil, season: 2026)
+    let monaco = catalog.routeName(eventName: "Monaco Grand Prix", location: nil, season: 2026)
+    #expect(vegas != monaco)
+    #expect(catalog.routeName(eventName: "Bahrain Grand Prix", location: "Sepang", season: 2026)
+        == catalog.routeName(eventName: "Sepang Grand Prix", location: nil, season: 2026))
+}

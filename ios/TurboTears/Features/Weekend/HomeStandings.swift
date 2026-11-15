@@ -3,26 +3,36 @@ import SwiftUI
 struct HomeStandings: View {
     let api: WeekendAPI
     let season: Int
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var category = "drivers"
     @State private var rows: [StandingRow] = []
     @State private var loading = true
     @State private var failed = false
     @State private var attempt = 0
+    @State private var showAll = false
 
     var body: some View {
-        Section("Чемпионат \(String(season))") {
-            Picker("Зачёт", selection: $category) {
-                Text("Пилоты").tag("drivers")
-                Text("Команды").tag("constructors")
-            }.pickerStyle(.segmented)
+        let rowLayout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .firstTextBaseline, spacing: 12))
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Чемпионат \(String(season))").font(.headline)
+                Spacer()
+                Text(showAll ? "Весь зачёт" : "Пять лидеров").font(.caption).foregroundStyle(TurboTheme.muted)
+            }
+            LiquidGlassSwitch(title: "Зачёт чемпионата", options: [
+                .init(id: "drivers", title: "Пилоты"),
+                .init(id: "constructors", title: "Команды")
+            ], selection: $category)
             if loading { ProgressView("Загружаем зачёт…") }
             else if failed {
                 Text("Не удалось загрузить очки.")
                 Button("Повторить загрузку зачёта") { attempt += 1 }
             } else if rows.isEmpty { Text("Результаты сезона ещё не опубликованы.") }
             else {
-                ForEach(Array(rows.prefix(5).enumerated()), id: \.offset) { _, row in
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                ForEach(Array(rows.prefix(showAll ? rows.count : 5).enumerated()), id: \.offset) { _, row in
+                    rowLayout {
                         Text(String(row.position)).monospacedDigit().font(.headline)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(row.name).font(.headline)
@@ -36,11 +46,17 @@ struct HomeStandings: View {
                                     .font(.footnote).foregroundStyle(TurboTheme.muted).monospacedDigit()
                             }
                         }
-                    }.padding(.vertical, 4).accessibilityElement(children: .combine)
+                    }.padding(.vertical, 6).accessibilityElement(children: .combine)
                 }
+                if rows.count > 5 {
+                    Button(showAll ? "Свернуть зачёт" : "Весь зачёт") { showAll.toggle() }
+                        .buttonStyle(HomePillStyle())
+                }
+                Text(category == "drivers" ? "Личный зачёт пилотов · очки за сезон" : "Кубок конструкторов · очки за сезон")
+                    .font(.caption).foregroundStyle(TurboTheme.muted)
             }
         }
-        .listRowBackground(TurboTheme.surface)
+        .padding(.vertical, 8)
         .task(id: "\(category):\(season):\(attempt)") { await load() }
     }
 
