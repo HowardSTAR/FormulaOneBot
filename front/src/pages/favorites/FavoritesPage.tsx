@@ -4,11 +4,14 @@ import { apiRequest } from "../../helpers/api";
 import { hapticSelection } from "../../helpers/telegram";
 import { DriverPortrait } from '../../components/DriverPortrait';
 import { TeamLogo } from '../../components/TeamLogo';
-import { HomeIcon } from '../index/HomeIcon';
+import { FavoriteStar } from './FavoriteStar';
+import { homeTeamIdentity } from '../index/team-identity';
+import '../index/home-team-colors.css';
 import './favorites.css';
 import { HomeFavorites } from './HomeFavorites';
 
-type Driver = { code: string; name: string };
+export type FavoriteDriver = { code: string; name: string; number?: string; constructorId?: string; constructorName?: string };
+type Driver = FavoriteDriver;
 type Team = { name: string; constructorId?: string };
 type FavoritesData = { drivers: string[]; teams: string[]; home?: { drivers: string[]; teams: string[] } };
 
@@ -104,8 +107,8 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
   const season = tab === "drivers" ? displayYearDrivers : displayYearTeams;
   const outdated = tab === "drivers" ? driversOutdated : teamsOutdated;
   const entries = tab === "drivers"
-    ? driversList.map(driver => ({ value: driver.code, name: driver.name, code: driver.code, id: undefined }))
-    : teamsList.map(team => ({ value: team.name, name: team.name, code: undefined, id: team.constructorId }));
+    ? driversList.map(driver => ({ value: driver.code, name: driver.name, code: driver.code, id: driver.constructorId, team: driver.constructorName, number: driver.number }))
+    : teamsList.map(team => ({ value: team.name, name: team.name, code: undefined, id: team.constructorId, team: team.name, number: undefined }));
 
   return (
     <div className="favorites-page">
@@ -114,7 +117,7 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
         <h1>Избранное</h1>
         <p>Добавьте любимых пилотов и команды. Для главной можно выбрать двух пилотов и одну команду в блоке ниже.</p>
       </header>
-      {!loading && <HomeFavorites key={JSON.stringify([userFavorites, home])} favorites={userFavorites} initial={home} names={Object.fromEntries(driversList.map(driver => [driver.code, driver.name]))} busy={pending.length > 0} onSaved={setHome} onDirty={setHomeDirty} />}
+      {!loading && <HomeFavorites key={JSON.stringify([userFavorites, home])} favorites={userFavorites} initial={home} drivers={driversList} teams={teamsList} season={displayYearDrivers} teamSeason={displayYearTeams} names={Object.fromEntries(driversList.map(driver => [driver.code, driver.name]))} busy={pending.length > 0} onSaved={setHome} onDirty={setHomeDirty} />}
       {firstChoice && <p className="favorites-message" role="status">Избранное добавлено. На главной показываем двух пилотов и одну команду. Выбрать их можно в блоке «Кто на главной» выше; вернуться сюда — через «Настройки → Кто на главной».</p>}
       <section className="favorites-panel" aria-label="Выбор избранного" aria-busy={loading}>
         <div className="favorites-controls">
@@ -134,10 +137,10 @@ function FavoritesPage({ embedded = false }: { embedded?: boolean }) {
           {!entries.length ? <p className="favorites-message">{tab === 'drivers' ? 'Список пилотов пуст' : 'Список команд пуст'}</p> : <div className="favorites-grid">
             {entries.map(entry => {
               const selected = userFavorites[tab].includes(entry.value);
-              return <button type="button" key={`${tab}:${entry.value}`} className="favorite-choice" aria-pressed={selected} disabled={pending.includes(`${tab}:${entry.value}`)} data-analytics-action="favorites_toggle" onClick={() => void toggleFavorite(tab, entry.value)}>
+              return <button type="button" key={`${tab}:${entry.value}`} className="favorite-choice" data-team={homeTeamIdentity(entry.id || '', entry.team || '')} aria-pressed={selected} disabled={pending.includes(`${tab}:${entry.value}`)} data-analytics-action="favorites_toggle" onClick={() => void toggleFavorite(tab, entry.value)}>
                 <span className="favorite-art">{entry.code ? <DriverPortrait code={entry.code} name={entry.name} season={season} /> : <TeamLogo name={entry.name} id={entry.id} season={season} size={64} />}</span>
-                <span className="favorite-name"><strong>{entry.name}</strong>{entry.code && <small>{entry.code}</small>}</span>
-                <span className="favorite-star" aria-hidden="true"><HomeIcon name="favorite" /></span>
+                <span className="favorite-name">{entry.number && <span className="favorite-number" aria-hidden="true">{entry.number}</span>}<strong>{entry.name}</strong>{entry.code && <small>{entry.code}</small>}</span>
+                <span className="favorite-star" aria-hidden="true"><FavoriteStar selected={selected} /></span>
               </button>;
             })}
           </div>}
