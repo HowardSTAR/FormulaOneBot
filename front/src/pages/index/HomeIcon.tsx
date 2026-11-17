@@ -8,6 +8,7 @@ const paths = {
   clock: 'M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0ZM12 6v6l4 2',
   chevronRight: 'm9 5 7 7-7 7',
   chevronDown: 'm5 9 7 7 7-7',
+  close: 'm6 6 12 12M6 18 18 6',
   refresh: 'M20 4v6h-6M4 20v-6h6M20 10a8 8 0 0 0-14-5M4 14a8 8 0 0 0 14 5',
   weekend: 'M5 22V3c5-3 9 3 14 0v11c-5 3-9-3-14 0',
   race: 'M5 21V3h16v12H5',

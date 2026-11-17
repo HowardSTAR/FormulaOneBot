@@ -1,20 +1,108 @@
-#root .visit-reminder {
-  display: flex; align-items: center; gap: 12px; margin: 0 0 16px; padding: 10px 12px;
-  border: 1px solid #45535a; border-left: 3px solid #58d0c2; border-radius: 12px;
-  background: #1a2229; color: #f5f5f7; box-sizing: border-box;
+.home-toolbar:has(.visit-reminder) {
+  anchor-name: --reminder-toolbar;
 }
-#root .visit-reminder.is-urgent { border-left-color: #ff8278; }
-#root .visit-reminder-copy { display: grid; gap: 3px; flex: 1; min-width: 0; }
-#root .visit-reminder-copy strong { font-size: 14px; line-height: 1.4; }
-#root .visit-reminder-copy span { font-size: 12px; line-height: 1.5; color: #c8cdd5; overflow-wrap: anywhere; }
-#root .visit-reminder-action { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 8px;
-  flex-shrink: 0; color: #9be8dd; font-size: 12px; font-weight: 700; text-decoration: none; }
-#root .visit-reminder-close { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0;
-  padding: 0; border: 0; border-radius: 8px; background: transparent; color: #c8cdd5; font: 24px/1 system-ui; cursor: pointer; }
-#root .visit-reminder :is(a,button):focus-visible { outline: 2px solid #9be8dd; outline-offset: 2px; }
-@media(max-width: 600px) {
-  #root .visit-reminder { display: grid; grid-template-columns: minmax(0,1fr) 44px; gap: 4px 8px; padding: 8px 10px; }
-  #root .visit-reminder-copy { grid-column: 1; grid-row: 1; }
-  #root .visit-reminder-close { grid-column: 2; grid-row: 1 / 3; align-self: start; }
-  #root .visit-reminder-action { grid-column: 1; justify-self: start; padding: 0; }
+
+.visit-reminder {
+  position-anchor: --reminder-toolbar;
+  inset: auto;
+  inset-block-start: var(--reminder-top, 5.5rem);
+  inset-inline-end: var(--reminder-right, 16px);
+  margin: 0;
+  inline-size: min(22rem, 52vw);
+  max-block-size: calc(100dvh - var(--reminder-top, 6rem) - 16px);
+  box-sizing: border-box;
+  padding: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--design-line);
+  border-radius: 16px;
+  background: var(--design-surface);
+  color: var(--design-ink);
+  box-shadow: var(--design-glass-shadow);
+  font-size: .875rem;
+  line-height: 1.45;
+}
+
+@supports (inset-block-start: anchor(bottom)) {
+  .visit-reminder {
+    inset-block-start: calc(anchor(bottom) + 8px);
+    inset-inline-end: anchor(end);
+  }
+}
+
+.visit-reminder-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 8px;
+}
+
+.visit-reminder-copy {
+  padding: 6px 8px 0;
+  overflow-wrap: anywhere;
+}
+
+.visit-reminder-copy strong {
+  font-size: .9375rem;
+}
+
+.visit-reminder-copy p {
+  margin: 3px 0 0;
+  color: var(--design-muted);
+}
+
+.design-shell .visit-reminder :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+.design-shell .visit-reminder :is(a, button):hover {
+  background: var(--design-tint);
+}
+
+.design-shell .visit-reminder :is(a, button):focus-visible {
+  outline: 2px solid var(--design-focus);
+  outline-offset: -3px;
+}
+
+.visit-reminder-dismiss {
+  grid-area: 1 / 2;
+  align-self: start;
+  justify-content: center;
+  width: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--design-muted);
+  cursor: pointer;
+}
+
+.visit-reminder-dismiss .home-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.design-shell .visit-reminder-action {
+  grid-column: 1 / -1;
+  justify-self: start;
+  color: var(--design-accent);
+  font-weight: 700;
+}
+
+.design-shell .visit-reminder a.visit-reminder-inbox {
+  display: flex;
+  margin: 0 8px 8px;
+  padding-inline: 8px;
+  border-top: 1px solid var(--design-line);
+  border-radius: 0 0 8px 8px;
+  color: var(--design-ink);
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+  .visit-reminder {
+    border-color: var(--design-control);
+    box-shadow: none;
+  }
 }

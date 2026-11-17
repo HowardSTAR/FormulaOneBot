@@ -158,17 +158,7 @@
   .calendar-stage-info > .calendar-status { grid-column: 2; text-align: right; }
 }
 
-/* Share the top row only when its actual content width can fit the tools.
-   The rem-based container query returns to a vertical flow with large text. */
 @media (min-width: 1100px) {
-  .app-shell.glass-home:has(.season-page):not(:has(.home-header-reminder .visit-reminder)) .app-content { container: calendar-header / inline-size; display: grid; grid-template-columns: minmax(0,1fr); }
-  .app-shell.glass-home:has(.season-page) .route-season { width: 100%; min-width: 0; }
   .calendar-heading > div { min-width: 0; }
   .season-page { gap: 20px; }
-}
-@container calendar-header (min-width: 48rem) {
-  .app-shell.glass-home:has(.season-page) .home-header-row { grid-area: 1 / 1; justify-self: end; align-self: start; width: fit-content; grid-template-columns: auto; margin: 0; }
-  .app-shell.glass-home:has(.season-page) .home-header-reminder { display: none; }
-  .app-shell.glass-home:has(.season-page) .route-season { grid-area: 1 / 1; }
-  .calendar-heading { padding-right: 20rem; }
 }
