@@ -10,6 +10,7 @@ from app.db import db
 from app.f1_data import get_driver_standings_async, get_season_schedule_short_async
 
 
+PREDICTION_CLOSING_LEAD = timedelta(hours=2)
 SPRINT_FIELDS = (
     "sprint_pole_driver",
     "sprint_winner_driver",

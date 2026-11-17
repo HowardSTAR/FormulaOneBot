@@ -52,7 +52,9 @@ from app.f1_data import (
     get_testing_results_async,
     get_driver_full_name_async,
     set_cached_quali_results,
+    valid_classification_identity,
 )
+from app.session_reminders import SESSION_BITS, session_enabled, reminder_intervals
 from app.services.delivery_adapters import queued_message as safe_send_message, queued_photo as safe_send_photo, queued_illustrated_message
 from app.utils.image_render import create_f1_style_classification_image
 
@@ -95,8 +97,6 @@ def format_time_left(minutes_left: int) -> str:
     if minutes > 0: parts.append(f"{minutes} мин.")
     return f"Через {' '.join(parts)}" if parts else "Менее чем через минуту"
 
-
-from app.session_reminders import session_enabled, reminder_intervals
 
 
 def _event_reminder_key(event_kind: str, notify_before: int) -> tuple[bool, int]:
@@ -224,77 +224,39 @@ async def _queue_reminder(bot, chat_id, text, photos, **options):
 
 
 async def check_and_send_notifications(bot: Bot):
-    season = datetime.now(timezone.utc).year
-    schedule = await get_season_schedule_short_async(season)
-    if not schedule: return
+    from app.services.prediction_service import PREDICTION_CLOSING_LEAD, get_prediction_window
+    from app.services.race_schedule import parse_utc_iso
 
     now = datetime.now(timezone.utc)
-    upcoming_event = []  # (race_dict, minutes_left, event_kind)
-
-    for r in schedule:
-        if r.get("is_cancelled"):
+    season = now.year
+    schedule = await get_season_schedule_short_async(season) or []
+    closing_minutes = int(PREDICTION_CLOSING_LEAD.total_seconds() / 60)
+    upcoming_events = []
+    for event in schedule:
+        if event.get("is_cancelled"):
             continue
-        if not r.get("is_testing"):
-            for kind in ("practice1", "practice2", "practice3"):
-                try:
-                    start = datetime.fromisoformat(r.get(f"{kind}_start_utc") or "")
-                    if start.tzinfo is None:
-                        start = start.replace(tzinfo=timezone.utc)
-                    minutes_left = (start - now).total_seconds() / 60
-                    if 0 < minutes_left <= 30 * 60:
-                        upcoming_event.append((r, minutes_left, kind))
-                except (ValueError, TypeError):
-                    pass
-        # Напоминание перед ГОНКОЙ
-        if r.get("race_start_utc"):
-            try:
-                race_dt = datetime.fromisoformat(r["race_start_utc"])
-                if race_dt.tzinfo is None: race_dt = race_dt.replace(tzinfo=timezone.utc)
-                minutes_left = (race_dt - now).total_seconds() / 60
-                if 0 < minutes_left <= 30 * 60:
-                    upcoming_event.append((r, minutes_left, "race"))
-            except Exception:
-                pass
-        # Напоминание перед КВАЛИФИКАЦИЕЙ
-        if r.get("quali_start_utc") and not r.get("is_testing"):
-            try:
-                quali_dt = datetime.fromisoformat(r["quali_start_utc"])
-                if quali_dt.tzinfo is None: quali_dt = quali_dt.replace(tzinfo=timezone.utc)
-                minutes_left = (quali_dt - now).total_seconds() / 60
-                if 0 < minutes_left <= 30 * 60:
-                    upcoming_event.append((r, minutes_left, "quali"))
-            except Exception:
-                pass
-        # Напоминание перед СПРИНТОМ
-        if r.get("sprint_start_utc") and not r.get("is_testing"):
-            try:
-                sprint_dt = datetime.fromisoformat(r["sprint_start_utc"])
-                if sprint_dt.tzinfo is None: sprint_dt = sprint_dt.replace(tzinfo=timezone.utc)
-                minutes_left = (sprint_dt - now).total_seconds() / 60
-                if 0 < minutes_left <= 30 * 60:
-                    upcoming_event.append((r, minutes_left, "sprint"))
-            except Exception:
-                pass
-        # Напоминание перед СПРИНТ-КВАЛИФИКАЦИЕЙ
-        if r.get("sprint_quali_start_utc") and not r.get("is_testing"):
-            try:
-                sprint_q_dt = datetime.fromisoformat(r["sprint_quali_start_utc"])
-                if sprint_q_dt.tzinfo is None: sprint_q_dt = sprint_q_dt.replace(tzinfo=timezone.utc)
-                minutes_left = (sprint_q_dt - now).total_seconds() / 60
-                if 0 < minutes_left <= 30 * 60:
-                    upcoming_event.append((r, minutes_left, "sprint_quali"))
-            except Exception:
-                pass
-
-    if not upcoming_event:
+        opens_at, deadline = get_prediction_window(event)
+        for kind in SESSION_BITS:
+            if event.get("is_testing") and kind != "race":
+                continue
+            start = parse_utc_iso(event.get(f"{kind}_start_utc"))
+            if start is None:
+                continue
+            minutes_left = (start - now).total_seconds() / 60
+            if 0 < minutes_left <= 30 * 60:
+                replaced_by_closing = (
+                    kind in {"quali", "sprint_quali"} and deadline == start
+                    and opens_at is not None and opens_at <= start - PREDICTION_CLOSING_LEAD
+                )
+                upcoming_events.append((event, kind, start, minutes_left, replaced_by_closing))
+    if not upcoming_events:
         return
 
     users = await get_users_with_settings(notifications_only=True)
-    group_chats = await get_all_group_chats()
+    group_chats = list(dict.fromkeys(await get_all_group_chats() or []))
     if not users and not group_chats:
         return
 
-    # Окно ±1 мин от целевого времени, чтобы не слать «за 32 мин» вместо «за 30»
     half_window = 1.0
 
     # Share a fresh snapshot and its rendered artwork across this tick's audience.
@@ -314,58 +276,47 @@ async def check_and_send_notifications(bot: Bot):
             tz = user[1] or "Europe/Moscow"
             intervals = reminder_intervals(user[6] if len(user) > 6 else None, user[2])
 
-            for race, mins, event_kind in upcoming_event:
+            for race, event_kind, start, mins, replaced_by_closing in upcoming_events:
                 if not session_enabled(user[4] if len(user) > 4 else None, event_kind):
                     continue
-                # Allowed lead times are at least 15 minutes apart: at most one
-                # can fall into the +/-1 minute window on this scheduler tick.
                 notify_min = next((value for value in intervals if abs(mins - value) <= half_window), None)
                 if notify_min is None:
                     continue
-                # The prediction-closing notice already says that qualifying
-                # starts in two hours and links to the form. Do not send a
-                # second generic reminder to the same private chat.
-                closing_session = "sprint_quali" if (
-                    race.get("sprint_quali_start_utc") or race.get("sprint_start_utc")
-                ) else "quali"
-                if not race.get("is_testing") and notify_min == 120 and event_kind == closing_session:
+                if notify_min == closing_minutes and replaced_by_closing:
                     continue
-                if abs(mins - notify_min) <= half_window:
-                    round_num = race.get("round")
-                    is_quali_key, notify_key = _event_reminder_key(event_kind, notify_min)
+                round_num = race.get("round")
+                is_quali_key, notify_key = _event_reminder_key(event_kind, notify_min)
+                if round_num is not None:
+                    if await was_reminder_sent(tg_id, season, round_num, is_quali_key, notify_key):
+                        continue
+
+                race, photos = await prepare(race, event_kind)
+                if race.get("is_testing"):
+                    text = (
+                        f"🧪 Предсезонные тесты!\n\n"
+                        f"Уже завтра: {race.get('event_name')}\n"
+                        f"📍 Трасса: {race.get('location')}\n"
+                        f"Не забудьте следить за результатами!"
+                    )
+                else:
+                    text = get_notification_text(race, tz, mins, event_kind=event_kind)
+
+                quiet = is_quiet_hours(tz)
+                extra = {}
+                if race.get('championship', {}).get('drivers') or race.get('championship', {}).get('constructors'):
+                    extra['reply_markup'] = await mini_app_button(bot, '🏆 Все условия титула', '/predictions', tab='form', championship=1)
+                if await _queue_reminder(bot, tg_id, text, photos, parse_mode="HTML", disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num}:{event_kind}:{notify_min}', expires=start.timestamp(), **extra):
+                    sent_count += 1
                     if round_num is not None:
-                        if await was_reminder_sent(tg_id, season, round_num, is_quali_key, notify_key):
-                            continue
-
-                    race, photos = await prepare(race, event_kind)
-                    if race.get("is_testing"):
-                        text = (
-                            f"🧪 Предсезонные тесты!\n\n"
-                            f"Уже завтра: {race.get('event_name')}\n"
-                            f"📍 Трасса: {race.get('location')}\n"
-                            f"Не забудьте следить за результатами!"
-                        )
-                    else:
-                        text = get_notification_text(race, tz, mins, event_kind=event_kind)
-
-                    quiet = is_quiet_hours(tz)
-                    extra = {}
-                    if race.get('championship', {}).get('drivers') or race.get('championship', {}).get('constructors'):
-                        extra['reply_markup'] = await mini_app_button(bot, '🏆 Все условия титула', '/predictions', tab='form', championship=1)
-                    if await _queue_reminder(bot, tg_id, text, photos, parse_mode="HTML", disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num}:{event_kind}:{notify_min}', expires=datetime.now(timezone.utc).timestamp()+max(0,mins)*60, **extra):
-                        sent_count += 1
-                        if round_num is not None:
-                            await set_reminder_sent(tg_id, season, round_num, is_quali_key, notify_key)
-                    await asyncio.sleep(0.05)
+                        await set_reminder_sent(tg_id, season, round_num, is_quali_key, notify_key)
+                await asyncio.sleep(0.05)
         except Exception:
             logger.exception('Could not queue event reminder')
             continue
 
     # === Рассылка в группы (общая информация, без избранного) — один раз на группу ===
-    group_chats_raw = await get_all_group_chats()
-    group_chats = list(dict.fromkeys(group_chats_raw)) if group_chats_raw else []
     if group_chats:
-        for race, mins, event_kind in upcoming_event:
+        for race, event_kind, start, mins, _ in upcoming_events:
             if event_kind.startswith("practice"):
                 continue  # Individual preferences do not change group broadcasts.
             if abs(mins - GROUP_NOTIFY_BEFORE) <= half_window:
@@ -383,7 +334,7 @@ async def check_and_send_notifications(bot: Bot):
                 text = get_notification_text(race, GROUP_TIMEZONE, mins, event_kind=event_kind, for_group=True)
                 quiet = is_quiet_hours(GROUP_TIMEZONE)
                 for chat_id, group_key in recipients:
-                    if await _queue_reminder(bot, chat_id, text, photos, parse_mode="HTML", disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num_g}:{event_kind}:{GROUP_NOTIFY_BEFORE}', expires=datetime.now(timezone.utc).timestamp()+max(0,mins)*60):
+                    if await _queue_reminder(bot, chat_id, text, photos, parse_mode="HTML", disable_notification=quiet, delivery_key=f'reminder:{season}:{round_num_g}:{event_kind}:{GROUP_NOTIFY_BEFORE}', expires=start.timestamp()):
                         sent_count += 1
                         if group_key is not None:
                             await set_reminder_sent(group_key, season, round_num_g, is_quali_key, notify_key)
@@ -443,17 +394,6 @@ def build_favorites_caption(
 
 
 SESSION_RESULTS_MIN_ROWS = 10
-
-
-def _valid_driver_identity(code: str, name: str) -> bool:
-    normalized_code = str(code or "").strip().upper()
-    normalized_name = str(name or "").strip()
-    return (
-        2 <= len(normalized_code) <= 4
-        and normalized_code.isalpha()
-        and "?" not in normalized_name
-        and normalized_name not in {"", normalized_code}
-    )
 
 
 def _format_session_value(value) -> str:
@@ -652,7 +592,7 @@ def _normalize_qualifying_results(results: list[dict], code_to_team: dict[str, s
     for result in results or []:
         code = str(result.get("driver", "") or "").strip().upper()
         name = str(result.get("name", "") or "").strip()
-        if not _valid_driver_identity(code, name):
+        if not valid_classification_identity(code, name):
             return []
         try:
             position = int(result.get("position"))
@@ -682,7 +622,7 @@ def _normalize_sprint_results(results_df: pd.DataFrame, code_to_team: dict[str, 
         given = _clean_result_text(result.get("FirstName", ""))
         family = _clean_result_text(result.get("LastName", ""))
         name = f"{given} {family}".strip() or code
-        if not _valid_driver_identity(code, name):
+        if not valid_classification_identity(code, name):
             return []
         team = _clean_result_text(result.get("TeamName", "")) or code_to_team.get(code, "")
         raw_points = result.get("Points", 0)

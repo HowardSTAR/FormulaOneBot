@@ -146,7 +146,8 @@ async def test_multi_intervals_do_not_bypass_prediction_closing_suppression(monk
     from app.utils import notifications as n
     when = (datetime.now(timezone.utc) + timedelta(minutes=120)).isoformat()
     event = dict(round=16, event_name="Test", quali_start_utc=when, race_start_utc=when,
-                 practice1_start_utc=(datetime.now(timezone.utc) + timedelta(minutes=60)).isoformat())
+                 practice1_start_utc=(datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
+                 practice2_start_utc=(datetime.now(timezone.utc) + timedelta(minutes=60)).isoformat())
     monkeypatch.setattr(n, "get_season_schedule_short_async", AsyncMock(return_value=[event]))
     monkeypatch.setattr(n, "get_users_with_settings", AsyncMock(return_value=[(1,"UTC",60,0,31,0,interval_mask([60,120]))]))
     monkeypatch.setattr(n, "get_all_group_chats", AsyncMock(return_value=[]))
@@ -155,4 +156,4 @@ async def test_multi_intervals_do_not_bypass_prediction_closing_suppression(monk
     sent = AsyncMock(return_value=True)
     monkeypatch.setattr(n, "safe_send_message", sent)
     await n.check_and_send_notifications(None)
-    assert {call.kwargs['delivery_key'] for call in sent.await_args_list} == {'reminder:2026:16:race:120', 'reminder:2026:16:practice1:60'}
+    assert {call.kwargs['delivery_key'] for call in sent.await_args_list} == {'reminder:2026:16:race:120', 'reminder:2026:16:practice2:60'}

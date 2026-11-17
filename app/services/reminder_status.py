@@ -51,12 +51,6 @@ def session_phase(event, kind, now):
     return ('finished' if now >= end else 'live'), True
 
 
-def first_qualifying_kind(event):
-    starts = [(parse_utc(event.get(f'{kind}_start_utc')), kind)
-              for kind in ('quali', 'sprint_quali')]
-    return min((item for item in starts if item[0]), default=(None, None))[1]
-
-
 def prediction_closing_status_text(event, kind, phase, estimated):
     import html
     name = 'Спринт-квалификация' if kind == 'sprint_quali' else 'Квалификация'
@@ -115,6 +109,7 @@ async def refresh_reminder_messages(*, now=None, batch_size=200):
     Failed/deleted messages never cause a replacement send.
     """
     from app.f1_data import get_season_schedule_short_async
+    from app.services.prediction_service import get_prediction_window
     now = now or utc_now()
     seasons = {now.year, (now - timedelta(days=4)).year}
     for season in sorted(seasons):
@@ -126,12 +121,13 @@ async def refresh_reminder_messages(*, now=None, batch_size=200):
         for event in schedule or []:
             if event.get('is_testing') or not event.get('round'):
                 continue
+            _, deadline = get_prediction_window(event)
             for kind in SESSION_BITS:
                 start = parse_utc(event.get(f'{kind}_start_utc'))
                 if not start or not now - timedelta(days=3) <= start <= now:
                     continue
                 await _queue_status_edits(event, season, kind, now, batch_size)
-                if kind == first_qualifying_kind(event):
+                if kind in {'quali', 'sprint_quali'} and start == deadline:
                     await _queue_status_edits(event, season, kind, now, batch_size, prediction=True)
 
 

@@ -124,7 +124,7 @@ async def dispatch(bot, row):
         return await dispatch_push(row, payload)
     from app.services.telegram_outbox import connection
     from app.utils.safe_send import _apply_sound_preference
-    from app.utils.notifications import is_quiet_hours
+    from app.utils.notifications import GROUP_TIMEZONE, is_quiet_hours
     from app.session_reminders import session_enabled, reminder_enabled
     async with connection() as conn:
         progress = await (await conn.execute('SELECT step FROM delivery_progress WHERE event_key=? AND recipient=?', (row['event_key'],row['telegram_id']))).fetchone()
@@ -140,7 +140,10 @@ async def dispatch(bot, row):
     if action['method'] == 'edit_message_text':
         from app.services.reminder_status import dispatch_reminder_edit
         return await dispatch_reminder_edit(bot, row, kwargs)
-    kwargs['disable_notification'] = bool(kwargs.get('disable_notification')) or is_quiet_hours(owner['timezone'] if owner else row['timezone'])
+    timezone_name = owner['timezone'] if owner else row['timezone']
+    if row['telegram_id'] < 0:
+        timezone_name = GROUP_TIMEZONE
+    kwargs['disable_notification'] = bool(kwargs.get('disable_notification')) or is_quiet_hours(timezone_name)
     if isinstance(kwargs.get('reply_markup'),dict):
         kwargs['reply_markup'] = InlineKeyboardMarkup.model_validate(kwargs['reply_markup'])
     if action['method'] == 'send_media_group':

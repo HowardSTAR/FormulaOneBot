@@ -109,17 +109,23 @@ def test_voting_results_deadline_matches_moscow_wednesday():
 
 
 @pytest.mark.asyncio
-async def test_two_hour_qualifying_reminder_is_replaced_by_prediction_closing():
+@pytest.mark.parametrize("has_prediction_window", [True, False])
+async def test_two_hour_qualifying_reminder_is_replaced_by_prediction_closing(has_prediction_window):
     now = datetime.now(timezone.utc)
     event = {
         "round": 8, "event_name": "Test Grand Prix", "location": "Test",
         "quali_start_utc": (now + timedelta(minutes=120)).isoformat(),
     }
+    if has_prediction_window:
+        event["practice1_start_utc"] = (now - timedelta(days=1)).isoformat()
     with patch("app.utils.notifications.get_season_schedule_short_async", new_callable=AsyncMock, return_value=[event]), \
          patch("app.utils.notifications.get_users_with_settings", new_callable=AsyncMock, return_value=[(111, "UTC", 120, 1, 31)]), \
+         patch("app.utils.notifications.was_reminder_sent", new_callable=AsyncMock, return_value=False), \
+         patch("app.utils.notifications.set_reminder_sent", new_callable=AsyncMock), \
+         patch("app.utils.notifications.get_all_group_chats", new_callable=AsyncMock, return_value=[]), \
          patch("app.utils.notifications.safe_send_message", new_callable=AsyncMock) as send:
         await check_and_send_notifications(bot=object())
-    send.assert_not_awaited()
+    assert send.await_count == (0 if has_prediction_window else 1)
 
 
 @pytest.mark.asyncio

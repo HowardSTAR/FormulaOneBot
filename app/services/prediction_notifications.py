@@ -14,6 +14,7 @@ from app.f1_data import (
     get_sprint_results_async,
 )
 from app.services.prediction_service import (
+    PREDICTION_CLOSING_LEAD,
     PREDICTION_FIELDS,
     build_actual_answers,
     get_notification_state,
@@ -86,23 +87,6 @@ async def _queue_prediction(bot, event, kind, text, keyboard, users):
     return len(users)
 
 
-def _prediction_open_trigger(sessions: list[dict]) -> datetime | None:
-    by_name = {
-        str(item.get("name") or "").strip().lower(): parse_utc(item.get("utc_iso"))
-        for item in sessions
-    }
-    preferred_names = (
-        "practice 1",
-        "free practice 1",
-        "sprint practice",
-        "sprint fp1",
-        "sprint shootout",
-        "sprint qualifying",
-    )
-    candidates = [by_name.get(name) for name in preferred_names if by_name.get(name)]
-    return min(candidates) if candidates else None
-
-
 async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple], *, schedule=None) -> int:
     keyboard = await mini_app_button(bot, "🔮 Сделать прогноз", "/predictions", tab="form")
     sprint_line = (
@@ -115,7 +99,7 @@ async def _send_prediction_opened(bot: Bot, event: dict, users: list[tuple], *, 
         f"🏁 {html.escape(str(event.get('event_name') or 'Гран-при'))}\n"
         "Укажите поул, первую пятёрку, лучший круг, первый сход и машину безопасности."
         f"{sprint_line}\n\n"
-        + ("⏳ Только сегодня: приём прогнозов открыт до старта гонки."
+        + ("⏳ Для этого этапа действует особый срок приёма прогнозов."
            if race_day_prediction_exception(event) else
            "⏳ Приём закроется строго в момент начала первой квалификации уикенда.")
     )
@@ -198,13 +182,12 @@ async def _send_prediction_closing(bot: Bot, event: dict, users: list[tuple]) ->
         "⏳ <b>До закрытия прогнозов осталось 2 часа!</b>\n\n"
         f"🏁 {html.escape(str(event.get('event_name') or 'Гран-при'))}\n\n"
         "Времени осталось мало! Укажите поул, первую пятёрку, лучший круг, первый сход "
-        "и машину безопасности. Если прогноз уже сделан — ещё можно его проверить и изменить.\n\n"
-        "🔒 Приём закроется строго в момент начала первой квалификации уикенда."
+        "и машину безопасности. Если прогноз уже сделан — ещё можно его проверить и изменить."
     )
     season, round_num = event['season'], int(event['round'])
     _, deadline = get_prediction_window(event)
     if deadline:
-        text += "\nЗакрытие: " + telegram_time(deadline) + "\nДо закрытия: " + telegram_time(deadline, relative=True)
+        text += "\n\n🔒 Закрытие: " + telegram_time(deadline) + "\nДо закрытия: " + telegram_time(deadline, relative=True)
     await publish_web(f"prediction-closing:{season}:{round_num}", "До закрытия прогнозов осталось 2 часа", text, "/predictions?tab=form")
     remaining = []
     for telegram_id, tz, *_ in users:
@@ -226,15 +209,15 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
     notification_users = await get_users_with_settings(notifications_only=True)
 
     for event in schedule:
-        if event.get("is_cancelled") or not event.get("round"):
+        if event.get("is_cancelled") or event.get("is_testing") or not event.get("round"):
             continue
         round_num = int(event["round"])
         state = await get_notification_state(season, round_num)
         opens_at, deadline = get_prediction_window(event)
         race_at = parse_utc(event.get("race_start_utc"))
 
-        closing_at = deadline - timedelta(hours=2) if deadline else None
-        if closing_at and now >= closing_at and not state.get("closing_sent", False):
+        closing_at = deadline - PREDICTION_CLOSING_LEAD if deadline else None
+        if opens_at and closing_at and opens_at <= closing_at <= now and not state.get("closing_sent", False):
             # A short scheduler window prevents late reminders and restart spam.
             stale = now >= min(deadline, closing_at + timedelta(minutes=5)) or (
                 not_before is not None and closing_at < not_before
@@ -254,20 +237,19 @@ async def check_and_notify_predictions(bot: Bot, *, not_before: datetime | None 
                 round_num,
                 opens_at.isoformat(),
             )
-            if now >= opens_at:
-                skipped_open = not_before is not None and opens_at < not_before
-                sent = 0 if skipped_open else await _send_prediction_opened(
-                    bot, {**event, "season": season}, notification_users, schedule=schedule,
-                )
-                # The flag prevents re-enqueueing. Individual delivery is in the outbox.
-                if skipped_open or sent or not notification_users:
-                    await mark_notification_state(season, round_num, "opened_sent")
-                logger.info(
-                    "[Delivery Queued] event=prediction_window_open season=%s round=%s queued=%s",
-                    season,
-                    round_num,
-                    sent,
-                )
+            skipped_open = not_before is not None and opens_at < not_before
+            sent = 0 if skipped_open else await _send_prediction_opened(
+                bot, {**event, "season": season}, notification_users, schedule=schedule,
+            )
+            # The flag prevents re-enqueueing. Individual delivery is in the outbox.
+            if skipped_open or sent or not notification_users:
+                await mark_notification_state(season, round_num, "opened_sent")
+            logger.info(
+                "[Delivery Queued] event=prediction_window_open season=%s round=%s queued=%s",
+                season,
+                round_num,
+                sent,
+            )
 
         if not race_at or now < race_at + timedelta(hours=3):
             continue

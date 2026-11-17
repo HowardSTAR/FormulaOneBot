@@ -87,15 +87,17 @@ def test_prediction_fallback_excludes_unavailable_api_categories():
 
 
 def test_prediction_open_trigger_at_fp1():
-    """Prediction invitations use FP1, never the old post-FP2 delay."""
-    from app.services.prediction_notifications import _prediction_open_trigger
+    from app.services.prediction_service import get_prediction_window
 
-    trigger = _prediction_open_trigger([
-        {"name": "Practice 1", "utc_iso": "2030-05-10T08:00:00+00:00"},
-        {"name": "Practice 2", "utc_iso": "2030-05-10T12:00:00+00:00"},
-        {"name": "Practice 3", "utc_iso": "2030-05-11T10:00:00+00:00"},
-    ])
-    assert trigger == datetime(2030, 5, 10, 8, 0, tzinfo=timezone.utc)
+    event = {
+        "first_session_start_utc": "2030-05-10T07:00:00Z",
+        "practice1_start_utc": "2030-05-10T08:00:00Z",
+        "practice2_start_utc": "2030-05-10T12:00:00Z",
+        "quali_start_utc": "2030-05-11T10:00:00Z",
+    }
+    assert get_prediction_window(event)[0] == datetime(2030, 5, 10, 8, tzinfo=timezone.utc)
+    del event["practice1_start_utc"]
+    assert get_prediction_window(event)[0] == datetime(2030, 5, 10, 7, tzinfo=timezone.utc)
 
 
 @pytest.mark.asyncio
