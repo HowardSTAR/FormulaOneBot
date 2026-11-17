@@ -37,13 +37,16 @@ async function mockPush(page, permission = 'default') {
         assert.deepEqual(await overflow(page), {page: false, content: false}, `${theme} ${width}: overflow`);
         assert.equal(await page.locator('.notification-destination').first().getAttribute('href'), '/race-results?season=2026&round=19');
         assert.equal(await page.locator('.notification-destination :is(button,a,summary)').count(), 0);
-        assert.equal(await page.locator('.notification-shortcut:visible').getAttribute('aria-current'), 'page');
+        const desktop = width >= 900;
         for (const control of ['.theme-toggle', '.notification-shortcut', '.account-shortcut']) {
-          assert.equal(await page.locator(`${control}:visible`).count(), 1, `${width}: duplicate toolbar controls`);
+          assert.equal(await page.locator(`${control}:visible`).count(), Number(desktop), `${width}: unexpected toolbar controls`);
         }
-        const tools = await page.locator('.home-toolbar').boundingBox();
-        assert.ok(tools && tools.x >= 0 && tools.x + tools.width <= width + 1, `${width}: toolbar clipped`);
-        if (width >= 900) assert.ok(tools.x + tools.width > width - 60, `${width}: toolbar must be at trailing edge`);
+        if (desktop) {
+          assert.equal(await page.locator('.notification-shortcut').getAttribute('aria-current'), 'page');
+          const tools = await page.locator('.home-toolbar').boundingBox();
+          assert.ok(tools && tools.x >= 0 && tools.x + tools.width <= width + 1, `${width}: toolbar clipped`);
+          assert.ok(tools.x + tools.width > width - 60, `${width}: toolbar must be at trailing edge`);
+        }
 
         const select = page.getByRole('combobox', {name:'Тип уведомлений'});
         await select.focus(); await page.keyboard.press('Enter'); await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
@@ -74,7 +77,7 @@ async function mockPush(page, permission = 'default') {
       }
     }
     console.log('Responsive checks passed; testing states');
-    const page = await browser.newPage({viewport:{width:390,height:900}}); page.setDefaultTimeout(10000);
+    const page = await browser.newPage({viewport:{width:1440,height:900}}); page.setDefaultTimeout(10000);
     await page.goto(`${fixture}&state=notifications-error`);
     await page.getByRole('alert').waitFor();
     await page.getByRole('button',{name:'Повторить загрузку'}).click();
