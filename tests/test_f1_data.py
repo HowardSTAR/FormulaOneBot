@@ -322,6 +322,64 @@ def test_get_season_schedule_short_marks_cancelled_event():
     assert schedule[0]["is_cancelled"] is True
 
 
+def test_sprint_qualifying_does_not_fill_missing_grand_prix_qualifying():
+    sprint_quali = pd.Timestamp("2026-05-01T20:30:00Z")
+    schedule = pd.DataFrame([{
+        "RoundNumber": 4, "EventName": "Miami Grand Prix", "EventFormat": "sprint_qualifying",
+        "Session1": "Sprint Qualifying", "Session1DateUtc": sprint_quali,
+        "Session2": "Qualifying", "Session2DateUtc": pd.NaT,
+    }])
+    with patch("app.f1_data.fastf1.get_event_schedule", return_value=schedule):
+        event, = get_season_schedule_short(2026)
+    assert event["quali_start_utc"] is None
+    assert event["sprint_quali_start_utc"] == sprint_quali.isoformat()
+
+
+@pytest.mark.parametrize("sprint", [False, True])
+async def test_openf1_uses_named_published_qualifying_classification(monkeypatch, sprint):
+    from app import f1_data as data
+
+    event = {
+        "round": 4, "quali_start_utc": "2026-05-02T20:00:00Z",
+        "sprint_quali_start_utc": "2026-05-02T16:00:00Z",
+    }
+    sessions = [
+        {"session_key": 23, "session_type": "Qualifying", "session_name": "Sprint Qualifying",
+         "date_start": "2026-05-02T16:05:00Z"},
+        {"session_key": 24, "session_type": "Qualifying", "session_name": "Qualifying",
+         "date_start": "2026-05-02T20:05:00Z"},
+    ]
+    results = [{"position": 1, "driver_number": 63, "duration": [92.0, 91.0, 90.0],
+                "gap_to_leader": [None, None, 0]}]
+    api = AsyncMock(side_effect=[sessions, results])
+    monkeypatch.setattr(data, "_openf1_get", api)
+    monkeypatch.setattr(data, "get_season_schedule_short_async", AsyncMock(return_value=[event]))
+    monkeypatch.setattr(data, "_openf1_get_drivers_for_session",
+                        AsyncMock(return_value={63: {"code": "RUS", "name": "George Russell"}}))
+    monkeypatch.setattr(data, "_get_driver_number_to_info_from_standings", AsyncMock(return_value={}))
+
+    load = data.openf1_get_sprint_quali_for_round if sprint else data.openf1_get_quali_for_round
+    round_num, rows = await load(2026, 4)
+    assert round_num == 4
+    assert rows == [{"position": 1, "driver": "RUS", "name": "George Russell",
+                     "best": "1:30.000", "gap": "1:30.000"}]
+    assert api.await_args_list[-1].args == ("session_result",)
+    assert api.await_args_list[-1].kwargs == {"session_key": 23 if sprint else 24}
+
+
+async def test_incomplete_fastf1_qualifying_uses_short_cache(monkeypatch):
+    from app import f1_data as data
+
+    incomplete = [{"position": 1, "driver": "RUS", "name": "George Russell"}]
+    monkeypatch.setattr(data, "_run_sync", AsyncMock(return_value=incomplete))
+    write = AsyncMock()
+    monkeypatch.setattr(data, "_REDIS_CLIENT", type("Redis", (), {
+        "get": AsyncMock(return_value=None), "setex": write,
+    })())
+    assert await data._get_quali_async(2026, 4) == incomplete
+    assert write.await_args.args[1] == 60
+
+
 def test_get_practice_results_returns_empty_when_laps_were_not_loaded():
     """Неполная сессия FastF1 не должна превращаться в HTTP 500."""
 
