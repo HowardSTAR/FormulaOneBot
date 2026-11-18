@@ -5,6 +5,15 @@ from app.f1_data import cache_result, _formula1_get_text, get_season_schedule_sh
 from app.services.championship import active_events, _entries, _load_finishes, secured, sprint_event
 
 
+# Jolpica's constructor names differ from the official results display names.
+# Scope aliases to stable constructor IDs; never weaken the points comparison.
+OFFICIAL_TEAM_NAMES = {
+    'rb': ('racingbulls', 'rbf1team'),
+    'alpine': ('alpine', 'alpinef1team'),
+    'cadillac': ('cadillac', 'cadillacf1team'),
+}
+
+
 def official_matches(page, entries, kind):
     if not page or not entries:
         return False
@@ -17,7 +26,11 @@ def official_matches(page, entries, kind):
         used = set()
         for entry in entries:
             needle = normalize(entry['driverCode'] if kind == 'drivers' else entry['constructorName'])
-            matches = [i for i, row in enumerate(rows) if len(row) >= 3 and needle and (normalize(row[1]).endswith(needle) if kind == 'drivers' else needle in normalize(row[1]))]
+            aliases = OFFICIAL_TEAM_NAMES.get(entry.get('constructorId'), ()) if kind == 'constructors' else ()
+            matches = [i for i, row in enumerate(rows) if len(row) >= 3 and needle and (
+                normalize(row[1]).endswith(needle) if kind == 'drivers'
+                else normalize(row[1]) in aliases if aliases else needle in normalize(row[1])
+            )]
             if len(matches) != 1 or matches[0] in used:
                 break
             i = matches[0]

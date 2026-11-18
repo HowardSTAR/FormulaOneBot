@@ -43,3 +43,21 @@ async def test_missing_calendar_and_unknown_rules_do_not_award_titles(monkeypatc
     monkeypatch.setattr(service, 'get_season_schedule_short_async', AsyncMock(return_value=[]))
     assert (await service.standings_title.__wrapped__(2026, 2, 'drivers'))['status'] == 'unavailable'
     assert (await service.standings_title.__wrapped__(2024, 2, 'drivers'))['status'] == 'unavailable'
+
+
+def test_constructor_source_names_match_without_weakening_points_check():
+    entries = [
+        {'constructorId': 'mercedes', 'constructorName': 'Mercedes', 'points': 652},
+        {'constructorId': 'rb', 'constructorName': 'RB F1 Team', 'points': 114},
+        {'constructorId': 'alpine', 'constructorName': 'Alpine F1 Team', 'points': 69},
+        {'constructorId': 'cadillac', 'constructorName': 'Cadillac F1 Team', 'points': 0},
+    ]
+    page = '<table><tbody>' + ''.join(
+        f'<tr><td>{i}</td><td>{name}</td><td>{points}</td></tr>'
+        for i, (name, points) in enumerate([
+            ('Mercedes', 652), ('Racing Bulls', 114), ('Alpine', 69), ('Cadillac', 0)
+        ], 1)
+    ) + '</tbody></table>'
+    assert official_matches(page, entries, 'constructors')
+    assert not official_matches(page.replace('114', '115'), entries, 'constructors')
+    assert not official_matches(page.replace('Racing Bulls', 'Unknown Team'), entries, 'constructors')
