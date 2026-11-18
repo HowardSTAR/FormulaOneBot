@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { HomeIcon } from '../index/HomeIcon';
 import { useMediaQuery } from '../../helpers/useMediaQuery';
 import { communityTracks, communityTrackImage, sampleTrack } from './communityTracks';
+import previewCar from '../../assets/illustrations/community-preview-car.webp';
 
 /** Scenery comes from the game renderer; an unknown track never gets another map. */
 export function CommunityTrackPreview({ trackId }: { trackId: string }) {
@@ -42,7 +43,7 @@ export function CommunityTrackPreview({ trackId }: { trackId: string }) {
       <image className="community-track-scene" href={scene} width="1536" height="1024" onError={() => setSceneError(true)} style={outline ? { display: 'none' } : undefined} />
       <polyline className="community-track-road" points={line} fill="none" strokeWidth={outline ? track.roadHalfWidth * 2 : 3} strokeDasharray={outline ? undefined : '12 16'} strokeLinejoin="round" />
       <g ref={car} className="community-demo-car" transform={`translate(${start.x} ${start.y}) rotate(${start.heading})`}>
-        <image href={`${import.meta.env.BASE_URL}race-game/assets/open-wheel-car.png`} x="-26" y="-52" width="52" height="78" />
+        <image href={previewCar} x="-26" y="-52" width="52" height="78" />
       </g>
     </svg>
     <figcaption><span>{track.format}</span>{!reduced && <button type="button" className="community-demo-control" aria-label={demo === 'running' ? 'Пауза демонстрации трассы' : 'Продолжить демонстрацию трассы'} onClick={() => {

@@ -75,11 +75,11 @@ export default function CommunityPage() {
   }
   return <main className="community-page community-hub">
     <header className="community-header"><h1>Сообщество</h1><p>Побейте время на трассе. Соберите друзей в своей лиге.</p></header>
-    <section className="community-spotlight" aria-labelledby="community-weekly-heading">
+    <section className="community-spotlight" aria-labelledby="community-weekly-heading" aria-busy={!weekly && !weeklyResult.error}>
       <div className="community-challenge-copy">
         <div className="community-section-heading"><HomeIcon name="race" /><h2 id="community-weekly-heading">Трасса недели</h2></div>
         {weeklyResult.error ? <div className="community-error" role="alert"><p>{weeklyResult.error}</p><button onClick={retry}>Повторить</button></div>
-          : !weekly ? <p role="status">Загружаем соревнование…</p> : <>
+          : !weekly ? <p className="community-weekly-loading" role="status">Загружаем соревнование…</p> : <>
             <h3 className="community-track-name">{weekly.name}</h3>
             <p className="community-challenge-intro">Три круга. Ваше лучшее время.</p>
             <p className="community-period"><strong>{now < new Date(weekly.end).getTime() ? 'Идёт соревнование' : 'Соревнование завершено'}</strong><span>До <time dateTime={weekly.end}>{new Date(weekly.end).toLocaleString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</time></span></p>
@@ -90,7 +90,8 @@ export default function CommunityPage() {
             <details className="community-rules"><summary>Как попасть в зачёт</summary><p>Завершите три круга и сохраните результат, включив участие в рейтинге. В зачёт идут заезды этой недели. Постоянные рекорды не обнуляются.</p></details>
           </>}
       </div>
-      {weekly && <CommunityTrackPreview key={weekly.track_id} trackId={weekly.track_id} />}
+      {weekly ? <CommunityTrackPreview key={weekly.track_id} trackId={weekly.track_id} />
+        : !weeklyResult.error && <div className="community-track-preview community-track-loading" aria-hidden="true"><div /></div>}
     </section>
     <div className="community-grid">
       <section className="community-panel" aria-labelledby="community-results-heading">

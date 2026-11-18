@@ -71,6 +71,7 @@ app/profile_avatar_assets/*.png
 art/password-racer/*.webp
 front/src/assets/**/*.png
 front/src/assets/**/*.webp
+!front/src/assets/illustrations/community-preview-car.webp
 front/public/**/*.png
 front/public/**/*.webp
 front/public/**/*.svg

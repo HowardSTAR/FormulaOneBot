@@ -80,6 +80,7 @@ body:has(.design-shell) .scroll-to-top:focus-visible { outline: 3px solid var(--
 html:has(.design-shell) { scroll-padding-bottom: calc(20px + var(--app-safe-bottom, 0px)); }
 .design-shell #page-content :is(a, button, summary) { scroll-margin-block: 16px 24px; }
 .app-shell.design-shell .app-page-main { min-height: 0; }
+.app-shell.design-shell .route-community:has(> .route-loading) { min-block-size: 100svh; }
 .app-shell.design-shell .app-header-actions { display: none; }
 .theme-toggle { display: inline-flex; gap: 8px; align-items: center; justify-content: center; min-height: 44px; padding: 10px 12px; border: 1px solid var(--design-control); border-radius: 11px; background: var(--design-surface); color: var(--design-ink); font-size: .8125rem; font-weight: 500; line-height: 1.4; font-family: inherit; cursor: pointer; }
 .theme-toggle svg { flex-shrink: 0; }
@@ -87,7 +88,7 @@ html:has(.design-shell) { scroll-padding-bottom: calc(20px + var(--app-safe-bott
 .theme-toggle:active { border-color: var(--design-accent); }
 .theme-toggle:focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
 /* Preserve contrast inside older content while its individual routes are migrated. */
-.design-shell .app-page-main:not(:is(.route-admin, .route-prediction-analytics, .route-drivers, .route-account, .route-reset-password, .route-wiki, .route-team-principal, .route-privacy, .route-terms, .route-legal-ip, .route-legal-notices, .route-legal-assets, .route-about-data, .route-account-delete)):not(:has(.home-screen, .weekend-page, .menu-page, .season-page, .drivers-page, .constructors-page, .entrant-details, .predictions-page, .comparison-page, .history-page, .user-profile-page, .account-page, .settings-page, .favorites-page, .notifications-page, .contact-admin-page, .community-hub, .game-page, .route-recovery)) { padding: 20px; border-radius: 16px; background: #15171e; color: #f5f5f7; }
+.design-shell .app-page-main:not(:is(.route-admin, .route-prediction-analytics, .route-drivers, .route-community, .route-account, .route-reset-password, .route-wiki, .route-team-principal, .route-privacy, .route-terms, .route-legal-ip, .route-legal-notices, .route-legal-assets, .route-about-data, .route-account-delete)):not(:has(.home-screen, .weekend-page, .menu-page, .season-page, .drivers-page, .constructors-page, .entrant-details, .predictions-page, .comparison-page, .history-page, .user-profile-page, .account-page, .settings-page, .favorites-page, .notifications-page, .contact-admin-page, .community-hub, .game-page, .route-recovery)) { padding: 20px; border-radius: 16px; background: #15171e; color: #f5f5f7; }
 body:has(.design-shell) .root { max-width: none; margin: 0; padding: 0; }
 .app-shell.design-shell .app-content::before,
 .app-shell.design-shell .app-content::after { display: none; }
