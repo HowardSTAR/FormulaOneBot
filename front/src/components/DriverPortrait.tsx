@@ -9,9 +9,11 @@ function PortraitImage({ sources, code }: { sources: string[]; code: string }) {
     onError={() => setIndex(value => value + 1)} /> : <span>{code || '—'}</span>;
 }
 
-export function DriverPortrait({ code = '', name, season, src, className = '' }: { code?: string; name: string; season: number; src?: string; className?: string }) {
+export function DriverPortrait({ code = '', name, season, src, className = '', compact = false }: { code?: string; name: string; season: number; src?: string; className?: string; compact?: boolean }) {
   const identity = code.toUpperCase();
-  const sources = [...new Set([
+  const sources = compact ? (identity || name ? [
+    apiAssetUrl('/api/pilot-portrait', { code: identity, name, season, compact: true }),
+  ] : []) : [...new Set([
     // The API's headshot is a small face crop. Prefer the season's original
     // full-body artwork before applying the shared waist-up framing.
     ...(/^[A-Z]{3}$/.test(identity) ? [apiAssetUrl(`/assets/${season}/pilots/${identity}.webp`)] : []),

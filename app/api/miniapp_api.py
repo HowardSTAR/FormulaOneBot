@@ -92,7 +92,7 @@ from app.services.prediction_service import (
 )
 from app.utils.default import DRIVER_CODE_TO_FILE
 from app.utils.image_render import _get_team_logo, get_car_image_path
-from app.utils.portrait_render import render_head_crop_png_bytes
+from app.utils.portrait_render import render_compact_portrait_webp, render_head_crop_png_bytes
 
 # --- Настройка путей ---
 CURRENT_DIR = Path(__file__).resolve().parent
@@ -1269,6 +1269,7 @@ async def api_pilot_portrait(
     code: Optional[str] = Query(None),
     name: Optional[str] = Query(None),
     strict: bool = Query(False),
+    compact: bool = Query(False),
 ):
     """Портрет пилота: local assets/{season}/pilots с кропом головы, fallback на дефолтный."""
     if season is None:
@@ -1277,16 +1278,22 @@ async def api_pilot_portrait(
     local_path = await asyncio.to_thread(_find_local_pilot_portrait_path, season, code, name)
     if local_path and local_path.exists():
         try:
-            png_bytes = await asyncio.to_thread(_render_head_crop_png_bytes, local_path)
-            tag = '"' + hashlib.sha256(png_bytes).hexdigest() + '"'
-            headers = {"ETag": tag, "Cache-Control": "public, max-age=0, must-revalidate"}
+            render = render_compact_portrait_webp if compact else _render_head_crop_png_bytes
+            content = await asyncio.to_thread(render, local_path)
+            tag = '"' + hashlib.sha256(content).hexdigest() + '"'
+            cache = "public, max-age=86400" if compact else "public, max-age=0, must-revalidate"
+            headers = {"ETag": tag, "Cache-Control": cache}
             candidates = request.headers.get("if-none-match", "").split(",")
             if any(value.strip().removeprefix("W/") in {tag, "*"} for value in candidates):
                 return Response(status_code=304, headers=headers)
-            return Response(content=png_bytes, media_type="image/png", headers=headers)
+            return Response(content=content, media_type="image/webp" if compact else "image/png", headers=headers)
         except Exception:
             pass
 
+    if compact:
+        # Compact rows already have a driver-code fallback. No generic image or
+        # cross-season lookup is needed for participants without local artwork.
+        return Response(status_code=204, headers={"Cache-Control": "public, max-age=60"})
     if strict:
         raise HTTPException(status_code=404, detail="Verified portrait unavailable")
     if PILOT_FALLBACK_PATH.exists():

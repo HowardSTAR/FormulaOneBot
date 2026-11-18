@@ -124,7 +124,7 @@ function DriversPage() {
 
   return (
     <div className="drivers-page">
-      <header className={`drivers-heading${leader ? ' drivers-heading--with-leader' : ''}`}>
+      <header className={`drivers-heading${leader || isLoading ? ' drivers-heading--with-leader' : ''}`}>
         <div className="drivers-heading-copy">
           <h1>Пилоты</h1>
           <p>Личный зачёт Формулы-1. От первой гонки до титула.</p>
@@ -137,6 +137,11 @@ function DriversPage() {
             </Link>
           </div>
         </div>
+        {isLoading && <div className="drivers-contenders" aria-hidden="true">
+          {[0, 1, 2].map(index => <div key={index} className={`drivers-leader drivers-placeholder${index > 0 ? ' drivers-leader--secondary' : ''}`}>
+            <span className="entrant-portrait" />
+          </div>)}
+        </div>}
         {leader && <div className="drivers-contenders" data-count={contenders.length}>
           {contenders.map((driver, index) => {
             const isLeader = index === 0;
@@ -174,7 +179,7 @@ function DriversPage() {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m9 5 7 7-7 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </Link>
         </div>
-        {isLoading && <div className="drivers-state" role="status"><div className="spinner" aria-hidden="true" /><p>Загрузка пилотов…</p></div>}
+        {isLoading && <div className="drivers-state drivers-state--loading" role="status"><div className="spinner" aria-hidden="true" /><p>Загрузка пилотов…</p></div>}
         {!isLoading && error && <PageFeedback message={error} retry={() => void loadDrivers(year)} />}
         {!isLoading && !error && drivers.length === 0 && <div className="drivers-state" role="status">
           <h3>{year === currentRealYear ? 'Сезон ещё не начался' : 'Нет данных за этот сезон'}</h3>
@@ -194,7 +199,7 @@ function DriversPage() {
                   {driver.code === championCode && <><ChampionshipBackdrop /><span className="drivers-sr">Чемпион мира {year}. </span></>}
                   <span className="drivers-position"><span className="drivers-sr">Место </span>{driver.position}</span>
                   <div className="drivers-identity">
-                    <DriverPortrait key={`${year}:${driver.code}`} code={driver.code} name={driver.name} season={year} src={driver.imageUrl} />
+                    <DriverPortrait compact code={driver.code} name={driver.name} season={year} />
                     <div className="drivers-name-team">
                       <span className="drivers-name">{driver.name}{driver.is_favorite && <svg className="drivers-favorite" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" role="img" aria-label="Избранный пилот"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9Z" /></svg>}</span>
                       <span className="drivers-team">{driver.constructorName || 'Команда не указана'}</span>

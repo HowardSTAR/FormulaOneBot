@@ -137,3 +137,6 @@
   .drivers-points-track { outline: 1px solid CanvasText; }
   .drivers-points-fill { background: CanvasText; }
 }
+
+.drivers-placeholder { background: var(--design-surface); }
+.drivers-state--loading { min-block-size: 18rem; align-content: start; }

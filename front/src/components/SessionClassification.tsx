@@ -8,7 +8,7 @@ import '../pages/index/home-team-colors.css';
 import './session-classification.css';
 import { DriverPortrait } from './DriverPortrait';
 
-type Driver = { code: string; constructorName?: string; imageUrl?: string };
+type Driver = { code: string; constructorName?: string };
 
 export function SessionClassification({ rows: source, kind, season, label }: { rows: SessionResultRow[]; kind: SessionResultKind; season: number; label: string }) {
   const rows = classificationRows(source, kind);
@@ -46,7 +46,7 @@ export function SessionClassification({ rows: source, kind, season, label }: { r
       ];
       const content = <>
         <span className="session-result-position" aria-label={position > 0 ? `Позиция ${position}` : 'Без позиции'}>{position > 0 ? String(position).padStart(2, '0') : '—'}</span>
-        <DriverPortrait key={`${season}:${code}:${driver?.imageUrl || ''}`} code={code} name={name} season={season} src={driver?.imageUrl} className="session-driver-portrait" />
+        <DriverPortrait compact code={code} name={row.name || ''} season={season} className="session-driver-portrait" />
         <div className="session-result-identity"><h2>{name}{row.is_favorite_driver && <span className="session-result-favorite" aria-label="Избранный пилот">★</span>}</h2><p>{team || code || '—'}</p></div>
         <dl className="session-result-metrics">{metrics.map(metric => <div key={metric.label}><dt>{metric.label}</dt><dd>{'segment' in metric ? <span className="session-quali-segment" data-segment={row.segment}>{metric.value}</span> : metric.value}</dd></div>)}</dl>
         {code && <svg className="session-result-chevron" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>}

@@ -24,9 +24,10 @@ export function SessionResultsPage({ kind }: { kind: SessionResultKind }) {
   const [attempt, setAttempt] = useState(0);
   const seasonKey = `${season}:${kind}:${attempt}`;
   const [schedule, setSchedule] = useState<{ key: string; races: Race[]; error?: string } | null>(null);
-  const requestKey = `${seasonKey}:${mode}:${selectedRound}:${selectedSession}`;
-  const [result, setResult] = useState<{ key: string; data?: Payload; error?: string } | null>(null);
   const archive = mode === 'archive';
+  const requestedRound = archive ? selectedRound : null;
+  const requestKey = `${seasonKey}:${mode}:${requestedRound}:${selectedSession}`;
+  const [result, setResult] = useState<{ key: string; data?: Payload; error?: string } | null>(null);
   const scheduleLoading = schedule?.key !== seasonKey;
   const races = scheduleLoading ? [] : schedule?.races || [];
   const loading = (archive && scheduleLoading) || ((!archive || selectedRound !== null) && result?.key !== requestKey);
@@ -44,15 +45,15 @@ export function SessionResultsPage({ kind }: { kind: SessionResultKind }) {
     return () => { active = false; };
   }, [season, kind, seasonKey, setSelectedRound]);
   useEffect(() => {
-    if (archive && selectedRound === null) return;
+    if (archive && requestedRound === null) return;
     let active = true;
-    apiRequest<Payload>(`/api/${kind}-results`, { season, ...(archive ? { round: selectedRound } : {}), ...(kind === 'practice' ? { session: selectedSession } : {}) }).then(response => {
+    apiRequest<Payload>(`/api/${kind}-results`, { season, ...(requestedRound === null ? {} : { round: requestedRound }), ...(kind === 'practice' ? { session: selectedSession } : {}) }).then(response => {
       if (!active) return;
-      const matches = response.season === season && (!archive || response.round === selectedRound) && (kind !== 'practice' || response.session === selectedSession);
-      setResult({ key: requestKey, data: matches ? response : { season, round: selectedRound, results: [] } });
+      const matches = response.season === season && (!archive || response.round === requestedRound) && (kind !== 'practice' || response.session === selectedSession);
+      setResult({ key: requestKey, data: matches ? response : { season, round: requestedRound, results: [] } });
     }).catch(reason => { if (active) setResult({ key: requestKey, error: reason instanceof Error ? reason.message : 'Не удалось загрузить результаты.' }); });
     return () => { active = false; };
-  }, [archive, kind, season, selectedRound, selectedSession, requestKey]);
+  }, [archive, kind, season, requestedRound, selectedSession, requestKey]);
   const selectSeason = (value: string | number) => setParams(previous => {
     const next = new URLSearchParams(previous);
     next.set('season', String(value));

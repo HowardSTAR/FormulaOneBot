@@ -90,3 +90,32 @@ async def test_actual_http_portraits_from_archive(archived_assets):
             assert response.status_code == 200
             with Image.open(io.BytesIO(response.content)) as image:
                 assert image.size == (256, 256)
+
+
+@pytest.mark.asyncio
+async def test_compact_portrait_uses_selected_season_and_has_no_generic_fallback(archived_assets):
+    from httpx import ASGITransport, AsyncClient
+    from app.api.miniapp_api import web_app
+
+    original = archived_assets / 'app/assets/2026/pilots/VER.webp'
+    archive_path = Path(__file__).resolve().parents[1] / 'app-assets.zip'
+    with zipfile.ZipFile(archive_path) as archive:
+        archive.extract('app/assets/2025/pilots/Max Verstappen.png', archived_assets)
+
+    async with AsyncClient(transport=ASGITransport(app=web_app), base_url='http://test') as client:
+        response = await client.get('/api/pilot-portrait', params={'season': 2026, 'code': 'VER', 'compact': True})
+        assert response.status_code == 200
+        assert response.headers['content-type'] == 'image/webp'
+        assert len(response.content) < original.stat().st_size
+        with Image.open(io.BytesIO(response.content)) as image:
+            assert image.width <= 224 and image.height <= 320
+            assert image.mode == 'RGBA'
+
+        legacy = await client.get('/api/pilot-portrait', params={'season': 2025, 'code': 'VER', 'compact': True})
+        assert legacy.status_code == 200
+        assert legacy.content != response.content
+
+        for season, code in ((1900, 'VER'), (2026, 'CAM'), (2026, 'MIN'), (2026, 'FOR'), (2025, 'LIN')):
+            missing = await client.get('/api/pilot-portrait', params={'season': season, 'code': code, 'compact': True})
+            assert missing.status_code == 204
+            assert not missing.content
