@@ -87,7 +87,7 @@ html:has(.design-shell) { scroll-padding-bottom: calc(20px + var(--app-safe-bott
 .theme-toggle:active { border-color: var(--design-accent); }
 .theme-toggle:focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
 /* Preserve contrast inside older content while its individual routes are migrated. */
-.design-shell .app-page-main:not(.route-admin):not(.route-prediction-analytics):not(:has(.home-screen, .weekend-page, .menu-page, .season-page, .drivers-page, .constructors-page, .entrant-details, .predictions-page, .comparison-page, .history-page, .user-profile-page, .account-page, .settings-page, .favorites-page, .notifications-page, .contact-admin-page, .community-hub, .game-page, .route-recovery)) { padding: 20px; border-radius: 16px; background: #15171e; color: #f5f5f7; }
+.design-shell .app-page-main:not(:is(.route-admin, .route-prediction-analytics, .route-account, .route-reset-password)):not(:has(.home-screen, .weekend-page, .menu-page, .season-page, .drivers-page, .constructors-page, .entrant-details, .predictions-page, .comparison-page, .history-page, .user-profile-page, .account-page, .settings-page, .favorites-page, .notifications-page, .contact-admin-page, .community-hub, .game-page, .route-recovery)) { padding: 20px; border-radius: 16px; background: #15171e; color: #f5f5f7; }
 body:has(.design-shell) .root { max-width: none; margin: 0; padding: 0; }
 .app-shell.design-shell .app-content::before,
 .app-shell.design-shell .app-content::after { display: none; }
@@ -99,6 +99,12 @@ body:has(.design-shell) .root { max-width: none; margin: 0; padding: 0; }
   outline: 3px solid var(--design-focus) !important;
   outline-offset: 3px;
 }
+#root .reset-password-page > .btn-back {
+  border-color: var(--design-control);
+  background: var(--design-surface);
+  color: var(--design-ink);
+}
+#root .reset-password-page > .btn-back:hover { background: var(--design-tint); }
 .app-shell.design-shell .legal-footer { border-color: var(--design-line); background: transparent; box-shadow: none; padding: 24px 0; margin-top: 32px; }
 .app-shell.design-shell .legal-footer { font-size: .75rem; }
 .app-shell.design-shell .legal-footer :is(p, small, span, a) { color: var(--design-muted); font-size: .75rem; overflow-wrap: anywhere; }

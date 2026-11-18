@@ -3,7 +3,6 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { hapticImpact } from "../helpers/telegram";
 import { AppHeader } from "./AppHeader";
 import { LegalFooter } from "./LegalFooter";
-import { InstallHint } from "./InstallHint";
 import { trackScreen } from '../helpers/analytics';
 import { EngagementEntry } from './EngagementEntry';
 import { NotificationEntry } from './NotificationEntry';
@@ -96,7 +95,8 @@ export function SwipeBackLayout() {
   const notifications = routeKey === 'notifications';
   const community = routeKey === 'community';
   const admin = routeKey === 'admin';
-  const homeFrame = routeKey === 'favorites' || routeKey === 'prediction-analytics' || admin || community || notifications || entrant || games || routeKey === 'contact-admin' || overview || weekend || calendar || results || profile || routeKey === 'account' || routeKey === 'settings' || routeKey === 'drivers' || routeKey === 'constructors' || routeKey === 'predictions' || routeKey === 'compare' || routeKey === 'history';
+  const resetPassword = routeKey === 'reset-password';
+  const homeFrame = routeKey === 'favorites' || routeKey === 'prediction-analytics' || admin || community || notifications || entrant || games || routeKey === 'contact-admin' || overview || weekend || calendar || results || profile || routeKey === 'account' || resetPassword || routeKey === 'settings' || routeKey === 'drivers' || routeKey === 'constructors' || routeKey === 'predictions' || routeKey === 'compare' || routeKey === 'history';
   return (
     <div onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} className={`app-shell design-shell${homeFrame ? ' glass-home' : ''}`}>
       <EngagementEntry />
@@ -104,7 +104,6 @@ export function SwipeBackLayout() {
       <RouteContext />
       <a className="design-skip" href="#page-content">Перейти к содержимому</a>
       {!mobile && <AppHeader />}
-      <InstallHint />
       <FirstVisitGuide />
       <div className="app-content">
         {(!mobile || routeKey === 'menu') && <HomeToolbar desktop={!mobile} />}
@@ -115,7 +114,7 @@ export function SwipeBackLayout() {
           </Suspense>
           <DataReceipt />
         </section>
-        {(!homeFrame || routeKey === 'favorites' || notifications || community) && <LegalFooter />}
+        {(!homeFrame || resetPassword || routeKey === 'favorites' || notifications || community) && <LegalFooter />}
         <HomeDock />
       </div>
     </div>

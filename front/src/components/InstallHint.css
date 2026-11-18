@@ -1,10 +1,74 @@
-.install-hint { position: fixed; z-index: 900; left: 12px; right: 12px; bottom: max(16px, env(safe-area-inset-bottom)); max-width: 420px; margin: auto; padding: 20px; box-sizing: border-box; border: 1px solid #ff62594d; border-radius: 20px; background: linear-gradient(135deg,#302025,#15171f 65%); color: #f5f5f7; box-shadow: 0 12px 40px #0009; max-height: calc(100dvh - 32px); overflow: auto; }
-.install-hint strong { display: block; padding-right: 24px; font-size: 18px; }
-.install-hint p { font-size: 14px; line-height: 1.5; color: #c7c7d0; margin: 10px 0 16px; }
-.install-hint .install-hint-steps { padding: 12px; background: #ffffff08; border-radius: 10px; }
-.install-hint button { cursor: pointer; font: inherit; }
-.install-hint-close { position: absolute; right: 10px; top: 8px; background: none; border: 0; color: #ccc; font-size: 26px !important; width: 32px; height: 32px; }
-.install-hint-actions { display: flex; gap: 12px; align-items: center; }
-.install-hint-actions button { border: 0; border-radius: 12px; padding: 12px; font-size: 13px; }
-.install-hint-actions button:first-child { background: #e10600; color: white; font-weight: 700; }
-.install-hint-actions button:last-child { background: none; color: #aaa; }
+.install-hint {
+  position: relative;
+  max-block-size: 38dvh;
+  padding: 12px 14px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--design-line);
+  border-radius: 16px;
+  background: var(--design-surface);
+  color: var(--design-ink);
+  box-shadow: var(--design-glass-shadow);
+  overflow-wrap: anywhere;
+}
+
+.install-hint strong {
+  display: block;
+  min-block-size: 44px;
+  padding-inline-end: 46px;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.install-hint p {
+  margin: 0 0 8px;
+  color: var(--design-muted);
+  font-size: .875rem;
+  line-height: 1.45;
+}
+
+.install-hint .install-hint-steps {
+  padding: 8px;
+  border-radius: 10px;
+  background: var(--design-bg);
+}
+
+.install-hint button {
+  min-block-size: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--design-ink);
+  cursor: pointer;
+  font: inherit;
+}
+
+.install-hint .install-hint-close {
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-end: 4px;
+  inline-size: 44px;
+  padding: 0;
+  font-size: 1.5rem;
+}
+
+.install-hint-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.install-hint-actions button {
+  max-inline-size: 100%;
+  padding: 6px 8px;
+  font-size: .8125rem;
+}
+
+.install-hint-actions button:first-child {
+  color: var(--design-accent);
+  font-weight: 700;
+}
+
+.install-hint button:hover {
+  background: var(--design-tint);
+}

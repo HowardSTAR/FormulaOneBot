@@ -8,6 +8,7 @@ import { HomeIcon } from '../pages/index/HomeIcon';
 import { useVisitReminder } from './useVisitReminder';
 import { useDockRating } from './useDockRating';
 import { AnimatedTrackMap } from './AnimatedTrackMap';
+import { InstallHint } from './InstallHint';
 import './home-dock.css';
 
 const destinations = [
@@ -21,18 +22,19 @@ const destinations = [
 export function HomeDock() {
   const { pathname, search } = useLocation();
   const mobile = useMediaQuery('(max-width: 899px)');
-  const allowed = !/^\/(admin|race-game|reaction-game|reflex-grid-game|account|reset-password)(\/|$)/.test(pathname);
+  const allowed = !/^\/(admin|race-game|reaction-game|reflex-grid-game)(\/|$)/.test(pathname);
+  const showAccessories = mobile && allowed && !['/account', '/reset-password'].includes(pathname);
   const auth = useAuthState();
   const { nextRace } = useHeroData();
-  const { reminder, close } = useVisitReminder({ enabled: mobile && allowed, includeHome: true });
-  const rating = useDockRating(mobile && allowed && pathname !== '/voting', auth, nextRace?.season || new Date().getFullYear());
+  const { reminder, close } = useVisitReminder({ enabled: showAccessories, includeHome: true });
+  const rating = useDockRating(showAccessories && pathname !== '/voting', auth, nextRace?.season || new Date().getFullYear());
   const [panel, setPanel] = useState<'update' | 'rating'>('rating');
   const [hidden, setHidden] = useState(false);
   const dock = useRef<HTMLDivElement>(null);
   useEffect(() => { const reset = () => { setPanel('rating'); setHidden(false); }; window.addEventListener(AUTH_CHANGED_EVENT, reset); return () => window.removeEventListener(AUTH_CHANGED_EVENT, reset); }, []);
   const ratingPrompt = Boolean(rating.data && (!rating.data.value || rating.celebrate));
   const showRating = ratingPrompt && (panel === 'rating' || !reminder);
-  const hasAccessory = !hidden && Boolean(reminder || ratingPrompt);
+  const hasAccessory = showAccessories && !hidden && Boolean(reminder || ratingPrompt);
   const selected = pathname === '/' ? 'home' : /^\/(season|race-details|next-race|.*-results)$/.test(pathname) ? 'calendar' : pathname.startsWith('/predictions') ? 'predictions' : pathname === '/community' ? 'community' : 'menu';
   useEffect(() => {
     const node = dock.current;
@@ -41,9 +43,12 @@ export function HomeDock() {
     measure(); const observer = new ResizeObserver(measure); observer.observe(node);
     return () => { observer.disconnect(); document.documentElement.style.removeProperty('--home-dock-space'); };
   }, [mobile, allowed]);
-  if (!allowed) return null;
+  if (!mobile || !allowed) return null;
   const votePath = rating.data ? `/voting?season=${rating.data.season}&round=${rating.data.race.round}` : '/voting';
   return <div className="home-dock" ref={dock}>
+    {showAccessories && <InstallHint onDismiss={() => {
+      dock.current?.querySelector<HTMLAnchorElement>('.home-dock-nav a[aria-current="page"]')?.focus();
+    }} />}
     {hasAccessory && <aside className={`home-dock-card ${showRating ? 'home-dock-card--rating' : 'home-dock-card--update'}`} aria-label={showRating ? 'Оценить последний этап' : 'Актуальное напоминание'}>
       {showRating && rating.data ? <>
         <span className="home-dock-feedback" id="dock-rating-label">{rating.data.race.event_name}. {rating.data.value ? `Ваша оценка: ${rating.data.value} из 5` : 'Как вам последний этап?'}</span>

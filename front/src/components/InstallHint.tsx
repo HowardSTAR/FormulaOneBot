@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { INSTALL_HINT_KEY, mobilePlatform, shouldShowInstallHint } from "../helpers/installHint";
 import "./InstallHint.css";
 import { ONBOARDING_CHANGED } from '../helpers/onboarding';
@@ -11,7 +11,8 @@ function readState(): HintState {
 }
 function saveState(state: HintState) { try { localStorage.setItem(INSTALL_HINT_KEY, JSON.stringify(state)); } catch { /* Private browsing. */ } }
 
-export function InstallHint() {
+export function InstallHint({ onDismiss }: { onDismiss: () => void }) {
+  const hint = useRef<HTMLElement>(null);
   const [platform, setPlatform] = useState<"ios" | "android" | null>(null);
   const [installEvent, setInstallEvent] = useState<InstallEvent | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -51,6 +52,7 @@ export function InstallHint() {
   if (!platform) return null;
   const dismiss = (forever: boolean) => {
     saveState({ ...readState(), lastShown: Date.now(), dismissed: forever });
+    if (hint.current?.contains(document.activeElement)) onDismiss();
     setPlatform(null);
   };
   const install = async () => {
@@ -63,7 +65,7 @@ export function InstallHint() {
     } catch { setExpanded(true); }
     finally { setInstallEvent(null); setBusy(false); }
   };
-  return <aside className="install-hint" aria-label="Установка TurboTears">
+  return <aside ref={hint} className="install-hint" aria-label="Установка TurboTears">
     <button className="install-hint-close" aria-label="Напомнить через месяц" onClick={() => dismiss(false)}>×</button>
     <strong>TurboTears на главном экране</strong>
     <p>Открывайте сайт одним нажатием — прямо с иконки на телефоне.</p>
