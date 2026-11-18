@@ -11,8 +11,7 @@ function ContactChannel() {
   return <Link to="/contact-admin">форма связи с администратором</Link>;
 }
 
-function LegalPage({ eyebrow, title, summary, children }: {
-  eyebrow: string;
+function LegalPage({ title, summary, children }: {
   title: string;
   summary: string;
   children: ReactNode;
@@ -21,7 +20,6 @@ function LegalPage({ eyebrow, title, summary, children }: {
     <main className="legal-page">
       <BackButton>← <span>Назад</span></BackButton>
       <header className="legal-page-hero">
-        <span>{eyebrow}</span>
         <h1>{title}</h1>
         <p>{summary}</p>
         <small>Редакция от {legalConfig.effectiveDate}</small>
@@ -34,7 +32,6 @@ function LegalPage({ eyebrow, title, summary, children }: {
 export function PrivacyPage() {
   return (
     <LegalPage
-      eyebrow="Privacy"
       title="Политика конфиденциальности"
       summary="Какие данные обрабатывает TurboTears, зачем они нужны и как пользователь может ими управлять."
     >
@@ -155,7 +152,6 @@ export function PrivacyPage() {
 export function TermsPage() {
   return (
     <LegalPage
-      eyebrow="Terms"
       title="Условия использования"
       summary="Правила бесплатного доступа к независимому информационному сервису TurboTears."
     >
@@ -221,7 +217,6 @@ export function TermsPage() {
 export function IntellectualPropertyPage() {
   return (
     <LegalPage
-      eyebrow="Legal / IP"
       title="Интеллектуальная собственность"
       summary="Разделение собственного кода TurboTears и прав третьих лиц."
     >
@@ -266,7 +261,6 @@ export function IntellectualPropertyPage() {
 export function DataSourcesPage() {
   return (
     <LegalPage
-      eyebrow="About / Data"
       title="Источники данных"
       summary="Откуда сервис получает сведения об автоспорте и какие ограничения у этих данных."
     >
@@ -307,7 +301,6 @@ export function DataSourcesPage() {
 export function DataDeletionPage() {
   return (
     <LegalPage
-      eyebrow="Privacy / Deletion"
       title="Удаление аккаунта и данных"
       summary="Самостоятельное удаление профиля либо запрос оператору, если вход недоступен."
     >

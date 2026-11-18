@@ -81,10 +81,11 @@ export default function WikiPage() {
     if (!requestedTerm || !GLOSSARY_ITEMS.some(item => item.id === requestedTerm)) return;
     const card = document.getElementById(`glossary-${requestedTerm}`);
     card?.scrollIntoView({ block: "center" });
-    card?.focus({ preventScroll: true });
+    card?.querySelector("button")?.focus({ preventScroll: true });
   }, [requestedTerm]);
-  const [selected, setSelected] = useState<{ item: GlossaryItem; index: number } | null>(null);
+  const [selected, setSelected] = useState<GlossaryItem | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     if (!selected) return;
@@ -127,7 +128,7 @@ export default function WikiPage() {
     const item = filteredItems.find((candidate) => matchesLetter(candidate, letter, kind));
     if (!item) return;
     document.getElementById(`glossary-${item.id}`)?.scrollIntoView({
-      behavior: "smooth",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
       block: "start",
     });
   };
@@ -163,36 +164,30 @@ export default function WikiPage() {
       <BackButton fallback="/" />
 
       <header className="wiki-hero">
-        <div className="wiki-hero-copy">
-          <span className="wiki-kicker">Справочник F1</span>
-          <h1>Wiki для<br /><em>новичков</em></h1>
-          <p>
-            <GlossaryText>Термины Формулы-1 без сложных формулировок — от андерката до активной аэродинамики.</GlossaryText>
-          </p>
-        </div>
-        <div className="wiki-hero-stat" aria-label={`${GLOSSARY_ITEMS.length} терминов`}>
-          <strong>{String(GLOSSARY_ITEMS.length).padStart(2, "0")}</strong>
-          <span>терминов<br />в базе</span>
-        </div>
+        <h1>Wiki для новичков</h1>
+        <p><GlossaryText>Термины Формулы-1 без сложных формулировок — от андерката до активной аэродинамики.</GlossaryText></p>
       </header>
 
       <section className="wiki-controls" aria-label="Поиск и фильтры">
-        <label className="wiki-search">
-          <span className="sr-only">Поиск по глоссарию</span>
-          <SearchIcon />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Найти термин на русском или английском"
-            autoComplete="off"
-          />
-          {query && (
-            <button type="button" onClick={() => setQuery("")} aria-label="Очистить поиск">
-              ×
-            </button>
-          )}
-        </label>
+        <div className="wiki-search">
+          <label htmlFor="wiki-search">Поиск по глоссарию</label>
+          <div className="wiki-search-field">
+            <SearchIcon />
+            <input id="wiki-search" ref={searchRef}
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Например, андеркат…"
+              autoComplete="off"
+            />
+            {query && (
+              <button type="button" onClick={() => {
+                setQuery("");
+                searchRef.current?.focus();
+              }} aria-label="Очистить поиск">×</button>
+            )}
+          </div>
+        </div>
 
         <div className="wiki-filters" role="group" aria-label="Категории терминов">
           {FILTERS.map((filter) => (
@@ -215,10 +210,7 @@ export default function WikiPage() {
       </section>
 
       <div className="wiki-results-head" aria-live="polite">
-        <div>
-          <span>Словарь</span>
-          <strong>{filteredItems.length} {filteredItems.length === 1 ? "термин" : "терминов"}</strong>
-        </div>
+        <p>Термины <strong>{filteredItems.length}</strong></p>
         {filteredItems.length > 0 && (query || category !== "all") && (
           <button type="button" onClick={resetFilters}>Сбросить фильтры</button>
         )}
@@ -226,32 +218,13 @@ export default function WikiPage() {
 
       {filteredItems.length > 0 ? (
         <section className="wiki-grid" aria-label="Термины Формулы-1">
-          {filteredItems.map((item, index) => (
-            <article
-              id={`glossary-${item.id}`}
-              className={`wiki-card category-${item.category}`}
-              key={item.id}
-              role="button"
-              tabIndex={0}
-              aria-haspopup="dialog"
-              aria-label={`Открыть: ${item.termRu}`}
-              onClick={(event) => {
+          {filteredItems.map(item => (
+            <article id={`glossary-${item.id}`} className="wiki-card" key={item.id}>
+              <span className="wiki-category">{CATEGORY_LABELS[item.category]}</span>
+              <h2><button type="button" aria-haspopup="dialog" onClick={event => {
                 triggerRef.current = event.currentTarget;
-                setSelected({ item, index });
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  triggerRef.current = event.currentTarget;
-                  setSelected({ item, index });
-                }
-              }}
-            >
-              <div className="wiki-card-top">
-                <span className="wiki-card-index">{String(index + 1).padStart(2, "0")}</span>
-                <span className="wiki-category">{CATEGORY_LABELS[item.category]}</span>
-              </div>
-              <h2>{item.termRu}</h2>
+                setSelected(item);
+              }}>{item.termRu}</button></h2>
               <span className="wiki-term-en">{item.termEn}</span>
               <p>{item.definition}</p>
               {item.example && (
@@ -265,9 +238,7 @@ export default function WikiPage() {
         </section>
       ) : (
         <section className="wiki-empty">
-          <div aria-hidden>?</div>
-          <span>Ничего не найдено</span>
-          <h2>Попробуйте другой запрос</h2>
+          <h2>Термины не найдены</h2>
           <p>Проверьте написание или верните все категории.</p>
           <button type="button" onClick={resetFilters}>Сбросить фильтры</button>
         </section>
@@ -283,17 +254,17 @@ export default function WikiPage() {
             if (event.target === event.currentTarget) setSelected(null);
           }}
         >
-          <article className={`wiki-card wiki-detail-card category-${selected.item.category}`}>
+          <article className="wiki-card wiki-detail-card">
             <button type="button" className="wiki-detail-close" autoFocus
               aria-label="Закрыть карточку" onClick={() => setSelected(null)}>×</button>
-            <span className="wiki-category">{CATEGORY_LABELS[selected.item.category]}</span>
-            <h2 id="wiki-detail-title">{selected.item.termRu}</h2>
-            <span className="wiki-term-en">{selected.item.termEn}</span>
-            <p>{selected.item.definition}</p>
-            {selected.item.example && (
+            <span className="wiki-category">{CATEGORY_LABELS[selected.category]}</span>
+            <h2 id="wiki-detail-title">{selected.termRu}</h2>
+            <span className="wiki-term-en">{selected.termEn}</span>
+            <p>{selected.definition}</p>
+            {selected.example && (
               <div className="wiki-example">
                 <span><BulbIcon /></span>
-                <div><strong>Простой пример</strong><p>{selected.item.example}</p></div>
+                <div><strong>Простой пример</strong><p>{selected.example}</p></div>
               </div>
             )}
           </article>

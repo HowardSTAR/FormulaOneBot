@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BackButton } from "../../components/BackButton";
 import { apiRequest } from "../../helpers/api";
+import "./team-principal.css";
 
 type TeamPrincipal = {
   id: string;
@@ -57,73 +58,51 @@ export default function TeamPrincipalPage() {
 
   if (!constructorId) {
     return (
-      <>
+      <div className="team-principal">
         <BackButton fallback="/constructors">← <span>Команды</span></BackButton>
-        <div className="error">Не указана команда</div>
-      </>
+        <p className="team-principal-status" role="alert">Не указана команда</p>
+      </div>
     );
   }
 
   if (loading) {
     return (
-      <div className="loading full-width">
-        <div className="spinner" />
-        <div>Загрузка руководителя команды...</div>
+      <div className="team-principal loading" role="status">
+        <div className="spinner" aria-hidden="true" />
+        <p className="team-principal-status">Загрузка руководителя команды…</p>
       </div>
     );
   }
 
   if (error || !data?.principal) {
     return (
-      <>
+      <div className="team-principal">
         <BackButton fallback={backPath}>← <span>Команда</span></BackButton>
         <PageFeedback message={error || "Карточка руководителя пока недоступна"} retry={() => setAttempt(v => v + 1)} parent={{to: backPath, label: "Карточка команды"}} />
-      </>
+      </div>
     );
   }
 
   const principal = data.principal;
   return (
-    <>
-      <article className="team-principal-mobile">
-        <BackButton fallback={backPath}>← <span>{data.name}</span></BackButton>
-        <div className="team-principal-hero">
+    <article className="team-principal">
+      <BackButton fallback={backPath} />
+      <div className="team-principal-content">
+        <header className="team-principal-heading">
+          <h1>{principal.name}</h1>
+          <p>{principal.role}</p>
+          <p>{data.name} · сезон {season}</p>
+          {data.nationality && <p>Страна команды: {nationalityLabel(data.nationality)}</p>}
+        </header>
+        <div className="team-principal-portrait">
           <img src={principal.photo_url} alt={principal.name} />
-          <div className="team-principal-hero-copy">
-            <span>{principal.role}</span>
-            <h1>{principal.name}</h1>
-            <p>{data.name} · сезон {season}</p>
-          </div>
         </div>
         <section className="team-principal-bio">
           <h2>Краткая биография</h2>
           <p>{cleanBiography(principal.bio || "Краткая биография пока недоступна.")}</p>
-          {principal.url && <a className="ui-action-link" href={principal.url} target="_blank" rel="noopener noreferrer">Открыть источник →</a>}
+          {principal.url && <a href={principal.url} target="_blank" rel="noopener noreferrer">Открыть источник →</a>}
         </section>
-      </article>
-
-      <article className="team-principal-desktop">
-        <BackButton fallback={backPath}>← <span>{data.name}</span></BackButton>
-        <header className="team-principal-desktop-hero">
-          <div className="team-principal-desktop-photo">
-            <img src={principal.photo_url} alt={principal.name} />
-          </div>
-          <div className="team-principal-desktop-copy">
-            <span>{principal.role}</span>
-            <h1>{principal.name}</h1>
-            <div>
-              <b>{data.name}</b>
-              <b>Сезон {season}</b>
-              {data.nationality && <b>Страна команды: {nationalityLabel(data.nationality)}</b>}
-            </div>
-          </div>
-        </header>
-        <section className="team-principal-desktop-bio">
-          <h2>Краткая биография</h2>
-          <p>{cleanBiography(principal.bio || "Краткая биография пока недоступна.")}</p>
-          {principal.url && <a className="ui-action-link" href={principal.url} target="_blank" rel="noopener noreferrer">Открыть источник →</a>}
-        </section>
-      </article>
-    </>
+      </div>
+    </article>
   );
 }

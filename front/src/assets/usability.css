@@ -22,8 +22,6 @@
 .ui-profile-link { color: inherit; text-decoration: underline; text-underline-offset: .2em; }
 .race-recap-panel .glossary-term, .driver-bio-text .glossary-term { display: inline; }
 .admin-user-actions .admin-actions { max-width: 260px; padding: 12px 0; }
-.ui-legal-register { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
-.ui-legal-register a { color: #ffb4ad; }
 .control-job-group { margin: 14px 0; padding: 12px; border: 1px solid #444a56; border-radius: 12px; }
 .control-job-group > summary { cursor: pointer; overflow-wrap: anywhere; }
 .admin-audit-card .control-filters { display: flex; flex-wrap: wrap; gap: 16px; }

@@ -1,0 +1,59 @@
+.team-principal {
+  max-inline-size: 66rem;
+  margin-inline: auto;
+  color: var(--design-ink);
+  overflow-wrap: anywhere;
+  container-type: inline-size;
+}
+
+.team-principal-content {
+  display: grid;
+  grid-template: "heading" auto "photo" auto "bio" auto / minmax(0, 1fr);
+  gap: 16px;
+  margin-block-start: 12px;
+}
+
+.team-principal-heading { grid-area: heading; }
+#root .team-principal h1 {
+  margin: 0 0 8px;
+  color: var(--design-ink);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.12;
+  letter-spacing: -.035em;
+  text-transform: none;
+}
+.team-principal-heading p { margin: 0 0 4px; color: var(--design-muted); line-height: 1.5; }
+.team-principal-portrait {
+  grid-area: photo;
+  align-self: start;
+  inline-size: min(100%, 25rem);
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--design-surface);
+}
+.team-principal-portrait img { display: block; inline-size: 100%; block-size: 100%; object-fit: cover; object-position: center top; }
+.team-principal-bio {
+  grid-area: bio;
+  align-self: start;
+  padding: clamp(14px, 2vw, 24px);
+  border: 1px solid var(--design-line);
+  border-radius: 14px;
+  background: var(--design-surface);
+}
+#root .team-principal-bio h2 { margin: 0 0 8px; color: var(--design-ink); font-size: 1.25rem; font-style: normal; text-transform: none; }
+.team-principal-bio p { max-inline-size: 68ch; margin: 0; color: var(--design-ink); line-height: 1.65; }
+#root .team-principal-bio a { display: inline-flex; align-items: center; min-block-size: 44px; margin-block-start: 8px; color: var(--design-accent); text-decoration: underline; text-underline-offset: .18em; }
+.team-principal :is(a, button):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 2px; }
+.team-principal-status { margin-block-start: 12px; color: var(--design-muted); }
+.team-principal .ui-feedback { margin-block-start: 12px; border-color: var(--design-line); background: var(--design-surface); color: var(--design-ink); }
+.team-principal .ui-feedback p { color: var(--design-muted); }
+.team-principal .ui-feedback a { color: var(--design-accent); }
+
+@container (min-width: 45rem) {
+  .team-principal-content {
+    grid-template: "photo heading" auto "photo bio" 1fr / minmax(0, 2fr) minmax(0, 3fr);
+    gap: 18px 24px;
+  }
+}
