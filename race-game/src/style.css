@@ -1014,6 +1014,7 @@ button:disabled, select:disabled { opacity: 0.55; cursor: wait; }
 .race-intro-tools a { display: flex; align-items: center; min-height: 44px; padding: 8px; color: var(--design-muted); font-size: .875rem; text-decoration: none; }
 [data-game-theme] { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: transparent; color: var(--design-ink); cursor: pointer; }
 .race-intro-tools :is(a, button):hover { background: var(--design-bg); }
+:is(#race-modal, .game-menu-panel):focus { outline: none; }
 :is(.modal-card, .game-menu-panel, .track-options) :is(button, a):focus-visible { outline: 3px solid var(--design-focus); outline-offset: 3px; }
 :is(.modal-card, .game-menu-panel) { user-select: text; scrollbar-color: var(--design-control) transparent; }
 :is(.modal-card, .game-menu-panel) ::selection { background: var(--design-accent); color: var(--design-bg); }

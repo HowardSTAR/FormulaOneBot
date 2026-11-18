@@ -12,12 +12,14 @@ export function installMenuAccessibility() {
     intro.setAttribute('aria-hidden', String(next !== intro));
     gameControls.forEach(element => { element.inert = Boolean(next); });
     if (next === active) {
-      if (next && document.activeElement instanceof HTMLElement && !document.activeElement.getClientRects().length) targets(next)[0]?.focus();
+      if (next && document.activeElement && !document.activeElement.getClientRects().length) {
+        next.focus({ preventScroll: true });
+      }
       return;
     }
     if (!active && next) previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     active = next;
-    if (next) targets(next)[0]?.focus();
+    if (next) next.focus({ preventScroll: true });
     else if (previousFocus?.isConnected) previousFocus.focus();
   };
   const observer = new MutationObserver(update);
@@ -32,7 +34,8 @@ export function installMenuAccessibility() {
     if (event.key !== 'Tab') return;
     const elements = targets(active);
     const first = elements[0], last = elements.at(-1);
-    if (!active.contains(document.activeElement) || (event.shiftKey ? document.activeElement === first : document.activeElement === last)) {
+    const focused = document.activeElement;
+    if (focused === active || !active.contains(focused) || focused === (event.shiftKey ? first : last)) {
       event.preventDefault();
       (event.shiftKey ? last : first)?.focus();
     }
