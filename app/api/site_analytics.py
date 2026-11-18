@@ -11,7 +11,7 @@ from app.api.auth_api import COOKIE_NAME, require_hybrid_user_id
 from app.db import db
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
-PUBLIC_ROUTES = frozenset(('/', '/account', '/compare', '/constructor-details', '/team-principal',
+PUBLIC_ROUTES = frozenset(('/', '/menu', '/account', '/compare', '/constructor-details', '/team-principal',
     '/constructors', '/driver-details', '/drivers', '/history', '/community', '/favorites', '/next-race',
     '/quali-results', '/race-details', '/race-results', '/reaction-game', '/reflex-grid-game', '/race-game',
     '/predictions', '/practice-results', '/contact-admin', '/settings', '/season', '/sprint-quali-results',

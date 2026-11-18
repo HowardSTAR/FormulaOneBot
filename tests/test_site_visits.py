@@ -1,5 +1,28 @@
+from uuid import uuid4
+
 import pytest
 from httpx import ASGITransport, AsyncClient
+
+
+@pytest.mark.asyncio
+async def test_menu_records_public_visit_and_screen_view(api_client):
+    from app.db import db
+
+    visit = await api_client.post('/api/analytics/visit', json={'path': '/menu', 'platform': 'browser'})
+    assert visit.status_code == 200
+    event_id = str(uuid4())
+    screen = await api_client.post('/api/analytics/event', json={
+        'path': '/menu', 'platform': 'browser', 'event': 'screen_view', 'event_id': event_id,
+    })
+    assert screen.status_code == 200
+    visitor = visit.cookies['turbotears_visitor']
+    assert await (await db.conn.execute(
+        'SELECT 1 FROM site_visits WHERE visitor_id=? AND path=?', (visitor, '/menu'),
+    )).fetchone()
+    assert await (await db.conn.execute(
+        'SELECT 1 FROM ui_events WHERE event_id=? AND visitor_id=? AND path=?',
+        (event_id, visitor, '/menu'),
+    )).fetchone()
 
 
 @pytest.mark.asyncio
