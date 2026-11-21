@@ -314,7 +314,7 @@ for (const key of ['year', 'filter', 'round']) if (query.has(key)) calendarQuery
 const resultRoutes = ['favorites', 'prediction-analytics', 'admin', 'community', 'notifications', 'driver-details', 'constructor-details', 'reaction-game', 'reflex-grid-game', 'race-game','contact-admin','settings','account','profile','history','compare','predictions','drivers','constructors','practice-results','quali-results','sprint-quali-results','sprint-results','race-results'];
 const resultQuery = new URLSearchParams(weekendQuery);
 for (const key of ['kind', 'ids', 'from', 'to', 'roster', 'code', 'driverId', 'constructorId']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
-if (query.has('section')) resultQuery.set('section', query.get('section')!);
+for (const key of ['section', 'report', 'days']) if (query.has(key)) resultQuery.set(key, query.get(key)!);
 if (query.has('tab')) resultQuery.set('tab', query.get('tab')!);
 if (query.has('mode')) resultQuery.set('mode', query.get('mode')!);
 if (query.has('year')) resultQuery.set('year', query.get('year')!);
