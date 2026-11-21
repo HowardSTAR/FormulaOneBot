@@ -97,8 +97,11 @@ async def recap_news_visibility(article_id: int, data: NewsVisibility,
 async def product_analytics(response: Response, days: int=Query(30,ge=1,le=90), actor: AdminContext=Depends(require_admin_session)):
     from app.services.product_analytics import report
     response.headers['Cache-Control']='no-store'
+    now = time.time()
     async with connection() as conn:
-        return await report(conn,time.time()-days*86400)
+        # Read the funnel, totals and coverage from one SQLite snapshot.
+        await conn.execute("BEGIN")
+        return await report(conn, now-days*86400, now)
 
 
 @router.get('/control')
