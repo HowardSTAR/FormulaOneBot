@@ -108,7 +108,6 @@
 }
 
 .admin-toolbar select,
-.admin-users-tools select,
 .admin-users-tools input,
 .admin-modal input {
   min-height: 42px;
@@ -215,107 +214,6 @@
   padding: 16px;
 }
 
-.admin-games-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 8px 4px 20px;
-}
-
-.admin-games-header h2 {
-  margin: 6px 0;
-  font-size: clamp(24px, 3vw, 38px);
-  text-transform: uppercase;
-}
-
-.admin-games-header p,
-.admin-danger-zone p {
-  margin: 0;
-  color: var(--admin-muted);
-}
-
-.admin-games-total {
-  display: grid;
-  flex: 0 0 auto;
-  justify-items: end;
-}
-
-.admin-games-total strong {
-  color: var(--design-accent);
-  font-size: 44px;
-  line-height: 1;
-}
-
-.admin-games-total span {
-  margin-top: 5px;
-  color: var(--admin-muted);
-  font-size: 12px;
-}
-
-.admin-games-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.admin-games-grid article {
-  display: grid;
-  min-width: 0;
-  border: 1px solid var(--admin-border);
-  border-radius: 16px;
-  background: var(--admin-panel-2);
-  padding: 18px;
-}
-
-.admin-games-grid article > span {
-  min-height: 34px;
-  color: var(--design-ink);
-  font-size: 13px;
-  font-weight: 800;
-  text-transform: uppercase;
-}
-
-.admin-games-grid article > strong {
-  margin-top: 8px;
-  font-size: 42px;
-  line-height: 1;
-}
-
-.admin-games-grid article > small {
-  margin: 7px 0 18px;
-  color: var(--admin-muted);
-}
-
-.admin-games-skeleton {
-  grid-column: 1 / -1;
-  min-height: 180px;
-}
-
-.admin-danger-zone {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  margin-top: 14px;
-  border: 1px solid var(--design-scale-low);
-  border-radius: 16px;
-  background: var(--design-tint);
-  padding: 18px;
-}
-
-.admin-danger-zone strong {
-  display: block;
-  margin-bottom: 5px;
-  color: var(--design-scale-low);
-}
-
-.admin-danger-zone small {
-  display: block;
-  margin-top: 7px;
-  color: var(--design-scale-low);
-}
-
 .admin-games-card .admin-danger-button,
 .admin-actions .admin-danger-button {
   border: 1px solid var(--design-scale-low);
@@ -341,19 +239,28 @@
 
 .admin-users-tools {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   margin-bottom: 14px;
 }
 
 .admin-users-tools form {
-  display: flex;
-  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  flex: 4 1 20rem;
+  min-width: 0;
   gap: 8px;
+}
+
+.admin-users-role-filter {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 
 .admin-users-tools input {
   width: 100%;
+  min-width: 0;
 }
 
 .admin-users-tools button {
@@ -367,7 +274,7 @@
 
 .admin-users-card table {
   width: 100%;
-  min-width: 1080px;
+  min-width: 700px;
   border-collapse: collapse;
 }
 
@@ -376,7 +283,8 @@
   border-bottom: 1px solid var(--admin-border);
   padding: 13px 10px;
   text-align: left;
-  vertical-align: middle;
+  vertical-align: top;
+  overflow-wrap: anywhere;
 }
 
 .admin-users-card th {
@@ -465,26 +373,6 @@
   padding: 0 16px;
 }
 
-.admin-audit-list {
-  display: grid;
-  gap: 8px;
-}
-
-.admin-audit-list article {
-  display: grid;
-  grid-template-columns: 150px minmax(180px, 1fr) minmax(180px, 1.2fr) 150px minmax(180px, 2fr);
-  gap: 12px;
-  align-items: center;
-  border: 1px solid var(--admin-border);
-  border-radius: 12px;
-  background: var(--admin-panel-2);
-  padding: 12px;
-  font-size: 12px;
-}
-
-.admin-audit-list time,
-.admin-audit-list span { color: var(--admin-muted); }
-.admin-audit-list code { overflow: hidden; color: var(--design-scale-low); text-overflow: ellipsis; white-space: nowrap; }
 .admin-empty { color: var(--admin-muted); text-align: center; }
 
 
@@ -528,13 +416,7 @@
   .admin-chart-card { padding: 14px 10px; }
   .admin-chart-wrap { height: 360px; }
   .admin-users-tools { align-items: stretch; flex-direction: column; }
-  .admin-users-tools select { width: 100%; }
-  .admin-games-header { align-items: flex-start; flex-direction: column; }
-  .admin-games-total { justify-items: start; }
-  .admin-games-grid { grid-template-columns: 1fr; }
-  .admin-danger-zone { align-items: stretch; flex-direction: column; }
-  .admin-danger-zone button { width: 100%; }
-  .admin-audit-list article { grid-template-columns: 1fr; gap: 5px; }
+  .admin-users-tools form, .admin-users-role-filter { flex: none; }
 }
 
 @media (max-width: 560px) {
@@ -545,6 +427,5 @@
   .admin-metric-grid strong { font-size: 42px; }
   .admin-source-grid article { flex-wrap: wrap; }
   .admin-source-grid > article > span { width: 100%; }
-  .admin-users-tools form { flex-direction: column; }
-  .admin-users-tools button { min-height: 42px; }
+  .admin-users-tools form { grid-template-columns: minmax(0, 1fr); }
 }

@@ -56,16 +56,10 @@
 .admin-table-wrap { scrollbar-color: var(--design-control) var(--design-surface); }
 .admin-users-card th { font-size: .75rem; letter-spacing: normal; text-transform: none; }
 .admin-users-card td { font-size: .875rem; }
-.admin-page :is(td, time, .control-metrics strong, .admin-metric-grid strong, .admin-games-total strong) { font-variant-numeric: tabular-nums; }
+.admin-page :is(td, time, .control-metrics strong, .admin-metric-grid strong) { font-variant-numeric: tabular-nums; }
 .admin-notice { align-items: center; gap: 12px; overflow-wrap: anywhere; }
 .admin-notice button { min-width: 44px; flex-shrink: 0; }
-.admin-audit-list article { grid-template-columns: repeat(2, minmax(0, 1fr)); font-size: .875rem; }
-.admin-audit-list article > :last-child { grid-column: 1 / -1; }
-.admin-audit-list article > * { min-width: 0; overflow-wrap: anywhere; }
-.admin-games-grid article > span { font-size: .875rem; text-transform: none; }
 .admin-page .ui-data-context { color: var(--design-muted); font-size: .8125rem; line-height: 1.6; }
-.admin-flow { display: flex; gap: 8px; flex-wrap: wrap; padding: 0; margin: 0 0 20px; list-style: none; }
-.admin-flow li { padding: 8px 12px; border-radius: 8px; background: var(--design-surface); color: var(--design-muted); font-size: .8125rem; }
 .recovery-mode { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
 .recovery-mode button[aria-pressed=true], .control-metrics button[aria-pressed=true] { background: var(--design-tint); border-color: var(--design-accent); color: var(--design-accent); }
 .recovery-target { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; }
@@ -98,7 +92,7 @@
   .admin-identity { justify-items: start; }
   .admin-section-heading { margin-bottom: 20px; }
   .admin-workspace :is(.admin-chart-card, .admin-users-card, .admin-games-card, .admin-audit-card) { padding: 16px; }
-  .admin-workspace :is(.admin-metric-grid, .at-columns, .pr-manual-grid, .recovery-target, .admin-audit-list article) { grid-template-columns: 1fr; }
+  .admin-workspace :is(.admin-metric-grid, .at-columns, .pr-manual-grid, .recovery-target) { grid-template-columns: 1fr; }
   .recovery-target > button { justify-self: stretch; }
   .admin-pagination { flex-wrap: wrap; }
   .admin-chart-card header, .admin-audit-card > header { flex-wrap: wrap; }
@@ -131,3 +125,149 @@
 .admin-modal .admin-modal-user { margin: 0 0 8px; color: var(--design-muted); font-size: .875rem; font-weight: 500; text-transform: none; }
 .admin-modal .admin-email-error { padding: 12px; border-radius: 8px; background: var(--design-tint); color: var(--design-accent); font-size: .875rem; line-height: 1.5; }
 .admin-modal form > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+
+.admin-audit-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+  align-items: end;
+  gap: 12px;
+}
+
+.admin-audit-filters label,
+.admin-game-moderation label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: .875rem;
+}
+
+.admin-audit-filters input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.admin-inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-inline-actions button,
+.admin-audit-card button {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--design-control);
+  border-radius: 10px;
+  background: var(--design-surface);
+  color: var(--design-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.admin-subnav {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--design-line);
+}
+
+.admin-subnav button[aria-pressed=true] {
+  border-color: var(--design-accent);
+  background: var(--design-tint);
+  color: var(--design-accent);
+  font-weight: 600;
+}
+
+.admin-page .admin-primary-action,
+.admin-page .admin-audit-filters button[type=submit] {
+  border-color: var(--design-event-bg);
+  background: var(--design-event-bg);
+  color: var(--design-event-ink);
+}
+
+.admin-page .admin-primary-action:hover:not(:disabled),
+.admin-page .admin-audit-filters button[type=submit]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--design-event-bg) 85%, #000);
+  color: var(--design-event-ink);
+}
+
+.admin-event-list,
+.admin-task-list,
+.admin-tool-links {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-event-list li,
+.admin-task-list li,
+.admin-tool-links li {
+  padding-block: 12px;
+  border-top: 1px solid var(--design-line);
+  overflow-wrap: anywhere;
+}
+
+.admin-event-heading,
+.admin-task-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.admin-event-heading time,
+.admin-event-list p,
+.admin-task-list p {
+  margin: 6px 0 0;
+  color: var(--design-muted);
+  font-size: .875rem;
+}
+
+.admin-event-list details { margin-top: 4px; padding: 0; border: 0; }
+.admin-event-list code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.admin-audit-card > nav { margin-top: 12px; }
+.admin-user-history { margin-top: 10px; }
+.admin-user-history .admin-event-list { margin-top: 0; }
+.admin-user-history .admin-event-heading { gap: 4px; }
+.admin-users-card .admin-user-actions summary { font-size: .8125rem; }
+.admin-action-user { overflow-wrap: anywhere; }
+
+.admin-review-metrics,
+.admin-game-stats { margin: 12px 0; }
+.admin-review-metrics { display: flex; flex-wrap: wrap; gap: 12px 32px; }
+.admin-review-metrics dd { margin: 4px 0; font-weight: 700; }
+.admin-message-preview {
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--design-bg);
+  overflow-wrap: anywhere;
+}
+.admin-message-preview h4 { margin: 0; }
+.admin-message-preview p { white-space: pre-wrap; }
+.admin-tools .at-confirm .admin-inline-actions button:not(.admin-primary-action) { background: var(--design-surface); color: var(--design-ink); }
+.admin-tools .at-confirm .admin-inline-actions button:not(.admin-primary-action):hover { background: var(--design-tint); }
+
+.admin-games-overview { margin-top: 0; color: var(--design-muted); }
+.admin-games-overview strong { color: var(--design-ink); }
+.admin-game-stats > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--design-line);
+}
+.admin-game-stats dt { font-weight: 600; }
+.admin-game-stats dd { margin: 0; color: var(--design-muted); }
+.admin-game-moderation label { max-width: 24rem; }
+.admin-status-warning { color: var(--design-accent); }
+.admin-tool-links { margin: 0; }
+.admin-tool-links li:first-child { border-top: 0; }
+.admin-tool-links li p { margin: 0; }
+.admin-tool-links a { display: inline-flex; align-items: center; min-height: 44px; font-weight: 650; }
+.admin-control .control-error-code { display: inline; }
+.admin-control > details.control-job { margin: 0; border: 1px solid var(--design-line); }
+
+.control-queue-heading { scroll-margin-top: 24px; }

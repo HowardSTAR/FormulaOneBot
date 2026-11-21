@@ -168,9 +168,16 @@ async def test_hide_restore_disable_archive_and_idempotent_refresh(workspace, mo
     state = await client.get('/api/admin/tools/recap-news', params={"season": 2026, "round_num": 15})
     assert state.headers["cache-control"] == "no-store"
     identifier = state.json()["items"][0]["id"]
+    latest = (await client.get('/api/admin/tools/recap-news', params={"season": 2026, "latest": "true"})).json()
+    assert latest["selected_round"] == 15
+    assert latest["stages"][0]["round"] == 15
     url = f'/api/admin/tools/recap-news/articles/{identifier}'
     assert (await client.patch(url, json={"hidden": True})).status_code == 200
     await client.patch(url, json={"hidden": True})
+    visible = (await client.get('/api/admin/tools/recap-news', params={"season": 2026, "visibility": "visible"})).json()
+    hidden = (await client.get('/api/admin/tools/recap-news', params={"season": 2026, "visibility": "hidden"})).json()
+    assert len(visible["items"]) == 1
+    assert [item["id"] for item in hidden["items"]] == [identifier]
     await news.save_candidates(database.conn, entries, EVENT, 2026, NOW)
     await database.conn.commit()
     assert len(await news.public_news(2026, 15)) == 1

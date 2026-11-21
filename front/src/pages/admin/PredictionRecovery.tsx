@@ -14,10 +14,10 @@ const endpoint='/api/admin/tools/prediction-recovery';
 const names:Record<string,string>={fastest_lap_driver:'Лучший круг',first_retirement_driver:'Первый сход',safety_car:'Машина безопасности'};
 const states:Record<string,string>={ready:'Готово к проверке',waiting:'Ожидаем данные',unchanged:'Нет изменений',conflict:'Источники расходятся',applied:'Применено',stale:'Проверка устарела'};
 
-export function PredictionRecovery({onBusy}:{onBusy?:(busy:boolean)=>void}) {
+export function PredictionRecovery({ onBusy, initialSeason, initialRound }: { onBusy?: (busy: boolean) => void; initialSeason?: number; initialRound?: number }) {
   const [mode,setMode]=useState<'single'|'season'|'manual'>('single');
-  const [season,setSeason]=useState(new Date().getFullYear());
-  const [round,setRound]=useState(1);
+  const [season,setSeason]=useState(initialSeason ?? new Date().getFullYear());
+  const [round,setRound]=useState(initialRound ?? 1);
   const [checks,setChecks]=useState<Check[]>([]);
   const [selected,setSelected]=useState<Check|null>(null);
   const [confirmation,setConfirmation]=useState('');
@@ -54,7 +54,7 @@ export function PredictionRecovery({onBusy}:{onBusy?:(busy:boolean)=>void}) {
     return()=>{active=false;};
   },[season,round]);
   useEffect(()=>{let active=true; apiRequest<Check[]>(endpoint).then(data=>{if(active)setChecks(data);}).catch(e=>{if(active)setError(String(e));});return()=>{active=false;};},[]);
-  useEffect(()=>{let active=true;apiRequest<{rounds:CalculatedRound[]}>(`${endpoint}/rounds`,{season}).then(data=>{if(active){setRounds(data.rounds);setRoundsLoaded(season);setRound(previous=>data.rounds.some(item=>item.round===previous)?previous:Math.max(1,...data.rounds.map(item=>item.round)));}}).catch(()=>{if(active){setRounds([]);setRoundsLoaded(season);setError('Не удалось загрузить список этапов. Обновите страницу или выберите сезон снова.');}});return()=>{active=false;};},[season]);
+  useEffect(()=>{let active=true;apiRequest<{rounds:CalculatedRound[]}>(`${endpoint}/rounds`,{season}).then(data=>{if(active){setRounds(data.rounds);setRoundsLoaded(season);setRound(previous=>(data.rounds.some(item=>item.round===previous) || (season===initialSeason && previous===initialRound))?previous:Math.max(1,...data.rounds.map(item=>item.round)));}}).catch(()=>{if(active){setRounds([]);setRoundsLoaded(season);setError('Не удалось загрузить список этапов. Обновите страницу или выберите сезон снова.');}});return()=>{active=false;};},[season,initialSeason,initialRound]);
   useEffect(()=>()=>{batchCancelled.current=true;},[]);
   useEffect(()=>{onBusy?.(busy||batchBusy||broadcastBusy);return()=>onBusy?.(false);},[busy,batchBusy,broadcastBusy,onBusy]);
   useEffect(()=>{
@@ -137,14 +137,13 @@ export function PredictionRecovery({onBusy}:{onBusy?:(busy:boolean)=>void}) {
     finally{setBatchConfirmation('');setBatchBusy(false);}
   };
   return <section className="admin-chart-card admin-tools"><h2>Проверка и пересчёт</h2>
-    <ol className="admin-flow" aria-label="Порядок работы"><li>1 · Выбрать этап</li><li>2 · Проверить изменения</li><li>3 · Подтвердить пересчёт</li></ol>
     <p>Проверка не меняет баллы. Пересчёт требует подтверждения и не запускает рассылку.</p>
     <nav className="recovery-mode" aria-label="Способ проверки">{([['single','Один этап'],['season','Весь сезон'],['manual','Внести факты вручную']] as const).map(([value,label])=><button type="button" disabled={busy||batchBusy||broadcastBusy} aria-pressed={mode===value} key={value} onClick={()=>{setMode(value);setNotice('');setError('');}}>{label}</button>)}</nav>
     <fieldset className="recovery-target" disabled={busy||batchBusy||broadcastBusy}><label>Сезон<SelectField value={season} onChange={e=>{resetTarget();setSeason(Number(e));setBatchChecks([]);setBatchErrors([]);setBatchProgress('');setBatchConfirmation('');}}>{Array.from({length:new Date().getFullYear()-1949},(_,i)=>new Date().getFullYear()-i).map(year=><option key={year} value={year}>{year}</option>)}</SelectField></label>
       {mode!=='season'&&<label>Рассчитанный этап<SelectField value={currentRound?round:''} disabled={roundsLoaded!==season} onChange={e=>{resetTarget();setRound(Number(e));}}><option value="" disabled>{roundsLoaded!==season?'Загружаем этапы…':'Выберите этап'}</option>{rounds.map(item=><option key={item.round} value={item.round}>Этап {item.round} · {item.event_name}{item.missing.length?' · неполные данные':''}</option>)}</SelectField></label>}
       {mode==='single'&&<button disabled={!currentRound||roundsLoaded!==season} onClick={()=>void run()}>Проверить данные — без изменения баллов</button>}</fieldset>
     {roundsLoaded===season&&!rounds.length&&<p role="status">В выбранном сезоне пока нет рассчитанных этапов.</p>}
-    {mode!=='season'&&roundsLoaded===season&&currentRound&&<PredictionResultBroadcast key={`${season}:${round}:${selected?.state==='applied'?selected.id:''}`} season={season} round={round} disabled={busy||batchBusy} onBusy={setBroadcastBusy}/>}
+    {mode!=='season'&&roundsLoaded===season&&currentRound&&<details><summary>Рассылка итогов этапа</summary><PredictionResultBroadcast key={`${season}:${round}:${selected?.state==='applied'?selected.id:''}`} season={season} round={round} disabled={busy||batchBusy} onBusy={setBroadcastBusy}/></details>}
     {mode==='manual'&&<section className="pr-manual"><h3>Подтвердить факты по источникам</h3>
       <p>Если API недоступно, внесите только проверенные факты. Для каждого заполненного пункта нужна ссылка на источник. Пустой пункт останется без данных. Подтверждённые ранее значения нельзя заменить; изменение баллов произойдёт только после отдельного применения предпросмотра.</p>
       {currentRound?<p><strong>{currentRound.event_name}</strong> · уже сохранено: лучший круг — {currentRound.current.fastest_lap_driver??'нет данных'}, первый сход — {currentRound.first_retirement_drivers.length?currentRound.first_retirement_drivers.join(', '):'нет данных'}, машина безопасности — {currentRound.current.safety_car==null?'нет данных':currentRound.current.safety_car?'Да':'Нет'}.</p>:<p>Этап {round} не найден среди рассчитанных этапов сезона {season}. Проверьте номер этапа.</p>}
@@ -183,10 +182,11 @@ export function PredictionRecovery({onBusy}:{onBusy?:(busy:boolean)=>void}) {
       {selected.note&&<p>{selected.note}</p>}{selected.conflict&&<p>Источник также противоречит уже сохранённым фактам. Эти факты не заменяются.</p>}
       {selected.manual_evidence&&<div><p>Обоснование: {selected.manual_evidence.reason}</p><ul>{Object.entries(selected.manual_evidence.urls).map(([key,url])=><li key={key}>{names[key]}: <a href={url} target="_blank" rel="noopener noreferrer">Открыть источник ↗</a></li>)}</ul><small>Ручная запись сохраняет ссылку, автора и время подтверждения в истории проверки.</small></div>}
       {selected.note?.includes('HTTP 429')&&<p>Лимит OpenF1 исчерпан. Баллы не менялись; подождите не менее минуты и запустите проверку снова.</p>}
-      <ul>{Object.entries(selected.additions).map(([key,value])=><li key={key}>{names[key]}: {key==='safety_car'?(value?'Да':'Нет'):value}</li>)}</ul>
+      {Object.keys(selected.additions).length > 0 && <><h4>Какие данные добавятся</h4><ul>{Object.entries(selected.additions).map(([key,value])=><li key={key}>{names[key]}: {key==='safety_car'?(value?'Да':'Нет'):value}</li>)}</ul></>}
       {!!selected.retirement_group?.length&&<p>Первая группа схода: {selected.retirement_group.join(', ')}. Выбор любого из них приносит 2 балла за пункт.</p>}
       {!!selected.tie_expansion?.length&&<p>Уточнённая первая группа схода: {selected.tie_expansion.join(', ')}. Выбор любого из них приносит 2 балла за пункт.</p>}
       {!!selected.missing.length&&<p>Ещё нет данных: {selected.missing.map(key=>names[key]).join(', ')}.</p>}
+      <p><strong>Затронуто участников: {selected.changes.length}.</strong>{selected.changes.length > 0 && ` Баллы вырастут у ${selected.changes.filter(change => change.delta > 0).length}, снизятся у ${selected.changes.filter(change => change.delta < 0).length}.`}</p>
       <details open={selected.state==='ready'}><summary>Изменения баллов ({selected.changes.length} участников)</summary><div className="admin-table-wrap"><table><thead><tr><th>Участник</th><th>Было</th><th>Станет</th><th>Разница</th></tr></thead><tbody>{selected.changes.map(row=><tr key={row.user_id}><td>#{row.user_id}</td><td>{row.old_points}/{row.old_max}</td><td>{row.new_points}/{row.new_max}</td><td>{row.delta>0?'+':''}{row.delta}</td></tr>)}</tbody></table></div>{!selected.changes.length&&<p>Участников для пересчёта нет.</p>}</details>
       {selected.state==='ready'&&<fieldset disabled={busy||batchBusy||broadcastBusy}><label>Для применения введите ПЕРЕСЧИТАТЬ<input value={confirmation} onChange={e=>setConfirmation(e.target.value)}/></label><button disabled={confirmation!=='ПЕРЕСЧИТАТЬ'} onClick={()=>void run(true)}>Применить изменения очков</button></fieldset>}
     </article>}

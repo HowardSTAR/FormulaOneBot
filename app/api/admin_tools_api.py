@@ -34,6 +34,8 @@ class NewsVisibility(BaseModel):
 @router.get("/recap-news")
 async def recap_news_admin(response: Response, season: int = Query(ge=1950, le=2100),
                            round_num: int | None = Query(None, ge=1, le=30),
+                           latest: bool = False,
+                           visibility: Literal["all", "visible", "hidden"] = "all",
                            _: AdminContext = Depends(require_admin_session)):
     from app.services.recap_news import FEEDS
     from app.services.recap_chronicle import display_title
@@ -41,9 +43,20 @@ async def recap_news_admin(response: Response, season: int = Query(ge=1950, le=2
     response.headers["Cache-Control"] = "no-store"
     async with connection() as conn:
         states = {row["source_id"]: dict(row) for row in await (await conn.execute("SELECT * FROM recap_news_sources")).fetchall()}
-        clause, params = (" AND a.round=?", [season, round_num]) if round_num is not None else ("", [season])
-        rows = await (await conn.execute("SELECT a.* FROM recap_news_articles a WHERE a.season=?" + clause +
-                                         " ORDER BY a.round DESC,a.score DESC,a.published DESC LIMIT 200", params)).fetchall()
+        stages = await (await conn.execute(
+            "SELECT round, MAX(event_name) AS event_name FROM recap_news_articles WHERE season=? GROUP BY round ORDER BY round DESC",
+            (season,),
+        )).fetchall()
+        selected_round = round_num if round_num is not None else stages[0]["round"] if latest and stages else None
+        clause, params = (" AND a.round=?", [season, selected_round]) if selected_round is not None else ("", [season])
+        if visibility == "visible":
+            clause += " AND a.hidden=0 AND s.enabled=1"
+        elif visibility == "hidden":
+            clause += " AND (a.hidden=1 OR COALESCE(s.enabled,0)=0)"
+        rows = await (await conn.execute(
+            "SELECT a.* FROM recap_news_articles a LEFT JOIN recap_news_sources s USING(source_id) WHERE a.season=?"
+            + clause + " ORDER BY a.round DESC,a.score DESC,a.published DESC LIMIT 200", params,
+        )).fetchall()
     return {"sources": [{"id": feed.id, "publisher": feed.publisher, "url": feed.url,
                           "terms_url": feed.terms_url, "permission_note": feed.permission_note,
                           "kind": feed.kind, "permission_required": feed.permission_required,
@@ -53,6 +66,7 @@ async def recap_news_admin(response: Response, season: int = Query(ge=1950, le=2
                           "next_check": states.get(feed.id, {}).get("next_check"),
                           "error": states.get(feed.id, {}).get("error")}
                          for feed in FEEDS],
+            "stages": [dict(stage) for stage in stages], "selected_round": selected_round,
             "items": [{"id": row["id"], "season": row["season"], "round": row["round"],
                        "event_name": row["event_name"], "title": display_title(row["title"], row["source_id"]), "url": row["url"],
                        "source_id": row["source_id"], "published": row["published"], "hidden": bool(row["hidden"])}

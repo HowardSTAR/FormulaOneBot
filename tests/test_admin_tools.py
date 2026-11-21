@@ -196,3 +196,90 @@ async def test_role_and_csrf_checks_are_not_bypassed(workspace, monkeypatch):
     assert (await client.post("/api/admin/tools/notifications/preview",json=draft)).status_code == 403
     result = await client.post("/api/admin/tools/notifications/preview",json=draft,headers={"X-CSRF-Token":session.csrf_token})
     assert result.status_code == 200, result.text
+
+
+@pytest.mark.asyncio
+async def test_product_report_ignores_edits_and_compares_disjoint_visit_windows(workspace):
+    database, _, _ = workspace
+    from app.services.product_analytics import report
+
+    end = 1_800_000_000
+    start = end - 7 * 86400
+    previous = start - 7 * 86400
+    events = [
+        (1, 'prediction_view', start + 10),
+        (1, 'prediction_start', start + 20),
+        (2, 'prediction_start', start + 1),  # stray earlier start
+        (2, 'prediction_view', start + 10),
+        (2, 'prediction_start', start + 20),  # retry in the correct order
+    ]
+    for index, (uid, event, created) in enumerate(events):
+        await database.conn.execute(
+            'INSERT INTO product_events VALUES(?,?,?,?,?,?,?,?,?,?)',
+            (str(index), uid, event, '/predictions', 'browser', 2026, 1, created // 300, created, 0),
+        )
+    for uid, first_save in [(1, start - 100), (2, start + 21)]:
+        await database.conn.execute(
+            '''INSERT INTO race_predictions(user_id,season,round,pole_driver,winner_driver,second_driver,
+                third_driver,fourth_driver,fifth_driver,fastest_lap_driver,first_retirement_driver,
+                safety_car,created_at,updated_at)
+                VALUES (?,2026,1,'NOR','NOR','HAM','LEC','VER','PIA','NOR','HAM',0,
+                datetime(?,'unixepoch'),datetime(?,'unixepoch'))''',
+            (uid, first_save, start + 50),
+        )
+    for browser, created in [
+        ('prior', previous + 300), ('both', start - 300), ('both', start),
+        ('both', start + 86400), ('other', start), ('open-bucket', end),
+    ]:
+        await database.conn.execute(
+            'INSERT INTO site_visits(visitor_id,path,bucket) VALUES (?, ?, ?)',
+            (browser, '/', created // 300),
+        )
+    result = await report(database.conn, start, end)
+    assert result['funnel'] == {'opened': 2, 'started': 2, 'saved': 1}
+    assert result['first_saves'] == 1
+    assert result['traffic']['current'] == {'browsers': 2, 'returning': 1}
+    assert result['traffic']['previous'] is None
+    await database.conn.execute(
+        'INSERT INTO site_visits(visitor_id,path,bucket) VALUES (?, ?, ?)',
+        ('prior', '/', previous // 300),
+    )
+    result = await report(database.conn, start, end)
+    assert result['traffic']['previous'] == {'browsers': 2, 'returning': 0}
+
+
+@pytest.mark.asyncio
+async def test_audit_filters_before_paginating_and_requires_admin(workspace):
+    database, app, client = workspace
+    app.include_router(admin_api.router)
+    app.dependency_overrides[admin_api.require_admin_session] = lambda: admin_api.AdminContext(id=1, role="admin")
+    await database.conn.execute("UPDATE users SET email='actor@example.test' WHERE id=1")
+    await database.conn.executemany(
+        """INSERT INTO admin_audit_log(actor_user_id,target_user_id,action,created_at,details_json)
+           VALUES (?,?,?,?, '{}')""",
+        [
+            (1, 2, 'user.email_changed', '2026-07-01T00:00:00+00:00'),
+            (1, 2, 'user.email_changed', '2026-07-02T18:00:00+00:00'),
+            (1, 3, 'user.email_changed', '2026-07-02T18:00:00+00:00'),
+            (4, 2, 'user.email_changed', '2026-07-02T18:00:00+00:00'),
+            (1, 2, 'user.role_changed', '2026-07-02T18:00:00+00:00'),
+            (1, 2, 'user.email_changed', '2026-07-03T00:00:00+00:00'),
+        ],
+    )
+    await database.conn.commit()
+
+    query = {"limit": 1, "actor": "ACTOR@", "target_user_id": 2,
+             "action": "user.email_changed", "date_from": "2026-07-01", "date_to": "2026-07-02"}
+    path = "/api/admin/audit-log"
+    response = await client.get(path, params=query)
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    first = response.json()
+    assert first["items"][0]["created_at"].startswith("2026-07-02")
+    assert first["next_before"] == first["items"][0]["id"]
+    second = (await client.get(path, params={**query, "before": first["next_before"]})).json()
+    assert second["items"][0]["created_at"].startswith("2026-07-01")
+    assert second["next_before"] is None
+    assert (await client.get(path, params={**query, "date_from": "2026-07-04"})).status_code == 422
+    app.dependency_overrides.clear()
+    assert (await client.get(path)).status_code in {401, 403}

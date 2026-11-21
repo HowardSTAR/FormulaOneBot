@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import math
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Annotated, Literal
 
 import aiosqlite
@@ -691,29 +691,62 @@ async def send_user_password_reset(
 
 @router.get("/audit-log")
 async def get_audit_log(
+    response: Response,
     limit: int = Query(50, ge=1, le=200),
+    before: int | None = Query(None, gt=0),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    actor: str | None = Query(None, max_length=254),
+    target_user_id: int | None = Query(None, gt=0),
+    action: str | None = Query(None, max_length=100),
     _: AdminContext = Depends(require_admin_session),
 ):
+    response.headers["Cache-Control"] = "no-store"
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(422, detail="Начало периода должно быть не позже конца")
+    conditions = []
+    values = []
+    if before is not None:
+        conditions.append("l.id < ?")
+        values.append(before)
+    if date_from:
+        conditions.append("date(l.created_at) >= ?")
+        values.append(date_from.isoformat())
+    if date_to:
+        conditions.append("date(l.created_at) <= ?")
+        values.append(date_to.isoformat())
+    if actor and (actor := actor.strip()):
+        conditions.append("""(instr(lower(coalesce(actor.email, '')), lower(?)) > 0
+            OR CAST(l.actor_user_id AS TEXT) = ? OR CAST(actor.telegram_id AS TEXT) = ?)""")
+        values.extend([actor, actor, actor])
+    if target_user_id is not None:
+        conditions.append("l.target_user_id = ?")
+        values.append(target_user_id)
+    if action:
+        conditions.append("l.action = ?")
+        values.append(action)
+    where = "WHERE " + " AND ".join(conditions) if conditions else ""
     assert db.conn is not None
     async with db.conn.execute(
-        """
+        f"""
         SELECT
-            l.id, l.action, l.details_json, l.created_at, l.target_user_id,
+            l.id, l.action, l.details_json, l.created_at, l.target_user_id, l.actor_user_id,
             actor.email AS actor_email, actor.telegram_id AS actor_telegram_id
         FROM admin_audit_log l
         LEFT JOIN users actor ON actor.id = l.actor_user_id
+        {where}
         ORDER BY l.id DESC
         LIMIT ?
         """,
-        (limit,),
+        (*values, limit + 1),
     ) as cursor:
         rows = await cursor.fetchall()
     items = []
-    for row in rows:
+    for row in rows[:limit]:
         item = dict(row)
         try:
             item["details"] = json.loads(item.pop("details_json"))
         except json.JSONDecodeError:
             item["details"] = {}
         items.append(item)
-    return {"items": items}
+    return {"items": items, "next_before": items[-1]["id"] if len(rows) > limit else None}

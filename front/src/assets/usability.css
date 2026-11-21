@@ -24,9 +24,6 @@
 .admin-user-actions .admin-actions { max-width: 260px; padding: 12px 0; }
 .control-job-group { margin: 14px 0; padding: 12px; border: 1px solid #444a56; border-radius: 12px; }
 .control-job-group > summary { cursor: pointer; overflow-wrap: anywhere; }
-.admin-audit-card .control-filters { display: flex; flex-wrap: wrap; gap: 16px; }
-.admin-audit-card .control-filters label { display: grid; gap: 8px; flex: 1 1 240px; }
-.admin-audit-card .control-filters input, .admin-audit-card .control-filters select { min-height: 44px; padding: 10px; color: var(--design-ink); background: var(--design-bg); border: 1px solid var(--design-control); border-radius: 10px; }
 .voting-accordion-badge { white-space: normal; text-align: right; font-size: .8rem; }
 .ui-results-year { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 16px 0; }
 .ui-results-year .year-select-wrapper { max-width: 260px; }

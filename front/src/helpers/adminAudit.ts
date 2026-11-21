@@ -4,6 +4,8 @@ export const auditActionLabels: Record<string, string> = {
   'notification.sent': 'Отправлена рассылка сайта',
   'notification.preview': 'Подготовлен предпросмотр рассылки',
   'prediction_results.sent': 'Разосланы итоги прогнозов',
+  'prediction_recovery.manual_preview': 'Проверены факты вручную',
+  'prediction_recovery.manual_apply': 'Применены факты вручную',
   'user.role_changed': 'Изменена роль',
   'user.premium_changed': 'Изменён режим премиума',
   'user.email_changed': 'Изменён email',
@@ -28,6 +30,7 @@ export function describeAuditChange(action: string, details: Record<string, unkn
   if (action === 'notification.sent') return `Рассылка создана для ${text(details.recipients)} получателей; push в очереди: ${text(details.queued_push)}`;
   if (action === 'notification.preview') return `Аудитория: ${text(details.audience)} получателей. Рассылка ещё не отправлена`;
   if (action === 'prediction_results.sent') return `${text(details.season)} · этап ${text(details.round)} · Telegram: ${text(details.telegram)}, веб: ${text(details.web)}`;
+  if (action.startsWith('prediction_recovery.manual_')) return `${text(details.season)} · этап ${text(details.round)}`;
   if (action === 'recap_news.source') return `Источник #${text(details.source_id)}: ${details.enabled ? 'включён' : 'выключен'}`;
   if (action === 'recap_news.visibility') return `Новость #${text(details.article_id)}: ${details.hidden ? 'скрыта' : 'показана в обзоре гонки'}`;
   return 'Подробности доступны в технических сведениях.';

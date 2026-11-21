@@ -1,5 +1,5 @@
 import { SelectField } from '../../components/CustomSelect';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { apiRequest } from '../../helpers/api';
 import { PredictionRecovery } from './PredictionRecovery';
 import './admin-control.css';
@@ -9,12 +9,27 @@ const facts:Record<string,string>={fastest_lap_driver:'лучший круг',fi
 type Operations={worker_healthy:boolean;disk_free_bytes:number;forecasts:{pending:number;oldest:number|null};backups:{last_verified:number|null;pending_replication:number;last_replicated:number|null};jobs:{name:string;last_success:number|null;error:string|null;overdue:boolean}[]};
 type Summary={operations:Operations;as_of:number;counts:Record<string,number>;oldest_pending:number|null;recoveries:Record<string,number>;push_configured:boolean;incomplete:{season:number;round:number;event_name:string;missing:string[]}[]};
 type Delivery={event_key:string;recipient:number;channel:string;status:string;attempts:number;next_attempt:number;updated:number;message_id:number|null;error:string|null;expires:number};
-const date=(value:number)=>new Date(value*1000).toLocaleString();
+const date = (value: number) => new Date(value * 1000).toLocaleString('ru-RU');
+type RecoveryTarget = { season: number; round: number };
+const nextSteps: Record<string, string> = {
+  failed: 'Проверьте соединение с сервисом и журнал отправки.',
+  retry: 'Дождитесь следующей попытки.',
+  blocked: 'Проверьте доступ к боту или подписку на push.',
+  unknown: 'Сверьте отправку с сервисом перед повтором.',
+};
+const metrics = [
+  ['failed', 'Ошибки', 'За 7 дней'],
+  ['unknown', 'Не подтверждено', 'За 7 дней'],
+  ['blocked', 'Получатель недоступен', 'За 7 дней'],
+  ['retry', 'Ждут повтора', 'Вся очередь'],
+  ['pending', 'В очереди', 'Вся очередь'],
+] as const;
 
-export function AdminControl({mode, onNavigate, onBusy}:{mode:'delivery'|'recovery';onNavigate:(section:string)=>void;onBusy:(busy:boolean)=>void}){
+export function AdminControl({ mode, target, locked, onNavigate, onBusy }: { mode: 'delivery' | 'recovery'; target?: RecoveryTarget; locked: boolean; onNavigate: (section: string, target?: RecoveryTarget) => void; onBusy: (busy: boolean) => void }){
+  const deliveryHeading = useRef<HTMLHeadingElement>(null);
   const [summary,setSummary]=useState<Summary|null>(null);
   const [rows,setRows]=useState<{items:Delivery[];has_more:boolean}|null>(null);
-  const [channel,setChannel]=useState('all');const [status,setStatus]=useState('failed');
+  const [channel,setChannel]=useState('all');const [status,setStatus]=useState('attention');
   const [offset,setOffset]=useState(0);const [refresh,setRefresh]=useState(0);
   const [error,setError]=useState('');
   const [loaded,setLoaded]=useState('');
@@ -32,30 +47,58 @@ export function AdminControl({mode, onNavigate, onBusy}:{mode:'delivery'|'recove
     (result[groupKey] ||= []).push(row);
     return result;
   }, {}));
-  return <section className="admin-control admin-tools"><header><div>{mode==='recovery'?<span>Полнота результатов</span>:<h3>Состояние доставки</h3>}</div><button disabled={busy} onClick={()=>setRefresh(v=>v+1)}>{busy?'Обновляем…':'Обновить сводку'}</button></header>
+  return <section className="admin-control admin-tools"><header><div>{mode==='recovery'?<span>Полнота результатов</span>:<small>{summary ? `Обновлено: ${date(summary.as_of)}` : 'Состояние доставки'}</small>}</div><button disabled={busy} onClick={()=>setRefresh(v=>v+1)}>{busy?'Обновляем…':'Обновить сводку'}</button></header>
     {error&&<p role="alert">{error}</p>}{busy&&<p role="status">Обновляю данные…</p>}
-    {summary&&mode==='delivery'&&<><small>Обновлено: {date(summary.as_of)}</small>
-      <div className="control-metrics">{[['failed','Нужна диагностика'],['retry','Временные сбои'],['blocked','Получатель недоступен'],['unknown','Проверить доставку'],['pending','В очереди']].map(([s,title])=><button key={s} aria-pressed={status===s} onClick={()=>{setStatus(s);setOffset(0);}}><strong>{summary.counts[s]||0}</strong><span>{title}</span></button>)}</div>
-      <article className={`control-job ${summary.operations.worker_healthy?'':'control-failed'}`}>
-        <h3>Фоновые задачи: {summary.operations.worker_healthy?'работают':'нет свежего сигнала'}</h3>
-        <p>Расчётов в очереди: {summary.operations.forecasts.pending}. Свободно на диске: {(summary.operations.disk_free_bytes/1024**3).toFixed(1)} ГБ.</p>
-        <p>Проверенная резервная копия: {summary.operations.backups.last_verified?date(summary.operations.backups.last_verified):'ещё не создана'}. Ожидают переноса на ПК: {summary.operations.backups.pending_replication}.</p>
-        <p>Последний перенос на ПК: {summary.operations.backups.last_replicated?date(summary.operations.backups.last_replicated):'ещё не подтверждён'}. Выключенный ПК не мешает созданию копий на сервере.</p>
-        <details><summary>Выполнение задач</summary>{summary.operations.jobs.map(job=><p key={job.name}><code>{job.name}</code> {job.last_success?date(job.last_success):'ожидает первого запуска'}{job.error?' · ошибка выполнения':''}{job.overdue?' · давно нет успешного выполнения':''}</p>)}</details>
-      </article>
-      <p className="ui-data-context">Сводка: все каналы; завершённые доставки за последние 7 дней, очередь — за всё время. Фильтры ниже меняют только журнал.</p>
-      <p>Push: {summary.push_configured?'ключи настроены':'не настроен — проверьте VAPID'}. {summary.oldest_pending?`Самое старое ожидающее задание: ${date(summary.oldest_pending)}.`:'Ожидающих заданий нет.'}</p>
-      {summary.incomplete.length>0&&<button onClick={()=>onNavigate('recovery')}>Неполных этапов: {summary.incomplete.length} · проверить →</button>}
-      <details><summary>Что означают статусы</summary><p className="ui-data-context">Ошибка: проверьте причину в технических сведениях. Получатель недоступен: повтор не поможет, пока он не восстановит доступ к боту. Неподтверждённую доставку нельзя повторять без проверки Telegram.</p><p>Завершённые статусы в сводке — за 7 дней; ожидающие — за всё время. Это не проверка работы процесса бота. «Принято» не означает «прочитано». Неопределённые доставки нельзя повторять вслепую. Здесь нет автоматических отправок или сброса статусов.</p></details>
-    </>}
-    {mode==='recovery'?<>{!busy&&!error&&summary&&<details><summary>Неполные этапы: {summary.incomplete.length}</summary>{summary.incomplete.length?summary.incomplete.map(r=><p key={`${r.season}:${r.round}`}>{r.season} · этап {r.round} · {r.event_name}: нет данных — {r.missing.map(k=>facts[k]).join(', ')}.</p>):<p>Неполных этапов в загруженном списке нет.</p>}<small>Последние 30 неполных этапов. После применения пересчёта обновите сводку.</small></details>}<PredictionRecovery onBusy={onBusy}/></>:<>
+    {mode === 'recovery' ? <>
+      {!busy && !error && summary && <details open={summary.incomplete.length > 0}>
+        <summary>Неполные этапы: {summary.incomplete.length}</summary>
+        {summary.incomplete.length ? <ul className="admin-task-list">{summary.incomplete.map(r => <li key={`${r.season}:${r.round}`}>
+          <div><strong>{r.event_name} · {r.season}, этап {r.round}</strong><p>Нет данных: {r.missing.map(k => facts[k] || k).join(', ')}.</p></div>
+          <button type="button" disabled={locked || (target?.season === r.season && target.round === r.round)}
+            onClick={() => onNavigate('recovery', r)}>{target?.season === r.season && target.round === r.round ? 'Этап открыт' : 'Открыть проверку'}</button>
+        </li>)}</ul> : <p>Неполных этапов в загруженном списке нет.</p>}
+      </details>}
+      <PredictionRecovery key={target ? `${target.season}:${target.round}` : 'current'} initialSeason={target?.season} initialRound={target?.round} onBusy={onBusy} />
+    </> : <>
+      <h3 ref={deliveryHeading} className="control-queue-heading" tabIndex={-1}>{status === 'attention' ? 'Требует внимания' : 'Журнал доставки'}</h3>
       <div className="control-filters"><label>Канал<SelectField value={channel} onChange={e=>{setChannel(e);setOffset(0);}}><option value="all">Все каналы</option><option value="telegram">Telegram</option><option value="webpush">Web Push</option></SelectField></label><label>Статус<SelectField value={status} onChange={e=>{setStatus(e);setOffset(0);}}><option value="attention">Требуют внимания</option><option value="all">Все</option>{Object.entries(labels).map(([v,label])=><option key={v} value={v}>{label}</option>)}</SelectField></label></div>
-      <small>Журнал за всё время · до 50 записей на странице</small>
+      <small>Журнал за всё время · фильтры действуют на этот список</small>
       {!busy&&!error&&rows?.items.length===0&&<p>По выбранным фильтрам заданий нет.</p>}
-      {!busy&&!error&&groups.map(group => <details className="control-job-group" key={`${group[0].channel}:${group[0].event_key}:${group[0].status}`} open={group.length === 1}><summary>{labels[group[0].status]} · {group[0].channel === 'webpush' ? 'Web Push' : 'Telegram'} · {group[0].event_key} · получателей на странице: {group.length}</summary>{group.map(row=><article className={`control-job control-${row.status}`} key={`${row.channel}:${row.event_key}:${row.recipient}`}><header><strong>{labels[row.status]||row.status}</strong><span>{row.channel==='webpush'?'Web Push':'Telegram'} · {date(row.updated)}</span></header><code>{row.event_key}</code><p>{row.channel==='webpush'?'ID подписки':'ID чата'}: {row.recipient} · попыток: {row.attempts}</p>
-        {row.status==='unknown'&&<p>Сервис мог принять сообщение. Требуется ручная проверка; автоматического повтора нет.</p>}{row.status==='blocked'&&<p>Бот заблокирован либо push-подписка больше не действует.</p>}
-        <details><summary>Технические сведения</summary><p>Код: {row.error||'—'} · ID сообщения: {row.message_id??'—'}</p><p>Срок: {date(row.expires)}{row.next_attempt>0?` · следующая попытка: ${date(row.next_attempt)}`:''}</p></details></article>)}</details>)}
+      {!busy && !error && groups.map(group => {
+        const first = group[0];
+        const id = `${first.channel}:${first.event_key}:${first.status}`;
+        const channelName = first.channel === 'webpush' ? 'Web Push' : 'Telegram';
+        const cards = group.map(row => <article className={`control-job control-${row.status}`} key={row.recipient}>
+          <header><strong>{labels[row.status] || row.status} · {channelName}</strong><span>Статус от {date(row.updated)}</span></header>
+          {nextSteps[row.status] && <p>{row.error && <>Код сбоя: <code className="control-error-code">{row.error}</code>. </>}{nextSteps[row.status]} {row.status === 'retry' && row.next_attempt > 0 && <>Следующая попытка: {date(row.next_attempt)}.</>}</p>}
+          <details><summary>Технические сведения</summary>
+            <code>{row.event_key}</code>
+            <p>{row.channel === 'webpush' ? 'ID подписки' : 'ID чата'}: {row.recipient} · попыток: {row.attempts} · ID сообщения: {row.message_id ?? '—'}</p>
+            <p>Срок: {date(row.expires)}</p>
+          </details>
+        </article>);
+        return group.length === 1
+          ? <div key={id}>{cards}</div>
+          : <details className="control-job-group" key={id}><summary>{labels[first.status]} · {channelName} · {group.length} получателей на странице</summary><code>{first.event_key}</code>{cards}</details>;
+      })}
       <footer><button disabled={busy||offset===0} onClick={()=>setOffset(v=>Math.max(0,v-50))}>Назад</button><span>Страница {offset/50+1}</span><button disabled={busy||!!error||!rows?.has_more} onClick={()=>setOffset(v=>v+50)}>Далее</button></footer>
+      {summary && <details className="control-job">
+        <summary>Сводка по всем каналам</summary>
+        <div className="control-metrics">{metrics.map(([value, label, period]) => <button type="button" key={value} aria-pressed={status === value} onClick={() => {
+          setStatus(value);
+          setOffset(0);
+          deliveryHeading.current?.focus();
+        }}><strong>{summary.counts[value] || 0}</strong><span>{label}</span><small>{period}</small></button>)}</div>
+      </details>}
+      {summary && <details className="control-job" open={!summary.operations.worker_healthy || summary.operations.jobs.some(job => job.error || job.overdue) || !summary.operations.backups.last_verified}>
+        <summary>Состояние сервера и резервных копий</summary>
+        <p>Фоновые задачи: {summary.operations.worker_healthy ? 'работают' : 'нет свежего сигнала'}. Расчётов в очереди: {summary.operations.forecasts.pending}.</p>
+        <p>Свободно на диске: {(summary.operations.disk_free_bytes / 1024 ** 3).toFixed(1)} ГБ. Резервная копия проверена: {summary.operations.backups.last_verified ? date(summary.operations.backups.last_verified) : 'ещё не проверялась'}.</p>
+        <p>Ожидают переноса на ПК: {summary.operations.backups.pending_replication}. Последний перенос: {summary.operations.backups.last_replicated ? date(summary.operations.backups.last_replicated) : 'ещё не подтверждён'}.</p>
+        <p>Push: {summary.push_configured ? 'ключи настроены' : 'ключи не настроены'}. {summary.oldest_pending ? `Самое старое задание: ${date(summary.oldest_pending)}.` : 'Ожидающих заданий нет.'}</p>
+        <details><summary>Выполнение задач</summary>{summary.operations.jobs.map(job => <p key={job.name}><code>{job.name}</code> {job.last_success ? date(job.last_success) : 'ожидает первого запуска'}{job.error ? ' · ошибка выполнения' : ''}{job.overdue ? ' · просрочено' : ''}</p>)}</details>
+      </details>}
+      {summary && summary.incomplete.length > 0 && <div><button type="button" onClick={() => onNavigate('recovery')}>Проверить неполные этапы ({summary.incomplete.length})</button></div>}
     </>}
   </section>;
 }
